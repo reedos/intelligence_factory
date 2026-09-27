@@ -703,7 +703,7 @@ function loop(ts) {
 }
 
 addEventListener('keydown', e => {
-  if (e.target.matches('input, textarea, select')) return;
+  if (e.target.matches('input, textarea, select') || e.target.closest?.('.pace-menu')) return;
   if (e.key >= '1' && e.key <= '6') go(+e.key - 1);
   else if ('pdhPDH'.includes(e.key) && e.key.length === 1) setMode({ p: 'power', d: 'data', h: 'heat' }[e.key.toLowerCase()]);
   else if (e.key === 'ArrowRight') { cycle(1); e.preventDefault(); }

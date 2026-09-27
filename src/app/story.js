@@ -49,8 +49,42 @@ function setPace(p) {
   paceLabel();
 }
 function paceLabel() {
-  const c = $('tour-pace'); if (c) { c.textContent = `${pace}×`; c.setAttribute('aria-label', `Playback speed ${pace}×, tap for ${PACES[(PACES.indexOf(pace) + 1) % PACES.length]}×`); }
+  const c = $('tour-pace'); if (c) { c.innerHTML = `${pace}×<i aria-hidden="true"></i>`; c.setAttribute('aria-label', `Playback speed, ${pace}×`); }
 }
+// ---------- the speed menu ----------
+const PACE_NOTE = { 1: 'reading pace', 2: '', 4: '', 8: 'skim' };
+let paceMenu = null;
+function closePaceMenu(focus = false) {
+  if (!paceMenu) return;
+  paceMenu.remove(); paceMenu = null;
+  const b = $('tour-pace'); b?.setAttribute('aria-expanded', 'false'); if (focus) b?.focus();
+}
+function togglePaceMenu(btn) {
+  if (paceMenu) { closePaceMenu(); return; }
+  paceMenu = document.createElement('div');
+  paceMenu.className = 'pace-menu'; paceMenu.setAttribute('role', 'listbox'); paceMenu.setAttribute('aria-label', 'Playback speed');
+  paceMenu.innerHTML = PACES.map(p => `<button type="button" role="option" data-p="${p}" aria-selected="${p === pace}"><b>${p}×</b>${PACE_NOTE[p] ? `<span>${PACE_NOTE[p]}</span>` : ''}</button>`).join('');
+  document.body.appendChild(paceMenu);
+  const r = btn.getBoundingClientRect(), h = paceMenu.offsetHeight, w = paceMenu.offsetWidth;
+  const below = r.bottom + 6 + h <= innerHeight;
+  paceMenu.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, r.left))}px`;
+  paceMenu.style.top = `${below ? r.bottom + 6 : r.top - 6 - h}px`;
+  btn.setAttribute('aria-expanded', 'true');
+  const opts = [...paceMenu.querySelectorAll('[role="option"]')];
+  opts.forEach(o => o.addEventListener('click', () => { setPace(+o.dataset.p); closePaceMenu(true); }));
+  paceMenu.addEventListener('keydown', e => {
+    const i = opts.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') { opts[(i + 1) % opts.length].focus(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { opts[(i - 1 + opts.length) % opts.length].focus(); e.preventDefault(); }
+    else if (e.key === 'Escape' || e.key === 'Tab') { closePaceMenu(e.key === 'Escape'); e.preventDefault(); }
+    e.stopPropagation();                                    // the tour's own keys (Space, arrows) stay out of the menu
+  });
+  (opts.find(o => o.getAttribute('aria-selected') === 'true') || opts[0]).focus();
+}
+document.addEventListener('pointerdown', e => { if (paceMenu && !e.target.closest('.pace-menu, #tour-pace')) closePaceMenu(); }, true);
+addEventListener('resize', () => closePaceMenu());
+addEventListener('scroll', () => closePaceMenu(), { passive: true });   // the page, not the tour column scrolling itself
+
 // playing on carries through the tours, or through the layers, in CHAIN order; never from one group to the other
 const nextTour = id => { const g = CHAIN[TOURS[id].group] || [], k = g.indexOf(id); return k < 0 ? null : g[k + 1] ?? null; };
 const prevTour = id => { const g = CHAIN[TOURS[id].group] || [], k = g.indexOf(id); return k > 0 ? g[k - 1] : null; };
@@ -76,6 +110,7 @@ const partOf = l => {
   return (P[C.SCENES[l.scene].id] || []).find(p => p.id === l.part) || null;
 };
 function goButton(b) {
+  if (tour !== 'here') return '';                          // the narrated tours already go in; a way out mid-story is noise
   const p = partOf(b.link); if (!p || p.drill === undefined) return '';
   const inward = p.drill > b.link.scene, to = store.C.SCENES[p.drill];
   return `<button type="button" class="btn go beat-go" data-drill="${p.drill}" data-from="${p.id}" data-scene="${b.link.scene}">${inward ? 'Go inside' : 'Back out'}: ${to.title} ${inward ? '→' : '↑'}</button>`;
@@ -96,7 +131,7 @@ function render() {
     + `<button type="button" class="btn play" id="tour-play" aria-pressed="${playing}" aria-label="${playing ? 'Pause' : 'Play'}">${playing ? '❚❚' : '▶'}</button>`
     + `<button type="button" class="btn icon" id="tour-prev" aria-label="Previous step">‹</button>`
     + `<button type="button" class="btn icon" id="tour-next" aria-label="Next step">›</button>`
-    + `<button type="button" class="btn pace" id="tour-pace"></button>`
+    + `<button type="button" class="btn pace" id="tour-pace" aria-haspopup="listbox" aria-expanded="false"></button>`
     + `<span class="tour-t" id="tour-t" aria-live="polite"></span>`
     + `<button type="button" class="btn icon" id="story-exit" aria-label="Leave the tour">×</button></div>`
     + `<div class="tour-pick">${tabs('Tours')}${tabs('Every part')}</div>`
@@ -110,7 +145,7 @@ function render() {
   $('tour-play').addEventListener('click', () => setPlaying(!playing));
   $('tour-prev').addEventListener('click', () => step(-1));
   $('tour-next').addEventListener('click', () => step(1));
-  $('tour-pace').addEventListener('click', () => setPace(PACES[(PACES.indexOf(pace) + 1) % PACES.length]));
+  $('tour-pace').addEventListener('click', e => togglePaceMenu(e.currentTarget));
   paceLabel();
   box.querySelectorAll('[data-tour]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.tour === tour) return;
@@ -267,7 +302,7 @@ onTick(dt => {
   }
 });
 // the reader looking around holds the tour; it carries on HOLD_MS after the last touch, drag or wheel
-const lookAround = e => { if (!e.target.closest?.('.story-head, .beat-acts, #story-hero-play, #clock')) hold(); };
+const lookAround = e => { if (!e.target.closest?.('.story-head, .beat-acts, .pace-menu, #story-hero-play, #clock')) hold(); };
 for (const el of [panel, $('view')]) for (const ev of ['wheel', 'touchstart', 'touchmove', 'pointerdown', 'pointermove']) el?.addEventListener(ev, e => { if (ev !== 'pointermove' || e.buttons) lookAround(e); }, { passive: true });
 addEventListener('wheel', e => { if (narrow.matches) lookAround(e); }, { passive: true });
 addEventListener('touchmove', e => { if (narrow.matches) lookAround(e); }, { passive: true });
@@ -277,7 +312,7 @@ document.addEventListener('click', e => {
   if (inStory() && e.target.closest?.('.step, .pin, [data-mode], [data-go]') && !e.target.closest('#story')) exit({ remember: true });   // #story: body.story matches '.story'
 }, true);
 addEventListener('keydown', e => {
-  if (e.target.matches?.('input, textarea, select')) return;
+  if (e.target.matches?.('input, textarea, select') || e.target.closest?.('.pace-menu')) return;   // a menu keeps its own keys
   if (e.key === 's' || e.key === 'S') { inStory() ? exit() : enter(); return; }
   if (!inStory()) return;
   if (e.key.length === 1 && '123456pdhPDH'.includes(e.key)) { exit({ remember: true }); return; }   // the stage takes the key from here

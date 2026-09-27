@@ -664,3 +664,15 @@ body.scrolled .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--
   .ml-row .chip { grid-column: 1; justify-self: start; margin-top: 8px; }
   .ml-facts { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- the speed menu ---------- */
+.transport .btn.pace { gap: 6px; }
+.transport .btn.pace i { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; opacity: .7; }
+.transport .btn.pace[aria-expanded="true"] { background: var(--ink); color: #000; border-color: var(--ink); }
+.pace-menu { position: fixed; z-index: 80; display: grid; min-width: 168px; padding: 4px; background: var(--surface); border: 1px solid var(--line-2); box-shadow: 0 18px 44px rgba(0,0,0,.6); }
+.pace-menu button { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: baseline; gap: 10px; min-height: 40px; padding: 0 12px; color: var(--muted); }
+.pace-menu button b { font: 600 13px/1 var(--mono); color: var(--ink); min-width: 28px; font-variant-numeric: tabular-nums; }
+.pace-menu button span { font: 400 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+.pace-menu button:hover, .pace-menu button:focus-visible { background: rgba(240,240,250,.06); outline: none; }
+.pace-menu button[aria-selected="true"] { box-shadow: inset 2px 0 0 var(--accent); }
+.pace-menu button[aria-selected="true"]::after { content: '✓'; margin-left: auto; color: var(--accent); font-size: 13px; }
