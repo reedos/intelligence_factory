@@ -441,3 +441,12 @@ body.clocking .hud-btns #clock-btn, .story-btn[aria-pressed="true"] { background
 /* ---------- share ---------- */
 .toast { position: absolute; z-index: 6; left: 50%; top: 22px; transform: translateX(-50%); max-width: min(560px, calc(100% - 32px)); padding: 12px 16px; background: var(--surface); border: 1px solid var(--accent); font-size: 13px; color: var(--ink); box-shadow: 0 12px 40px rgba(0,0,0,.6); }
 .toast.select { user-select: all; font-family: var(--mono); font-size: 12px; word-break: break-all; }
+
+/* ---------- play / pause ---------- */
+.story-head .btn.play { min-height: 34px; padding: 0 16px; margin-left: auto; }
+.story-head .btn.play[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #000; }
+.story-head .btn.play::before { content: '▶'; font-size: 9px; margin-right: 2px; }
+.story-head .btn.play[aria-pressed="true"]::before { content: '❚❚'; letter-spacing: -1px; }
+.beat-bar { display: block; height: 2px; background: var(--line); overflow: hidden; visibility: hidden; }
+.beat-bar i { display: block; height: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left; }
+body.playing .beat.on .beat-bar { visibility: visible; }

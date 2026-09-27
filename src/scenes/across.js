@@ -71,8 +71,10 @@ function labelSprite(text, color = '#ffe7a3', size = 26) {
   g.strokeStyle = color; g.globalAlpha = 0.7; g.lineWidth = 2.5; g.stroke(); g.globalAlpha = 1;
   g.fillStyle = color; g.textBaseline = 'middle'; g.fillText(text, 18, 37);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
-  s.scale.set(w / 72 * size, size, 1); s.renderOrder = 10; return s;
+  // a fixed size on screen: sized in km, labels would fill the view whenever the camera flies in close
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true, sizeAttenuation: false }));
+  const k = size / 26 * 0.016;
+  s.scale.set(w / 72 * k, k, 1); s.renderOrder = 10; return s;
 }
 // a wandering route between two points, like fiber laid along roads and rail
 function route(a, b, wiggle, seed) {
