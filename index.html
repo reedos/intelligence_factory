@@ -19,6 +19,26 @@
     <p class="lede">Zoom from a 2,000 km grid into one 100 MW AI campus and keep going: off the transmission line, through the substation, the halls, a rack and a tray, into a GPU die at under a volt, and out as tokens. Then switch to the data layer and follow the links back out: NVLink inside the rack, optics across the hall, fiber between campuses. Every number carries a label saying where it comes from.</p>
   </header>
 
+  <section class="scenario" aria-labelledby="sc-h">
+    <div class="sc-head">
+      <p class="eyebrow">Scenario</p>
+      <h2 id="sc-h">Build your campus</h2>
+    </div>
+    <div class="sc-controls">
+      <div class="sc-group sc-size">
+        <div class="ctl-head"><label for="sc-mw">Campus size, at the meter</label><output id="sc-mw-v" for="sc-mw">100 MW</output></div>
+        <input type="range" id="sc-mw" min="0" max="1000" step="1" value="500">
+        <div class="presets"><button type="button" data-mw="10">10 MW</button><button type="button" data-mw="100">100 MW</button><button type="button" data-mw="1000">1 GW</button><button type="button" data-mw="5000">5 GW</button></div>
+      </div>
+      <div class="sc-group"><span class="lab">Accelerator</span><div class="sc-seg" id="sc-accel" role="group" aria-label="Accelerator"></div></div>
+      <div class="sc-group"><span class="lab">Power to the rack</span><div class="sc-seg" id="sc-power" role="group" aria-label="Power to the rack"></div></div>
+      <div class="sc-group"><span class="lab">Cooling</span><div class="sc-seg" id="sc-cooling" role="group" aria-label="Cooling"></div></div>
+    </div>
+    <p class="note" id="sc-note"></p>
+    <div class="kpis" id="kpis"></div>
+    <div class="sc-compare"><button type="button" class="btn" id="sc-pin" aria-pressed="false">Pin to compare</button><span id="sc-pinned"></span></div>
+  </section>
+
   <section class="stage" aria-label="Power chain in 3D">
     <nav class="steps" id="steps" aria-label="Scale"></nav>
     <div class="body">
@@ -61,7 +81,7 @@
     <div class="sec-head">
       <p class="eyebrow">Power</p>
       <h2 id="ledger-h">Where 100 MW goes</h2>
-      <p>Start with 100 MW at the campus meter. Each row takes off what one stage turns into heat, spends on cooling, or hands to silicon other than the GPU. The highlighted rows belong to the scale you are looking at. The grid already lost about 5% before the meter.</p>
+      <p id="ledger-lede">Start with 100 MW at the campus meter. Each row takes off what one stage turns into heat, spends on cooling, or hands to silicon other than the GPU. The highlighted rows belong to the scale you are looking at. The grid already lost about 5% before the meter.</p>
     </div>
     <div class="lg" id="ledger"></div>
     <div class="lg-key">
@@ -124,7 +144,7 @@
     <div class="sec-head">
       <p class="eyebrow">Cost</p>
       <h2 id="tokens-h">What a kilowatt-hour buys</h2>
-      <p>Energy per token depends on more than the chip. Idle capacity, the building, the grid's carbon, the water on site and the training run behind the model all land on the bill. Set them and the page does the arithmetic for this campus.</p>
+      <p>Energy per token depends on more than the chip. Idle capacity, the building, the grid's carbon, the water on site and the training run behind the model all land on the bill. The campus comes from your scenario; set the rest here.</p>
     </div>
     <div class="calc">
       <div class="calc-in">
@@ -137,19 +157,13 @@
             <button type="button" data-tps="13000">GB200 decode benchmark</button>
           </div>
         </div>
+        <p class="calc-from" id="calc-from"></p>
         <div class="row2">
           <div class="ctl">
             <div class="ctl-head"><label for="util">Utilization</label><output id="util-v" for="util">60%</output></div>
             <input type="range" id="util" min="10" max="100" step="1" value="60">
             <p class="note">Share of GPU time spent producing tokens. Fleets keep idle capacity for peaks and failover; nobody publishes a fleet figure, so this is a scenario.</p>
           </div>
-          <div class="ctl">
-            <div class="ctl-head"><label for="pue">PUE</label><output id="pue-v" for="pue">1.20</output></div>
-            <input type="range" id="pue" min="105" max="160" step="1" value="120">
-            <p class="note">Google's fleet runs at 1.09. Surveys put the industry average near 1.5.</p>
-          </div>
-        </div>
-        <div class="row2">
           <div class="ctl">
             <div class="ctl-head"><label for="carbon">Grid carbon, per kWh</label><output id="carbon-v" for="carbon">370 g</output></div>
             <input type="range" id="carbon" min="0" max="900" step="10" value="370">
@@ -159,12 +173,8 @@
               <button type="button" data-g="800">Coal heavy (est.)</button>
             </div>
           </div>
-          <div class="ctl">
-            <div class="ctl-head"><label for="wue">Water on site, per kWh</label><output id="wue-v" for="wue">0.20 L</output></div>
-            <input type="range" id="wue" min="0" max="200" step="1" value="20">
-            <p class="note">Dry coolers use almost none; evaporative towers use more. Excludes water at the power plant, ≈1.8 L/kWh for typical thermal generation (NREL).</p>
-          </div>
         </div>
+        <p class="note">On-site water comes from the cooling choice above. It excludes water at the power plant, ≈1.8 L/kWh for typical thermal generation (NREL).</p>
         <div class="train-ctl">
           <label class="check"><input type="checkbox" id="with-train" checked> Include a share of training</label>
           <div class="row2">

@@ -95,13 +95,13 @@ const EFF = {
 };
 
 // ---------- cooling ----------
-export interface Cooling { id: CoolingId; name: string; short: string; coolFrac: number; wue: number; basis: Basis }
+export interface Cooling { id: CoolingId; name: string; short: string; sub: string; coolFrac: number; wue: number; basis: Basis }
 export const COOLING: Record<CoolingId, Cooling> = {
   // coolFrac is cooling power per unit of IT load, set so each design lands in its published PUE band
   // (air ≈1.5, liquid with chillers 1.10–1.20, warm water 1.05–1.15) once the power chain's own losses are added
-  air: { id: 'air', name: 'Air-cooled halls with chillers', short: 'Air + chillers', coolFrac: 0.42, wue: 1.0, basis: 'typical' },
-  liquid: { id: 'liquid', name: 'Liquid to the chip, chilled water', short: 'Liquid + chillers', coolFrac: 0.13, wue: 0.5, basis: 'typical' },
-  warm: { id: 'warm', name: 'Warm-water liquid, dry coolers', short: 'Warm water', coolFrac: 0.08, wue: 0.16, basis: 'typical' },
+  air: { id: 'air', name: 'Air-cooled halls with chillers', short: 'Air', sub: 'chillers', coolFrac: 0.42, wue: 1.0, basis: 'typical' },
+  liquid: { id: 'liquid', name: 'Liquid to the chip, chilled water', short: 'Liquid', sub: 'chilled water', coolFrac: 0.13, wue: 0.5, basis: 'typical' },
+  warm: { id: 'warm', name: 'Warm-water liquid, dry coolers', short: 'Warm water', sub: 'dry coolers', coolFrac: 0.08, wue: 0.16, basis: 'typical' },
 };
 const MISC_FRAC = 0.017;   // lighting, controls, offices, as a share of IT
 
@@ -199,7 +199,7 @@ export function compute(s: Scenario) {
       { label: 'UPS, double conversion', mw: itIn * EFF.unitSub * (1 - EFF.ups), kind: 'loss', scene: 2, basis: 'typical' } as LedgerRow,
       { label: 'Busway & whips', mw: itIn * EFF.unitSub * EFF.ups * (1 - EFF.busway), kind: 'loss', scene: 2, basis: 'est' } as LedgerRow,
     ]),
-    { label: `Cooling: ${cooling.short.toLowerCase()}`, mw: coolMW, kind: 'overhead', scene: 2, basis: cooling.basis },
+    { label: `Cooling: ${cooling.short.toLowerCase()}, ${cooling.sub}`, mw: coolMW, kind: 'overhead', scene: 2, basis: cooling.basis },
     { label: 'Lighting, controls, offices', mw: miscMW, kind: 'overhead', scene: 2, basis: 'est' },
     { label: `Scale-out switches, ${fab.tiers} tiers`, mw: switchMW, kind: 'net', scene: 2, basis: 'est' },
     { label: 'Optical transceivers', mw: opticsMW, kind: 'net', scene: 2, basis: 'est' },
