@@ -1,5 +1,7 @@
 // Scene 1: grid & campus. Units are meters. x runs east, z runs south, y up.
 import { THREE, MAT, Builder, mtx, flow, insulator, latticeTower, catenary, wires, canvasTex, sky, person, glowMat, spinners } from '../kit.js';
+import { rbox, lamps, plumes, movers } from '../fx.js';
+import { terrainTexture, clouds, treeMatrices, carBuild, truckBuild, walkerBuild } from './campus-detail.js';
 
 export function build({ quality, model }) {
   const L = model.layout, warm = model.cooling.id === 'warm';
@@ -8,28 +10,43 @@ export function build({ quality, model }) {
   const perCol = Math.min(12, Math.max(2, Math.ceil(Math.sqrt(extra / 1.2)))), cols = Math.ceil(extra / perCol);
   const reach = extra ? 620 + cols * 320 : 0;
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x1b2436, Math.max(1400, reach * 0.9), Math.max(5200, reach * 2.2));
+  // golden-hour haze: warm and thin close in, so it reads as atmosphere rather than murk
+  scene.fog = new THREE.Fog(0x372c26, Math.max(1900, reach * 0.9), Math.max(6200, reach * 2.4));
   scene.add(sky('#070d19', '#1a2742', '#b9794f'));
 
-  // light: low sun from the west-southwest, dusk
-  scene.add(new THREE.HemisphereLight(0x7f97c4, 0x141712, 0.75));
-  const sun = new THREE.DirectionalLight(0xffc9a0, 1.35);
-  sun.position.set(-900, 520, 420); sun.target.position.set(-60, 0, -60);
+  // light: a real golden hour — a low, warm sun with long shadows, cool sky fill for the shadow side.
+  // sky and sun are both nudged toward neutral (less violet hemisphere, less saturated sun) so flat
+  // gravel/concrete reads as lit dusk rather than picking up a magenta cast from the two mixing.
+  scene.add(new THREE.HemisphereLight(0x93b8cf, 0x54452f, 0.9));
+  scene.add(new THREE.AmbientLight(0x9a8b74, 1.1));   // orientation-independent floor so dark-material equipment (fans, stacks, silencers) isn't pure black even facing away from every directional light
+  const sun = new THREE.DirectionalLight(0xffc48f, 2.35);
+  sun.position.set(-1250, 430, 500); sun.target.position.set(-60, 0, -60);
   if (quality.shadows) {
     sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096);
-    Object.assign(sun.shadow.camera, { left: -760, right: 760, top: 520, bottom: -520, near: 100, far: 2400 });
+    Object.assign(sun.shadow.camera, { left: -760, right: 760, top: 520, bottom: -520, near: 100, far: 3000 });
     sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.6;
   }
   scene.add(sun, sun.target);
-  const fill = new THREE.DirectionalLight(0x7f9cff, 0.35); fill.position.set(600, 300, 800); scene.add(fill);
+  // fill from the sun's opposite quarter (east/south), stronger than a token bounce so the shadow
+  // side of anything actually has form; a second, cooler rim from due east specifically lifts the
+  // generator and battery yards, whose own equipment faces away from the low sun on that side
+  const fill = new THREE.DirectionalLight(0x9db4e6, 0.85); fill.position.set(600, 300, 800); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0x9fc4e6, 0.85); rim.position.set(950, 210, -40); rim.target.position.set(-60, 0, -60); scene.add(rim, rim.target);
 
   const flows = [], dataFlows = [], heatFlows = [];
-  const SITE = new THREE.MeshStandardMaterial({ color: 0x2a2e2b, roughness: 0.95 });
+  const moverGroups = [], plumeUpdates = [];
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const SITE = MAT.gravel;         // graded pad: shared, already-textured material, so it still reads lit at dusk
   const S = new Builder();         // static, shadowed
   const N = new Builder();         // small parts, no shadow casting
+  // a rounded box standing on y0, for equipment that should read as molded rather than milled
+  const rslab = (B, w, h, d, mat, x, y0, z, ry = 0, r = 0.1) => rbox(B, w, h, d, mat, x, y0 + h / 2, z, { r, ry });
 
   // ---------- ground, roads, pads ----------
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), MAT.ground);
+  // surrounding terrain: crop-field patchwork under the campus itself, so the graded pad reads
+  // as carved out of real farmland rather than floating on a flat dark plate
+  const terrainMat = new THREE.MeshStandardMaterial({ map: terrainTexture(), roughness: 0.97 });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), terrainMat);
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
   S.slab(1080, 0.15, 580, SITE, -70, 0, -40);                              // graded site
   const road = (w, d, x, z) => S.slab(w, 0.1, d, MAT.asphalt, x, 0.15, z);
@@ -38,8 +55,12 @@ export function build({ quality, model }) {
   road(14, 250, 262, -60);            // east road by generators
   road(170, 12, -445, -30);           // substation access
   road(12, 120, -360, 80);            // to battery yard
-  // lane stripes
+  // lane stripes and a dashed centerline on the two main roads, plus low curbs along their edges
   for (let x = -380; x < 350; x += 14) N.slab(6, 0.04, 0.25, MAT.paint, x, 0.25, -55);
+  for (let x = -373; x < 345; x += 16) N.slab(3.2, 0.04, 0.35, MAT.paint, x, 0.25, -55);
+  for (const zc of [-55 - 8, -55 + 8]) N.slab(760, 0.15, 0.35, MAT.concrete, -20, 0.15, zc);
+  for (let z = -70; z < 250; z += 16) N.slab(0.35, 0.04, 3.2, MAT.paint, -110, 0.25, z);
+  for (const xc of [-110 - 8, -110 + 8]) N.slab(0.35, 0.15, 330, MAT.concrete, xc, 0.15, 90);
 
   // perimeter fence: posts and top rail
   const fence = (x0, z0, x1, z1) => {
@@ -131,7 +152,7 @@ export function build({ quality, model }) {
   const mptX = -418, mptZ = [-195, -150, -105];
   mptZ.forEach(z => {
     S.slab(14, 0.55, 16, MAT.concreteDark, mptX, 0, z);           // oil containment, curb above the gravel
-    S.slab(6, 6, 9.5, MAT.xfmr, mptX, 0.8, z);                      // main tank
+    rslab(S, 6, 6, 9.5, MAT.xfmr, mptX, 0.8, z, 0, 0.05);           // main tank
     S.slab(6.4, 0.5, 9.9, MAT.xfmr, mptX, 6.8, z);                  // cover
     S.slab(6.8, 0.8, 10.2, MAT.darkSteel, mptX, 0.4, z);            // skid
     for (const side of [-1, 1]) {                                    // radiator banks on the long faces
@@ -152,7 +173,7 @@ export function build({ quality, model }) {
   [-172.5, -127.5].forEach(z => S.slab(16, 11, 0.6, MAT.concrete, mptX, 0, z));  // fire walls
   // 34.5 kV switchgear e-houses
   [[-378, -178], [-378, -122]].forEach(([x, z]) => {
-    S.slab(8, 4.2, 34, MAT.white, x, 0.4, z); S.slab(8.4, 0.4, 34.4, MAT.roof, x, 4.6, z);
+    rslab(S, 8, 4.2, 34, MAT.white, x, 0.4, z, 0, 0.03); S.slab(8.4, 0.4, 34.4, MAT.roof, x, 4.6, z);
     for (let i = 0; i < 4; i++) N.slab(0.9, 0.9, 2.2, MAT.darkSteel, x + 4.3, 3.2, z - 12 + i * 8);
     for (let i = 0; i < 6; i++) N.slab(0.05, 2.1, 1, MAT.darkSteel, x - 4.02, 0.4, z - 14 + i * 5.6);
   });
@@ -246,9 +267,12 @@ export function build({ quality, model }) {
     const office = new THREE.Mesh(new THREE.BoxGeometry(28, 16, 60), officeMat);
     office.position.set(hallX0 - 14, 8.15, cz); office.castShadow = office.receiveShadow = true; scene.add(office);
     S.slab(29, 0.6, 61, MAT.roof, hallX0 - 14, 16.15, cz);
-    // loading dock on the east end
+    // loading dock on the east end, with a stair down from the platform for the personnel door
     for (let i = 0; i < 4; i++) N.slab(0.3, 4.5, 3.6, MAT.darkSteel, hallX1 + 0.2, 0.15, cz - 20 + i * 5);
     S.slab(8, 0.6, 26, MAT.concrete, hallX1 + 4, 0.15, cz - 12);
+    for (let k = 0; k < 3; k++) rslab(N, 1.6, 0.25, 0.55, MAT.concrete, hallX1 + 8.3 + k * 0.55, 0.5 - k * 0.25, cz - 12, 0, 0.2);
+    N.strut([hallX1 + 8, 0.2, cz - 12.9], [hallX1 + 8, 1, cz - 12.9], 0.035, MAT.galv, 6);
+    N.strut([hallX1 + 8, 0.2, cz - 11.1], [hallX1 + 8, 1, cz - 11.1], 0.035, MAT.galv, 6);
   });
   coolerUnit.instance(coolerMx, { cast: true }).children.forEach(m => scene.add(m));
   // the coolers' fans turn: six per unit, just above each fan ring
@@ -281,7 +305,7 @@ export function build({ quality, model }) {
   // ---------- generator yard and fuel ----------
   const genset = new Builder();
   genset.slab(13, 0.4, 3.8, MAT.concrete, 0, 0, 0);
-  genset.slab(12.2, 2.9, 3, MAT.beige, 0, 0.4, 0);
+  rslab(genset, 12.2, 2.9, 3, MAT.beige, 0, 0.4, 0, 0, 0.06);
   for (let x = -5.8; x <= 5.8; x += 0.8) { genset.slab(0.12, 2.8, 0.08, MAT.beige, x, 0.45, 1.53); genset.slab(0.12, 2.8, 0.08, MAT.beige, x, 0.45, -1.53); }
   genset.slab(3.2, 1.3, 2.8, MAT.steel, 4.3, 3.3, 0);                       // radiator housing
   for (const dz of [-0.7, 0.7]) genset.cyl(0.62, 0.1, MAT.fan, 4.3, 4.62, dz, 18);
@@ -306,7 +330,7 @@ export function build({ quality, model }) {
   // ---------- battery storage yard ----------
   const bessBox = new Builder();
   bessBox.slab(6.5, 0.3, 3.2, MAT.concrete, 0, 0, 0);
-  bessBox.slab(6.06, 2.6, 2.44, MAT.white, 0, 0.3, 0);
+  rslab(bessBox, 6.06, 2.6, 2.44, MAT.white, 0, 0.3, 0, 0, 0.05);
   for (let x = -2.8; x <= 2.8; x += 0.7) bessBox.slab(0.1, 2.5, 0.06, MAT.white, x, 0.35, 1.25);
   for (const x of [-3.2, 3.2]) bessBox.slab(0.4, 1.8, 1.8, MAT.darkSteel, x, 0.6, 0);
   const bessMx = [];
@@ -386,30 +410,80 @@ export function build({ quality, model }) {
   if (nHalls > 1) dataFlows.push(flow([[-44, 0.6, -128], [-44, 0.6, 12]], 'eth', { count: 22, speed: 30, size: 0.45, k: 2.2, trailR: 0.18 }));
   if (nHalls > 1) dataFlows.push(flow([[-47, 0.6, 12], [-47, 0.6, -128]], 'eth', { count: 22, speed: 30, size: 0.45, k: 2.2, trailR: 0.18 }));
 
-  // ---------- parking, gatehouse, lights, people, trees ----------
+  // ---------- parking, gatehouse, gate, lights, people, trees ----------
   S.slab(160, 0.12, 60, MAT.asphalt, 0, 0.15, 170);
   for (let x = -76; x <= 76; x += 3.2) for (const z of [150, 160, 180, 190]) N.slab(0.12, 0.06, 4.6, MAT.paint, x, 0.27, z);
-  const car = new Builder();
-  car.slab(4.4, 0.8, 1.8, MAT.steel, 0, 0.25, 0); car.slab(2.4, 0.6, 1.6, MAT.glass, -0.2, 1.05, 0);
-  const carMx = []; let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  N.slab(0.35, 0.1, 82, MAT.concrete, -78, 0, 170); N.slab(0.35, 0.1, 82, MAT.concrete, 78, 0, 170);   // lot curbs
+  const car = new Builder(); carBuild(car);
+  const carMx = [];
   for (let x = -74; x <= 74; x += 3.2) for (const z of [155, 185]) if (rnd() < 0.62) { const m = mtx(x + 1.6, 0.27, z, Math.PI / 2); carMx.push(m); }
   car.instance(carMx).children.forEach(m => scene.add(m));
   S.slab(8, 3.6, 5, MAT.beige, -96, 0.15, 232); S.slab(10, 0.4, 7, MAT.roof, -96, 3.75, 232);
   N.slab(0.3, 1.1, 10, MAT.orange, -110, 0.15, 226);
-  const poleHead = glowMat('#ffd49a', 2.2);
-  for (let x = -350; x <= 250; x += 50) for (const z of [-64, -46]) { N.cyl(0.12, 10, MAT.galv, x, 5, z, 6); N.slab(1.4, 0.2, 0.4, poleHead, x, 10, z); }
+  // swing gate at the south entry, where the access road meets the perimeter fence: two posts,
+  // one leaf swung open at an angle so the drive reads as staffed rather than sealed
+  for (const dx of [-6, 6]) N.cyl(0.1, 2.7, MAT.galv, -110 + dx, 1.35, 250, 8);
+  N.strut([-116, 2.6, 250], [-104.5, 1.35, 254.2], 0.045, MAT.galv, 6);
+  N.strut([-116, 1.35, 250], [-104.5, 1.35, 254.2], 0.045, MAT.galv, 6);
+  // site lighting: pole heads on every light pole, plus warm lamps at the office and hall doors
+  const lampItems = [];
+  for (let x = -350; x <= 250; x += 50) for (const z of [-64, -46]) { N.cyl(0.12, 10, MAT.galv, x, 5, z, 6); lampItems.push({ p: [x, 9.9, z], w: 1.3 }); }
+  hallCentersZ.forEach(cz => lampItems.push({ p: [hallX0 - 1, 3.6, cz + 26], w: 1.0 }, { p: [hallX0 - 1, 3.6, cz - 26], w: 1.0 }));
+  scene.add(lamps(lampItems, { color: '#ffcf9e', k: 3.6, halo: 4, haloOpacity: 0.4 }));
   for (let i = 0; i < 6; i++) person(N, -405 + i * 2.2, -140 + i * 1.3, i);
   person(N, 212, -104, 1.2); person(N, 214, -103, 2.2);
+  // a touch lighter than the shared MAT.tree so canopies still read against the dusk haze
+  const treeCanopy = new THREE.MeshStandardMaterial({ color: 0x37522c, roughness: 0.92 });
   const tree = new Builder();
-  tree.cyl(0.35, 3, MAT.trunk, 0, 1.5, 0, 6); tree.add(new THREE.ConeGeometry(3.4, 11, 8), MAT.tree, 0, 8, 0);
-  const treeMx = [];
-  for (let i = 0; i < 420; i++) {
-    const a = rnd() * Math.PI * 2, r = 700 + rnd() * 900, x = -70 + Math.cos(a) * r, z = -40 + Math.sin(a) * r * 0.75;
-    if (x < -600 && Math.abs(z - towerZ) < 45) continue; // keep the right-of-way clear
-    treeMx.push(mtx(x, 0, z, rnd() * 6, 0.7 + rnd() * 0.8));
-  }
+  tree.cyl(0.35, 3, MAT.trunk, 0, 1.5, 0, 6); tree.add(new THREE.ConeGeometry(3.4, 11, 8), treeCanopy, 0, 8, 0);
+  const treeCount = quality.mobile ? 5 : 9;
+  const treeMx = treeMatrices(rnd, {
+    clusters: treeCount, perCluster: quality.mobile ? 26 : 48, distant: quality.mobile ? 90 : 190,
+    minR: 550, maxR: 1500, distMinR: 1550, distMaxR: 1950,
+    exclude: (x, z) => x < -600 && Math.abs(z - towerZ) < 45,
+  });
   for (let i = 0; i < 80; i++) { const x = -620 + rnd() * 1100, z = 262 + rnd() * 90; treeMx.push(mtx(x, 0, z, rnd() * 6, 0.6 + rnd() * 0.6)); }
   tree.instance(treeMx, { cast: true }).children.forEach(m => scene.add(m));
+
+  // ---------- activity: cars and a truck loop the site roads, a few people walk, clouds drift ----------
+  const carPaths = [
+    [[-114, 0.28, -60], [-114, 0.28, 230], [-106, 0.28, 230], [-106, 0.28, -60], [-114, 0.28, -60]],
+    [[258, 0.28, -175], [258, 0.28, 55], [266, 0.28, 55], [266, 0.28, -175], [258, 0.28, -175]],
+  ];
+  moverGroups.push(movers(carBuild, carPaths, { speed: quality.mobile ? 9 : 11, perPath: quality.mobile ? 1 : 2 }));
+  const truckPaths = [[[-372, 0.32, -59], [326, 0.32, -59], [326, 0.32, -51], [-372, 0.32, -51], [-372, 0.32, -59]]];
+  moverGroups.push(movers(truckBuild, truckPaths, { speed: 6.5, perPath: quality.mobile ? 1 : 2 }));
+  const walkPaths = [
+    [[-30, 0.16, 178], [-30, 0.16, 226], [-96, 0.16, 226], [-30, 0.16, 226], [-30, 0.16, 178]],
+    [[hallX0 - 20, 0.16, hallCentersZ[0] + 40], [hallX0 - 1, 0.16, hallCentersZ[0] + 26], [hallX0 - 20, 0.16, hallCentersZ[0] + 40]],
+  ];
+  moverGroups.push(movers(walkerBuild, walkPaths, { speed: 1.3, perPath: quality.mobile ? 1 : 2 }));
+  moverGroups.forEach(m => scene.add(m.group));
+
+  // vapor plumes off the cooling-tower fans, visible in every layer (not just the heat overlay);
+  // a phone skips this heavy, fully-transparent overdraw in favor of the fans and the flow lines alone
+  if (!quality.mobile) {
+    const plumeEmitters = towerRows.flatMap(z => Array.from({ length: 6 }, (_, i) => ({ p: [15 + i * 12, 13.6, z], dir: [0, 1, 0] })));
+    const towerPlumes = plumes(plumeEmitters, {
+      perEmitter: 16, size: 1.4, grow: 4.5, life: 7, rise: 2.6,
+      drift: [1.1, 0.4, 0.2], spread: 0.6, color: '#eef1f4', opacity: warm ? 0.28 : 0.4,
+    });
+    scene.add(towerPlumes.points); plumeUpdates.push(towerPlumes.update);
+  }
+
+  // a handful of soft clouds catching the low sun (desktop only: full-screen alpha overdraw adds up on
+  // a phone; skipped on the big-campus layout, whose camera pulls back far enough that a fixed-size
+  // cloud sprite would loom instead of read as background). Anchored low and close rather than on a
+  // wide 360° ring: every one of this scene's camera views pitches down at ground-level equipment, so
+  // the only sky actually in frame is a narrow band near the horizon in the direction each view looks.
+  // These three positions were solved for by re-projecting candidate points through every real
+  // hotspot/overview camera and checking BOTH that the sprite lands inside the frame and that it stays
+  // a small, background-sized thing there (<12°) rather than looming — a first pass covered the
+  // transmission-line and substation hotspots too, but their cameras sit close enough to the west side
+  // that any cloud visible there filled the whole frame like fog, which is the opposite of the fix.
+  if (!quality.mobile && !extra) scene.add(clouds([
+    [80, 90, -40, 45], [-23, 90, 228, 135], [-2173, 150, -957, 220],
+  ]));
 
   scene.add(S.build({ cast: true, receive: true }));
   scene.add(N.build({ cast: false, receive: true }));
@@ -453,6 +527,11 @@ export function build({ quality, model }) {
       hall: { pos: [hcx, 26, hallAz], view: { pos: [hcx + 160, 170, 120], target: [hcx, 10, -120] } },
       longhaul: { pos: [fiberA[0], 3, 520], view: { pos: [200, 260, 900], target: [-150, 0, 420] } },
     },
-    update(t) { fans.update(t); },
+    look: { env: 'sky', envIntensity: 0.6, exposure: 1.12, bloom: 0.95, threshold: 0.8, ao: 0 },
+    update(t, dt) {
+      fans.update(t);
+      moverGroups.forEach(m => m.update(t));
+      plumeUpdates.forEach(u => u(t));
+    },
   };
 }
