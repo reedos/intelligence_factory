@@ -174,7 +174,8 @@ export function build({ quality, state, model }) {
     if (!cache.has(key)) cache.set(key, chunkTexture(words, lane, startParity));
     return cache.get(key);
   }
-  const CAP = quality.mobile ? { prompt: 6, reasoning: 8, answer: 10 } : { prompt: 12, reasoning: 16, answer: 20 };
+  // more sprites, so each carries a few tokens rather than ten: a chunk reads as a phrase, not a banner across the package
+  const CAP = quality.mobile ? { prompt: 6, reasoning: 12, answer: 16 } : { prompt: 12, reasoning: 24, answer: 36 };
   const LIFE = { prompt: 0.8, reasoning: 2.0, answer: 3.2 };
   function pool(n) {
     const arr = [];
@@ -280,22 +281,23 @@ export function build({ quality, state, model }) {
 
       animLane(pools.prompt, LIFE.prompt, dt, (item, u) => {
         const ez = u * u;                                                        // ease in: accelerates toward the die
-        item.sp.position.set(item.x0 * 3.1 * (1 - ez) + item.x0 * 0.12 * ez, Y.dies + 3.3 * (1 - ez) + 0.14, item.z0 * 3.1 * (1 - ez) + item.z0 * 0.12 * ez);
-        const sz = 0.3 * (1 - 0.35 * ez); item.sp.scale.set(sz * item.aspect, sz, 1);
+        // the prompt comes in low and small, from just beyond the package, so it never crosses the title in a close view
+        item.sp.position.set(item.x0 * 2.2 * (1 - ez) + item.x0 * 0.12 * ez, Y.dies + 2.2 * (1 - ez) + 0.14, item.z0 * 2.2 * (1 - ez) + item.z0 * 0.12 * ez);
+        const sz = 0.17 * (1 - 0.35 * ez); item.sp.scale.set(sz * item.aspect, sz, 1);
         item.sp.material.opacity = Math.min(1, u * 5) * (1 - Math.max(0, (u - 0.72) / 0.28));
       });
       animLane(pools.reasoning, LIFE.reasoning, dt, (item, u) => {
-        const g = 1 - Math.pow(1 - u, 2), pull = 1 - 0.45 * u;                    // gathers inward as it drifts up: a thinking ribbon
-        item.sp.position.set(item.x0 * 0.9 * pull, Y.dies + 0.5 + g * 0.9, item.z0 * 0.9 * pull);
-        const sz = 0.15; item.sp.scale.set(sz * item.aspect, sz, 1);
+        const g = 1 - Math.pow(1 - u, 3), pull = 1 - 0.45 * u;                    // gathers inward as it drifts up: a thinking ribbon, over the lid
+        item.sp.position.set(item.x0 * 0.9 * pull, Y.lid + 0.15 + g * 0.8, item.z0 * 0.9 * pull);
+        const sz = 0.13; item.sp.scale.set(sz * item.aspect, sz, 1);
         item.sp.material.opacity = 0.55 * Math.min(1, u * 5) * (1 - Math.max(0, (u - 0.65) / 0.35));
       });
       // capped below Y.dies+3 (~6.2 total) so the arc's top stays clear of the fixed 2D HUD chrome (title,
       // mode toggle, tour controls) at the chip scene's default and tokens-hotspot camera framings.
       animLane(pools.answer, LIFE.answer, dt, (item, u) => {
-        const g = 1 - Math.pow(1 - u, 2);
-        item.sp.position.set(item.x0 + 1.0 + g * 3.0, Y.dies + 0.4 + g * 2.6, item.z0 - g * 1.5);
-        const sz = 0.34 + g * 0.1; item.sp.scale.set(sz * item.aspect, sz, 1);
+        const g = 1 - Math.pow(1 - u, 3);                                          // out of the die, clear of the lid fast, then drifting
+        item.sp.position.set(item.x0 + 0.6 + g * 1.8, Y.dies + 0.4 + g * 2.6, item.z0 - g * 1.0);
+        const sz = 0.2 + g * 0.08; item.sp.scale.set(sz * item.aspect, sz, 1);
         item.sp.material.opacity = Math.min(1, u * 6) * (1 - Math.max(0, (u - 0.7) / 0.3));
       });
       live.forEach(([x, z], i) => {

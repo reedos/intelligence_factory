@@ -536,10 +536,10 @@ export function content(M) {
         body: 'Overhead yellow trays carry thousands of single-mode strands. A parallel module lights eight lanes through two multi-fiber connectors, so strand counts climb fast.',
         specs: [['Fibers per link', `${NET.fabric.fibersPerLink}`, 'typical']] },
       { id: 'optics', title: 'Optical modules', kicker: 'Several per GPU',
-        body: `Every link is lit at both ends by a pluggable module. One per GPU leaves the rack, and every tier above adds more: about ${(NET.modules / GPUS).toFixed(1)} per GPU, ${NET.opticsMW.toFixed(1)} MW for this campus.`,
+        body: `Every link is lit at both ends by a pluggable module. Here they fill the faces of the leaf switches at the row ends and of the spine switches, with a link light on each and fiber rising to the runway. One per GPU leaves the rack, and every tier above adds more: about ${(NET.modules / GPUS).toFixed(1)} per GPU, ${NET.opticsMW.toFixed(1)} MW for this campus.`,
         specs: [['NVIDIA 800G DR8, 500 m', '17 W max', 'spec'], ['1.6T modules', '≈25–30 W, still ramping', 'est'], ['Linear-drive (LPO)', 'roughly half the power', 'typical']] },
       { id: 'cpo', title: 'Co-packaged optics', kicker: 'Light inside the switch',
-        body: 'New switches put the optical engines on the switch package itself, cutting out the pluggable modules and much of their power.',
+        body: 'New switches put the optical engines on the switch package itself, cutting out the pluggable modules and much of their power. One spine switch here is drawn that way: liquid-cooled, with fiber landing straight on the chassis beside a few external laser modules. Every other switch in the hall still takes pluggables, as most fabrics do today.',
         specs: [['NVIDIA Quantum-X / Spectrum-X Photonics', '3.5× power efficiency, 4× fewer lasers', 'spec'], ['Broadcom Davisson', '102.4 Tb/s, 3.5 W per 800G port', 'spec']] },
       { id: 'racks', title: nvl ? 'NVL72 racks' : 'DGX H100 racks', kicker: 'Scale-up stays inside', drill: 3,
         body: nvl
