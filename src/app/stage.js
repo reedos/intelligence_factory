@@ -8,6 +8,7 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { DETAIL } from '../kit.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VOLT, BASIS } from '../data.js';
@@ -20,7 +21,10 @@ import * as chip from '../scenes/chip.js';
 import * as across from '../scenes/across.js';
 
 const BUILDERS = [across, campus, hall, rack, tray, chip];
-const LOOK = [   // per scene: bloom, ambient occlusion radius (world units, 0 = off), exposure
+// per scene defaults: bloom, ambient occlusion radius (world units, 0 = off), exposure. A scene can override any of
+// these, and pick its lighting environment and depth of field, by returning `look` from build():
+//   look: { bloom, threshold, ao, exposure, env: 'room' | 'studio' | 'indoor' | 'sky' | 'night', envIntensity, dof: true }
+const LOOK = [
   { bloom: 0.8, threshold: 0.95, ao: 0, exposure: 1.0 },
   { bloom: 0.85, threshold: 0.86, ao: 0, exposure: 1.0 },
   { bloom: 0.5, threshold: 1.0, ao: 0.6, exposure: 1.0 },
@@ -76,7 +80,9 @@ const voltFor = s => ui.mode === 'heat' ? { ...VOLT[s.heatVolt], short: s.heatSh
 const flowsFor = b => (ui.mode === 'data' ? b.dataFlows : ui.mode === 'heat' ? b.heatFlows : b.flows) || [];
 export const mobile = matchMedia('(max-width: 760px), (pointer: coarse)').matches;
 export const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const quality = { shadows: !mobile, mobile };
+// what a scene may spend: shadows, the floor mirror (renders the scene twice) and depth of field are desktop only
+const quality = { shadows: !mobile, mobile, reflections: !mobile, dof: !mobile };
+const lookOf = i => ({ envIntensity: 0.35, env: 'room', dof: true, ...LOOK[i], ...(built[i]?.look || {}) });
 
 // ---------- renderer ----------
 const view = $('view'), canvas = $('gl');
@@ -89,7 +95,35 @@ renderer.setPixelRatio(ratio);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = quality.shadows;
 renderer.shadowMap.type = THREE.PCFShadowMap;
-const env = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+// ---------- lighting environments: what metal and glass reflect ----------
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envs = {};
+function envScene(kind) {
+  const s = new THREE.Scene(), box = (w, h, d, color, k, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(k), side: THREE.BackSide })); m.position.set(x, y, z); s.add(m); return m; };
+  const panel = (w, h, color, k, x, y, z, rx, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(k), side: THREE.DoubleSide })); m.position.set(x, y, z); m.rotation.set(rx, ry, 0); s.add(m); };
+  if (kind === 'studio') {            // a dark stage: a big softbox overhead-front, cool and warm rim strips, a dim floor
+    box(20, 12, 20, '#0b0d11', 1, 0, 3, 0);
+    panel(8, 5, '#ffffff', 4.5, 0, 7, 4, -Math.PI / 2 + 0.5, 0);
+    panel(1.2, 7, '#bcd4ff', 3.2, -8, 3, -2, 0, Math.PI / 2);
+    panel(1.2, 7, '#ffd9b0', 2.6, 8, 3, -2, 0, -Math.PI / 2);
+    panel(20, 20, '#1a1d22', 1, 0, -2.9, 0, -Math.PI / 2, 0);
+  } else if (kind === 'indoor') {     // a hall: rows of ceiling panels over grey walls
+    box(40, 8, 40, '#3a3e44', 1, 0, 3, 0);
+    for (let x = -15; x <= 15; x += 6) for (let z = -15; z <= 15; z += 6) panel(3, 1, '#fff4e6', 6, x, 6.9, z, Math.PI / 2, 0);
+    panel(40, 40, '#2a2c30', 1, 0, -0.9, 0, -Math.PI / 2, 0);
+  } else if (kind === 'sky') {        // dusk: deep blue overhead, amber horizon, the low sun, dark ground
+    const geo = new THREE.SphereGeometry(50, 32, 16), col = [], p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) { const y = p.getY(i) / 50, c = new THREE.Color(); if (y > 0.05) c.set('#16264a').lerp(new THREE.Color('#0a1226'), Math.min(1, y * 1.4)); else if (y > -0.05) c.set('#d8894a'); else c.set('#141610'); col.push(c.r, c.g, c.b); }
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    s.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+    const sun = new THREE.Mesh(new THREE.SphereGeometry(3, 16, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffc890').multiplyScalar(18) })); sun.position.set(-42, 8, 20); s.add(sun);
+  } else if (kind === 'night') {
+    box(40, 20, 40, '#0a1020', 1, 0, 5, 0);
+    panel(40, 6, '#243048', 1.4, 0, 1, -19.5, 0, 0);
+  } else s.add(new RoomEnvironment());
+  return s;
+}
+function envFor(kind) { return envs[kind] ||= pmrem.fromScene(envScene(kind), 0.04).texture; }
 
 export const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 1000);
 export const controls = new OrbitControls(camera, canvas);
@@ -100,8 +134,9 @@ export const built = [], composers = [];
 function getScene(i) {
   if (!built[i]) {
     const b = BUILDERS[i].build({ quality, state: ui, model: store.M });
-    b.scene.environment = env; b.scene.environmentIntensity = 0.35; b.model = store.M;
     built[i] = b;
+    const L = lookOf(i);
+    b.scene.environment = envFor(L.env); b.scene.environmentIntensity = L.envIntensity; b.model = store.M;
     applyMode(b);
   }
   return built[i];
@@ -123,20 +158,23 @@ const FINISH = {
       gl_FragColor = vec4(c, 1.0);
     }`,
 };
-let finishes = [];
+let finishes = [], dofs = [];
 function getComposer(i) {
   if (!composers[i]) {
     // multisampled: thin struts, cables and fins stay clean instead of stair-stepping (phones keep the frame rate)
     const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: mobile ? 0 : 4 });
     const b = getScene(i), c = new EffectComposer(renderer, rt);
     c.addPass(new RenderPass(b.scene, camera));
-    if (LOOK[i].ao && !mobile) {
+    const L = lookOf(i);
+    if (L.ao && !mobile) {
       const ao = new GTAOPass(b.scene, camera, 1, 1);
       ao.blendIntensity = 0.75;
-      ao.updateGtaoMaterial({ radius: LOOK[i].ao, distanceExponent: 1.5, thickness: 1, scale: 1, samples: 12 });
+      ao.updateGtaoMaterial({ radius: L.ao, distanceExponent: 1.5, thickness: 1, scale: 1, samples: 12 });
       c.addPass(ao);
     }
-    c.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), LOOK[i].bloom, 0.42, LOOK[i].threshold));
+    // depth of field for tour close-ups (desktop): off until a tour frames a part, then focused on it every frame
+    if (quality.dof && L.dof) { const dof = new BokehPass(b.scene, camera, { focus: 1, aperture: 0, maxblur: 0.006 }); dof.enabled = false; c.addPass(dof); dofs[i] = dof; }
+    c.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), L.bloom, 0.42, L.threshold));
     c.addPass(new OutputPass());
     const fin = new ShaderPass(FINISH); c.addPass(fin); finishes[i] = fin;
     composers[i] = c;
@@ -234,11 +272,25 @@ export function frame(b, h) {
   }
   return { pos: pos.toArray(), target: target.toArray() };   // nothing clear found: keep the preset
 }
+// ---------- depth of field: focus on the part a tour is showing ----------
+// Blur grows with distance from the focal plane; scaling the aperture by 1/focus makes it look the same at every scale.
+const _fp = new THREE.Vector3();
+function focusDof() {
+  const d = dofs[ui.scene]; if (!d) return;
+  const h = cinema && ui.selected && hotspotsFor(ui.scene)[ui.selected];
+  d.enabled = !!h;
+  if (!h) return;
+  const focus = camera.position.distanceTo(_fp.set(...h.pos));
+  d.uniforms.focus.value = focus; d.uniforms.aperture.value = 0.0045 / focus; d.uniforms.maxblur.value = 0.006;
+}
+
 // ---------- camera moves ----------
 // Plain moves slide straight. Cinematic moves (tours) arc: the camera swings around the moving aim point,
 // rising and pulling back mid-move, then settles into a slow orbit and push-in while the part is on screen.
-let cinema = false, drift = null, driftSign = 1;
+let cinema = false, drift = null, driftSign = 1, tourPace = 1;
 export const setCinema = on => { cinema = on; if (!on) drift = null; };
+// a faster tour flies faster too, by the square root so 8x still reads as a move rather than a cut
+export const setTourPace = p => { tourPace = p; };
 const ease = u => (u < 0.5 ? 4 * u ** 3 : 1 - Math.pow(-2 * u + 2, 3) / 2);
 export function flyTo(pos, target, dur = 1.1) {
   drift = null;
@@ -251,7 +303,7 @@ export function flyTo(pos, target, dur = 1.1) {
     let dTheta = s1.theta - s0.theta; dTheta -= Math.round(dTheta / (2 * Math.PI)) * 2 * Math.PI;   // the short way round
     const travel = controls.target.distanceTo(t1) / Math.max(s0.radius, s1.radius);
     arc = { s0, s1, dTheta, lift: Math.min(0.35, 0.12 + 0.25 * Math.min(1, travel)), pull: Math.min(0.45, 0.15 + 0.3 * Math.min(1, travel)) };
-    dur = Math.min(3.4, Math.max(1.8, 1.6 + Math.abs(dTheta) * 0.6 + Math.abs(Math.log(s1.radius / s0.radius)) * 0.45 + travel * 0.6));
+    dur = Math.min(3.4, Math.max(1.8, 1.6 + Math.abs(dTheta) * 0.6 + Math.abs(Math.log(s1.radius / s0.radius)) * 0.45 + travel * 0.6)) / Math.sqrt(tourPace);
   }
   tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1, t1, u: 0, dur, arc };
 }
@@ -404,7 +456,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   if (ui.scene >= 0 && !same) {
     if (fromId) { const h = hotspotsFor(ui.scene)[fromId]; if (h) flyTo([h.pos[0] + (camera.position.x - h.pos[0]) * 0.15, h.pos[1] + (camera.position.y - h.pos[1]) * 0.15, h.pos[2] + (camera.position.z - h.pos[2]) * 0.15], h.pos, 0.55); }
     veil.textContent = ''; veil.classList.remove('off');
-    await new Promise(r => setTimeout(r, reduced ? 0 : cinema && fromId ? 950 : 420));   // a tour pushes in before the cut
+    await new Promise(r => setTimeout(r, reduced ? 0 : cinema && fromId ? 950 / Math.sqrt(tourPace) : 420));   // a tour pushes in before the cut
   }
   veil.textContent = `Building ${SCENES()[i].title.toLowerCase()}…`;
   if (!same) veil.classList.remove('off');
@@ -416,7 +468,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   const c = b.camera;
   camera.near = c.near; camera.far = c.far; camera.updateProjectionMatrix();
   controls.minDistance = c.min; controls.maxDistance = c.max;
-  renderer.toneMappingExposure = LOOK[i].exposure;
+  renderer.toneMappingExposure = lookOf(i).exposure;
   if (!keepCamera) {
     // arrive pushed in, then pull back to the scene's opening view; portrait screens get closer
     const tgt = V(c.target), end = view.clientWidth / view.clientHeight < 0.9 ? tgt.clone().lerp(V(c.pos), 0.72) : V(c.pos), start = tgt.clone().lerp(end, 0.35);
@@ -546,6 +598,7 @@ function loop(ts) {
   controls.update();
   fitDepthRange(b.camera);
   if (finishes[ui.scene]) finishes[ui.scene].uniforms.uTime.value = t;
+  focusDof();
   composers[ui.scene].render();
   if (!tween && !navigator.webdriver) adapt(raw);        // judge speed on steady frames; test browsers render in software
   updatePins();

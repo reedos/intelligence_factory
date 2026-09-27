@@ -6,7 +6,7 @@
 // only holds the tour: it carries on a few seconds after the reader lets go, from whichever beat is showing.
 // Pause (the button, or Space) is the only thing that stops it. A control in the 3D view shows the state.
 import { store, on } from './store.js';
-import { show, reduced, onTick, setCinema } from './stage.js';
+import { show, reduced, onTick, setCinema, setTourPace } from './stage.js';
 import { story, watt, request, heat, layer, everything } from './journeys.js';
 import { openClock, closeClock } from './clock-ui.js';
 
@@ -32,7 +32,15 @@ let active = -1, seq = 0, observer = null, list = [];
 let playing = false, arrived = false, held = 0;         // held: ms spent on the current beat since the camera arrived
 let pace = 1, ranClock = false, holdUntil = 0;           // holdUntil: the reader is looking around; wait until then
 const HOLD_MS = 4000;                          // pace: 1× or 2×; ranClock: the tour opened the clock, so it closes it
-try { pace = +localStorage.getItem('ifx-pace') === 2 ? 2 : 1; } catch { /* storage refused: stay at 1× */ }
+const PACES = [1, 2, 4, 8];
+try { const p = +localStorage.getItem('ifx-pace'); if (PACES.includes(p)) pace = p; } catch { /* storage refused: stay at 1× */ }
+setTourPace(pace);
+function setPace(p) {
+  pace = p; setTourPace(p);
+  try { localStorage.setItem('ifx-pace', String(p)); } catch { /* not remembered, still works */ }
+  box.querySelectorAll('[data-pace]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.pace === p)));
+  const c = document.getElementById('tour-ctl-pace'); if (c) c.textContent = `${p}×`;
+}
 // playing on carries through the tours, or through the layers; it does not jump from one group to the other
 const ORDER = { Tours: ['story', 'watt', 'request', 'heat'], 'Every part': ['all-power', 'all-data', 'all-heat'] };
 const nextTour = id => { const g = ORDER[TOURS[id].group]; return id === 'all' ? null : g?.[g.indexOf(id) + 1] ?? null; };
@@ -46,16 +54,13 @@ function render() {
   const tabs = g => `<div class="tour-group"><span class="tour-g">${g}</span><div class="tour-tabs" role="tablist" aria-label="${g}">${Object.entries(TOURS).filter(([, t]) => t.group === g).map(([id, t]) => `<button type="button" role="tab" data-tour="${id}" aria-selected="${id === tour}">${t.short}</button>`).join('')}</div></div>`;
   box.innerHTML = `<div class="story-head">${tabs('Tours')}${tabs('Every part')}<button type="button" class="btn" id="story-exit">Exit</button>`
     + `<button type="button" class="btn play" id="story-play" aria-pressed="${playing}">${playing ? 'Pause' : 'Play'}</button>`
-    + `<button type="button" class="btn pace" id="story-pace" aria-label="Playback speed">${pace}×</button>`
+    + `<div class="pace-seg" role="group" aria-label="Playback speed">${PACES.map(p => `<button type="button" data-pace="${p}" aria-pressed="${p === pace}">${p}×</button>`).join('')}</div>`
     + `<div class="tally" id="tally" aria-live="polite"${list.some(b => b.tally) ? '' : ' hidden'}><span class="eyebrow">${TOURS[tour].label}</span><b id="tally-v"></b></div></div>`
     + list.map((b, i) => `<article class="beat${b.level ? ' level' : ''}" data-i="${i}"><span class="k">${String(i + 1).padStart(2, '0')} · ${b.k}</span><h3>${b.title}</h3><p>${b.text}</p>${b.specs ? `<dl class="beat-specs">${b.specs.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>` : ''}<span class="beat-bar" aria-hidden="true"><i></i></span></article>`).join('')
     + '<div class="beat-end"><button type="button" class="btn" id="story-done">Explore on your own</button></div>';
   $('story-exit').addEventListener('click', exit);
   $('story-play').addEventListener('click', () => setPlaying(!playing));
-  $('story-pace').addEventListener('click', () => {
-    pace = pace === 1 ? 2 : 1; $('story-pace').textContent = `${pace}×`;
-    try { localStorage.setItem('ifx-pace', String(pace)); } catch { /* not remembered, still works */ }
-  });
+  box.querySelectorAll('[data-pace]').forEach(b => b.addEventListener('click', () => setPace(+b.dataset.pace)));
   box.querySelectorAll('[data-tour]').forEach(b => b.addEventListener('click', () => { if (b.dataset.tour !== tour) switchTour(b.dataset.tour); }));
   $('story-done').addEventListener('click', exit);
   observe();
@@ -128,9 +133,11 @@ export function setPlaying(on_) {
 // the control in the 3D view: play/pause, where the tour is, and whether it is waiting on the reader
 const ctl = document.createElement('div');
 ctl.className = 'tour-ctl'; ctl.id = 'tour-ctl'; ctl.hidden = true;
-ctl.innerHTML = '<button type="button" class="btn play" id="tour-ctl-btn" aria-pressed="false">Play</button><span class="tour-ctl-t" id="tour-ctl-t" aria-live="polite"></span>';
+ctl.innerHTML = '<button type="button" class="btn play" id="tour-ctl-btn" aria-pressed="false">Play</button><button type="button" class="btn pace" id="tour-ctl-pace" aria-label="Playback speed, tap to change"></button><span class="tour-ctl-t" id="tour-ctl-t" aria-live="polite"></span>';
 $('view').appendChild(ctl);
 $('tour-ctl-btn').addEventListener('click', () => setPlaying(!playing));
+$('tour-ctl-pace').textContent = `${pace}×`;
+$('tour-ctl-pace').addEventListener('click', () => setPace(PACES[(PACES.indexOf(pace) + 1) % PACES.length]));
 let heldShown = false;
 function ctlLabel() {
   const t = $('tour-ctl-t'); if (!t || active < 0 || !list[active]) return;
@@ -159,7 +166,7 @@ onTick(dt => {
   }
 });
 // the reader looking around holds the tour; it carries on HOLD_MS after the last touch, drag or wheel
-const lookAround = e => { if (!e.target.closest?.('#story-play, #story-pace, #story-hero-play, #tour-ctl, #clock')) hold(); };
+const lookAround = e => { if (!e.target.closest?.('#story-play, .pace-seg, #story-hero-play, #tour-ctl, #clock')) hold(); };
 for (const el of [panel, $('view')]) for (const ev of ['wheel', 'touchstart', 'touchmove', 'pointerdown', 'pointermove']) el?.addEventListener(ev, e => { if (ev !== 'pointermove' || e.buttons) lookAround(e); }, { passive: true });
 addEventListener('wheel', e => { if (narrow.matches) lookAround(e); }, { passive: true });
 addEventListener('touchmove', e => { if (narrow.matches) lookAround(e); }, { passive: true });
