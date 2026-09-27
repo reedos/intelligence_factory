@@ -1,10 +1,12 @@
 // Story mode: the panel beside the 3D view becomes a column of beats, grid to token. Scrolling a beat to the middle
-// of the column drives the stage to it. On narrow screens the view sticks to the top and the page scrolls the beats.
+// of the column drives the stage to it. On narrow screens the tour takes the whole screen instead, one beat at a
+// time under the view, so the view gets every pixel the text does not need.
 // Every number comes from the current scenario, so the story retells itself when a setting changes.
 // Play steps through on its own: each beat holds long enough to read once the camera has arrived, then the next
-// one scrolls in; after the story come the watt, the request and the heat. Looking around (a drag, wheel or touch)
+// one comes in; after the story come the watt, the request and the heat. Looking around (a drag, wheel or touch)
 // only holds the tour: it carries on a few seconds after the reader lets go, from whichever beat is showing.
-// Pause (the button, or Space) is the only thing that stops it. A control in the 3D view shows the state.
+// Pause (the button, or Space) is the only thing that stops it. One transport at the head of the panel (play,
+// back, forward, speed, where the tour is) is the only playback control on the page.
 import { store, on } from './store.js';
 import { show, reduced, onTick, setCinema, setTourPace } from './stage.js';
 import { story, watt, request, heat, layer, everything } from './journeys.js';
@@ -31,15 +33,17 @@ panel.appendChild(box);
 let active = -1, seq = 0, observer = null, list = [];
 let playing = false, arrived = false, held = 0;         // held: ms spent on the current beat since the camera arrived
 let pace = 1, ranClock = false, holdUntil = 0;           // holdUntil: the reader is looking around; wait until then
-const HOLD_MS = 4000;                          // pace: 1× or 2×; ranClock: the tour opened the clock, so it closes it
+const HOLD_MS = 4000;                          // pace: 1× to 8×; ranClock: the tour opened the clock, so it closes it
 const PACES = [1, 2, 4, 8];
 try { const p = +localStorage.getItem('ifx-pace'); if (PACES.includes(p)) pace = p; } catch { /* storage refused: stay at 1× */ }
 setTourPace(pace);
 function setPace(p) {
   pace = p; setTourPace(p);
   try { localStorage.setItem('ifx-pace', String(p)); } catch { /* not remembered, still works */ }
-  box.querySelectorAll('[data-pace]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.pace === p)));
-  const c = document.getElementById('tour-ctl-pace'); if (c) c.textContent = `${p}×`;
+  paceLabel();
+}
+function paceLabel() {
+  const c = $('tour-pace'); if (c) { c.textContent = `${pace}×`; c.setAttribute('aria-label', `Playback speed ${pace}×, tap for ${PACES[(PACES.indexOf(pace) + 1) % PACES.length]}×`); }
 }
 // playing on carries through the tours, or through the layers; it does not jump from one group to the other
 const ORDER = { Tours: ['story', 'watt', 'request', 'heat'], 'Every part': ['all-power', 'all-data', 'all-heat'] };
@@ -52,27 +56,36 @@ const narrow = matchMedia('(max-width: 1100px)');
 function render() {
   list = TOURS[tour].beats(store.M);
   const tabs = g => `<div class="tour-group"><span class="tour-g">${g}</span><div class="tour-tabs" role="tablist" aria-label="${g}">${Object.entries(TOURS).filter(([, t]) => t.group === g).map(([id, t]) => `<button type="button" role="tab" data-tour="${id}" aria-selected="${id === tour}">${t.short}</button>`).join('')}</div></div>`;
-  box.innerHTML = `<div class="story-head">${tabs('Tours')}${tabs('Every part')}<button type="button" class="btn" id="story-exit">Exit</button>`
-    + `<button type="button" class="btn play" id="story-play" aria-pressed="${playing}">${playing ? 'Pause' : 'Play'}</button>`
-    + `<div class="pace-seg" role="group" aria-label="Playback speed">${PACES.map(p => `<button type="button" data-pace="${p}" aria-pressed="${p === pace}">${p}×</button>`).join('')}</div>`
+  box.innerHTML = `<div class="story-head">`
+    + `<div class="transport" role="group" aria-label="Tour playback">`
+    + `<button type="button" class="btn play" id="tour-play" aria-pressed="${playing}" aria-label="${playing ? 'Pause' : 'Play'}">${playing ? '❚❚' : '▶'}</button>`
+    + `<button type="button" class="btn icon" id="tour-prev" aria-label="Previous step">‹</button>`
+    + `<button type="button" class="btn icon" id="tour-next" aria-label="Next step">›</button>`
+    + `<button type="button" class="btn pace" id="tour-pace"></button>`
+    + `<span class="tour-t" id="tour-t" aria-live="polite"></span>`
+    + `<button type="button" class="btn icon" id="story-exit" aria-label="Leave the tour">×</button></div>`
+    + `<div class="tour-pick">${tabs('Tours')}${tabs('Every part')}</div>`
     + `<div class="tally" id="tally" aria-live="polite"${list.some(b => b.tally) ? '' : ' hidden'}><span class="eyebrow">${TOURS[tour].label}</span><b id="tally-v"></b></div></div>`
     + list.map((b, i) => `<article class="beat${b.level ? ' level' : ''}" data-i="${i}"><span class="k">${String(i + 1).padStart(2, '0')} · ${b.k}</span><h3>${b.title}</h3><p>${b.text}</p>${b.specs ? `<dl class="beat-specs">${b.specs.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>` : ''}<span class="beat-bar" aria-hidden="true"><i></i></span></article>`).join('')
     + '<div class="beat-end"><button type="button" class="btn" id="story-done">Explore on your own</button></div>';
   $('story-exit').addEventListener('click', exit);
-  $('story-play').addEventListener('click', () => setPlaying(!playing));
-  box.querySelectorAll('[data-pace]').forEach(b => b.addEventListener('click', () => setPace(+b.dataset.pace)));
+  $('tour-play').addEventListener('click', () => setPlaying(!playing));
+  $('tour-prev').addEventListener('click', () => step(-1));
+  $('tour-next').addEventListener('click', () => step(1));
+  $('tour-pace').addEventListener('click', () => setPace(PACES[(PACES.indexOf(pace) + 1) % PACES.length]));
+  paceLabel();
   box.querySelectorAll('[data-tour]').forEach(b => b.addEventListener('click', () => { if (b.dataset.tour !== tour) switchTour(b.dataset.tour); }));
   $('story-done').addEventListener('click', exit);
   observe();
   if (active >= 0) mark(active);
+  else ctlLabel();
 }
 function mark(i) {
   box.querySelectorAll('.beat').forEach(b => b.classList.toggle('on', +b.dataset.i === i));
   ctlLabel();
   const v = $('tally-v'); if (v) v.textContent = list[i]?.tally ?? '';
 }
-function scrollTo0() { if (narrow.matches) box.querySelector('.beat')?.scrollIntoView({ block: 'start' }); }
-function switchTour(id) { tour = id; active = -1; render(); panel.scrollTop = 0; scrollTo0(); activate(0); }
+function switchTour(id) { tour = id; active = -1; render(); panel.scrollTop = 0; activate(0); }
 async function activate(i) {
   if (i === active) return;
   active = i; mark(i); arrived = false; held = 0; bar(0);
@@ -87,26 +100,31 @@ async function activate(i) {
   if (playing && want && store.ui.selected !== want) held = dwell(list[i]);
 }
 function bar(p) { const i = box.querySelector(`.beat[data-i="${active}"] .beat-bar i`); if (i) i.style.transform = `scaleX(${p})`; }
+// beside the view, the beat scrolled to the middle of the column is the one on stage; on narrow screens only the
+// beat on stage is drawn, so the buttons and keys step it directly
 function observe() {
-  observer?.disconnect();
+  observer?.disconnect(); observer = null;
+  if (narrow.matches) return;
   observer = new IntersectionObserver(entries => {
     const hit = entries.filter(e => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
     if (hit) activate(+hit.target.dataset.i);
-  }, { root: narrow.matches ? null : panel, rootMargin: narrow.matches ? '-60% 0px -25% 0px' : '-40% 0px -40% 0px', threshold: 0 });
+  }, { root: panel, rootMargin: '-40% 0px -40% 0px', threshold: 0 });
   box.querySelectorAll('.beat').forEach(b => observer.observe(b));
 }
 function step(d) {
   const i = Math.max(0, Math.min(list.length - 1, (active < 0 ? -1 : active) + d));
-  box.querySelector(`.beat[data-i="${i}"]`)?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: narrow.matches ? 'start' : 'center' });
+  activate(i);                                            // at once, so quick presses count from the beat they see
+  if (narrow.matches) { box.querySelector('.beat.on')?.scrollTo?.(0, 0); return; }
+  box.querySelector(`.beat[data-i="${i}"]`)?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
 }
 
 export function enter(which = tour) {
   if (!box.hidden && which === tour) return;
   tour = TOURS[which] ? which : 'story';
   document.body.classList.add('story');
-  box.hidden = false; active = -1; ctl.hidden = false; setCinema(true);
+  box.hidden = false; active = -1; setCinema(true);
   render();
-  stageEl.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  if (!narrow.matches) stageEl.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });   // narrow: the tour is full screen
   panel.scrollTop = 0;
   activate(0);
   $('story-btn')?.setAttribute('aria-pressed', 'true');
@@ -117,9 +135,10 @@ export function exit() {
   if (ranClock) { closeClock(); ranClock = false; }
   observer?.disconnect(); seq++;
   document.body.classList.remove('story');
-  box.hidden = true; active = -1; ctl.hidden = true; setCinema(false);
+  box.hidden = true; active = -1; setCinema(false);
   $('story-btn')?.setAttribute('aria-pressed', 'false');
   panel.scrollTop = 0;
+  if (narrow.matches) stageEl.scrollIntoView({ block: 'start' });   // back on the page, at the view the tour left
 }
 export const inStory = () => !box.hidden;
 
@@ -127,24 +146,17 @@ export const inStory = () => !box.hidden;
 export function setPlaying(on_) {
   playing = on_; holdUntil = 0;
   document.body.classList.toggle('playing', playing);
-  for (const b of [$('story-play'), $('tour-ctl-btn')]) if (b) { b.textContent = playing ? 'Pause' : 'Play'; b.setAttribute('aria-pressed', String(playing)); }
+  const b = $('tour-play'); if (b) { b.textContent = playing ? '❚❚' : '▶'; b.setAttribute('aria-label', playing ? 'Pause' : 'Play'); b.setAttribute('aria-pressed', String(playing)); }
   ctlLabel();
 }
-// the control in the 3D view: play/pause, where the tour is, and whether it is waiting on the reader
-const ctl = document.createElement('div');
-ctl.className = 'tour-ctl'; ctl.id = 'tour-ctl'; ctl.hidden = true;
-ctl.innerHTML = '<button type="button" class="btn play" id="tour-ctl-btn" aria-pressed="false">Play</button><button type="button" class="btn pace" id="tour-ctl-pace" aria-label="Playback speed, tap to change"></button><span class="tour-ctl-t" id="tour-ctl-t" aria-live="polite"></span>';
-$('view').appendChild(ctl);
-$('tour-ctl-btn').addEventListener('click', () => setPlaying(!playing));
-$('tour-ctl-pace').textContent = `${pace}×`;
-$('tour-ctl-pace').addEventListener('click', () => setPace(PACES[(PACES.indexOf(pace) + 1) % PACES.length]));
+// where the tour is, and whether it is waiting on the reader
 let heldShown = false;
 function ctlLabel() {
-  const t = $('tour-ctl-t'); if (!t || active < 0 || !list[active]) return;
+  const t = $('tour-t'); if (!t || active < 0 || !list[active]) return;
   const held = playing && performance.now() < holdUntil;
   heldShown = held;
-  t.textContent = held ? 'Carries on when you let go'
-    : `${TOURS[tour].short} · ${active + 1} of ${list.length}${playing ? '' : ' · paused'}`;
+  t.textContent = held ? 'Carries on when you let go' : `${active + 1} of ${list.length}${playing ? '' : ' · paused'}`;
+  $('tour-prev').disabled = active === 0; $('tour-next').disabled = active === list.length - 1;
 }
 function hold() { if (playing) { holdUntil = performance.now() + HOLD_MS; if (!heldShown) ctlLabel(); } }
 export function play(which = 'story') { if (!inStory() || which !== tour) enter(which); setPlaying(true); }
@@ -162,11 +174,11 @@ onTick(dt => {
   else {
     const next = nextTour(tour);
     if (next) switchTour(next);
-    else { setPlaying(false); box.querySelector('.beat-end')?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' }); }
+    else { setPlaying(false); if (!narrow.matches) box.querySelector('.beat-end')?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' }); }
   }
 });
 // the reader looking around holds the tour; it carries on HOLD_MS after the last touch, drag or wheel
-const lookAround = e => { if (!e.target.closest?.('#story-play, .pace-seg, #story-hero-play, #tour-ctl, #clock')) hold(); };
+const lookAround = e => { if (!e.target.closest?.('.story-head, #story-hero-play, #clock')) hold(); };
 for (const el of [panel, $('view')]) for (const ev of ['wheel', 'touchstart', 'touchmove', 'pointerdown', 'pointermove']) el?.addEventListener(ev, e => { if (ev !== 'pointermove' || e.buttons) lookAround(e); }, { passive: true });
 addEventListener('wheel', e => { if (narrow.matches) lookAround(e); }, { passive: true });
 addEventListener('touchmove', e => { if (narrow.matches) lookAround(e); }, { passive: true });

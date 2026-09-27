@@ -4,5 +4,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   base: './',
   build: { target: 'es2022', chunkSizeWarningLimit: 1500 },
+  // agent worktrees live under .claude/; their edits must not reload this server's page
+  server: { watch: { ignored: ['**/.claude/**', '**/shots/**', '**/dist*/**'] } },
   test: { include: ['src/**/*.test.ts'] },
 });

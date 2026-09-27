@@ -1,4 +1,4 @@
-// The clock on the page. A strip docked in the 3D view plays one simulation at a time (the flows react:
+// The clock on the page. A strip docked under the 3D view plays one simulation at a time (the flows react:
 // they speed up with the load, the grid goes dark in an outage, the generator feed lights up), and a section
 // below the ledger draws all four as charts. Everything is resampled when the scenario changes.
 import { makeSim, SIMS, totals } from '../model/clock.ts';
@@ -55,7 +55,7 @@ function chart(sim, { W = 1000, H = 220, pad = [46, 58, 18, 30], n = 480, compac
 function inv(sim, u) { return u < 0.45 ? u / 0.45 * 45 : 45 + (u - 0.45) / 0.55 * (sim.duration - 45); }
 
 // ---------- the strip in the 3D view ----------
-const view = $('view');
+const viewer = $('viewer');
 const strip = document.createElement('div');
 strip.className = 'clock'; strip.id = 'clock'; strip.hidden = true;
 strip.innerHTML = `
@@ -70,7 +70,7 @@ strip.innerHTML = `
     <svg class="ck-spark" id="ck-spark" viewBox="0 0 1000 70" preserveAspectRatio="none" aria-hidden="true"></svg>
     <dl class="ck-counters" id="ck-counters"></dl>
   </div>`;
-view.appendChild(strip);
+viewer.appendChild(strip);
 
 let sim = null, t = 0, playing = true, spark = null, stopTick = null, carbon = () => calc.carbon;
 function load(id, { restart = true } = {}) {

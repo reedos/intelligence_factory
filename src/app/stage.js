@@ -210,8 +210,12 @@ function resize() {
   renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.fov = w / h < 0.9 ? 48 : 35; camera.updateProjectionMatrix();
   composers.forEach(c => c && sizeComposer(c));
+  // resizing clears the canvas; draw straight away so a strip opening below the view never flashes it black
+  if (ui.scene >= 0 && built[ui.scene] && composers[ui.scene]) { controls.update(); composers[ui.scene].render(); updatePins(); }
 }
 new ResizeObserver(resize).observe(view);
+// the key hints are for first contact: gone after the first drag or scroll in the view
+for (const ev of ['pointerdown', 'wheel']) view.addEventListener(ev, () => document.body.classList.add('looked'), { once: true, passive: true });
 
 // ---------- camera tween ----------
 let tween = null;
@@ -238,7 +242,7 @@ function safeBox() {
   // the clear area in normalized device coordinates, from the overlays actually on screen
   const vr = view.getBoundingClientRect(), box = { x0: -0.82, x1: 0.82, y0: -0.8, y1: 0.8 };
   const toY = px => 1 - 2 * (px - vr.top) / vr.height;
-  for (const sel of ['.hud.tl', '.hud.tr', '#tour-ctl', '#clock']) {
+  for (const sel of ['.hud.tl', '.hud.tr', '#hud-btns']) {        // the clock and the phone buttons sit below the view
     const el = document.querySelector(sel); if (!el || el.hidden || getComputedStyle(el).display === 'none') continue;
     const r = el.getBoundingClientRect(); if (!r.width) continue;
     if (r.top - vr.top < vr.height / 2) box.y1 = Math.min(box.y1, toY(r.bottom + 14));   // overlay along the top
@@ -520,7 +524,7 @@ function updateScale() {
   const s = SCENES()[ui.scene]; if (!s) return;
   const d = camera.position.distanceTo(controls.target);
   const mPerPx = 2 * d * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / view.clientHeight * s.unit;
-  const target = mPerPx * 110, pow = Math.pow(10, Math.floor(Math.log10(target)));
+  const target = mPerPx * (view.clientWidth < 520 ? 80 : 110), pow = Math.pow(10, Math.floor(Math.log10(target)));
   const nice = [1, 2, 5, 10].map(k => k * pow).reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a);
   const px = nice / mPerPx;
   $('scale-bar').style.width = `${px.toFixed(0)}px`;

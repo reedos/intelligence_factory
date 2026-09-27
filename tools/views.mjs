@@ -1,7 +1,8 @@
 // Is every tour stop's view clear? For each step of every tour, fly there as the tour does (story UI on, the
 // step's clock open), then check two things:
 //   3D   a ray from the camera to the part must not hit solid geometry well before the part
-//   UI   the part's pin must sit inside the view, clear of the title, buttons, tour control and clock strip
+//   UI   the part's pin must sit inside the view, clear of the title, layer switch, buttons, legend and scale bar
+//        (the clock and the tour transport sit below the view, so a pin inside the view is clear of them)
 // Usage: node tools/views.mjs [desktop|phone] [all]   (all = every hotspot in every layer, not just tour stops)
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -50,7 +51,7 @@ const check = () => {
   if (!r) covers.push('pin off screen');
   else {
     if (r.left < view.left + 4 || r.right > view.right - 4 || r.top < view.top + 4 || r.bottom > view.bottom - 4) covers.push('pin at the view edge');
-    for (const [name, sel] of [['title', '.hud.tl'], ['layer buttons', '.hud.tr .mode'], ['tour buttons', '.hud-btns'], ['tour control', '#tour-ctl'], ['clock', '#clock'], ['legend', '.hud.br'], ['scale bar', '.hud.bl']]) {
+    for (const [name, sel] of [['title', '.hud.tl'], ['layer buttons', '.hud.tr .mode'], ['view buttons', '.hud-row'], ['legend', '.hud.br'], ['scale bar', '.hud.bl']]) {
       const el = document.querySelector(sel);
       if (!el || el.hidden || getComputedStyle(el).display === 'none') continue;
       const c = el.getBoundingClientRect();

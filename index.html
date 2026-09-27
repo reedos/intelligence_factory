@@ -46,24 +46,29 @@
   <section class="stage" aria-label="Power chain in 3D">
     <nav class="steps" id="steps" aria-label="Scale"></nav>
     <div class="body">
-      <div class="view" id="view">
-        <canvas id="gl" tabindex="0" aria-label="3D scene. Drag to orbit, scroll to zoom."></canvas>
-        <div class="pins" id="pins"></div>
-        <div class="hud tl"><span class="ttl" id="hud-title">Scale across</span><span class="sub" id="hud-sub">2,000 km across</span></div>
-        <div class="hud bl"><div class="scalebar"><span id="scale-label">100 m</span><i id="scale-bar"></i></div></div>
-        <div class="hud br" id="legend"></div>
-        <div class="hud tr">
-          
-          <div class="mode" role="group" aria-label="Layer">
-            <button type="button" data-mode="power" aria-pressed="true" style="--c: var(--mv)"><i></i>Power</button>
-            <button type="button" data-mode="data" aria-pressed="false" style="--c: var(--nvl)"><i></i>Data</button>
-            <button type="button" data-mode="heat" aria-pressed="false" style="--c: var(--warm)"><i></i>Heat</button>
+      <!-- the viewer stacks the 3D view over the strips that belong to it (the clock, and on phones the buttons),
+           so nothing docked to the view can land on top of anything else -->
+      <div class="viewer" id="viewer">
+        <div class="view" id="view">
+          <canvas id="gl" tabindex="0" aria-label="3D scene. Drag to orbit, scroll to zoom."></canvas>
+          <div class="pins" id="pins"></div>
+          <div class="hud tl"><span class="ttl" id="hud-title">Scale across</span><span class="sub" id="hud-sub">2,000 km across</span></div>
+          <div class="hud bl"><div class="scalebar"><span id="scale-label">100 m</span><i id="scale-bar"></i></div></div>
+          <div class="hud br" id="legend"></div>
+          <div class="hud tr">
+            <div class="mode" role="group" aria-label="Layer">
+              <button type="button" data-mode="power" aria-pressed="true" style="--c: var(--mv)"><i></i>Power</button>
+              <button type="button" data-mode="data" aria-pressed="false" style="--c: var(--nvl)"><i></i>Data</button>
+              <button type="button" data-mode="heat" aria-pressed="false" style="--c: var(--warm)"><i></i>Heat</button>
+            </div>
           </div>
-          <div class="hud-btns"><button type="button" class="btn story-btn" id="story-btn" aria-pressed="false">Story</button><button type="button" class="btn story-btn" id="layer-play" title="Play every part in this layer, level 1 to 6">Play layer</button><button type="button" class="btn story-btn" id="clock-btn" aria-pressed="false">Clock</button><button type="button" class="btn story-btn" id="share-btn">Share</button></div>
+          <div class="toast" id="toast" role="status" hidden></div>
+          <div class="veil" id="veil">Building the region…</div>
+        </div>
+        <div class="hud-btns" id="hud-btns">
+          <div class="hud-row"><button type="button" class="btn story-btn" id="story-btn" aria-pressed="false">Story</button><button type="button" class="btn story-btn" id="layer-play" title="Play every part in this layer, level 1 to 6">Play layer</button><button type="button" class="btn story-btn" id="clock-btn" aria-pressed="false">Clock</button><button type="button" class="btn story-btn" id="share-btn">Share</button></div>
           <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>1–6 jumps scale · P D H switch layers · ← → steps parts · S story · Space plays it · C clock</p>
         </div>
-        <div class="toast" id="toast" role="status" hidden></div>
-        <div class="veil" id="veil">Building the region…</div>
       </div>
       <aside class="panel" aria-label="Components">
         <div class="panel-scroll">
