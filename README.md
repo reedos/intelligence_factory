@@ -23,7 +23,8 @@ npm run build      # static site in dist/, relative paths, ready for GitHub Page
 npm run artifact   # dist-artifact/: the same page shaped for a claude.ai artifact
 ```
 
-Deploy to Pages by hand: `gh workflow run pages.yml` (builds, typechecks and tests first).
+Live at https://reedos.github.io/intelligence_factory/ (noindex for now). Deploy by hand:
+`gh workflow run pages.yml` (typechecks, tests and builds first). MIT license.
 
 Links: `?mw=&accel=&power=&cooling=&site=` sets the scenario and `?view=scene.layer.part` opens a view;
 `#story`, `#watt`, `#request` and `#heat` start a tour. The page keeps its address bar current, and
