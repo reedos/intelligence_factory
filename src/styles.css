@@ -531,3 +531,9 @@ body.story #story-btn, body.story #layer-play { display: none; }
   .ck-counters dt { font-size: 8.5px; letter-spacing: .06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ck-counters dd { font-size: 15px; }
 }
+
+/* ---------- the numbered list's own play ---------- */
+.parts-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: -10px; }
+.parts-head .eyebrow { color: var(--muted); }
+.parts-head .btn { min-height: 34px; padding: 0 12px; font-size: 11px; }
+.parts-head .btn:hover { background: var(--ink); color: #000; }

@@ -9,21 +9,27 @@
 // back, forward, speed, where the tour is) is the only playback control on the page.
 import { store, on } from './store.js';
 import { show, reduced, onTick, setCinema, setTourPace } from './stage.js';
-import { story, watt, request, heat, layer, everything } from './journeys.js';
+import { story, watt, request, heat, layer, everything, CHAIN } from './journeys.js';
 import { openClock, closeClock } from './clock-ui.js';
 
 const $ = id => document.getElementById(id);
+// the id 'story' stays for old links (#story); readers see it as the overview
+// 'here' is every numbered part of the level and layer on screen when it starts, 1 to N
+const here = { scene: 0, mode: 'power' };
+const MODE_NAME = { power: 'power', data: 'data', heat: 'heat' };
 export const TOURS = {
-  story: { label: 'The story', short: 'Story', beats: story, group: 'Tours' },
+  story: { label: 'Overview: all six levels, once', short: 'Overview', beats: story, group: 'Tours' },
+  heat: { label: 'Follow the heat', short: 'The heat', beats: heat, group: 'Tours' },
   watt: { label: 'Follow a watt', short: 'A watt', beats: watt, group: 'Tours' },
   request: { label: 'Follow a request', short: 'A request', beats: request, group: 'Tours' },
-  heat: { label: 'Follow the heat', short: 'The heat', beats: heat, group: 'Tours' },
-  'all-power': { label: 'Every part: power', short: 'Power', beats: M => layer(M, 'power'), group: 'Every part' },
-  'all-data': { label: 'Every part: data', short: 'Data', beats: M => layer(M, 'data'), group: 'Every part' },
-  'all-heat': { label: 'Every part: heat', short: 'Heat', beats: M => layer(M, 'heat'), group: 'Every part' },
+  here: { get label() { return `Every ${MODE_NAME[here.mode]} part, level ${here.scene + 1}`; }, short: 'This level', beats: M => layer(M, here.mode, here.scene), group: 'Every part' },
+  'all-power': { label: 'Every part: power, levels 1 to 6', short: 'Power', beats: M => layer(M, 'power'), group: 'Every part' },
+  'all-heat': { label: 'Every part: heat, levels 6 to 1', short: 'Heat', beats: M => layer(M, 'heat'), group: 'Every part' },
+  'all-data': { label: 'Every part: data, levels 1 to 6', short: 'Data', beats: M => layer(M, 'data'), group: 'Every part' },
   'all': { label: 'Every part, every layer', short: 'All', beats: everything, group: 'Every part' },
 };
 let tour = 'story';
+let resume = null;                                        // { tour, i }: where the reader left a tour to look around
 
 // ---------- UI ----------
 const panel = document.querySelector('.panel-scroll'), stageEl = document.querySelector('.stage');
@@ -45,9 +51,8 @@ function setPace(p) {
 function paceLabel() {
   const c = $('tour-pace'); if (c) { c.textContent = `${pace}×`; c.setAttribute('aria-label', `Playback speed ${pace}×, tap for ${PACES[(PACES.indexOf(pace) + 1) % PACES.length]}×`); }
 }
-// playing on carries through the tours, or through the layers; it does not jump from one group to the other
-const ORDER = { Tours: ['story', 'watt', 'request', 'heat'], 'Every part': ['all-power', 'all-data', 'all-heat'] };
-const nextTour = id => { const g = ORDER[TOURS[id].group]; return id === 'all' ? null : g?.[g.indexOf(id) + 1] ?? null; };
+// playing on carries through the tours, or through the layers, in CHAIN order; never from one group to the other
+const nextTour = id => { const g = CHAIN[TOURS[id].group] || [], k = g.indexOf(id); return k < 0 ? null : g[k + 1] ?? null; };
 // ≈260 words a minute; a beat running a clock holds at least 16 s so the simulation gets to its point (an outage's
 // generators come on 7.5 s in at playback speed)
 const dwell = b => Math.max(b.sim ? 16000 : 0, Math.min(16000, Math.max(6000, 3000 + `${b.title} ${b.text}`.split(/\s+/).length * 230)));
@@ -74,7 +79,11 @@ function render() {
   $('tour-next').addEventListener('click', () => step(1));
   $('tour-pace').addEventListener('click', () => setPace(PACES[(PACES.indexOf(pace) + 1) % PACES.length]));
   paceLabel();
-  box.querySelectorAll('[data-tour]').forEach(b => b.addEventListener('click', () => { if (b.dataset.tour !== tour) switchTour(b.dataset.tour); }));
+  box.querySelectorAll('[data-tour]').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.tour === tour) return;
+    if (b.dataset.tour === 'here') { here.scene = store.ui.scene; here.mode = store.ui.mode; }   // the level on screen now
+    switchTour(b.dataset.tour);
+  }));
   $('story-done').addEventListener('click', exit);
   observe();
   if (active >= 0) mark(active);
@@ -118,19 +127,25 @@ function step(d) {
   box.querySelector(`.beat[data-i="${i}"]`)?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
 }
 
-export function enter(which = tour) {
+// fromStart: a button that names a tour starts it over; the Tours button picks up where the reader left off
+export function enter(which = tour, { fromStart = false } = {}) {
   if (!box.hidden && which === tour) return;
   tour = TOURS[which] ? which : 'story';
+  const at = !fromStart && resume?.tour === tour ? resume.i : 0;
+  resume = null;
   document.body.classList.add('story');
   box.hidden = false; active = -1; setCinema(true);
   render();
   if (!narrow.matches) stageEl.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });   // narrow: the tour is full screen
   panel.scrollTop = 0;
-  activate(0);
+  if (at && !narrow.matches) box.querySelector(`.beat[data-i="${at}"]`)?.scrollIntoView({ block: 'center' });
+  activate(Math.min(at, list.length - 1));
   $('story-btn')?.setAttribute('aria-pressed', 'true');
 }
-export function exit() {
+// remember: the reader went off to look at something themselves, so the Tours button brings them back here
+export function exit({ remember = false } = {}) {
   if (box.hidden) return;
+  resume = remember && active >= 0 ? { tour, i: active } : null;
   setPlaying(false);
   if (ranClock) { closeClock(); ranClock = false; }
   observer?.disconnect(); seq++;
@@ -159,7 +174,7 @@ function ctlLabel() {
   $('tour-prev').disabled = active === 0; $('tour-next').disabled = active === list.length - 1;
 }
 function hold() { if (playing) { holdUntil = performance.now() + HOLD_MS; if (!heldShown) ctlLabel(); } }
-export function play(which = 'story') { if (!inStory() || which !== tour) enter(which); setPlaying(true); }
+export function play(which = 'story') { if (!inStory() || which !== tour) enter(which, { fromStart: true }); setPlaying(true); }
 onTick(dt => {
   if (!playing || box.hidden || active < 0) return;
   if (performance.now() < holdUntil) return;              // the reader is looking around
@@ -184,10 +199,14 @@ addEventListener('wheel', e => { if (narrow.matches) lookAround(e); }, { passive
 addEventListener('touchmove', e => { if (narrow.matches) lookAround(e); }, { passive: true });
 
 $('story-btn')?.addEventListener('click', () => (inStory() ? exit() : enter()));
+document.addEventListener('click', e => {
+  if (inStory() && e.target.closest?.('.step, .pin, [data-mode], [data-go]') && !e.target.closest('#story')) exit({ remember: true });   // #story: body.story matches '.story'
+}, true);
 addEventListener('keydown', e => {
   if (e.target.matches?.('input, textarea, select')) return;
   if (e.key === 's' || e.key === 'S') { inStory() ? exit() : enter(); return; }
   if (!inStory()) return;
+  if (e.key.length === 1 && '123456pdhPDH'.includes(e.key)) { exit({ remember: true }); return; }   // the stage takes the key from here
   if (e.key === ' ' && !e.target.closest?.('button, a')) { setPlaying(!playing); e.preventDefault(); e.stopImmediatePropagation(); return; }
   if (['ArrowDown', 'ArrowRight', 'PageDown'].includes(e.key)) { step(1); e.preventDefault(); e.stopImmediatePropagation(); }
   else if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(e.key)) { step(-1); e.preventDefault(); e.stopImmediatePropagation(); }
@@ -200,5 +219,11 @@ const hashTour = location.hash.slice(1);
 if (hashTour === 'story' || TOURS[hashTour]) setTimeout(() => enter(hashTour), 0);
 document.querySelectorAll('[data-tour-start]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); enter(a.dataset.tourStart); }));
 $('story-hero-play')?.addEventListener('click', e => { e.preventDefault(); play('story'); });
-// Play in the 3D view's buttons: every part of the layer on screen
+// Play in the 3D view's buttons: every part of the layer on screen, all six levels
 $('layer-play')?.addEventListener('click', () => play(`all-${store.ui.mode}`));
+// Play 1 to N above the numbered list: every part of this level in this layer, in number order
+$('play-these')?.addEventListener('click', () => {
+  here.scene = store.ui.scene; here.mode = store.ui.mode;
+  if (inStory() && tour === 'here') exit();
+  play('here');
+});

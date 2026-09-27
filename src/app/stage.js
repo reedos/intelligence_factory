@@ -397,6 +397,8 @@ function buildPanel(i) {
   $('hud-title').textContent = `${s.n}. ${s.title}`;
   $('hud-sub').textContent = `${voltFor(s).name} · ${s.scale}`;
   const list = $('parts'); list.innerHTML = '';
+  $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · level ${s.n} · ${parts.length} parts`;
+  $('play-these').textContent = `▶ Play 1 to ${parts.length}`;
   parts.forEach((p, n) => {
     const li = document.createElement('li'), b = document.createElement('button');
     b.type = 'button'; b.dataset.id = p.id; b.setAttribute('aria-pressed', 'false');

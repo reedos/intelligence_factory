@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { compute, ACCELERATORS, POWER, COOLING } from '../model/engine';
 import { content } from '../data.js';
-import { story, watt, request, heat, layer, everything } from './journeys.js';
+import { story, watt, request, heat, layer, everything, CHAIN, OUTWARD } from './journeys.js';
 import { SITES } from '../model/sites';
 
 const scenarios: any[] = [];
@@ -27,7 +27,8 @@ describe('tours', () => {
     const M = compute(s), C = content(M);
     for (const [mode, key] of [['power', 'PARTS'], ['data', 'PARTS_DATA'], ['heat', 'PARTS_HEAT']] as const) {
       const beats = layer(M, mode), parts = beats.filter((b: any) => b.link.part);
-      const cards = C.SCENES.flatMap((sc: any) => ((C as any)[key][sc.id] || []).map((p: any) => `${sc.id}:${p.id}`));
+      const scenes = OUTWARD.has(mode) ? [...C.SCENES].reverse() : C.SCENES;
+      const cards = scenes.flatMap((sc: any) => ((C as any)[key][sc.id] || []).map((p: any) => `${sc.id}:${p.id}`));
       expect(parts.map((b: any) => `${C.SCENES[b.link.scene].id}:${b.link.part}`)).toEqual(cards);
       expect(beats.filter((b: any) => b.level).length).toBe(6);
       for (const b of beats as any[]) for (const t of [b.k, b.title, b.text, b.tally]) expect(t, b.title).not.toMatch(/undefined|NaN/);
@@ -38,5 +39,33 @@ describe('tours', () => {
     const M = compute(s), beats = watt(M);
     const left = parseFloat(beats[beats.length - 1].tally!);
     expect(left).toBeCloseTo(M.gpuSiliconMW / M.meterMW, 3);
+  });
+
+  // Reed, 09/27: tours felt like they jumped to another level and back. A tour now moves one level at a time, one way.
+  const levels = (beats: any[]) => beats.map(b => b.link.scene);
+  const oneWay = (lv: number[]) => {
+    const steps = lv.slice(1).map((v, i) => v - lv[i]);
+    return steps.every(d => Math.abs(d) <= 1) && (steps.every(d => d >= 0) || steps.every(d => d <= 0));
+  };
+  const TOUR: Record<string, (M: any) => any[]> = {
+    story, watt, request, heat,
+    'all-power': M => layer(M, 'power'), 'all-heat': M => layer(M, 'heat'), 'all-data': M => layer(M, 'data'),
+  };
+  it.each(scenarios)('every tour moves one level at a time, one way: $accel / $power / $cooling at $meterMW MW $site', s => {
+    const M = compute(s);
+    for (const [name, beats] of Object.entries(TOUR)) expect(levels(beats(M)), name).toSatisfy(oneWay);
+    for (let i = 0; i < 6; i++) for (const m of ['power', 'data', 'heat'] as const) {
+      const lv = levels(layer(M, m, i));
+      expect(new Set(lv), `${m} level ${i + 1}`).toEqual(new Set([i]));
+    }
+    // all of it: each layer one way, and each starts on the level the last one ended on
+    const all = everything(M), bounds = ['power', 'heat', 'data'].map(m => levels(layer(M, m as any)));
+    expect(all.length).toBe(bounds.flat().length);
+    for (let k = 1; k < bounds.length; k++) expect(bounds[k][0], 'everything, layer ' + k).toBe(bounds[k - 1].at(-1));
+    // playing on: every-part tours hand over on the same level; the tours jump at most once (back to a phone)
+    const ends = (id: string) => { const lv = levels(TOUR[id](M)); return [lv[0], lv.at(-1)!]; };
+    const jumps = (chain: string[]) => chain.slice(1).filter((id, k) => Math.abs(ends(id)[0] - ends(chain[k])[1]) > 1).length;
+    expect(jumps(CHAIN['Every part'])).toBe(0);
+    expect(jumps(CHAIN.Tours)).toBeLessThanOrEqual(1);
   });
 });

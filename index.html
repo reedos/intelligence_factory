@@ -18,7 +18,7 @@
     <h1>The Intelligence Factory</h1>
     <p class="tagline">From <span class="v1">345,000 volts</span> to <span class="v2">0.8</span></p>
     <p class="lede">Zoom from a 2,000 km grid into one AI campus and keep going: off the transmission line, through the substation, the halls, a rack and a tray, into a GPU die at under a volt, and out as tokens. Then switch to the data layer and follow the links back out: NVLink inside the rack, optics across the hall, fiber between campuses. Every number carries a label saying where it comes from.</p>
-    <div class="hero-actions"><a class="btn go" href="#story" id="story-hero-play">Play the tour</a><a class="btn" href="#story" id="story-start" data-tour-start="story">Read at your own pace</a><span class="hint-inline">or follow <a href="#watt" data-tour-start="watt">a watt</a>, <a href="#request" data-tour-start="request">a request</a> or <a href="#heat" data-tour-start="heat">the heat</a>, or set up a campus below</span></div>
+    <div class="hero-actions"><a class="btn go" href="#story" id="story-hero-play">Play the overview</a><a class="btn" href="#story" id="story-start" data-tour-start="story">Read at your own pace</a><span class="hint-inline">or follow <a href="#watt" data-tour-start="watt">a watt</a>, <a href="#request" data-tour-start="request">a request</a> or <a href="#heat" data-tour-start="heat">the heat</a>, or set up a campus below</span></div>
   </header>
 
   <section class="scenario" aria-labelledby="sc-h">
@@ -66,13 +66,14 @@
           <div class="veil" id="veil">Building the region…</div>
         </div>
         <div class="hud-btns" id="hud-btns">
-          <div class="hud-row"><button type="button" class="btn story-btn" id="story-btn" aria-pressed="false">Story</button><button type="button" class="btn story-btn" id="layer-play" title="Play every part in this layer, level 1 to 6">Play layer</button><button type="button" class="btn story-btn" id="clock-btn" aria-pressed="false">Clock</button><button type="button" class="btn story-btn" id="share-btn">Share</button></div>
-          <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>1–6 jumps scale · P D H switch layers · ← → steps parts · S story · Space plays it · C clock</p>
+          <div class="hud-row"><button type="button" class="btn story-btn" id="story-btn" aria-pressed="false">Tours</button><button type="button" class="btn story-btn" id="layer-play" title="Play every part in this layer, level 1 to 6">Play layer</button><button type="button" class="btn story-btn" id="clock-btn" aria-pressed="false">Clock</button><button type="button" class="btn story-btn" id="share-btn">Share</button></div>
+          <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>1–6 jumps scale · P D H switch layers · ← → steps parts · S tours · Space plays · C clock</p>
         </div>
       </div>
       <aside class="panel" aria-label="Components">
         <div class="panel-scroll">
           <p class="intro" id="intro"></p>
+          <div class="parts-head"><span class="eyebrow" id="parts-k">Numbered in the view</span><button type="button" class="btn play-these" id="play-these">▶ Play them in order</button></div>
           <ul class="parts" id="parts"></ul>
           <article class="card" id="card" hidden>
             <span class="k" id="card-k"></span>
