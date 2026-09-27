@@ -4,6 +4,7 @@
 import { SOURCES, PART_SOURCES, LEDGER_SOURCES, EST_NOTES } from '../sources.js';
 import { BASIS } from '../data.js';
 import { store } from './store.js';
+import { SITES } from '../model/sites.ts';
 
 const MEANING = {
   spec: 'A vendor or a standards body states this figure.',
@@ -27,6 +28,8 @@ function resolve(key) {
     const k = row?.[3] ? partKey(row[3]) : null;
     return { title: row?.[0], ids: (k && PART_SOURCES[k]) || [], note: 'Counts are this page’s estimates, sized from the scenario; the sources are for the part itself.' };
   }
+  const site = store.M.scenario.site && SITES[store.M.scenario.site];
+  if (key === 'power:across:home' && site) return { title: site.name, ids: site.sources, note: site.unknowns.join(' ') };
   return { title: null, ids: PART_SOURCES[key] || [], note: EST_NOTES[key] };
 }
 

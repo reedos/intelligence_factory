@@ -3,10 +3,12 @@ import { describe, it, expect } from 'vitest';
 import { compute, ACCELERATORS, POWER, COOLING } from './model/engine';
 import { content, BASIS } from './data.js';
 import { SOURCES, PART_SOURCES, LEDGER_SOURCES } from './sources.js';
+import { SITES } from './model/sites';
 
 const scenarios: any[] = [];
 for (const accel of Object.keys(ACCELERATORS)) for (const power of Object.keys(POWER)) for (const cooling of Object.keys(COOLING))
   for (const meterMW of [10, 100, 1000, 5000]) scenarios.push({ meterMW, accel, power, cooling });
+for (const [id, s] of Object.entries(SITES)) scenarios.push({ ...s.scenario, site: id });
 
 const strings = (v: unknown, out: string[] = []): string[] => {
   if (typeof v === 'string') out.push(v);

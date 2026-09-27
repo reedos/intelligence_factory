@@ -252,7 +252,8 @@ export const hasPart = (scene, id, mode = ui.mode) => !!(PARTS_BY()[mode][SCENES
 
 // ---------- scene switching ----------
 let busy = false, queued = null;
-export async function go(i, fromId, { force = false, keepCamera = false } = {}) {
+export async function go(i, fromId, { force = false, keepCamera = false, fromShow = false } = {}) {
+  if (!force && !fromShow) showSeq++;                      // the reader moved: drop any jump still waiting for its scene
   if (busy) { queued = [i, fromId, { force, keepCamera }]; return; }   // the latest request runs when this switch lands
   if ((i === ui.scene && !force) || i < 0 || i >= BUILDERS.length) return;
   busy = true;
@@ -292,11 +293,13 @@ export const isBusy = () => busy;
 
 // Jump to a part from anywhere on the page: switch layer, change scene if needed, select it and pulse its pin.
 const until = (f, ms = 30000) => new Promise(r => { const t0 = performance.now(); const tick = () => (f() || performance.now() - t0 > ms ? r() : requestAnimationFrame(tick)); tick(); });
+let showSeq = 0;
 export async function show({ scene, mode, part }, { scroll = true, still = () => true } = {}) {
+  const my = ++showSeq, live = () => my === showSeq && still();
   if (scroll) $('view').closest('.stage').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
   if (mode && mode !== ui.mode) setMode(mode);
-  if (scene !== ui.scene || !built[scene]) { go(scene); await until(() => !still() || (ui.scene === scene && !busy && !!built[scene])); }
-  if (!still()) return;                                  // a newer request took over while this scene was building
+  if (scene !== ui.scene || !built[scene]) { go(scene, null, { fromShow: true }); await until(() => !live() || (ui.scene === scene && !busy && !!built[scene])); }
+  if (!live()) return;                                   // a newer jump, or the reader, took over while this scene was building
   if (mode && mode !== ui.mode) setMode(mode);
   if (part) { select(part, true); beacon(part); }
 }

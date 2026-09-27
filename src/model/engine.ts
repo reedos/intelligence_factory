@@ -12,6 +12,7 @@ export interface Scenario {
   accel: AccelId;
   power: PowerId;
   cooling: CoolingId;
+  site?: string;     // a real campus this scenario is based on (sites.ts); location and facts only
 }
 
 export const DEFAULT_SCENARIO: Scenario = { meterMW: 100, accel: 'gb200', power: 'ac415', cooling: 'warm' };
@@ -275,7 +276,7 @@ export function compute(s: Scenario) {
   };
 
   return {
-    scenario: { meterMW, accel: accel.id, power: power.id, cooling: cooling.id } as Scenario,
+    scenario: { meterMW, accel: accel.id, power: power.id, cooling: cooling.id, ...(s.site ? { site: s.site } : {}) } as Scenario,
     accel, power, cooling,
     meterMW, IT_MW, pue, wue: cooling.wue, coolMW, miscMW,
     rack: { kw: rackKW, dcBusKW, convKW: rackConvKW, pkgKW, hbmKW, gpuSiliconKW, vrmLossKW, ibcLossKW, cpuKW, gpus: accel.gpusPerRack },

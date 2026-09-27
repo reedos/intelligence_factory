@@ -34,6 +34,8 @@ export const VOLT = {
   vapor: { css: '#d6e6ff', name: 'Evaporation', short: 'vapor' },
 };
 
+import { SITES, PLACES, placeKey, STATE_CARBON, DEFAULT_PLACE, US_CARBON_G } from './model/sites.ts';
+
 // Facts the text needs per accelerator that the engine does not use for arithmetic.
 const FACTS = {
   h100: {
@@ -159,6 +161,8 @@ export function content(M) {
   // ---------- power-mode parts per scene. The 3D scene supplies positions; this supplies what to say ----------
   // specs: [label, value, basis]
   const PARTS = {};
+  const site = M.scenario.site ? SITES[M.scenario.site] : null;
+  const stateC = STATE_CARBON[(site || DEFAULT_PLACE).state];
   PARTS.across = [
     { id: 'grid', title: 'Each campus, its own grid', kicker: '345–500 kV backbone',
       body: 'High-voltage lines tie every campus to power plants and the wider grid. A gigawatt campus needs a new substation and often new lines, which is why builders spread clusters across regions where power is available.',
@@ -166,9 +170,19 @@ export function content(M) {
     { id: 'plants', title: 'Generation', kicker: 'Gas, nuclear, wind, solar',
       body: 'Plants inject power into the grid far from the campus; the grid delivers it with about 5% lost on the way.',
       specs: [['US grid losses', '≈5% (EIA)', 'spec']] },
-    { id: 'home', title: 'This campus', kicker: `${meter} at the meter`,
-      body: `The campus this page follows, ${meter} at the meter. Go in to the substation and follow the power down.`,
-      specs: [['Meter', meter, 'est'], ['IT load', `${mwTxt(IT_MW)} at PUE ${M.pue.toFixed(2)}`, 'est']], drill: 1 },
+    site
+      ? { id: 'home', title: site.name, kicker: `${site.place} · ${meter} modeled`,
+        body: `${site.owner}. This page rebuilds the campus from the closest scenario it can: ${site.unknowns.join(' ')} Go in to follow the power down.`,
+        specs: [...site.facts, ['Modeled here', `${meter} at the meter, ${A.short}, ${M.cooling.short.toLowerCase()} cooling`, 'est']], drill: 1 }
+      : { id: 'home', title: 'This campus', kicker: `${meter} at the meter`,
+        body: `The campus this page follows, ${meter} at the meter, placed in central Ohio's data-center cluster for the map. Pick a real campus in the scenario bar to move it. Go in to the substation and follow the power down.`,
+        specs: [['Meter', meter, 'est'], ['IT load', `${mwTxt(IT_MW)} at PUE ${M.pue.toFixed(2)}`, 'est']], drill: 1 },
+    { id: 'carbon', title: 'Grid carbon by state', kicker: `${stateC ? `${stateC.name}: ${stateC.g} g CO₂/kWh` : 'EIA state profiles, 2024'}`,
+      body: `Shaded states have EIA figures: teal for hydro-heavy grids, amber and red for coal and gas. The same campus emits three to four times more in Wisconsin than in Washington.${site ? ` ${site.carbonNote}` : ''}`,
+      specs: [...(stateC ? [[`${stateC.name}, 2024`, `${stateC.lb.toLocaleString('en-US')} lb/MWh, ${stateC.g} g/kWh`, 'spec']] : []), ['US average, eGRID 2022', `${US_CARBON_G} g/kWh`, 'spec'], ['Lowest shown, Washington', '113 g/kWh', 'spec'], ['Highest shown, Wisconsin', '494 g/kWh', 'spec']] },
+    ...PLACES.filter(p => !site || !p.ids.includes(site.id)).map(p => ({ id: placeKey(p), title: p.name, kicker: p.site.place,
+      body: `${p.site.owner}. Choose it under Real campuses in the scenario bar to rebuild this page around it.`,
+      specs: p.site.facts })),
   ];
   const lineA = M.staircase[0].current;
   PARTS.campus = [
@@ -449,13 +463,13 @@ export function content(M) {
       { id: 'ila', title: 'Amplifier huts', kicker: 'Every 60–100 km',
         body: 'Small buildings along the route boost the light without converting it back to electricity.',
         specs: [['Spacing', '≈80–100 km, rule of thumb', 'typical']] },
-      { id: 'route', title: 'Fiber route', kicker: '≈5 ms per 1,000 km',
+      { id: 'route', title: 'Fiber route', kicker: '≈5 milliseconds per 1,000 km',
         body: 'Light in glass covers about 200 km per millisecond. A 1,000 km route adds about 10 ms to every round trip, fine for inference and hard for tightly synchronized training.',
         specs: [['Speed in fiber', '≈4.9 µs per km', 'typical'], ['1,000 km round trip', '≈10 ms', 'est'], ['Microsoft hollow-core fiber', '≈33% lower latency; 1,280 km laid', 'spec'], ['Per fiber pair, C-band 800ZR', '32 × 800G = 25.6 Tb/s', 'spec']] },
       { id: 'remote', title: 'Other campuses', kicker: 'One model, several sites',
         body: 'Builders now train single models across campuses, splitting the work so the slow links carry the least traffic. Google trains its largest models across campuses and metros; Microsoft links Fairwater sites about 700 miles apart.',
         specs: [['Microsoft AI WAN fiber added', '120,000 miles', 'spec'], ['NVIDIA Spectrum-XGS', 'nearly 2× NCCL across sites', 'spec'], ['DeepMind Decoupled DiLoCo', '4 US regions over 2–5 Gb/s', 'spec']] },
-      { id: 'home', title: 'This campus', kicker: 'Go in', drill: 1,
+      { id: 'home', title: site ? site.name : 'This campus', kicker: 'Go in', drill: 1,
         body: 'Go into the campus and follow the data in.',
         specs: [['GPUs', `≈${n0(GPUS)}`, 'est']] },
     ],
@@ -621,7 +635,7 @@ export function content(M) {
       { id: 'climate', title: 'Climate picks sites', kicker: 'Heat stays local',
         body: 'Power travels, heat does not. Builders favor places where outside air is cool enough to reject heat most of the year, and where water is not scarce.',
         specs: [['Free cooling', 'most hours in cool climates', 'typical']] },
-      { id: 'home', title: 'This campus', kicker: 'Go in', drill: 1,
+      { id: 'home', title: site ? site.name : 'This campus', kicker: 'Go in', drill: 1,
         body: 'Go into the campus and follow the heat out.',
         specs: [['Heat out', meter, 'est']] },
     ],

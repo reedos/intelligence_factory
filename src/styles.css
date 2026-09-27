@@ -403,3 +403,37 @@ body.clocking .hud-btns #clock-btn, .story-btn[aria-pressed="true"] { background
   .hud-btns .btn { min-height: 30px; padding: 0 12px; font-size: 11px; }
   .hud.tl { top: 104px; }
 }
+
+/* ---------- real campuses ---------- */
+.sc-sites { display: grid; gap: 10px; }
+.sc-sites .lab { font: 400 11px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+#sc-site button { flex: 1 1 120px; }
+.site-card { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px 32px; padding: 20px 22px; background: var(--surface); border: 1px solid var(--line); border-left: 2px solid var(--accent); }
+.site-head { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+.site-head h3 { margin: 6px 0 0; font: 600 30px/1 var(--display); text-transform: uppercase; }
+.site-head .btn { min-height: 36px; padding: 0 14px; }
+.site-facts { margin: 0; display: grid; gap: 0; }
+.site-facts div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.site-facts dt { font: 400 10.5px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.site-facts dd { margin: 0; grid-column: 1; font-size: 14px; }
+.site-facts .chip { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.site-notes ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; font-size: 13.5px; line-height: 1.55; color: var(--muted); }
+.site-notes .sp-k { margin: 0; font: 400 10.5px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.site-src { grid-column: 1 / -1; margin: 0; font-size: 12.5px; color: var(--muted); }
+.site-src a { color: var(--ink); text-underline-offset: 3px; text-decoration-color: var(--line-2); }
+@media (max-width: 760px) { .site-card { grid-template-columns: minmax(0, 1fr); padding: 16px; } }
+
+#sc-accel, #sc-power, #sc-cooling { flex-wrap: nowrap; }
+#sc-accel button, #sc-power button, #sc-cooling button { flex: 1 1 0; min-width: 0; padding-inline: 6px; line-height: 1.15; }
+
+/* ---------- journeys ---------- */
+.story-head { flex-wrap: wrap; row-gap: 12px; }
+.tour-tabs { display: flex; border: 1px solid var(--line-2); }
+.tour-tabs button { all: unset; cursor: pointer; padding: 8px 10px; font: 600 11px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-left: 1px solid var(--line); white-space: nowrap; }
+.tour-tabs button:first-child { border-left: 0; }
+.tour-tabs button[aria-selected="true"] { background: var(--ink); color: #000; }
+.tour-tabs button:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.tally { flex-basis: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.tally b { font: 600 32px/1 var(--display); color: var(--accent); font-variant-numeric: tabular-nums; }
+.hint-inline a { color: var(--ink); text-underline-offset: 3px; text-decoration-color: var(--line-2); }
+.hint-inline a:hover { text-decoration-color: var(--accent); }

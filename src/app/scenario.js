@@ -2,7 +2,10 @@
 // the current scenario with a pinned one. The scenario also lives in the URL query so a link reproduces it.
 import { ACCELERATORS, POWER, COOLING } from '../model/engine.ts';
 import { store, on, setScenario, pin } from './store.js';
-import { syncRange, tokenFigures } from './sections.js';
+import { syncRange, tokenFigures, setCarbon } from './sections.js';
+import { SITES } from '../model/sites.ts';
+import { SOURCES } from '../sources.js';
+import { BASIS } from '../data.js';
 
 const $ = id => document.getElementById(id);
 const n0 = v => Math.round(v).toLocaleString('en-US');
@@ -24,12 +27,31 @@ function renderControls() {
   seg($('sc-accel'), Object.values(ACCELERATORS).map(a => [a.id, a.short, a.year]), s.accel, () => false, id => setScenario({ accel: id }));
   seg($('sc-power'), Object.values(POWER).map(p => [p.id, p.short]), s.power, id => id === 'dc800' && !A.dc800, id => setScenario({ power: id }));
   seg($('sc-cooling'), Object.values(COOLING).map(c => [c.id, c.short, c.sub]), s.cooling, id => !A.coolingOptions.includes(id), id => setScenario({ cooling: id }));
+  seg($('sc-site'), [['', 'None', 'generic'], ...Object.values(SITES).map(x => [x.id, x.name.replace(/^(Microsoft|Meta|xAI) /, ''), x.place])], s.site || '', () => false, id => pickSite(id));
+  renderSiteCard();
   const note = [];
   if (!A.dc800) note.push(`${A.short} servers take AC power supplies, so 800 V DC is off.`);
   if (!A.coolingOptions.includes('air')) note.push(`${A.rackName} racks are liquid-cooled only.`);
   if (A.coolingOptions.length === 1 && A.coolingOptions[0] === 'air') note.push(`NVIDIA's DGX ${A.short} reference design is air-cooled; some vendors sell liquid-cooled ${A.short} servers, not modeled here.`);
   if (A.id === 'rubin') note.push('Vera Rubin ships in 2026; its figures are pre-launch estimates.');
   $('sc-note').textContent = note.join(' ');
+}
+// a real campus sets the four choices to its closest match, moves the map pin and sets the grid carbon
+function pickSite(id) {
+  if (!id) { setScenario({ site: undefined }); return; }
+  const x = SITES[id];
+  setScenario({ ...x.scenario, site: id });
+  setCarbon(x.carbonG);
+}
+function renderSiteCard() {
+  const s = store.scenario, x = s.site && SITES[s.site], box = $('site-card');
+  box.hidden = !x; if (!x) return;
+  const drift = ['meterMW', 'accel', 'power', 'cooling'].filter(k => s[k] !== x.scenario[k]);
+  box.innerHTML = `<div class="site-head"><div><span class="eyebrow">${x.owner} · ${x.place}</span><h3>${x.name}</h3></div>${drift.length ? `<button type="button" class="btn" id="site-reset">Back to the preset</button>` : ''}</div>
+    <dl class="site-facts">${x.facts.map(([k, v, b]) => `<div><dt>${k}</dt><dd>${v}</dd><span class="chip ${b}">${BASIS[b].short}</span></div>`).join('')}</dl>
+    <div class="site-notes"><p class="sp-k">What this preset assumes${drift.length ? ' (you have since changed it)' : ''}</p><ul>${x.unknowns.map(u => `<li>${u}</li>`).join('')}<li>Grid carbon: ${x.carbonNote}</li></ul></div>
+    ${x.sources.length ? `<p class="site-src">Sources: ${x.sources.map(id => SOURCES[id]).filter(Boolean).map(r => `<a href="${r.url}" target="_blank" rel="noopener">${r.publisher}</a>`).join(' · ')}</p>` : ''}`;
+  $('site-reset')?.addEventListener('click', () => pickSite(x.id));
 }
 $('sc-mw').addEventListener('input', e => { $('sc-mw-v').textContent = mwLabel(mwFrom(+e.target.value)); syncRange(e.target); });
 $('sc-mw').addEventListener('change', e => setScenario({ meterMW: mwFrom(+e.target.value) }));
@@ -81,6 +103,7 @@ $('sc-pin').addEventListener('click', () => pin(!store.pinned));
 function writeUrl() {
   const s = store.scenario, q = new URLSearchParams(location.search);
   q.set('mw', s.meterMW); q.set('accel', s.accel); q.set('power', s.power); q.set('cooling', s.cooling);
+  if (s.site) q.set('site', s.site); else q.delete('site');
   try { history.replaceState(null, '', `${location.pathname}?${q}${location.hash}`); } catch { /* sandboxed viewers refuse; the page still works */ }
 }
 function readUrl() {
@@ -89,6 +112,7 @@ function readUrl() {
   if (ACCELERATORS[q.get('accel')]) patch.accel = q.get('accel');
   if (POWER[q.get('power')]) patch.power = q.get('power');
   if (COOLING[q.get('cooling')]) patch.cooling = q.get('cooling');
+  if (SITES[q.get('site')]) { patch.site = q.get('site'); setCarbon(SITES[q.get('site')].carbonG); }
   if (Object.keys(patch).length) setScenario(patch);
 }
 

@@ -17,7 +17,7 @@
     <h1>The Intelligence Factory</h1>
     <p class="tagline">From <span class="v1">345,000 volts</span> to <span class="v2">0.8</span></p>
     <p class="lede">Zoom from a 2,000 km grid into one AI campus and keep going: off the transmission line, through the substation, the halls, a rack and a tray, into a GPU die at under a volt, and out as tokens. Then switch to the data layer and follow the links back out: NVLink inside the rack, optics across the hall, fiber between campuses. Every number carries a label saying where it comes from.</p>
-    <div class="hero-actions"><a class="btn go" href="#story" id="story-start">Start the story</a><span class="hint-inline">or set up a campus below and explore on your own</span></div>
+    <div class="hero-actions"><a class="btn go" href="#story" id="story-start" data-tour-start="story">Start the story</a><span class="hint-inline">or follow <a href="#watt" data-tour-start="watt">a watt</a>, <a href="#request" data-tour-start="request">a request</a> or <a href="#heat" data-tour-start="heat">the heat</a>, or set up a campus below</span></div>
   </header>
 
   <section class="scenario" aria-labelledby="sc-h">
@@ -35,6 +35,8 @@
       <div class="sc-group"><span class="lab">Power to the rack</span><div class="sc-seg" id="sc-power" role="group" aria-label="Power to the rack"></div></div>
       <div class="sc-group"><span class="lab">Cooling</span><div class="sc-seg" id="sc-cooling" role="group" aria-label="Cooling"></div></div>
     </div>
+    <div class="sc-sites"><span class="lab">Or start from a real campus</span><div class="sc-seg" id="sc-site" role="group" aria-label="Real campuses"></div></div>
+    <div class="site-card" id="site-card" hidden></div>
     <p class="note" id="sc-note"></p>
     <div class="kpis" id="kpis"></div>
     <div class="sc-compare"><button type="button" class="btn" id="sc-pin" aria-pressed="false">Pin to compare</button><span id="sc-pinned"></span></div>

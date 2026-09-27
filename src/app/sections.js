@@ -3,6 +3,8 @@
 import { VOLT, BASIS } from '../data.js';
 import { store, on, emit } from './store.js';
 import { goAttr } from './links.js';
+import { calc, tokenFigures } from '../model/tokens.js';
+export { calc, tokenFigures };
 
 const $ = id => document.getElementById(id);
 const fmt = (n, d = 0) => n.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
@@ -262,17 +264,8 @@ function renderBom() {
 const logSlider = (el, lo, hi) => ({ get: () => Math.pow(10, lo + (el.value / 1000) * (hi - lo)), set: v => (el.value = Math.round((Math.log10(v) - lo) / (hi - lo) * 1000)) });
 export function syncRange(el) { el.style.setProperty('--pct', `${(el.value - el.min) / (el.max - el.min) * 100}%`); }
 const T = { tps: logSlider($('tps'), 2, Math.log10(20000)), train: logSlider($('train'), 0, Math.log10(300)), life: logSlider($('life'), 13, 17) };
-export const calc = { tokPerGpu: 2000, tpsTouched: false, util: 0.6, carbon: 370, trainGWh: 50, lifeTokens: 1e15, withTrain: true };
 const sig = (v, d = 2) => v >= 100 ? fmt(v) : v >= 10 ? v.toFixed(1) : v.toFixed(d);
 const big = v => v >= 1e12 ? `${sig(v / 1e12)} T` : v >= 1e9 ? `${sig(v / 1e9)} B` : v >= 1e6 ? `${sig(v / 1e6)} M` : v >= 1e3 ? `${sig(v / 1e3)} k` : sig(v);
-export function tokenFigures(M, c = calc) {
-  const tps = c.tpsTouched ? c.tokPerGpu : M.tokPerGpuRef;   // each accelerator gets its own default until the reader sets one
-  const rate = M.gpus * tps * c.util;
-  const jOps = M.meterMW * 1e6 / rate;
-  const jTrain = c.withTrain ? c.trainGWh * 3.6e12 / c.lifeTokens : 0;
-  const j = jOps + jTrain, whReply = j * 500 / 3600;
-  return { rate, j, jTrain, whReply, co2Reply: whReply / 1000 * c.carbon, waterReply: whReply / 1000 * M.wue * 1000 };
-}
 function renderTokens() {
   const M = store.M, f = tokenFigures(M);
   $('tps-v').textContent = fmt(calc.tokPerGpu);
