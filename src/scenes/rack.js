@@ -119,10 +119,13 @@ function buildHGX({ quality, state }) {
   const fanItems = [];
   for (let i = 0; i < 6; i++) { const fx0 = -0.185 + i * 0.074; pulled.box(0.068, 0.15, 0.045, MAT.fan, fx0, yb + 0.1, pz + sd / 2 - 0.04); fanItems.push({ p: [fx0, yb + 0.065, pz + sd / 2 - 0.015], axis: 'z', r: 0.026 }, { p: [fx0, yb + 0.135, pz + sd / 2 - 0.015], axis: 'z', r: 0.026 }); }
   const sinks = [];
+  // fins get their own material, not the shared MAT.alu: at close range under the studio env, MAT.alu's high
+  // metalness+low roughness blows out to featureless white; the fins are the closest, densest metal in the shot
+  const FIN = new THREE.MeshStandardMaterial({ color: 0xb8bfc6, roughness: 0.6, metalness: 0.45, envMapIntensity: 0.5 });
   for (const z of [0.27, 0.1]) for (let i = 0; i < 4; i++) {
     const x = -0.162 + i * 0.108; sinks.push([x, pz + z]);
     pulled.box(0.086, 0.008, 0.13, MAT.copper, x, yb + 0.02, pz + z);
-    for (let f = 0; f < 8; f++) pulled.box(0.003, 0.1, 0.128, MAT.alu, x - 0.038 + f * 0.0108, yb + 0.075, pz + z);
+    for (let f = 0; f < 8; f++) pulled.box(0.003, 0.1, 0.128, FIN, x - 0.038 + f * 0.0108, yb + 0.075, pz + z);
   }
   for (let i = 0; i < 4; i++) pulled.box(0.04, 0.045, 0.04, MAT.alu, -0.15 + i * 0.1, yb + 0.035, pz - 0.03);         // NVSwitch sinks
   pulled.box(sw - 0.02, 0.003, 0.38, MAT.pcb, 0, yb + 0.2, pz - 0.26);                                              // CPU tray, upper rear
@@ -396,11 +399,11 @@ function buildNVL({ quality, model, state }) {
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
       nvswitch: { pos: [0.24, trayY(15), ZF - 0.05], view: { pos: [0.9, 1.0, 1.4], target: [0, trayY(15), ZF - 0.1] } },
       spine: { pos: [0.2, trayY(18), cartZ], view: { pos: [0.4, 1.1, -1.6], target: [0, 0.9, ZB] } },
-      manifold: { pos: [mX[1], trayY(6), mZ], view: { pos: [1.3, 0.8, -1.2], target: [0.2, 0.6, ZB] } },
+      manifold: { pos: [mX[1], trayY(6), mZ], view: { pos: [1.03, 0.55, -0.9], target: [mX[1], trayY(6), mZ + 0.1] } },
     },
     dataFlows, heatFlows,
     heatHotspots: {
-      manifold: { pos: [mX[1], trayY(6), mZ], view: { pos: [1.3, 0.8, -1.2], target: [0.2, 0.6, ZB] } },
+      manifold: { pos: [mX[1], trayY(6), mZ], view: { pos: [1.03, 0.55, -0.9], target: [mX[1], trayY(6), mZ + 0.1] } },
       rearair: { pos: [0.05, trayY(20), ZB - 0.4], view: { pos: [1.6, 1.6, -2.0], target: [0, 1.0, ZB - 0.3] } },
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
     },
