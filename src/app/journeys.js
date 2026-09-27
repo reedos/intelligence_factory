@@ -3,7 +3,7 @@
 //   request  one question from a phone to an answer; the tally is elapsed time and energy
 //   heat     one GPU's heat from the die to the sky; the tally is temperature
 // The story itself (grid to token, mixed layers) lives here too, so all of them can be tested without a page.
-// Beats use the same shape as the story: { link, k, title, text, tally }.
+// Beats use the same shape as the story: { link, k, title, text, tally, sim }. A sim runs that clock while the beat is on.
 import { tokenFigures } from '../model/tokens.js';
 
 const at = (scene, part, mode = 'power') => ({ scene, mode, part });
@@ -30,12 +30,12 @@ export function story(M) {
       text: `The power arrives at 345 kV so the current stays small: ${lineA} per phase for the whole campus. At the rack, the same power would need tens of thousands of amps.` },
     { link: at(1, 'mpt'), k: 'Grid & campus', title: 'The first step down',
       text: `The campus has ${L.transformers} main transformers to take it down to 34.5 kV. They are 99.6% efficient, and still turn ${mw(loss('Main power'))} into heat.` },
-    { link: at(1, 'bess'), k: 'Grid & campus', title: 'Standing by',
+    { link: at(1, 'bess'), sim: 'training', k: 'Grid & campus', title: 'Standing by',
       text: `${n0(L.gensets)} diesel generators and ${n0(L.bessMWh)} MWh of batteries wait for the grid to fail. The batteries also soak up training load swings, which can move a campus tens of megawatts in under a second.` },
     dc
-      ? { link: at(2, 'sst'), k: 'Power room', title: 'Straight to 800 V DC',
+      ? { link: at(2, 'sst'), sim: 'outage', k: 'Power room', title: 'Straight to 800 V DC',
         text: `Solid-state transformers turn 34.5 kV AC into 800 V DC in one step, losing ${mw(loss('Solid-state'))}. No UPS, no rack rectifiers: batteries sit right on the DC bus.` }
-      : { link: at(2, 'ups'), k: 'Power room', title: 'Clean power, at a price',
+      : { link: at(2, 'ups'), sim: 'outage', k: 'Power room', title: 'Clean power, at a price',
         text: `UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs ${mw(loss('UPS'))}, more than any other step before the rack.` },
     { link: at(2, 'racks'), k: 'Data hall', title: `${n0(M.racks)} racks`,
       text: `The IT load, ${mw(M.IT_MW)}, lands on ${n0(M.racks)} ${nvl ? A.rackName : 'DGX H100'} racks of about ${Math.round(M.rack.kw)} kW each, in ${M.halls} ${M.halls > 1 ? 'halls' : 'hall'}. That is ${n0(M.gpus)} GPUs.` },
@@ -59,9 +59,9 @@ export function story(M) {
       text: `Every GPU gets its own optical port into a ${M.NET.tiers}-tier fabric. Switches and optics outside the racks draw ${mw(net)}, and there are about ${big(M.NET.fibers)} strands of fiber.` },
     { link: at(0, 'route', 'data'), k: 'Data · scale across', title: 'Light is slow',
       text: `Campuses hundreds of kilometers apart can train one model, but light in glass needs ${dci.latency.replace('one way', 'each way')} to cross 1,000 km. Training across sites syncs rarely, so the slow links carry the least.` },
-    { link: at(1, air || M.cooling.id === 'liquid' ? 'towers' : 'drycoolers', 'heat'), k: 'Heat', title: 'All of it comes back out',
+    { link: at(1, air || M.cooling.id === 'liquid' ? 'towers' : 'drycoolers', 'heat'), sim: 'hotday', k: 'Heat', title: 'All of it comes back out',
       text: `Every one of those ${meter} leaves as heat. ${M.cooling.id === 'warm' ? 'Warm water climbs to dry coolers on the roofs' : 'Chillers and cooling towers carry it away'}; cooling alone takes ${mw(M.coolMW)}. With the conversion losses, this design runs at PUE ${M.pue.toFixed(2)} and uses about ${big(M.meterMW * 24 * M.wue)} m³ of water a day.` },
-    { link: at(5, 'tokens'), k: 'Tokens', title: `${big(t.rate)} tokens a second`,
+    { link: at(5, 'tokens'), sim: 'inference', k: 'Tokens', title: `${big(t.rate)} tokens a second`,
       text: `At the utilization set below, the campus writes about ${big(t.rate)} tokens a second, ${big(3.6e6 / t.j)} per kilowatt-hour including its share of training. Change the scenario and the story retells itself.` },
   ];
 }
@@ -111,7 +111,7 @@ export function request(M) {
     { link: at(2, 'leaf', 'data'), k: 'Data hall', title: 'Waiting for a seat', tally: add(50), text: 'A scheduler batches your request with others on a replica of the model. Under load the wait can be longer than every network hop combined; 50 ms here is illustrative.' },
     { link: at(5, 'hbm', 'data'), k: 'GPU package', title: 'Reading the prompt', tally: add(200), text: `Prefill: all your prompt's tokens go through the model at once, reading the weights from ${M.accel.hbm.type}. For a long prompt this takes a few hundred milliseconds, the time to the first word.` },
     { link: nvl ? at(3, 'nvswitch', 'data') : at(4, 'nvswitch', 'data'), k: 'Scale-up', title: 'Every layer, a conversation', tally: add(0), text: `The model is split across ${nvl ? 'the GPUs of a rack' : 'the 8 GPUs of a server'}. Inside every layer they swap partial results over NVLink, in well under a microsecond each time, hundreds of times per token.` },
-    { link: at(5, 'tokens'), k: 'Tokens', title: `${replyTok} tokens, one at a time`, tally: add(decodeS * 1000), text: `Decode: each new token reads the weights again. At ${streamTps} tokens a second for your stream (illustrative), a ${replyTok}-token answer takes about ${decodeS.toFixed(1)} s. It costs about ${whReply < 1 ? whReply.toFixed(2) : whReply.toFixed(1)} Wh at this campus, cooling and training share included.` },
+    { link: at(5, 'tokens'), sim: 'inference', k: 'Tokens', title: `${replyTok} tokens, one at a time`, tally: add(decodeS * 1000), text: `Decode: each new token reads the weights again. At ${streamTps} tokens a second for your stream (illustrative), a ${replyTok}-token answer takes about ${decodeS.toFixed(1)} s. It costs about ${whReply < 1 ? whReply.toFixed(2) : whReply.toFixed(1)} Wh at this campus, cooling and training share included.` },
     { link: at(1, 'dci', 'data'), k: 'Out', title: 'The answer streams back', tally: add(25), text: `Words leave as they are written, a few bytes each, back out the fiber. In all: about ${(ms / 1000).toFixed(1)} s and ${whReply < 1 ? whReply.toFixed(2) : whReply.toFixed(1)} Wh, about ${(whReply / 1000 * M.wue * 1000).toFixed(1)} mL of water on site.` },
   ];
 }
@@ -137,6 +137,6 @@ export function heat(M) {
     warm
       ? { link: at(1, 'drycoolers', 'heat'), k: 'Grid & campus', title: 'Into the air', tally: `${T[4]} °C day`, text: 'Dry coolers push it into outside air with fans alone, as long as the air is cooler than the water. On the hottest afternoons sprays help, and cost water.' }
       : { link: at(1, 'chillers', 'heat'), k: 'Grid & campus', title: 'Pumped uphill', tally: `≈${T[3]} °C made`, text: 'Chillers spend electricity to move the heat from cold water into warmer tower water, adding their own heat to the pile.' },
-    { link: at(1, 'plume', 'heat'), k: 'The sky', title: 'Gone', tally: `${T[4]} °C outside`, text: `${warm ? 'Warm air rises off the roofs' : 'Warm, wet air rises off the cooling towers'}. The campus is a ${mw(M.meterMW)} heater that happened to write tokens on the way.` },
+    { link: at(1, 'plume', 'heat'), sim: 'hotday', k: 'The sky', title: 'Gone', tally: `${T[4]} °C outside`, text: `${warm ? 'Warm air rises off the roofs' : 'Warm, wet air rises off the cooling towers'}. The campus is a ${mw(M.meterMW)} heater that happened to write tokens on the way.` },
   ];
 }

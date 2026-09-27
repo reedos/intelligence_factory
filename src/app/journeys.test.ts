@@ -17,6 +17,7 @@ describe('tours', () => {
       expect(beats.length, name).toBeGreaterThan(5);
       for (const b of beats as any[]) {
         for (const t of [b.k, b.title, b.text, b.tally ?? '']) expect(t, `${name}: ${b.title}`).not.toMatch(/undefined|NaN|Infinity|\[object/);
+        expect([undefined, 'training', 'outage', 'hotday', 'inference'], `${name}: ${b.title} sim`).toContain(b.sim);
         const scene = C.SCENES[b.link.scene].id;
         expect((layer[b.link.mode][scene] || []).map(p => p.id), `${name}: ${b.title} → ${b.link.mode}:${scene}:${b.link.part}`).toContain(b.link.part);
       }

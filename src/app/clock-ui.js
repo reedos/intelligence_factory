@@ -113,6 +113,7 @@ function tick(dt) {
   draw();
 }
 export function openClock(id = sim?.id || 'training') {
+  if (!strip.hidden && sim?.id === id) return;           // already running this one; leave its clock where it is
   strip.hidden = false; document.body.classList.add('clocking');
   $('clock-btn')?.setAttribute('aria-pressed', 'true');
   load(id);
