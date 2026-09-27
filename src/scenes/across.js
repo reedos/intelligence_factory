@@ -3,7 +3,7 @@
 // States with EIA carbon figures are shaded by grams of CO₂ per kWh; the other real campuses are pinned.
 // The look is a satellite night image: a dark map lit by city glow, campus and route light, and plant activity
 // (steam plumes off nuclear and gas plants, turning wind rotors) rather than daylight.
-import { feature } from 'topojson-client';
+import { feature, mesh } from 'topojson-client';
 import us from 'us-atlas/states-10m.json';
 import { THREE, MAT, Builder, mtx, flow, canvasTex, sky, glowMat, spinners } from '../kit.js';
 import { rbox, plumes } from '../fx.js';
@@ -11,7 +11,14 @@ import { SITES, STATE_CARBON, DEFAULT_PLACE, PLACES, placeKey, albers, greatCirc
 
 const ORIGIN = albers(-92, 37);
 const world = (lon, lat) => { const [x, y] = albers(lon, lat); return [x - ORIGIN[0], -(y - ORIGIN[1])]; };
-const LOWER48 = feature(us, us.objects.states).features.filter(f => !['02', '15', '60', '66', '69', '72', '78'].includes(f.id));
+const EXCLUDED = ['02', '15', '60', '66', '69', '72', '78'];
+const LOWER48 = feature(us, us.objects.states).features.filter(f => !EXCLUDED.includes(f.id));
+const STATES48 = { type: 'GeometryCollection', geometries: us.objects.states.geometries.filter(g => !EXCLUDED.includes(g.id)) };
+// coastline (arcs bordering only one state, or a foreign edge) vs interior state-to-state borders, from the
+// topology directly, so the glow pass below can tell an actual coast from a state line.
+const toWorldLine = coords => coords.map(([lon, lat]) => world(lon, lat));
+const COASTLINES = mesh(us, STATES48, (a, b) => a === b).coordinates.map(toWorldLine);
+const BORDERS = mesh(us, STATES48, (a, b) => a !== b).coordinates.map(toWorldLine);
 
 // carbon ramp: hydro-heavy teal → coal-heavy amber
 export const carbonColor = g => {
@@ -54,18 +61,21 @@ function mapTexture(small) {
   return canvasTex(W, H, (g) => {
     g.fillStyle = '#050912'; g.fillRect(0, 0, W, H);                                          // water
     const path = rings => { g.beginPath(); rings.forEach(poly => poly.forEach(r => r.forEach(([x, z], i) => { const px = (x - minX) * sx, pz = (z - minZ) * sz; i ? g.lineTo(px, pz) : g.moveTo(px, pz); }))); };
+    const linePath = lines => { g.beginPath(); lines.forEach(line => line.forEach(([x, z], i) => { const px = (x - minX) * sx, pz = (z - minZ) * sz; i ? g.lineTo(px, pz) : g.moveTo(px, pz); })); };
     RINGS.forEach(({ id, rings }) => {
       const c = STATE_CARBON[id];
       path(rings);
       g.fillStyle = '#1b2028'; g.fill('evenodd');                                              // land, a shade warmer than water
-      if (c) { g.globalAlpha = 0.5; g.fillStyle = carbonColor(c.g); g.fill('evenodd'); g.globalAlpha = 1; }
+      if (c) { g.globalAlpha = 0.62; g.fillStyle = carbonColor(c.g); g.fill('evenodd'); g.globalAlpha = 1; }
     });
-    RINGS.forEach(({ rings }) => {                                                              // border glow: coastline and state lines both
-      path(rings);
-      g.shadowColor = 'rgba(130,175,255,0.55)'; g.shadowBlur = 7;
-      g.strokeStyle = 'rgba(170,200,240,0.5)'; g.lineWidth = 1.1; g.stroke();
-      g.shadowBlur = 0;
-    });
+    linePath(COASTLINES);                                                                       // border glow: a real coast reads bluer and brighter...
+    g.shadowColor = 'rgba(130,175,255,0.6)'; g.shadowBlur = 8;
+    g.strokeStyle = 'rgba(170,205,245,0.55)'; g.lineWidth = 1.2; g.stroke();
+    g.shadowBlur = 0;
+    linePath(BORDERS);                                                                          // ...an interior state line stays dim and neutral
+    g.shadowColor = 'rgba(170,180,195,0.28)'; g.shadowBlur = 3;
+    g.strokeStyle = 'rgba(190,195,205,0.3)'; g.lineWidth = 1; g.stroke();
+    g.shadowBlur = 0;
     RINGS.forEach(({ id, rings }) => {
       const c = STATE_CARBON[id];
       path(rings);
@@ -201,6 +211,9 @@ export function build({ quality, model }) {
     return [H[0] + dx * 0.3, H[1] + dz * 0.3, kind];
   });
   let towerGeo = null;
+  // a scene-local glass so the shared MAT.glass elsewhere is untouched: a clearcoat catches the key light as a
+  // glint, a faint emissive keeps the panels from reading as flat black slabs at night.
+  const solarGlass = new THREE.MeshPhysicalMaterial({ color: 0x141c26, roughness: 0.12, metalness: 0.5, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 2.2, emissive: 0x16232f, emissiveIntensity: 0.4 });
   const nuclearEmitters = [], gasEmitters = [], turbineItems = [];
   plants.forEach(([x, z, kind]) => {
     if (kind === 'gas') {                                              // a turbine hall and two tapered stacks
@@ -225,7 +238,7 @@ export function build({ quality, model }) {
         turbineItems.push({ p: [tx, 16.5, tz], axis: 'z', r: 8 });
       }
     }
-    if (kind === 'solar') for (let i = 0; i < 10; i++) P.box(60, 0.4, 3, MAT.glass, x, 1.2, z - 20 + i * 4.5, 0, -0.35);
+    if (kind === 'solar') for (let i = 0; i < 10; i++) P.box(60, 0.4, 3, solarGlass, x, 1.2, z - 20 + i * 4.5, 0, -0.35);
   });
   power.add(P.build({ cast: false }));
   const plumeUpdates = [];
