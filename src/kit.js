@@ -26,6 +26,84 @@ export const glowMat = (css, k = 1.4, opacity = 1) => new THREE.MeshBasicMateria
   color: new THREE.Color(css).multiplyScalar(k), transparent: opacity < 1, opacity, depthWrite: opacity >= 1,
 });
 
+// ---------- surface detail, in real meters ----------
+// Merged geometry has no UVs, so detail is sampled in world space (triplanar: each axis-facing side samples its own
+// plane, blended by the normal). DETAIL.unit is the scene's meters per world unit, so concrete grain, brushed metal
+// and board traces keep their physical size at every scale; far away the mipmaps average them out.
+export const DETAIL = { unit: { value: 1 } };
+function noiseCanvas(n, draw) { const c = document.createElement('canvas'); c.width = c.height = n; draw(c.getContext('2d'), n); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t; }
+const rng = s => () => (s = (s * 16807) % 2147483647) / 2147483647;
+// tileable value noise: a few octaves of blurred random cells
+const NOISE = {
+  grain: noiseCanvas(256, (g, n) => {
+    const r = rng(11); const img = g.createImageData(n, n);
+    const oct = [[8, 0.5], [16, 0.25], [32, 0.15], [64, 0.1]].map(([cells, w]) => { const v = Array.from({ length: cells * cells }, () => r()); return { cells, w, v }; });
+    const sm = t => t * t * (3 - 2 * t);
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      let s = 0;
+      for (const { cells, w, v } of oct) {
+        const fx = x / n * cells, fy = y / n * cells, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = sm(fx - x0), ty = sm(fy - y0);
+        const at = (i, j) => v[((j % cells + cells) % cells) * cells + ((i % cells + cells) % cells)];
+        s += w * ((at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx) * (1 - ty) + (at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx) * ty);
+      }
+      const k = (y * n + x) * 4, c = Math.round(Math.min(1, s) * 255); img.data[k] = img.data[k + 1] = img.data[k + 2] = c; img.data[k + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  }),
+  brushed: noiseCanvas(256, (g, n) => {
+    const r = rng(23); g.fillStyle = '#808080'; g.fillRect(0, 0, n, n);
+    for (let i = 0; i < 1400; i++) { const y = r() * n, v = Math.round(90 + r() * 80); g.fillStyle = `rgba(${v},${v},${v},${0.18 + r() * 0.3})`; g.fillRect(0, y, n, 0.6 + r() * 1.2); }
+  }),
+  traces: noiseCanvas(512, (g, n) => {
+    const r = rng(7); g.fillStyle = '#6a6a6a'; g.fillRect(0, 0, n, n);
+    g.strokeStyle = '#b4b4b4'; g.lineCap = 'round';
+    for (let i = 0; i < 90; i++) {            // routed traces: horizontal, vertical and 45° runs
+      let x = r() * n, y = r() * n; g.lineWidth = 1 + (r() < 0.2 ? 2 : 0); g.beginPath(); g.moveTo(x, y);
+      for (let s = 0; s < 4; s++) { const d = 20 + r() * 90, a = [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4][Math.floor(r() * 4)]; x += Math.cos(a) * d; y += Math.sin(a) * d; g.lineTo(x, y); }
+      g.stroke();
+    }
+    g.fillStyle = '#d0d0d0'; for (let i = 0; i < 260; i++) { g.beginPath(); g.arc(r() * n, r() * n, 1.4, 0, Math.PI * 2); g.fill(); }   // vias
+  }),
+};
+function withDetail(mat, tex, meters, amt, rough) {
+  mat.onBeforeCompile = shader => {
+    shader.uniforms.uDetail = { value: tex }; shader.uniforms.uDetailUnit = DETAIL.unit;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vDWPos;\nvarying vec3 vDWNormal;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vec4 dwp = vec4(transformed, 1.0);
+        vec3 dwn = objectNormal;
+        #ifdef USE_INSTANCING
+          dwp = instanceMatrix * dwp; dwn = mat3(instanceMatrix) * dwn;
+        #endif
+        dwp = modelMatrix * dwp; vDWPos = dwp.xyz; vDWNormal = normalize(mat3(modelMatrix) * dwn);`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vDWPos;\nvarying vec3 vDWNormal;\nuniform sampler2D uDetail;\nuniform float uDetailUnit;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        vec3 dbw = pow(abs(vDWNormal), vec3(4.0)); dbw /= (dbw.x + dbw.y + dbw.z + 1e-5);
+        vec3 dp = vDWPos * uDetailUnit / ${meters.toFixed(4)};
+        float dn = texture2D(uDetail, dp.yz).r * dbw.x + texture2D(uDetail, dp.xz).r * dbw.y + texture2D(uDetail, dp.xy).r * dbw.z;
+        diffuseColor.rgb *= 1.0 + (dn - 0.5) * ${(amt * 2).toFixed(3)};`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        roughnessFactor = clamp(roughnessFactor + (dn - 0.5) * ${(rough * 2).toFixed(3)}, 0.04, 1.0);`);
+  };
+  mat.customProgramCacheKey = () => `detail-${tex.uuid}-${meters}-${amt}-${rough}`;
+  return mat;
+}
+// detail per material: which pattern, its size in meters, how much it shifts color and roughness
+const DETAILS = {
+  ground: ['grain', 40, 0.25, 0.05], gravel: ['grain', 0.4, 0.3, 0.1], asphalt: ['grain', 1.2, 0.18, 0.12],
+  concrete: ['grain', 0.8, 0.14, 0.12], concreteDark: ['grain', 0.8, 0.14, 0.12], slab: ['grain', 1.5, 0.1, 0.18],
+  wall: ['grain', 2, 0.07, 0.08], wallDark: ['grain', 2, 0.07, 0.08], roof: ['grain', 3, 0.1, 0.1],
+  galv: ['brushed', 0.3, 0.08, 0.14], steel: ['brushed', 0.25, 0.08, 0.14], darkSteel: ['brushed', 0.25, 0.06, 0.12], alu: ['brushed', 0.12, 0.06, 0.16],
+  copper: ['brushed', 0.05, 0.1, 0.14], nickel: ['brushed', 0.03, 0.05, 0.1],
+  rack: ['grain', 0.4, 0.06, 0.1], rackFace: ['grain', 0.4, 0.06, 0.1], xfmr: ['grain', 1.2, 0.08, 0.1], ansi61: ['grain', 1.2, 0.07, 0.1],
+  white: ['grain', 1.5, 0.05, 0.08], beige: ['grain', 1.5, 0.06, 0.08],
+  pcb: ['traces', 0.06, 0.35, 0.25], pcbBlack: ['traces', 0.06, 0.18, 0.2],
+};
+for (const [k, [kind, m, a, r]] of Object.entries(DETAILS)) if (MAT[k]) withDetail(MAT[k], NOISE[kind], m, a, r);
+
+
 // ---------- geometry merger: many parts, one draw call per material ----------
 const _o = new THREE.Object3D();
 const _box = new THREE.BoxGeometry(1, 1, 1);
@@ -267,4 +345,28 @@ export function person(b, x, z, ry = 0, y0 = 0, vest = MAT.hiVis) {
   b.add(new THREE.SphereGeometry(0.11, 12, 10), MAT.skin, x, y0 + 1.58, z);
   b.add(new THREE.SphereGeometry(0.13, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), MAT.white, x, y0 + 1.62, z);
   return b;
+}
+
+// ---------- spinning fans: one instanced mesh per scene, turned every frame ----------
+// items: { p: [x, y, z], axis: 'x' | 'y' | 'z', r } in world units. Blades sit in the plane across the axis.
+export function spinners(items, mat = MAT.darkSteel, { blades = 5, speed = 5 } = {}) {
+  const parts = [];
+  for (let i = 0; i < blades; i++) { const b = new THREE.BoxGeometry(0.92, 0.05, 0.24); b.translate(0.5, 0, 0); b.rotateX(0.35); b.rotateY(i * Math.PI * 2 / blades); parts.push(b); }
+  parts.push(new THREE.CylinderGeometry(0.16, 0.16, 0.12, 12));
+  const geo = mergeGeometries(parts.map(g => g.toNonIndexed()));
+  const m = new THREE.InstancedMesh(geo, mat, items.length);
+  m.castShadow = false; m.receiveShadow = true;
+  const base = { y: new THREE.Quaternion(), x: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, Math.PI / 2)), z: new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0)) };
+  const spin = new THREE.Quaternion(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), M4 = new THREE.Matrix4(), up = new THREE.Vector3(0, 1, 0);
+  const phase = items.map((_, i) => (i * 2.399) % (Math.PI * 2)), rate = items.map((_, i) => speed * (0.85 + ((i * 0.618) % 1) * 0.3));
+  const update = t => {
+    items.forEach((it, i) => {
+      spin.setFromAxisAngle(up, t * rate[i] + phase[i]);
+      q.copy(base[it.axis || 'y']).multiply(spin);
+      M4.compose(p.set(...it.p), q, s.set(it.r, it.r, it.r)); m.setMatrixAt(i, M4);
+    });
+    m.instanceMatrix.needsUpdate = true;
+  };
+  update(0);
+  return { mesh: m, update };
 }

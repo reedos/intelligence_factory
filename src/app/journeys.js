@@ -5,6 +5,7 @@
 // The story itself (grid to token, mixed layers) lives here too, so all of them can be tested without a page.
 // Beats use the same shape as the story: { link, k, title, text, tally, sim }. A sim runs that clock while the beat is on.
 import { tokenFigures } from '../model/tokens.js';
+import { content } from '../data.js';
 
 const at = (scene, part, mode = 'power') => ({ scene, mode, part });
 const w3 = v => v.toFixed(3);
@@ -140,3 +141,21 @@ export function heat(M) {
     { link: at(1, 'plume', 'heat'), sim: 'hotday', k: 'The sky', title: 'Gone', tally: `${T[4]} °C outside`, text: `${warm ? 'Warm air rises off the roofs' : 'Warm, wet air rises off the cooling towers'}. The campus is a ${mw(M.meterMW)} heater that happened to write tokens on the way.` },
   ];
 }
+
+// ---------- every part in a layer, level 1 to 6 ----------
+// Each level opens on its establishing shot with the layer's intro, then stops at every part with its card.
+// Parts a scene variant does not draw (an air-cooled hall has no CDU) are skipped by the player at run time.
+const LAYER = { power: ['PARTS', 'intro', 'Power'], data: ['PARTS_DATA', 'dataIntro', 'Data'], heat: ['PARTS_HEAT', 'heatIntro', 'Heat'] };
+export function layer(M, mode) {
+  const C = content(M), [key, introKey, name] = LAYER[mode], out = [];
+  C.SCENES.forEach((sc, i) => {
+    const parts = C[key][sc.id] || [];
+    out.push({ link: { scene: i, mode, part: null }, k: `${name} · level ${i + 1} of 6`, title: sc.title, text: sc[introKey], tally: `Level ${i + 1} of 6`, level: true });
+    parts.forEach((p, j) => out.push({
+      link: { scene: i, mode, part: p.id }, k: `Level ${i + 1} · ${sc.title}`, title: p.title, text: p.body,
+      specs: p.specs.slice(0, 3), tally: `Level ${i + 1} · ${j + 1} of ${parts.length}`,
+    }));
+  });
+  return out;
+}
+export const everything = M => ['power', 'data', 'heat'].flatMap(m => layer(M, m));

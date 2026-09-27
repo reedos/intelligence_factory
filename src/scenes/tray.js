@@ -1,7 +1,7 @@
 // Scene 4: one compute tray, lid off. World unit = 10 cm (the tray is 4.4 units wide).
 // Front faces +z. NVL72 racks: two superchip boards, each one CPU and two GPUs.
 // H100: a DGX H100 server, the GPU baseboard below and the CPU tray cut away above.
-import { THREE, MAT, Builder, flow, canvasTex, texMat, glowMat } from '../kit.js';
+import { THREE, MAT, Builder, flow, canvasTex, texMat, glowMat, spinners } from '../kit.js';
 
 export function pkgTex(label) {
   return canvasTex(256, 256, (g, w, h) => {
@@ -50,11 +50,13 @@ function buildHGX({ quality }) {
   S.box(W, H, 0.03, MAT.galv, 0, H / 2, ZB);
 
   // fan wall at the front: two rows of six
-  const fanX = i => -1.85 + i * 0.74;
+  const fanX = i => -1.85 + i * 0.74, frontFans = [];
   for (const y of [0.9, 2.6]) for (let i = 0; i < 6; i++) {
     S.box(0.7, 0.8, 0.45, MAT.fan, fanX(i), y, ZF - 0.35);
     N.cylZ(0.3, 0.02, MAT.darkSteel, fanX(i), y, ZF - 0.12, 18);
+    frontFans.push({ p: [fanX(i), y, ZF - 0.08], axis: 'z', r: 0.28 });
   }
+  const hgxFans = spinners(frontFans, MAT.darkSteel, { speed: 9 }); scene.add(hgxFans.mesh);
 
   // GPU baseboard, full width, from behind the fans to the middle of the chassis
   S.box(W - 0.2, 0.03, 5.0, MAT.pcb, 0, fy + 0.015, 1.3);
@@ -173,7 +175,7 @@ function buildHGX({ quality }) {
       dpu: { pos: [0.25, ty + 0.55, -3.5], view: { pos: [0.8, 4.2, -6.4], target: [0, ty, -3.5] } },
       gpu: hsGpu,
     },
-    update() {},
+    update(t) { hgxFans.update(t); },
   };
 }
 
@@ -290,7 +292,9 @@ function buildNVL({ quality, model }) {
   }
   S.box(0.5, 0.02, 1.4, MAT.pcbBlack, -0.35, floorY + 0.2, ZF - 1.0); S.box(0.34, 0.14, 0.6, MAT.alu, -0.35, floorY + 0.29, ZF - 1.0);   // DPU
   for (let i = 0; i < 4; i++) S.box(0.22, 0.34, 1.1, MAT.darkSteel, -1.95 + i * 0.26, 0.2, ZF - 0.6);                                    // E1.S drives
-  for (let i = 0; i < 6; i++) { S.box(0.38, 0.36, 0.3, MAT.fan, -1.9 + i * 0.76 + 0.19, 0.2, ZF - 1.95); N.cylZ(0.15, 0.02, MAT.darkSteel, -1.9 + i * 0.76 + 0.19, 0.2, ZF - 1.79, 16); }
+  const trayFans = [];
+  for (let i = 0; i < 6; i++) { S.box(0.38, 0.36, 0.3, MAT.fan, -1.9 + i * 0.76 + 0.19, 0.2, ZF - 1.95); N.cylZ(0.15, 0.02, MAT.darkSteel, -1.9 + i * 0.76 + 0.19, 0.2, ZF - 1.79, 16); trayFans.push({ p: [-1.9 + i * 0.76 + 0.19, 0.2, ZF - 1.76], axis: 'z', r: 0.14 }); }
+  const nvlFans = spinners(trayFans, MAT.darkSteel, { speed: 9 }); scene.add(nvlFans.mesh);
 
   scene.add(S.build()); scene.add(N.build({ cast: false }));
   flows.forEach(f => scene.add(f.group));
@@ -343,6 +347,6 @@ function buildNVL({ quality, model }) {
       dpu: { pos: [-0.35, 0.5, ZF - 1.0], view: { pos: [-1.4, 2.0, 6.4], target: [-0.35, 0.2, ZF - 1.0] } },
       gpu: { pos: [gpus[3][0], 0.2, gpus[3][1]], view: { pos: [gpus[3][0] + 1.5, 2.0, gpus[3][1] + 1.8], target: [gpus[3][0], 0.05, gpus[3][1]] } },
     },
-    update() {},
+    update(t) { nvlFans.update(t); },
   };
 }

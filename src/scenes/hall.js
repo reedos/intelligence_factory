@@ -1,5 +1,5 @@
 // Scene 2: power room & data hall, drawn as a section cut. Units are meters.
-import { THREE, MAT, Builder, mtx, flow, insulator, canvasTex, sky, person, glowMat, textSprite } from '../kit.js';
+import { THREE, MAT, Builder, mtx, flow, insulator, canvasTex, sky, person, glowMat, textSprite, spinners } from '../kit.js';
 
 // Cabinet front textures (drawn once).
 function frontTex(kind) {
@@ -213,7 +213,9 @@ export function build({ quality, model }) {
   });
   // fan wall on the east side
   S.slab(1.2, 6, 26, MAT.darkSteel, X1 - 1.0, 0, -3);
-  for (let yi = 0; yi < 4; yi++) for (let zi = 0; zi < 14; zi++) { N.cylX(0.62, 0.1, MAT.fan, X1 - 1.65, 1.1 + yi * 1.4, -15 + zi * 1.8, 18); N.cylX(0.66, 0.06, MAT.galv, X1 - 1.62, 1.1 + yi * 1.4, -15 + zi * 1.8, 18); }
+  const wallFans = [];
+  for (let yi = 0; yi < 4; yi++) for (let zi = 0; zi < 14; zi++) { N.cylX(0.62, 0.1, MAT.fan, X1 - 1.65, 1.1 + yi * 1.4, -15 + zi * 1.8, 18); N.cylX(0.66, 0.06, MAT.galv, X1 - 1.62, 1.1 + yi * 1.4, -15 + zi * 1.8, 18); wallFans.push({ p: [X1 - 1.76, 1.1 + yi * 1.4, -15 + zi * 1.8], axis: 'x', r: 0.56 }); }
+  const fans = spinners(wallFans, MAT.darkSteel, { speed: 4 }); scene.add(fans.mesh);
   // facility water: insulated headers along the back wall, drops to every CDU
   const hdrY = 6.2;
   S.cylX(0.26, rowX1 - rowX0 + 12, MAT.pipeBlue, (rowX0 + rowX1) / 2 - 3, hdrY, -16.4, 16);
@@ -329,6 +331,6 @@ export function build({ quality, model }) {
       cpo: { pos: [rowX0 + 7, 2.7, 10.5], view: { pos: [rowX0 + 9, 4, 16], target: [rowX0 + 7, 1.4, 10.5] } },
       racks: { pos: [midRow.x, 2.6, -4.6], view: { pos: [2, 4.5, 6.5], target: [4, 1.2, -4.6] } },
     },
-    update() {},
+    update(t) { fans.update(t); },
   };
 }

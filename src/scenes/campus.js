@@ -1,5 +1,5 @@
 // Scene 1: grid & campus. Units are meters. x runs east, z runs south, y up.
-import { THREE, MAT, Builder, mtx, flow, insulator, latticeTower, catenary, wires, canvasTex, sky, person, glowMat } from '../kit.js';
+import { THREE, MAT, Builder, mtx, flow, insulator, latticeTower, catenary, wires, canvasTex, sky, person, glowMat, spinners } from '../kit.js';
 
 export function build({ quality, model }) {
   const L = model.layout, warm = model.cooling.id === 'warm';
@@ -251,6 +251,9 @@ export function build({ quality, model }) {
     S.slab(8, 0.6, 26, MAT.concrete, hallX1 + 4, 0.15, cz - 12);
   });
   coolerUnit.instance(coolerMx, { cast: true }).children.forEach(m => scene.add(m));
+  // the coolers' fans turn: six per unit, just above each fan ring
+  const fanItems = [], fp = new THREE.Vector3();
+  coolerMx.forEach(mx => { for (let i = 0; i < 6; i++) { fp.set(-4.9 + i * 1.96, 2.67, 0).applyMatrix4(mx); fanItems.push({ p: fp.toArray(), axis: 'y', r: 0.74 }); } });
   // heat: warm water up to the cooler rows, plumes of warm air above them
   if (warm) hallList.forEach(h => {
     const Hh = 22;
@@ -315,6 +318,7 @@ export function build({ quality, model }) {
   // ---------- cooling towers and water tanks ----------
   towerRows.forEach(z => { for (let i = 0; i < 6; i++) {
     const x = 15 + i * 12;
+    fanItems.push({ p: [x, 11.36, z], axis: 'y', r: 3.7 });
     S.slab(11.4, 8, 11, MAT.ansi61, x, 0.15, z);
     for (let y = 1; y < 6; y += 0.6) N.slab(11.5, 0.12, 0.2, MAT.darkSteel, x, y, z + 5.6);
     S.cyl(4.2, 3.2, MAT.ansi61, x, 9.8, z, 24); N.cyl(3.9, 0.2, MAT.fan, x, 11.2, z, 24);
@@ -412,6 +416,7 @@ export function build({ quality, model }) {
   flows.forEach(f => scene.add(f.group));
   dataFlows.forEach(f => scene.add(f.group));
   heatFlows.forEach(f => scene.add(f.group));
+  const fans = spinners(fanItems, MAT.darkSteel, { speed: 3.2 }); scene.add(fans.mesh);
 
   const hallAz = hallCentersZ[0];
   return {
@@ -448,6 +453,6 @@ export function build({ quality, model }) {
       hall: { pos: [hcx, 26, hallAz], view: { pos: [hcx + 160, 170, 120], target: [hcx, 10, -120] } },
       longhaul: { pos: [fiberA[0], 3, 520], view: { pos: [200, 260, 900], target: [-150, 0, 420] } },
     },
-    update() {},
+    update(t) { fans.update(t); },
   };
 }

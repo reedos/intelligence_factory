@@ -7,6 +7,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { DETAIL } from '../kit.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VOLT, BASIS } from '../data.js';
 import { store, on, emit } from './store.js';
@@ -92,7 +94,7 @@ const env = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 
 export const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 1000);
 export const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true; controls.dampingFactor = 0.08; controls.maxPolarAngle = Math.PI * 0.49;
-controls.addEventListener('start', () => { tween = null; emit('user-camera'); });
+controls.addEventListener('start', () => { tween = null; drift = null; emit('user-camera'); });
 
 export const built = [], composers = [];
 function getScene(i) {
@@ -104,9 +106,29 @@ function getScene(i) {
   }
   return built[i];
 }
+// the finish: a gentle filmic grade, vignette and moving grain, applied after tone mapping (display space)
+const FINISH = {
+  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uGrain: { value: 0.035 }, uVignette: { value: 0.32 } },
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform float uTime, uGrain, uVignette; varying vec2 vUv;
+    float hash(vec2 p) { p = fract(p * vec2(443.897, 441.423)); p += dot(p, p.yx + 19.19); return fract((p.x + p.y) * p.x); }
+    void main() {
+      vec3 c = texture2D(tDiffuse, vUv).rgb;
+      c = mix(c, c * c * (3.0 - 2.0 * c), 0.18);                        // a touch of contrast in the mids
+      c *= vec3(1.0, 0.99, 0.975) + vec3(-0.01, 0.0, 0.02) * (1.0 - dot(c, vec3(0.333)));   // cool shadows, warm highlights
+      float v = smoothstep(0.95, 0.25, length(vUv - 0.5) * 1.25);
+      c *= mix(1.0 - uVignette, 1.0, v);
+      c += (hash(vUv * 1024.0 + fract(uTime) * 97.0) - 0.5) * uGrain;
+      gl_FragColor = vec4(c, 1.0);
+    }`,
+};
+let finishes = [];
 function getComposer(i) {
   if (!composers[i]) {
-    const b = getScene(i), c = new EffectComposer(renderer);
+    // multisampled: thin struts, cables and fins stay clean instead of stair-stepping (phones keep the frame rate)
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: mobile ? 0 : 4 });
+    const b = getScene(i), c = new EffectComposer(renderer, rt);
     c.addPass(new RenderPass(b.scene, camera));
     if (LOOK[i].ao && !mobile) {
       const ao = new GTAOPass(b.scene, camera, 1, 1);
@@ -116,6 +138,7 @@ function getComposer(i) {
     }
     c.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), LOOK[i].bloom, 0.42, LOOK[i].threshold));
     c.addPass(new OutputPass());
+    const fin = new ShaderPass(FINISH); c.addPass(fin); finishes[i] = fin;
     composers[i] = c;
     sizeComposer(c);
   }
@@ -211,19 +234,65 @@ export function frame(b, h) {
   }
   return { pos: pos.toArray(), target: target.toArray() };   // nothing clear found: keep the preset
 }
+// ---------- camera moves ----------
+// Plain moves slide straight. Cinematic moves (tours) arc: the camera swings around the moving aim point,
+// rising and pulling back mid-move, then settles into a slow orbit and push-in while the part is on screen.
+let cinema = false, drift = null, driftSign = 1;
+export const setCinema = on => { cinema = on; if (!on) drift = null; };
+const ease = u => (u < 0.5 ? 4 * u ** 3 : 1 - Math.pow(-2 * u + 2, 3) / 2);
 export function flyTo(pos, target, dur = 1.1) {
+  drift = null;
+  const p1 = V(pos), t1 = V(target);
   if (reduced) dur = 0.01;
-  tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1: V(pos), t1: V(target), u: 0, dur };
+  let arc = null;
+  if (cinema && !reduced) {
+    const s0 = new THREE.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
+    const s1 = new THREE.Spherical().setFromVector3(p1.clone().sub(t1));
+    let dTheta = s1.theta - s0.theta; dTheta -= Math.round(dTheta / (2 * Math.PI)) * 2 * Math.PI;   // the short way round
+    const travel = controls.target.distanceTo(t1) / Math.max(s0.radius, s1.radius);
+    arc = { s0, s1, dTheta, lift: Math.min(0.35, 0.12 + 0.25 * Math.min(1, travel)), pull: Math.min(0.45, 0.15 + 0.3 * Math.min(1, travel)) };
+    dur = Math.min(3.4, Math.max(1.8, 1.6 + Math.abs(dTheta) * 0.6 + Math.abs(Math.log(s1.radius / s0.radius)) * 0.45 + travel * 0.6));
+  }
+  tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1, t1, u: 0, dur, arc };
 }
 function stepTween(dt) {
+  if (drift && !tween) stepDrift(dt);
   if (!tween) return;
   tween.u = Math.min(1, tween.u + dt / tween.dur);
-  const e = tween.u < 0.5 ? 4 * tween.u ** 3 : 1 - Math.pow(-2 * tween.u + 2, 3) / 2;
-  camera.position.lerpVectors(tween.p0, tween.p1, e);
+  const e = ease(tween.u), a = tween.arc;
   controls.target.lerpVectors(tween.t0, tween.t1, e);
-  if (tween.u >= 1) tween = null;
+  if (a) {
+    const bump = Math.sin(Math.PI * tween.u);
+    const s = new THREE.Spherical(
+      Math.exp(Math.log(a.s0.radius) + (Math.log(a.s1.radius) - Math.log(a.s0.radius)) * e) * (1 + a.pull * bump),
+      Math.max(0.1, a.s0.phi + (a.s1.phi - a.s0.phi) * e - a.lift * bump),
+      a.s0.theta + a.dTheta * e);
+    camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(s));
+  } else camera.position.lerpVectors(tween.p0, tween.p1, e);
+  if (tween.u >= 1) {
+    tween = null;
+    if (cinema && !reduced) startDrift();
+  }
 }
-export function settle() { if (tween) { camera.position.copy(tween.p1); controls.target.copy(tween.t1); tween = null; controls.update(); } }
+// while a part is on screen: orbit a little and push in, if the part stays in clear view the whole way
+function startDrift() {
+  const s = new THREE.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
+  const b = built[ui.scene], h = ui.selected && hotspotsFor(ui.scene)[ui.selected], part = h ? V(h.pos) : controls.target.clone();
+  driftSign = -driftSign;
+  for (const sign of [driftSign, -driftSign]) {
+    const end = s.clone(); end.theta += sign * 0.3; end.radius *= 0.9;
+    const p = controls.target.clone().add(new THREE.Vector3().setFromSpherical(end));
+    if (!b || clearLine(b, p, part)) { drift = { s0: s, dTheta: sign * 0.3, dR: -0.1, t: 0, dur: 16 }; return; }
+  }
+}
+function stepDrift(dt) {
+  drift.t = Math.min(drift.dur, drift.t + dt);
+  const u = drift.t / drift.dur, e = u * u * (3 - 2 * u);
+  const s = drift.s0.clone(); s.theta += drift.dTheta * e; s.radius *= 1 + drift.dR * e;
+  camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(s));
+  if (drift.t >= drift.dur) drift = null;
+}
+export function settle() { drift = null; if (tween) { camera.position.copy(tween.p1); controls.target.copy(tween.t1); tween = null; controls.update(); } }
 
 // ---------- steps, panel, pins ----------
 const stepsEl = $('steps');
@@ -335,13 +404,14 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   if (ui.scene >= 0 && !same) {
     if (fromId) { const h = hotspotsFor(ui.scene)[fromId]; if (h) flyTo([h.pos[0] + (camera.position.x - h.pos[0]) * 0.15, h.pos[1] + (camera.position.y - h.pos[1]) * 0.15, h.pos[2] + (camera.position.z - h.pos[2]) * 0.15], h.pos, 0.55); }
     veil.textContent = ''; veil.classList.remove('off');
-    await new Promise(r => setTimeout(r, reduced ? 0 : 420));
+    await new Promise(r => setTimeout(r, reduced ? 0 : cinema && fromId ? 950 : 420));   // a tour pushes in before the cut
   }
   veil.textContent = `Building ${SCENES()[i].title.toLowerCase()}…`;
   if (!same) veil.classList.remove('off');
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   const b = getScene(i); getComposer(i);
   ui.scene = i;
+  DETAIL.unit.value = SCENES()[i].unit;                   // surface detail at this scale's real size
   if (mobile) built.forEach((bb, j) => { if (bb && Math.abs(j - i) > 1) { disposeScene(bb); disposeComposer(composers[j]); built[j] = undefined; composers[j] = undefined; } });
   const c = b.camera;
   camera.near = c.near; camera.far = c.far; camera.updateProjectionMatrix();
@@ -372,10 +442,11 @@ export async function show({ scene, mode, part }, { scroll = true, still = () =>
   const my = ++showSeq, live = () => my === showSeq && still();
   if (scroll) $('view').closest('.stage').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
   if (mode && mode !== ui.mode) setMode(mode);
-  if (scene !== ui.scene || !built[scene]) { go(scene, null, { fromShow: true }); await until(() => !live() || (ui.scene === scene && !busy && !!built[scene])); }
+  if (scene !== ui.scene || !built[scene]) { go(scene, cinema ? ui.selected : null, { fromShow: true }); await until(() => !live() || (ui.scene === scene && !busy && !!built[scene])); }
   if (!live()) return;                                   // a newer jump, or the reader, took over while this scene was building
   if (mode && mode !== ui.mode) setMode(mode);
   if (part) { select(part, true); beacon(part); }
+  else { deselect(); const c = built[scene].camera; flyTo(c.pos, c.target, 1.6); }   // the establishing shot
 }
 function beacon(id) {
   const pin = pins.find(p => p.id === id); if (!pin) return;
@@ -474,6 +545,7 @@ function loop(ts) {
   stepTween(dt);
   controls.update();
   fitDepthRange(b.camera);
+  if (finishes[ui.scene]) finishes[ui.scene].uniforms.uTime.value = t;
   composers[ui.scene].render();
   if (!tween && !navigator.webdriver) adapt(raw);        // judge speed on steady frames; test browsers render in software
   updatePins();

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { compute, ACCELERATORS, POWER, COOLING } from '../model/engine';
 import { content } from '../data.js';
-import { story, watt, request, heat } from './journeys.js';
+import { story, watt, request, heat, layer, everything } from './journeys.js';
 import { SITES } from '../model/sites';
 
 const scenarios: any[] = [];
@@ -22,6 +22,17 @@ describe('tours', () => {
         expect((layer[b.link.mode][scene] || []).map(p => p.id), `${name}: ${b.title} → ${b.link.mode}:${scene}:${b.link.part}`).toContain(b.link.part);
       }
     }
+  });
+  it.each(scenarios)('every-part tours cover every card once: $accel / $power / $cooling at $meterMW MW', s => {
+    const M = compute(s), C = content(M);
+    for (const [mode, key] of [['power', 'PARTS'], ['data', 'PARTS_DATA'], ['heat', 'PARTS_HEAT']] as const) {
+      const beats = layer(M, mode), parts = beats.filter((b: any) => b.link.part);
+      const cards = C.SCENES.flatMap((sc: any) => ((C as any)[key][sc.id] || []).map((p: any) => `${sc.id}:${p.id}`));
+      expect(parts.map((b: any) => `${C.SCENES[b.link.scene].id}:${b.link.part}`)).toEqual(cards);
+      expect(beats.filter((b: any) => b.level).length).toBe(6);
+      for (const b of beats as any[]) for (const t of [b.k, b.title, b.text, b.tally]) expect(t, b.title).not.toMatch(/undefined|NaN/);
+    }
+    expect(everything(M).length).toBe(['power', 'data', 'heat'].reduce((a, m) => a + layer(M, m as any).length, 0));
   });
   it.each(scenarios)('the watt accounts for every ledger row: $accel / $power / $cooling at $meterMW MW', s => {
     const M = compute(s), beats = watt(M);

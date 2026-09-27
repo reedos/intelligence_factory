@@ -465,3 +465,13 @@ body.playing .beat.on .beat-bar { visibility: visible; }
 body.clocking .tour-ctl { bottom: 158px; }
 @media (max-width: 760px) { .tour-ctl { bottom: 12px; } body.clocking .tour-ctl { bottom: 118px; } }
 @media (max-width: 760px) { body.story .hud.bl, body.story .hud.br { display: none; } }
+
+/* ---------- every-part tours ---------- */
+.tour-group { display: grid; gap: 6px; }
+.tour-g { font: 400 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.beat.level h3 { font-size: clamp(34px, 3.2vw, 46px); }
+.beat.level .k { color: var(--ink); }
+.beat-specs { margin: 4px 0 0; display: grid; gap: 0; max-width: 44ch; }
+.beat-specs div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 7px 0; border-top: 1px solid var(--line); }
+.beat-specs dt { font: 400 10.5px/1.35 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.beat-specs dd { margin: 0; font: 500 13px/1.35 var(--mono); text-align: right; }

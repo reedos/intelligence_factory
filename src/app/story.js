@@ -6,16 +6,20 @@
 // only holds the tour: it carries on a few seconds after the reader lets go, from whichever beat is showing.
 // Pause (the button, or Space) is the only thing that stops it. A control in the 3D view shows the state.
 import { store, on } from './store.js';
-import { show, reduced, onTick } from './stage.js';
-import { story, watt, request, heat } from './journeys.js';
+import { show, reduced, onTick, setCinema } from './stage.js';
+import { story, watt, request, heat, layer, everything } from './journeys.js';
 import { openClock, closeClock } from './clock-ui.js';
 
 const $ = id => document.getElementById(id);
 export const TOURS = {
-  story: { label: 'The story', short: 'Story', beats: story },
-  watt: { label: 'Follow a watt', short: 'A watt', beats: watt },
-  request: { label: 'Follow a request', short: 'A request', beats: request },
-  heat: { label: 'Follow the heat', short: 'The heat', beats: heat },
+  story: { label: 'The story', short: 'Story', beats: story, group: 'Tours' },
+  watt: { label: 'Follow a watt', short: 'A watt', beats: watt, group: 'Tours' },
+  request: { label: 'Follow a request', short: 'A request', beats: request, group: 'Tours' },
+  heat: { label: 'Follow the heat', short: 'The heat', beats: heat, group: 'Tours' },
+  'all-power': { label: 'Every part: power', short: 'Power', beats: M => layer(M, 'power'), group: 'Every part' },
+  'all-data': { label: 'Every part: data', short: 'Data', beats: M => layer(M, 'data'), group: 'Every part' },
+  'all-heat': { label: 'Every part: heat', short: 'Heat', beats: M => layer(M, 'heat'), group: 'Every part' },
+  'all': { label: 'Every part, every layer', short: 'All', beats: everything, group: 'Every part' },
 };
 let tour = 'story';
 
@@ -29,7 +33,9 @@ let playing = false, arrived = false, held = 0;         // held: ms spent on the
 let pace = 1, ranClock = false, holdUntil = 0;           // holdUntil: the reader is looking around; wait until then
 const HOLD_MS = 4000;                          // pace: 1× or 2×; ranClock: the tour opened the clock, so it closes it
 try { pace = +localStorage.getItem('ifx-pace') === 2 ? 2 : 1; } catch { /* storage refused: stay at 1× */ }
-const ORDER = Object.keys(TOURS);
+// playing on carries through the tours, or through the layers; it does not jump from one group to the other
+const ORDER = { Tours: ['story', 'watt', 'request', 'heat'], 'Every part': ['all-power', 'all-data', 'all-heat'] };
+const nextTour = id => { const g = ORDER[TOURS[id].group]; return id === 'all' ? null : g?.[g.indexOf(id) + 1] ?? null; };
 // ≈260 words a minute; a beat running a clock holds at least 16 s so the simulation gets to its point (an outage's
 // generators come on 7.5 s in at playback speed)
 const dwell = b => Math.max(b.sim ? 16000 : 0, Math.min(16000, Math.max(6000, 3000 + `${b.title} ${b.text}`.split(/\s+/).length * 230)));
@@ -37,11 +43,12 @@ const narrow = matchMedia('(max-width: 1100px)');
 
 function render() {
   list = TOURS[tour].beats(store.M);
-  box.innerHTML = `<div class="story-head"><div class="tour-tabs" role="tablist" aria-label="Journey">${Object.entries(TOURS).map(([id, t]) => `<button type="button" role="tab" data-tour="${id}" aria-selected="${id === tour}">${t.short}</button>`).join('')}</div><button type="button" class="btn" id="story-exit">Exit</button>`
+  const tabs = g => `<div class="tour-group"><span class="tour-g">${g}</span><div class="tour-tabs" role="tablist" aria-label="${g}">${Object.entries(TOURS).filter(([, t]) => t.group === g).map(([id, t]) => `<button type="button" role="tab" data-tour="${id}" aria-selected="${id === tour}">${t.short}</button>`).join('')}</div></div>`;
+  box.innerHTML = `<div class="story-head">${tabs('Tours')}${tabs('Every part')}<button type="button" class="btn" id="story-exit">Exit</button>`
     + `<button type="button" class="btn play" id="story-play" aria-pressed="${playing}">${playing ? 'Pause' : 'Play'}</button>`
     + `<button type="button" class="btn pace" id="story-pace" aria-label="Playback speed">${pace}×</button>`
     + `<div class="tally" id="tally" aria-live="polite"${list.some(b => b.tally) ? '' : ' hidden'}><span class="eyebrow">${TOURS[tour].label}</span><b id="tally-v"></b></div></div>`
-    + list.map((b, i) => `<article class="beat" data-i="${i}"><span class="k">${String(i + 1).padStart(2, '0')} · ${b.k}</span><h3>${b.title}</h3><p>${b.text}</p><span class="beat-bar" aria-hidden="true"><i></i></span></article>`).join('')
+    + list.map((b, i) => `<article class="beat${b.level ? ' level' : ''}" data-i="${i}"><span class="k">${String(i + 1).padStart(2, '0')} · ${b.k}</span><h3>${b.title}</h3><p>${b.text}</p>${b.specs ? `<dl class="beat-specs">${b.specs.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>` : ''}<span class="beat-bar" aria-hidden="true"><i></i></span></article>`).join('')
     + '<div class="beat-end"><button type="button" class="btn" id="story-done">Explore on your own</button></div>';
   $('story-exit').addEventListener('click', exit);
   $('story-play').addEventListener('click', () => setPlaying(!playing));
@@ -68,7 +75,11 @@ async function activate(i) {
   const sim = list[i].sim;                                // a beat about something that moves in time runs its clock
   if (sim) { openClock(sim); ranClock = true; } else if (ranClock) { closeClock(); ranClock = false; }
   await show(list[i].link, { scroll: false, still: () => my === seq });
-  if (my === seq) arrived = true;                        // the reading clock starts once the camera is there
+  if (my !== seq) return;
+  arrived = true;                                        // the reading clock starts once the camera is there
+  // a part this scenario's scene does not draw: while playing, move straight on
+  const want = list[i].link.part;
+  if (playing && want && store.ui.selected !== want) held = dwell(list[i]);
 }
 function bar(p) { const i = box.querySelector(`.beat[data-i="${active}"] .beat-bar i`); if (i) i.style.transform = `scaleX(${p})`; }
 function observe() {
@@ -88,7 +99,7 @@ export function enter(which = tour) {
   if (!box.hidden && which === tour) return;
   tour = TOURS[which] ? which : 'story';
   document.body.classList.add('story');
-  box.hidden = false; active = -1; ctl.hidden = false;
+  box.hidden = false; active = -1; ctl.hidden = false; setCinema(true);
   render();
   stageEl.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
   panel.scrollTop = 0;
@@ -101,7 +112,7 @@ export function exit() {
   if (ranClock) { closeClock(); ranClock = false; }
   observer?.disconnect(); seq++;
   document.body.classList.remove('story');
-  box.hidden = true; active = -1; ctl.hidden = true;
+  box.hidden = true; active = -1; ctl.hidden = true; setCinema(false);
   $('story-btn')?.setAttribute('aria-pressed', 'false');
   panel.scrollTop = 0;
 }
@@ -142,7 +153,7 @@ onTick(dt => {
   arrived = false;                                        // wait for the next beat's camera before counting again
   if (active < list.length - 1) step(1);
   else {
-    const next = ORDER[ORDER.indexOf(tour) + 1];
+    const next = nextTour(tour);
     if (next) switchTour(next);
     else { setPlaying(false); box.querySelector('.beat-end')?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' }); }
   }
@@ -170,3 +181,5 @@ const hashTour = location.hash.slice(1);
 if (hashTour === 'story' || TOURS[hashTour]) setTimeout(() => enter(hashTour), 0);
 document.querySelectorAll('[data-tour-start]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); enter(a.dataset.tourStart); }));
 $('story-hero-play')?.addEventListener('click', e => { e.preventDefault(); play('story'); });
+// Play in the 3D view's buttons: every part of the layer on screen
+$('layer-play')?.addEventListener('click', () => play(`all-${store.ui.mode}`));
