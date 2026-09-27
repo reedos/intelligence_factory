@@ -40,5 +40,6 @@ Share copies it.
 - `src/app/` — `stage` (3D and panels), `sections` (charts), `scenario` (the settings bar), `links`
   (chart ↔ 3D), `story` and `journeys` (tours), `clock-ui`, `sources-ui` (popovers), `share`
 - `src/scenes/` — one procedural Three.js scene per scale, with variants per scenario
-- `tools/` — browser checks: `cycle.mjs` (every scenario, scene, layer and clock), `links.mjs` (every
+- `tools/` — browser checks: `cycle.mjs` (every scenario, scene, layer and clock), `views.mjs` (every tour stop
+  and part is framed clear of overlays with nothing solid in front), `perf.mjs` (real-GPU cost), `links.mjs` (every
   chart link lands), `coplanar.mjs` (flush surfaces that flicker), `shot.mjs` and `look.mjs` (screenshots)

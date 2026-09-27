@@ -7,6 +7,10 @@ import './app/sources-ui.js';
 import './app/story.js';
 import './app/clock-ui.js';
 import './app/share.js';
+import { THREE } from './kit.js';
+import * as journeys from './app/journeys.js';
+import { openClock, closeClock } from './app/clock-ui.js';
+import { enter as enterStory, exit as exitStory } from './app/story.js';
 import './app/scenario.js';
 
 stage.start();
@@ -16,4 +20,5 @@ window.ifx = {
   store, setScenario, pin, state: store.ui, go: stage.go, select: stage.select, setMode: stage.setMode,
   camera: stage.camera, controls: stage.controls, composers: stage.composers, built: stage.built, settle: stage.settle,
   renderer: stage.getRenderer, renderScale: stage.renderScale,
+  show: stage.show, THREE, journeys, openClock, closeClock, enterStory, exitStory,
 };

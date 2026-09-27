@@ -155,6 +155,62 @@ new ResizeObserver(resize).observe(view);
 // ---------- camera tween ----------
 let tween = null;
 const V = (a) => new THREE.Vector3(...a);
+// ---------- framing a part: on screen, clear of the page's overlays, nothing solid in front of it ----------
+// The views in the scene files are hand-set; scenario variants move geometry under them. So before flying to a part,
+// check the preset: the part must land inside the clear middle of the view (not under the title, buttons, tour
+// control or clock), and a ray from the camera to the part must not hit anything solid first. If either fails,
+// re-aim toward the part, then swing the camera higher or around it until the line of sight is clear.
+const _ray = new THREE.Raycaster(), _cam = new THREE.PerspectiveCamera();
+function solidsOf(b) {
+  if (!b._solids) {
+    b._solids = [];
+    b.scene.traverse(o => {
+      if (!(o.isMesh || o.isInstancedMesh) || o.isSprite) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      if (mats.some(m => m && m.depthWrite !== false && !(m.transparent && m.opacity < 0.6))) b._solids.push(o);
+    });
+  }
+  const shown = o => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
+  return b._solids.filter(shown);
+}
+function safeBox() {
+  // the clear area in normalized device coordinates, from the overlays actually on screen
+  const vr = view.getBoundingClientRect(), box = { x0: -0.82, x1: 0.82, y0: -0.8, y1: 0.8 };
+  const toY = px => 1 - 2 * (px - vr.top) / vr.height;
+  for (const sel of ['.hud.tl', '.hud.tr', '#tour-ctl', '#clock']) {
+    const el = document.querySelector(sel); if (!el || el.hidden || getComputedStyle(el).display === 'none') continue;
+    const r = el.getBoundingClientRect(); if (!r.width) continue;
+    if (r.top - vr.top < vr.height / 2) box.y1 = Math.min(box.y1, toY(r.bottom + 14));   // overlay along the top
+    else box.y0 = Math.max(box.y0, toY(r.top - 14));                                        // along the bottom
+  }
+  return box;
+}
+function onScreen(pos, target, part, box) {
+  _cam.copy(camera); _cam.position.copy(pos); _cam.lookAt(target); _cam.updateMatrixWorld();
+  const v = part.clone().project(_cam);
+  return v.z < 1 && v.x > box.x0 && v.x < box.x1 && v.y > box.y0 && v.y < box.y1;
+}
+function clearLine(b, pos, part) {
+  const d = part.clone().sub(pos), dist = d.length();
+  _ray.set(pos, d.normalize()); _ray.near = 0; _ray.far = dist * 0.85;
+  return _ray.intersectObjects(solidsOf(b), false).length === 0;
+}
+export function frame(b, h) {
+  const part = V(h.pos), box = safeBox();
+  let pos = V(h.view.pos), target = V(h.view.target);
+  // 1. on screen: slide the aim toward the part until it lands in the clear area
+  for (let k = 0.25; k <= 1.001 && !onScreen(pos, target, part, box); k += 0.25) target = V(h.view.target).lerp(part, k);
+  if (clearLine(b, pos, part)) return { pos: pos.toArray(), target: target.toArray() };
+  // 2. line of sight: orbit the camera about the aim point, keeping the distance
+  const off = pos.clone().sub(target), s = new THREE.Spherical().setFromVector3(off);
+  // higher first; then lower, to look in under something lifted (the tray's cold plates), never below the floor
+  for (const dPhi of [-0.25, -0.5, -0.75, -1.0, 0.25, 0.45]) for (const dTheta of [0, 0.35, -0.35, 0.8, -0.8, 1.4, -1.4]) {
+    const t = s.clone(); t.phi = Math.min(1.45, Math.max(0.12, t.phi + dPhi)); t.theta += dTheta;
+    const p = target.clone().add(new THREE.Vector3().setFromSpherical(t));
+    if (clearLine(b, p, part) && onScreen(p, target, part, box)) return { pos: p.toArray(), target: target.toArray() };
+  }
+  return { pos: pos.toArray(), target: target.toArray() };   // nothing clear found: keep the preset
+}
 export function flyTo(pos, target, dur = 1.1) {
   if (reduced) dur = 0.01;
   tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1: V(pos), t1: V(target), u: 0, dur };
@@ -250,7 +306,7 @@ export function select(id, fly) {
   const go_ = $('card-go'); go_.hidden = p.drill === undefined;
   go_.textContent = p.drill > ui.scene ? 'Go inside →' : 'Go out ↑';
   go_.onclick = () => go(p.drill, id);
-  if (fly) { const h = hotspotsFor(ui.scene)[id]; if (h?.view) flyTo(h.view.pos, h.view.target); }
+  if (fly) { const h = hotspotsFor(ui.scene)[id]; if (h?.view) { const f = frame(built[ui.scene], h); flyTo(f.pos, f.target); } }
   emit('select', { scene: ui.scene, mode: ui.mode, id });
 }
 export function deselect() {
