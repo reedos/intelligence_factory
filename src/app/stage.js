@@ -81,7 +81,9 @@ const view = $('view'), canvas = $('gl');
 let renderer;
 try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' }); }
 catch (e) { $('veil').textContent = 'This view needs WebGL, which this browser has turned off.'; throw e; }
-renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 1.75));
+const maxRatio = Math.min(devicePixelRatio, mobile ? 1.5 : 1.75);
+let ratio = maxRatio;
+renderer.setPixelRatio(ratio);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = quality.shadows;
 renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -127,6 +129,16 @@ function disposeScene(b) {
   });
 }
 function sizeComposer(c) { c.setSize(view.clientWidth, view.clientHeight); }
+// adaptive resolution: step the pixel ratio down when frames run slow, back up when there is room
+const perf = { n: 0, sum: 0 };
+function adapt(dt) {
+  perf.n++; perf.sum += dt;
+  if (perf.n < 90) return;
+  const avg = perf.sum / perf.n; perf.n = 0; perf.sum = 0;
+  const next = avg > 0.028 ? Math.max(0.75, ratio - 0.25) : avg < 0.015 ? Math.min(maxRatio, ratio + 0.25) : ratio;
+  if (next !== ratio) { ratio = next; renderer.setPixelRatio(ratio); resize(); }
+}
+export const renderScale = () => ratio;
 function resize() {
   const w = view.clientWidth, h = view.clientHeight;
   renderer.setSize(w, h, false);
@@ -269,6 +281,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   const b = getScene(i); getComposer(i);
   ui.scene = i;
+  if (mobile) built.forEach((bb, j) => { if (bb && Math.abs(j - i) > 1) { disposeScene(bb); composers[j]?.dispose?.(); built[j] = undefined; composers[j] = undefined; } });
   const c = b.camera;
   camera.near = c.near; camera.far = c.far; camera.updateProjectionMatrix();
   controls.minDistance = c.min; controls.maxDistance = c.max;
@@ -389,7 +402,7 @@ new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(view
 function loop(ts) {
   requestAnimationFrame(loop);
   timer.update(ts);
-  const dt = Math.min(timer.getDelta(), 0.05);
+  const raw = timer.getDelta(), dt = Math.min(raw, 0.05);
   tickers.forEach(fn => fn(dt));
   if (!visible || document.hidden || ui.scene < 0 || !built[ui.scene]) return;
   t += reduced ? dt * 0.35 : dt;
@@ -401,6 +414,7 @@ function loop(ts) {
   controls.update();
   fitDepthRange(b.camera);
   composers[ui.scene].render();
+  if (!tween && !navigator.webdriver) adapt(raw);        // judge speed on steady frames; test browsers render in software
   updatePins();
   if (frameN++ % 6 === 0) updateScale();
 }

@@ -6,6 +6,7 @@ import './app/sections.js';
 import './app/sources-ui.js';
 import './app/story.js';
 import './app/clock-ui.js';
+import './app/share.js';
 import './app/scenario.js';
 
 stage.start();

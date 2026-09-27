@@ -45,8 +45,8 @@ RINGS.forEach(({ id, rings }) => {                               // label point:
   CENTROID[id] = best;
 });
 
-function mapTexture() {
-  const W = 4096, H = Math.round(W * MD / MW), sx = W / MW, sz = H / MD;
+function mapTexture(small) {
+  const W = small ? 2048 : 4096, H = Math.round(W * MD / MW), sx = W / MW, sz = H / MD;
   return canvasTex(W, H, (g) => {
     g.fillStyle = '#0a0f15'; g.fillRect(0, 0, W, H);
     const path = rings => { g.beginPath(); rings.forEach(poly => poly.forEach(r => r.forEach(([x, z], i) => { const px = (x - minX) * sx, pz = (z - minZ) * sz; i ? g.lineTo(px, pz) : g.moveTo(px, pz); }))); };
@@ -107,7 +107,7 @@ export function build({ quality, model }) {
   scene.add(new THREE.HemisphereLight(0x8aa2cc, 0x0d1014, 1.1));
   const key = new THREE.DirectionalLight(0xdfe8ff, 0.8); key.position.set(-800, 1200, 600); scene.add(key);
 
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(MW, MD), new THREE.MeshStandardMaterial({ map: mapTexture(), roughness: 1 }));
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(MW, MD), new THREE.MeshStandardMaterial({ map: mapTexture(quality.mobile), roughness: 1 }));
   ground.rotation.x = -Math.PI / 2; ground.position.set((minX + maxX) / 2, 0, (minZ + maxZ) / 2); scene.add(ground);
   const under = new THREE.Mesh(new THREE.PlaneGeometry(30000, 30000), new THREE.MeshStandardMaterial({ color: 0x080c11, roughness: 1 }));
   under.rotation.x = -Math.PI / 2; under.position.y = -0.5; scene.add(under);

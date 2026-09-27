@@ -52,7 +52,7 @@
         <div class="hud bl"><div class="scalebar"><span id="scale-label">100 m</span><i id="scale-bar"></i></div></div>
         <div class="hud br" id="legend"></div>
         <div class="hud tr">
-          <div class="hud-btns"><button type="button" class="btn story-btn" id="story-btn" aria-pressed="false">Story</button><button type="button" class="btn story-btn" id="clock-btn" aria-pressed="false">Clock</button></div>
+          <div class="hud-btns"><button type="button" class="btn story-btn" id="story-btn" aria-pressed="false">Story</button><button type="button" class="btn story-btn" id="clock-btn" aria-pressed="false">Clock</button><button type="button" class="btn story-btn" id="share-btn">Share</button></div>
           <div class="mode" role="group" aria-label="Layer">
             <button type="button" data-mode="power" aria-pressed="true" style="--c: var(--mv)"><i></i>Power</button>
             <button type="button" data-mode="data" aria-pressed="false" style="--c: var(--nvl)"><i></i>Data</button>
@@ -60,6 +60,7 @@
           </div>
           <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>1–6 jumps scale · P D H switch layers · ← → steps parts · S story · C clock</p>
         </div>
+        <div class="toast" id="toast" role="status" hidden></div>
         <div class="veil" id="veil">Building the region…</div>
       </div>
       <aside class="panel" aria-label="Components">
