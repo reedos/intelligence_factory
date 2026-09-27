@@ -30,8 +30,8 @@ export function story(M) {
     // 1 · scale across
     { link: at(0, 'home'), k: 'Scale across', title: `${meter}, one grid customer`,
       text: `This campus draws ${meter} at its meter, about as much as ${n0(M.meterMW * 1000 / 1.2)} American homes. The grid lost about 5% delivering it. Every number below follows from that one choice and the three others in the scenario bar.` },
-    { link: at(0, 'route', 'data'), k: 'Data · scale across', title: 'Light is slow',
-      text: `Campuses hundreds of kilometers apart can train one model together, but light in glass needs ${dci.latency.replace('one way', 'each way')} to cross 1,000 km. So training across sites syncs rarely: the slow links carry the least, and the fast ones are further in.` },
+    { link: at(0, 'route', 'data'), k: 'Data · scale across', title: 'Even light takes time',
+      text: `Campuses hundreds of kilometers apart can train one model together. Light is the fastest thing there is, but in glass it travels at about two thirds of its speed in a vacuum, so crossing 1,000 km still takes ${dci.latency.replace('one way', 'each way')}. A training step can't wait on that every time, so sites sync rarely: the long links carry the least, and the fast ones are further in.` },
     // 2 · grid and campus
     { link: at(1, 'line'), k: 'Grid & campus', title: '345,000 volts',
       text: `The power arrives at 345 kV so the current stays small: ${lineA} per phase for the whole campus. At the rack, the same power would need tens of thousands of amps.` },
