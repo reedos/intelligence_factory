@@ -628,3 +628,5 @@ body.scrolled .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--
 .s-building .st-badge, .s-planned .st-badge { color: var(--est); border-style: dashed; }
 .st-rank { grid-column: 1 / -1; font-weight: 600; color: var(--accent) !important; }
 @media (max-width: 640px) { .site-status { grid-template-columns: minmax(0, 1fr); } }
+
+@media (max-width: 1240px) and (min-width: 901px) { .topnav a { padding: 0 8px; letter-spacing: .07em; } .topbar { gap: 16px; } }

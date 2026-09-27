@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Glossary · The Intelligence Factory</title>
+<meta name="description" content="The words you meet in an AI campus, from the transmission line to the token, each in plain terms with a link to the part in 3D.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/src/styles.css">
+<link rel="stylesheet" href="/src/pages/pages.css">
+</head>
+<body class="page scrolled">
+<header class="topbar" id="topbar">
+  <a class="brand" href="index.html" aria-label="The Intelligence Factory, home"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span><span class="brand-t">The Intelligence Factory</span></a>
+  <nav class="topnav" id="topnav" aria-label="Site">
+    <a href="index.html#explore">Visualizer</a>
+    <a href="index.html#power" style="--c: var(--mv)">Power</a>
+    <a href="index.html#data" style="--c: var(--nvl)">Data</a>
+    <a href="index.html#heat" style="--c: var(--warm)">Heat</a>
+    <a href="index.html#tokens">Tokens</a>
+    <span class="sep" aria-hidden="true"></span>
+    <a href="evidence.html">Evidence</a>
+    <a href="method.html">Method</a>
+    <a href="glossary.html" aria-current="page">Glossary</a>
+  </nav>
+  <button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="topnav"><span aria-hidden="true"></span>Menu</button>
+</header>
+
+<main class="wrap page-wrap">
+  <header class="page-head" style="--c: var(--nvl)">
+    <p class="eyebrow">Glossary</p>
+    <h1 class="page-t">The words, grid to token</h1>
+    <p class="lede">Every term you meet on this site, in plain words, with one number from this campus where it helps. Most entries open the part they describe in 3D.</p>
+  </header>
+
+  <div class="ev-tools" role="search">
+    <label class="ev-search"><span class="sr">Search the glossary</span><input type="search" id="gl-q" placeholder="Search: busbar, KV cache, CPO…" autocomplete="off"></label>
+    <div class="ev-filter" role="group" aria-label="Layer">
+      <button type="button" data-layer="power" aria-pressed="true" style="--c: var(--mv)"><i></i>Power</button>
+      <button type="button" data-layer="data" aria-pressed="true" style="--c: var(--nvl)"><i></i>Data</button>
+      <button type="button" data-layer="compute" aria-pressed="true" style="--c: var(--hbm)"><i></i>Compute</button>
+      <button type="button" data-layer="heat" aria-pressed="true" style="--c: var(--warm)"><i></i>Heat</button>
+      <button type="button" data-layer="general" aria-pressed="true" style="--c: var(--muted)"><i></i>General</button>
+    </div>
+    <p class="ev-count" id="gl-count" aria-live="polite"></p>
+    <nav class="gl-az" id="gl-az" aria-label="Jump to a letter"></nav>
+  </div>
+
+  <div id="gl-list"></div>
+</main>
+<script type="module" src="/src/pages/glossary.js"></script>
+</body>
+</html>
