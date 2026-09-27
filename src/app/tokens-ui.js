@@ -4,7 +4,7 @@
 // into the tour's active beat when a tour is on and that beat links to it; removed as soon as something else
 // is selected. Both this and chip.js sample the same shared clock (token-script.js's tick()), so the words match.
 import { store, on } from './store.js';
-import { STREAM_TPS, buildCycle, sampleAt, tick } from '../model/token-script.js';
+import { STREAM_TPS, REPLY_TOKENS, buildCycle, sampleAt, tick } from '../model/token-script.js';
 
 const $ = id => document.getElementById(id);
 const n0 = v => Math.round(v).toLocaleString('en-US');
@@ -44,7 +44,8 @@ function build() {
     + `<div><dt>Joules so far</dt><dd id="tok-joules">0.00 J</dd></div>`
     + `<div><dt>Campus, all streams</dt><dd id="tok-campus">—</dd></div>`
     + `</dl>`
-    + `<p class="tok-note">Illustrative pacing: ${STREAM_TPS} tokens a second for this stream, the rate the request tour uses.</p>`;
+    + `<p class="tok-note">Illustrative pacing: ${STREAM_TPS} tokens a second for this stream, the rate the request tour uses. `
+    + `A full ${n0(REPLY_TOKENS)}-token reply like this one would use about <span id="tok-reply-wh"></span> here.</p>`;
   return el;
 }
 
@@ -63,6 +64,7 @@ function rebuildCycle() {
   el.querySelector('#tok-reasoning-line').replaceChildren(...spans.reasoning);
   el.querySelector('#tok-answer-line').replaceChildren(...spans.answer);
   el.querySelector('#tok-r-count').textContent = `0 / ${cycle.reasoning.length}`;
+  const wh = el.querySelector('#tok-reply-wh'); if (wh) wh.textContent = `${jFmt(cycle.whReplyRef)} Wh`;
 }
 
 function paint(s) {

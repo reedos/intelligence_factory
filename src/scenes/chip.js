@@ -1,7 +1,7 @@
 // Scene 5: the GPU package, exploded, and the tokens that leave it. World unit = 1 cm.
 // Blackwell and Rubin: two dies, HBM above and below. H100: one die, HBM sites left and right.
 import { THREE, MAT, Builder, flow, canvasTex, glowMat } from '../kit.js';
-import { buildCycle, sampleAt, tick } from '../model/token-script.js';
+import { STREAM_TPS, buildCycle, sampleAt, tick } from '../model/token-script.js';
 
 function dieTexture() {
   return canvasTex(640, 800, (g, w, h) => {
@@ -22,23 +22,31 @@ function dieTexture() {
   });
 }
 // A token sprite's look depends on its lane (prompt in, reasoning dim and small, answer bright and larger) and
-// alternates a shade per token so the boundary between adjacent tokens is visible.
-function tokenTexture(word, lane, parity) {
-  const c = document.createElement('canvas'); const g = c.getContext('2d');
+// alternates a shade per token so the boundary between adjacent tokens is visible. Several consecutive tokens
+// can share one sprite (see the chunking below `feedLane`) so a fast decode stream doesn't outrun the sprite
+// pool; `words` renders each token as its own tinted segment, with a gap between them, so the boundary still reads.
+function chunkTexture(words, lane, startParity) {
   const dim = lane === 'reasoning', big = lane === 'answer';
   const px = dim ? 40 : big ? 68 : 52, weight = dim ? 'italic 500' : '600';
   const font = `${weight} ${px}px "IBM Plex Mono", ui-monospace, monospace`;
-  g.font = font; const pad = dim ? 22 : 40, h = big ? 104 : dim ? 64 : 92;
-  const tw = Math.ceil(g.measureText(word).width) + pad; c.width = tw; c.height = h;
-  g.font = font;
-  if (!dim) {
-    g.fillStyle = parity ? 'rgba(12,18,28,0.72)' : 'rgba(12,18,28,0.88)';
-    g.beginPath(); g.roundRect(2, 6, tw - 4, h - 12, 16); g.fill();
-    g.strokeStyle = lane === 'prompt' ? (parity ? 'rgba(120,225,255,0.55)' : 'rgba(120,225,255,0.85)') : (parity ? 'rgba(230,186,130,0.5)' : 'rgba(230,186,130,0.8)');
-    g.lineWidth = 2.5; g.stroke();
-  }
-  g.fillStyle = dim ? (parity ? 'rgba(150,165,190,0.75)' : 'rgba(182,196,216,0.92)') : lane === 'prompt' ? '#d8f6ff' : '#fff6e9';
-  g.textBaseline = 'middle'; g.fillText(word, dim ? 10 : 20, h / 2 + (dim ? 1 : 2));
+  const c = document.createElement('canvas'); const g = c.getContext('2d'); g.font = font;
+  const padPer = dim ? 16 : big ? 30 : 24, gap = dim ? 4 : big ? 9 : 7, h = big ? 104 : dim ? 64 : 92;
+  const widths = words.map(w => Math.max(6, Math.ceil(g.measureText(w).width) + padPer));
+  const tw = widths.reduce((a, b) => a + b, 0) + gap * (words.length - 1);
+  c.width = tw; c.height = h; g.font = font; // sizing the canvas resets its context
+  let x = 0;
+  words.forEach((w, i) => {
+    const parity = (startParity + i) % 2 === 1, ww = widths[i];
+    if (!dim) {
+      g.fillStyle = parity ? 'rgba(12,18,28,0.72)' : 'rgba(12,18,28,0.88)';
+      g.beginPath(); g.roundRect(x + 2, 6, ww - 4, h - 12, 16); g.fill();
+      g.strokeStyle = lane === 'prompt' ? (parity ? 'rgba(120,225,255,0.55)' : 'rgba(120,225,255,0.85)') : (parity ? 'rgba(230,186,130,0.5)' : 'rgba(230,186,130,0.8)');
+      g.lineWidth = 2.5; g.stroke();
+    }
+    g.fillStyle = dim ? (parity ? 'rgba(150,165,190,0.75)' : 'rgba(182,196,216,0.92)') : lane === 'prompt' ? '#d8f6ff' : '#fff6e9';
+    g.textBaseline = 'middle'; g.fillText(w, x + (dim ? 10 : 20), h / 2 + (dim ? 1 : 2));
+    x += ww + gap;
+  });
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return { tex: t, aspect: tw / h };
 }
 
@@ -161,9 +169,9 @@ export function build({ quality, state, model }) {
   // larger along the path tokens already left by. token-script.js is the single source for which tokens are out,
   // so the 3D stream and the 2D console (src/app/tokens-ui.js) always agree.
   const cache = new Map();
-  function texFor(word, lane, i) {
-    const parity = i % 2 === 1, key = `${lane}:${parity ? 1 : 0}:${word}`;
-    if (!cache.has(key)) cache.set(key, tokenTexture(word, lane, parity));
+  function texFor(lane, words, startIdx) {
+    const startParity = startIdx % 2, key = `${lane}:${startParity}:${words.join('\u0001')}`;
+    if (!cache.has(key)) cache.set(key, chunkTexture(words, lane, startParity));
     return cache.get(key);
   }
   const CAP = quality.mobile ? { prompt: 6, reasoning: 8, answer: 10 } : { prompt: 12, reasoning: 16, answer: 20 };
@@ -179,21 +187,50 @@ export function build({ quality, state, model }) {
   const pools = { prompt: pool(CAP.prompt), reasoning: pool(CAP.reasoning), answer: pool(CAP.answer) };
   const nextI = { prompt: 0, reasoning: 0, answer: 0 };
   const pulse = { v: 0 };
-  function spawn(lane, word, idx) {
+  function spawnChunk(lane, words, startIdx) {
     const arr = pools[lane], s = arr[nextI[lane]++ % arr.length];
-    const { tex, aspect } = texFor(word, lane, idx);
+    const { tex, aspect } = texFor(lane, words, startIdx);
     s.sp.material.map = tex; s.sp.material.needsUpdate = true;
     s.aspect = aspect; s.live = true; s.t = 0;
     s.x0 = (rnd() - 0.5) * (twin ? 4.2 : 2.2); s.z0 = (rnd() - 0.5) * 2.4; s.sp.visible = true;
     if (lane === 'answer') pulse.v = 1;
   }
-  // the KV cache: an emissive band that rises up each live HBM stack as the context grows, and empties on restart
+  // A decode stream reveals tokens far faster than a pool of a few dozen sprites can each fly a multi-second arc
+  // without recycling a slot mid-flight (which reads as clutter — several words stacked on top of each other).
+  // So several consecutive tokens are batched onto one sprite: `chunkSize` is picked, per lane, so that filling
+  // the whole pool at that batch size takes at least one sprite's flight time (`LIFE`), which guarantees a slot
+  // is free again before it's reused. `feedLane` buffers newly-revealed tokens and flushes a chunk once it's
+  // full, or once the lane finishes (so trailing tokens are never dropped).
+  const laneChunkSize = (lane, spawnRate) => Math.max(1, Math.ceil(spawnRate * LIFE[lane] / CAP[lane]));
+  const pendingBuf = { prompt: { words: [], startIdx: 0 }, reasoning: { words: [], startIdx: 0 }, answer: { words: [], startIdx: 0 } };
+  const chunkSize = { prompt: 1, reasoning: 1, answer: 1 };
+  function resetGen() {
+    genShown.prompt = genShown.reasoning = genShown.answer = 0;
+    for (const lane of ['prompt', 'reasoning', 'answer']) pendingBuf[lane] = { words: [], startIdx: 0 };
+    chunkSize.prompt = laneChunkSize('prompt', genCycle.prompt.length / genCycle.timings.prefillS);
+    chunkSize.reasoning = laneChunkSize('reasoning', STREAM_TPS);
+    chunkSize.answer = laneChunkSize('answer', STREAM_TPS);
+  }
+  function feedLane(lane, tokens, targetOut) {
+    const buf = pendingBuf[lane];
+    for (let i = genShown[lane]; i < targetOut; i++) {
+      if (buf.words.length === 0) buf.startIdx = i;
+      buf.words.push(tokens[i]);
+      if (buf.words.length >= chunkSize[lane]) { spawnChunk(lane, buf.words, buf.startIdx); buf.words = []; }
+    }
+    if (targetOut >= tokens.length && buf.words.length > 0) { spawnChunk(lane, buf.words, buf.startIdx); buf.words = []; }
+  }
+  // the KV cache: an emissive band that rises up each live HBM stack as the context grows, and empties on restart.
+  // Sized visibly larger than the real HBM stack it wraps (that stack is 1.06 x (layers*0.055) x 1.0) so its rim
+  // reads as a glow around the pink stack rather than sitting invisibly flush against it.
   const fillGeo = new THREE.BoxGeometry(1, 1, 1); fillGeo.translate(0, 0.5, 0);
-  const fillMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#b08cff').multiplyScalar(1.9), transparent: true, opacity: 0.85, depthWrite: false });
+  // additive so the rim reads as a glow against the stack's own pale pink material rather than blending into it
+  const fillMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#c86bff').multiplyScalar(3.3), transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending });
   const hbmFill = new THREE.InstancedMesh(fillGeo, fillMat, Math.max(1, live.length));
   hbmFill.frustumCulled = false; hbmFill.count = live.length; scene.add(hbmFill);
   let genCycle = buildCycle(model), genLen = genCycle.timings.totalS, genLastE = -1;
   const genShown = { prompt: 0, reasoning: 0, answer: 0 };
+  resetGen();
   function animLane(arr, life, dt, place) {
     for (const item of arr) {
       if (!item.live) continue;
@@ -233,12 +270,12 @@ export function build({ quality, state, model }) {
     dispose() { cache.forEach(({ tex }) => tex.dispose()); },
     update(t, dt) {
       const e = tick(genLen);
-      if (e < genLastE) { genCycle = buildCycle(model); genLen = genCycle.timings.totalS; genShown.prompt = genShown.reasoning = genShown.answer = 0; }
+      if (e < genLastE) { genCycle = buildCycle(model); genLen = genCycle.timings.totalS; resetGen(); }
       genLastE = e;
       const s = sampleAt(genCycle, e);
-      for (let i = genShown.prompt; i < s.promptOut; i++) spawn('prompt', genCycle.prompt[i], i);
-      for (let i = genShown.reasoning; i < s.reasoningOut; i++) spawn('reasoning', genCycle.reasoning[i], i);
-      for (let i = genShown.answer; i < s.answerOut; i++) spawn('answer', genCycle.answer[i], i);
+      feedLane('prompt', genCycle.prompt, s.promptOut);
+      feedLane('reasoning', genCycle.reasoning, s.reasoningOut);
+      feedLane('answer', genCycle.answer, s.answerOut);
       genShown.prompt = s.promptOut; genShown.reasoning = s.reasoningOut; genShown.answer = s.answerOut;
 
       animLane(pools.prompt, LIFE.prompt, dt, (item, u) => {
@@ -249,19 +286,21 @@ export function build({ quality, state, model }) {
       });
       animLane(pools.reasoning, LIFE.reasoning, dt, (item, u) => {
         const g = 1 - Math.pow(1 - u, 2), pull = 1 - 0.45 * u;                    // gathers inward as it drifts up: a thinking ribbon
-        item.sp.position.set(item.x0 * 0.9 * pull, Y.dies + 0.5 + g * 1.5, item.z0 * 0.9 * pull);
+        item.sp.position.set(item.x0 * 0.9 * pull, Y.dies + 0.5 + g * 0.9, item.z0 * 0.9 * pull);
         const sz = 0.15; item.sp.scale.set(sz * item.aspect, sz, 1);
         item.sp.material.opacity = 0.55 * Math.min(1, u * 5) * (1 - Math.max(0, (u - 0.65) / 0.35));
       });
+      // capped below Y.dies+3 (~6.2 total) so the arc's top stays clear of the fixed 2D HUD chrome (title,
+      // mode toggle, tour controls) at the chip scene's default and tokens-hotspot camera framings.
       animLane(pools.answer, LIFE.answer, dt, (item, u) => {
         const g = 1 - Math.pow(1 - u, 2);
-        item.sp.position.set(item.x0 + 1.2 + g * 4.2, Y.dies + 0.4 + g * 4.4, item.z0 - g * 1.5);
+        item.sp.position.set(item.x0 + 1.0 + g * 3.0, Y.dies + 0.4 + g * 2.6, item.z0 - g * 1.5);
         const sz = 0.34 + g * 0.1; item.sp.scale.set(sz * item.aspect, sz, 1);
         item.sp.material.opacity = Math.min(1, u * 6) * (1 - Math.max(0, (u - 0.7) / 0.3));
       });
       live.forEach(([x, z], i) => {
-        const h = Math.max(0.0015, stackH * s.contextFrac);
-        o.position.set(x, Y.dies + 0.043, z); o.rotation.set(0, 0, 0); o.scale.set(1.07, h, 1.01); o.updateMatrix();
+        const h = Math.max(0.02, stackH * s.contextFrac);
+        o.position.set(x, Y.dies + 0.043, z); o.rotation.set(0, 0, 0); o.scale.set(1.22, h, 1.16); o.updateMatrix();
         hbmFill.setMatrixAt(i, o.matrix);
       });
       hbmFill.instanceMatrix.needsUpdate = true;
