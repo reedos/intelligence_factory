@@ -8,7 +8,7 @@
 // Pause (the button, or Space) is the only thing that stops it. One transport at the head of the panel (play,
 // back, forward, speed, where the tour is) is the only playback control on the page.
 import { store, on } from './store.js';
-import { show, reduced, onTick, setCinema, setTourPace } from './stage.js';
+import { show, go, reduced, onTick, setCinema, setTourPace } from './stage.js';
 import { story, watt, request, heat, layer, everything, CHAIN } from './journeys.js';
 import { openClock, closeClock } from './clock-ui.js';
 
@@ -53,11 +53,41 @@ function paceLabel() {
 }
 // playing on carries through the tours, or through the layers, in CHAIN order; never from one group to the other
 const nextTour = id => { const g = CHAIN[TOURS[id].group] || [], k = g.indexOf(id); return k < 0 ? null : g[k + 1] ?? null; };
+const prevTour = id => { const g = CHAIN[TOURS[id].group] || [], k = g.indexOf(id); return k > 0 ? g[k - 1] : null; };
+// past the last step: the next level of a level playthrough, or the next tour in its group
+const beyond = () => tour === 'here' ? (here.scene < store.C.SCENES.length - 1 ? { level: here.scene + 1 } : null) : (nextTour(tour) ? { tour: nextTour(tour) } : null);
+const before = () => tour === 'here' ? (here.scene > 0 ? { level: here.scene - 1 } : null) : (prevTour(tour) ? { tour: prevTour(tour) } : null);
+function crossTo(t, at) {
+  if (!t) return false;
+  if (t.level !== undefined) { here.scene = t.level; switchTour('here', at); } else switchTour(t.tour, at);
+  return true;
+}
 // ≈260 words a minute; a beat running a clock holds at least 16 s so the simulation gets to its point (an outage's
 // generators come on 7.5 s in at playback speed)
 const dwell = b => Math.max(b.sim ? 16000 : 0, Math.min(16000, Math.max(6000, 3000 + `${b.title} ${b.text}`.split(/\s+/).length * 230)));
 const narrow = matchMedia('(max-width: 1100px)');
 
+// A step on a part that holds another level (the campus on the map, the halls, a rack, a tray, the GPU) gets a button
+// named for where it goes. The last step of every tour offers the next move: the next level of a level playthrough,
+// the next tour, or exploring from here. Nothing ends in a sentence that says "go in" with nowhere to click.
+const partOf = l => {
+  if (!l?.part) return null;
+  const C = store.C, P = { power: C.PARTS, data: C.PARTS_DATA, heat: C.PARTS_HEAT }[l.mode] || {};
+  return (P[C.SCENES[l.scene].id] || []).find(p => p.id === l.part) || null;
+};
+function goButton(b) {
+  const p = partOf(b.link); if (!p || p.drill === undefined) return '';
+  const inward = p.drill > b.link.scene, to = store.C.SCENES[p.drill];
+  return `<button type="button" class="btn go beat-go" data-drill="${p.drill}" data-from="${p.id}" data-scene="${b.link.scene}">${inward ? 'Go inside' : 'Back out'}: ${to.title} ${inward ? '→' : '↑'}</button>`;
+}
+function nextSteps() {
+  const acts = ['<button type="button" class="btn" data-restart>↺ Start over</button>'], S = store.C.SCENES;
+  if (tour === 'here' && here.scene < S.length - 1) acts.push(`<button type="button" class="btn go" data-next-level="${here.scene + 1}">Play level ${here.scene + 2}: ${S[here.scene + 1].title} →</button>`);
+  const nt = nextTour(tour);
+  if (nt) acts.push(`<button type="button" class="btn${acts.some(a => a.includes('btn go')) ? '' : ' go'}" data-next-tour="${nt}">Next: ${TOURS[nt].label} →</button>`);
+  acts.push('<button type="button" class="btn" data-explore>Explore on your own</button>');
+  return acts.join('');
+}
 function render() {
   list = TOURS[tour].beats(store.M);
   const tabs = g => `<div class="tour-group"><span class="tour-g">${g}</span><div class="tour-tabs" role="tablist" aria-label="${g}">${Object.entries(TOURS).filter(([, t]) => t.group === g).map(([id, t]) => `<button type="button" role="tab" data-tour="${id}" aria-selected="${id === tour}">${t.short}</button>`).join('')}</div></div>`;
@@ -70,9 +100,12 @@ function render() {
     + `<span class="tour-t" id="tour-t" aria-live="polite"></span>`
     + `<button type="button" class="btn icon" id="story-exit" aria-label="Leave the tour">×</button></div>`
     + `<div class="tour-pick">${tabs('Tours')}${tabs('Every part')}</div>`
-    + `<div class="tally" id="tally" aria-live="polite"${list.some(b => b.tally) ? '' : ' hidden'}><span class="eyebrow">${TOURS[tour].label}</span><b id="tally-v"></b></div></div>`
-    + list.map((b, i) => `<article class="beat${b.level ? ' level' : ''}" data-i="${i}"><span class="k">${String(i + 1).padStart(2, '0')} · ${b.k}</span><h3>${b.title}</h3><p>${b.text}</p>${b.specs ? `<dl class="beat-specs">${b.specs.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>` : ''}<span class="beat-bar" aria-hidden="true"><i></i></span></article>`).join('')
-    + '<div class="beat-end"><button type="button" class="btn" id="story-done">Explore on your own</button></div>';
+    + `<div class="tally" id="tally" aria-live="polite"${list.some(b => b.tally) && tour !== 'here' ? '' : ' hidden'}><span class="eyebrow">${TOURS[tour].label}</span><b id="tally-v"></b></div></div>`
+    + list.map((b, i) => {
+      // the last step of a level playthrough already offers the next level; a second button to the same place is noise
+      const last = i === list.length - 1, into = partOf(b.link)?.drill, dup = last && tour === 'here' && into === here.scene + 1;
+      const acts = (dup ? '' : goButton(b)) + (last ? nextSteps() : '');
+      return `<article class="beat${b.level ? ' level' : ''}" data-i="${i}"><span class="k">${String(i + 1).padStart(2, '0')} · ${b.k}</span><h3>${b.title}</h3><p>${b.text}</p>${b.specs ? `<dl class="beat-specs">${b.specs.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>` : ''}${acts ? `<div class="beat-acts">${acts}</div>` : ''}<span class="beat-bar" aria-hidden="true"><i></i></span></article>`; }).join('');
   $('story-exit').addEventListener('click', exit);
   $('tour-play').addEventListener('click', () => setPlaying(!playing));
   $('tour-prev').addEventListener('click', () => step(-1));
@@ -84,7 +117,16 @@ function render() {
     if (b.dataset.tour === 'here') { here.scene = store.ui.scene; here.mode = store.ui.mode; }   // the level on screen now
     switchTour(b.dataset.tour);
   }));
-  $('story-done').addEventListener('click', exit);
+  box.querySelectorAll('[data-drill]').forEach(b => b.addEventListener('click', () => {
+    const to = +b.dataset.drill;
+    if (tour === 'here') { here.scene = to; switchTour('here'); return; }   // a level playthrough carries on at the new level
+    exit({ remember: true });
+    go(to, b.dataset.from);                                   // dive through the part, into the level it holds
+  }));
+  box.querySelectorAll('[data-next-level]').forEach(b => b.addEventListener('click', () => { here.scene = +b.dataset.nextLevel; switchTour('here'); setPlaying(true); }));
+  box.querySelectorAll('[data-next-tour]').forEach(b => b.addEventListener('click', () => { switchTour(b.dataset.nextTour); setPlaying(true); }));
+  box.querySelectorAll('[data-explore]').forEach(b => b.addEventListener('click', () => exit()));
+  box.querySelectorAll('[data-restart]').forEach(b => b.addEventListener('click', () => { switchTour(tour); setPlaying(true); }));
   observe();
   if (active >= 0) mark(active);
   else ctlLabel();
@@ -94,7 +136,13 @@ function mark(i) {
   ctlLabel();
   const v = $('tally-v'); if (v) v.textContent = list[i]?.tally ?? '';
 }
-function switchTour(id) { tour = id; active = -1; render(); panel.scrollTop = 0; activate(0); }
+// at: 'last' opens a tour on its last step (going back into it from the one after)
+function switchTour(id, at) {
+  tour = id; active = -1; render(); panel.scrollTop = 0;
+  const i = at === 'last' ? list.length - 1 : 0;
+  if (i && !narrow.matches) centerInPanel(box.querySelector(`.beat[data-i="${i}"]`), false);
+  activate(i);
+}
 async function activate(i) {
   if (i === active) return;
   active = i; mark(i); arrived = false; held = 0; bar(0);
@@ -115,6 +163,7 @@ function observe() {
   observer?.disconnect(); observer = null;
   if (narrow.matches) return;
   observer = new IntersectionObserver(entries => {
+    if (performance.now() < steering) return;                // beats passed on the way to the one a step chose
     const hit = entries.filter(e => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
     if (hit) activate(+hit.target.dataset.i);
   }, { root: panel, rootMargin: '-40% 0px -40% 0px', threshold: 0 });
@@ -122,12 +171,17 @@ function observe() {
 }
 // center a beat in the column by scrolling the column alone; scrollIntoView would scroll the page too and slide the
 // stage up under the top bar
+let steering = 0;                                         // until then the column is scrolling for a step, not for the reader
 function centerInPanel(el, smooth = true) {
   if (!el) return;
-  const r = el.getBoundingClientRect(), pr = panel.getBoundingClientRect();
-  panel.scrollBy({ top: r.top - pr.top - (pr.height - r.height) / 2, behavior: smooth && !reduced ? 'smooth' : 'auto' });
+  const r = el.getBoundingClientRect(), pr = panel.getBoundingClientRect(), dy = r.top - pr.top - (pr.height - r.height) / 2;
+  steering = performance.now() + 250 + Math.min(1500, Math.abs(dy) * 0.6);
+  panel.scrollBy({ top: dy, behavior: smooth && !reduced ? 'smooth' : 'auto' });
 }
+panel.addEventListener('scrollend', () => { steering = Math.min(steering, performance.now() + 60); });
 function step(d) {
+  if (d > 0 && active === list.length - 1) { crossTo(beyond()); return; }
+  if (d < 0 && active === 0) { crossTo(before(), 'last'); return; }
   const i = Math.max(0, Math.min(list.length - 1, (active < 0 ? -1 : active) + d));
   activate(i);                                            // at once, so quick presses count from the beat they see
   if (narrow.matches) { box.querySelector('.beat.on')?.scrollTo?.(0, 0); return; }
@@ -165,11 +219,19 @@ export function exit({ remember = false } = {}) {
 export const inStory = () => !box.hidden;
 
 // ---------- play / pause ----------
+// on the last step, paused, Play means start over, and shows it
+function playIcon() {
+  const b = $('tour-play'); if (!b) return;
+  const again = !playing && active === list.length - 1 && list.length > 1;
+  b.textContent = playing ? '❚❚' : again ? '↺' : '▶';
+  b.setAttribute('aria-label', playing ? 'Pause' : again ? 'Start over and play' : 'Play');
+}
 export function setPlaying(on_) {
+  if (on_ && !playing && active === list.length - 1 && list.length > 1 && inStory()) { playing = true; activate(0); if (!narrow.matches) centerInPanel(box.querySelector('.beat[data-i="0"]')); }
   playing = on_; holdUntil = 0;
   document.body.classList.toggle('playing', playing);
-  const b = $('tour-play'); if (b) { b.textContent = playing ? '❚❚' : '▶'; b.setAttribute('aria-label', playing ? 'Pause' : 'Play'); b.setAttribute('aria-pressed', String(playing)); }
-  ctlLabel();
+  const b = $('tour-play'); if (b) b.setAttribute('aria-pressed', String(playing));
+  playIcon(); ctlLabel();
 }
 // where the tour is, and whether it is waiting on the reader
 let heldShown = false;
@@ -177,8 +239,13 @@ function ctlLabel() {
   const t = $('tour-t'); if (!t || active < 0 || !list[active]) return;
   const held = playing && performance.now() < holdUntil;
   heldShown = held;
-  t.textContent = held ? 'Carries on when you let go' : `${active + 1} of ${list.length}${playing ? '' : ' · paused'}`;
-  $('tour-prev').disabled = active === 0; $('tour-next').disabled = active === list.length - 1;
+  const last = active === list.length - 1, nb = beyond(), pb = before();
+  t.textContent = held ? 'Carries on when you let go'
+    : `${active + 1} of ${list.length}${last && !playing && nb ? ` · › ${nb.level !== undefined ? `level ${nb.level + 1}` : TOURS[nb.tour].short}` : playing ? '' : ' · paused'}`;
+  $('tour-prev').disabled = active === 0 && !pb; $('tour-next').disabled = last && !nb;
+  $('tour-next').setAttribute('aria-label', last && nb ? (nb.level !== undefined ? `Next level: ${store.C.SCENES[nb.level].title}` : `Next tour: ${TOURS[nb.tour].label}`) : 'Next step');
+  $('tour-prev').setAttribute('aria-label', active === 0 && pb ? (pb.level !== undefined ? `Previous level: ${store.C.SCENES[pb.level].title}` : `Previous tour: ${TOURS[pb.tour].label}`) : 'Previous step');
+  playIcon();
 }
 function hold() { if (playing) { holdUntil = performance.now() + HOLD_MS; if (!heldShown) ctlLabel(); } }
 export function play(which = 'story') { if (!inStory() || which !== tour) enter(which, { fromStart: true }); setPlaying(true); }
@@ -196,11 +263,11 @@ onTick(dt => {
   else {
     const next = nextTour(tour);
     if (next) switchTour(next);
-    else { setPlaying(false); if (!narrow.matches) centerInPanel(box.querySelector('.beat-end')); }
+    else setPlaying(false);                                // the last step offers what comes next
   }
 });
 // the reader looking around holds the tour; it carries on HOLD_MS after the last touch, drag or wheel
-const lookAround = e => { if (!e.target.closest?.('.story-head, #story-hero-play, #clock')) hold(); };
+const lookAround = e => { if (!e.target.closest?.('.story-head, .beat-acts, #story-hero-play, #clock')) hold(); };
 for (const el of [panel, $('view')]) for (const ev of ['wheel', 'touchstart', 'touchmove', 'pointerdown', 'pointermove']) el?.addEventListener(ev, e => { if (ev !== 'pointermove' || e.buttons) lookAround(e); }, { passive: true });
 addEventListener('wheel', e => { if (narrow.matches) lookAround(e); }, { passive: true });
 addEventListener('touchmove', e => { if (narrow.matches) lookAround(e); }, { passive: true });

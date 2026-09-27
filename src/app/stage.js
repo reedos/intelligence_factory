@@ -438,7 +438,7 @@ export function select(id, fly) {
   const src = `${ui.mode}:${SCENES()[ui.scene].id}:${id}`;
   $('card-s').innerHTML = p.specs.map(([k, v, b]) => `<div><dt>${k}</dt><dd>${v}</dd><button type="button" class="chip ${b}" data-src="${src}" aria-expanded="false" aria-label="${BASIS[b].label}: sources">${BASIS[b].short}</button></div>`).join('');
   const go_ = $('card-go'); go_.hidden = p.drill === undefined;
-  go_.textContent = p.drill > ui.scene ? 'Go inside →' : 'Go out ↑';
+  if (p.drill !== undefined) go_.textContent = `${p.drill > ui.scene ? 'Go inside' : 'Back out'}: ${SCENES()[p.drill].title} ${p.drill > ui.scene ? '→' : '↑'}`;
   go_.onclick = () => go(p.drill, id);
   if (fly) { const h = hotspotsFor(ui.scene)[id]; if (h?.view) { const f = frame(built[ui.scene], h); flyTo(f.pos, f.target); } }
   emit('select', { scene: ui.scene, mode: ui.mode, id });

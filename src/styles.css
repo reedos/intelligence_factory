@@ -634,3 +634,12 @@ body.scrolled .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--
 @media (max-width: 640px) { .site-status { grid-template-columns: minmax(0, 1fr); } }
 
 @media (max-width: 1240px) and (min-width: 901px) { .topnav a { padding: 0 8px; letter-spacing: .07em; } .topbar { gap: 16px; } }
+
+/* ---------- where a step leads ---------- */
+.beat-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.beat-acts .btn { min-height: 38px; padding: 0 14px; }
+.beat-acts .btn.go { background: var(--accent); border-color: var(--accent); color: #000; }
+.beat-acts .btn.go:hover { background: #f0cc9c; border-color: #f0cc9c; }
+.beat:not(.on) .beat-acts { opacity: .6; }
+.beat-acts { align-items: center; }
+.beat-acts [data-restart] { order: 9; }                     /* onward first, starting over last in reading order on a row */
