@@ -17,6 +17,7 @@
     <h1>The Intelligence Factory</h1>
     <p class="tagline">From <span class="v1">345,000 volts</span> to <span class="v2">0.8</span></p>
     <p class="lede">Zoom from a 2,000 km grid into one AI campus and keep going: off the transmission line, through the substation, the halls, a rack and a tray, into a GPU die at under a volt, and out as tokens. Then switch to the data layer and follow the links back out: NVLink inside the rack, optics across the hall, fiber between campuses. Every number carries a label saying where it comes from.</p>
+    <div class="hero-actions"><a class="btn go" href="#story" id="story-start">Start the story</a><span class="hint-inline">or set up a campus below and explore on your own</span></div>
   </header>
 
   <section class="scenario" aria-labelledby="sc-h">
@@ -49,12 +50,13 @@
         <div class="hud bl"><div class="scalebar"><span id="scale-label">100 m</span><i id="scale-bar"></i></div></div>
         <div class="hud br" id="legend"></div>
         <div class="hud tr">
+          <button type="button" class="btn story-btn" id="story-btn" aria-pressed="false">Story</button>
           <div class="mode" role="group" aria-label="Layer">
             <button type="button" data-mode="power" aria-pressed="true" style="--c: var(--mv)"><i></i>Power</button>
             <button type="button" data-mode="data" aria-pressed="false" style="--c: var(--nvl)"><i></i>Data</button>
             <button type="button" data-mode="heat" aria-pressed="false" style="--c: var(--warm)"><i></i>Heat</button>
           </div>
-          <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>1–6 jumps scale · P D H switch layers · ← → steps parts</p>
+          <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>1–6 jumps scale · P D H switch layers · ← → steps parts · S tells the story</p>
         </div>
         <div class="veil" id="veil">Building the region…</div>
       </div>
@@ -67,6 +69,7 @@
             <h3 id="card-t"></h3>
             <p id="card-b"></p>
             <dl class="specs" id="card-s"></dl>
+            <div class="card-links" id="card-links" hidden></div>
             <div class="card-actions">
               <button type="button" class="btn go" id="card-go" hidden>Go inside →</button>
               <button type="button" class="btn" id="card-next">Next part</button>

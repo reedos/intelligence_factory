@@ -2,6 +2,7 @@
 // how a model is split, the inventory, and the cost-per-token calculator. Each redraws from the model.
 import { VOLT, BASIS } from '../data.js';
 import { store, on, emit } from './store.js';
+import { goAttr } from './links.js';
 
 const $ = id => document.getElementById(id);
 const fmt = (n, d = 0) => n.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
@@ -27,12 +28,12 @@ function renderLedger() {
   row('mark', 'At the campus meter', '', trunk(rem, 0, null, 'hv'), `${fmt(rem, 1)} MW`, 1, was(remP, rem));
   LEDGER.forEach((l, i) => {
     const pl = P?.ledger[i];
-    row('minus', l.label, `<span class="chip ${l.basis}">${BASIS[l.basis].short}</span>`, trunk(rem, l.mw, l.kind, SCENE_VOLT[l.scene]), `−${fmt(l.mw, 1)}`, l.scene, pl ? was(-pl.mw, -l.mw) : '', `data-row="${i}"`);
+    row('minus', l.label, `<button type="button" class="chip ${l.basis}" data-src="ledger:${i}" aria-expanded="false" aria-label="${BASIS[l.basis].label}: sources">${BASIS[l.basis].short}</button>`, trunk(rem, l.mw, l.kind, SCENE_VOLT[l.scene]), `−${fmt(l.mw, 1)}`, l.scene, pl ? was(-pl.mw, -l.mw) : '', `data-row="${i}" ${goAttr(l.link, l.label)}`);
     rem -= l.mw; if (P) remP -= pl.mw;
     const mark = LEDGER_MARKS.find(m => m.after === i);
     if (mark) row('mark', mark.label === 'IT load' ? `IT load, PUE ${M.pue.toFixed(2)}` : mark.label, '', trunk(rem, 0, null, SCENE_VOLT[Math.min(5, (LEDGER[i + 1] || l).scene)]), `${fmt(rem, 1)} MW`, l.scene, was(remP, rem));
   });
-  row('mark end', `${LEDGER_END.label} <span style="color:var(--muted);font-weight:400">· ${LEDGER_END.sub}</span>`, '', trunk(rem, 0, null, 'core'), `${fmt(rem, 1)} MW`, 5, was(P?.gpuSiliconMW, rem));
+  row('mark end', `${LEDGER_END.label} <span style="color:var(--muted);font-weight:400">· ${LEDGER_END.sub}</span>`, '', trunk(rem, 0, null, 'core'), `${fmt(rem, 1)} MW`, 5, was(P?.gpuSiliconMW, rem), goAttr(LEDGER_END.link, LEDGER_END.label));
   $('ledger').innerHTML = rows.join('');
   const size = M.meterMW >= 1000 ? `${+(M.meterMW / 1000).toFixed(2)} GW` : `${Math.round(M.meterMW)} MW`;
   $('ledger-h').textContent = `Where ${size} goes`;
@@ -40,6 +41,9 @@ function renderLedger() {
   highlightLedger(store.ui.scene);
 }
 function highlightLedger(i) { document.querySelectorAll('.lg-row').forEach(r => r.classList.toggle('here', r.dataset.scene === String(i) && r.classList.contains('minus'))); }
+
+// ---------- charts: each column is a link into 3D ----------
+const col = (link, label, x, y, w, h, body) => link ? `<g class="golink" ${goAttr(link, label)}><rect class="hit" x="${x}" y="${y}" width="${w}" height="${h}" rx="4"/>${body}</g>` : body;
 
 // ---------- staircases ----------
 function renderStairs() {
@@ -55,6 +59,7 @@ function renderStairs() {
   });
   STAIRCASE.forEach((s, i) => {
     const x0 = L + i * cw, x1 = x0 + cw, yy = y(s.v), c = VOLT[s.volt].css;
+    const start = out.length;
     out += `<rect x="${x0 + 3}" y="${yy}" width="${cw - 6}" height="${H - B - yy}" fill="${c}" fill-opacity="0.12"/>`;
     out += `<line x1="${x0 + 3}" x2="${x1 - 3}" y1="${yy}" y2="${yy}" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`;
     if (i < n - 1) { const ny = y(STAIRCASE[i + 1].v); out += `<line x1="${x1 - 3}" x2="${x1 + 3}" y1="${yy}" y2="${ny}" stroke="#6b747c" stroke-width="1.5" stroke-dasharray="3 3"/>`; }
@@ -64,6 +69,7 @@ function renderStairs() {
     out += `<text x="${x0 + cw / 2}" y="${H - B + 46}" text-anchor="middle" fill="#e9fbff" font-family="IBM Plex Mono, monospace" font-weight="600" font-size="13">${c1}</text>`;
     if (c2) out += `<text x="${x0 + cw / 2}" y="${H - B + 63}" text-anchor="middle" fill="#e9fbff" font-family="IBM Plex Mono, monospace" font-size="11.5">${c2}</text>`;
     out += `<text x="${x0 + cw / 2}" y="${H - B + (c2 ? 84 : 66)}" text-anchor="middle" fill="#aab2b9" font-family="Manrope, sans-serif" font-size="11.5">${s.note}</text>`;
+    out = out.slice(0, start) + col(s.link, `${s.label}, ${s.where}`, x0 + 1, yy - 30, cw - 2, H - yy + 30 - 30, out.slice(start));
   });
   out += `<text x="${L}" y="18" fill="#aab2b9" font-family="Manrope, sans-serif" font-size="12.5">Voltage, log scale. Current is for the conductor named under each step. All currents are estimates from P ÷ V.</text>`;
   svg.innerHTML = out;
@@ -81,6 +87,7 @@ function renderBandwidth() {
   });
   BANDWIDTH.forEach((b, i) => {
     const x0 = L + i * cw, yy = y(b.gbs), c = VOLT[b.cls].css;
+    const start = out.length;
     const val = b.gbs >= 1000 ? `${+(b.gbs / 1000).toFixed(2)} TB/s` : `≈${b.gbs >= 10 ? Math.round(b.gbs) : b.gbs.toFixed(1)} GB/s`;
     out += `<rect x="${x0 + 14}" y="${yy}" width="${cw - 28}" height="${H - B - yy}" rx="4" fill="${c}" fill-opacity="0.22" stroke="${c}" stroke-opacity="0.8"/>`;
     out += `<text x="${x0 + cw / 2}" y="${yy - 10}" text-anchor="middle" fill="${c}" font-family="IBM Plex Mono, monospace" font-weight="600" font-size="15">${val}</text>`;
@@ -88,6 +95,7 @@ function renderBandwidth() {
     out += `<text x="${x0 + cw / 2}" y="${H - B + 42}" text-anchor="middle" fill="#aab2b9" font-family="Manrope, sans-serif" font-size="12.5">${b.where}</text>`;
     out += `<text x="${x0 + cw / 2}" y="${H - B + 66}" text-anchor="middle" fill="#e9fbff" font-family="IBM Plex Mono, monospace" font-weight="600" font-size="12.5">${b.latency}</text>`;
     out += `<text x="${x0 + cw / 2}" y="${H - B + 86}" text-anchor="middle" fill="#6b747c" font-family="Manrope, sans-serif" font-size="11.5">${b.note}</text>`;
+    out = out.slice(0, start) + col(b.link, `${b.label}, ${b.where}`, x0 + 4, yy - 30, cw - 8, H - yy + 30 - 30, out.slice(start));
   });
   out += `<text x="${L}" y="20" fill="#aab2b9" font-family="Manrope, sans-serif" font-size="12.5">Bandwidth per GPU, log scale, with one-way latency under each bar. Each step out is 10–100× slower.</text>`;
   svg.innerHTML = out;
@@ -188,21 +196,22 @@ function renderLinks() {
   // 4. The census
   const fl = F.fibersPerLink, d = NET.dci, hallGpus = GPUS / Math.max(1, M.halls);
   const dpus = nvl72 ? 36 : 8;
+  const at = (scene, part) => ({ scene, mode: 'data', part });
   const cards = nvl72 ? [
-    ['GPU package', 'nvl', [['NVLink links', '18'], ['Copper pairs out', '72'], ['CPU link', '1 × NVLink-C2C'], ['Scale-out port', `1 × ${speed}`], ['HBM stacks', `${A.hbm.stacks}`]]],
-    ['Compute tray', 'nvl', [['GPUs', '4'], ['NVLink links', '72'], ['Scale-out optical ports', '4'], ['BlueField-3 DPUs, 2 × 400G', '2'], ['Fibers out the front', `≈${n0(4 * fl + 2 * 8)}–${n0(4 * fl + 4 * 8)}`]]],
-    [`${A.rackName} rack`, 'nvl', [['NVLink links', '1,296'], ['Copper connections', '5,184'], ['NVLink cable cartridges', '4'], ['NVLink switch chips', '18'], ['Scale-out ports', '72'], ['BlueField-3 DPUs, 2 × 400G', `${dpus}`], ['Management switches', '2'], ['Fibers leaving the rack', `≈${n0(72 * fl + 36 * 8)}–${n0(72 * fl + 72 * 8)}`]]],
+    ['GPU package', 'nvl', [['NVLink links', '18'], ['Copper pairs out', '72'], ['CPU link', '1 × NVLink-C2C'], ['Scale-out port', `1 × ${speed}`], ['HBM stacks', `${A.hbm.stacks}`]], at(5, 'nvphy')],
+    ['Compute tray', 'nvl', [['GPUs', '4'], ['NVLink links', '72'], ['Scale-out optical ports', '4'], ['BlueField-3 DPUs, 2 × 400G', '2'], ['Fibers out the front', `≈${n0(4 * fl + 2 * 8)}–${n0(4 * fl + 4 * 8)}`]], at(4, 'cx')],
+    [`${A.rackName} rack`, 'nvl', [['NVLink links', '1,296'], ['Copper connections', '5,184'], ['NVLink cable cartridges', '4'], ['NVLink switch chips', '18'], ['Scale-out ports', '72'], ['BlueField-3 DPUs, 2 × 400G', `${dpus}`], ['Management switches', '2'], ['Fibers leaving the rack', `≈${n0(72 * fl + 36 * 8)}–${n0(72 * fl + 72 * 8)}`]], at(3, 'spine')],
   ] : [
-    ['GPU package', 'nvl', [['NVLink links', '18'], ['NVLink domain', '8 GPUs, inside the server'], ['Scale-out port', `1 × ${speed}`], ['HBM stacks', `${A.hbm.stacks} active of 6`]]],
-    ['DGX H100 server', 'nvl', [['GPUs', '8'], ['NVSwitch chips', '4'], ['ConnectX-7 ports', '8 × 400G'], ['BlueField-3 DPUs', '2'], ['Fibers out', `≈${n0(8 * fl + 2 * 8)}`]]],
-    ['Rack of 4 servers', 'nvl', [['GPUs', '32'], ['NVLink domains', '4 separate'], ['Scale-out ports', '32'], ['Fibers leaving the rack', `≈${n0(32 * fl + 8 * 8)}`]]],
+    ['GPU package', 'nvl', [['NVLink links', '18'], ['NVLink domain', '8 GPUs, inside the server'], ['Scale-out port', `1 × ${speed}`], ['HBM stacks', `${A.hbm.stacks} active of 6`]], at(5, 'nvphy')],
+    ['DGX H100 server', 'nvl', [['GPUs', '8'], ['NVSwitch chips', '4'], ['ConnectX-7 ports', '8 × 400G'], ['BlueField-3 DPUs', '2'], ['Fibers out', `≈${n0(8 * fl + 2 * 8)}`]], at(4, 'nvswitch')],
+    ['Rack of 4 servers', 'nvl', [['GPUs', '32'], ['NVLink domains', '4 separate'], ['Scale-out ports', '32'], ['Fibers leaving the rack', `≈${n0(32 * fl + 8 * 8)}`]], at(3, 'uplinks')],
   ];
   cards.push(
-    [`One data hall of ${M.halls}`, 'eth', [['Racks', `≈${n0(RACKS / M.halls)}`], ['GPU-to-leaf links', `≈${kilo(hallGpus)}`], ['Leaf + spine switches', `≈${n0((NET.leaf + NET.spine) / M.halls)}`], ['Optical modules', `≈${kilo(NET.modules / M.halls)}`], ['Fiber strands', `≈${kilo(NET.fibers / M.halls)}`], ['Patch housings, 576 fibers per 4U', `≈${n0(NET.fibers / M.halls / 576)}`]]],
-    ['The campus fabric', 'eth', [['Fabric switches', n0(NET.switches)], ['Tiers', `${NET.tiers}${NET.planes > 1 ? ` · ${NET.planes} parallel fabrics` : ''}`], ['Optical links', kilo(NET.links)], ['Optical modules', `${kilo(NET.modules)} · ${(NET.modules / GPUS).toFixed(1)} per GPU`], ['Fiber strands', `≈${kilo(NET.fibers)}`], ['NVLink copper connections', `≈${kilo(NET.nvlinkPairs)}`], ['Network power outside the racks', `${(NET.switchMW + NET.opticsMW).toFixed(1)} MW`]]],
-    ['Campus to campus', 'dci', [['Diverse routes', `${d.routes}`], ['Lit fiber pairs per route', `${d.litPairs} of ${d.cableStrands / 2}`], ['Wavelengths per pair', `${d.lambdas} × ${d.gbps}G`], ['Coherent modules, each end', n0(d.modulesPerEnd)], ['Router line cards, 36 × 800G', `≈${Math.ceil(d.modulesPerEnd / d.portsPerLinecard)}`], ['Capacity', `≈${n0(d.tbpsPerRoute * d.routes)} Tb/s`], ['Amplifier huts per route', `${d.huts}`]]],
+    [`One data hall of ${M.halls}`, 'eth', [['Racks', `≈${n0(RACKS / M.halls)}`], ['GPU-to-leaf links', `≈${kilo(hallGpus)}`], ['Leaf + spine switches', `≈${n0((NET.leaf + NET.spine) / M.halls)}`], ['Optical modules', `≈${kilo(NET.modules / M.halls)}`], ['Fiber strands', `≈${kilo(NET.fibers / M.halls)}`], ['Patch housings, 576 fibers per 4U', `≈${n0(NET.fibers / M.halls / 576)}`]], at(2, 'leaf')],
+    ['The campus fabric', 'eth', [['Fabric switches', n0(NET.switches)], ['Tiers', `${NET.tiers}${NET.planes > 1 ? ` · ${NET.planes} parallel fabrics` : ''}`], ['Optical links', kilo(NET.links)], ['Optical modules', `${kilo(NET.modules)} · ${(NET.modules / GPUS).toFixed(1)} per GPU`], ['Fiber strands', `≈${kilo(NET.fibers)}`], ['NVLink copper connections', `≈${kilo(NET.nvlinkPairs)}`], ['Network power outside the racks', `${(NET.switchMW + NET.opticsMW).toFixed(1)} MW`]], at(2, 'spine')],
+    ['Campus to campus', 'dci', [['Diverse routes', `${d.routes}`], ['Lit fiber pairs per route', `${d.litPairs} of ${d.cableStrands / 2}`], ['Wavelengths per pair', `${d.lambdas} × ${d.gbps}G`], ['Coherent modules, each end', n0(d.modulesPerEnd)], ['Router line cards, 36 × 800G', `≈${Math.ceil(d.modulesPerEnd / d.portsPerLinecard)}`], ['Capacity', `≈${n0(d.tbpsPerRoute * d.routes)} Tb/s`], ['Amplifier huts per route', `${d.huts}`]], at(1, 'dci')],
   );
-  $('census').innerHTML = cards.map(([t, cls, rows]) => `<div class="cz" style="--c:${C(cls)}"><h3>${t}</h3><dl>${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl></div>`).join('');
+  $('census').innerHTML = cards.map(([t, cls, rows, link]) => `<div class="cz" style="--c:${C(cls)}"><h3 ${goAttr(link, t)}>${t}${link ? ' <span aria-hidden="true">↗</span>' : ''}</h3><dl>${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl></div>`).join('');
 }
 
 // ---------- temperatures ----------
@@ -211,18 +220,20 @@ function renderTemps() {
   const svg = $('temps'), W = 1000, H = 340, L = 60, R = 24, T0 = 44, B = 96;
   const y = c => T0 + (100 - c) / 100 * (H - T0 - B);
   const n = TEMPS.length, cw = (W - L - R) / n;
-  const col = c => c >= 70 ? '#ffc34a' : c >= 44 ? '#ff5a6e' : c >= 30 ? '#8b7bff' : '#3f8cff';
+  const tcol = c => c >= 70 ? '#ffc34a' : c >= 44 ? '#ff5a6e' : c >= 30 ? '#8b7bff' : '#3f8cff';
   let out = '';
   [0, 25, 50, 75, 100].forEach(c => {
     out += `<line x1="${L}" x2="${W - R}" y1="${y(c)}" y2="${y(c)}" stroke="#222b38"/>`;
     out += `<text x="${L - 10}" y="${y(c) + 4}" text-anchor="end" fill="#6b747c" font-family="IBM Plex Mono, monospace" font-size="12">${c} °C</text>`;
   });
   TEMPS.forEach((t, i) => {
-    const x0 = L + i * cw, yy = y(t.c), c = col(t.c);
+    const x0 = L + i * cw, yy = y(t.c), c = tcol(t.c);
+    const start = out.length;
     out += `<rect x="${x0 + 16}" y="${yy}" width="${cw - 32}" height="${H - B - yy}" rx="4" fill="${c}" fill-opacity="0.2" stroke="${c}" stroke-opacity="0.8"/>`;
     out += `<text x="${x0 + cw / 2}" y="${yy - 10}" text-anchor="middle" fill="${c}" font-family="IBM Plex Mono, monospace" font-weight="600" font-size="15">≈${t.c} °C</text>`;
     out += `<text x="${x0 + cw / 2}" y="${H - B + 24}" text-anchor="middle" fill="#f0f0fa" font-family="Manrope, sans-serif" font-weight="700" font-size="13.5">${t.label}</text>`;
     out += `<text x="${x0 + cw / 2}" y="${H - B + 44}" text-anchor="middle" fill="#aab2b9" font-family="Manrope, sans-serif" font-size="12">${t.note}</text>`;
+    out = out.slice(0, start) + col(t.link, t.label, x0 + 8, yy - 30, cw - 16, H - yy + 30 - 40, out.slice(start));
     if (i < n - 1) { const d = t.c - TEMPS[i + 1].c; out += `<text x="${x0 + cw}" y="${(y(t.c) + y(TEMPS[i + 1].c)) / 2 + 4}" text-anchor="middle" fill="#6b747c" font-family="IBM Plex Mono, monospace" font-size="11.5">−${d}</text>`; }
   });
   out += `<text x="${L}" y="20" fill="#aab2b9" font-family="Manrope, sans-serif" font-size="12.5">Representative temperatures under load. The small numbers are the drop across each hop, the price of moving heat one step further.</text>`;
@@ -234,7 +245,7 @@ function renderParallel() {
   const M = store.M, PARALLEL = store.C.PARALLEL;
   let html = `<div class="nest-core" style="--c:var(--hbm)"><b>One GPU</b><span>${M.accel.hbm.type} feeds the math at ${M.accel.hbm.tbs} TB/s. Serving a chat reply is mostly waiting on memory: each new token reads the weights and the conversation’s KV cache from HBM.</span></div>`;
   PARALLEL.forEach(p => {
-    html = `<div class="nest" style="--c:${VOLT[p.cls].css}"><div class="nest-head"><b>${p.name}</b><span class="nest-where">${p.where}</span><span class="nest-need">${p.need}</span></div><p>${p.what}</p>${html}</div>`;
+    html = `<div class="nest" style="--c:${VOLT[p.cls].css}"><div class="nest-head"><b>${p.name}</b><span class="nest-where">${p.where}</span><span class="nest-need">${p.need}</span>${p.link ? `<button type="button" class="nest-go" ${goAttr(p.link, p.name)}>See it in 3D ↗</button>` : ''}</div><p>${p.what}</p>${html}</div>`;
   });
   $('parallel').innerHTML = html;
 }
@@ -244,7 +255,7 @@ function renderBom() {
   const M = store.M, size = M.meterMW >= 1000 ? `${+(M.meterMW / 1000).toFixed(2)} GW` : `${Math.round(M.meterMW)} MW`;
   $('bom-h').textContent = `What it takes: a ${size} campus, counted`;
   $('bom-lede').textContent = `Sized from the same assumptions as the ledger: ${size} at the meter, PUE ${M.pue.toFixed(2)}, ${Math.round(M.rack.kw)} kW ${M.accel.rackName.replace(/ rack$/, "")} racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale.`;
-  $('bom').innerHTML = store.C.BOM.map(g => `<div class="bom-col"><h3>${g.group}</h3><dl>${g.rows.map(([k, v, b]) => `<div><dt>${k}</dt><dd>${v} <span class="chip ${b}">${BASIS[b].short}</span></dd></div>`).join('')}</dl></div>`).join('');
+  $('bom').innerHTML = store.C.BOM.map((g, gi) => `<div class="bom-col"><h3>${g.group}</h3><dl>${g.rows.map(([k, v, b, link], ri) => `<div data-bom="${gi}-${ri}" ${goAttr(link, k)}><dt>${k}</dt><dd>${v} <button type="button" class="chip ${b}" data-src="bom:${gi}-${ri}" aria-expanded="false" aria-label="${BASIS[b].label}: sources">${BASIS[b].short}</button></dd></div>`).join('')}</dl></div>`).join('');
 }
 
 // ---------- cost per token ----------

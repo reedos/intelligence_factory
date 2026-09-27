@@ -18,6 +18,7 @@ await p.waitForFunction(() => window.ifx && window.ifx.state.scene === 0, null, 
 if (pre) { await p.evaluate(pre); await p.waitForTimeout(2500); }
 let i = 0;
 for (const sel of sels.split(',')) {
+  if (sel === 'viewport') { await p.screenshot({ path: `${out}/${name}-${i++}.png` }); continue; }   // no scrolling, so popovers stay open
   const el = await p.$(sel);
   if (!el) { console.log(`missing: ${sel}`); continue; }
   await el.screenshot({ path: `${out}/${name}-${i++}.png` });

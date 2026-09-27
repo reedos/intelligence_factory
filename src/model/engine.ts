@@ -113,7 +113,10 @@ const FABRICS = {
   1600: { radix: 72, switchKW: 2.9, gpuModuleW: 27, portModuleW: 27, portsPerModule: 1, fibersPerLink: 16, switchName: '72 × 1.6T' },
 } as const;
 
-export interface LedgerRow { label: string; mw: number; kind: 'loss' | 'overhead' | 'net' | 'work'; scene: number; basis: Basis }
+// Where a figure lives in 3D: scene index, layer and part id. The page uses it to jump from a chart row to the part.
+export interface Link { scene: number; mode: 'power' | 'data' | 'heat'; part: string }
+const L = (scene: number, part: string, mode: Link['mode'] = 'power'): Link => ({ scene, mode, part });
+export interface LedgerRow { label: string; mw: number; kind: 'loss' | 'overhead' | 'net' | 'work'; scene: number; basis: Basis; link?: Link }
 
 export function compute(s: Scenario) {
   const accel = ACCELERATORS[s.accel];
@@ -187,31 +190,32 @@ export function compute(s: Scenario) {
   const R = racks / 1000;   // kW per rack → MW for the campus
   const itIn = IT_MW / itPath;                 // power entering the IT path
   const sideIn = (coolMW + miscMW) / sidePath;
+  const hgx = accel.id === 'h100';
   const ledger: LedgerRow[] = [
-    { label: 'Main power transformers', mw: meterMW * (1 - EFF.mpt), kind: 'loss', scene: 1, basis: 'typical' },
-    { label: 'Campus cables & switchgear', mw: meterMW * EFF.mpt * (1 - EFF.campus), kind: 'loss', scene: 1, basis: 'est' },
+    { label: 'Main power transformers', mw: meterMW * (1 - EFF.mpt), kind: 'loss', scene: 1, basis: 'typical', link: L(1, 'mpt') },
+    { label: 'Campus cables & switchgear', mw: meterMW * EFF.mpt * (1 - EFF.campus), kind: 'loss', scene: 1, basis: 'est', link: L(1, 'ehouse') },
     ...(power.id === 'dc800' ? [
-      { label: 'Unit substations, cooling side', mw: sideIn * (1 - EFF.unitSub), kind: 'loss', scene: 2, basis: 'typical' } as LedgerRow,
-      { label: 'Solid-state transformers, MV → 800 V DC', mw: itIn * (1 - EFF.sst), kind: 'loss', scene: 2, basis: 'est' } as LedgerRow,
-      { label: '800 V DC bus & batteries', mw: itIn * EFF.sst * (1 - EFF.dcBus * EFF.dcBattery), kind: 'loss', scene: 2, basis: 'est' } as LedgerRow,
+      { label: 'Unit substations, cooling side', mw: sideIn * (1 - EFF.unitSub), kind: 'loss', scene: 2, basis: 'typical', link: L(2, 'unitsub') } as LedgerRow,
+      { label: 'Solid-state transformers, MV → 800 V DC', mw: itIn * (1 - EFF.sst), kind: 'loss', scene: 2, basis: 'est', link: L(2, 'sst') } as LedgerRow,
+      { label: '800 V DC bus & batteries', mw: itIn * EFF.sst * (1 - EFF.dcBus * EFF.dcBattery), kind: 'loss', scene: 2, basis: 'est', link: L(2, 'busway') } as LedgerRow,
     ] : [
-      { label: 'Unit substations', mw: (itIn + sideIn) * (1 - EFF.unitSub), kind: 'loss', scene: 2, basis: 'typical' } as LedgerRow,
-      { label: 'UPS, double conversion', mw: itIn * EFF.unitSub * (1 - EFF.ups), kind: 'loss', scene: 2, basis: 'typical' } as LedgerRow,
-      { label: 'Busway & whips', mw: itIn * EFF.unitSub * EFF.ups * (1 - EFF.busway), kind: 'loss', scene: 2, basis: 'est' } as LedgerRow,
+      { label: 'Unit substations', mw: (itIn + sideIn) * (1 - EFF.unitSub), kind: 'loss', scene: 2, basis: 'typical', link: L(2, 'unitsub') } as LedgerRow,
+      { label: 'UPS, double conversion', mw: itIn * EFF.unitSub * (1 - EFF.ups), kind: 'loss', scene: 2, basis: 'typical', link: L(2, 'ups') } as LedgerRow,
+      { label: 'Busway & whips', mw: itIn * EFF.unitSub * EFF.ups * (1 - EFF.busway), kind: 'loss', scene: 2, basis: 'est', link: L(2, 'busway') } as LedgerRow,
     ]),
-    { label: `Cooling: ${cooling.short.toLowerCase()}, ${cooling.sub}`, mw: coolMW, kind: 'overhead', scene: 2, basis: cooling.basis },
+    { label: `Cooling: ${cooling.short.toLowerCase()}, ${cooling.sub}`, mw: coolMW, kind: 'overhead', scene: 2, basis: cooling.basis, link: L(1, cooling.id === 'warm' ? 'drycoolers' : 'chillers') },
     { label: 'Lighting, controls, offices', mw: miscMW, kind: 'overhead', scene: 2, basis: 'est' },
-    { label: `Scale-out switches, ${fab.tiers} tiers`, mw: switchMW, kind: 'net', scene: 2, basis: 'est' },
-    { label: 'Optical transceivers', mw: opticsMW, kind: 'net', scene: 2, basis: 'est' },
-    { label: power.id === 'dc800' ? 'In-rack DC-DC, 800 → 50 V' : (accel.id === 'h100' ? 'Server power supplies, AC → DC' : 'Rack power shelves, AC → DC'), mw: rackConvKW * R, kind: 'loss', scene: 3, basis: power.id === 'dc800' ? 'est' : 'typical' },
-    { label: accel.id === 'h100' ? 'Server power cabling' : 'Busbar', mw: accel.busbarKW * R, kind: 'loss', scene: 3, basis: 'est' },
-    { label: accel.id === 'h100' ? 'NVSwitch chips (scale-up)' : 'NVLink switch trays (scale-up)', mw: accel.scaleupKW * R, kind: 'net', scene: 3, basis: 'est' },
-    { label: accel.cpuName, mw: cpuKW * R, kind: 'work', scene: 4, basis: 'est' },
-    { label: accel.id === 'h100' ? 'NICs & DPUs' : 'SuperNICs & DPUs', mw: accel.nicKW * R, kind: 'net', scene: 4, basis: 'est' },
-    { label: 'SSDs, fans, management', mw: accel.otherKW * R, kind: 'work', scene: 4, basis: 'est' },
-    { label: 'Bus converters, 50 → 12 V', mw: ibcLossKW * R, kind: 'loss', scene: 4, basis: 'est' },
-    { label: 'Voltage regulators, 12 → 0.8 V', mw: vrmLossKW * R, kind: 'loss', scene: 4, basis: 'est' },
-    { label: `${accel.hbm.type} memory`, mw: hbmKW * R, kind: 'work', scene: 5, basis: 'est' },
+    { label: `Scale-out switches, ${fab.tiers} tiers`, mw: switchMW, kind: 'net', scene: 2, basis: 'est', link: L(2, 'spine', 'data') },
+    { label: 'Optical transceivers', mw: opticsMW, kind: 'net', scene: 2, basis: 'est', link: L(2, 'optics', 'data') },
+    { label: power.id === 'dc800' ? 'In-rack DC-DC, 800 → 50 V' : (hgx ? 'Server power supplies, AC → DC' : 'Rack power shelves, AC → DC'), mw: rackConvKW * R, kind: 'loss', scene: 3, basis: power.id === 'dc800' ? 'est' : 'typical', link: L(3, hgx ? 'psus' : 'shelves') },
+    { label: hgx ? 'Server power cabling' : 'Busbar', mw: accel.busbarKW * R, kind: 'loss', scene: 3, basis: 'est', link: L(3, hgx ? 'cabling' : 'busbar') },
+    { label: hgx ? 'NVSwitch chips (scale-up)' : 'NVLink switch trays (scale-up)', mw: accel.scaleupKW * R, kind: 'net', scene: 3, basis: 'est', link: hgx ? L(4, 'nvswitch') : L(3, 'nvswitch') },
+    { label: accel.cpuName, mw: cpuKW * R, kind: 'work', scene: 4, basis: 'est', link: L(4, hgx ? 'cpu' : 'grace') },
+    { label: hgx ? 'NICs & DPUs' : 'SuperNICs & DPUs', mw: accel.nicKW * R, kind: 'net', scene: 4, basis: 'est', link: L(4, 'nic') },
+    { label: 'SSDs, fans, management', mw: accel.otherKW * R, kind: 'work', scene: 4, basis: 'est', ...(hgx ? { link: L(4, 'fans', 'heat') } : {}) },
+    { label: hgx ? 'Bus converters, 54 → 12 V' : 'Bus converters, 50 → 12 V', mw: ibcLossKW * R, kind: 'loss', scene: 4, basis: 'est', link: L(4, 'ibc') },
+    { label: 'Voltage regulators, 12 → 0.8 V', mw: vrmLossKW * R, kind: 'loss', scene: 4, basis: 'est', link: L(4, 'vrm') },
+    { label: `${accel.hbm.type} memory`, mw: hbmKW * R, kind: 'work', scene: 5, basis: 'est', link: L(5, 'hbm') },
   ];
   const ledgerSum = ledger.reduce((a, r) => a + r.mw, 0);
   const gpuSiliconMW = meterMW - ledgerSum;      // what is left: GPU silicon, plus the few racks' worth of rounding
@@ -227,25 +231,25 @@ export function compute(s: Scenario) {
   const kA = (w: number, v: number) => w / (Math.sqrt(3) * v * 0.95);   // three-phase current at pf 0.95
   const fmtA = (a: number) => a >= 1000 ? `≈${(Math.round(a / 100) * 100).toLocaleString('en-US')} A` : `≈${Math.round(a / 5) * 5} A`;
   const staircase = [
-    { v: 345000, label: '345 kV', where: 'Transmission line', current: `${fmtA(kA(meterMW * 1e6, 345000) / 2)} per phase`, note: `the whole ${meterMW >= 1000 ? (meterMW / 1000).toFixed(1) + ' GW' : Math.round(meterMW) + ' MW'} campus, 2 circuits`, volt: 'hv', basis: 'est' as Basis },
-    { v: 34500, label: '34.5 kV', where: 'Campus feeders', current: `${fmtA(kA(10e6, 34500))} per feeder`, note: 'one 10 MW feeder', volt: 'mv', basis: 'est' as Basis },
+    { link: L(1, 'line'), v: 345000, label: '345 kV', where: 'Transmission line', current: `${fmtA(kA(meterMW * 1e6, 345000) / 2)} per phase`, note: `the whole ${meterMW >= 1000 ? (meterMW / 1000).toFixed(1) + ' GW' : Math.round(meterMW) + ' MW'} campus, 2 circuits`, volt: 'hv', basis: 'est' as Basis },
+    { link: L(1, 'ehouse'), v: 34500, label: '34.5 kV', where: 'Campus feeders', current: `${fmtA(kA(10e6, 34500))} per feeder`, note: 'one 10 MW feeder', volt: 'mv', basis: 'est' as Basis },
     ...(power.id === 'dc800' ? [
-      { v: 800, label: '800 V DC', where: 'DC busway to the rack', current: fmtA(rackKW * 1000 / 800), note: `one ${Math.round(rackKW)} kW rack`, volt: 'dc', basis: 'est' as Basis },
+      { link: L(2, 'busway'), v: 800, label: '800 V DC', where: 'DC busway to the rack', current: fmtA(rackKW * 1000 / 800), note: `one ${Math.round(rackKW)} kW rack`, volt: 'dc', basis: 'est' as Basis },
     ] : [
-      { v: 480, label: '480 V', where: 'Unit substation out', current: fmtA(kA(2.5e6, 480)), note: 'one 2.5 MVA transformer', volt: 'lv', basis: 'est' as Basis },
-      { v: 415, label: '415 V', where: 'Busway to the rack', current: `${fmtA(kA(rackKW * 1000, 415))} per phase`, note: `one ${Math.round(rackKW)} kW rack`, volt: 'lv', basis: 'est' as Basis },
+      { link: L(2, 'unitsub'), v: 480, label: '480 V', where: 'Unit substation out', current: fmtA(kA(2.5e6, 480)), note: 'one 2.5 MVA transformer', volt: 'lv', basis: 'est' as Basis },
+      { link: L(2, 'busway'), v: 415, label: '415 V', where: 'Busway to the rack', current: `${fmtA(kA(rackKW * 1000, 415))} per phase`, note: `one ${Math.round(rackKW)} kW rack`, volt: 'lv', basis: 'est' as Basis },
     ]),
-    { v: 50, label: '50 V', where: accel.id === 'h100' ? 'Server 54 V rail' : 'Rack busbar', current: fmtA(dcBusKW * 1000 / 50), note: accel.id === 'h100' ? 'all 4 servers in a rack' : `one ${Math.round(rackKW)} kW rack, all sections`, volt: 'dc', basis: 'est' as Basis },
-    { v: 12, label: '12 V', where: 'Board power rail', current: fmtA((pkgKW + vrmLossKW) * 1000 / accel.gpusPerRack / 12), note: 'one GPU’s share', volt: 'bus12', basis: 'est' as Basis },
-    { v: 0.8, label: '0.8 V', where: 'GPU core', current: `≈${(Math.round(accel.gpuW * (1 - accel.hbmShare) / 0.8 / 100) * 100).toLocaleString('en-US')} A`, note: 'into one GPU, split across rails', volt: 'core', basis: 'est' as Basis },
+    { link: accel.id === 'h100' ? L(4, 'psu') : L(3, 'busbar'), v: 50, label: accel.id === 'h100' ? '54 V' : '50 V', where: accel.id === 'h100' ? 'Server 54 V rail' : 'Rack busbar', current: fmtA(dcBusKW * 1000 / 50), note: accel.id === 'h100' ? 'all 4 servers in a rack' : `one ${Math.round(rackKW)} kW rack, all sections`, volt: 'dc', basis: 'est' as Basis },
+    { link: L(4, 'ibc'), v: 12, label: '12 V', where: 'Board power rail', current: fmtA((pkgKW + vrmLossKW) * 1000 / accel.gpusPerRack / 12), note: 'one GPU’s share', volt: 'bus12', basis: 'est' as Basis },
+    { link: L(5, 'balls'), v: 0.8, label: '0.8 V', where: 'GPU core', current: `≈${(Math.round(accel.gpuW * (1 - accel.hbmShare) / 0.8 / 100) * 100).toLocaleString('en-US')} A`, note: 'into one GPU, split across rails', volt: 'core', basis: 'est' as Basis },
   ];
   const dciPerGpuGBs = dci.tbpsPerRoute * dci.routes * 1000 / 8 / Math.max(1, gpus);
   const bandwidth = [
-    ...(accel.dies > 1 ? [{ label: 'NV-HBI', where: 'Die to die', gbs: 10000, latency: 'nanoseconds', note: 'across the seam', cls: 'hbi', basis: 'spec' as Basis }] : []),
-    { label: accel.hbm.type, where: 'Memory, on package', gbs: accel.hbm.tbs * 1000, latency: '≈100s of ns', note: 'per GPU', cls: 'hbm', basis: accel.basis },
-    { label: accel.nvlink.gen, where: 'Scale-up, in the rack', gbs: accel.nvlink.tbs * 1000, latency: 'sub-µs, unpublished', note: `per GPU, ${accel.nvlink.domain} GPUs`, cls: 'nvl', basis: accel.basis },
-    { label: `${accel.nicGbps >= 1000 ? accel.nicGbps / 1000 + 'T' : accel.nicGbps + 'G'}`, where: 'Scale-out, the hall', gbs: accel.nicGbps / 8, latency: '≈1–2 µs', note: 'per GPU', cls: 'eth', basis: 'typical' as Basis },
-    { label: 'DWDM', where: 'Scale across, 1,000 km', gbs: +dciPerGpuGBs.toFixed(2), latency: '≈5 ms one way', note: 'per GPU share of the site links', cls: 'dci', basis: 'est' as Basis },
+    ...(accel.dies > 1 ? [{ link: L(5, 'hbi', 'data'), label: 'NV-HBI', where: 'Die to die', gbs: 10000, latency: 'nanoseconds', note: 'across the seam', cls: 'hbi', basis: 'spec' as Basis }] : []),
+    { link: L(5, 'hbm', 'data'), label: accel.hbm.type, where: 'Memory, on package', gbs: accel.hbm.tbs * 1000, latency: '≈100s of ns', note: 'per GPU', cls: 'hbm', basis: accel.basis },
+    { link: accel.id === 'h100' ? L(4, 'nvswitch', 'data') : L(3, 'nvswitch', 'data'), label: accel.nvlink.gen, where: accel.id === 'h100' ? 'Scale-up, in the server' : 'Scale-up, in the rack', gbs: accel.nvlink.tbs * 1000, latency: 'sub-µs, unpublished', note: `per GPU, ${accel.nvlink.domain} GPUs`, cls: 'nvl', basis: accel.basis },
+    { link: L(2, 'leaf', 'data'), label: `${accel.nicGbps >= 1000 ? accel.nicGbps / 1000 + 'T' : accel.nicGbps + 'G'}`, where: 'Scale-out, the hall', gbs: accel.nicGbps / 8, latency: '≈1–2 µs', note: 'per GPU', cls: 'eth', basis: 'typical' as Basis },
+    { link: L(0, 'route', 'data'), label: 'DWDM', where: 'Scale across, 1,000 km', gbs: +dciPerGpuGBs.toFixed(2), latency: '≈5 ms one way', note: 'per GPU share of the site links', cls: 'dci', basis: 'est' as Basis },
   ];
 
   // ----- layout counts for the campus scene -----

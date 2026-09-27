@@ -228,12 +228,13 @@ export function select(id, fly) {
   pins.forEach(pn => pn.el.classList.toggle('on', pn.id === id));
   $('card').hidden = false;
   $('card-k').textContent = p.kicker; $('card-t').textContent = p.title; $('card-b').textContent = p.body;
-  $('card-s').innerHTML = p.specs.map(([k, v, b]) => `<div><dt>${k}</dt><dd>${v}</dd><span class="chip ${b}" title="${BASIS[b].label}">${BASIS[b].short}</span></div>`).join('');
+  const src = `${ui.mode}:${SCENES()[ui.scene].id}:${id}`;
+  $('card-s').innerHTML = p.specs.map(([k, v, b]) => `<div><dt>${k}</dt><dd>${v}</dd><button type="button" class="chip ${b}" data-src="${src}" aria-expanded="false" aria-label="${BASIS[b].label}: sources">${BASIS[b].short}</button></div>`).join('');
   const go_ = $('card-go'); go_.hidden = p.drill === undefined;
   go_.textContent = p.drill > ui.scene ? 'Go inside →' : 'Go out ↑';
   go_.onclick = () => go(p.drill, id);
   if (fly) { const h = hotspotsFor(ui.scene)[id]; if (h?.view) flyTo(h.view.pos, h.view.target); }
-  emit('select', { scene: ui.scene, id });
+  emit('select', { scene: ui.scene, mode: ui.mode, id });
 }
 export function deselect() {
   ui.selected = null; $('card').hidden = true;
@@ -287,6 +288,23 @@ export async function go(i, fromId, { force = false, keepCamera = false } = {}) 
   else if (built[ui.scene]?.model !== store.M) go(ui.scene, null, { force: true, keepCamera: true });   // the scenario changed mid-switch
 }
 export const sceneCount = BUILDERS.length;
+export const isBusy = () => busy;
+
+// Jump to a part from anywhere on the page: switch layer, change scene if needed, select it and pulse its pin.
+const until = (f, ms = 30000) => new Promise(r => { const t0 = performance.now(); const tick = () => (f() || performance.now() - t0 > ms ? r() : requestAnimationFrame(tick)); tick(); });
+export async function show({ scene, mode, part }, { scroll = true, still = () => true } = {}) {
+  if (scroll) $('view').closest('.stage').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  if (mode && mode !== ui.mode) setMode(mode);
+  if (scene !== ui.scene || !built[scene]) { go(scene); await until(() => !still() || (ui.scene === scene && !busy && !!built[scene])); }
+  if (!still()) return;                                  // a newer request took over while this scene was building
+  if (mode && mode !== ui.mode) setMode(mode);
+  if (part) { select(part, true); beacon(part); }
+}
+function beacon(id) {
+  const pin = pins.find(p => p.id === id); if (!pin) return;
+  pin.el.classList.remove('beacon'); void pin.el.offsetWidth; pin.el.classList.add('beacon');
+  setTimeout(() => pin.el.classList.remove('beacon'), 2600);
+}
 
 // a new scenario rebuilds every scene from the new model; the camera stays where it is
 on('scenario', () => {
@@ -320,6 +338,7 @@ function updatePins() {
     p.el.classList.toggle('off', off);
     if (off) continue;
     p.el.style.transform = `translate(${(x - 11).toFixed(1)}px, ${(y - 11).toFixed(1)}px)`;
+    p.el.classList.toggle('flip', x > w - ((p.lw ||= p.el.querySelector('.lbl').offsetWidth) || 120) - 40);   // label goes left near the right edge
     const crowded = placed.some(q => Math.abs(q[0] - x) < 130 && Math.abs(q[1] - y) < 20);
     p.el.classList.toggle('hide-lbl', crowded && p.id !== ui.selected);
     placed.push([x, y]);

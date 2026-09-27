@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { compute, ACCELERATORS, POWER, COOLING } from './model/engine';
 import { content, BASIS } from './data.js';
+import { SOURCES, PART_SOURCES, LEDGER_SOURCES } from './sources.js';
 
 const scenarios: any[] = [];
 for (const accel of Object.keys(ACCELERATORS)) for (const power of Object.keys(POWER)) for (const cooling of Object.keys(COOLING))
@@ -35,6 +36,30 @@ describe('content for every scenario', () => {
     for (const g of C.BOM) for (const [label, value, basis] of g.rows) {
       expect(value, label).not.toBe('');
       expect(BASIS[basis as keyof typeof BASIS], label).toBeTruthy();
+    }
+    // every card has an entry in the sources registry (an empty list means: our estimate), and every id resolves
+    for (const [layerName, group] of [['power', C.PARTS], ['data', C.PARTS_DATA], ['heat', C.PARTS_HEAT]] as const)
+      for (const [scene, parts] of Object.entries(group as Record<string, any[]>)) for (const p of parts) {
+        const ids = (PART_SOURCES as Record<string, string[]>)[`${layerName}:${scene}:${p.id}`];
+        expect(ids, `no PART_SOURCES entry for ${layerName}:${scene}:${p.id}`).toBeDefined();
+        for (const id of ids) expect((SOURCES as Record<string, unknown>)[id], `unknown source ${id}`).toBeTruthy();
+      }
+    for (const r of M.ledger) expect((LEDGER_SOURCES as [string, string[]][]).some(([pre]) => r.label.startsWith(pre)), `no LEDGER_SOURCES prefix for ${r.label}`).toBe(true);
+    // every chart row that links into 3D must land on a part this scenario has
+    const layer = { power: C.PARTS, data: C.PARTS_DATA, heat: C.PARTS_HEAT } as Record<string, Record<string, any[]>>;
+    const links: [string, any][] = [
+      ...M.ledger.filter(r => r.link).map(r => [`ledger ${r.label}`, r.link] as [string, any]),
+      ['ledger end', C.LEDGER_END.link],
+      ...M.staircase.map(r => [`stair ${r.label}`, r.link] as [string, any]),
+      ...M.bandwidth.map(r => [`bandwidth ${r.label}`, r.link] as [string, any]),
+      ...C.TEMPS.map((r: any) => [`temp ${r.label}`, r.link] as [string, any]),
+      ...C.PARALLEL.map((r: any) => [`parallel ${r.name}`, r.link] as [string, any]),
+      ...C.BOM.flatMap((g: any) => g.rows.map((r: any) => [`bom ${r[0]}`, r[3]] as [string, any])),
+    ];
+    for (const [what, l] of links) {
+      expect(l, `${what} has no link`).toBeTruthy();
+      const sceneId = C.SCENES[l.scene].id;
+      expect((layer[l.mode][sceneId] || []).map(p => p.id), `${what} → ${l.mode}:${sceneId}:${l.part}`).toContain(l.part);
     }
   });
 });

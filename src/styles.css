@@ -281,3 +281,75 @@ img { max-width: 100%; }
 .mw .was { display: block; font-size: 11px; color: var(--accent); }
 @media (max-width: 1000px) { .sc-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .sc-controls { grid-template-columns: minmax(0, 1fr); } .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- linked views ---------- */
+[data-go] { cursor: pointer; }
+[data-go]:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.lg-row[data-go]:hover .lab span:first-child, .bom [data-go]:hover dt { color: var(--accent); }
+.lg-row[data-go] .lab span:first-child::after, .bom [data-go] dt::after { content: ' ↗'; color: var(--accent); opacity: 0; transition: opacity .15s; font-size: .85em; }
+.lg-row[data-go]:hover .lab span:first-child::after, .bom [data-go]:hover dt::after { opacity: 1; }
+.lg-row.sel { background: rgba(230, 186, 130, .08); box-shadow: inset 2px 0 0 var(--accent); }
+.lg-row.flash, .bom .flash { animation: flash 1.6s ease-out; }
+@keyframes flash { 0%, 30% { background: rgba(230, 186, 130, .22); } 100% { background: transparent; } }
+svg .golink { cursor: pointer; }
+svg .golink .hit { fill: transparent; }
+svg .golink:hover .hit, svg .golink:focus-visible .hit { fill: rgba(230, 186, 130, .07); }
+svg .golink:focus { outline: none; }
+.cz h3[data-go]:hover, .nest-head [data-go]:hover { color: var(--accent); }
+.nest-go { all: unset; cursor: pointer; font: 500 10.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-left: auto; }
+.card-links { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.card-links button { all: unset; cursor: pointer; display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); }
+.card-links button b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.card-links button:hover span { color: var(--accent); }
+.card-links button:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.pin.beacon .num { animation: beacon 0.8s ease-out 3; }
+@keyframes beacon { 0% { box-shadow: 0 0 0 3px rgba(9,12,17,.55), 0 0 0 0 rgba(230,186,130,.9); } 100% { box-shadow: 0 0 0 3px rgba(9,12,17,.55), 0 0 0 22px rgba(230,186,130,0); } }
+@media (prefers-reduced-motion: reduce) { .pin.beacon .num, .lg-row.flash, .bom .flash { animation: none; } }
+
+/* ---------- source popovers ---------- */
+button.chip { font: 500 9.5px/1 var(--mono); cursor: pointer; background: transparent; margin: 0; }
+button.chip:hover, button.chip[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+button.chip:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.src-pop { position: fixed; z-index: 50; max-height: min(420px, 70vh); overflow-y: auto; padding: 16px 18px 14px; background: var(--surface); border: 1px solid var(--line-2); box-shadow: 0 18px 50px rgba(0,0,0,.6); display: grid; gap: 10px; font-size: 13px; color: var(--muted); }
+.src-pop .sp-head { display: flex; align-items: center; gap: 10px; }
+.src-pop .sp-head b { color: var(--ink); font-weight: 600; }
+.src-pop .sp-x { all: unset; cursor: pointer; margin-left: auto; font-size: 20px; line-height: 1; color: var(--muted); padding: 0 4px; }
+.src-pop .sp-x:hover, .src-pop .sp-x:focus-visible { color: var(--ink); }
+.src-pop p { margin: 0; }
+.src-pop .sp-note { color: var(--ink); border-left: 2px solid var(--accent); padding-left: 10px; }
+.src-pop .sp-k { font: 400 10.5px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.src-pop ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.src-pop li { display: grid; gap: 1px; }
+.src-pop a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }
+.src-pop a:hover { text-decoration-color: var(--accent); }
+.src-pop li span { font-size: 12px; }
+
+/* ---------- story mode ---------- */
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; margin-top: 6px; }
+.hint-inline { font-size: 13px; color: var(--muted); }
+.story-btn { min-height: 36px; padding: 0 16px; background: rgba(0,0,0,.72); backdrop-filter: blur(6px); }
+.story-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #000; }
+body.story .panel-scroll > :not(.story) { display: none; }
+.story { display: grid; gap: 0; }
+.story-head { position: sticky; top: -26px; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 26px 0 14px; margin-top: -26px; background: var(--ground); border-bottom: 1px solid var(--line); }
+.story-head .btn { min-height: 34px; padding: 0 14px; }
+.beat { min-height: 62%; min-height: 58vh; display: grid; align-content: center; gap: 12px; padding: 30px 0; border-bottom: 1px solid var(--line); opacity: .38; transition: opacity .35s; }
+.beat:first-of-type { min-height: 40vh; align-content: start; padding-top: 34px; }
+.beat.on { opacity: 1; }
+.beat .k { font: 400 11px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.beat h3 { margin: 0; font: 600 clamp(28px, 2.6vw, 38px)/1 var(--display); text-transform: uppercase; }
+.beat p { margin: 0; font-size: 16px; line-height: 1.65; color: var(--ink); max-width: 44ch; }
+.beat-end { min-height: 40vh; display: grid; place-items: center; }
+@media (max-width: 1100px) {
+  body.story .stage { overflow: visible; }
+  body.story .view { position: sticky; top: 0; z-index: 4; height: 52vh; }
+  body.story .steps { display: none; }
+  .beat, .beat:first-of-type { min-height: 60vh; align-content: start; scroll-margin-top: calc(52vh + 56px); }
+  .story-head { top: 52vh; margin-top: 0; padding-top: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .beat { transition: none; } }
+
+.hud.tr { grid-template-columns: auto auto; align-items: center; }
+.hud.tr .hint { grid-column: 1 / -1; }
+.pin.flip { flex-direction: row-reverse; transform-origin: right center; }
+.pin.flip .lbl { position: absolute; right: 29px; }

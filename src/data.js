@@ -81,7 +81,8 @@ export function content(M) {
   const trayKW = nvl ? (RK.dcBusKW - A.scaleupKW - A.busbarKW) / 18 : RK.kw / 4;
   const hbmSpec = `${A.hbm.gb} GB ${A.hbm.type}`;
   const stacksTxt = A.id === 'h100' ? '5 active stacks on 6 sites' : `${A.hbm.stacks} stacks`;
-  const LEDGER_END = { label: 'GPU silicon', sub: 'tensor math, caches, links, leakage', scene: 5 };
+  const at = (scene, part, mode = 'power') => ({ scene, mode, part });   // where a figure lives in 3D
+  const LEDGER_END = { label: 'GPU silicon', sub: 'tensor math, caches, links, leakage', scene: 5, link: at(5, 'dies') };
   VOLT.eth.short = nicShort;   // the scale-out label follows the NIC speed
   const count = v => v <= 10 ? ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'][v] : n0(v);
   // the campus scene adds plain hall blocks east of the site; its width grows with them (see scenes/campus.js)
@@ -388,53 +389,54 @@ export function content(M) {
       specs: [['Transistors', X.transistors, X.tBasis], ...(A.dies > 1 ? [['Die-to-die link', '10 TB/s NV-HBI', 'spec']] : [['Die area', '814 mm²', 'spec']]), ['Process', X.process, X.pBasis]] },
     { id: 'hbm', title: `${A.hbm.type} stacks`, kicker: `${stacksTxt}, ${A.hbm.gb} GB`,
       body: `Each stack is ${A.hbm.layers} DRAM dies thinned and stacked with through-silicon vias. Moving model weights out of HBM for every token is a large share of inference energy.`,
-      specs: [['Capacity', `${A.hbm.gb} GB`, X.mBasis], ['Bandwidth', hbmTB, X.mBasis], ['Layers per stack', `${A.hbm.layers}`, A.id === 'rubin' ? 'est' : 'typical'], ['Share of GPU power', '≈8–15%', 'est']] },
+      specs: [['Capacity', `${A.hbm.gb} GB${A.id === 'gb200' ? ' (NVIDIA rack total implies ≈186 GB)' : ''}`, X.mBasis], ['Bandwidth', hbmTB, X.mBasis], ['Layers per stack', `${A.hbm.layers}`, A.id === 'rubin' ? 'est' : 'typical'], ['Share of GPU power', '≈8–15%', 'est']] },
     { id: 'tokens', title: 'Tokens', kicker: 'What leaves',
       body: 'Every token a model writes is a pass through billions of weights. Run the numbers below to see how many a kilowatt-hour buys.',
       specs: [['Google, median Gemini text prompt', '0.24 Wh, all-in', 'spec'], ['LLaMA-65B on A100, 2023', '≈3–4 J per token', 'spec'], ['GB200 vs H200', '≈8–10× tokens per MW', 'typical']] },
   ];
 
-  // ---------- bill of materials ----------
+  // ---------- bill of materials. The 4th element is the part each row counts ----------
+  const Lk = at;
   const BOM = [
     { group: 'Grid & campus', rows: [
-      [`Main power transformers, ${L.mvaUnit} MVA`, n0(L.transformers), 'est'],
-      ['34.5 kV feeders', `≈${n0(L.feeders)}`, 'est'],
-      ['Diesel generators, 3 MW', `≈${n0(L.gensets)}`, 'est'],
-      ['Diesel on site, 48 h', `≈${L.fuelML >= 10 ? n0(L.fuelML) : L.fuelML.toFixed(1)} million L`, 'est'],
-      ['Battery storage', `≈${n0(L.bessMW)} MW / ${n0(L.bessMWh)} MWh`, 'est'],
-      ...(warm ? [['Rooftop dry coolers', `≈${n0(L.dryCoolers)}`, 'est']] : [['Chillers, 4 MW', `≈${n0(L.chillers)}`, 'est']]),
-      ['Cooling towers', `≈${n0(L.towers)}`, 'est'],
+      [`Main power transformers, ${L.mvaUnit} MVA`, n0(L.transformers), 'est', Lk(1, 'mpt')],
+      ['34.5 kV feeders', `≈${n0(L.feeders)}`, 'est', Lk(1, 'ehouse')],
+      ['Diesel generators, 3 MW', `≈${n0(L.gensets)}`, 'est', Lk(1, 'gensets')],
+      ['Diesel on site, 48 h', `≈${L.fuelML >= 10 ? n0(L.fuelML) : L.fuelML.toFixed(1)} million L`, 'est', Lk(1, 'fuel')],
+      ['Battery storage', `≈${n0(L.bessMW)} MW / ${n0(L.bessMWh)} MWh`, 'est', Lk(1, 'bess')],
+      ...(warm ? [['Rooftop dry coolers', `≈${n0(L.dryCoolers)}`, 'est', Lk(1, 'drycoolers')]] : [['Chillers, 4 MW', `≈${n0(L.chillers)}`, 'est', Lk(1, 'chillers')]]),
+      ['Cooling towers', `≈${n0(L.towers)}`, 'est', Lk(1, 'towers')],
     ] },
     { group: 'Buildings', rows: [
-      ['Data halls', n0(halls), 'est'],
-      ['Unit substations, 2.5 MVA', `≈${n0(dc ? Math.ceil((M.coolMW + M.miscMW) / 2.2) : L.unitSubs)}`, 'est'],
-      dc ? ['Solid-state transformers, 2.5 MW', `≈${n0(L.sstModules)}`, 'est'] : ['UPS modules, 1.25 MW', `≈${n0(L.upsModules)}`, 'est'],
-      air ? ['In-row cooling units', `≈${n0(L.airUnits)}`, 'est'] : ['Coolant distribution units', `≈${n0(L.cdus)}`, 'est'],
-      ['Busway runs', `≈${n0(RACKS / 10)}`, 'est'],
+      ['Data halls', n0(halls), 'est', Lk(1, 'hall')],
+      ['Unit substations, 2.5 MVA', `≈${n0(dc ? Math.ceil((M.coolMW + M.miscMW) / 2.2) : L.unitSubs)}`, 'est', Lk(2, 'unitsub')],
+      dc ? ['Solid-state transformers, 2.5 MW', `≈${n0(L.sstModules)}`, 'est', Lk(2, 'sst')] : ['UPS modules, 1.25 MW', `≈${n0(L.upsModules)}`, 'est', Lk(2, 'ups')],
+      air ? ['In-row cooling units', `≈${n0(L.airUnits)}`, 'est', Lk(2, 'inrow')] : ['Coolant distribution units', `≈${n0(L.cdus)}`, 'est', Lk(2, 'cdu')],
+      ['Busway runs', `≈${n0(RACKS / 10)}`, 'est', Lk(2, 'busway')],
     ] },
     { group: 'Racks', rows: nvl ? [
-      [`${A.rackName} racks`, `≈${n0(RACKS)}`, 'est'],
-      [dc ? 'DC-DC shelves' : 'Power shelves', `≈${n0(RACKS * 6)}`, 'est'],
-      ...(dc ? [] : [['Rectifiers', `≈${n0(RACKS * 36)}`, 'est']]),
-      ['NVLink copper connections', `≈${kfmt(NET.nvlinkPairs)}`, 'est'],
+      [`${A.rackName} racks`, `≈${n0(RACKS)}`, 'est', Lk(2, 'racks')],
+      [dc ? 'DC-DC shelves' : 'Power shelves', `≈${n0(RACKS * 6)}`, 'est', Lk(3, 'shelves')],
+      ...(dc ? [] : [['Rectifiers', `≈${n0(RACKS * 36)}`, 'est', Lk(3, 'shelves')]]),
+      ['NVLink copper connections', `≈${kfmt(NET.nvlinkPairs)}`, 'est', Lk(3, 'spine')],
     ] : [
-      ['DGX H100 racks', `≈${n0(RACKS)}`, 'est'],
-      ['DGX H100 servers', `≈${n0(RACKS * 4)}`, 'est'],
-      ['Server power supplies', `≈${n0(RACKS * 24)}`, 'est'],
+      ['DGX H100 racks', `≈${n0(RACKS)}`, 'est', Lk(2, 'racks')],
+      ['DGX H100 servers', `≈${n0(RACKS * 4)}`, 'est', Lk(3, 'servers')],
+      ['Server power supplies', `≈${n0(RACKS * 24)}`, 'est', Lk(4, 'psu')],
     ] },
     { group: 'Silicon', rows: [
-      [X.gpus, `≈${n0(GPUS)}`, 'est'],
-      [`${X.cpu} CPUs`, `≈${n0(M.cpus)}`, 'est'],
-      [`${A.hbm.type} stacks`, `≈${kfmt(GPUS * (A.id === 'h100' ? 5 : A.hbm.stacks))}`, 'est'],
-      ['VRM phases', `≈${kfmt(GPUS * 24)}`, 'est'],
-      ['Transistors in GPUs', `≈${(GPUS * parseFloat(X.transistors.replace('≈', '')) * 1e9 / 1e15).toFixed(1)} quadrillion`, 'est'],
+      [X.gpus, `≈${n0(GPUS)}`, 'est', Lk(4, 'gpu')],
+      [`${X.cpu} CPUs`, `≈${n0(M.cpus)}`, 'est', Lk(4, nvl ? 'grace' : 'cpu')],
+      [`${A.hbm.type} stacks`, `≈${kfmt(GPUS * (A.id === 'h100' ? 5 : A.hbm.stacks))}`, 'est', Lk(5, 'hbm')],
+      ['VRM phases', `≈${kfmt(GPUS * 24)}`, 'est', Lk(4, 'vrm')],
+      ['Transistors in GPUs', `≈${(GPUS * parseFloat(X.transistors.replace('≈', '')) * 1e9 / 1e15).toFixed(1)} quadrillion`, 'est', Lk(5, 'dies')],
     ] },
     { group: 'Network', rows: [
-      [nvl ? 'NVLink switch chips' : 'NVSwitch chips', `≈${n0(NET.nvswitchChips)}`, 'est'],
-      [nvl ? 'SuperNICs' : 'ConnectX-7 NICs', `≈${n0(GPUS)}`, 'est'],
-      [`Leaf / spine / core switches, ${NET.fabric.radix}-port`, `≈${n0(NET.switches)}`, 'est'],
-      ['Optical modules', `≈${kfmt(NET.modules)}`, 'est'],
-      ['Fiber strands in the fabric', `≈${kfmt(NET.fibers)}`, 'est'],
+      [nvl ? 'NVLink switch chips' : 'NVSwitch chips', `≈${n0(NET.nvswitchChips)}`, 'est', nvl ? Lk(3, 'nvswitch', 'data') : Lk(4, 'nvswitch', 'data')],
+      [nvl ? 'SuperNICs' : 'ConnectX-7 NICs', `≈${n0(GPUS)}`, 'est', Lk(4, 'cx', 'data')],
+      [`Leaf / spine / core switches, ${NET.fabric.radix}-port`, `≈${n0(NET.switches)}`, 'est', Lk(2, 'spine', 'data')],
+      ['Optical modules', `≈${kfmt(NET.modules)}`, 'est', Lk(2, 'optics', 'data')],
+      ['Fiber strands in the fabric', `≈${kfmt(NET.fibers)}`, 'est', Lk(2, 'runways', 'data')],
     ] },
   ];
 
@@ -726,38 +728,39 @@ export function content(M) {
   };
 
   // Temperature at each hop, hottest first. Values are representative, not a vendor spec.
+  const outside = at(1, warm ? 'drycoolers' : 'chillers', 'heat');
   const TEMPS = warm ? [
-    { label: 'GPU die', c: 70, note: 'throttles near ≈85 °C; not published', basis: 'est' },
-    { label: 'Coolant leaving the rack', c: 55, note: '≈10 °C rise across the rack', basis: 'typical' },
-    { label: 'Facility water to the roof', c: 52, note: 'a few degrees lost in the CDU', basis: 'est' },
-    { label: 'Coolant entering the rack', c: 45, note: 'NVIDIA warm-water spec', basis: 'typical' },
-    { label: 'Outdoor air, hot day', c: 35, note: 'still cold enough for dry coolers', basis: 'est' },
+    { label: 'GPU die', c: 70, note: 'throttles near ≈85 °C; not published', basis: 'est', link: at(5, 'junction', 'heat') },
+    { label: 'Coolant leaving the rack', c: 55, note: '≈10 °C rise across the rack', basis: 'typical', link: at(3, 'manifold', 'heat') },
+    { label: 'Facility water to the roof', c: 52, note: 'a few degrees lost in the CDU', basis: 'est', link: at(2, 'fwater', 'heat') },
+    { label: 'Coolant entering the rack', c: 45, note: 'NVIDIA warm-water spec', basis: 'typical', link: at(2, 'cdu', 'heat') },
+    { label: 'Outdoor air, hot day', c: 35, note: 'still cold enough for dry coolers', basis: 'est', link: outside },
   ] : air ? [
-    { label: 'GPU die', c: 80, note: 'air runs the silicon hotter', basis: 'est' },
-    { label: 'Hot aisle', c: 40, note: '≈15–20 °C rise through the servers', basis: 'typical' },
-    { label: 'Outdoor air, hot day', c: 35, note: 'too warm to cool 12 °C water without chillers', basis: 'est' },
-    { label: 'Cold aisle', c: 22, note: 'ASHRAE 18–27 °C', basis: 'spec' },
-    { label: 'Chilled water supply', c: 12, note: 'made by chillers, all year', basis: 'typical' },
+    { label: 'GPU die', c: 80, note: 'air runs the silicon hotter', basis: 'est', link: at(5, 'junction', 'heat') },
+    { label: 'Hot aisle', c: 40, note: '≈15–20 °C rise through the servers', basis: 'typical', link: at(2, 'hotaisle', 'heat') },
+    { label: 'Outdoor air, hot day', c: 35, note: 'too warm to cool 12 °C water without chillers', basis: 'est', link: outside },
+    { label: 'Cold aisle', c: 22, note: 'ASHRAE 18–27 °C', basis: 'spec', link: at(3, 'front', 'heat') },
+    { label: 'Chilled water supply', c: 12, note: 'made by chillers, all year', basis: 'typical', link: at(2, 'fwater', 'heat') },
   ] : [
-    { label: 'GPU die', c: 65, note: 'throttles near ≈85 °C; not published', basis: 'est' },
-    { label: 'Coolant leaving the rack', c: 40, note: '≈10 °C rise across the rack', basis: 'typical' },
-    { label: 'Outdoor air, hot day', c: 35, note: 'too warm for the loop without chillers', basis: 'est' },
-    { label: 'Coolant entering the rack', c: 30, note: 'a few degrees above chilled water', basis: 'est' },
-    { label: 'Chilled water supply', c: 25, note: 'made by chillers', basis: 'est' },
+    { label: 'GPU die', c: 65, note: 'throttles near ≈85 °C; not published', basis: 'est', link: at(5, 'junction', 'heat') },
+    { label: 'Coolant leaving the rack', c: 40, note: '≈10 °C rise across the rack', basis: 'typical', link: at(3, 'manifold', 'heat') },
+    { label: 'Outdoor air, hot day', c: 35, note: 'too warm for the loop without chillers', basis: 'est', link: outside },
+    { label: 'Coolant entering the rack', c: 30, note: 'a few degrees above chilled water', basis: 'est', link: at(2, 'cdu', 'heat') },
+    { label: 'Chilled water supply', c: 25, note: 'made by chillers', basis: 'est', link: at(2, 'fwater', 'heat') },
   ];
 
   // How a model is split, from the chattiest traffic to the quietest.
   const PARALLEL = [
-    { name: nvl ? 'Tensor + expert parallel' : 'Tensor parallel', where: nvl ? `Inside one ${A.rackName} rack` : 'Inside one 8-GPU server', cls: 'nvl', scene: nvl ? 3 : 4,
+    { name: nvl ? 'Tensor + expert parallel' : 'Tensor parallel', where: nvl ? `Inside one ${A.rackName} rack` : 'Inside one 8-GPU server', cls: 'nvl', scene: 3, link: at(3, 'tp', 'data'),
       what: 'Each layer’s math is split across GPUs, or experts are spread across them. GPUs exchange partial results inside every layer, many times per token.',
       need: 'TB/s, every layer' },
-    { name: 'Pipeline parallel', where: 'Across a few racks', cls: 'eth', scene: 2,
+    { name: 'Pipeline parallel', where: 'Across a few racks', cls: 'eth', scene: 2, link: at(2, 'pp', 'data'),
       what: 'Consecutive groups of layers live on different racks. Activations pass from one stage to the next, like an assembly line.',
       need: 'Point to point, per micro-batch' },
-    { name: 'Data parallel', where: 'Across the hall', cls: 'eth', scene: 2,
+    { name: 'Data parallel', where: 'Across the hall', cls: 'eth', scene: 2, link: at(2, 'dp', 'data'),
       what: 'Many copies of the model train on different data and average their gradients once per step, overlapped with compute.',
       need: 'Big all-reduce, once per step' },
-    { name: 'Loosely synced replicas', where: 'Across campuses', cls: 'dci', scene: 0,
+    { name: 'Loosely synced replicas', where: 'Across campuses', cls: 'dci', scene: 0, link: at(0, 'remote', 'data'),
       what: 'Sites train mostly on their own and sync only every so often, which keeps the slow long-haul links from stalling every step.',
       need: 'Gb/s, every few hundred steps' },
   ];
