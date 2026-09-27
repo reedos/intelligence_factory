@@ -34,6 +34,18 @@ describe('links media SVG output', () => {
     expect(svg).toContain('<svg');
     expect(svg).not.toMatch(/undefined|NaN|\[object/);
   });
+  it('every lo-vs-hi range bar actually spans a range, not a flat sliver', () => {
+    const svg = copperWallSVG();
+    // one <rect ... width="20" height="H" rx="3" fill="var(--nvl)" .../> per row that has a reach value at all
+    const heights = [...svg.matchAll(/<rect x="[-\d.]+" y="[-\d.]+" width="20" height="([-\d.]+)" rx="3" fill="var\(--nvl\)"/g)].map(m => Number(m[1]));
+    const withReach = COPPER_WALL.filter(d => d.lo != null);
+    expect(heights.length).toBe(withReach.length);
+    // rows where lo !== hi (25 and 200 Gb/s/lane, per today's data) must clear the 2px clamp floor by a wide
+    // margin, or the bar never actually visually spans the range it is supposed to draw
+    withReach.forEach((d, i) => {
+      if (d.lo !== d.hi) expect(heights[i], `lane ${d.lane} range-bar height`).toBeGreaterThan(10);
+    });
+  });
   it('the optics cutaway diagrams have no undefined or NaN', () => {
     const svg = opticsCutawaySVG();
     expect(svg).toContain('<svg');

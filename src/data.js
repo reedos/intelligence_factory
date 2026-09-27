@@ -325,7 +325,7 @@ export function content(M) {
       body: 'Switch trays in the middle of the rack connect all 72 GPUs as one NVLink domain, so any GPU can read any other’s memory at full speed.',
       specs: [['Trays', '9', 'spec'], ['Bandwidth per GPU', nvlTB, A.basis], ['Domain total', A.id === 'rubin' ? '≈260 TB/s, as announced' : '130 TB/s', A.id === 'rubin' ? 'est' : 'spec']] },
     { id: 'spine', title: 'NVLink spine', kicker: '≈5,000 copper cables',
-      body: 'Cable cartridges down the back tie every tray to every switch in passive copper, with no retimers and no optical modules in the path. NVIDIA’s own DGX GB200 user guide calls this the "passive copper cable cartridge backplane." Its OCP-contribution developer blog once called the same cables "active copper cables" — loose usage, most likely meaning links that are actively carrying traffic, rather than a description of the electronics inside them.',
+      body: 'Cable cartridges down the back tie every tray to every switch in passive copper, with no retimers and no optical modules in the path. NVIDIA’s own DGX GB200 user guide calls this the "NVLink passive copper cable cartridge backplane." Its OCP-contribution developer blog once called the same cables "active copper cables" — loose usage, most likely meaning links that are actively carrying traffic, rather than a description of the electronics inside them.',
       specs: [['Links', 'more than 5,000 passive copper', 'spec'], ['Total length', '≈2 miles', 'typical'], ['Signaling', '224G PAM4', 'typical']] },
     { id: 'manifold', title: 'Coolant manifolds', kicker: 'Blue in, red out',
       body: 'Two vertical manifolds with dripless quick disconnects feed every tray. A tray comes out without a drop of water.',

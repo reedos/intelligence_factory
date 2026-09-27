@@ -15,7 +15,7 @@ export const MEDIA_LADDER = [
     power: '0 W added — passive',
     where: 'NVLink spine inside a rack; GPU-to-switch links; tray and board backplanes',
     basis: 'typical' },
-  { id: 'acc', cls: 'nvl', name: 'ACC — active copper cable', scope: 'NIC to leaf, one rack over',
+  { id: 'acc', cls: 'nvl', name: 'ACC — active copper cable', scope: 'Scale-up, one rack over',
     what: 'A linear redriver chip in each connector plug amplifies and cleans the signal; no clock-and-data recovery.',
     reach: '≈3 m at 200 Gb/s per lane, commonly reaching one adjacent rack; 3–5 m at 100 Gb/s per lane (NVIDIA LACC)',
     power: '≈2–3 W per end at 200 Gb/s per lane; 1.5 W max per end at 100 Gb/s per lane (NVIDIA LACC, 800G port)',
@@ -58,7 +58,7 @@ export const COPPER_WALL = [
   { lane: 25, lo: 3, hi: 5, basis: 'spec', note: '25GBASE-CR/CR-S, single lane (802.3by)' },
   { lane: 50, lo: 3, hi: 3, basis: 'spec', note: '100GBASE-CR2, 2 lanes (802.3cd)' },
   { lane: 100, lo: 2, hi: 2, alt: 5, basis: 'spec', note: '100GBASE-CR1 floor (802.3ck); Marvell’s own rounder public estimate: ≈5 m' },
-  { lane: 200, lo: 0.7, hi: 3, floor: 1, basis: 'typical', note: 'draft P802.3dj — IEEE’s own objective is ≥1 m; trade estimates spread 1–3 m; Marvell’s own estimate: ≈2.5 m' },
+  { lane: 200, lo: 0.7, hi: 3, floor: 1, alt: 2.5, basis: 'typical', note: 'draft P802.3dj — IEEE’s own objective is ≥1 m; trade estimates spread 1–3 m' },
   { lane: 400, lo: null, hi: null, basis: 'spec', note: 'not yet defined — IEEE’s own scope table lists this reach as TBD' },
 ];
 export const OPTICS_CROSSOVER_M = 7; // upper end of the "on the margin" band a 200G-class signal hits (SemiEngineering)
@@ -92,7 +92,11 @@ export function copperWallSVG() {
       out += TXT(cx, (T + H - B) / 2 + 12, 'defined', { size: 13, w: 700, fill: 'var(--muted)' });
     } else {
       const yLo = y(d.lo), yHi = y(d.hi);
-      out += `<rect x="${cx - 10}" y="${yLo}" width="20" height="${Math.max(2, yHi - yLo)}" rx="3" fill="var(--nvl)" fill-opacity="0.85"/>`;
+      // yLo is the pixel row for the LOW reach and yHi for the HIGH reach, but the y-scale is inverted
+      // (bigger reach => smaller pixel y), so yHi is always the smaller number when lo < hi. Anchor the
+      // rect at whichever pixel is smaller and size it by the absolute gap, or a lo===hi row draws a sliver.
+      const barTop = Math.min(yLo, yHi), barH = Math.max(2, Math.abs(yLo - yHi));
+      out += `<rect x="${cx - 10}" y="${barTop}" width="20" height="${barH}" rx="3" fill="var(--nvl)" fill-opacity="0.85"/>`;
       if (d.floor != null && d.floor !== d.hi) out += `<line x1="${cx - 16}" x2="${cx + 16}" y1="${y(d.floor)}" y2="${y(d.floor)}" stroke="var(--nvl)" stroke-width="2"/>`;
       if (d.alt != null) {
         out += `<line x1="${cx - 16}" x2="${cx + 16}" y1="${y(d.alt)}" y2="${y(d.alt)}" stroke="var(--muted)" stroke-width="2" stroke-dasharray="3 3"/>`;
@@ -103,7 +107,9 @@ export function copperWallSVG() {
     out += TXT(cx, H - B + 26, `${d.lane} Gb/s`, { size: 13.5, w: 700 });
     out += TXT(cx, H - B + 44, 'per lane', { size: 11, fill: 'var(--faint)', mono: true });
   });
-  out += TXT(L, 18, 'Passive copper reach at each PAM4 lane rate, log scale on both axes. Bars are the spread where sources disagree; ticks mark a standard’s stated floor.', { a: 'start', size: 12, fill: 'var(--muted)' });
+  // two lines: the single-line version overflowed this 1000-wide viewBox and got clipped by the SVG's own bounds
+  out += TXT(L, 14, 'Passive copper reach at each PAM4 lane rate, log scale on both axes.', { a: 'start', size: 12, fill: 'var(--muted)' });
+  out += TXT(L, 29, 'A bar spans a range — a variant’s own spread, or where sources disagree; ticks mark a stated floor or a vendor estimate.', { a: 'start', size: 12, fill: 'var(--muted)' });
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Passive copper reach falls as lane rate rises: 3 to 5 meters at 25 gigabits per second per lane, down to under a meter at 200 gigabits per second per lane, not yet standardized at 400 gigabits per second per lane">${out}</svg>`;
 }
 
