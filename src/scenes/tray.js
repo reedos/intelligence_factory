@@ -118,6 +118,8 @@ function buildHGX({ quality }) {
     heatFlows.push(flow([[x, fy + 0.12, z], [x, y0 + 0.1, z]], 'hot', { count: 3, speed: 0.4, size: 0.035, k: 2.6, trail: false }));
     for (const dx of [-0.25, 0.25]) heatFlows.push(flow([[x + dx, y0 + 0.6, z + 0.9], [x + dx, y0 + 0.6, z - 0.7], [x + dx * 1.1, y0 + 0.65, z - 2.0]], 'air', { count: 4, speed: 1.0, size: 0.045, k: 2.2, opacity: 0.85, trail: false }));
   });
+  // small local fill so GPU0's lifted-lid package reads clearly from the 'gpu' hotspot, not just lit from the far key
+  const gpuFill = new THREE.PointLight(0xfff2df, 0.9, 3.2, 2); gpuFill.position.set(gpuX[0] - 0.15, 0.7, gpuZ[0] + 1.1); scene.add(gpuFill);
   // NVSwitch chips behind the GPUs, with small sinks
   const swX = [-1.5, -0.5, 0.5, 1.5], swZ = -0.25;
   swX.forEach(x => { S.box(0.42, 0.03, 0.42, MAT.pcbBlack, x, fy + 0.05, swZ); S.box(0.4, 0.5, 0.4, MAT.alu, x, fy + 0.32, swZ); for (let f = 0; f < 8; f++) N.box(0.015, 0.45, 0.42, MAT.galv, x - 0.18 + f * 0.05, fy + 0.35, swZ); });
@@ -197,7 +199,9 @@ function buildHGX({ quality }) {
   if (shimmer) scene.add(shimmer.points);
 
   const [g0x, g0z] = gpus[0], [g5x, g5z] = gpus[5];
-  const hsGpu = { pos: [g0x, fy + 0.4, g0z], view: { pos: [g0x - 1.9, 3.6, g0z + 2.7], target: [g0x, 0.35, g0z] } };
+  // approach from in front of the (grille-fronted) fan wall, low and close, so the floating package/lid reads
+  // clearly instead of looking down the shadowed side of the lifted heat sink tower
+  const hsGpu = { pos: [g0x, fy + 0.4, g0z], view: { pos: [g0x - 0.5, 0.9, g0z + 2.6], target: [g0x, 0.3, g0z] } };
   const hsSink = { pos: [g5x, 1.3, g5z], view: { pos: [g5x + 2.5, 3.6, g5z + 3.5], target: [g5x, 0.6, g5z] } };
   return {
     scene, flows,
