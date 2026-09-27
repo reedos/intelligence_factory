@@ -111,7 +111,7 @@ const MISC_FRAC = 0.017;   // lighting, controls, offices, as a share of IT
 const FABRICS = {
   400: { radix: 64, switchKW: 0.75, gpuModuleW: 9, portModuleW: 8.5, portsPerModule: 2, fibersPerLink: 8, switchName: 'Quantum-2, 64 × 400G' },
   800: { radix: 144, switchKW: 2.9, gpuModuleW: 17, portModuleW: 13.5, portsPerModule: 2, fibersPerLink: 8, switchName: 'Quantum-X800, 144 × 800G' },
-  1600: { radix: 72, switchKW: 2.9, gpuModuleW: 27, portModuleW: 27, portsPerModule: 1, fibersPerLink: 16, switchName: '72 × 1.6T' },
+  1600: { radix: 72, switchKW: 2.9, gpuModuleW: 27, portModuleW: 27, portsPerModule: 1, fibersPerLink: 16, switchName: 'Spectrum-6, 72 × 1.6T' },   // Rubin's Ethernet switch; its port count is not published yet
 } as const;
 
 // Where a figure lives in 3D: scene index, layer and part id. The page uses it to jump from a chart row to the part.
