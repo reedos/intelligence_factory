@@ -266,13 +266,15 @@ export function build({ quality, model }) {
   const stageCol = ['#ff5fd2', '#c77dff', '#7c9cff', '#5ce1c6'];
   const par = new THREE.Group();
   const stageMats = stageCol.map(c => glowMat(c, 1.1, 0.85));
+  const tintGeo = new THREE.BoxGeometry(RW - 0.08, 0.03, 1.0), tints = [[], [], [], []];
   rowZs.forEach((z, r) => {
     const racks = rackMx.filter(k => k.z === z);
     racks.forEach((k, i) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(RW - 0.08, 0.03, 1.0), stageMats[i % 4]); m.position.set(k.x, 2.34, z); par.add(m);
+      tints[i % 4].push(mtx(k.x, 2.34, z));                       // one instanced mesh per stage color, not one mesh per rack
       if (i % 4 !== 3 && r >= 4) dataFlows.push(flow([[k.x, 2.5, z], [racks[i + 1].x, 2.5, z]], 'eth', { count: 2, speed: 0.6, size: 0.05, k: 2.4, trail: false }));
     });
   });
+  tints.forEach((list, c) => { const m = new THREE.InstancedMesh(tintGeo, stageMats[c], list.length); list.forEach((mx, n) => m.setMatrixAt(n, mx)); par.add(m); });
   const front = rackMx.filter(k => k.z === rowZs[5]);
   ['1', '2', '3', '4'].forEach((t, i) => { const s = textSprite(t, stageCol[i], 0.28); s.position.set(front[i].x, 2.75, rowZs[5] + 0.6); par.add(s); });
   for (let g = 0; g < 4; g++) { const s = textSprite(`replica ${g + 1}`, g ? '#a6f35a' : '#e8ecf2', 0.3); s.position.set((front[g * 4 + 1].x + front[g * 4 + 2].x) / 2, 3.25, rowZs[5] + 0.6); par.add(s); }

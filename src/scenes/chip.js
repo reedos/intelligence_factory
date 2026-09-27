@@ -190,6 +190,7 @@ export function build({ quality, state, model }) {
       cpo: { pos: [-4.2, Y.sub + 0.3, 3.8], view: { pos: [-8, 5, 9], target: [-2.5, 1.5, 2] } },
       tokens: { pos: [3.8, 7.2, -1.0], view: { pos: [11, 8.5, 8], target: [2.5, 5.5, -1] } },
     },
+    dispose() { cache.forEach(({ tex }) => tex.dispose()); },
     update(t, dt) {
       const rate = Math.min(9, 1.5 + Math.log10(Math.max(1, state.tokPerGpu)) * 1.4);   // sprites per second, scaled for legibility
       acc += dt * rate; while (acc >= 1) { spawn(); acc -= 1; }

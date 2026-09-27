@@ -122,12 +122,16 @@ function getComposer(i) {
   return composers[i];
 }
 function disposeScene(b) {
+  b.dispose?.();                                          // anything the scene holds outside its graph (cached textures)
   b.scene.traverse(o => {
+    o.shadow?.dispose();                                  // a shadow-casting light owns a render target of its own
     o.geometry?.dispose();
     const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
     mats.forEach(m => { Object.values(m).forEach(v => v?.isTexture && v.dispose()); m.dispose(); });
   });
 }
+// EffectComposer.dispose frees only its own two targets; bloom and AO passes hold render targets of their own
+function disposeComposer(c) { if (!c) return; c.passes.forEach(p => p.dispose?.()); c.dispose(); }
 function sizeComposer(c) { c.setSize(view.clientWidth, view.clientHeight); }
 // adaptive resolution: step the pixel ratio down when frames run slow, back up when there is room
 const perf = { n: 0, sum: 0 };
@@ -139,6 +143,7 @@ function adapt(dt) {
   if (next !== ratio) { ratio = next; renderer.setPixelRatio(ratio); resize(); }
 }
 export const renderScale = () => ratio;
+export const getRenderer = () => renderer;
 function resize() {
   const w = view.clientWidth, h = view.clientHeight;
   renderer.setSize(w, h, false);
@@ -281,7 +286,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   const b = getScene(i); getComposer(i);
   ui.scene = i;
-  if (mobile) built.forEach((bb, j) => { if (bb && Math.abs(j - i) > 1) { disposeScene(bb); composers[j]?.dispose?.(); built[j] = undefined; composers[j] = undefined; } });
+  if (mobile) built.forEach((bb, j) => { if (bb && Math.abs(j - i) > 1) { disposeScene(bb); disposeComposer(composers[j]); built[j] = undefined; composers[j] = undefined; } });
   const c = b.camera;
   camera.near = c.near; camera.far = c.far; camera.updateProjectionMatrix();
   controls.minDistance = c.min; controls.maxDistance = c.max;
@@ -325,7 +330,7 @@ function beacon(id) {
 // a new scenario rebuilds every scene from the new model; the camera stays where it is
 on('scenario', () => {
   built.forEach(b => b && disposeScene(b));
-  composers.forEach(c => c?.dispose?.());
+  composers.forEach(disposeComposer);
   built.length = 0; composers.length = 0;
   renderSteps();
   if (ui.scene >= 0) go(ui.scene, null, { force: true, keepCamera: true });

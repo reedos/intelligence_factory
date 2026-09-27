@@ -15,4 +15,5 @@ stage.start();
 window.ifx = {
   store, setScenario, pin, state: store.ui, go: stage.go, select: stage.select, setMode: stage.setMode,
   camera: stage.camera, controls: stage.controls, composers: stage.composers, built: stage.built, settle: stage.settle,
+  renderer: stage.getRenderer, renderScale: stage.renderScale,
 };
