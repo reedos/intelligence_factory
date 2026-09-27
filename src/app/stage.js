@@ -296,6 +296,12 @@ export const setCinema = on => { cinema = on; if (!on) drift = null; };
 // a faster tour flies faster too, by the square root so 8x still reads as a move rather than a cut
 export const setTourPace = p => { tourPace = p; };
 const ease = u => (u < 0.5 ? 4 * u ** 3 : 1 - Math.pow(-2 * u + 2, 3) / 2);
+const easeIn = u => u * u * u, easeOut = u => 1 - (1 - u) ** 3, easeIn2 = u => u * u;
+// a straight move with its own easing, for the level transitions: no arc, no drift when it lands
+function glide(pos, target, dur, curve) {
+  drift = null;
+  tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos.clone(), t1: target.clone(), u: 0, dur: reduced ? 0.01 : dur, arc: null, curve, still: true };
+}
 export function flyTo(pos, target, dur = 1.1) {
   drift = null;
   const p1 = V(pos), t1 = V(target);
@@ -315,7 +321,7 @@ function stepTween(dt) {
   if (drift && !tween) stepDrift(dt);
   if (!tween) return;
   tween.u = Math.min(1, tween.u + dt / tween.dur);
-  const e = ease(tween.u), a = tween.arc;
+  const e = (tween.curve || ease)(tween.u), a = tween.arc;
   controls.target.lerpVectors(tween.t0, tween.t1, e);
   if (a) {
     const bump = Math.sin(Math.PI * tween.u);
@@ -326,8 +332,9 @@ function stepTween(dt) {
     camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(s));
   } else camera.position.lerpVectors(tween.p0, tween.p1, e);
   if (tween.u >= 1) {
+    const still = tween.still;
     tween = null;
-    if (cinema && !reduced) startDrift();
+    if (cinema && !reduced && !still) startDrift();
   }
 }
 // while a part is on screen: orbit a little and push in, if the part stays in clear view the whole way
@@ -450,6 +457,50 @@ export function cycle(d) {
 }
 export const hasPart = (scene, id, mode = ui.mode) => !!(PARTS_BY()[mode][SCENES()[scene].id] || []).find(p => p.id === id);
 
+// ---------- level transitions ----------
+// Going in, the camera dives at the part that holds the next level (the hall on the campus, a rack in the hall, a
+// tray in the rack, the GPU on the tray) while an iris closes on it; the black names the level and the step in scale;
+// then the new level opens from close in and pulls back. Going out runs the other way: pull back, close, and open on
+// the part of the outer level you just came out of. Reduced motion keeps the plain fade.
+function portalOf(scene, into) {
+  const b = built[scene]; if (!b) return null;
+  const maps = { power: b.hotspots, data: b.dataHotspots, heat: b.heatHotspots }, id = SCENES()[scene].id;
+  for (const mode of [ui.mode, 'power', 'data', 'heat']) {
+    const p = (PARTS_BY()[mode][id] || []).find(q => q.drill === into && maps[mode]?.[q.id]);
+    if (p) return V(maps[mode][p.id].pos);
+  }
+  return null;
+}
+const veilEl = $('veil');
+let iris = null, irisR = 0, travelSeq = 0;
+const irisFull = () => Math.hypot(view.clientWidth, view.clientHeight) + 80;
+const _ip = new THREE.Vector3();
+function irisTo(r1, dur, at) {
+  return new Promise(res => {
+    if (!veilEl.classList.contains('iris')) { irisR = irisFull(); stepIrisStyle(null); veilEl.classList.add('iris'); veilEl.classList.remove('off'); }
+    iris?.res();                                         // whoever waited on the iris this replaces is let go, never stranded
+    iris = { r0: irisR, r1, t: 0, dur: Math.max(0.01, dur), at, res };
+  });
+}
+function stepIrisStyle(at) {
+  let x = view.clientWidth / 2, y = view.clientHeight / 2;
+  if (at) { _ip.copy(at).project(camera); if (_ip.z < 1) { x = (_ip.x + 1) / 2 * view.clientWidth; y = (1 - _ip.y) / 2 * view.clientHeight; } }
+  veilEl.style.setProperty('--ix', `${x.toFixed(1)}px`); veilEl.style.setProperty('--iy', `${y.toFixed(1)}px`); veilEl.style.setProperty('--ir', `${irisR.toFixed(1)}px`);
+}
+function stepIris(dt) {
+  if (!iris) return;
+  iris.t = Math.min(1, iris.t + dt / iris.dur);
+  const u = iris.t, e = iris.r1 < iris.r0 ? easeIn(u) * 0.35 + u * u * (3 - 2 * u) * 0.65 : easeOut(u);
+  irisR = iris.r0 + (iris.r1 - iris.r0) * e;
+  stepIrisStyle(iris.at);
+  if (iris.t >= 1) { const r = iris.res; iris = null; r(); }
+}
+function jumpLabel(from, to) {
+  const a = SCENES()[from], b = SCENES()[to];
+  return `<div class="jump"><span class="jump-k">${to > from ? 'In' : 'Out'} · level ${b.n} of 6</span><b>${b.title}</b><span class="jump-s">${a.scale} → ${b.scale}</span></div>`;
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
 // ---------- scene switching ----------
 let busy = false, queued = null;
 export async function go(i, fromId, { force = false, keepCamera = false, fromShow = false } = {}) {
@@ -459,13 +510,29 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   busy = true;
   const veil = $('veil');
   const same = i === ui.scene;
-  if (ui.scene >= 0 && !same) {
-    if (fromId) { const h = hotspotsFor(ui.scene)[fromId]; if (h) flyTo([h.pos[0] + (camera.position.x - h.pos[0]) * 0.15, h.pos[1] + (camera.position.y - h.pos[1]) * 0.15, h.pos[2] + (camera.position.z - h.pos[2]) * 0.15], h.pos, 0.55); }
+  const from = ui.scene, inward = i > from, T = 1 / Math.sqrt(cinema ? tourPace : 1);
+  const travel = from >= 0 && !same && !reduced;          // a level transition, rather than the first load or a rebuild
+  let closedAt = 0;
+  const mine = travel ? ++travelSeq : travelSeq;          // a newer transition takes the iris over from this one
+  if (travel) {
+    view.classList.add('diving');
+    let portal = inward ? portalOf(from, from + 1) : null;
+    if (inward && !portal && fromId) { const h = hotspotsFor(from)[fromId]; if (h) portal = V(h.pos); }
+    if (portal) {                                          // dive at the part that holds the next level
+      glide(portal.clone().lerp(camera.position, 0.05), portal, 0.95 * T, easeIn2);
+      await irisTo(0, 0.95 * T, portal);
+    } else {                                               // pull straight back and close on the middle
+      glide(controls.target.clone().add(camera.position.clone().sub(controls.target).multiplyScalar(2.6)), controls.target.clone(), 0.8 * T, easeIn);
+      await irisTo(0, 0.8 * T, null);
+    }
+    veil.innerHTML = jumpLabel(from, i);
+    closedAt = performance.now();
+  } else if (from >= 0 && !same) {
     veil.textContent = ''; veil.classList.remove('off');
-    await new Promise(r => setTimeout(r, reduced ? 0 : cinema && fromId ? 950 / Math.sqrt(tourPace) : 420));   // a tour pushes in before the cut
+    await sleep(reduced ? 0 : 420);
   }
-  veil.textContent = `Building ${SCENES()[i].title.toLowerCase()}…`;
-  if (!same) veil.classList.remove('off');
+  if (!travel) veil.textContent = `Building ${SCENES()[i].title.toLowerCase()}…`;
+  if (!same && !travel) veil.classList.remove('off');
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   const b = getScene(i); getComposer(i);
   ui.scene = i;
@@ -475,16 +542,39 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   camera.near = c.near; camera.far = c.far; camera.updateProjectionMatrix();
   controls.minDistance = c.min; controls.maxDistance = c.max;
   renderer.toneMappingExposure = lookOf(i).exposure;
+  let openAt = null;
   if (!keepCamera) {
     // arrive pushed in, then pull back to the scene's opening view; portrait screens get closer
-    const tgt = V(c.target), end = view.clientWidth / view.clientHeight < 0.9 ? tgt.clone().lerp(V(c.pos), 0.72) : V(c.pos), start = tgt.clone().lerp(end, 0.35);
-    camera.position.copy(start); controls.target.copy(tgt); controls.update();
-    flyTo(end.toArray(), c.target, 1.6);
+    const tgt = V(c.target), end = view.clientWidth / view.clientHeight < 0.9 ? tgt.clone().lerp(V(c.pos), 0.72) : V(c.pos);
+    if (travel) {
+      // in: from right up against the new level, as if the dive carried on; out: from the part just left
+      const back = inward ? null : portalOf(i, i + 1);
+      const aim = back || tgt;
+      camera.position.copy(aim.clone().lerp(end, inward ? 0.08 : 0.06)); controls.target.copy(aim); controls.update();
+      glide(end, tgt, 1.5 * T, easeOut);
+      openAt = back;
+    } else {
+      camera.position.copy(tgt.clone().lerp(end, 0.35)); controls.target.copy(tgt); controls.update();
+      flyTo(end.toArray(), c.target, 1.6);
+    }
   }
   buildPanel(i);
   renderSteps();
   resize();
-  veil.classList.add('off');
+  if (travel) {
+    // let the level's name read, then open; the switch is done as far as anyone waiting on it is concerned
+    const wait = 450 * T - (performance.now() - closedAt);
+    (async () => {
+      if (wait > 0) await sleep(wait);
+      if (mine !== travelSeq) return;                      // the reader has already moved on; that transition opens instead
+      await irisTo(irisFull(), 0.75 * T, openAt);
+      if (mine !== travelSeq) return;
+      // hand back to the plain veil without its fade: fully open already, so it must not flash dark on the way
+      veilEl.style.transition = 'none'; veilEl.classList.add('off'); veilEl.classList.remove('iris'); void veilEl.offsetWidth; veilEl.style.transition = '';
+      veilEl.textContent = '';
+      view.classList.remove('diving');
+    })();
+  } else veil.classList.add('off');
   busy = false;
   emit('scene', i);
   if (queued) { const q = queued; queued = null; go(...q); }
@@ -588,6 +678,7 @@ function applyLevels(b) {
 
 const tickers = new Set();
 export const onTick = fn => { tickers.add(fn); return () => tickers.delete(fn); };
+onTick(stepIris);
 new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(view);
 function loop(ts) {
   requestAnimationFrame(loop);

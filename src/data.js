@@ -34,7 +34,9 @@ export const VOLT = {
   vapor: { css: '#d6e6ff', name: 'Evaporation', short: 'vapor' },
 };
 
-import { SITES, PLACES, placeKey, STATE_CARBON, DEFAULT_PLACE, US_CARBON_G } from './model/sites.ts';
+import { SITES, PLACES, placeKey, STATE_CARBON, DEFAULT_PLACE, US_CARBON_G, STATUS_WORD } from './model/sites.ts';
+// a real campus's status as spec rows: its state and live figure, and a ranking where one is claimed
+const statusRows = s => [[`Status, ${s.status.asOf}`, `${STATUS_WORD[s.status.state]} · ${s.status.live}`, 'est'], ...(s.status.rank ? [['Ranking, Epoch AI', 'Most powerful operating today', 'est']] : [])];
 
 // Facts the text needs per accelerator that the engine does not use for arithmetic.
 const FACTS = {
@@ -61,6 +63,15 @@ const FACTS = {
 };
 
 // Everything below depends on the scenario, so it is built from the model on every change.
+export const WALK = {
+  // west yard once (the batteries sit by the substation), then the one trip east to the generators, then the halls
+  power: { campus: ['line', 'substation', 'mpt', 'ehouse', 'bess', 'gensets', 'fuel', 'unitsubs', 'hall', 'drycoolers', 'chillers', 'towers', 'fiber'] },
+  // outside in, the way a byte arrives; the H100 rack shows its optics before the ports they plug into, like the NVL72
+  data: { across: ['remote', 'route', 'ila', 'dci', 'home'], rack: ['tp', 'servers', 'nvswitch', 'spine', 'optical', 'uplinks', 'compute', 'mgmt'] },
+  // the hot aisle before the units that pull air out of it
+  heat: { hall: ['cdu', 'hotaisle', 'inrow', 'fanwall', 'fwater', 'riser'] },
+};
+
 export function content(M) {
   const { accel: A, power: P, cooling: CL, NET, racks: RACKS, gpus: GPUS, IT_MW, layout: L, rack: RK } = M;
   const X = FACTS[A.id];
@@ -173,16 +184,20 @@ export function content(M) {
     site
       ? { id: 'home', title: site.name, kicker: `${site.place} · ${meter} modeled`,
         body: `${site.owner}. This page rebuilds the campus from the closest scenario it can: ${site.unknowns.join(' ')} Go in to follow the power down.`,
-        specs: [...site.facts, ['Modeled here', `${meter} at the meter, ${A.short}, ${M.cooling.short.toLowerCase()} cooling`, 'est']], drill: 1 }
+        specs: [...statusRows(site), ...site.facts, ['Modeled here', `${meter} at the meter, ${A.short}, ${M.cooling.short.toLowerCase()} cooling`, 'est']], drill: 1 }
       : { id: 'home', title: 'This campus', kicker: `${meter} at the meter`,
         body: `The campus this page follows, ${meter} at the meter, placed in central Ohio's data-center cluster for the map. Pick a real campus in the scenario bar to move it. Go in to the substation and follow the power down.`,
         specs: [['Meter', meter, 'est'], ['IT load', `${mwTxt(IT_MW)} at PUE ${M.pue.toFixed(2)}`, 'est']], drill: 1 },
     { id: 'carbon', title: 'Grid carbon by state', kicker: `${stateC ? `${stateC.name}: ${stateC.g} g CO₂/kWh` : 'EIA state profiles, 2024'}`,
       body: `Shaded states have EIA figures: teal for hydro-heavy grids, amber and red for coal and gas. The same campus emits three to four times more in Wisconsin than in Washington.${site ? ` ${site.carbonNote}` : ''}`,
       specs: [...(stateC ? [[`${stateC.name}, 2024`, `${stateC.lb.toLocaleString('en-US')} lb/MWh, ${stateC.g} g/kWh`, 'spec']] : []), ['US average, eGRID 2022', `${US_CARBON_G} g/kWh`, 'spec'], ['Lowest shown, Washington', '113 g/kWh', 'spec'], ['Highest shown, Wisconsin', '494 g/kWh', 'spec']] },
-    ...PLACES.filter(p => !site || !p.ids.includes(site.id)).map(p => ({ id: placeKey(p), title: p.name, kicker: p.site.place,
-      body: `${p.site.owner}. Choose it under Real campuses in the scenario bar to rebuild this page around it.`,
-      specs: p.site.facts })),
+    ...PLACES.filter(p => !site || !p.ids.includes(site.id)).map(p => {
+      // Colossus 1 and 2 share a pin; the card leads with the one that is bigger now
+      const ss = p.ids.map(id => SITES[id]), lead = ss.find(x => x.status.rank) || ss[0];
+      return { id: placeKey(p), title: p.name, kicker: `${p.site.place} · ${ss.map(x => STATUS_WORD[x.status.state].toLowerCase()).join(', ')}`,
+        body: `${p.site.owner}. ${ss.map(x => (ss.length > 1 ? `${x.name.replace(/^xAI /, '')}: ` : '') + x.status.line).join(' ')}${lead.status.rank ? ` ${lead.status.rank}` : ''} Choose it under Real campuses in the scenario bar to rebuild this page around it.`,
+        specs: [...ss.flatMap(x => statusRows(x).map(([k, v, b]) => [ss.length > 1 ? `${x.name.replace(/^xAI /, '')}: ${k.toLowerCase()}` : k, v, b])), ...p.site.facts] };
+    }),
   ];
   const lineA = M.staircase[0].current;
   PARTS.campus = [
@@ -778,6 +793,11 @@ export function content(M) {
       what: 'Sites train mostly on their own and sync only every so often, which keeps the slow long-haul links from stalling every step.',
       need: 'Gb/s, every few hundred steps' },
   ];
+
+  // The numbered parts at a level (pins, the list, "Play 1 to N") read as one walk: the way the thing flows, without
+  // the camera crossing the scene and back. Levels not listed already read that way as written. Reviewed 09/27/2026.
+  for (const [P, walk] of [[PARTS, WALK.power], [PARTS_DATA, WALK.data], [PARTS_HEAT, WALK.heat]])
+    for (const [sc, ids] of Object.entries(walk)) if (P[sc]) P[sc] = [...P[sc]].sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 
   return {
     SCENES, PARTS, PARTS_DATA, PARTS_HEAT, BOM, TEMPS, PARALLEL, LEDGER_END,

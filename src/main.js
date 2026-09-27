@@ -12,6 +12,7 @@ import * as journeys from './app/journeys.js';
 import { openClock, closeClock } from './app/clock-ui.js';
 import { enter as enterStory, exit as exitStory } from './app/story.js';
 import './app/scenario.js';
+import './app/site.js';
 
 stage.start();
 

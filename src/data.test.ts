@@ -1,7 +1,7 @@
 // Every scenario must produce complete text: no undefined, NaN or empty values, and a valid basis on every spec.
 import { describe, it, expect } from 'vitest';
 import { compute, ACCELERATORS, POWER, COOLING } from './model/engine';
-import { content, BASIS } from './data.js';
+import { content, BASIS, WALK } from './data.js';
 import { SOURCES, PART_SOURCES, LEDGER_SOURCES } from './sources.js';
 import { SITES } from './model/sites';
 
@@ -62,6 +62,19 @@ describe('content for every scenario', () => {
       expect(l, `${what} has no link`).toBeTruthy();
       const sceneId = C.SCENES[l.scene].id;
       expect((layer[l.mode][sceneId] || []).map(p => p.id), `${what} → ${l.mode}:${sceneId}:${l.part}`).toContain(l.part);
+    }
+  });
+});
+
+// every part a walk-ordered level can show must be in its walk list, or it would sort to the front
+
+describe('walk order', () => {
+  it('lists every part at every walk-ordered level, in every scenario', () => {
+    for (const s of scenarios) {
+      const C = content(compute(s)) as any;
+      for (const [key, mode] of [['PARTS', 'power'], ['PARTS_DATA', 'data'], ['PARTS_HEAT', 'heat']] as const)
+        for (const [sc, ids] of Object.entries((WALK as any)[mode] as Record<string, string[]>))
+          for (const p of C[key][sc] || []) expect(ids, `${mode}:${sc}:${p.id} (${JSON.stringify(s)})`).toContain(p.id);
     }
   });
 });

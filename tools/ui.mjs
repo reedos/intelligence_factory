@@ -37,7 +37,7 @@ const measure = () => {
     return r;
   };
   const named = [
-    ['scale tabs', '.steps'], ['title', '.hud.tl'], ['layer switch', '.hud.tr .mode'], ['view buttons', '.hud-row'], ['key hints', '.hint'],
+    ['top bar', '.topbar'], ['scale tabs', '.steps'], ['title', '.hud.tl'], ['layer switch', '.hud.tr .mode'], ['view buttons', '.hud-row'], ['key hints', '.hint'],
     ['scale bar', '.hud.bl'], ['legend', '.hud.br'], ['clock', '#clock'], ['transport', '.transport'], ['tour picker', '.tour-pick'],
     ['tally', '#tally'], ['beat', '.beat.on'], ['part card', '#card'],
   ];

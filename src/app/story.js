@@ -120,11 +120,18 @@ function observe() {
   }, { root: panel, rootMargin: '-40% 0px -40% 0px', threshold: 0 });
   box.querySelectorAll('.beat').forEach(b => observer.observe(b));
 }
+// center a beat in the column by scrolling the column alone; scrollIntoView would scroll the page too and slide the
+// stage up under the top bar
+function centerInPanel(el, smooth = true) {
+  if (!el) return;
+  const r = el.getBoundingClientRect(), pr = panel.getBoundingClientRect();
+  panel.scrollBy({ top: r.top - pr.top - (pr.height - r.height) / 2, behavior: smooth && !reduced ? 'smooth' : 'auto' });
+}
 function step(d) {
   const i = Math.max(0, Math.min(list.length - 1, (active < 0 ? -1 : active) + d));
   activate(i);                                            // at once, so quick presses count from the beat they see
   if (narrow.matches) { box.querySelector('.beat.on')?.scrollTo?.(0, 0); return; }
-  box.querySelector(`.beat[data-i="${i}"]`)?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+  centerInPanel(box.querySelector(`.beat[data-i="${i}"]`));
 }
 
 // fromStart: a button that names a tour starts it over; the Tours button picks up where the reader left off
@@ -138,7 +145,7 @@ export function enter(which = tour, { fromStart = false } = {}) {
   render();
   if (!narrow.matches) stageEl.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });   // narrow: the tour is full screen
   panel.scrollTop = 0;
-  if (at && !narrow.matches) box.querySelector(`.beat[data-i="${at}"]`)?.scrollIntoView({ block: 'center' });
+  if (at && !narrow.matches) centerInPanel(box.querySelector(`.beat[data-i="${at}"]`), false);
   activate(Math.min(at, list.length - 1));
   $('story-btn')?.setAttribute('aria-pressed', 'true');
 }
@@ -189,7 +196,7 @@ onTick(dt => {
   else {
     const next = nextTour(tour);
     if (next) switchTour(next);
-    else { setPlaying(false); if (!narrow.matches) box.querySelector('.beat-end')?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' }); }
+    else { setPlaying(false); if (!narrow.matches) centerInPanel(box.querySelector('.beat-end')); }
   }
 });
 // the reader looking around holds the tour; it carries on HOLD_MS after the last touch, drag or wheel
@@ -215,8 +222,10 @@ addEventListener('keydown', e => {
 narrow.addEventListener('change', () => { if (inStory()) observe(); });
 on('scenario', () => { if (inStory()) render(); });
 on('tokens', () => { if (inStory()) render(); });
-const hashTour = location.hash.slice(1);
-if (hashTour === 'story' || TOURS[hashTour]) setTimeout(() => enter(hashTour), 0);
+// #tour-watt and the like start a tour on load; the older #story, #watt and #request still do. (#heat, #power and
+// #data are the page's chapters now.)
+const hashRaw = location.hash.slice(1), hashTour = hashRaw.startsWith('tour-') ? hashRaw.slice(5) : ['story', 'watt', 'request'].includes(hashRaw) ? hashRaw : null;
+if (hashTour && TOURS[hashTour]) setTimeout(() => enter(hashTour), 0);
 document.querySelectorAll('[data-tour-start]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); enter(a.dataset.tourStart); }));
 $('story-hero-play')?.addEventListener('click', e => { e.preventDefault(); play('story'); });
 // Play in the 3D view's buttons: every part of the layer on screen, all six levels

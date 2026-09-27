@@ -12,18 +12,39 @@
 <link rel="stylesheet" href="/src/styles.css">
 </head>
 <body>
-<main class="wrap">
-  <header class="masthead">
+<header class="topbar" id="topbar">
+  <a class="brand" href="#top" aria-label="The Intelligence Factory, top of the page"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span><span class="brand-t">The Intelligence Factory</span></a>
+  <nav class="topnav" id="topnav" aria-label="Site">
+    <a href="#explore">Visualizer</a>
+    <a href="#power" style="--c: var(--mv)">Power</a>
+    <a href="#data" style="--c: var(--nvl)">Data</a>
+    <a href="#heat" style="--c: var(--warm)">Heat</a>
+    <a href="#tokens">Tokens</a>
+  </nav>
+  <button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="topnav"><span aria-hidden="true"></span>Menu</button>
+</header>
+<section class="hero" id="top" aria-labelledby="hero-h">
+  <picture class="hero-img">
+    <source media="(max-aspect-ratio: 4/5)" srcset="hero/campus-tall.webp">
+    <img src="hero/campus.webp" srcset="hero/campus-1440.webp 1440w, hero/campus.webp 2880w" sizes="100vw" alt="An AI campus at dusk, rendered by this page's 3D engine: the substation, two long data halls and the dry coolers on their roofs." fetchpriority="high">
+  </picture>
+  <div class="hero-in">
     <p class="eyebrow">Power · Data · Heat · Six scales</p>
-    <h1>The Intelligence Factory</h1>
-    <p class="tagline">From <span class="v1">345,000 volts</span> to <span class="v2">0.8</span></p>
-    <p class="lede">Zoom from a 2,000 km grid into one AI campus and keep going: off the transmission line, through the substation, the halls, a rack and a tray, into a GPU die at under a volt, and out as tokens. Then switch to the data layer and follow the links back out: NVLink inside the rack, optics across the hall, fiber between campuses. Every number carries a label saying where it comes from.</p>
-    <div class="hero-actions"><a class="btn go" href="#story" id="story-hero-play">Play the overview</a><a class="btn" href="#story" id="story-start" data-tour-start="story">Read at your own pace</a><span class="hint-inline">or follow <a href="#watt" data-tour-start="watt">a watt</a>, <a href="#request" data-tour-start="request">a request</a> or <a href="#heat" data-tour-start="heat">the heat</a>, or set up a campus below</span></div>
+    <h1 id="hero-h">The Intelligence Factory</h1>
+    <p class="tagline"><span class="v1">Electricity in.</span> <span class="v2">Intelligence out.</span></p>
+    <p class="lede">Follow the power from the plants on a 2,000 km grid into one AI campus: 345,000 volts at the fence, down through the substation, the halls, a rack and a tray, to 0.8 V at a GPU die, and out as tokens. Switch to the data layer to follow the links back out, or to heat to follow every watt to the sky. Every number says where it comes from.</p>
+    <div class="hero-actions"><a class="btn go" href="#tour-story" id="story-hero-play">▶ Play the overview</a><a class="btn" href="#explore" id="hero-explore">Explore the campus</a><span class="hint-inline">or follow <a href="#tour-watt" data-tour-start="watt">a watt</a>, <a href="#tour-request" data-tour-start="request">a request</a> or <a href="#tour-heat" data-tour-start="heat">the heat</a></span></div>
+  </div>
+  <p class="hero-cap" id="hero-cap">Rendered in this page's own 3D engine</p>
+</section>
+<main class="wrap">
+  <header class="chapter" id="explore" style="--c: var(--accent)">
+    <p class="ch-k"><span>01</span>Visualizer</p>
+    <p class="ch-s">Set up a campus, then fly through it at six scales in three layers. Every pin is a part with its numbers and sources.</p>
   </header>
-
   <section class="scenario" aria-labelledby="sc-h">
     <div class="sc-head">
-      <p class="eyebrow">Scenario</p>
+      <p class="eyebrow">1.1 · Scenario</p>
       <h2 id="sc-h">Build your campus</h2>
     </div>
     <div class="sc-controls">
@@ -91,9 +112,13 @@
     </div>
   </section>
 
+  <header class="chapter" id="power" style="--c: var(--mv)">
+    <p class="ch-k"><span>02</span>Power</p>
+    <p class="ch-s">From the meter to the die: where every megawatt goes, why the voltage steps down eleven times, and how the load moves from second to second.</p>
+  </header>
   <section class="ledger" aria-labelledby="ledger-h">
     <div class="sec-head">
-      <p class="eyebrow">Power</p>
+      <p class="eyebrow">2.1 · The ledger</p>
       <h2 id="ledger-h">Where 100 MW goes</h2>
       <p id="ledger-lede">Start with 100 MW at the campus meter. Each row takes off what one stage turns into heat, spends on cooling, or hands to silicon other than the GPU. The highlighted rows belong to the scale you are looking at. The grid already lost about 5% before the meter.</p>
     </div>
@@ -106,27 +131,31 @@
     </div>
   </section>
 
-  <section class="clocks" aria-labelledby="clocks-h">
-    <div class="sec-head">
-      <p class="eyebrow">Time</p>
-      <h2 id="clocks-h">Four clocks</h2>
-      <p>A campus is never steady. Training swings it every two seconds, an outage hands it to batteries and diesel in ten, and over a day the weather and the people asking questions move it by the hour. Each chart follows your scenario; play one to watch the flows in 3D react.</p>
-    </div>
-    <div class="clock-grid" id="clock-grid"></div>
-  </section>
-
   <section class="stairs" aria-labelledby="stairs-h">
     <div class="sec-head">
-      <p class="eyebrow">Power</p>
+      <p class="eyebrow">2.2 · Voltage</p>
       <h2 id="stairs-h">Volts down, amps up</h2>
       <p>Power is volts times amps. Each step down in voltage raises the current a conductor has to carry, which is why the last step happens millimeters from the chip.</p>
     </div>
     <div class="chart-box"><svg id="stairs" viewBox="0 0 1000 380" role="img" aria-label="Voltage at each stage on a log scale, with the current one conductor carries"></svg></div>
   </section>
 
+  <section class="clocks" aria-labelledby="clocks-h">
+    <div class="sec-head">
+      <p class="eyebrow">2.3 · Time</p>
+      <h2 id="clocks-h">Four clocks</h2>
+      <p>A campus is never steady. Training swings it every two seconds, an outage hands it to batteries and diesel in ten, and over a day the weather and the people asking questions move it by the hour. Each chart follows your scenario; play one to watch the flows in 3D react.</p>
+    </div>
+    <div class="clock-grid" id="clock-grid"></div>
+  </section>
+
+  <header class="chapter" id="data" style="--c: var(--nvl)">
+    <p class="ch-k"><span>03</span>Data</p>
+    <p class="ch-s">Copper inside the rack, light across the hall, fiber between campuses: how fast each link is, what carries it, and how a model is split to fit.</p>
+  </header>
   <section class="stairs" aria-labelledby="bw-h">
     <div class="sec-head">
-      <p class="eyebrow">Network</p>
+      <p class="eyebrow">3.1 · Bandwidth</p>
       <h2 id="bw-h">Bandwidth down, latency up</h2>
       <p>The data path has its own staircase. The closer two pieces of silicon sit, the faster they can talk. That is why a model is split the way it is: the chattiest work stays inside a rack on NVLink, less of it crosses the hall, and as little as possible crosses the country.</p>
     </div>
@@ -135,7 +164,7 @@
 
   <section class="stairs links" aria-labelledby="links-h">
     <div class="sec-head">
-      <p class="eyebrow">Network</p>
+      <p class="eyebrow">3.2 · Links</p>
       <h2 id="links-h">The links, drawn and counted</h2>
       <p id="links-lede">Three networks, three physical media. Copper ties 72 GPUs into one machine inside a rack; single-mode fiber and pluggable optics tie racks into a campus fabric; coherent optics on leased fiber tie campuses together. Counts are for this 100 MW campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials.</p>
     </div>
@@ -147,25 +176,33 @@
 
   <section class="stairs" aria-labelledby="par-h">
     <div class="sec-head">
-      <p class="eyebrow">Compute</p>
+      <p class="eyebrow">3.3 · Parallelism</p>
       <h2 id="par-h">How a model is split</h2>
       <p>The bandwidth staircase decides the layout. The chattiest kind of splitting goes where the links are fastest, and each step outward carries less, less often. Switch the 3D view to Data and open the hall to see one layout drawn on the rack tops.</p>
     </div>
     <div id="parallel"></div>
   </section>
 
+  <header class="chapter" id="heat" style="--c: var(--warm)">
+    <p class="ch-k"><span>04</span>Heat</p>
+    <p class="ch-s">Every watt ends as heat. The path from a die at 70 °C to the outside air, and what it costs in power and water.</p>
+  </header>
   <section class="stairs" aria-labelledby="temps-h">
     <div class="sec-head">
-      <p class="eyebrow">Heat</p>
+      <p class="eyebrow">4.1 · Temperature</p>
       <h2 id="temps-h">Hot to cold</h2>
       <p>Every watt ends as heat, and heat only flows downhill. Each hop from die to outdoor air costs a few degrees, which is why warmer water is the trick: NVIDIA's newest spec feeds racks at 45 °C, so even a 35 °C afternoon can take the heat through dry coolers, without chillers.</p>
     </div>
     <div class="chart-box"><svg id="temps" viewBox="0 0 1000 340" role="img" aria-label="Temperature at each hop from GPU die to outdoor air"></svg></div>
   </section>
 
+  <header class="chapter" id="tokens" style="--c: var(--core)">
+    <p class="ch-k"><span>05</span>Tokens</p>
+    <p class="ch-s">What the whole machine makes, and what each token costs in energy, carbon and water, with the parts list it takes.</p>
+  </header>
   <section class="tokens" aria-labelledby="tokens-h">
     <div class="sec-head">
-      <p class="eyebrow">Cost</p>
+      <p class="eyebrow">5.1 · Cost</p>
       <h2 id="tokens-h">What a kilowatt-hour buys</h2>
       <p>Energy per token depends on more than the chip. Idle capacity, the building, the grid's carbon, the water on site and the training run behind the model all land on the bill. The campus comes from your scenario; set the rest here.</p>
     </div>
@@ -237,7 +274,7 @@
 
   <section class="bom" aria-labelledby="bom-h">
     <div class="sec-head">
-      <p class="eyebrow">Inventory</p>
+      <p class="eyebrow">5.2 · Inventory</p>
       <h2 id="bom-h">What it takes: a 100 MW campus, counted</h2>
       <p id="bom-lede">Sized from the same assumptions as the ledger: 100 MW at the meter, PUE 1.2, 132 kW racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale.</p>
     </div>
