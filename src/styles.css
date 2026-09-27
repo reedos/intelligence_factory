@@ -350,6 +350,56 @@ body.story .panel-scroll > :not(.story) { display: none; }
 @media (prefers-reduced-motion: reduce) { .beat { transition: none; } }
 
 .hud.tr { grid-template-columns: auto auto; align-items: center; }
+.hud-btns { display: flex; gap: 6px; }
 .hud.tr .hint { grid-column: 1 / -1; }
 .pin.flip { flex-direction: row-reverse; transform-origin: right center; }
 .pin.flip .lbl { position: absolute; right: 29px; }
+
+/* ---------- the clock ---------- */
+.clock { position: absolute; left: 12px; right: 12px; bottom: 12px; z-index: 4; display: grid; gap: 8px; padding: 10px 14px 12px; background: rgba(5,8,12,.86); border: 1px solid var(--line-2); backdrop-filter: blur(8px); }
+.ck-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.ck-tabs { display: flex; border: 1px solid var(--line-2); }
+.ck-tabs button { all: unset; cursor: pointer; padding: 7px 11px; font: 600 11px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-left: 1px solid var(--line); }
+.ck-tabs button:first-child { border-left: 0; }
+.ck-tabs button[aria-selected="true"] { background: var(--ink); color: #000; }
+.ck-tabs button:focus-visible, .ck-play:focus-visible, .ck-x:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.ck-play { all: unset; cursor: pointer; width: 30px; height: 28px; display: grid; place-items: center; border: 1px solid var(--line-2); font-size: 11px; color: var(--ink); }
+.ck-time { font: 600 20px/1 var(--display); font-variant-numeric: tabular-nums; min-width: 6.5ch; }
+.ck-phase { font-size: 13px; color: var(--muted); flex: 1 1 200px; }
+.ck-x { all: unset; cursor: pointer; font-size: 20px; line-height: 1; color: var(--muted); padding: 0 4px; }
+.ck-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; }
+.ck-spark { width: 100%; height: 56px; display: block; cursor: ew-resize; touch-action: none; }
+.ck-counters { margin: 0; display: grid; grid-template-columns: repeat(4, auto); gap: 4px 18px; }
+.ck-counters div { display: grid; gap: 3px; }
+.ck-counters dt { font: 400 9.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.ck-counters dd { margin: 0; font: 600 17px/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+body.clocking .hud.bl, body.clocking .hud.br { bottom: 150px; }
+body.clocking .hud-btns #clock-btn, .story-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #000; }
+.clocks { display: grid; gap: 26px; }
+.clock-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.ck-card { display: grid; gap: 12px; align-content: start; padding: 20px 20px 18px; background: var(--surface); border: 1px solid var(--line); }
+.ck-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ck-card h3 { margin: 0; font: 600 26px/1 var(--display); text-transform: uppercase; }
+.ck-card .btn { min-height: 36px; padding: 0 14px; }
+.ck-card .chart-box { overflow: visible; }
+.ck-card .chart-box svg { width: 100%; min-width: 0; height: auto; display: block; }
+.ck-legend .sw[data-area] { height: 10px; background: color-mix(in srgb, var(--c) 30%, transparent); }
+.ck-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); }
+.ck-legend .sw[data-dash] { background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px); }
+.ck-notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 13px; line-height: 1.55; color: var(--muted); }
+.ck-notes li { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
+.ck-card .ctl { display: grid; gap: 8px; }
+@media (max-width: 1000px) { .clock-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) {
+  .clock { left: 6px; right: 6px; bottom: 6px; padding: 8px 10px; }
+  .ck-tabs button { padding: 7px 7px; font-size: 10px; }
+  .ck-body { grid-template-columns: minmax(0, 1fr); }
+  .ck-counters { grid-template-columns: repeat(2, auto); }
+  .ck-phase { flex-basis: 100%; order: 5; }
+  body.clocking .hud.bl, body.clocking .hud.br { display: none; }
+}
+@media (max-width: 760px) {
+  .hud.tr { grid-template-columns: auto; justify-items: end; }
+  .hud-btns .btn { min-height: 30px; padding: 0 12px; font-size: 11px; }
+  .hud.tl { top: 104px; }
+}

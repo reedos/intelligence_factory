@@ -30,6 +30,13 @@ for (const s of scenarios) {
       await p.evaluate(() => { for (const b of document.querySelectorAll('#parts button')) b.click(); });
     }
   }
+  // play each clock for a moment on the current scene, in every layer
+  for (const sim of ['training', 'outage', 'hotday', 'inference']) {
+    await p.evaluate(id => document.querySelector(`[data-play="${id}"]`).click(), sim);
+    await p.waitForTimeout(1500);
+    for (const mode of ['data', 'heat', 'power']) { await p.evaluate(m => window.ifx.setMode(m), mode); await p.waitForTimeout(300); }
+  }
+  await p.evaluate(() => document.getElementById('ck-x').click());
   console.log(`${s.accel} ${s.power || ''} ${s.cooling} ${s.meterMW} MW: ok so far (${errors.length} errors)`);
 }
 console.log(errors.length ? `errors:\n  ${[...new Set(errors)].join('\n  ')}` : 'no page errors');

@@ -357,6 +357,29 @@ function fitDepthRange(c) {
 // ---------- loop ----------
 const timer = new THREE.Timer();
 let visible = true, t = 0, frameN = 0;
+// ---------- the clock drives the flows: null means steady state ----------
+let levels = null, levelsWere = null;
+export const setLevels = L => { levels = L; };
+const POWERISH = new Set(['lv', 'hvdc', 'dc', 'bus12', 'core']);
+function applyLevels(b) {
+  if (!levels && !levelsWere) return;
+  const L = levels, heat = ui.mode === 'heat';
+  if (!L) {                                               // clock closed: put every flow in every scene back
+    built.forEach(bb => bb && [bb.flows, bb.dataFlows, bb.heatFlows].forEach(list => list?.forEach(f => f.setLevel?.(1, 1))));
+    levelsWere = null; return;
+  }
+  for (const f of flowsFor(b)) {
+    if (!f.setLevel) continue;
+    if (f.role === 'standby') f.setLevel(L.standby > 0 ? 5 : 1, L.standby > 0 ? 2.8 : 1);
+    else if (heat) f.setLevel(f.cls === 'vapor' ? L.vapor : L.cool);
+    else if (f.cls === 'hv') f.setLevel(L.grid);
+    else if (f.cls === 'mv') f.setLevel(L.mv);
+    else if (POWERISH.has(f.cls) && ui.mode === 'power') f.setLevel(Math.max(0.08, L.load));
+    else f.setLevel(1);
+  }
+  levelsWere = L;
+}
+
 const tickers = new Set();
 export const onTick = fn => { tickers.add(fn); return () => tickers.delete(fn); };
 new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(view);
@@ -368,6 +391,7 @@ function loop(ts) {
   if (!visible || document.hidden || ui.scene < 0 || !built[ui.scene]) return;
   t += reduced ? dt * 0.35 : dt;
   const b = built[ui.scene];
+  applyLevels(b);
   for (const f of flowsFor(b)) f.update(t);
   b.update(t, dt);
   stepTween(dt);

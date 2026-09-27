@@ -297,8 +297,8 @@ export function build({ quality, model }) {
   }
   S.slab(6, 2.4, 3, MAT.steel, 405, 0.15, -145);                             // fuel polishing skid
   // standby flow: generators to the MV network (dim, slow)
-  flows.push(flow([[285, uY, -170], [262, uY, -170], [262, uY, -112], [225, uY, -112]], 'mv', { count: 10, speed: 12, size: 1.0, k: 0.8, opacity: 0.45, trailK: 0.15 }));
-  if (gensetMx.length > 20) flows.push(flow([[285, uY, 40], [262, uY, 40], [262, uY, 3], [225, uY, 3]], 'mv', { count: 10, speed: 12, size: 1.0, k: 0.8, opacity: 0.45, trailK: 0.15 }));
+  flows.push(flow([[285, uY, -170], [262, uY, -170], [262, uY, -112], [225, uY, -112]], 'mv', { count: 10, speed: 12, size: 1.0, k: 0.8, opacity: 0.45, trailK: 0.15, role: 'standby' }));
+  if (gensetMx.length > 20) flows.push(flow([[285, uY, 40], [262, uY, 40], [262, uY, 3], [225, uY, 3]], 'mv', { count: 10, speed: 12, size: 1.0, k: 0.8, opacity: 0.45, trailK: 0.15, role: 'standby' }));
 
   // ---------- battery storage yard ----------
   const bessBox = new Builder();

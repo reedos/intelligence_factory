@@ -97,7 +97,8 @@ export const mtx = (x = 0, y = 0, z = 0, ry = 0, s = 1) => { _o.position.set(x, 
 // ---------- energy flows: pulses that travel along a conductor ----------
 const pulseGeo = new THREE.SphereGeometry(1, 10, 8);
 export class Flow {
-  constructor(points, css, { count = 24, speed = 1, size = 1, k = 2.2, opacity = 1, trail = true, trailK = 0.35, trailR } = {}) {
+  constructor(points, css, { count = 24, speed = 1, size = 1, k = 2.2, opacity = 1, trail = true, trailK = 0.35, trailR, role } = {}) {
+    this.role = role; this.gain = 1; this.bright = 1; this.acc = 0; this.lastT = undefined;
     this.path = new THREE.CurvePath();
     const pts = points.map(p => new THREE.Vector3(...p));
     for (let i = 0; i < pts.length - 1; i++) this.path.add(new THREE.LineCurve3(pts[i], pts[i + 1]));
@@ -113,10 +114,14 @@ export class Flow {
       this.group.add(this.trail);
     }
     this.v = new THREE.Vector3();
+    this.base = { color: this.color.clone(), opacity, trail: this.trail?.material.color.clone() };
     this.update(0);
   }
+  // position advances by speed × gain, so the clock can speed a flow up or stop it without a jump
   update(t) {
-    const step = (this.speed * t) / this.len;
+    const dt = this.lastT === undefined ? 0 : Math.max(0, t - this.lastT);
+    this.lastT = t; this.acc += this.speed * this.gain * dt;
+    const step = this.acc / this.len;
     for (let i = 0; i < this.count; i++) {
       const u = ((i / this.count + step + this.phase) % 1 + 1) % 1;
       this.path.getPointAt(u, this.v);
@@ -127,7 +132,19 @@ export class Flow {
     this.mesh.instanceMatrix.needsUpdate = true;
   }
 }
-export const flow = (points, volt, opts) => new Flow(points, VOLT[volt]?.css ?? volt, opts);
+Flow.prototype.setLevel = function (gain, bright = 1) {
+  this.gain = gain;
+  const on = gain > 0.02;                                 // the layer switch owns group.visible; the clock hides the parts
+  if (this.mesh.visible !== on) { this.mesh.visible = on; if (this.trail) this.trail.visible = on; }
+  if (bright !== this.bright) {
+    this.bright = bright;
+    const m = this.mesh.material;
+    m.color.copy(this.base.color).multiplyScalar(bright);
+    m.opacity = Math.min(1, this.base.opacity * bright); m.transparent = m.opacity < 1;
+    if (this.trail) this.trail.material.color.copy(this.base.trail).multiplyScalar(bright);
+  }
+};
+export const flow = (points, volt, opts) => Object.assign(new Flow(points, VOLT[volt]?.css ?? volt, opts), { cls: volt });
 
 // ---------- recurring parts ----------
 // A stack of insulator sheds on a core: porcelain or polymer.

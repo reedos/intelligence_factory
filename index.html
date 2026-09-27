@@ -50,13 +50,13 @@
         <div class="hud bl"><div class="scalebar"><span id="scale-label">100 m</span><i id="scale-bar"></i></div></div>
         <div class="hud br" id="legend"></div>
         <div class="hud tr">
-          <button type="button" class="btn story-btn" id="story-btn" aria-pressed="false">Story</button>
+          <div class="hud-btns"><button type="button" class="btn story-btn" id="story-btn" aria-pressed="false">Story</button><button type="button" class="btn story-btn" id="clock-btn" aria-pressed="false">Clock</button></div>
           <div class="mode" role="group" aria-label="Layer">
             <button type="button" data-mode="power" aria-pressed="true" style="--c: var(--mv)"><i></i>Power</button>
             <button type="button" data-mode="data" aria-pressed="false" style="--c: var(--nvl)"><i></i>Data</button>
             <button type="button" data-mode="heat" aria-pressed="false" style="--c: var(--warm)"><i></i>Heat</button>
           </div>
-          <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>1–6 jumps scale · P D H switch layers · ← → steps parts · S tells the story</p>
+          <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>1–6 jumps scale · P D H switch layers · ← → steps parts · S story · C clock</p>
         </div>
         <div class="veil" id="veil">Building the region…</div>
       </div>
@@ -93,6 +93,15 @@
       <span style="--k: var(--net)"><i></i>Network: NVLink, NICs, switches, optics</span>
       <span style="--k: var(--work)"><i></i>Other silicon: CPUs, memory, drives</span>
     </div>
+  </section>
+
+  <section class="clocks" aria-labelledby="clocks-h">
+    <div class="sec-head">
+      <p class="eyebrow">Time</p>
+      <h2 id="clocks-h">Four clocks</h2>
+      <p>A campus is never steady. Training swings it every two seconds, an outage hands it to batteries and diesel in ten, and over a day the weather and the people asking questions move it by the hour. Each chart follows your scenario; play one to watch the flows in 3D react.</p>
+    </div>
+    <div class="clock-grid" id="clock-grid"></div>
   </section>
 
   <section class="stairs" aria-labelledby="stairs-h">

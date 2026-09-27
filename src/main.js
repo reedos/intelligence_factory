@@ -5,6 +5,7 @@ import * as stage from './app/stage.js';
 import './app/sections.js';
 import './app/sources-ui.js';
 import './app/story.js';
+import './app/clock-ui.js';
 import './app/scenario.js';
 
 stage.start();
