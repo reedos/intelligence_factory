@@ -4,6 +4,7 @@ import { VOLT, BASIS } from '../data.js';
 import { store, on, emit } from './store.js';
 import { goAttr } from './links.js';
 import { calc, tokenFigures } from '../model/tokens.js';
+import { MEDIA_LADDER, copperWallSVG, opticsCutawaySVG } from '../diagrams/links-media.js';
 export { calc, tokenFigures };
 
 const $ = id => document.getElementById(id);
@@ -216,6 +217,28 @@ function renderLinks() {
   $('census').innerHTML = cards.map(([t, cls, rows, link]) => `<div class="cz" style="--c:${C(cls)}"><h3 ${goAttr(link, t)}>${t}${link ? ' <span aria-hidden="true">↗</span>' : ''}</h3><dl>${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl></div>`).join('');
 }
 
+// ---------- the media ladder, the copper wall, cutaway optics (static reference material) ----------
+let mediaRendered = false;
+function renderLinksMedia() {
+  if (mediaRendered) return; // fixed reference figures: not scenario-dependent, render once
+  mediaRendered = true;
+  $('media-ladder').innerHTML = MEDIA_LADDER.map(r => `<div class="ml-row" style="--c:${C(r.cls)}">
+    <h4>${r.name}</h4>
+    <button type="button" class="chip ${r.basis}" data-src="links:${r.id}" aria-expanded="false" aria-label="${BASIS[r.basis].label}: sources">${BASIS[r.basis].short}</button>
+    <p class="ml-scope">${r.scope}</p>
+    <p class="ml-what">${r.what}</p>
+    <div class="ml-facts">
+      <div><dt>Reach</dt><dd>${r.reach}</dd></div>
+      <div><dt>Power</dt><dd>${r.power}</dd></div>
+      <div><dt>Where it sits here</dt><dd>${r.where}</dd></div>
+    </div>
+  </div>`).join('');
+  $('fig-copperwall').innerHTML = copperWallSVG();
+  $('cap-copperwall').innerHTML += ` <button type="button" class="chip typical" data-src="links:copperwall" aria-expanded="false" aria-label="Industry typical: sources">Typical</button>`;
+  $('fig-optics-cutaway').innerHTML = opticsCutawaySVG();
+  $('cap-optics-cutaway').innerHTML += ` <button type="button" class="chip spec" data-src="links:cutaway-dsp" aria-expanded="false" aria-label="Published spec: DSP module sources">Spec · DSP</button> <button type="button" class="chip spec" data-src="links:cutaway-lpo" aria-expanded="false" aria-label="Published spec: LPO sources">Spec · LPO</button> <button type="button" class="chip spec" data-src="links:cutaway-cpo" aria-expanded="false" aria-label="Published spec: CPO sources">Spec · CPO</button>`;
+}
+
 // ---------- temperatures ----------
 function renderTemps() {
   const TEMPS = store.C.TEMPS;
@@ -293,7 +316,7 @@ export function setCarbon(g) { calc.carbon = g; $('carbon').value = g; renderTok
 // ---------- wiring ----------
 function renderAll() {
   if (!calc.tpsTouched) { calc.tokPerGpu = store.M.tokPerGpuRef; T.tps.set(calc.tokPerGpu); }
-  renderLedger(); renderStairs(); renderBandwidth(); renderLinks(); renderTemps(); renderParallel(); renderBom(); renderTokens();
+  renderLedger(); renderStairs(); renderBandwidth(); renderLinks(); renderLinksMedia(); renderTemps(); renderParallel(); renderBom(); renderTokens();
 }
 on('scenario', renderAll);
 on('pin', renderLedger);
