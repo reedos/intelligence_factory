@@ -1,5 +1,6 @@
 // Scene 2: power room & data hall, drawn as a section cut. Units are meters.
 import { THREE, MAT, Builder, mtx, flow, insulator, canvasTex, sky, person, glowMat, textSprite, spinners } from '../kit.js';
+import { rbox, bundle, blinkers, lamps, plumes, movers, floorMirror } from '../fx.js';
 
 // Cabinet front textures (drawn once).
 function frontTex(kind) {
@@ -56,19 +57,19 @@ function frontTex(kind) {
     }
   });
 }
-const boxWithFront = (w, h, d, front, side) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [side, side, side, side, front, side]);
-
 export function build({ quality, model }) {
   const dc = model.power.id === 'dc800', air = model.cooling.id === 'air', nvl = model.accel.gpusPerRack === 72;
   const itV = dc ? 'hvdc' : 'lv';
   const scene = new THREE.Scene();
   scene.add(sky('#0b1220', '#18233a', '#3a4254', 800));
-  scene.add(new THREE.HemisphereLight(0x9fb3d6, 0x202226, 0.9));
-  const key = new THREE.DirectionalLight(0xffe0bf, 1.7);
+  // dark, moody hall: a low cool ambient and a dim shadow-casting key stand in for the skylights and
+  // emergency fixtures; the ceiling fixtures added below (fx.lamps) carry the actual sense of light
+  scene.add(new THREE.HemisphereLight(0x2e3a52, 0x0a0b0e, 0.58));
+  const key = new THREE.DirectionalLight(0xcfe0ff, 0.55);
   key.position.set(-40, 60, 45); key.target.position.set(0, 0, -2);
   if (quality.shadows) { key.castShadow = true; key.shadow.mapSize.set(4096, 4096); Object.assign(key.shadow.camera, { left: -48, right: 48, top: 32, bottom: -32, near: 10, far: 180 }); key.shadow.bias = -0.0003; key.shadow.normalBias = 0.04; }
   scene.add(key, key.target);
-  const fill = new THREE.DirectionalLight(0x86a2ff, 0.45); fill.position.set(40, 30, 60); scene.add(fill);
+  const fill = new THREE.DirectionalLight(0x1c2a48, 0.16); fill.position.set(40, 30, 60); scene.add(fill);
 
   const flows = [], dataFlows = [], heatFlows = [];
   const S = new Builder(), N = new Builder();
@@ -104,21 +105,34 @@ export function build({ quality, model }) {
   flows.push(flow([[usX - 3, -0.2, usZ], [usX - 0.9, 0.5, usZ], [usX - 0.9, 2.9, usZ]], 'mv', { count: 6, speed: 1.5, size: 0.11, trailR: 0.03 }));
 
   // ---------- electrical room ----------
-  const lineup = (n, w, h, d, tex, x0, z, facing = 1) => {
+  // rounded cabinet: a smooth painted body (merged into S, one draw call per material) plus a flat
+  // textured front panel held a hair proud of the body so the two never go coplanar.
+  const cabinetRow = (n, w, h, d, tex, x0, z, facing = 1) => {
+    const bw = n * w;
+    const sideColor = tex === TEX.swgr || (tex === TEX.cdu && !air) || (tex === TEX.ups && dc) ? 0xc3c7ca : 0x2b2f35;
+    const bodyMat = new THREE.MeshStandardMaterial({ color: sideColor, roughness: 0.55, metalness: 0.22 });
+    rbox(S, bw - 0.05, h - 0.02, d - 0.05, bodyMat, x0 + bw / 2, h / 2, z, { r: 0.05, ry: facing < 0 ? Math.PI : 0 });
     const t = tex.clone(); t.repeat.set(n, 1); t.needsUpdate = true;
-    const front = new THREE.MeshStandardMaterial({ map: t, roughness: 0.55, metalness: 0.2 });
-    const side = new THREE.MeshStandardMaterial({ color: tex === TEX.swgr || (tex === TEX.cdu && !air) || (tex === TEX.ups && dc) ? 0xc3c7ca : 0x2b2f35, roughness: 0.55, metalness: 0.2 });
-    const m = boxWithFront(n * w, h, d, front, side);
-    m.position.set(x0 + n * w / 2, h / 2, z); if (facing < 0) m.rotation.y = Math.PI;
-    m.castShadow = m.receiveShadow = true; scene.add(m); return m;
+    // the dim hall key/fill leaves a dark cabinet graphic near-black; lift just the panel's own texture back
+    // out via a low-intensity emissive map (same texture, no extra lights, no extra draw calls or shadows)
+    const frontMat = new THREE.MeshStandardMaterial({ map: t, roughness: 0.5, metalness: 0.2, emissiveMap: t, emissive: 0xffffff, emissiveIntensity: 0.22 });
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(bw - 0.08, h - 0.06), frontMat);
+    panel.position.set(x0 + bw / 2, h / 2, z + (d / 2 + 0.016) * facing);
+    if (facing < 0) panel.rotation.y = Math.PI;
+    panel.receiveShadow = true; scene.add(panel);
+    return { x0, bw, h, z };
   };
   const TEX = { swgr: frontTex('swgr'), ups: frontTex(dc ? 'sst' : 'ups'), batt: frontTex('batt'), cdu: frontTex(air ? 'inrow' : 'cdu'), rack: frontTex(nvl ? 'rack' : 'rackH100'), net: frontTex('net') };
-  lineup(14, 0.9, 2.3, 1.5, TEX.swgr, -33.5, -15.6);                                    // 480 V switchgear against the back wall
+  cabinetRow(14, 0.9, 2.3, 1.5, TEX.swgr, -33.5, -15.6);                                 // 480 V switchgear against the back wall
   const upsH = dc ? 2.3 : 2.0;
-  lineup(3, 1.1, upsH, 1.0, TEX.ups, -33.5, -6.5); lineup(3, 1.1, upsH, 1.0, TEX.ups, -29.6, -6.5); lineup(3, 1.1, upsH, 1.0, TEX.ups, -25.7, -6.5);
-  lineup(12, 0.6, 2.0, 0.8, TEX.batt, -33.5, 1.5); lineup(12, 0.6, 2.0, 0.8, TEX.batt, -33.5, 5.5, -1);
-  // cable tray over the gear, bus riser from the UPS to the ceiling
-  N.box(12.6, 0.1, 0.6, MAT.galv, -27.2, 3.3, -15.2); N.box(12.6, 0.25, 0.04, MAT.galv, -27.2, 3.42, -15.5); N.box(12.6, 0.25, 0.04, MAT.galv, -27.2, 3.42, -14.9);
+  cabinetRow(3, 1.1, upsH, 1.0, TEX.ups, -33.5, -6.5); cabinetRow(3, 1.1, upsH, 1.0, TEX.ups, -29.6, -6.5); cabinetRow(3, 1.1, upsH, 1.0, TEX.ups, -25.7, -6.5);
+  cabinetRow(12, 0.6, 2.0, 0.8, TEX.batt, -33.5, 1.5); cabinetRow(12, 0.6, 2.0, 0.8, TEX.batt, -33.5, 5.5, -1);
+  // cable ladder over the gear: two rails and open rungs (not a solid pan), carrying bundled feeder cable;
+  // bus riser from the UPS to the ceiling
+  N.box(12.6, 0.25, 0.04, MAT.galv, -27.2, 3.42, -15.5); N.box(12.6, 0.25, 0.04, MAT.galv, -27.2, 3.42, -14.9);
+  for (let x = -27.2 - 6.2; x <= -27.2 + 6.2; x += 0.55) N.box(0.05, 0.04, 0.6, MAT.galv, x, 3.3, -15.2);
+  bundle(N, [-27.2 - 6.2, 3.32, -15.35], [-27.2 + 6.2, 3.32, -15.35], { n: 10, r: 0.017, spread: 0.11, sag: 0.025, mats: [MAT.black, MAT.darkSteel, MAT.copper], seed: 3 });
+  bundle(N, [-27.2 - 6.2, 3.32, -15.05], [-27.2 + 6.2, 3.32, -15.05], { n: 7, r: 0.015, spread: 0.09, sag: 0.02, mats: [MAT.black, MAT.pipeBlue], seed: 7 });
   S.box(0.5, 3.6, 0.6, MAT.alu, -22.5, 3.8, -6.5);                                       // riser
   S.box(10.3, 0.5, 0.6, MAT.alu, -17.4, 5.6, -6.5);                                      // main busway to the hall
   for (let i = 0; i < 4; i++) N.strut([-20 + i * 2.6, 5.85, -6.5], [-20 + i * 2.6, WALL_H - 0.9, -6.5], 0.02, MAT.darkSteel, 4);
@@ -152,13 +166,28 @@ export function build({ quality, model }) {
     m.castShadow = m.receiveShadow = true; scene.add(m); return m;
   };
   instanced(RW - 0.02, 2.3, 1.2, TEX.rack, 0x131519, rackMx);
-  instanced(CW - 0.02, 2.3, 1.2, TEX.cdu, 0xc9ccce, cduMx);
+  // CDU / in-row cooler cabinets: rounded bodies merge straight into S (no extra draw call), the shared
+  // front graphic rides as one instanced panel held proud of every body by the same gap as the electrical room.
+  {
+    const cduH = 2.3, cduBody = new THREE.MeshStandardMaterial({ color: 0xc9ccce, roughness: 0.55, metalness: 0.25 });
+    cduMx.forEach(it => rbox(S, CW - 0.02 - 0.05, cduH - 0.02, 1.2 - 0.05, cduBody, it.x, cduH / 2, it.z, { r: 0.05, ry: it.f > 0 ? 0 : Math.PI }));
+    const cduFront = new THREE.MeshStandardMaterial({ map: TEX.cdu, roughness: 0.5, metalness: 0.2 });
+    const cduFrontGeo = new THREE.PlaneGeometry(CW - 0.02 - 0.08, cduH - 0.06); cduFrontGeo.translate(0, cduH / 2, 1.2 / 2 + 0.016);
+    const cduPanels = new THREE.InstancedMesh(cduFrontGeo, cduFront, cduMx.length);
+    cduMx.forEach((it, i) => cduPanels.setMatrixAt(i, mtx(it.x, 0, it.z, it.f > 0 ? 0 : Math.PI)));
+    cduPanels.receiveShadow = true; scene.add(cduPanels);
+  }
   // hot aisle containment: glass roof and end doors per pod
   const glass = new THREE.MeshPhysicalMaterial({ color: 0xa8c4dd, roughness: 0.08, metalness: 0, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide });
   for (let p = 0; p < 3; p++) {
     const za = rowZs[p * 2], zb = rowZs[p * 2 + 1], zc = (za + zb) / 2, aisle = Math.abs(zb - za) - 1.2;
     const roofM = new THREE.Mesh(new THREE.BoxGeometry(rowX1 - rowX0, 0.04, aisle), glass); roofM.position.set((rowX0 + rowX1) / 2, 2.35, zc); scene.add(roofM);
-    for (const x of [rowX0 - 0.02, rowX1 + 0.02]) { const d = new THREE.Mesh(new THREE.BoxGeometry(0.04, 2.3, aisle), glass); d.position.set(x, 1.15, zc); scene.add(d); N.box(0.06, 2.3, 0.06, MAT.darkSteel, x, 1.15, zc - aisle / 2); N.box(0.06, 2.3, 0.06, MAT.darkSteel, x, 1.15, zc + aisle / 2); N.box(0.06, 0.06, aisle, MAT.darkSteel, x, 2.33, zc); }
+    for (const x of [rowX0 - 0.02, rowX1 + 0.02]) {
+      const d = new THREE.Mesh(new THREE.BoxGeometry(0.04, 2.3, aisle), glass); d.position.set(x, 1.15, zc); scene.add(d);
+      N.box(0.06, 2.3, 0.06, MAT.darkSteel, x, 1.15, zc - aisle / 2); N.box(0.06, 2.3, 0.06, MAT.darkSteel, x, 1.15, zc + aisle / 2); N.box(0.06, 0.06, aisle, MAT.darkSteel, x, 2.33, zc);
+      N.box(0.05, 2.24, 0.05, MAT.darkSteel, x, 1.15, zc);                                // center mullion: two door leaves, not one sheet of glass
+      N.box(0.03, 0.22, 0.05, MAT.black, x, 1.05, zc - aisle / 4); N.box(0.03, 0.22, 0.05, MAT.black, x, 1.05, zc + aisle / 4); // door handles
+    }
     for (let x = rowX0; x <= rowX1; x += 1.2) N.box(0.04, 0.05, aisle, MAT.darkSteel, x, 2.37, zc);
   }
   // overhead busway per row with tap-off boxes and drops
@@ -205,7 +234,10 @@ export function build({ quality, model }) {
   N.box(leafX - rowX0 - 3, 0.04, 0.3, MAT.yellowTray, (leafX + rowX0 + 3) / 2, 4.5, 10.5);
   // patch panels on the spine row
   for (let i = 0; i < 10; i++) N.box(0.5, 0.18, 0.08, MAT.white, rowX0 + 2 + i * 0.62, 2.38, 11.1);
-  const eth = (pts, n, s = 0.09) => dataFlows.push(flow(pts, 'eth', { count: n, speed: 2.4, size: s, k: 2.6, trailR: 0.03, trailK: 0.5 }));
+  // k tuned down from the pre-mood-lighting default (2.6): at hotspot zoom a marker this bright fills enough
+  // screen space that hall's own bloom (tuned for the fixtures) blows it into an oversized blurred sphere;
+  // same hue and path, just under the bloom knee at close range
+  const eth = (pts, n, s = 0.09) => dataFlows.push(flow(pts, 'eth', { count: n, speed: 2.4, size: s, k: 1.5, trailR: 0.03, trailK: 0.5 }));
   rowZs.forEach((z, r) => {
     const mid = rackMx.filter(k => k.z === z)[10];
     eth([[mid.x, 2.35, z], [mid.x, 4.3, z], [leafX, 4.3, z], [leafX, 2.35, z]], 14);          // racks to the leaf
@@ -244,26 +276,26 @@ export function build({ quality, model }) {
   heatFlows.push(flow([[X0 + 2, hdrY + 3, -16.4], [X0 + 2, hdrY, -16.4], [rowX1 + 2, hdrY, -16.4]], 'cool', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 }));
   heatFlows.push(flow([[rowX1 + 2, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY + 2.8, -16.4]], 'warm', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 }));
   cduMx.forEach(c => {
-    heatFlows.push(flow([[c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z]], 'cool', { count: 5, speed: 2.2, size: 0.13, k: 2.6, trail: false }));
-    heatFlows.push(flow([[c.x + 0.15, 2.3, c.z], [c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, hdrY - 0.7, -16.4]], 'warm', { count: 5, speed: 2.2, size: 0.13, k: 2.6, trail: false }));
+    heatFlows.push(flow([[c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z]], 'cool', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false }));
+    heatFlows.push(flow([[c.x + 0.15, 2.3, c.z], [c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, hdrY - 0.7, -16.4]], 'warm', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false }));
   });
   if (!air) rowZs.forEach((z, r) => {
     const lz = z - facing[r] * 0.35;
     for (let gI = 0; gI < groups; gI++) {
       const x0 = rowX0 + gI * (CW + perGroup * RW + GAP), x1 = x0 + CW + perGroup * RW;
-      heatFlows.push(flow([[x0 + CW / 2, 2.45, lz - 0.05], [x1, 2.45, lz - 0.05]], 'cool', { count: 6, speed: 1.2, size: 0.1, k: 2.6, trail: false }));
-      heatFlows.push(flow([[x1, 2.45, lz + 0.05], [x0 + CW / 2, 2.45, lz + 0.05]], 'warm', { count: 6, speed: 1.2, size: 0.1, k: 2.6, trail: false }));
+      heatFlows.push(flow([[x0 + CW / 2, 2.45, lz - 0.05], [x1, 2.45, lz - 0.05]], 'cool', { count: 6, speed: 1.2, size: 0.1, k: 1.5, trail: false }));
+      heatFlows.push(flow([[x1, 2.45, lz + 0.05], [x0 + CW / 2, 2.45, lz + 0.05]], 'warm', { count: 6, speed: 1.2, size: 0.1, k: 1.5, trail: false }));
     }
   });
   // hot air: along each contained aisle, out the end, through the fan wall, back cool
   for (let p = 0; p < 3; p++) {
     const zc = (rowZs[p * 2] + rowZs[p * 2 + 1]) / 2;
-    for (const y of [0.8, 1.5, 2.1]) heatFlows.push(flow([[rowX0 + 1, y, zc], [rowX1 + 1.2, y + 0.4, zc], [X1 - 1.8, y + 1.2, zc]], 'air', { count: 16, speed: 2.2, size: 0.16, k: 2.6, opacity: 0.9, trail: false }));
+    for (const y of [0.8, 1.5, 2.1]) heatFlows.push(flow([[rowX0 + 1, y, zc], [rowX1 + 1.2, y + 0.4, zc], [X1 - 1.8, y + 1.2, zc]], 'air', { count: 16, speed: 2.2, size: 0.13, k: 1.5, opacity: 0.9, trail: false }));
     heatFlows.push(flow([[X1 - 2.2, 0.7, zc + 3.3], [rowX0 + 2, 0.5, zc + 3.3]], 'cool', { count: 14, speed: 2.0, size: 0.12, k: 2.0, opacity: 0.6, trail: false }));
   }
   // spine → frames → the other hall
-  dataFlows.push(flow([[rowX0 + 4.8, 4.4, 10.5], [rowX0 + 4.8, 4.4, 14.2], [rowX0 + 8.2, 4.4, 14.2], [rowX0 + 9.4, 4.4, 14.2], [rowX0 + 9.4, 0.1, 14.2]], 'eth', { count: 22, speed: 2.2, size: 0.09, k: 2.6, trailR: 0.03, trailK: 0.5 }));
-  for (let i = 0; i < 8; i += 2) dataFlows.push(flow([[rowX0 + 1.2 + i * 0.92, 4.4, 14.2], [rowX0 + 1.2 + i * 0.92, 2.2, 14.2]], 'eth', { count: 4, speed: 1.4, size: 0.06, k: 2.6, trail: false }));
+  dataFlows.push(flow([[rowX0 + 4.8, 4.4, 10.5], [rowX0 + 4.8, 4.4, 14.2], [rowX0 + 8.2, 4.4, 14.2], [rowX0 + 9.4, 4.4, 14.2], [rowX0 + 9.4, 0.1, 14.2]], 'eth', { count: 22, speed: 2.2, size: 0.09, k: 1.5, trailR: 0.03, trailK: 0.5 }));
+  for (let i = 0; i < 8; i += 2) dataFlows.push(flow([[rowX0 + 1.2 + i * 0.92, 4.4, 14.2], [rowX0 + 1.2 + i * 0.92, 2.2, 14.2]], 'eth', { count: 4, speed: 1.4, size: 0.06, k: 1.5, trail: false }));
   // ---------- parallelism overlay (data layer): stages and replicas on the rack tops ----------
   const stageCol = ['#ff5fd2', '#c77dff', '#7c9cff', '#5ce1c6'];
   const par = new THREE.Group();
@@ -273,7 +305,7 @@ export function build({ quality, model }) {
     const racks = rackMx.filter(k => k.z === z);
     racks.forEach((k, i) => {
       tints[i % 4].push(mtx(k.x, 2.34, z));                       // one instanced mesh per stage color, not one mesh per rack
-      if (i % 4 !== 3 && r >= 4) dataFlows.push(flow([[k.x, 2.5, z], [racks[i + 1].x, 2.5, z]], 'eth', { count: 2, speed: 0.6, size: 0.05, k: 2.4, trail: false }));
+      if (i % 4 !== 3 && r >= 4) dataFlows.push(flow([[k.x, 2.5, z], [racks[i + 1].x, 2.5, z]], 'eth', { count: 2, speed: 0.6, size: 0.05, k: 1.5, trail: false }));
     });
   });
   tints.forEach((list, c) => { const m = new THREE.InstancedMesh(tintGeo, stageMats[c], list.length); list.forEach((mx, n) => m.setMatrixAt(n, mx)); par.add(m); });
@@ -284,7 +316,66 @@ export function build({ quality, model }) {
   // headers leave through the roof to the dry coolers
   S.cyl(0.26, 3, MAT.pipeBlue, X0 + 2, hdrY + 1.4, -16.4, 16); S.cyl(0.26, 3.6, MAT.pipeRed, X0 + 2.8, hdrY + 1.1, -16.4, 16);
 
-  // light fixtures over the aisles
+  // ---------- lighting fixtures, activity and finishing detail ----------
+  // ceiling fixtures: warm pools over the power room, cool white rows over the data hall aisles
+  const roomLampZs = quality.mobile ? [-9] : [-13, -6.5, 2];
+  const roomLampItems = [];
+  for (let x = -37; x <= -23; x += quality.mobile ? 8 : 4) for (const lz of roomLampZs) roomLampItems.push({ p: [x, 6.9, lz], w: 1.1, d: 1.0 });
+  scene.add(lamps(roomLampItems, { color: '#ffcf9e', k: 2.0, halo: 1.8, haloOpacity: 0.28 }));
+  const hallLampZs = [-14, -6.4, 0.2, 8].filter((_, i) => !quality.mobile || i % 2 === 0);
+  const hallLampItems = [];
+  hallLampZs.forEach(lz => { for (let x = rowX0 - 3; x <= leafX + 3; x += quality.mobile ? 8 : 4) hallLampItems.push({ p: [x, 6.2, lz], w: 1.3, d: 0.5 }); });
+  scene.add(lamps(hallLampItems, { color: '#dce8ff', k: 1.9, halo: 1.8, haloOpacity: 0.26 }));
+
+  // sprinkler branch lines with pendant heads, over the aisles
+  [-9, -2.4, 4.2].forEach(sz => {
+    N.cylX(0.035, rowX1 - rowX0 + 2, MAT.galv, (rowX0 + rowX1) / 2, 6.7, sz, 8);
+    for (let x = rowX0 - 1; x <= rowX1 + 1; x += 3) { N.cyl(0.018, 0.12, MAT.darkSteel, x, 6.6, sz, 6); N.cyl(0.05, 0.02, MAT.orange, x, 6.53, sz, 8); }
+  });
+
+  // cool LED strips along every rack top (a thin glowing line, distinct from the canvas texture's static dots)
+  const ledStrip = glowMat('#8fe4ff', 1.6, 1);
+  rowZs.forEach(z => N.box(rowX1 - rowX0, 0.012, 0.05, ledStrip, (rowX0 + rowX1) / 2, 2.312, z));
+
+  // rack-front status LEDs, blinking at their own rate; modest count, fewer on phones
+  const perRackLed = quality.mobile ? 1 : 2;
+  const ledItems = [];
+  rackMx.forEach((k, i) => {
+    if (quality.mobile && i % 2) return;
+    for (let j = 0; j < perRackLed; j++) ledItems.push({
+      p: [k.x + (j - (perRackLed - 1) / 2) * 0.1, 0.3 + ((i * 7 + j * 5) % 15) / 15 * 1.6, k.z + k.f * 0.61],
+      color: (i * 3 + j) % 11 === 0 ? '#ff5a5a' : '#5cf29a',
+      rate: 0.25 + ((i * 13 + j * 5) % 10) / 10 * 1.3, duty: 0.5,
+    });
+  });
+  const rackLeds = blinkers(ledItems, { size: 0.022, k: 3 });
+  scene.add(rackLeds.mesh);
+
+  // people walking the aisles (in addition to the standing figures below)
+  const walkers = quality.mobile
+    ? [[[rowX0 - 1, 0, -6.4], [rowX1 + 1, 0, -6.4], [rowX0 - 1, 0, -6.4]]]
+    : [[[rowX0 - 1, 0, -6.4], [rowX1 + 1, 0, -6.4], [rowX0 - 1, 0, -6.4]], [[rowX1 + 1, 0, 0.2], [rowX0 - 1, 0, 0.2], [rowX1 + 1, 0, 0.2]]];
+  const strollers = movers(b => person(b, 0, 0, 0), walkers, { speed: 1.1 });
+  scene.add(strollers.group);
+
+  // faint warm air rising in the hot aisles: purely atmospheric, additive and subtle
+  const plumeEmitters = [];
+  for (let p = 0; p < 3; p++) {
+    const za = rowZs[p * 2], zb = rowZs[p * 2 + 1], zc = (za + zb) / 2;
+    for (const dz of quality.mobile ? [0] : [-2.5, 2.5]) plumeEmitters.push({ p: [(rowX0 + rowX1) / 2, 2.0, zc + dz], dir: [0, 1, 0] });
+  }
+  const hotPlumes = plumes(plumeEmitters, { perEmitter: quality.mobile ? 8 : 16, size: 0.5, grow: 2.4, life: 5, rise: 0.35, drift: [0.15, 0, 0], spread: 0.5, color: '#ffb37a', opacity: 0.16, additive: true });
+  scene.add(hotPlumes.points);
+
+  // polished-concrete floor tile joints
+  const tileTex = canvasTex(64, 64, (g, w, h) => { g.clearRect(0, 0, w, h); g.strokeStyle = 'rgba(8,10,12,0.4)'; g.lineWidth = 2; g.strokeRect(1, 1, w - 2, h - 2); }, { repeat: [Math.round((X1 - X0) / 0.6), Math.round((Z1 - Z0) / 0.6)] });
+  const tiles = new THREE.Mesh(new THREE.PlaneGeometry(X1 - X0, Z1 - Z0), new THREE.MeshBasicMaterial({ map: tileTex, transparent: true, depthWrite: false, opacity: 0.9 }));
+  tiles.rotation.x = -Math.PI / 2; tiles.position.set((X0 + X1) / 2, 0.17, 0); scene.add(tiles);
+
+  // polished-concrete floor reflection, a hair above the slab, desktop only
+  if (quality.reflections) scene.add(floorMirror(X1 - X0 - 1, Z1 - Z0 - 1, { x: (X0 + X1) / 2, y: 0.155, z: 0, res: 0.85, strength: 0.11, blur: 0.7, tint: '#93a6bf' }));
+
+  // light fixtures over the aisles: standing figures for scale
   person(N, rowX0 + 6, -6.4, 0.4); person(N, rowX0 + 14, 0.2, 2.6); person(N, rowX0 + 3.5, 8.6, -0.6);
 
   scene.add(S.build({ cast: true, receive: true }));
@@ -331,6 +422,10 @@ export function build({ quality, model }) {
       cpo: { pos: [rowX0 + 7, 2.7, 10.5], view: { pos: [rowX0 + 9, 4, 16], target: [rowX0 + 7, 1.4, 10.5] } },
       racks: { pos: [midRow.x, 2.6, -4.6], view: { pos: [2, 4.5, 6.5], target: [4, 1.2, -4.6] } },
     },
-    update(t) { fans.update(t); },
+    // bloom stays a small bump over the family default (0.5) for mood; threshold stays near the family
+    // default (1.0) rather than dropping, so ceiling fixtures and the shared dataFlow/heatFlow markers
+    // don't clip into blown discs at close range (see fx.lamps' own k/halo tuning above for the fixtures)
+    look: { exposure: 0.92, bloom: 0.56, threshold: 0.98, ao: 0.35, env: 'indoor', envIntensity: 0.55, dof: true },
+    update(t) { fans.update(t); rackLeds.update(t); strollers.update(t); hotPlumes.update(t); },
   };
 }
