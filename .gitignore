@@ -4,3 +4,4 @@ dist-artifact/
 *.log
 shots/
 .claude/
+.vite/

@@ -1,5 +1,5 @@
 // Scene 1: scale across, on a real map of the lower 48. World unit = 1 km (Albers equal-area); heights are exaggerated.
-// The campus sits at its real site when the scenario is based on one, otherwise at a generic spot in central Ohio.
+// The campus sits at its real site when the scenario is based on one, otherwise at a generic spot in southwest Ohio.
 // States with EIA carbon figures are shaded by grams of CO₂ per kWh; the other real campuses are pinned.
 // The look is a satellite night image: a dark map lit by city glow, campus and route light, and plant activity
 // (steam plumes off nuclear and gas plants, turning wind rotors) rather than daylight.
@@ -193,7 +193,9 @@ export function build({ quality, model }) {
   others.forEach(p => campus(world(p.site.lon, p.site.lat), false));
   scene.add(S.build({ cast: false }));
   const hereLab = labelSprite(here.name, '#ffb14e', 36); hereLab.position.set(H[0], 70, H[1]); scene.add(hereLab);
-  others.forEach(p => { const [x, z] = world(p.site.lon, p.site.lat), l = labelSprite(p.name, '#e8ecf2', 28); l.position.set(x, 52, z); scene.add(l); });
+  // the other campuses are named by their numbered pins in the power layer; the data layer names them on the map,
+  // where they are the far ends of the fiber
+  others.forEach(p => { const [x, z] = world(p.site.lon, p.site.lat), l = labelSprite(p.name, '#e8ecf2', 28); l.position.set(x, 52, z); data.add(l); });
 
   // ---------- power layer: state carbon labels, plants and the HV backbone near this campus ----------
   Object.entries(STATE_CARBON).forEach(([id, c]) => {

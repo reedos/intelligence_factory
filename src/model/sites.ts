@@ -2,7 +2,7 @@
 // A preset sets the four scenario choices to the closest match; every choice the owner has not disclosed says so.
 import type { Scenario, Basis } from './engine';
 
-export type SiteId = 'abilene' | 'colossus1' | 'colossus2' | 'fairwater-atl' | 'fairwater-wi' | 'hyperion';
+export type SiteId = 'abilene' | 'colossus1' | 'colossus2' | 'fairwater-atl' | 'fairwater-wi' | 'hyperion' | 'rainier' | 'prometheus';
 
 // EIA State Electricity Profiles, 2024 data (released 11/10/2025); g/kWh = lb/MWh × 0.4536
 export const STATE_CARBON: Record<string, { name: string; abbr: string; lb: number; g: number }> = {
@@ -16,6 +16,7 @@ export const STATE_CARBON: Record<string, { name: string; abbr: string; lb: numb
   '53': { name: 'Washington', abbr: 'WA', lb: 249, g: 113 },
   '04': { name: 'Arizona', abbr: 'AZ', lb: 634, g: 288 },
   '39': { name: 'Ohio', abbr: 'OH', lb: 1005, g: 456 },
+  '18': { name: 'Indiana', abbr: 'IN', lb: 1393, g: 632 },
   '19': { name: 'Iowa', abbr: 'IA', lb: 699, g: 317 },
   '36': { name: 'New York', abbr: 'NY', lb: 537, g: 244 },
 };
@@ -98,6 +99,26 @@ export const SITES: Record<SiteId, Site> = {
     status: { state: 'building', live: 'nothing live yet', asOf: '09/27/2026', source: 'epoch-dc-hyperion',
       line: 'Under construction, with nothing serving yet in the latest satellite imagery (04/2026). Phase 1, 1.5 GW, is due in late 2027; the full 5 GW by 2030–2032.' },
   },
+  "rainier": {
+    id: "rainier", name: "Amazon Project Rainier", owner: "Amazon Web Services (built for Anthropic)", place: "New Carlisle, IN", lat: 41.7, lon: -86.51, state: "18",
+    scenario: { meterMW: 1050, accel: "h100", power: "ac415", cooling: "air" },
+    carbonG: 632, carbonNote: "Indiana, 1,393 lb/MWh (EIA 2024), the highest state rate mapped here; the campus's operating power comes entirely from the grid, with on-site diesel generators kept for backup only.",
+    facts: [["IT power operating, ~16 of ~30 buildings live", "≈910 MW", "typical"], ["Planned full campus, due ~Q1 2028", "≈1,925 MW (1.9 GW)", "typical"], ["Chips, Oct. 2025 launch vs. 09/2026", "≈500,000 Trainium2 at launch (64-chip UltraServers); ≈1,045,000 by Epoch's 09/24/2026 count", "typical"], ["Grid interconnection", "Indiana Michigan Power (AEP), 345 kV Olive station plus two new substations", "typical"], ["On-site generation", "none for operating power; diesel gensets for backup only", "typical"]],
+    unknowns: ["This site's engine models NVIDIA accelerators only; Project Rainier runs AWS's own Trainium2 chips (UltraServers of 64 chips each), which it cannot model, so the closest preset by rack power and cooling is used instead — H100-class, air-cooled, 415 V AC — and its watts-per-chip and per-rack figures are NVIDIA's, not Amazon's real silicon.", "Meter power is estimated from the ≈910 MW IT figure at a PUE near 1.15, the value reported for this chiller-free, air-cooled design.", "The Trainium2-to-Trainium3 mix as later buildings come online is not modeled; all live capacity is treated as one class.", "Building counts vary by source (30 per company figures, up to 32 in Epoch's imagery-based count); this page follows Epoch's 16-of-32-live split."],
+    sources: ["epoch-dc-new-carlisle", "eia-state-indiana", "measuredai-new-carlisle", "compute-atlas-rainier", "blackridge-rainier"],
+    status: { state: "partial", live: "≈910 MW IT", asOf: "09/24/2026", source: "epoch-dc-new-carlisle",
+      line: "About 16 of roughly 30 planned buildings are live: near 910 MW of IT power and about a million Trainium2 chips by Epoch AI’s count. The rest are under construction toward about 1.9 GW, due around Q1 2028." },
+  },
+  "prometheus": {
+    id: "prometheus", name: "Meta Prometheus", owner: "Meta", place: "New Albany, OH", lat: 40.07, lon: -82.76, state: "39",
+    scenario: { meterMW: 585, accel: "gb200", power: "ac415", cooling: "liquid" },
+    carbonG: 456, carbonNote: "Ohio, 1,005 lb/MWh (EIA 2024). Two off-grid gas plants, Socrates North and South (~400 MW combined), power the campus directly and are not captured by this grid figure.",
+    facts: [["IT power operating, Epoch satellite estimate", "≈496 MW", "est"], ["Compute, satellite estimate", "≈600k H100-eq compute; ≈237k Nvidia B200 chips now, B300 to follow", "est"], ["Planned, by Q3 2028", "≈1,022 MW IT power, ≈$38.7B total capital", "est"], ["On-site generation", "Socrates North + South gas plants, ~400 MW, fully off-grid (no PJM interconnection)", "typical"], ["Construction", "12 buildings planned: 5 traditional halls (2.5M sq ft) + 7 tents (1.3M sq ft); first 5 tents (~125k sq ft each) went up in about 3 months, Apr–Jun 2026", "typical"]],
+    unknowns: ["Meter power is estimated from the ≈496 MW IT figure at a PUE near 1.15–1.2; the tents' own cooling overhead is not disclosed.", "The live split between GB200-class (\"Catalina\") and GB300-class (\"Clemente\") racks is not disclosed; GB200 is modeled as the larger current share, reading Epoch's \"B200 now, B300 next.\"", "Direct liquid cooling for the NVL72 racks is assumed; the tents' actual thermal design is not confirmed publicly.", "The exact address geocode is not published; coordinates are estimated from the 1500 Beech Road, Licking County parcel to about 0.01 degree.", "Sources disagree on tent numbering and count (five vs. seven named at different times); only 5 of the eventual 7 tents are confirmed complete on the Apr–Jun 2026 schedule, and Epoch's satellite imagery as of 08/2026 still showed later buildings awaiting power hookups."],
+    sources: ["epoch-dc-prometheus", "epoch-satellite-prometheus", "mlq-meta-gas-tents", "measuredai-prometheus-primer", "eia-state-ohio", "techcrunch-meta-tents"],
+    status: { state: "partial", live: "≈496 MW IT", asOf: "09/24/2026", source: "epoch-dc-prometheus",
+      line: "About 496 MW of IT power runs across a patchwork of tents, colocation space, and traditional buildings, roughly half of the ≈1,022 MW Epoch expects by Q3 2028. Two off-grid gas plants, Socrates North and South, feed the campus directly, outside the regional grid." },
+  },
 };
 
 // one pin per place on the map (Colossus 1 and 2 are 3 km apart)
@@ -107,11 +128,14 @@ export const PLACES = [
   { ids: ['fairwater-atl'], name: 'Fairwater Atlanta' },
   { ids: ['fairwater-wi'], name: 'Fairwater Wisconsin' },
   { ids: ['hyperion'], name: 'Meta Hyperion' },
+  { ids: ['rainier'], name: 'Project Rainier' },
+  { ids: ['prometheus'], name: 'Meta Prometheus' },
 ].map(p => ({ ...p, site: SITES[p.ids[0] as SiteId] }));
 export const placeKey = (p: { ids: string[] }) => `site-${p.ids[0]}`;
 
-// the default campus, when no site is chosen: a generic location in central Ohio's data-center cluster
-export const DEFAULT_PLACE = { name: 'This campus', lat: 40.08, lon: -82.81, state: '39' };
+// the default campus, when no site is chosen: a generic location in southwest Ohio, which keeps the map centered on
+// the Midwest campuses (it sat at New Albany until Meta Prometheus, 4 km away, joined the real campuses)
+export const DEFAULT_PLACE = { name: 'This campus', lat: 39.3, lon: -84.4, state: '39' };
 
 // Albers equal-area conic for the lower 48 (standard parallels 29.5° and 45.5°), in km
 const R = 6371, rad = Math.PI / 180, p1 = 29.5 * rad, p2 = 45.5 * rad, p0 = 37.5 * rad, l0 = -96 * rad;

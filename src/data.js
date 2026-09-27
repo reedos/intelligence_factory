@@ -186,7 +186,7 @@ export function content(M) {
         body: `${site.owner}. This page rebuilds the campus from the closest scenario it can: ${site.unknowns.join(' ')} Go in to follow the power down.`,
         specs: [...statusRows(site), ...site.facts, ['Modeled here', `${meter} at the meter, ${A.short}, ${M.cooling.short.toLowerCase()} cooling`, 'est']], drill: 1 }
       : { id: 'home', title: 'This campus', kicker: `${meter} at the meter`,
-        body: `The campus this page follows, ${meter} at the meter, placed in central Ohio's data-center cluster for the map. Pick a real campus in the scenario bar to move it. Go in to the substation and follow the power down.`,
+        body: `The campus this page follows, ${meter} at the meter, placed in southwest Ohio for the map. Pick a real campus in the scenario bar to move it. Go in to the substation and follow the power down.`,
         specs: [['Meter', meter, 'est'], ['IT load', `${mwTxt(IT_MW)} at PUE ${M.pue.toFixed(2)}`, 'est']], drill: 1 },
     { id: 'carbon', title: 'Grid carbon by state', kicker: `${stateC ? `${stateC.name}: ${stateC.g} g CO₂/kWh` : 'EIA state profiles, 2024'}`,
       body: `Shaded states have EIA figures: teal for hydro-heavy grids, amber and red for coal and gas. The same campus emits three to four times more in Wisconsin than in Washington.${site ? ` ${site.carbonNote}` : ''}`,
