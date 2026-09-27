@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Intelligence Factory</title>
+<meta name="description" content="Zoom from a 2,000 km grid into one AI campus and down to a GPU die at 0.8 V: power, data and heat at six scales, with every number sourced.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+<main class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">Power · Data · Heat · Six scales</p>
+    <h1>The Intelligence Factory</h1>
+    <p class="tagline">From <span class="v1">345,000 volts</span> to <span class="v2">0.8</span></p>
+    <p class="lede">Zoom from a 2,000 km grid into one 100 MW AI campus and keep going: off the transmission line, through the substation, the halls, a rack and a tray, into a GPU die at under a volt, and out as tokens. Then switch to the data layer and follow the links back out: NVLink inside the rack, optics across the hall, fiber between campuses. Every number carries a label saying where it comes from.</p>
+  </header>
+
+  <section class="stage" aria-label="Power chain in 3D">
+    <nav class="steps" id="steps" aria-label="Scale"></nav>
+    <div class="body">
+      <div class="view" id="view">
+        <canvas id="gl" tabindex="0" aria-label="3D scene. Drag to orbit, scroll to zoom."></canvas>
+        <div class="pins" id="pins"></div>
+        <div class="hud tl"><span class="ttl" id="hud-title">Scale across</span><span class="sub" id="hud-sub">2,000 km across</span></div>
+        <div class="hud bl"><div class="scalebar"><span id="scale-label">100 m</span><i id="scale-bar"></i></div></div>
+        <div class="hud br" id="legend"></div>
+        <div class="hud tr">
+          <div class="mode" role="group" aria-label="Layer">
+            <button type="button" data-mode="power" aria-pressed="true" style="--c: var(--mv)"><i></i>Power</button>
+            <button type="button" data-mode="data" aria-pressed="false" style="--c: var(--nvl)"><i></i>Data</button>
+            <button type="button" data-mode="heat" aria-pressed="false" style="--c: var(--warm)"><i></i>Heat</button>
+          </div>
+          <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>1–6 jumps scale · P D H switch layers · ← → steps parts</p>
+        </div>
+        <div class="veil" id="veil">Building the region…</div>
+      </div>
+      <aside class="panel" aria-label="Components">
+        <div class="panel-scroll">
+          <p class="intro" id="intro"></p>
+          <ul class="parts" id="parts"></ul>
+          <article class="card" id="card" hidden>
+            <span class="k" id="card-k"></span>
+            <h3 id="card-t"></h3>
+            <p id="card-b"></p>
+            <dl class="specs" id="card-s"></dl>
+            <div class="card-actions">
+              <button type="button" class="btn go" id="card-go" hidden>Go inside →</button>
+              <button type="button" class="btn" id="card-next">Next part</button>
+            </div>
+          </article>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <section class="ledger" aria-labelledby="ledger-h">
+    <div class="sec-head">
+      <p class="eyebrow">Power</p>
+      <h2 id="ledger-h">Where 100 MW goes</h2>
+      <p>Start with 100 MW at the campus meter. Each row takes off what one stage turns into heat, spends on cooling, or hands to silicon other than the GPU. The highlighted rows belong to the scale you are looking at. The grid already lost about 5% before the meter.</p>
+    </div>
+    <div class="lg" id="ledger"></div>
+    <div class="lg-key">
+      <span style="--k: var(--loss)"><i></i>Conversion loss, becomes heat</span>
+      <span style="--k: var(--overhead)"><i></i>Cooling and building</span>
+      <span style="--k: var(--net)"><i></i>Network: NVLink, NICs, switches, optics</span>
+      <span style="--k: var(--work)"><i></i>Other silicon: CPUs, memory, drives</span>
+    </div>
+  </section>
+
+  <section class="stairs" aria-labelledby="stairs-h">
+    <div class="sec-head">
+      <p class="eyebrow">Power</p>
+      <h2 id="stairs-h">Volts down, amps up</h2>
+      <p>Power is volts times amps. Each step down in voltage raises the current a conductor has to carry, which is why the last step happens millimeters from the chip.</p>
+    </div>
+    <div class="chart-box"><svg id="stairs" viewBox="0 0 1000 380" role="img" aria-label="Voltage at each stage on a log scale, with the current one conductor carries"></svg></div>
+  </section>
+
+  <section class="stairs" aria-labelledby="bw-h">
+    <div class="sec-head">
+      <p class="eyebrow">Network</p>
+      <h2 id="bw-h">Bandwidth down, latency up</h2>
+      <p>The data path has its own staircase. The closer two pieces of silicon sit, the faster they can talk. That is why a model is split the way it is: the chattiest work stays inside a rack on NVLink, less of it crosses the hall, and as little as possible crosses the country.</p>
+    </div>
+    <div class="chart-box"><svg id="bandwidth" viewBox="0 0 1000 400" role="img" aria-label="Bandwidth per GPU at each scale on a log scale, with latency"></svg></div>
+  </section>
+
+  <section class="stairs links" aria-labelledby="links-h">
+    <div class="sec-head">
+      <p class="eyebrow">Network</p>
+      <h2 id="links-h">The links, drawn and counted</h2>
+      <p>Three networks, three physical media. Copper ties 72 GPUs into one machine inside a rack; single-mode fiber and pluggable optics tie racks into a campus fabric; coherent optics on leased fiber tie campuses together. Counts are for this 100 MW campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials.</p>
+    </div>
+    <figure class="fig"><div class="chart-box" id="fig-scaleup"></div><figcaption><b style="color:var(--nvl)">Scale-up.</b> Inside one NVL72 rack every GPU connects straight to all 18 NVLink switch chips, so any GPU reaches any other through exactly one switch. One GPU's 18 links are highlighted.</figcaption></figure>
+    <figure class="fig"><div class="chart-box" id="fig-scaleout"></div><figcaption><b style="color:var(--eth)">Scale-out.</b> One 800G optical port per GPU climbs through up to three tiers of 144-port switches. Non-blocking means the same number of links at every tier, so each tier adds about one more link per GPU and two more optical modules per link.</figcaption></figure>
+    <figure class="fig"><div class="chart-box" id="fig-across"></div><figcaption><b style="color:var(--dci)">Scale across.</b> Traffic for another campus leaves the fabric through routers with coherent optics, which put many colors of light on each fiber pair. Amplifier huts boost the light every 80 km or so without turning it back into electricity.</figcaption></figure>
+    <div class="census" id="census"></div>
+  </section>
+
+  <section class="stairs" aria-labelledby="par-h">
+    <div class="sec-head">
+      <p class="eyebrow">Compute</p>
+      <h2 id="par-h">How a model is split</h2>
+      <p>The bandwidth staircase decides the layout. The chattiest kind of splitting goes where the links are fastest, and each step outward carries less, less often. Switch the 3D view to Data and open the hall to see one layout drawn on the rack tops.</p>
+    </div>
+    <div id="parallel"></div>
+  </section>
+
+  <section class="stairs" aria-labelledby="temps-h">
+    <div class="sec-head">
+      <p class="eyebrow">Heat</p>
+      <h2 id="temps-h">Hot to cold</h2>
+      <p>Every watt ends as heat, and heat only flows downhill. Each hop from die to outdoor air costs a few degrees, which is why warmer water is the trick: NVIDIA's newest spec feeds racks at 45 °C, so even a 35 °C afternoon can take the heat through dry coolers, without chillers.</p>
+    </div>
+    <div class="chart-box"><svg id="temps" viewBox="0 0 1000 340" role="img" aria-label="Temperature at each hop from GPU die to outdoor air"></svg></div>
+  </section>
+
+  <section class="tokens" aria-labelledby="tokens-h">
+    <div class="sec-head">
+      <p class="eyebrow">Cost</p>
+      <h2 id="tokens-h">What a kilowatt-hour buys</h2>
+      <p>Energy per token depends on more than the chip. Idle capacity, the building, the grid's carbon, the water on site and the training run behind the model all land on the bill. Set them and the page does the arithmetic for this campus.</p>
+    </div>
+    <div class="calc">
+      <div class="calc-in">
+        <div class="ctl">
+          <div class="ctl-head"><label for="tps">Output tokens per second, per busy GPU</label><output id="tps-v" for="tps">2,000</output></div>
+          <input type="range" id="tps" min="0" max="1000" step="1" value="500">
+          <div class="presets" id="presets">
+            <button type="button" data-tps="300">Large dense model, fast replies</button>
+            <button type="button" data-tps="2000">Mixed serving</button>
+            <button type="button" data-tps="13000">GB200 decode benchmark</button>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="ctl">
+            <div class="ctl-head"><label for="util">Utilization</label><output id="util-v" for="util">60%</output></div>
+            <input type="range" id="util" min="10" max="100" step="1" value="60">
+            <p class="note">Share of GPU time spent producing tokens. Fleets keep idle capacity for peaks and failover; nobody publishes a fleet figure, so this is a scenario.</p>
+          </div>
+          <div class="ctl">
+            <div class="ctl-head"><label for="pue">PUE</label><output id="pue-v" for="pue">1.20</output></div>
+            <input type="range" id="pue" min="105" max="160" step="1" value="120">
+            <p class="note">Google's fleet runs at 1.09. Surveys put the industry average near 1.5.</p>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="ctl">
+            <div class="ctl-head"><label for="carbon">Grid carbon, per kWh</label><output id="carbon-v" for="carbon">370 g</output></div>
+            <input type="range" id="carbon" min="0" max="900" step="10" value="370">
+            <div class="presets" id="grid-presets">
+              <button type="button" data-g="30">Hydro or nuclear (est.)</button>
+              <button type="button" data-g="370">US average, EIA / EPA</button>
+              <button type="button" data-g="800">Coal heavy (est.)</button>
+            </div>
+          </div>
+          <div class="ctl">
+            <div class="ctl-head"><label for="wue">Water on site, per kWh</label><output id="wue-v" for="wue">0.20 L</output></div>
+            <input type="range" id="wue" min="0" max="200" step="1" value="20">
+            <p class="note">Dry coolers use almost none; evaporative towers use more. Excludes water at the power plant, ≈1.8 L/kWh for typical thermal generation (NREL).</p>
+          </div>
+        </div>
+        <div class="train-ctl">
+          <label class="check"><input type="checkbox" id="with-train" checked> Include a share of training</label>
+          <div class="row2">
+            <div class="ctl">
+              <div class="ctl-head"><label for="train">Training run energy</label><output id="train-v" for="train">50 GWh</output></div>
+              <input type="range" id="train" min="0" max="1000" step="1" value="500">
+            </div>
+            <div class="ctl">
+              <div class="ctl-head"><label for="life">Tokens served over its life</label><output id="life-v" for="life">1,000 T tokens</output></div>
+              <input type="range" id="life" min="0" max="1000" step="1" value="500">
+            </div>
+          </div>
+          <p class="note">A scenario, not a measurement: nobody publishes both numbers for one model. Training matters most for models that are trained big and used little.</p>
+        </div>
+      </div>
+      <div class="calc-out">
+        <div class="big">
+          <div class="stat"><span class="sv" id="o-j">–</span><span class="sl">joules per token, all in</span></div>
+          <div class="stat"><span class="sv" id="o-kwh">–</span><span class="sl">tokens per kWh</span></div>
+          <div class="stat"><span class="sv" id="o-train">–</span><span class="sl">of that energy is training</span></div>
+          <div class="stat"><span class="sv" id="o-wh">–</span><span class="sl">Wh per 500-token reply</span></div>
+          <div class="stat"><span class="sv" id="o-co2">–</span><span class="sl">g CO₂ per reply</span></div>
+          <div class="stat"><span class="sv" id="o-water">–</span><span class="sl">mL water per reply, on site</span></div>
+        </div>
+        <ul class="refs">
+          <li><span>Google, median Gemini text prompt (2025). Includes idle capacity, host CPU and DRAM, PUE and embodied hardware; excludes training</span><span><b>0.24 Wh · 0.03 g · 0.26 mL</b> <span class="chip spec">Spec</span></span></li>
+          <li><span>Llama 3.1 405B pretraining (Meta model card), location-based</span><span><b>39.3M H100 GPU-hours · 11,390 t CO₂e</b> <span class="chip spec">Spec</span></span></li>
+          <li><span>GPT-4 training electricity (Epoch AI reconstruction)</span><span><b>≈52–62 GWh</b> <span class="chip est">Est.</span></span></li>
+          <li><span>Embodied carbon, HGX H100 board of 8 GPUs (NVIDIA)</span><span><b>1,312 kg CO₂e</b> <span class="chip spec">Spec</span></span></li>
+          <li><span>LLaMA-65B on A100, GPU only (Samsi et al., 2023)</span><span><b>3–4 J/token</b> <span class="chip spec">Spec</span></span></li>
+          <li><span>DeepSeek-R1 decode on GB200, per GPU (SemiAnalysis)</span><span><b>≈13k tok/s</b> <span class="chip typical">Typical</span></span></li>
+          <li><span>GB200 NVL72 vs H200, tokens per MW</span><span><b>≈8–10×</b> <span class="chip typical">Typical</span></span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="bom" aria-labelledby="bom-h">
+    <div class="sec-head">
+      <p class="eyebrow">Inventory</p>
+      <h2 id="bom-h">What it takes: a 100 MW campus, counted</h2>
+      <p>Sized from the same assumptions as the ledger: 100 MW at the meter, PUE 1.2, 132 kW racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale.</p>
+    </div>
+    <div class="bom-grid" id="bom"></div>
+  </section>
+
+  <footer class="sources">
+    <div class="basis-key"><span class="chip spec">Spec</span> a vendor or standards body states it <span class="chip typical">Typical</span> trade press or reference designs agree <span class="chip est">Est.</span> derived here, or sources conflict</div>
+    <p>Key sources: </p>
+    <ul>
+      <li><a href="https://www.eia.gov/tools/faqs/faq.php?id=105&amp;t=5">EIA, T&amp;D losses averaged about 5%, 2018–2022</a></li>
+      <li><a href="https://www.nvidia.com/en-us/data-center/gb200-nvl72/">NVIDIA, GB200 NVL72</a></li>
+      <li><a href="https://developer.nvidia.com/blog/nvidia-contributes-nvidia-gb200-nvl72-designs-to-open-compute-project/">NVIDIA, GB200 NVL72 designs contributed to OCP</a></li>
+      <li><a href="https://developer.nvidia.com/blog/how-new-gb300-nvl72-features-provide-steady-power-for-ai/">NVIDIA, GB300 NVL72 power smoothing</a></li>
+      <li><a href="https://developer.nvidia.com/blog/nvidia-800-v-hvdc-architecture-will-power-the-next-generation-of-ai-factories/">NVIDIA, 800 V HVDC architecture</a></li>
+      <li><a href="https://www.hpe.com/us/en/collaterals/collateral.a50009224enw.html">HPE QuickSpecs, GB200 NVL72 liquid and air split</a></li>
+      <li><a href="https://www.eaton.com/us/en-us/catalog/backup-power-ups-surge-it-power-distribution/eaton-9395xr-ups.html">Eaton 9395XR UPS</a></li>
+      <li><a href="https://www.globalpwr.com/wp-content/uploads/cut-sheets/gps-cummins-2500-kw-dqkan-data-sheet.pdf">Cummins DQKAN 2.5 MW generator data sheet</a></li>
+      <li><a href="https://datacenters.google/efficiency/">Google data center efficiency (PUE)</a></li>
+      <li><a href="https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference/">Google, measuring the environmental impact of AI inference</a></li>
+      <li><a href="https://arxiv.org/pdf/2310.03003">Samsi et al., From Words to Watts (2023)</a></li>
+      <li><a href="https://inferencex.semianalysis.com/chips/gb200-nvl72">SemiAnalysis InferenceX, GB200 NVL72</a></li>
+      <li><a href="https://epoch.ai/publications/openai-stargate-where-the-us-sites-stand">Epoch AI, Stargate sites</a></li>
+      <li><a href="https://www.upsite.com/blog/what-you-need-to-know-about-ashraes-fifth-edition-of-thermal-guidelines/">ASHRAE liquid cooling classes (via Upsite)</a></li>
+      <li><a href="https://docs.nvidia.com/enterprise-reference-architectures/nvl72-ai-factory/latest/components.html">NVIDIA NVL72 reference architecture (18 links, 18 NVLink Switch chips)</a></li>
+      <li><a href="https://www.nvidia.com/en-us/data-center/gb300-nvl72/">NVIDIA GB300 NVL72 (800 Gb/s per GPU)</a></li>
+      <li><a href="https://networking-docs.nvidia.com/xdrswitcheshw/specifications">NVIDIA Quantum-X800 switch specifications</a></li>
+      <li><a href="https://nvidianews.nvidia.com/news/nvidia-spectrum-x-co-packaged-optics-networking-switches-ai-factories">NVIDIA co-packaged optics switches</a></li>
+      <li><a href="https://nvidianews.nvidia.com/news/nvidia-introduces-spectrum-xgs-ethernet-to-connect-distributed-data-centers-into-giga-scale-ai-super-factories">NVIDIA Spectrum-XGS, scale-across</a></li>
+      <li><a href="https://newsletter.semianalysis.com/p/nvidias-optical-boogeyman-nvl72-infiniband">SemiAnalysis, NVL72 copper and optics</a></li>
+      <li><a href="https://blog.google/products/google-cloud/ironwood-google-tpu-things-to-know/">Google Ironwood TPU pods</a></li>
+      <li><a href="https://news.microsoft.com/source/features/ai/from-wisconsin-to-atlanta-microsoft-connects-datacenters-to-build-its-first-ai-superfactory/">Microsoft AI WAN between Fairwater sites</a></li>
+      <li><a href="https://deepmind.google/blog/decoupled-diloco/">Google DeepMind, Decoupled DiLoCo</a></li>
+      <li><a href="https://www.ciena.com/about/newsroom/press-releases/ciena-unveils-wavelogic-6">Ciena WaveLogic 6, 1.6 Tb/s per wavelength</a></li>
+      <li><a href="https://arxiv.org/abs/2508.15734">Google, measuring the environmental impact of delivering AI (method and boundary)</a></li>
+      <li><a href="https://www.eia.gov/tools/faqs/faq.php?id=74&amp;t=11">EIA, CO₂ per kWh of US generation</a></li>
+      <li><a href="https://docs.nrel.gov/docs/fy11osti/50900.pdf">NREL, water use of electricity generation</a></li>
+      <li><a href="https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/MODEL_CARD.md">Meta, Llama 3.1 model card</a></li>
+      <li><a href="https://arxiv.org/pdf/2407.21783">Meta, The Llama 3 Herd of Models (parallelism layout)</a></li>
+      <li><a href="https://arxiv.org/pdf/2412.19437">DeepSeek-V3 technical report</a></li>
+      <li><a href="https://developer.nvidia.com/blog/how-nvidia-gb200-nvl72-and-nvidia-dynamo-boost-inference-performance-for-moe-models">NVIDIA, GB200 NVL72 and Dynamo for mixture-of-experts</a></li>
+      <li><a href="https://epoch.ai/gradient-updates/how-much-energy-does-chatgpt-use">Epoch AI, energy estimates</a></li>
+      <li><a href="https://docs.nvidia.com/dgx/dgxgb200-user-guide/hardware.html">NVIDIA DGX GB200 user guide, hardware (DPUs, management switches)</a></li>
+      <li><a href="https://ecatalog.corning.com/optical-communications/US/en/Fiber-Optic-Hardware/Housings/EDGE8%C2%AE-Housings/p/EDGE8-01U-SP">Corning EDGE8 patch housings</a></li>
+      <li><a href="https://convergedigest.com/coherent-full-c-band-pols-25-6tbps-ai-dci/">Coherent, 25.6 Tb/s per fiber pair across the C-band</a></li>
+      <li><a href="https://www.cisco.com/c/en/us/products/collateral/routers/8000-series-routers/8800-series-modular-routers-ds.html">Cisco 8800 routers, 36 × 800G per line card</a></li>
+      <li><a href="https://fiberbroadband.org/2026/04/02/microsoft-scales-up-hollow-core-fiber-production/">Microsoft hollow-core fiber</a></li>
+      <li><a href="https://images.nvidia.com/aem-dam/Solutions/documents/HGX-H100-PCF-Summary.pdf">NVIDIA, HGX H100 product carbon footprint</a></li>
+      <li><a href="https://www.microsoft.com/en-us/microsoft-cloud/blog/2024/12/09/sustainable-by-design-next-generation-datacenters-consume-zero-water-for-cooling/">Microsoft, zero-water cooling design</a></li>
+      <li><a href="https://www.fortum.com/en/media/2026/05/fortum-has-started-heat-production-two-large-data-centre-sites-finland">Fortum, data center heat in Finland</a></li>
+    </ul>
+    <p>Prototype. Geometry is schematic and not to any vendor's drawing, and the regional map is invented. Board-level converter and regulator efficiencies, NVLink latency and network power per GPU are not published for this hardware, so those figures are estimates.</p>
+  </footer>
+</main>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

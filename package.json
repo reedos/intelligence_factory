@@ -1,0 +1,25 @@
+{
+  "name": "intelligence-factory",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The Intelligence Factory: power, data and heat in an AI campus, from a 2,000 km grid to a GPU die.",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 47400",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 47401",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "artifact": "vite build && node tools/artifact.mjs"
+  },
+  "dependencies": {
+    "three": "^0.183.2"
+  },
+  "devDependencies": {
+    "@types/three": "^0.186.0",
+    "playwright": "^1.63.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
+  }
+}

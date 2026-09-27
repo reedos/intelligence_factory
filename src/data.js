@@ -1,0 +1,621 @@
+// Content model for The Intelligence Factory.
+// Every number carries a basis: 'spec' (vendor or standards body states it), 'typical'
+// (industry-typical figure several sources agree on) or 'est' (derived here, or uncertain).
+// The page shows the basis next to the number. Sources are listed in research/power-chain-sources.md.
+
+export const BASIS = {
+  spec: { label: 'Published spec', short: 'Spec' },
+  typical: { label: 'Industry typical', short: 'Typical' },
+  est: { label: 'Estimate', short: 'Est.' },
+};
+
+// The reference campus every count and ledger line is sized to.
+export const CAMPUS = {
+  meterMW: 100,       // power drawn at the utility meter
+  pue: 1.2,           // design PUE for a liquid-cooled AI campus (est)
+  rackKW: 132,        // GB200 NVL72 class rack at full load (typical)
+  gpusPerRack: 72,
+  cpusPerRack: 36,
+};
+export const IT_MW = CAMPUS.meterMW / CAMPUS.pue;
+
+// The scale-out fabric, one common layout (est): a non-blocking three-tier fat tree of
+// 144-port 800G switches. Each GPU owns one 800G port; its traffic can climb leaf → spine → core.
+export const FABRIC = {
+  radix: 144,              // Quantum-X800 Q3400: 144 × 800G (spec)
+  switchKW: 2.9,           // Q3400 typical, passive cables (spec)
+  switchPortsPerGpu: 5,    // leaf down + leaf up + spine down + spine up + core down
+  linksPerGpu: 3,          // GPU–leaf, leaf–spine, spine–core
+  gpuModuleW: 17,          // 800G module at the NIC (spec, NVIDIA DR8 500 m max)
+  switchModuleW: 27,       // twin-port 1.6T module at the switch, 2 ports each (est)
+  fibersPerLink: 8,        // 800G over 4 lanes each way (est)
+  dpusPerRack: 36,         // BlueField-3 DPUs, 2 per compute tray, dual-port 400G (spec)
+  mgmtPerRack: 2,          // management top-of-rack switches (spec)
+};
+const netKWPerGpu = FABRIC.switchPortsPerGpu / FABRIC.radix * FABRIC.switchKW
+  + (FABRIC.gpuModuleW + FABRIC.switchPortsPerGpu / 2 * FABRIC.switchModuleW) / 1000;
+export const RACKS = Math.floor(IT_MW * 1000 / (CAMPUS.rackKW + CAMPUS.gpusPerRack * netKWPerGpu));
+export const GPUS = RACKS * CAMPUS.gpusPerRack;
+
+// Counts that follow from the layout. Every figure on the census and the ledger reads from here.
+export const NET = (() => {
+  const G = GPUS, leaf = G / 72, spine = G / 72, core = G / 144;
+  const switches = Math.ceil(leaf) + Math.ceil(spine) + Math.ceil(core);
+  const gpuModules = G, switchModules = G * FABRIC.switchPortsPerGpu / 2;
+  const links = G * FABRIC.linksPerGpu;
+  // 800ZR sits on a 150 GHz grid, so the C-band holds 32 wavelengths: 25.6 Tb/s per fiber pair
+  const dci = { routes: 2, litPairs: 8, lambdas: 32, gbps: 800, routeKm: 1100, spanKm: 80, cableStrands: 432, portsPerLinecard: 36 };
+  dci.tbpsPerRoute = dci.litPairs * dci.lambdas * dci.gbps / 1000;
+  dci.modulesPerEnd = dci.routes * dci.litPairs * dci.lambdas;
+  dci.huts = Math.ceil(dci.routeKm / dci.spanKm) - 1;
+  return {
+    leaf: Math.ceil(leaf), spine: Math.ceil(spine), core: Math.ceil(core), switches,
+    links, gpuModules, switchModules, modules: gpuModules + switchModules,
+    fibers: links * FABRIC.fibersPerLink,
+    crossHallFibers: G / 2 * FABRIC.fibersPerLink,           // half the spine–core links cross between halls
+    switchMW: switches * FABRIC.switchKW / 1000,
+    opticsMW: (gpuModules * FABRIC.gpuModuleW + switchModules * FABRIC.switchModuleW) / 1e6,
+    nvlinkLinks: RACKS * 1296, nvlinkPairs: RACKS * 5184, nvswitchChips: RACKS * 18,
+    dpus: RACKS * FABRIC.dpusPerRack, dci,
+  };
+})();
+
+// Voltage classes: one color per class, used by every flow, chip and chart.
+export const VOLT = {
+  hv: { css: '#b69cff', name: '345 kV AC', short: '345 kV' },
+  mv: { css: '#ffb14e', name: '34.5 kV AC', short: '34.5 kV' },
+  lv: { css: '#ff7f50', name: '480 / 415 V AC', short: '415 V' },
+  dc: { css: '#47cfff', name: '≈50 V DC', short: '50 V' },
+  bus12: { css: '#5ce1c6', name: '12 V DC', short: '12 V' },
+  core: { css: '#e9fbff', name: '≈0.8 V DC', short: '0.8 V' },
+  cool: { css: '#3f8cff', name: 'Supply water' },
+  warm: { css: '#ff5a6e', name: 'Return water' },
+  // data classes
+  nvl: { css: '#ff5fd2', name: 'NVLink, copper', short: 'NVLink' },
+  c2c: { css: '#ffa3e4', name: 'NVLink-C2C', short: 'C2C' },
+  eth: { css: '#a6f35a', name: 'Scale-out, optical', short: '800G' },
+  dci: { css: '#ffd35c', name: 'DWDM fiber', short: 'DWDM' },
+  hbi: { css: '#7fe3ff', name: 'Die to die', short: 'NV-HBI' },
+  hbm: { css: '#b08cff', name: 'HBM', short: 'HBM' },
+  // heat classes
+  hot: { css: '#ffc34a', name: 'Heat from silicon', short: 'heat' },
+  air: { css: '#ff8a4a', name: 'Hot air', short: 'air' },
+  vapor: { css: '#d6e6ff', name: 'Evaporation', short: 'vapor' },
+};
+
+// Where one conductor's current goes as the voltage drops. Current = P / V (or / √3·V for three-phase).
+export const STAIRCASE = [
+  { v: 345000, label: '345 kV', where: 'Transmission line', current: '≈170 A per phase', note: 'the whole 100 MW campus', volt: 'hv', basis: 'est' },
+  { v: 34500, label: '34.5 kV', where: 'Campus feeders', current: '≈170 A per feeder', note: 'one 10 MW feeder', volt: 'mv', basis: 'est' },
+  { v: 480, label: '480 V', where: 'Unit substation out', current: '≈3,000 A', note: 'one 2.5 MVA transformer', volt: 'lv', basis: 'est' },
+  { v: 415, label: '415 V', where: 'Busway to the rack', current: '≈185 A per phase', note: 'one 132 kW rack', volt: 'lv', basis: 'est' },
+  { v: 50, label: '50 V', where: 'Rack busbar', current: '≈2,600 A', note: 'one 132 kW rack, all sections', volt: 'dc', basis: 'est' },
+  { v: 12, label: '12 V', where: 'Tray power rail', current: '≈100 A', note: 'one GPU’s share', volt: 'bus12', basis: 'est' },
+  { v: 0.8, label: '0.8 V', where: 'GPU core', current: '≈1,000–1,500 A', note: 'into one GPU, split across rails', volt: 'core', basis: 'est' },
+];
+
+// The ledger: 100 MW at the meter, peeled stage by stage. kind: loss (conversion heat),
+// overhead (cooling and building), work (useful silicon that is not the GPU).
+export const LEDGER = [
+  { label: 'Main power transformers', mw: 0.4, kind: 'loss', scene: 1, basis: 'typical' },
+  { label: 'Campus cables & switchgear', mw: 0.3, kind: 'loss', scene: 1, basis: 'est' },
+  { label: 'Unit substations', mw: 1.0, kind: 'loss', scene: 2, basis: 'typical' },
+  { label: 'UPS, double conversion', mw: 2.9, kind: 'loss', scene: 2, basis: 'typical' },
+  { label: 'Busway & whips', mw: 0.4, kind: 'loss', scene: 2, basis: 'est' },
+  { label: 'Cooling: pumps, dry coolers, fans', mw: 10.3, kind: 'overhead', scene: 2, basis: 'est' },
+  { label: 'Lighting, controls, offices', mw: 1.4, kind: 'overhead', scene: 2, basis: 'est' },
+  { label: 'Scale-out switches, leaf / spine / core', mw: NET.switchMW, kind: 'net', scene: 2, basis: 'est' },
+  { label: 'Optical transceivers', mw: NET.opticsMW, kind: 'net', scene: 2, basis: 'est' },
+  ...[ // per rack, kW, scaled by the rack count
+    ['Rack power shelves, AC → DC', 3.36, 'loss', 3, 'typical'],
+    ['Busbar', 0.34, 'loss', 3, 'est'],
+    ['NVLink switch trays (scale-up)', 10.6, 'net', 3, 'est'],
+    ['Grace CPUs + LPDDR5X', 13.1, 'work', 4, 'est'],
+    ['SuperNICs & DPUs', 4.37, 'net', 4, 'est'],
+    ['SSDs, fans, management', 2.35, 'work', 4, 'est'],
+    ['Bus converters, 50 → 12 V', 2.18, 'loss', 4, 'est'],
+    ['Voltage regulators, 12 → 0.8 V', 8.57, 'loss', 4, 'est'],
+    ['HBM3e memory', 11.4, 'work', 5, 'est'],
+  ].map(([label, kw, kind, scene, basis]) => ({ label, mw: kw * RACKS / 1000, kind, scene, basis })),
+];
+export const LEDGER_END = { label: 'GPU silicon', sub: 'tensor math, caches, links, leakage', scene: 5 };
+export const LEDGER_MARKS = [ // checkpoints drawn on the trunk
+  { after: 1, label: '34.5 kV feeders' },
+  { after: 6, label: 'IT load (PUE 1.2)' },
+  { after: 8, label: 'Into the racks' },
+  { after: 14, label: 'GPU modules' },
+];
+
+// Scenes, largest to smallest. unit = meters per world unit, for the scale bar.
+export const SCENES = [
+  {
+    id: 'across', n: 1, title: 'Scale across', scale: '2,000 km across', unit: 1000, volt: 'hv', dataVolt: 'dci', heatVolt: 'air', heatShort: 'climate',
+    heatIntro: 'Heat stays local, so climate and water pick sites as much as power does. Cool, dry places reject heat to air most of the year without spending water.',
+    intro: 'Start at the grid. Power plants feed 345–500 kV lines into campuses hundreds of kilometers apart, and each campus is its own grid customer, which is why gigawatt clusters get split across sites. Go into the lit campus to follow its power in.',
+    dataIntro: 'Campuses hundreds of kilometers apart can train one model. Coherent optics light dozens of wavelengths per fiber, amplified every 80 km or so, but light still takes about 5 ms to cross 1,000 km.',
+  },
+  {
+    id: 'campus', n: 2, title: 'Grid & campus', scale: '1.6 km across', unit: 1, volt: 'hv', dataVolt: 'dci', heatVolt: 'air', heatShort: '100 MW out',
+    heatIntro: 'All 100 MW leaves as heat. Warm water climbs to rows of dry coolers on the roofs, which dump it into the air; on the hottest afternoons evaporative towers help, and cost water.',
+    dataIntro: 'Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus\u2019s link to other campuses, while thousands of strands in the duct bank tie the two halls into one fabric.',
+    intro: 'A 345 kV line lands at the campus substation. Three transformers step it down to 34.5 kV, which runs underground to transformers along each data hall. The grid itself lost about 5% getting here. Diesel generators and batteries stand by for when the grid drops.',
+  },
+  {
+    id: 'hall', n: 3, title: 'Power room & data hall', scale: '70 m across', unit: 1, volt: 'lv', dataVolt: 'eth', heatVolt: 'warm', heatShort: 'water + air',
+    heatIntro: 'Two heat paths leave every rack. Most goes into water, through a coolant unit at the row end to the facility loop overhead. The rest is hot air, trapped in the aisle between rack backs and pulled through the fan wall.',
+    dataIntro: 'Scale-out lives here. Every GPU gets its own optical port. Fibers run up from each rack into yellow runways, to leaf switches at the row ends and on to the spine, so any GPU can reach any other in a few microseconds.',
+    intro: 'Outside the wall a unit substation drops 34.5 kV to 480 V. Inside, switchgear and UPS modules feed overhead busway at 415 V that drops into every rack. Facility water runs overhead to coolant units at the ends of each row.',
+  },
+  {
+    id: 'rack', n: 4, title: 'The rack', scale: '2.3 m tall', unit: 1, volt: 'dc', dataVolt: 'nvl', heatVolt: 'warm', heatShort: '≈87% water',
+    heatIntro: 'About 115 of a rack\u2019s 132 kW leaves in the water manifolds down the back. The rest, from power shelves, switches, optics and drives, leaves as hot air out the rear door.',
+    dataIntro: 'Scale-up lives here. Copper NVLink ties all 72 GPUs to the nine switch trays in the middle, so the rack behaves like one giant GPU. Only the scale-out ports leave the rack, as fiber.',
+    intro: 'A GB200 NVL72 rack takes 415 V AC in at the top and turns it into about 50 V DC in its power shelves. A copper busbar down the back feeds 18 compute trays and 9 NVLink switch trays, all cooled by water.',
+  },
+  {
+    id: 'tray', n: 5, title: 'Compute tray', scale: '44 cm wide', unit: 0.1, volt: 'bus12', dataVolt: 'eth', heatVolt: 'cool', heatShort: 'cold plates',
+    heatIntro: 'Coolant enters at the back, runs through a copper plate on each CPU and GPU, and leaves warmer. Fans at the front still push air over the parts water does not touch: NICs, optics, drives.',
+    dataIntro: 'Each GPU has three ways out: NVLink to the rack spine at the back, NVLink-C2C to its Grace CPU, and a SuperNIC whose optical module at the front turns its traffic into light.',
+    intro: 'Each tray clips onto the busbar at about 50 V. Bus converters drop that to 12 V, and rings of voltage regulators around each GPU make the final step to under a volt, right beside the chip.',
+  },
+  {
+    id: 'chip', n: 6, title: 'GPU package & tokens', scale: '10 cm across', unit: 0.01, volt: 'core', dataVolt: 'hbm', heatVolt: 'hot', heatShort: 'die, hottest',
+    heatIntro: 'Every watt that arrives turns into heat inside two dies smaller than a postcard. It climbs through a thermal interface and the lid into the cold plate; the hard part is getting it out of the silicon fast enough.',
+    dataIntro: 'The fastest links are the shortest. HBM feeds the dies at 8 TB/s over millimeters, the two dies talk at 10 TB/s across their seam, and 18 NVLink lanes leave the package edge at 1.8 TB/s.',
+    intro: 'The last millimeter: over a thousand amps climb through solder balls and the substrate into two silicon dies and eight HBM stacks. What leaves is heat, and tokens.',
+  },
+];
+
+// Components per scene. The 3D scene supplies positions; this supplies what to say.
+// specs: [label, value, basis]
+export const PARTS = {
+  campus: [
+    { id: 'line', title: 'Transmission line', kicker: '345 kV AC · 3 phases × 2 circuits',
+      body: 'Lattice towers carry two three-phase circuits of bundled aluminum conductor, with a shield wire on top to take lightning. At 345 kV the whole campus rides on about 170 amps per phase, which is why power travels far at high voltage.',
+      specs: [['Voltage', '345 kV line-to-line', 'typical'], ['Current, 100 MW', '≈170 A per phase', 'est'], ['US grid losses, 2018–2022', '≈5% (EIA)', 'spec'], ['Example', 'Stargate Abilene: double 345 kV corridor', 'typical']] },
+    { id: 'substation', title: 'Campus substation', kicker: 'Utility interconnect',
+      body: 'The line dead-ends on steel gantries and lands on a ring of SF₆ circuit breakers and disconnect switches. Instrument transformers measure it, surge arresters clip lightning, and tall masts shield the yard.',
+      specs: [['Breakers', '6 dead-tank SF₆, ring bus', 'est'], ['Yard', '≈200 × 150 m gravel pad', 'est'], ['Build time', '2–4 years with interconnection study', 'typical']] },
+    { id: 'mpt', title: 'Main power transformers', kicker: '345 kV → 34.5 kV',
+      body: 'Three oil-filled transformers, each the weight of a loaded freight car, step the line down to the campus distribution voltage. Radiators and fans shed their heat; concrete fire walls keep one fire from taking the others.',
+      specs: [['Rating', '3 × 75 MVA, N+1', 'est'], ['Efficiency, >100 MVA units', '99.5–99.7%', 'typical'], ['Loss at 100 MW', '≈0.4 MW', 'est'], ['Lead time, 2026', '120–144 weeks', 'typical']] },
+    { id: 'ehouse', title: '34.5 kV switchgear', kicker: 'Campus distribution',
+      body: 'Prefabricated switchgear buildings split the transformer output into feeders, each breaker-protected, that run in concrete duct banks under the roads to the data halls.',
+      specs: [['Feeders', '≈10, each ≈10 MW', 'est'], ['Voltage', '34.5 kV (some campuses use 13.8 kV)', 'typical'], ['Loss, cables + gear', '≈0.3 MW', 'est']] },
+    { id: 'gensets', title: 'Standby generator yard', kicker: 'Diesel, 480 V stepped up to 34.5 kV',
+      body: 'Containerized diesel sets start within about ten seconds of a grid failure. The UPS batteries carry the load until they take over. They run a few hours a year, mostly for testing.',
+      specs: [['Unit size', '2.5–3 MW class', 'spec'], ['Units here', '≈40, N+1', 'est'], ['Fuel, 2.5 MW at full load', '173 US gal/h (≈0.26 L/kWh)', 'spec'], ['Start to load', '≈10 s', 'typical']] },
+    { id: 'fuel', title: 'Bulk fuel storage', kicker: '48 hours at full load',
+      body: 'Horizontal steel tanks hold enough diesel to run the whole campus for two days, with polishing skids that keep stored fuel clean.',
+      specs: [['Volume, 48 h at 100 MW', '≈1.2 million L', 'est'], ['Tanker deliveries to refill', '≈40', 'est']] },
+    { id: 'bess', title: 'Battery energy storage', kicker: 'Smooths GPU load swings',
+      body: 'Thousands of GPUs stepping in lockstep during training can swing campus load by tens of megawatts in seconds. Grid-side batteries absorb the swings the utility would otherwise see, and can sell grid services.',
+      specs: [['Size here', '≈20 MW / 40 MWh', 'est'], ['Training load swings', 'up to ≈100 MW, sub-second', 'typical'], ['Example', 'xAI Colossus: up to ≈150 MW of Megapacks', 'typical']] },
+    { id: 'unitsubs', title: 'Unit substations', kicker: '34.5 kV → 480 V',
+      body: 'A line of pad-mounted transformers along each hall drops the feeders to 480 V right outside the electrical rooms, keeping the high-current low-voltage runs short.',
+      specs: [['Count', '≈44 × 2.5 MVA, block redundant', 'est'], ['Efficiency', '≈99%', 'typical']], drill: 2 },
+    { id: 'hall', title: 'Data halls', kicker: `≈${RACKS} racks, ≈${Math.round(GPUS / 1000)}k GPUs`,
+      body: 'Two halls hold the IT load. Each floor is a slab with no raised floor: racks are too heavy and the cooling is water, not air under the floor.',
+      specs: [['IT load', `${IT_MW.toFixed(1)} MW at PUE ${CAMPUS.pue}`, 'est'], ['Racks', `≈${RACKS.toLocaleString('en-US')}`, 'est'], ['Floor load, one rack', '≈1.4 t on 0.6 × 1.2 m', 'typical']], drill: 2 },
+    { id: 'drycoolers', title: 'Dry coolers', kicker: 'Heat out, no water used',
+      body: 'Rooftop coils with big fans reject the heat carried out of the GPUs by warm water. Water at 30–40 °C is warm enough to dump heat to outside air most of the year without chillers.',
+      specs: [['Heat rejected', '≈95 MW', 'est'], ['Water classes', 'ASHRAE W32–W45: 32–45 °C max supply', 'spec'], ['Water use, dry + adiabatic', '≈0.15–0.17 L/kWh', 'typical']] },
+    { id: 'towers', title: 'Cooling towers & tanks', kicker: 'For the hottest days',
+      body: 'Evaporative towers trim water temperature on hot afternoons, and the tanks hold treated makeup water and fire water.',
+      specs: [['Use', 'peak days only', 'est'], ['Water', 'tracked as WUE, liters per kWh', 'typical']] },
+    { id: 'fiber', title: 'Fiber entrances', kicker: 'Two diverse routes',
+      body: 'Long-haul fiber enters at two vaults on opposite sides of the site, so one backhoe cannot cut the campus off. Tokens leave the same way the questions arrive.',
+      specs: [['Routes', '2 or more, physically separate', 'typical']] },
+  ],
+  hall: [
+    { id: 'unitsub', title: 'Unit substation', kicker: '34.5 kV → 480 V, 2.5 MVA',
+      body: 'Outside the wall, a pad-mounted transformer takes one campus feeder and makes 480 V three-phase. Its secondary runs a few meters through the wall into the switchgear.',
+      specs: [['Rating', '2.5 MVA', 'typical'], ['Secondary current', '≈3,000 A at full load', 'est'], ['Efficiency', '≈99%', 'typical']] },
+    { id: 'swgr', title: '480 V switchgear', kicker: 'Breakers and transfer',
+      body: 'A lineup of drawout breakers protects every outgoing circuit and switches the room between utility and generator when the grid drops.',
+      specs: [['Main breaker', '4,000 A class', 'est'], ['Transfer', 'automatic, utility ↔ generator', 'typical']] },
+    { id: 'ups', title: 'UPS modules', kicker: 'Double conversion',
+      body: 'The UPS turns AC into DC and back to clean AC, with batteries on the DC link. It rides through the seconds between a grid failure and the generators taking load.',
+      specs: [['Module', '1.25–1.5 MW', 'typical'], ['Efficiency, Eaton 9395XR', 'up to 97.5% online, 99% eco', 'spec'], ['Loss at 100 MW campus', '≈2.9 MW', 'est']] },
+    { id: 'batt', title: 'Battery cabinets', kicker: 'Lithium-ion, ≈5 minutes',
+      body: 'Racks of lithium-ion modules on the UPS DC link. Five minutes is plenty: the generators are carrying the load within a minute.',
+      specs: [['Runtime', 'set by string count, often ≈5 min', 'est'], ['Chemistry', 'Li-ion (LFP or NMC)', 'typical']] },
+    { id: 'busway', title: 'Overhead busway', kicker: '415 V to every rack',
+      body: 'A transformer steps 480 V to 415 V, the voltage OCP rack power shelves take. Copper bars in an aluminum housing then run over each row, and plug-in tap-off boxes drop a short cable into each rack, so moving a rack means moving a plug.',
+      specs: [['Rack voltage', '415 V three-phase (OCP ORv3)', 'spec'], ['Per rack', '≈185 A per phase at 132 kW', 'est'], ['Why busway', 'tap-offs move without rewiring', 'typical']] },
+    { id: 'racks', title: 'NVL72 racks', kicker: '132 kW each',
+      body: 'Each rack draws what a whole row of racks drew ten years ago. About 87% of its heat leaves in water, the rest in air.',
+      specs: [['Power', '120 kW nominal, ≈132 kW TDP', 'typical'], ['GPUs', '72 Blackwell', 'spec'], ['Liquid / air, HPE build', '115 kW / 17 kW', 'spec'], ['Weight', '≈1.36 t reported; sources conflict', 'est']], drill: 3 },
+    { id: 'containment', title: 'Hot aisle containment', kicker: 'For the heat water misses',
+      body: 'Glass roofs and doors close the aisle between rack backs, so the warm air the water does not catch goes straight back to the coolers instead of mixing into the room.',
+      specs: [['Air share of heat', '≈13%', 'spec']] },
+    { id: 'cdu', title: 'Coolant distribution unit', kicker: 'Two loops, one heat exchanger',
+      body: 'The CDU keeps the rack loop, filtered water with glycol running through cold plates, separate from facility water. Pumps, a plate heat exchanger and controls sit in one cabinet at the row end.',
+      specs: [['Capacity range', '70 kW – 2.5 MW', 'spec'], ['Rule', 'rack loop stays above dew point', 'spec']] },
+    { id: 'fwater', title: 'Facility water loop', kicker: 'Supply and return headers',
+      body: 'Insulated steel headers carry facility water between the CDUs and the rooftop dry coolers. Blue carries cooler supply, red carries warm return.',
+      specs: [['Temperature rise', '≈10 °C across the racks', 'est']] },
+    { id: 'fanwall', title: 'Fan wall', kicker: 'Air side',
+      body: 'A wall of fans and coils cools the air that carries the remaining heat from power shelves, switches, optics and memory.',
+      specs: [['Share of rack heat', '≈13%', 'spec']] },
+    { id: 'network', title: 'Network spine', kicker: 'Where tokens leave',
+      body: 'Spine switches tie every rack to every other and to the fiber out of the building. Dense yellow trays carry thousands of fibers overhead.',
+      specs: [['Per GPU', '≈800 Gb/s scale-out', 'est']] },
+  ],
+  rack: [
+    { id: 'feed', title: 'Rack feed', kicker: '415 V AC in',
+      body: 'Two tap-off cables from the overhead busway plug into the top of the rack: A and B feeds for redundancy.',
+      specs: [['Feeds', 'A + B', 'typical']] },
+    { id: 'shelves', title: 'Power shelves', kicker: '415 V AC → ≈50 V DC',
+      body: 'Each 1U shelf holds six hot-swap rectifiers in a 3+3 arrangement that turn AC into about 50 V DC. GB300 shelves add capacitors that store 65 J per GPU to smooth training load swings.',
+      specs: [['Shelf', '≈33 kW, 6 × 5.5 kW', 'typical'], ['Shelves per rack', '6 (up to 8)', 'typical'], ['Efficiency', '≈97.5% peak, half load', 'typical'], ['GB300 smoothing', '−30% peak grid demand', 'spec']] },
+    { id: 'busbar', title: 'DC busbar', kicker: '≈2,600 A down the back',
+      body: 'A vertical copper busbar runs the full height of the rack. Every tray has a clip on its back that grabs the bar when it slides in, so there are no power cables to trays.',
+      specs: [['Voltage', '≈50 V DC (OCP ORv3)', 'spec'], ['Busbar rating', '1,400 A per section', 'spec'], ['Next: NVIDIA Kyber, 2027', '800 V DC, 45% less copper', 'spec']] },
+    { id: 'compute', title: 'Compute trays', kicker: '18 trays, 4 GPUs each',
+      body: 'Each 1U tray holds two GB200 superchips: two Grace CPUs and four Blackwell GPUs under water-cooled cold plates.',
+      specs: [['Trays', '18', 'spec'], ['GPUs per tray', '4', 'spec'], ['CPUs per tray', '2', 'spec']], drill: 4 },
+    { id: 'nvswitch', title: 'NVLink switch trays', kicker: '9 trays in the middle',
+      body: 'Switch trays in the middle of the rack connect all 72 GPUs as one NVLink domain, so any GPU can read any other’s memory at full speed.',
+      specs: [['Trays', '9', 'spec'], ['Bandwidth per GPU', '1.8 TB/s', 'spec'], ['Domain total', '130 TB/s', 'spec']] },
+    { id: 'spine', title: 'NVLink spine', kicker: '≈5,000 copper cables',
+      body: 'Cable cartridges down the back tie every tray to every switch in copper. Copper instead of optics saves the power of thousands of transceivers.',
+      specs: [['Links', 'more than 5,000 active copper', 'spec'], ['Total length', '≈2 miles', 'typical'], ['Signaling', '224G PAM4', 'typical']] },
+    { id: 'manifold', title: 'Coolant manifolds', kicker: 'Blue in, red out',
+      body: 'Two vertical manifolds with dripless quick disconnects feed every tray. A tray comes out without a drop of water.',
+      specs: [['Liquid-cooled parts', 'GPUs, CPUs, switch chips', 'typical']] },
+  ],
+  tray: [
+    { id: 'clip', title: 'Busbar clip', kicker: '≈50 V DC in',
+      body: 'Spring copper fingers at the back of the tray grab the rack busbar. More than a hundred amps flows through this clip when the tray is working hard.',
+      specs: [['Tray power', '≈6 kW', 'est'], ['Current at 50 V', '≈20 A per kW', 'est']] },
+    { id: 'ibc', title: 'Bus converters', kicker: '50 V → 12 V',
+      body: 'Fixed-ratio converter bricks cut the voltage by about four and hand 12 V to the board. They are very efficient because they do not regulate. Vendors do not publish figures for this board, so the loss here is an estimate.',
+      specs: [['Efficiency', '≈97–98%', 'est'], ['Loss, campus-wide', '≈1.4 MW', 'est']] },
+    { id: 'vrm', title: 'Voltage regulators', kicker: '12 V → ≈0.8 V',
+      body: 'Dozens of switching phases ring each GPU, each an inductor and a power stage switching at around a megahertz. They sit as close to the chip as they can, because every millimeter at a thousand amps costs power.',
+      specs: [['Phases per GPU', '≈20–30', 'est'], ['Efficiency', '≈90–92%', 'est'], ['Loss, campus-wide', '≈5.4 MW', 'est'], ['Core current', '1,000+ A class', 'typical']] },
+    { id: 'gpu', title: 'Blackwell GPUs', kicker: '4 per tray, 1,200 W each',
+      body: 'Each GPU package is two large dies and eight HBM stacks. It is where most of the power in the building finally goes.',
+      specs: [['Power', '≈1,200 W TDP', 'typical'], ['All-in per GPU, SemiAnalysis', '≈1.87 kW', 'typical'], ['Transistors', '208 billion', 'spec'], ['Memory', '192 GB HBM3e', 'spec']], drill: 5 },
+    { id: 'grace', title: 'Grace CPUs', kicker: '2 per tray',
+      body: 'Each Arm CPU feeds two GPUs over a 900 GB/s coherent link and keeps its own LPDDR5X memory beside it.',
+      specs: [['Cores', '72 Arm Neoverse V2', 'spec'], ['CPU–GPU link', '900 GB/s NVLink-C2C', 'spec']] },
+    { id: 'lpddr', title: 'LPDDR5X memory', kicker: 'CPU memory',
+      body: 'Low-power DRAM packages soldered around each Grace CPU.',
+      specs: [['Capacity', '480 GB per CPU (17 TB per rack)', 'spec']] },
+    { id: 'coldplates', title: 'Cold plates', kicker: 'Water on every hot chip',
+      body: 'Copper plates with fine internal fins sit on each GPU and CPU. Coolant enters cool, picks up about a kilowatt per GPU, and leaves warm.',
+      specs: [['Heat per GPU', '≈1.2 kW', 'typical']] },
+    { id: 'nic', title: 'NICs, DPU and SSDs', kicker: 'The front of the tray',
+      body: 'Network cards carry scale-out traffic to the spine, a DPU handles storage and security, and E1.S drives hold local data.',
+      specs: [['Scale-out', '≈800 Gb/s per GPU', 'est']] },
+    { id: 'nvconn', title: 'NVLink connectors', kicker: 'To the spine',
+      body: 'High-density connectors at the rear mate with the copper spine when the tray is pushed home.',
+      specs: [['Per GPU', '18 NVLink 5 links', 'spec']] },
+  ],
+  chip: [
+    { id: 'balls', title: 'Solder balls & substrate', kicker: 'A thousand-plus amps comes up here',
+      body: 'Thousands of solder balls carry power and signals from the board into a many-layer organic substrate. Most of the balls are power and ground: at 0.8 V it takes many parallel paths to carry a thousand amps.',
+      specs: [['Core voltage', '≈0.7–0.9 V', 'typical'], ['Core current, P ÷ V', '≈1,000–1,500 A over several rails', 'est']] },
+    { id: 'interposer', title: 'Interposer', kicker: 'CoWoS-L',
+      body: 'A silicon bridge layer wires the dies and memory together with lines far finer than any circuit board can carry.',
+      specs: [['Packaging', 'TSMC CoWoS-L', 'spec']] },
+    { id: 'dies', title: 'Two GPU dies', kicker: '208 billion transistors',
+      body: 'Two reticle-limit dies act as one GPU, joined by a 10 TB/s die-to-die link. Nearly every watt that reaches them becomes heat within a few nanoseconds of doing arithmetic.',
+      specs: [['Transistors', '208 billion', 'spec'], ['Die-to-die link', '10 TB/s NV-HBI', 'spec'], ['Process', 'TSMC 4NP', 'spec']] },
+    { id: 'hbm', title: 'HBM3e stacks', kicker: '8 stacks, 192 GB',
+      body: 'Each stack is DRAM dies thinned and stacked with through-silicon vias. Moving model weights out of HBM for every token is a large share of inference energy.',
+      specs: [['Capacity', '192 GB (≈186 GB usable)', 'spec'], ['Bandwidth', '8 TB/s', 'spec'], ['Share of GPU power', '≈8–15%', 'est']] },
+    { id: 'tokens', title: 'Tokens', kicker: 'What leaves',
+      body: 'Every token a model writes is a pass through billions of weights. Run the numbers below to see how many a kilowatt-hour buys.',
+      specs: [['Google, median Gemini text prompt', '0.24 Wh, all-in', 'spec'], ['LLaMA-65B on A100, 2023', '≈3–4 J per token', 'spec'], ['GB200 vs H200', '≈8–10× tokens per MW', 'typical']] },
+  ],
+};
+
+// Bill of materials for the reference campus.
+export const BOM = [
+  { group: 'Grid & campus', rows: [
+    ['345 kV lattice towers (last mile)', '≈6', 'est'],
+    ['Dead-tank SF₆ breakers', '6', 'est'],
+    ['Main power transformers, 75 MVA', '3', 'est'],
+    ['34.5 kV feeders', '≈10', 'est'],
+    ['Diesel generators, 3 MW', '≈40', 'est'],
+    ['Diesel on site, 48 h', '≈1.2 million L', 'est'],
+    ['Battery storage', '≈20 MW / 40 MWh', 'est'],
+    ['Rooftop dry coolers', '≈120', 'est'],
+  ] },
+  { group: 'Buildings', rows: [
+    ['Unit substations, 2.5 MVA', '≈44', 'est'],
+    ['480 V switchgear lineups', '≈44', 'est'],
+    ['UPS modules, 1.25 MW', '≈72', 'est'],
+    ['Coolant distribution units', '≈60', 'est'],
+    ['Busway runs', `≈${Math.round(RACKS / 10)}`, 'est'],
+  ] },
+  { group: 'Racks', rows: [
+    ['NVL72 racks', `≈${RACKS.toLocaleString('en-US')}`, 'est'],
+    ['Power shelves', `≈${(RACKS * 6).toLocaleString('en-US')}`, 'est'],
+    ['Rectifiers', `≈${(RACKS * 36).toLocaleString('en-US')}`, 'est'],
+    ['NVLink copper connections', `≈${(NET.nvlinkPairs / 1e6).toFixed(1)} million`, 'est'],
+  ] },
+  { group: 'Silicon', rows: [
+    ['Blackwell GPUs', `≈${GPUS.toLocaleString('en-US')}`, 'est'],
+    ['Grace CPUs', `≈${(RACKS * 36).toLocaleString('en-US')}`, 'est'],
+    ['HBM3e stacks', `≈${(GPUS * 8).toLocaleString('en-US')}`, 'est'],
+    ['VRM phases', `≈${(GPUS * 24 / 1e6).toFixed(1)} million`, 'est'],
+    ['Transistors in GPUs', `≈${(GPUS * 208e9 / 1e15).toFixed(1)} quadrillion`, 'est'],
+  ] },
+];
+
+// Power-mode parts for the regional scene.
+PARTS.across = [
+  { id: 'grid', title: 'Each campus, its own grid', kicker: '345–500 kV backbone',
+    body: 'High-voltage lines tie every campus to power plants and the wider grid. A gigawatt campus needs a new substation and often new lines, which is why builders spread clusters across regions where power is available.',
+    specs: [['Interconnection', '230–500 kV', 'typical'], ['Example', 'Meta Hyperion: new 500 kV substation and lines', 'typical']] },
+  { id: 'plants', title: 'Generation', kicker: 'Gas, nuclear, wind, solar',
+    body: 'Plants inject power into the grid far from the campus; the grid delivers it with about 5% lost on the way.',
+    specs: [['US grid losses', '≈5% (EIA)', 'spec']] },
+  { id: 'home', title: 'This campus', kicker: '100 MW at the meter',
+    body: 'The campus this page follows, 100 MW at the meter. Go in to the substation and follow the power down.',
+    specs: [['Meter', '100 MW', 'est']], drill: 1 },
+];
+
+// Data-mode parts per scene. Positions come from each scene's dataHotspots.
+export const PARTS_DATA = {
+  campus: [
+    { id: 'fiber', title: 'Fiber entrances', kicker: 'Two diverse routes',
+      body: 'Long-haul fiber enters at vaults on opposite sides of the site, so one backhoe cannot cut the campus off. Questions arrive and tokens leave the same way.',
+      specs: [['Routes', '2 or more, physically separate', 'typical']] },
+    { id: 'dci', title: 'Line terminal hut', kicker: 'Coherent DWDM',
+      body: 'Coherent optics put dozens of wavelengths on each fiber pair, each carrying hundreds of gigabits to over a terabit, bound for other campuses.',
+      specs: [['Per wavelength, Ciena WaveLogic 6', 'up to 1.6 Tb/s', 'spec'], ['400ZR reach, amplified', '80–120 km', 'typical'], ['Module power, 400ZR / 800ZR', '≈15–20 W / ≈23–25 W', 'typical']] },
+    { id: 'interhall', title: 'Hall-to-hall fiber', kicker: 'One fabric, two buildings',
+      body: 'Thousands of strands in the duct bank join the spines of both halls, so a single training job can span every GPU on the campus.',
+      specs: [['Strands', 'tens of thousands', 'est']] },
+    { id: 'ductbank', title: 'Duct bank', kicker: 'Fiber between the halls, cut away',
+      body: `Between buildings, fiber runs in 4-inch conduits cast in concrete, one high-count ribbon cable per conduit, with a spare row. In this layout half the spine-to-core links cross between the halls: about ${Math.round(NET.crossHallFibers / 1000)}k strands, or roughly ${Math.ceil(NET.crossHallFibers / 6912)} cables of 6,912 fibers each.`,
+      specs: [['Strands crossing', `≈${Math.round(NET.crossHallFibers / 1000)}k`, 'est'], ['Cable', '6,912-fiber ribbon fits a 2-inch duct', 'spec'], ['Duct-bank layout', 'general telecom practice', 'est']] },
+    { id: 'hall', title: 'Data halls', kicker: 'Scale-out fabric inside', drill: 2,
+      body: 'Inside, every GPU has its own optical port into a leaf-and-spine fabric.',
+      specs: [['GPUs', `≈${GPUS.toLocaleString('en-US')}`, 'est']] },
+    { id: 'longhaul', title: 'Long-haul route', kicker: 'Scale across', drill: 0,
+      body: 'The fiber leaving the site runs to other campuses hundreds of kilometers away.',
+      specs: [['Light in fiber', '≈5 µs per km', 'typical']] },
+  ],
+  hall: [
+    { id: 'odf', title: 'Fiber distribution frames', kicker: 'Where every link is patched',
+      body: 'Fabric links do not run switch to switch in one piece. Trunk cables land on patch frames, and short jumpers make the actual connections, so a link can be moved without pulling cable through the ceiling.',
+      specs: [['Fabric strands, whole campus', `≈${(NET.fibers / 1e6).toFixed(1)} million`, 'est'], ['Housing density, Corning EDGE8', '144 fibers per 1U, 576 per 4U', 'spec'], ['4U housings for this campus', `≈${Math.round(NET.fibers / 576).toLocaleString('en-US')}`, 'est']] },
+    { id: 'crosshall', title: 'To the other hall', kicker: 'Through the floor', drill: 1,
+      body: 'Cables for the links that cross buildings drop through a floor sleeve into the duct bank outside.',
+      specs: [['Strands', `≈${Math.round(NET.crossHallFibers / 1000)}k`, 'est']] },
+    { id: 'pp', title: 'Pipeline stages', kicker: 'One replica, four racks',
+      body: 'The tinted rack tops show one way to lay a model out: its layers split into four stages, one rack each, passing activations down the line like an assembly line. 4 racks \u00d7 72 GPUs = one copy of the model.',
+      specs: [['Traffic', 'point to point, per micro-batch', 'spec'], ['Llama 3 405B', 'pipeline parallel 16', 'spec'], ['Layout drawn here', 'illustrative', 'est']] },
+    { id: 'dp', title: 'Data-parallel replicas', kicker: 'Many copies, one model',
+      body: 'Every group of four racks holds another full copy. Each copy trains on different data, and all of them average their gradients across the fabric once per step.',
+      specs: [['Traffic', 'large all-reduce, once per step', 'spec'], ['Llama 3 405B', 'TP 8 × CP 16 × PP 16 × DP 8 = 16,384 GPUs', 'spec'], ['DeepSeek-V3', 'no tensor parallel; EP 64, PP 16, ZeRO-1 DP', 'spec']] },
+    { id: 'uplinks', title: 'Rack uplinks', kicker: 'Where scale-out starts',
+      body: 'Each rack sends one optical link per GPU up into the fiber runway overhead: 72 ports per rack before the first switch. Early GB200 racks ran them at 400G; GB300 standardizes on 800G.',
+      specs: [['Per GPU, GB300', '800 Gb/s', 'spec'], ['Per GPU, early GB200', '400 Gb/s', 'typical'], ['Ports per rack', '72', 'typical']] },
+    { id: 'leaf', title: 'Leaf switches', kicker: 'Rail-optimized',
+      body: 'Network racks at the row ends hold leaf switches. In a rail-optimized layout, GPU number n in every rack plugs into the same leaf, so most traffic crosses only one switch.',
+      specs: [['Hops, same rail', '1', 'typical'], ['Switch hop, InfiniBand', 'under ≈100 ns; NVIDIA publishes none', 'typical']] },
+    { id: 'spine', title: 'Spine switches', kicker: 'Any GPU to any GPU',
+      body: 'The spine connects every leaf to every other. Two tiers of 144-port switches reach about ten thousand GPUs per plane; bigger clusters add a third tier.',
+      specs: [['Quantum-X800 Q3400', '144 × 800G, 115.2 Tb/s, 2.9 kW', 'spec'], ['Spectrum SN5600', '64 × 800G, 51.2 Tb/s, 940 W', 'spec']] },
+    { id: 'runways', title: 'Fiber runways', kicker: 'Yellow means fiber',
+      body: 'Overhead yellow trays carry thousands of single-mode strands. A parallel 800G module lights eight lanes through two multi-fiber connectors, so strand counts climb fast.',
+      specs: [['800G DR8 lanes', '8, on two MPO connectors', 'typical']] },
+    { id: 'optics', title: 'Optical modules', kicker: 'Several per GPU',
+      body: `Every link is lit at both ends by a pluggable module. One per GPU leaves the rack, and every tier above adds more: about ${(NET.modules / GPUS).toFixed(1)} per GPU, ${(NET.opticsMW).toFixed(1)} MW for this campus.`,
+      specs: [['NVIDIA 800G DR8, 500 m', '17 W max', 'spec'], ['1.6T modules', '≈25–30 W, still ramping', 'est'], ['Linear-drive (LPO)', 'roughly half the power', 'typical']] },
+    { id: 'cpo', title: 'Co-packaged optics', kicker: 'Light inside the switch',
+      body: 'New switches put the optical engines on the switch package itself, cutting out the pluggable modules and much of their power.',
+      specs: [['NVIDIA Quantum-X / Spectrum-X Photonics', '3.5× power efficiency, 4× fewer lasers', 'spec'], ['Broadcom Davisson', '102.4 Tb/s, 3.5 W per 800G port', 'spec']] },
+    { id: 'racks', title: 'NVL72 racks', kicker: 'Scale-up stays inside', drill: 3,
+      body: 'Inside each rack, 72 GPUs talk over copper NVLink, 18 times faster than the fabric outside.',
+      specs: [['NVLink per GPU', '1.8 TB/s', 'spec']] },
+  ],
+  rack: [
+    { id: 'tp', title: 'Tensor + expert parallel', kicker: 'The chattiest work lives here',
+      body: 'Inside one rack a model layer\u2019s math is split across GPUs, or its experts are spread over all 72. The GPUs trade partial results inside every layer, which only NVLink is fast enough for.',
+      specs: [['Traffic', 'every layer, many times per token', 'spec'], ['Llama 3 405B, H100', 'tensor parallel 8, inside each server', 'spec'], ['NVL72 wide expert parallel', 'experts across all 72 GPUs', 'spec']] },
+    { id: 'nvswitch', title: 'NVLink switch trays', kicker: 'Scale-up: one domain',
+      body: 'Nine switch trays in the middle connect all 72 GPUs, so any GPU can read another\u2019s memory as fast as its own link allows.',
+      specs: [['Trays', '9, 2 switch chips each (18)', 'spec'], ['Per GPU', '18 links, 1.8 TB/s', 'spec'], ['Domain total', '130 TB/s', 'spec'], ['Next: Vera Rubin, NVLink 6', '3.6 TB/s per GPU', 'spec']] },
+    { id: 'spine', title: 'NVLink spine', kicker: 'Copper, not light',
+      body: 'Cable cartridges down the back carry more than 5,000 copper links. At 224G, passive copper reaches about a meter, just enough for one rack, and it needs no optical modules or retimers.',
+      specs: [['Links', 'more than 5,000', 'spec'], ['Power saved vs optics, NVIDIA', '≈20 kW per rack', 'spec'], ['Passive copper reach at 224G', '≈1 m', 'typical']] },
+    { id: 'optical', title: 'The optical alternative', kicker: 'Google TPU pods',
+      body: 'Google scales up with light instead: TPU pods of about 9,000 chips wired through mirror-based optical circuit switches that can rewire the pod in milliseconds.',
+      specs: [['Ironwood pod', '9,216 chips', 'spec'], ['ICI per chip', '1.2 TB/s', 'spec'], ['Optical circuit switch', '136 ports, ≈108 W', 'typical']] },
+    { id: 'uplinks', title: 'Scale-out ports', kicker: 'The only data that leaves',
+      body: 'One optical port per GPU leaves the front of each compute tray and climbs to the fiber runway overhead.',
+      specs: [['Ports', '72', 'typical'], ['Rate', '400–800 Gb/s each', 'typical']] },
+    { id: 'compute', title: 'Compute trays', kicker: '4 GPUs each', drill: 4,
+      body: 'Each tray is where the three networks meet: NVLink at the back, optics at the front, and the CPU link in between.',
+      specs: [['GPUs', '4', 'spec']] },
+    { id: 'mgmt', title: 'Management switch', kicker: 'Out-of-band',
+      body: 'A small copper switch at the top runs the rack\u2019s management network: firmware, sensors and power control, separate from the fabrics that move model data.',
+      specs: [['Rate', '1–10 GbE class', 'est']] },
+  ],
+  tray: [
+    { id: 'nvconn', title: 'NVLink connectors', kicker: '18 links per GPU',
+      body: 'Each GPU\u2019s 18 NVLink links leave the back of the tray and mate with the copper spine when the tray is pushed home.',
+      specs: [['Per GPU', '18 links, 1.8 TB/s', 'spec']] },
+    { id: 'c2c', title: 'NVLink-C2C', kicker: 'CPU to GPU',
+      body: 'Each Grace CPU talks to its two GPUs over a coherent chip-to-chip link, so the GPUs can use CPU memory as a slower extension of their own.',
+      specs: [['Bandwidth', '900 GB/s', 'spec']] },
+    { id: 'cx', title: 'SuperNICs', kicker: 'One per GPU',
+      body: 'Each GPU has its own network card for scale-out traffic, so GPUs talk to other racks without going through the CPU.',
+      specs: [['GB300, ConnectX-8', '800 Gb/s per GPU', 'spec'], ['Early GB200, ConnectX-7', '400 Gb/s per GPU', 'typical'], ['Host link', 'PCIe Gen6', 'spec']] },
+    { id: 'osfp', title: 'Optical modules', kicker: 'Electrons become light',
+      body: 'Pluggable modules at the front turn the NIC\u2019s electrical signal into light on single-mode fiber.',
+      specs: [['NVIDIA 800G DR8', '17 W max', 'spec'], ['400G module', '8–9 W', 'spec']] },
+    { id: 'dpu', title: 'BlueField DPU', kicker: 'Front-end network',
+      body: 'A separate network carries user requests, storage and management. The DPU runs it without taking CPU time.',
+      specs: [['BlueField-3', 'up to 400 Gb/s', 'spec'], ['Role', 'storage, security, tenant networking', 'typical']] },
+    { id: 'gpu', title: 'Blackwell GPUs', kicker: 'Where the links begin', drill: 5,
+      body: 'Every one of these links starts at the edge of the GPU dies.',
+      specs: [['Links per GPU', 'NVLink, C2C, PCIe to the NIC', 'spec']] },
+  ],
+  chip: [
+    { id: 'hbm', title: 'HBM3e', kicker: '8 TB/s, millimeters away',
+      body: 'The fastest link in the building is the shortest: thousands of wires through the interposer between each HBM stack and the dies.',
+      specs: [['Bandwidth', '8 TB/s', 'spec']] },
+    { id: 'hbi', title: 'NV-HBI', kicker: '10 TB/s die to die',
+      body: 'The two dies join across their seam fast enough that software sees one GPU.',
+      specs: [['Bandwidth', '10 TB/s', 'spec']] },
+    { id: 'nvphy', title: 'NVLink SerDes', kicker: '18 links leave here',
+      body: 'Serializer circuits along the die edge push NVLink out through the package at 224 Gb/s per lane.',
+      specs: [['Per GPU', '1.8 TB/s', 'spec']] },
+    { id: 'cpo', title: 'Light on the package', kicker: 'What comes next',
+      body: 'Today the GPU speaks copper and a module turns it into light. Switches already carry optical engines on the package; bringing them to the GPU would let scale-up reach beyond one rack.',
+      specs: [['GB200', 'electrical I/O only', 'spec']] },
+    { id: 'tokens', title: 'Tokens', kicker: 'What leaves',
+      body: 'After all those links, the output is small: a few bytes per token, sent back out the front-end network to whoever asked.',
+      specs: [['Per token of text', 'a few bytes', 'est']] },
+  ],
+  across: [
+    { id: 'dci', title: 'Line terminals', kicker: 'Coherent DWDM',
+      body: 'At each campus, coherent transponders put many wavelengths on a fiber pair, each 800 Gb/s to 1.6 Tb/s.',
+      specs: [['Per wavelength, WaveLogic 6', 'up to 1.6 Tb/s', 'spec'], ['Field trial', '1.6 Tb/s over 1,100 km (Telstra)', 'spec'], ['C+L band', 'about 2× capacity per fiber', 'spec']] },
+    { id: 'ila', title: 'Amplifier huts', kicker: 'Every 60–100 km',
+      body: 'Small buildings along the route boost the light without converting it back to electricity.',
+      specs: [['Spacing', '≈80–100 km, rule of thumb', 'typical']] },
+    { id: 'route', title: 'Fiber route', kicker: '≈5 ms per 1,000 km',
+      body: 'Light in glass covers about 200 km per millisecond. A 1,000 km route adds about 10 ms to every round trip, fine for inference and hard for tightly synchronized training.',
+      specs: [['Speed in fiber', '≈4.9 µs per km', 'typical'], ['1,000 km round trip', '≈10 ms', 'est'], ['Microsoft hollow-core fiber', '≈33% lower latency; 1,280 km laid', 'spec'], ['Per fiber pair, C-band 800ZR', '32 × 800G = 25.6 Tb/s', 'spec']] },
+    { id: 'remote', title: 'Other campuses', kicker: 'One model, several sites',
+      body: 'Builders now train single models across campuses, splitting the work so the slow links carry the least traffic. Google trains its largest models across campuses and metros; Microsoft links Fairwater sites about 700 miles apart.',
+      specs: [['Microsoft AI WAN fiber added', '120,000 miles', 'spec'], ['NVIDIA Spectrum-XGS', 'nearly 2× NCCL across sites', 'spec'], ['DeepMind Decoupled DiLoCo', '4 US regions over 2–5 Gb/s', 'spec']] },
+    { id: 'home', title: 'This campus', kicker: 'Go in', drill: 1,
+      body: 'Go into the campus and follow the data in.',
+      specs: [['GPUs', `≈${GPUS.toLocaleString('en-US')}`, 'est']] },
+  ],
+};
+
+// Bandwidth per GPU at each scale, and the latency that comes with it.
+export const BANDWIDTH = [
+  { label: 'NV-HBI', where: 'Die to die', gbs: 10000, latency: 'nanoseconds', note: 'across the seam', cls: 'hbi', basis: 'spec' },
+  { label: 'HBM3e', where: 'Memory, on package', gbs: 8000, latency: '≈100s of ns', note: 'per GPU', cls: 'hbm', basis: 'spec' },
+  { label: 'NVLink 5', where: 'Scale-up, in the rack', gbs: 1800, latency: 'sub-µs, unpublished', note: 'per GPU, 72 GPUs', cls: 'nvl', basis: 'spec' },
+  { label: '800G', where: 'Scale-out, the hall', gbs: 100, latency: '≈1–2 µs', note: 'per GPU (400G on early GB200)', cls: 'eth', basis: 'typical' },
+  { label: 'DWDM', where: 'Scale across, 1,000 km', gbs: 1, latency: '≈5 ms one way', note: 'per GPU share of a site link', cls: 'dci', basis: 'est' },
+];
+
+BOM.push({ group: 'Network', rows: [
+  ['NVLink switch chips', `≈${(RACKS * 18).toLocaleString('en-US')}`, 'est'],
+  ['SuperNICs', `≈${GPUS.toLocaleString('en-US')}`, 'est'],
+  ['Leaf / spine / core switches, 144-port', `≈${NET.switches.toLocaleString('en-US')}`, 'est'],
+  ['Optical modules', `≈${Math.round(NET.modules / 1000).toLocaleString('en-US')}k`, 'est'],
+  ['Fiber strands in the fabric', `≈${(NET.fibers / 1e6).toFixed(1)} million`, 'est'],
+] });
+
+// Heat-mode parts per scene. Positions come from each scene's heatHotspots.
+export const PARTS_HEAT = {
+  campus: [
+    { id: 'drycoolers', title: 'Dry coolers', kicker: 'Heat into air, no water',
+      body: 'Warm facility water runs through finned coils on the roofs while big fans pull outside air across them. With water at 30–45 °C, outside air can take the heat most of the year without chillers.',
+      specs: [['Heat rejected', '≈100 MW', 'est'], ['NVIDIA warm-water spec', '45 °C in, ≈55 °C out', 'typical'], ['Water classes', 'ASHRAE W32–W45', 'spec']] },
+    { id: 'towers', title: 'Cooling towers', kicker: 'Hot days cost water',
+      body: 'Evaporating water carries heat away far better than air, so towers trim the loop on the hottest afternoons. Every kilowatt-hour moved this way costs water.',
+      specs: [['On site, dry + adiabatic', '≈0.15–0.2 L/kWh', 'typical'], ['At the power plant, typical thermal', '≈1.8 L/kWh (NREL)', 'spec'], ['Microsoft, since Aug 2024 designs', 'closed loop, zero cooling water', 'spec']] },
+    { id: 'plume', title: 'Where 100 MW goes', kicker: 'All of it, as heat',
+      body: 'Every watt that came in on the 345 kV line leaves as warm air above the roofs. The campus is, physically, a 100 MW heater that happens to make tokens on the way.',
+      specs: [['Heat out', '100 MW', 'est']] },
+    { id: 'reuse', title: 'Heat reuse', kicker: 'Warm water is still worth something',
+      body: 'In cold climates the return water can feed a district heating network, with heat pumps lifting it to 70–75 °C. This reference campus exports none; these do.',
+      specs: [['Meta Odense, Denmark', '≈165,000 MWh a year, ≈11,000 homes', 'typical'], ['Microsoft + Fortum, Finland', 'up to 180 MW of district heat', 'spec'], ['Stockholm Data Parks', '30+ data centers selling heat', 'spec']] },
+  ],
+  hall: [
+    { id: 'cdu', title: 'Coolant distribution unit', kicker: 'Where the two loops meet',
+      body: 'A plate heat exchanger passes heat from the rack loop into facility water without mixing them. The rack side stays above the dew point so nothing condenses.',
+      specs: [['Capacity range', '70 kW – 2.5 MW', 'spec'], ['Approach, facility to rack loop', 'a few °C', 'est']] },
+    { id: 'fwater', title: 'Facility water loop', kicker: 'Supply blue, return red',
+      body: 'Insulated headers carry warm return water up to the roof and cooler supply water back. The temperature difference across the racks sets how much water has to move.',
+      specs: [['Rise across the racks', '≈10 °C', 'est']] },
+    { id: 'hotaisle', title: 'Hot aisle', kicker: 'The air-side heat',
+      body: 'Rack backs face each other across a sealed aisle, so the heat water misses rises and flows to the fan wall instead of warming the room.',
+      specs: [['Air share of rack heat', '≈13%', 'spec']] },
+    { id: 'fanwall', title: 'Fan wall', kicker: 'Air back to cool',
+      body: 'Fans pull hot-aisle air through water coils and blow it back into the room cool, closing the air loop.',
+      specs: [['Moves', 'the ≈13% air share', 'est']] },
+    { id: 'riser', title: 'Risers to the roof', kicker: 'Heat leaves the building',
+      body: 'The headers turn up through the roof to the dry coolers.',
+      specs: [['Carries', 'nearly all of the hall\u2019s heat', 'est']], drill: 1 },
+  ],
+  rack: [
+    { id: 'manifold', title: 'Coolant manifolds', kicker: 'Cool in, warm out',
+      body: 'Supply comes up one side, fans out to every tray through dripless quick disconnects, and returns warmer down the other.',
+      specs: [['Liquid-cooled, HPE build', '115 kW', 'spec'], ['Rise across the rack', '≈10 °C (45 → 55 °C)', 'typical'], ['Flow rate', 'sources disagree ≈5×', 'est']] },
+    { id: 'rearair', title: 'Rear exhaust', kicker: 'The last 13%',
+      body: 'Power shelves, switch trays, optics and drives still shed heat into air, which leaves the back of the rack into the hot aisle.',
+      specs: [['Air-cooled, HPE build', '17 kW', 'spec']] },
+    { id: 'compute', title: 'Compute trays', kicker: 'Where the heat starts', drill: 4,
+      body: 'Each tray carries about six kilowatts of heat into its cold plates.',
+      specs: [['Per tray', '≈6 kW', 'est']] },
+  ],
+  tray: [
+    { id: 'coldplates', title: 'Cold plates', kicker: 'Water on every hot chip',
+      body: 'Copper plates with fine internal fins sit on each GPU and CPU, lifted here to show the chips. Coolant runs through them in series and leaves a few degrees warmer each time.',
+      specs: [['Heat per GPU', '≈1.2 kW', 'typical']] },
+    { id: 'gpuheat', title: 'The heat source', kicker: 'Four GPUs, two CPUs', drill: 5,
+      body: 'Almost all of the tray\u2019s power ends up here, in a few square centimeters of silicon under each plate.',
+      specs: [['Tray heat', '≈6 kW', 'est']] },
+    { id: 'fans', title: 'Fans', kicker: 'For what water misses',
+      body: 'Small fans push air past the NICs, optical modules and drives, which have no cold plates.',
+      specs: [['Air-cooled parts', 'NICs, SSDs, M.2 boards', 'typical']] },
+    { id: 'qd', title: 'Quick disconnects', kicker: 'Dripless',
+      body: 'Couplings at the back seal as the tray is pulled, so a tray comes out dry.',
+      specs: [['Per tray', 'one supply, one return per board', 'est']] },
+  ],
+  chip: [
+    { id: 'junction', title: 'The dies', kicker: 'Hottest point in the building',
+      body: 'Transistors switching billions of times a second turn nearly every watt into heat right at the surface of the silicon.',
+      specs: [['Package power', '≈1,200 W', 'typical'], ['Throttle point', 'near ≈85 °C; NVIDIA publishes none', 'est']] },
+    { id: 'flux', title: 'Heat flux', kicker: 'Like a stovetop, but denser',
+      body: 'Over a kilowatt through two reticle-size dies averages about 75 watts per square centimeter, several times a stove burner. Hot spots on the die run far higher, and those set the cold plate design.',
+      specs: [['Die area, two dies', '≈16 cm²', 'typical'], ['Average flux', '≈75 W/cm²', 'est'], ['Hot spots, cooling trade press', '500+ W/cm²', 'typical']] },
+    { id: 'tim', title: 'Thermal interface and lid', kicker: 'The first hop out',
+      body: 'A thin thermal interface material carries heat from the dies into the lid, and a second one into the cold plate. Each layer costs a few degrees.',
+      specs: [['Layers to water', 'die, interface, lid, interface, plate', 'typical']] },
+    { id: 'hbm', title: 'HBM stacks', kicker: 'Heat in layers',
+      body: 'Stacked DRAM traps heat between its layers, and DRAM leaks more as it warms, so memory often sets the temperature limit before the GPU does.',
+      specs: [['Share of package power', '≈8–15%', 'est'], ['HBM3e limit, Micron', '105 °C', 'spec']] },
+  ],
+  across: [
+    { id: 'climate', title: 'Climate picks sites', kicker: 'Heat stays local',
+      body: 'Power travels, heat does not. Builders favor places where outside air is cool enough to reject heat most of the year, and where water is not scarce.',
+      specs: [['Free cooling', 'most hours in cool climates', 'typical']] },
+    { id: 'home', title: 'This campus', kicker: 'Go in', drill: 1,
+      body: 'Go into the campus and follow the heat out.',
+      specs: [['Heat out', '100 MW', 'est']] },
+  ],
+};
+
+// Temperature at each hop, hottest first. Values are representative, not a vendor spec.
+export const TEMPS = [
+  { label: 'GPU die', c: 70, note: 'throttles near ≈85 °C; not published', basis: 'est' },
+  { label: 'Coolant leaving the rack', c: 55, note: '≈10 °C rise across the rack', basis: 'typical' },
+  { label: 'Facility water to the roof', c: 52, note: 'a few degrees lost in the CDU', basis: 'est' },
+  { label: 'Coolant entering the rack', c: 45, note: 'NVIDIA warm-water spec', basis: 'typical' },
+  { label: 'Outdoor air, hot day', c: 35, note: 'still cold enough for dry coolers', basis: 'est' },
+];
+
+// How a model is split, from the chattiest traffic to the quietest.
+export const PARALLEL = [
+  { name: 'Tensor + expert parallel', where: 'Inside one NVL72 rack', cls: 'nvl', scene: 3,
+    what: 'Each layer\u2019s math is split across GPUs, or experts are spread across them. GPUs exchange partial results inside every layer, many times per token.',
+    need: 'TB/s, every layer' },
+  { name: 'Pipeline parallel', where: 'Across a few racks', cls: 'eth', scene: 2,
+    what: 'Consecutive groups of layers live on different racks. Activations pass from one stage to the next, like an assembly line.',
+    need: 'Point to point, per micro-batch' },
+  { name: 'Data parallel', where: 'Across the hall', cls: 'eth', scene: 2,
+    what: 'Many copies of the model train on different data and average their gradients once per step, overlapped with compute.',
+    need: 'Big all-reduce, once per step' },
+  { name: 'Loosely synced replicas', where: 'Across campuses', cls: 'dci', scene: 0,
+    what: 'Sites train mostly on their own and sync only every so often, which keeps the slow long-haul links from stalling every step.',
+    need: 'Gb/s, every few hundred steps' },
+];
