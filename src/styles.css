@@ -643,3 +643,24 @@ body.scrolled .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--
 .beat:not(.on) .beat-acts { opacity: .6; }
 .beat-acts { align-items: center; }
 .beat-acts [data-restart] { order: 9; }                     /* onward first, starting over last in reading order on a row */
+
+/* ---------- links: the media ladder, the copper wall, cutaway optics ---------- */
+.subsec { margin-top: 32px; }
+.sub-h { margin: 0; font: 600 clamp(20px, 2.6vw, 28px)/1.15 var(--display); text-transform: uppercase; color: var(--ink); }
+.sub-lede { margin: 6px 0 0; color: var(--muted); font-size: 15px; line-height: 1.6; max-width: 68ch; }
+.ml-list { display: grid; gap: 10px; margin-top: 14px; }
+.ml-row { border: 1px solid var(--line); border-left: 3px solid var(--c); background: var(--surface); padding: 16px 18px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; align-items: start; }
+.ml-row h4 { grid-column: 1; margin: 0; font: 600 18px/1.25 var(--display); text-transform: uppercase; color: var(--ink); }
+.ml-row .chip { grid-column: 2; grid-row: 1; justify-self: end; align-self: start; margin-top: 2px; }
+.ml-scope { grid-column: 1 / -1; margin: 0; font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--c); }
+.ml-what { grid-column: 1 / -1; margin: 8px 0 0; color: var(--muted); font-size: 14px; line-height: 1.55; max-width: 78ch; }
+.ml-facts { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 24px; margin-top: 10px; }
+.ml-facts div { display: grid; gap: 3px; }
+.ml-facts dt { margin: 0; font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.ml-facts dd { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink); }
+#fig-optics-cutaway svg { min-width: 1200px; }
+@media (max-width: 640px) {
+  .ml-row { grid-template-columns: minmax(0, 1fr); }
+  .ml-row .chip { grid-column: 1; justify-self: start; margin-top: 8px; }
+  .ml-facts { grid-template-columns: minmax(0, 1fr); }
+}

@@ -175,6 +175,29 @@
     <figure class="fig"><div class="chart-box" id="fig-scaleup"></div><figcaption id="cap-scaleup"><b style="color:var(--nvl)">Scale-up.</b> Inside one NVL72 rack every GPU connects straight to all 18 NVLink switch chips, so any GPU reaches any other through exactly one switch. One GPU's 18 links are highlighted.</figcaption></figure>
     <figure class="fig"><div class="chart-box" id="fig-scaleout"></div><figcaption id="cap-scaleout"><b style="color:var(--eth)">Scale-out.</b> One 800G optical port per GPU climbs through up to three tiers of 144-port switches. Non-blocking means the same number of links at every tier, so each tier adds about one more link per GPU and two more optical modules per link.</figcaption></figure>
     <figure class="fig"><div class="chart-box" id="fig-across"></div><figcaption><b style="color:var(--dci)">Scale across.</b> Traffic for another campus leaves the fabric through routers with coherent optics, which put many colors of light on each fiber pair. Amplifier huts boost the light every 80 km or so without turning it back into electricity.</figcaption></figure>
+
+    <div class="subsec sec-head">
+      <p class="eyebrow">Copper and optics</p>
+      <h3 class="sub-h" id="media-ladder-h">The media ladder</h3>
+      <p class="sub-lede">Every link in this campus is one of a few physical media, and each medium trades reach for power. Passive copper costs nothing to add but runs out of room fast; every step past it puts a chip in the path to buy distance back.</p>
+    </div>
+    <div class="ml-list" id="media-ladder" aria-labelledby="media-ladder-h"></div>
+
+    <figure class="fig subsec">
+      <div class="chart-box" id="fig-copperwall"></div>
+      <figcaption id="cap-copperwall"><b style="color:var(--nvl)">The copper wall.</b> A passive cable reaches further at a slow lane rate than a fast one. Push more bits down each lane, and the same wire's usable reach falls, until it cannot leave a rack at all — the "copper wall" the industry keeps running into as lane rates climb.</figcaption>
+    </figure>
+
+    <div class="subsec sec-head">
+      <p class="eyebrow">Inside the module</p>
+      <h3 class="sub-h" id="optics-cutaway-h">What LPO and CPO remove</h3>
+      <p class="sub-lede">An 800G optical module is a small assembly line: a connector, a chip that cleans up the signal, a laser that turns it into light, and a receiver that turns light back into a signal. Every watt an approach saves, it saves by taking one of those blocks out.</p>
+    </div>
+    <figure class="fig">
+      <div class="chart-box" id="fig-optics-cutaway"></div>
+      <figcaption id="cap-optics-cutaway"><b style="color:var(--eth)">Three ways to move light.</b> A DSP pluggable regenerates the signal at both ends of the fiber. Linear pluggable optics (LPO) skips that chip and lets the switch's own SerDes drive the line. Co-packaged optics (CPO) goes further and builds the optics into the switch package itself, feeding them from a laser source outside the package.</figcaption>
+    </figure>
+
     <div class="census" id="census"></div>
   </section>
 
