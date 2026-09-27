@@ -481,9 +481,8 @@ export function build({ quality, model }) {
   // a small, background-sized thing there (<12°) rather than looming — a first pass covered the
   // transmission-line and substation hotspots too, but their cameras sit close enough to the west side
   // that any cloud visible there filled the whole frame like fog, which is the opposite of the fix.
-  if (!quality.mobile && !extra) scene.add(clouds([
-    [80, 90, -40, 45], [-23, 90, 228, 135], [-2173, 150, -957, 220],
-  ]));
+  // Only the far one stays: the two over the site sat 90 m up, fog height, and read as smoke over the halls.
+  if (!quality.mobile && !extra) scene.add(clouds([[-2173, 150, -957, 220]]));
 
   scene.add(S.build({ cast: true, receive: true }));
   scene.add(N.build({ cast: false, receive: true }));
