@@ -1,0 +1,40 @@
+/* The live-generation console (src/app/tokens-ui.js), mounted into the part card or the active tour beat. */
+.tok-console { display: grid; gap: 10px; margin: 2px 0 4px; padding: 14px 14px 12px; background: var(--raise); border: 1px solid var(--line); }
+.tok-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.tok-phase { font: 500 11px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--core); }
+.tok-ctxbar { display: block; height: 2px; background: var(--line); overflow: hidden; }
+.tok-ctxbar i { display: block; height: 100%; width: 100%; background: var(--hbm); transform: scaleX(0); transform-origin: left; transition: transform .15s linear; }
+
+.tok-lane { display: grid; gap: 4px; }
+.tok-lbl { font: 400 10px/1.3 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+.tok-line { display: inline; font: 500 14px/1.6 var(--mono); color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+.tok-line.tok-big { font-size: 15.5px; }
+.tok-line.tok-dim { font: italic 400 12.5px/1.6 var(--mono); color: var(--muted); }
+
+.tok { opacity: 0; transform: translateY(2px); transition: opacity .12s ease, transform .12s ease; border-radius: 2px; }
+.tok.out { opacity: 1; transform: none; }
+.tok.tok-even.out { background: color-mix(in srgb, var(--core) 10%, transparent); }
+.tok.tok-odd.out { background: color-mix(in srgb, var(--core) 4%, transparent); }
+.tok-dim .tok.tok-even.out { background: color-mix(in srgb, var(--muted) 12%, transparent); }
+.tok-dim .tok.tok-odd.out { background: transparent; }
+.tok-big .tok.tok-even.out { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.tok-big .tok.tok-odd.out { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+
+.tok-reasoning { border-top: 1px solid var(--line); padding-top: 8px; }
+.tok-reasoning summary { cursor: pointer; font: 400 11px/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); list-style: none; }
+.tok-reasoning summary::-webkit-details-marker { display: none; }
+.tok-reasoning summary::before { content: '▸'; display: inline-block; margin-right: 6px; transition: transform .15s; }
+.tok-reasoning[open] summary::before { transform: rotate(90deg); }
+.tok-count { color: var(--faint); font-variant-numeric: tabular-nums; }
+.tok-reasoning .tok-line { margin-top: 6px; }
+
+.tok-counters { margin: 4px 0 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.tok-counters div { display: grid; gap: 2px; }
+.tok-counters dt { font: 400 9px/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tok-counters dd { margin: 0; font: 600 13px/1.15 var(--display); color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tok-note { margin: 0; font: 400 10.5px/1.4 var(--mono); color: var(--faint); }
+
+@media (max-width: 760px) {
+  .tok-counters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tok-line { font-size: 13px; }
+}

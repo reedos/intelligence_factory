@@ -1,6 +1,7 @@
 // Scene 5: the GPU package, exploded, and the tokens that leave it. World unit = 1 cm.
 // Blackwell and Rubin: two dies, HBM above and below. H100: one die, HBM sites left and right.
 import { THREE, MAT, Builder, flow, canvasTex, glowMat } from '../kit.js';
+import { buildCycle, sampleAt, tick } from '../model/token-script.js';
 
 function dieTexture() {
   return canvasTex(640, 800, (g, w, h) => {
@@ -20,17 +21,26 @@ function dieTexture() {
     g.fillStyle = 'rgba(120,200,255,0.25)'; g.fillRect(w - 16, 40, 16, h - 80);                  // NV-HBI edge
   });
 }
-function wordTexture(word) {
+// A token sprite's look depends on its lane (prompt in, reasoning dim and small, answer bright and larger) and
+// alternates a shade per token so the boundary between adjacent tokens is visible.
+function tokenTexture(word, lane, parity) {
   const c = document.createElement('canvas'); const g = c.getContext('2d');
-  g.font = '600 64px "IBM Plex Mono", ui-monospace, monospace';
-  const tw = Math.ceil(g.measureText(word).width) + 40; c.width = tw; c.height = 96;
-  g.font = '600 64px "IBM Plex Mono", ui-monospace, monospace';
-  g.fillStyle = 'rgba(12,18,28,0.82)'; const r = 18; g.beginPath(); g.roundRect(2, 8, tw - 4, 80, r); g.fill();
-  g.strokeStyle = 'rgba(160,240,255,0.7)'; g.lineWidth = 3; g.stroke();
-  g.fillStyle = '#e9fbff'; g.textBaseline = 'middle'; g.fillText(word, 20, 50);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return { tex: t, aspect: tw / 96 };
+  const dim = lane === 'reasoning', big = lane === 'answer';
+  const px = dim ? 40 : big ? 68 : 52, weight = dim ? 'italic 500' : '600';
+  const font = `${weight} ${px}px "IBM Plex Mono", ui-monospace, monospace`;
+  g.font = font; const pad = dim ? 22 : 40, h = big ? 104 : dim ? 64 : 92;
+  const tw = Math.ceil(g.measureText(word).width) + pad; c.width = tw; c.height = h;
+  g.font = font;
+  if (!dim) {
+    g.fillStyle = parity ? 'rgba(12,18,28,0.72)' : 'rgba(12,18,28,0.88)';
+    g.beginPath(); g.roundRect(2, 6, tw - 4, h - 12, 16); g.fill();
+    g.strokeStyle = lane === 'prompt' ? (parity ? 'rgba(120,225,255,0.55)' : 'rgba(120,225,255,0.85)') : (parity ? 'rgba(230,186,130,0.5)' : 'rgba(230,186,130,0.8)');
+    g.lineWidth = 2.5; g.stroke();
+  }
+  g.fillStyle = dim ? (parity ? 'rgba(150,165,190,0.75)' : 'rgba(182,196,216,0.92)') : lane === 'prompt' ? '#d8f6ff' : '#fff6e9';
+  g.textBaseline = 'middle'; g.fillText(word, dim ? 10 : 20, h / 2 + (dim ? 1 : 2));
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return { tex: t, aspect: tw / h };
 }
-const TOKENS = ['The', ' heron', ' lifts', ' off', ' the', ' water', ',', ' wings', ' catching', ' the', ' last', ' light', '.', ' Every', ' word', ' here', ' cost', ' about', ' a', ' joule', '.'];
 
 export function build({ quality, state, model }) {
   const A = model.accel, twin = A.dies > 1, layers = A.hbm.layers;
@@ -144,23 +154,53 @@ export function build({ quality, state, model }) {
   live.forEach(([x, z]) => heatFlows.push(flow([[x, Y.dies + 0.04 + stackH, z], [x, Y.lid - 0.12, z], [x, Y.lid + 1.2, z]], 'air', { count: 2, speed: 0.9, size: 0.04, k: 2.4, trail: false })));
   heatFlows.forEach(f => scene.add(f.group));
 
-  // ---------- tokens ----------
+  // ---------- tokens: a live generation cycle, streamed as sprites ----------
+  // Three lanes share one cache (keyed by lane, token text and even/odd index, so the boundary between adjacent
+  // tokens reads as a tint change): prompt tokens fly INTO the package as a burst (prefill); reasoning tokens
+  // stream out small, dim and italic-looking, gathering into a faint ribbon; answer tokens stream out bright and
+  // larger along the path tokens already left by. token-script.js is the single source for which tokens are out,
+  // so the 3D stream and the 2D console (src/app/tokens-ui.js) always agree.
   const cache = new Map();
-  const sprites = [];
-  for (let i = 0; i < 26; i++) {
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, opacity: 0 }));
-    sp.visible = false; scene.add(sp); sprites.push({ sp, t: 0, live: false, x0: 0, z0: 0 });
+  function texFor(word, lane, i) {
+    const parity = i % 2 === 1, key = `${lane}:${parity ? 1 : 0}:${word}`;
+    if (!cache.has(key)) cache.set(key, tokenTexture(word, lane, parity));
+    return cache.get(key);
   }
-  let next = 0, acc = 0, wordI = 0;
+  const CAP = quality.mobile ? { prompt: 6, reasoning: 8, answer: 10 } : { prompt: 12, reasoning: 16, answer: 20 };
+  const LIFE = { prompt: 0.8, reasoning: 2.0, answer: 3.2 };
+  function pool(n) {
+    const arr = [];
+    for (let i = 0; i < n; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, opacity: 0 }));
+      sp.visible = false; scene.add(sp); arr.push({ sp, t: 0, live: false, x0: 0, z0: 0, aspect: 1 });
+    }
+    return arr;
+  }
+  const pools = { prompt: pool(CAP.prompt), reasoning: pool(CAP.reasoning), answer: pool(CAP.answer) };
+  const nextI = { prompt: 0, reasoning: 0, answer: 0 };
   const pulse = { v: 0 };
-  function spawn() {
-    const s = sprites[next++ % sprites.length];
-    const word = TOKENS[wordI++ % TOKENS.length];
-    if (!cache.has(word)) cache.set(word, wordTexture(word));
-    const { tex, aspect } = cache.get(word);
+  function spawn(lane, word, idx) {
+    const arr = pools[lane], s = arr[nextI[lane]++ % arr.length];
+    const { tex, aspect } = texFor(word, lane, idx);
     s.sp.material.map = tex; s.sp.material.needsUpdate = true;
-    s.aspect = aspect; s.live = true; s.t = 0; s.x0 = (rnd() - 0.5) * (twin ? 4.2 : 2.2); s.z0 = (rnd() - 0.5) * 2.4; s.sp.visible = true;
-    pulse.v = 1;
+    s.aspect = aspect; s.live = true; s.t = 0;
+    s.x0 = (rnd() - 0.5) * (twin ? 4.2 : 2.2); s.z0 = (rnd() - 0.5) * 2.4; s.sp.visible = true;
+    if (lane === 'answer') pulse.v = 1;
+  }
+  // the KV cache: an emissive band that rises up each live HBM stack as the context grows, and empties on restart
+  const fillGeo = new THREE.BoxGeometry(1, 1, 1); fillGeo.translate(0, 0.5, 0);
+  const fillMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#b08cff').multiplyScalar(1.9), transparent: true, opacity: 0.85, depthWrite: false });
+  const hbmFill = new THREE.InstancedMesh(fillGeo, fillMat, Math.max(1, live.length));
+  hbmFill.frustumCulled = false; hbmFill.count = live.length; scene.add(hbmFill);
+  let genCycle = buildCycle(model), genLen = genCycle.timings.totalS, genLastE = -1;
+  const genShown = { prompt: 0, reasoning: 0, answer: 0 };
+  function animLane(arr, life, dt, place) {
+    for (const item of arr) {
+      if (!item.live) continue;
+      item.t += dt / life;
+      if (item.t >= 1) { item.live = false; item.sp.visible = false; continue; }
+      place(item, item.t);
+    }
   }
 
   const d0 = dieX[0], [hx, hz] = live[live.length - 1], hy = Y.dies + 0.07 + stackH;
@@ -192,17 +232,40 @@ export function build({ quality, state, model }) {
     },
     dispose() { cache.forEach(({ tex }) => tex.dispose()); },
     update(t, dt) {
-      const rate = Math.min(9, 1.5 + Math.log10(Math.max(1, state.tokPerGpu)) * 1.4);   // sprites per second, scaled for legibility
-      acc += dt * rate; while (acc >= 1) { spawn(); acc -= 1; }
-      for (const s of sprites) {
-        if (!s.live) continue;
-        s.t += dt / 3.2;
-        if (s.t >= 1) { s.live = false; s.sp.visible = false; continue; }
-        const u = s.t, e = 1 - Math.pow(1 - u, 2);
-        s.sp.position.set(s.x0 + 1.2 + e * 4.2, Y.dies + 0.4 + e * 4.4, s.z0 - e * 1.5);
-        const sz = 0.3 + e * 0.08; s.sp.scale.set(sz * s.aspect, sz, 1);
-        s.sp.material.opacity = Math.min(1, u * 6) * (1 - Math.max(0, (u - 0.7) / 0.3));
-      }
+      const e = tick(genLen);
+      if (e < genLastE) { genCycle = buildCycle(model); genLen = genCycle.timings.totalS; genShown.prompt = genShown.reasoning = genShown.answer = 0; }
+      genLastE = e;
+      const s = sampleAt(genCycle, e);
+      for (let i = genShown.prompt; i < s.promptOut; i++) spawn('prompt', genCycle.prompt[i], i);
+      for (let i = genShown.reasoning; i < s.reasoningOut; i++) spawn('reasoning', genCycle.reasoning[i], i);
+      for (let i = genShown.answer; i < s.answerOut; i++) spawn('answer', genCycle.answer[i], i);
+      genShown.prompt = s.promptOut; genShown.reasoning = s.reasoningOut; genShown.answer = s.answerOut;
+
+      animLane(pools.prompt, LIFE.prompt, dt, (item, u) => {
+        const ez = u * u;                                                        // ease in: accelerates toward the die
+        item.sp.position.set(item.x0 * 3.1 * (1 - ez) + item.x0 * 0.12 * ez, Y.dies + 3.3 * (1 - ez) + 0.14, item.z0 * 3.1 * (1 - ez) + item.z0 * 0.12 * ez);
+        const sz = 0.3 * (1 - 0.35 * ez); item.sp.scale.set(sz * item.aspect, sz, 1);
+        item.sp.material.opacity = Math.min(1, u * 5) * (1 - Math.max(0, (u - 0.72) / 0.28));
+      });
+      animLane(pools.reasoning, LIFE.reasoning, dt, (item, u) => {
+        const g = 1 - Math.pow(1 - u, 2), pull = 1 - 0.45 * u;                    // gathers inward as it drifts up: a thinking ribbon
+        item.sp.position.set(item.x0 * 0.9 * pull, Y.dies + 0.5 + g * 1.5, item.z0 * 0.9 * pull);
+        const sz = 0.15; item.sp.scale.set(sz * item.aspect, sz, 1);
+        item.sp.material.opacity = 0.55 * Math.min(1, u * 5) * (1 - Math.max(0, (u - 0.65) / 0.35));
+      });
+      animLane(pools.answer, LIFE.answer, dt, (item, u) => {
+        const g = 1 - Math.pow(1 - u, 2);
+        item.sp.position.set(item.x0 + 1.2 + g * 4.2, Y.dies + 0.4 + g * 4.4, item.z0 - g * 1.5);
+        const sz = 0.34 + g * 0.1; item.sp.scale.set(sz * item.aspect, sz, 1);
+        item.sp.material.opacity = Math.min(1, u * 6) * (1 - Math.max(0, (u - 0.7) / 0.3));
+      });
+      live.forEach(([x, z], i) => {
+        const h = Math.max(0.0015, stackH * s.contextFrac);
+        o.position.set(x, Y.dies + 0.043, z); o.rotation.set(0, 0, 0); o.scale.set(1.07, h, 1.01); o.updateMatrix();
+        hbmFill.setMatrixAt(i, o.matrix);
+      });
+      hbmFill.instanceMatrix.needsUpdate = true;
+
       pulse.v = Math.max(0, pulse.v - dt * 3);
       const heatOn = state.mode === 'heat';
       dieMat.emissive.setHex(heatOn ? 0xff6a1a : 0x6fd8ff);
