@@ -113,7 +113,9 @@ export function build({ quality, model }) {
     const bodyMat = new THREE.MeshStandardMaterial({ color: sideColor, roughness: 0.55, metalness: 0.22 });
     rbox(S, bw - 0.05, h - 0.02, d - 0.05, bodyMat, x0 + bw / 2, h / 2, z, { r: 0.05, ry: facing < 0 ? Math.PI : 0 });
     const t = tex.clone(); t.repeat.set(n, 1); t.needsUpdate = true;
-    const frontMat = new THREE.MeshStandardMaterial({ map: t, roughness: 0.5, metalness: 0.2 });
+    // the dim hall key/fill leaves a dark cabinet graphic near-black; lift just the panel's own texture back
+    // out via a low-intensity emissive map (same texture, no extra lights, no extra draw calls or shadows)
+    const frontMat = new THREE.MeshStandardMaterial({ map: t, roughness: 0.5, metalness: 0.2, emissiveMap: t, emissive: 0xffffff, emissiveIntensity: 0.22 });
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(bw - 0.08, h - 0.06), frontMat);
     panel.position.set(x0 + bw / 2, h / 2, z + (d / 2 + 0.016) * facing);
     if (facing < 0) panel.rotation.y = Math.PI;
@@ -232,7 +234,10 @@ export function build({ quality, model }) {
   N.box(leafX - rowX0 - 3, 0.04, 0.3, MAT.yellowTray, (leafX + rowX0 + 3) / 2, 4.5, 10.5);
   // patch panels on the spine row
   for (let i = 0; i < 10; i++) N.box(0.5, 0.18, 0.08, MAT.white, rowX0 + 2 + i * 0.62, 2.38, 11.1);
-  const eth = (pts, n, s = 0.09) => dataFlows.push(flow(pts, 'eth', { count: n, speed: 2.4, size: s, k: 2.6, trailR: 0.03, trailK: 0.5 }));
+  // k tuned down from the pre-mood-lighting default (2.6): at hotspot zoom a marker this bright fills enough
+  // screen space that hall's own bloom (tuned for the fixtures) blows it into an oversized blurred sphere;
+  // same hue and path, just under the bloom knee at close range
+  const eth = (pts, n, s = 0.09) => dataFlows.push(flow(pts, 'eth', { count: n, speed: 2.4, size: s, k: 1.5, trailR: 0.03, trailK: 0.5 }));
   rowZs.forEach((z, r) => {
     const mid = rackMx.filter(k => k.z === z)[10];
     eth([[mid.x, 2.35, z], [mid.x, 4.3, z], [leafX, 4.3, z], [leafX, 2.35, z]], 14);          // racks to the leaf
@@ -271,26 +276,26 @@ export function build({ quality, model }) {
   heatFlows.push(flow([[X0 + 2, hdrY + 3, -16.4], [X0 + 2, hdrY, -16.4], [rowX1 + 2, hdrY, -16.4]], 'cool', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 }));
   heatFlows.push(flow([[rowX1 + 2, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY + 2.8, -16.4]], 'warm', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 }));
   cduMx.forEach(c => {
-    heatFlows.push(flow([[c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z]], 'cool', { count: 5, speed: 2.2, size: 0.13, k: 2.6, trail: false }));
-    heatFlows.push(flow([[c.x + 0.15, 2.3, c.z], [c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, hdrY - 0.7, -16.4]], 'warm', { count: 5, speed: 2.2, size: 0.13, k: 2.6, trail: false }));
+    heatFlows.push(flow([[c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z]], 'cool', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false }));
+    heatFlows.push(flow([[c.x + 0.15, 2.3, c.z], [c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, hdrY - 0.7, -16.4]], 'warm', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false }));
   });
   if (!air) rowZs.forEach((z, r) => {
     const lz = z - facing[r] * 0.35;
     for (let gI = 0; gI < groups; gI++) {
       const x0 = rowX0 + gI * (CW + perGroup * RW + GAP), x1 = x0 + CW + perGroup * RW;
-      heatFlows.push(flow([[x0 + CW / 2, 2.45, lz - 0.05], [x1, 2.45, lz - 0.05]], 'cool', { count: 6, speed: 1.2, size: 0.1, k: 2.6, trail: false }));
-      heatFlows.push(flow([[x1, 2.45, lz + 0.05], [x0 + CW / 2, 2.45, lz + 0.05]], 'warm', { count: 6, speed: 1.2, size: 0.1, k: 2.6, trail: false }));
+      heatFlows.push(flow([[x0 + CW / 2, 2.45, lz - 0.05], [x1, 2.45, lz - 0.05]], 'cool', { count: 6, speed: 1.2, size: 0.1, k: 1.5, trail: false }));
+      heatFlows.push(flow([[x1, 2.45, lz + 0.05], [x0 + CW / 2, 2.45, lz + 0.05]], 'warm', { count: 6, speed: 1.2, size: 0.1, k: 1.5, trail: false }));
     }
   });
   // hot air: along each contained aisle, out the end, through the fan wall, back cool
   for (let p = 0; p < 3; p++) {
     const zc = (rowZs[p * 2] + rowZs[p * 2 + 1]) / 2;
-    for (const y of [0.8, 1.5, 2.1]) heatFlows.push(flow([[rowX0 + 1, y, zc], [rowX1 + 1.2, y + 0.4, zc], [X1 - 1.8, y + 1.2, zc]], 'air', { count: 16, speed: 2.2, size: 0.16, k: 2.6, opacity: 0.9, trail: false }));
+    for (const y of [0.8, 1.5, 2.1]) heatFlows.push(flow([[rowX0 + 1, y, zc], [rowX1 + 1.2, y + 0.4, zc], [X1 - 1.8, y + 1.2, zc]], 'air', { count: 16, speed: 2.2, size: 0.13, k: 1.5, opacity: 0.9, trail: false }));
     heatFlows.push(flow([[X1 - 2.2, 0.7, zc + 3.3], [rowX0 + 2, 0.5, zc + 3.3]], 'cool', { count: 14, speed: 2.0, size: 0.12, k: 2.0, opacity: 0.6, trail: false }));
   }
   // spine → frames → the other hall
-  dataFlows.push(flow([[rowX0 + 4.8, 4.4, 10.5], [rowX0 + 4.8, 4.4, 14.2], [rowX0 + 8.2, 4.4, 14.2], [rowX0 + 9.4, 4.4, 14.2], [rowX0 + 9.4, 0.1, 14.2]], 'eth', { count: 22, speed: 2.2, size: 0.09, k: 2.6, trailR: 0.03, trailK: 0.5 }));
-  for (let i = 0; i < 8; i += 2) dataFlows.push(flow([[rowX0 + 1.2 + i * 0.92, 4.4, 14.2], [rowX0 + 1.2 + i * 0.92, 2.2, 14.2]], 'eth', { count: 4, speed: 1.4, size: 0.06, k: 2.6, trail: false }));
+  dataFlows.push(flow([[rowX0 + 4.8, 4.4, 10.5], [rowX0 + 4.8, 4.4, 14.2], [rowX0 + 8.2, 4.4, 14.2], [rowX0 + 9.4, 4.4, 14.2], [rowX0 + 9.4, 0.1, 14.2]], 'eth', { count: 22, speed: 2.2, size: 0.09, k: 1.5, trailR: 0.03, trailK: 0.5 }));
+  for (let i = 0; i < 8; i += 2) dataFlows.push(flow([[rowX0 + 1.2 + i * 0.92, 4.4, 14.2], [rowX0 + 1.2 + i * 0.92, 2.2, 14.2]], 'eth', { count: 4, speed: 1.4, size: 0.06, k: 1.5, trail: false }));
   // ---------- parallelism overlay (data layer): stages and replicas on the rack tops ----------
   const stageCol = ['#ff5fd2', '#c77dff', '#7c9cff', '#5ce1c6'];
   const par = new THREE.Group();
@@ -300,7 +305,7 @@ export function build({ quality, model }) {
     const racks = rackMx.filter(k => k.z === z);
     racks.forEach((k, i) => {
       tints[i % 4].push(mtx(k.x, 2.34, z));                       // one instanced mesh per stage color, not one mesh per rack
-      if (i % 4 !== 3 && r >= 4) dataFlows.push(flow([[k.x, 2.5, z], [racks[i + 1].x, 2.5, z]], 'eth', { count: 2, speed: 0.6, size: 0.05, k: 2.4, trail: false }));
+      if (i % 4 !== 3 && r >= 4) dataFlows.push(flow([[k.x, 2.5, z], [racks[i + 1].x, 2.5, z]], 'eth', { count: 2, speed: 0.6, size: 0.05, k: 1.5, trail: false }));
     });
   });
   tints.forEach((list, c) => { const m = new THREE.InstancedMesh(tintGeo, stageMats[c], list.length); list.forEach((mx, n) => m.setMatrixAt(n, mx)); par.add(m); });
@@ -316,11 +321,11 @@ export function build({ quality, model }) {
   const roomLampZs = quality.mobile ? [-9] : [-13, -6.5, 2];
   const roomLampItems = [];
   for (let x = -37; x <= -23; x += quality.mobile ? 8 : 4) for (const lz of roomLampZs) roomLampItems.push({ p: [x, 6.9, lz], w: 1.1, d: 1.0 });
-  scene.add(lamps(roomLampItems, { color: '#ffcf9e', k: 3.6, halo: 3.4, haloOpacity: 0.32 }));
+  scene.add(lamps(roomLampItems, { color: '#ffcf9e', k: 2.0, halo: 1.8, haloOpacity: 0.28 }));
   const hallLampZs = [-14, -6.4, 0.2, 8].filter((_, i) => !quality.mobile || i % 2 === 0);
   const hallLampItems = [];
   hallLampZs.forEach(lz => { for (let x = rowX0 - 3; x <= leafX + 3; x += quality.mobile ? 8 : 4) hallLampItems.push({ p: [x, 6.2, lz], w: 1.3, d: 0.5 }); });
-  scene.add(lamps(hallLampItems, { color: '#dce8ff', k: 3.2, halo: 4, haloOpacity: 0.3 }));
+  scene.add(lamps(hallLampItems, { color: '#dce8ff', k: 1.9, halo: 1.8, haloOpacity: 0.26 }));
 
   // sprinkler branch lines with pendant heads, over the aisles
   [-9, -2.4, 4.2].forEach(sz => {
@@ -368,7 +373,7 @@ export function build({ quality, model }) {
   tiles.rotation.x = -Math.PI / 2; tiles.position.set((X0 + X1) / 2, 0.17, 0); scene.add(tiles);
 
   // polished-concrete floor reflection, a hair above the slab, desktop only
-  if (quality.reflections) scene.add(floorMirror(X1 - X0 - 1, Z1 - Z0 - 1, { x: (X0 + X1) / 2, y: 0.155, z: 0, res: 0.5, strength: 0.16, tint: '#93a6bf' }));
+  if (quality.reflections) scene.add(floorMirror(X1 - X0 - 1, Z1 - Z0 - 1, { x: (X0 + X1) / 2, y: 0.155, z: 0, res: 0.85, strength: 0.11, blur: 0.7, tint: '#93a6bf' }));
 
   // light fixtures over the aisles: standing figures for scale
   person(N, rowX0 + 6, -6.4, 0.4); person(N, rowX0 + 14, 0.2, 2.6); person(N, rowX0 + 3.5, 8.6, -0.6);
@@ -417,7 +422,10 @@ export function build({ quality, model }) {
       cpo: { pos: [rowX0 + 7, 2.7, 10.5], view: { pos: [rowX0 + 9, 4, 16], target: [rowX0 + 7, 1.4, 10.5] } },
       racks: { pos: [midRow.x, 2.6, -4.6], view: { pos: [2, 4.5, 6.5], target: [4, 1.2, -4.6] } },
     },
-    look: { exposure: 0.92, bloom: 0.62, threshold: 0.82, ao: 0.35, env: 'indoor', envIntensity: 0.55, dof: true },
+    // bloom stays a small bump over the family default (0.5) for mood; threshold stays near the family
+    // default (1.0) rather than dropping, so ceiling fixtures and the shared dataFlow/heatFlow markers
+    // don't clip into blown discs at close range (see fx.lamps' own k/halo tuning above for the fixtures)
+    look: { exposure: 0.92, bloom: 0.56, threshold: 0.98, ao: 0.35, env: 'indoor', envIntensity: 0.55, dof: true },
     update(t) { fans.update(t); rackLeds.update(t); strollers.update(t); hotPlumes.update(t); },
   };
 }
