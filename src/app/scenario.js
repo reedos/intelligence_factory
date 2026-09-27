@@ -27,7 +27,7 @@ function renderControls() {
   const note = [];
   if (!A.dc800) note.push(`${A.short} servers take AC power supplies, so 800 V DC is off.`);
   if (!A.coolingOptions.includes('air')) note.push(`${A.rackName} racks are liquid-cooled only.`);
-  if (!A.coolingOptions.includes('warm')) note.push(`${A.short} halls use chilled air or chilled water.`);
+  if (A.coolingOptions.length === 1 && A.coolingOptions[0] === 'air') note.push(`NVIDIA's DGX ${A.short} reference design is air-cooled; some vendors sell liquid-cooled ${A.short} servers, not modeled here.`);
   if (A.id === 'rubin') note.push('Vera Rubin ships in 2026; its figures are pre-launch estimates.');
   $('sc-note').textContent = note.join(' ');
 }

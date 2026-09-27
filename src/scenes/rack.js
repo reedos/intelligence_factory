@@ -1,4 +1,5 @@
-// Scene 3: one GB200 NVL72-class rack. Units are meters. Front faces +z, open side faces +x.
+// Scene 3: one rack. Units are meters. Front faces +z, open side faces +x.
+// NVL72 class (GB200, GB300, Rubin), or four air-cooled DGX H100 servers.
 import { THREE, MAT, Builder, mtx, flow, canvasTex, glowMat } from '../kit.js';
 
 const U = 0.04445;
@@ -26,7 +27,151 @@ function trayTex(kind) {
   });
 }
 
-export function build({ quality }) {
+export function build(opts) {
+  return opts.model.accel.gpusPerRack === 72 ? buildNVL(opts) : buildHGX(opts);
+}
+
+function room(scene, quality, S, N, W, H, D) {
+  scene.background = new THREE.Color(0x0a0d13);
+  scene.add(new THREE.HemisphereLight(0xa9bbdc, 0x15171b, 0.8));
+  const key = new THREE.DirectionalLight(0xffe6c8, 2.2); key.position.set(3, 5, 4); key.target.position.set(0, 1, 0);
+  if (quality.shadows) { key.castShadow = true; key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -2.5, right: 2.5, top: 3.5, bottom: -1, near: 1, far: 14 }); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.01; }
+  scene.add(key, key.target);
+  const rim = new THREE.DirectionalLight(0x6f9dff, 1.1); rim.position.set(-3, 3, -4); scene.add(rim);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.7, metalness: 0.05 }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  for (let i = -8; i <= 8; i++) { N.box(0.005, 0.004, 16, MAT.darkSteel, i * 1.2, 0.004, 0); N.box(16, 0.004, 0.005, MAT.darkSteel, 0, 0.004, i * 1.2); }
+  S.slab(W, H, D, MAT.rack, -0.62, 0, 0);                                         // the neighbor rack
+  const X = W / 2, ZF = D / 2, ZB = -D / 2;
+  for (const x of [-X + 0.02, X - 0.02]) for (const z of [ZF - 0.03, ZB + 0.03]) S.box(0.035, H, 0.035, MAT.rack, x, H / 2, z);
+  S.slab(W, 0.04, D, MAT.rack, 0, H - 0.04, 0);
+  S.slab(W, 0.1, D, MAT.rack, 0, 0, 0);
+  S.slab(0.012, H - 0.004, D - 0.004, MAT.rackFace, -X - 0.006, 0.002, 0);
+  for (const x of [-0.25, 0.25]) for (const z of [-0.45, 0.45]) N.cyl(0.025, 0.04, MAT.darkSteel, x, 0.02, z, 12);
+  for (const z of [ZF - 0.06, ZB + 0.06]) for (const x of [-X + 0.05, X - 0.05]) N.box(0.012, H - 0.2, 0.012, MAT.galv, x, H / 2, z);
+}
+
+function serverTex() {
+  return canvasTex(512, 180, (g, w, h) => {
+    g.fillStyle = '#17191d'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#b39a6a'; g.fillRect(0, 0, w, 6); g.fillRect(0, h - 6, w, 6);                 // champagne trim
+    for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) {                                      // two rows of fan modules
+      const cx = 44 + i * 84, cy = 50 + r * 80;
+      g.fillStyle = '#0c0d0f'; g.beginPath(); g.arc(cx, cy, 34, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#2c3037'; g.lineWidth = 2; for (let k = 18; k < 34; k += 6) { g.beginPath(); g.arc(cx, cy, k, 0, Math.PI * 2); g.stroke(); }
+    }
+    g.fillStyle = '#5cf29a'; g.fillRect(w - 16, 12, 5, 5);
+  });
+}
+
+// ---------- four DGX H100 servers, air-cooled ----------
+function buildHGX({ quality }) {
+  const scene = new THREE.Scene();
+  const flows = [], dataFlows = [], heatFlows = [];
+  const S = new Builder(), N = new Builder();
+  const W = 0.6, D = 1.07, H = 2.25, X = W / 2, ZF = D / 2, ZB = -D / 2, base = 0.1;
+  room(scene, quality, S, N, W, H, D);
+  const SU = 8 * U, sw = 0.44, sd = 0.84;
+  const sy = k => base + 0.06 + k * (SU + 0.004) + SU / 2;                              // server centers, bottom up
+  const PULLED = 2, out = 0.46;
+  const front = new THREE.MeshStandardMaterial({ map: serverTex(), roughness: 0.5, metalness: 0.35 });
+  const side = new THREE.MeshStandardMaterial({ color: 0x2a2e34, roughness: 0.45, metalness: 0.6 });
+  const inRack = [0, 1, 3];
+  const m = new THREE.InstancedMesh(new THREE.BoxGeometry(sw, SU * 0.98, sd), [side, side, side, side, front, side], inRack.length);
+  inRack.forEach((k, n) => m.setMatrixAt(n, mtx(0, sy(k), ZF - 0.07 - sd / 2)));
+  m.castShadow = m.receiveShadow = true; scene.add(m);
+  inRack.forEach(k => { N.box(0.03, SU * 0.9, 0.01, MAT.galv, -0.245, sy(k), ZF - 0.065); N.box(0.03, SU * 0.9, 0.01, MAT.galv, 0.245, sy(k), ZF - 0.065); });
+  // management switch and blanking above
+  const topY = sy(3) + SU / 2 + 0.01;
+  const mg = trayTex('mgmt');
+  const mgm = new THREE.Mesh(new THREE.BoxGeometry(sw, U * 0.94, 0.5), [side, side, side, side, new THREE.MeshStandardMaterial({ map: mg, roughness: 0.5, metalness: 0.35 }), side]);
+  mgm.position.set(0, topY + U / 2, ZF - 0.07 - 0.25); scene.add(mgm);
+  S.box(sw, H - 0.05 - topY - U, 0.01, MAT.rackFace, 0, (topY + U + H - 0.05) / 2, ZF - 0.07);
+
+  // the pulled server, lid off: fans at the front, eight heat sinks, the CPU tray behind
+  const py = sy(PULLED), pz = ZF - 0.07 - sd / 2 + out, yb = py - SU / 2;
+  const pulled = new Builder();
+  pulled.box(sw, 0.004, sd, MAT.galv, 0, yb + 0.004, pz);
+  pulled.box(0.004, SU * 0.95, sd, MAT.galv, -sw / 2, py, pz); pulled.box(0.004, SU * 0.95, sd, MAT.galv, sw / 2, py, pz);
+  pulled.box(sw - 0.02, 0.003, 0.5, MAT.pcb, 0, yb + 0.008, pz + 0.12);
+  for (let i = 0; i < 6; i++) pulled.box(0.068, 0.15, 0.045, MAT.fan, -0.185 + i * 0.074, yb + 0.1, pz + sd / 2 - 0.04);
+  const sinks = [];
+  for (const z of [0.27, 0.1]) for (let i = 0; i < 4; i++) {
+    const x = -0.162 + i * 0.108; sinks.push([x, pz + z]);
+    pulled.box(0.086, 0.008, 0.13, MAT.copper, x, yb + 0.02, pz + z);
+    for (let f = 0; f < 8; f++) pulled.box(0.003, 0.1, 0.128, MAT.alu, x - 0.038 + f * 0.0108, yb + 0.075, pz + z);
+  }
+  for (let i = 0; i < 4; i++) pulled.box(0.04, 0.045, 0.04, MAT.alu, -0.15 + i * 0.1, yb + 0.035, pz - 0.03);         // NVSwitch sinks
+  pulled.box(sw - 0.02, 0.003, 0.38, MAT.pcb, 0, yb + 0.2, pz - 0.26);                                              // CPU tray, upper rear
+  for (const x of [-0.1, 0.1]) { pulled.box(0.06, 0.05, 0.07, MAT.alu, x, yb + 0.23, pz - 0.24); for (const s of [-1, 1]) for (let k = 0; k < 4; k++) pulled.box(0.003, 0.03, 0.12, MAT.black, x + s * (0.045 + k * 0.007), yb + 0.22, pz - 0.24); }
+  for (let i = 0; i < 6; i++) pulled.box(0.068, 0.07, 0.12, MAT.darkSteel, -0.185 + i * 0.074, yb + 0.045, pz - sd / 2 + 0.07);   // supplies
+  for (const x of [-0.26, 0.26]) pulled.box(0.012, 0.012, sd + 0.5, MAT.galv, x, yb + 0.006, pz - 0.25);
+  scene.add(pulled.build());
+
+  // rear: two vertical power strips with cords to each server's supplies
+  const pduX = [-0.22, 0.22], pduZ = ZB + 0.105, pTop = sy(3) + SU / 2, pBot = sy(0) - SU / 2;
+  pduX.forEach(x => { S.box(0.05, pTop - pBot, 0.05, MAT.black, x, (pTop + pBot) / 2, pduZ); for (let k = 0; k < 4; k++) for (let o = 0; o < 3; o++) N.box(0.03, 0.03, 0.01, MAT.darkSteel, x, sy(k) - 0.08 + o * 0.08, pduZ + 0.031); });
+  [0, 1, 3].forEach(k => pduX.forEach(x => { for (let o = 0; o < 3; o++) N.strut([x, sy(k) - 0.08 + o * 0.08, pduZ + 0.04], [x * 0.55, sy(k) - 0.1 + o * 0.03, ZF - 0.07 - sd], 0.004, MAT.black, 4); }));
+  // feed from the busway above to the top of each strip
+  S.box(3.2, 0.18, 0.16, MAT.alu, -0.6, 3.2, -0.25);
+  const tap = glowMat('#ff8a3d', 0.9);
+  pduX.forEach(x => { N.box(0.2, 0.2, 0.2, tap, x * 0.5, 3.0, -0.25); N.strut([x * 0.5, 2.9, -0.25], [x * 0.5, H + 0.02, -0.25], 0.012, MAT.black, 8); N.strut([x * 0.5, H, -0.25], [x, pTop + 0.02, pduZ], 0.012, MAT.black, 8); });
+  N.strut([-0.25, 3.3, -0.25], [-0.25, 3.8, -0.25], 0.01, MAT.darkSteel, 4); N.strut([0.25, 3.3, -0.25], [0.25, 3.8, -0.25], 0.01, MAT.darkSteel, 4);
+  // data: fiber from each server's rear cages up the back to the runway
+  const fx = 0.12, fz = ZB + 0.06;
+  for (let k = 0; k < 5; k++) N.strut([fx - k * 0.006, sy(0), fz], [fx - k * 0.006, H + 0.28, fz], 0.004, k % 2 ? MAT.yellowTray : MAT.polymer, 5);
+  [0, 1, 3].forEach(k => { for (let c = 0; c < 4; c++) N.strut([-0.15 + c * 0.1, sy(k) + 0.05, ZF - 0.07 - sd], [fx, sy(k) + 0.08, fz], 0.003, MAT.yellowTray, 4); });
+  S.box(0.3, 0.03, 3.2, MAT.yellowTray, 0.2, 3.62, 0); S.box(0.012, 0.1, 3.2, MAT.yellowTray, 0.06, 3.66, 0); S.box(0.012, 0.1, 3.2, MAT.yellowTray, 0.34, 3.66, 0);
+  N.strut([fx, H + 0.28, fz], [0.2, 3.6, fz], 0.012, MAT.yellowTray, 6);
+  scene.add(S.build()); scene.add(N.build({ cast: false }));
+
+  // ---------- flows ----------
+  pduX.forEach(x => flows.push(flow([[x * 0.5, 3.0, -0.25], [x * 0.5, H + 0.02, -0.25], [x, pTop + 0.02, pduZ], [x, pBot, pduZ]], 'lv', { count: 16, speed: 0.35, size: 0.012, trailR: 0.004 })));
+  [0, 1, 3].forEach(k => pduX.forEach(x => flows.push(flow([[x, sy(k), pduZ + 0.04], [x * 0.55, sy(k) - 0.04, ZF - 0.07 - sd]], 'lv', { count: 3, speed: 0.2, size: 0.009, trail: false }))));
+  flows.push(flow([[0, yb + 0.06, pz - sd / 2 + 0.14], [0, yb + 0.03, pz - 0.05], [0, yb + 0.03, pz + 0.25]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
+  dataFlows.push(flow([[fx, sy(0), fz - 0.01], [fx, H + 0.28, fz - 0.01], [0.2, 3.6, fz], [0.2, 3.64, 1.5]], 'eth', { count: 22, speed: 0.4, size: 0.011, k: 2.3, trailR: 0.004 }));
+  // scale-up: NVLink only inside the pulled server, GPUs to the switch row
+  sinks.forEach(([x, z]) => dataFlows.push(flow([[x, yb + 0.03, z], [x * 0.9, yb + 0.03, pz - 0.03]], 'nvl', { count: 3, speed: 0.12, size: 0.006, k: 2.4, trail: false })));
+  // heat: cold air in the front of every server, hot air out the back
+  [0, 1, 3].forEach(k => { for (const x of [-0.14, 0, 0.14]) for (const dy of [-0.08, 0.08]) {
+    heatFlows.push(flow([[x, sy(k) + dy, ZF + 0.8], [x, sy(k) + dy, ZF]], 'cool', { count: 3, speed: 0.4, size: 0.02, k: 2.0, opacity: 0.8, trail: false }));
+    heatFlows.push(flow([[x, sy(k) + dy, ZB], [x * 1.3, sy(k) + dy + 0.1, ZB - 0.8]], 'air', { count: 3, speed: 0.45, size: 0.024, k: 2.4, opacity: 0.9, trail: false }));
+  } });
+  sinks.forEach(([x, z]) => heatFlows.push(flow([[x, yb + 0.08, pz + sd / 2 - 0.08], [x, yb + 0.08, z], [x, yb + 0.1, pz - sd / 2 - 0.2]], 'air', { count: 3, speed: 0.25, size: 0.012, k: 2.4, trail: false })));
+  [flows, dataFlows, heatFlows].forEach(list => list.forEach(f => scene.add(f.group)));
+
+  const srv = { pos: [0.2, py + 0.12, pz + 0.3], view: { pos: [0.7, 1.9, 1.8], target: [0, py, pz] } };
+  return {
+    scene, flows,
+    camera: { pos: [3.1, 2.3, 3.7], target: [0, 1.0, -0.1], near: 0.01, far: 200, min: 0.4, max: 9 },
+    hotspots: {
+      feed: { pos: [0.12, 3.12, -0.25], view: { pos: [1.2, 3.1, 1.0], target: [0, 2.7, -0.25] } },
+      pdu: { pos: [pduX[1], sy(1), pduZ], view: { pos: [0.9, 1.3, -1.4], target: [0, 0.9, ZB] } },
+      servers: srv,
+      psus: { pos: [0.15, yb + 0.1, pz - sd / 2 + 0.07], view: { pos: [0.9, 1.5, -0.9], target: [0, yb, pz - 0.4] } },
+      cabling: { pos: [pduX[0] * 0.7, sy(0), ZB + 0.15], view: { pos: [-0.8, 0.9, -1.5], target: [0, 0.6, ZB] } },
+      mgmt: { pos: [0.22, topY + U / 2, ZF - 0.05], view: { pos: [0.7, 1.9, 1.3], target: [0, topY, ZF] } },
+    },
+    dataFlows, heatFlows,
+    heatHotspots: {
+      front: { pos: [0.1, sy(1), ZF + 0.5], view: { pos: [1.4, 1.2, 2.4], target: [0, 0.8, ZF] } },
+      rearair: { pos: [0.05, sy(3), ZB - 0.4], view: { pos: [1.6, 1.6, -2.0], target: [0, 1.0, ZB - 0.3] } },
+      servers: srv,
+    },
+    dataHotspots: {
+      tp: { pos: [-0.1, yb + 0.14, pz + 0.18], view: { pos: [0.5, 1.6, 1.5], target: [0, py, pz] } },
+      servers: srv,
+      uplinks: { pos: [fx, H + 0.2, fz], view: { pos: [1.3, 2.9, -1.6], target: [0.2, 2.2, fz] } },
+      optical: { pos: [-0.62, H + 0.05, 0], view: { pos: [-1.8, 3.0, 2.8], target: [-0.3, 1.6, 0] } },
+      mgmt: { pos: [0.22, topY + U / 2, ZF - 0.05], view: { pos: [0.7, 1.9, 1.3], target: [0, topY, ZF] } },
+    },
+    update() {},
+  };
+}
+
+// ---------- NVL72 class: 18 compute trays, 9 switch trays, liquid-cooled ----------
+function buildNVL({ quality, model }) {
+  const feedV = model.power.id === 'dc800' ? 'hvdc' : 'lv';
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0a0d13);
   scene.add(new THREE.HemisphereLight(0xa9bbdc, 0x15171b, 0.8));
@@ -131,7 +276,7 @@ export function build({ quality }) {
 
   // ---------- feed from the busway above ----------
   S.box(3.2, 0.18, 0.16, MAT.alu, -0.6, 3.2, -0.25);
-  const tap = glowMat('#ff8a3d', 0.9);
+  const tap = glowMat(feedV === 'hvdc' ? '#d8f04a' : '#ff8a3d', 0.9);
   for (const x of [-0.12, 0.12]) {
     N.box(0.2, 0.2, 0.2, tap, x, 3.0, -0.25);
     N.strut([x, 2.9, -0.25], [x, H + 0.02, -0.25], 0.012, MAT.black, 8);
@@ -159,8 +304,8 @@ export function build({ quality }) {
   [4, 8, 12, 16, 22, 26].forEach(i => cartX.forEach(cx => dataFlows.push(flow([[0, trayY(i), ZB + 0.16], [cx, trayY(i), cartZ + 0.05]], 'nvl', { count: 2, speed: 0.15, size: 0.007, k: 2.4, trail: false }))));
 
   // ---------- flows ----------
-  for (const x of [-0.12, 0.12]) flows.push(flow([[x, 3.0, -0.25], [x, H + 0.02, -0.25], [x * 0.8, trayY(layout.length - 2), ZB + 0.16]], 'lv', { count: 8, speed: 0.35, size: 0.012, trailR: 0.004 }));
-  flows.push(flow([[0.1, H, -0.3], [0.1, trayY(1), ZB + 0.16]], 'lv', { count: 10, speed: 0.35, size: 0.012, trailR: 0.004 }));
+  for (const x of [-0.12, 0.12]) flows.push(flow([[x, 3.0, -0.25], [x, H + 0.02, -0.25], [x * 0.8, trayY(layout.length - 2), ZB + 0.16]], feedV, { count: 8, speed: 0.35, size: 0.012, trailR: 0.004 }));
+  flows.push(flow([[0.1, H, -0.3], [0.1, trayY(1), ZB + 0.16]], feedV, { count: 10, speed: 0.35, size: 0.012, trailR: 0.004 }));
   // DC: from shelves onto the busbar, up and down the bar
   flows.push(flow([[0, trayY(31), bbZ + 0.03], [0, bbBot + 0.1, bbZ + 0.03]], 'dc', { count: 42, speed: 0.22, size: 0.011, trailR: 0.004, k: 2.4 }));
   flows.push(flow([[0.03, trayY(1), bbZ + 0.03], [0.03, bbTop - 0.1, bbZ + 0.03]], 'dc', { count: 42, speed: 0.22, size: 0.011, trailR: 0.004, k: 2.4 }));
@@ -177,7 +322,7 @@ export function build({ quality }) {
     heatFlows.push(flow([[0.1, trayY(i), 0], [0.16, trayY(i), ZB + 0.18], [mX[1], trayY(i), mZ + 0.06]], 'warm', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false }));
   });
   // the air share: power shelves, switches, optics exhaust out the back
-  for (const i of [1, 6, 12, 16, 20, 25, 31]) for (const x of [-0.15, 0.05, 0.2]) heatFlows.push(flow([[x, trayY(i), 0.2], [x, trayY(i) + 0.02, ZB], [x * 1.2, trayY(i) + 0.12, ZB - 0.7]], 'air', { count: 4, speed: 0.35, size: 0.024, k: 2.4, opacity: 0.9, trail: false }));
+  if (model.accel.liquidShare < 0.99) for (const i of [1, 6, 12, 16, 20, 25, 31]) for (const x of [-0.15, 0.05, 0.2]) heatFlows.push(flow([[x, trayY(i), 0.2], [x, trayY(i) + 0.02, ZB], [x * 1.2, trayY(i) + 0.12, ZB - 0.7]], 'air', { count: 4, speed: 0.35, size: 0.024, k: 2.4, opacity: 0.9, trail: false }));
   for (const x of [-0.11, 0.11]) {
     flows.push(flow([[x - 0.02, py - U / 2 + 0.035, pz - 0.44], [x - 0.02, py - U / 2 + 0.035, pz + 0.26]], 'cool', { count: 6, speed: 0.15, size: 0.006, trail: false }));
     flows.push(flow([[x + 0.02, py - U / 2 + 0.035, pz + 0.26], [x + 0.02, py - U / 2 + 0.035, pz - 0.44]], 'warm', { count: 6, speed: 0.15, size: 0.006, trail: false }));

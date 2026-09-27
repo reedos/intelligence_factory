@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 // Relative base so the same build runs at reedos.github.io/intelligence_factory/ and as a claude.ai artifact.
 export default defineConfig({

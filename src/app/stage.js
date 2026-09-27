@@ -27,32 +27,33 @@ const LOOK = [   // per scene: bloom, ambient occlusion radius (world units, 0 =
   { bloom: 0.6, threshold: 1.7, ao: 0.15, exposure: 0.95 },
 ];
 function legends(M) {
-  const rackIn = M.power.id === 'dc800' ? ['dc', '800 V DC'] : ['lv', '415 V AC'];
+  const dc = M.power.id === 'dc800', nvl = M.accel.gpusPerRack === 72, warm = M.cooling.id === 'warm';
+  const rackIn = dc ? ['hvdc', '800 V DC'] : ['lv', '415 V AC'];
   const speed = M.accel.nicGbps >= 1000 ? `${M.accel.nicGbps / 1000}T` : `${M.accel.nicGbps}G`;
   return {
     power: [
       [['hv', '345–500 kV grid']],
       [['hv', '345 kV'], ['mv', '34.5 kV']],
-      [['mv', '34.5 kV'], M.power.id === 'dc800' ? ['dc', '800 V DC'] : ['lv', '480 / 415 V'], ['cool', 'Supply water'], ['warm', 'Return water']],
-      [rackIn, ['dc', '≈50 V DC'], ['cool', 'Supply'], ['warm', 'Return']],
-      [['dc', '≈50 V'], ['bus12', '12 V'], ['core', '≈0.8 V'], ['cool', 'Supply'], ['warm', 'Return']],
+      [['mv', '34.5 kV'], dc ? ['hvdc', '800 V DC'] : ['lv', '480 / 415 V'], ['cool', 'Supply water'], ['warm', 'Return water']],
+      nvl ? [rackIn, ['dc', '≈50 V DC'], ['cool', 'Supply'], ['warm', 'Return']] : [['lv', '415 V AC'], ['dc', '54 V DC, in the server']],
+      nvl ? [['dc', '≈50 V'], ['bus12', '12 V'], ['core', '≈0.8 V'], ['cool', 'Supply'], ['warm', 'Return']] : [['lv', '240 V AC in'], ['dc', '54 V'], ['bus12', '12 V'], ['core', '≈0.8 V']],
       [['core', '≈0.8 V, rising']],
     ],
     data: [
       [['dci', 'DWDM routes']],
-      [['dci', 'Long-haul fiber'], ['eth', 'Hall to hall']],
+      M.halls > 1 ? [['dci', 'Long-haul fiber'], ['eth', 'Hall to hall']] : [['dci', 'Long-haul fiber']],
       [['eth', `Scale-out, ${speed} optical`]],
-      [['nvl', 'Scale-up, NVLink copper'], ['eth', 'Scale-out, optical']],
-      [['nvl', 'NVLink'], ['c2c', 'NVLink-C2C'], ['eth', 'To the NIC and optics']],
-      [['hbm', 'HBM'], ['hbi', 'Die to die'], ['nvl', 'NVLink out']],
+      nvl ? [['nvl', 'Scale-up, NVLink copper'], ['eth', 'Scale-out, optical']] : [['nvl', 'NVLink, inside one server'], ['eth', 'Scale-out, optical']],
+      nvl ? [['nvl', 'NVLink'], ['c2c', 'NVLink-C2C'], ['eth', 'To the NIC and optics']] : [['nvl', 'NVLink'], ['pcie', 'PCIe'], ['eth', 'To the optics']],
+      M.accel.dies > 1 ? [['hbm', 'HBM'], ['hbi', 'Die to die'], ['nvl', 'NVLink out']] : [['hbm', 'HBM'], ['nvl', 'NVLink out']],
     ],
     heat: [
       [['hv', 'Grid, for reference']],
-      [['warm', 'Warm water up'], ['air', 'Warm air out'], ['vapor', 'Evaporation'], ['cool', 'Makeup water']],
+      warm ? [['warm', 'Warm water up'], ['air', 'Warm air out'], ['vapor', 'Evaporation'], ['cool', 'Makeup water']] : [['warm', 'Return water'], ['cool', 'Chilled supply'], ['vapor', 'Evaporation']],
       [['cool', 'Supply water'], ['warm', 'Return water'], ['air', 'Hot air']],
-      [['cool', 'Supply'], ['warm', 'Return'], ['air', 'Exhaust air']],
-      [['hot', 'Heat into the plates'], ['cool', 'Supply'], ['warm', 'Return'], ['air', 'Fan air']],
-      [['hot', 'Heat out of the dies'], ['air', 'Out of HBM']],
+      nvl ? (M.accel.liquidShare < 0.99 ? [['cool', 'Supply'], ['warm', 'Return'], ['air', 'Exhaust air']] : [['cool', 'Supply'], ['warm', 'Return']]) : [['cool', 'Cold air in'], ['air', 'Hot air out']],
+      nvl ? [['hot', 'Heat into the plates'], ['cool', 'Supply'], ['warm', 'Return'], ['air', 'Fan air']] : [['hot', 'Heat into the sinks'], ['air', 'Air through the server']],
+      [['hot', `Heat out of the ${M.accel.dies > 1 ? 'dies' : 'die'}`], ['air', 'Out of HBM']],
     ],
   };
 }
@@ -61,8 +62,14 @@ const $ = id => document.getElementById(id);
 const ui = store.ui;
 const SCENES = () => store.C.SCENES;
 const PARTS_BY = () => ({ power: store.C.PARTS, data: store.C.PARTS_DATA, heat: store.C.PARTS_HEAT });
-const partsFor = i => PARTS_BY()[ui.mode][SCENES()[i].id] || [];
-const hotspotsFor = i => ({ power: built[i].hotspots, data: built[i].dataHotspots, heat: built[i].heatHotspots })[ui.mode] || {};
+// a scene variant may not draw every part (an air-cooled hall has no CDUs), so list only parts the scene placed
+const partsFor = i => {
+  const list = PARTS_BY()[ui.mode][SCENES()[i].id] || [];
+  if (!built[i]) return list;
+  const hs = hotspotsFor(i);
+  return list.filter(p => hs[p.id]);
+};
+const hotspotsFor = i => (built[i] && { power: built[i].hotspots, data: built[i].dataHotspots, heat: built[i].heatHotspots }[ui.mode]) || {};
 const voltFor = s => ui.mode === 'heat' ? { ...VOLT[s.heatVolt], short: s.heatShort, name: VOLT[s.heatVolt].name } : VOLT[ui.mode === 'data' ? s.dataVolt : s.volt];
 const flowsFor = b => (ui.mode === 'data' ? b.dataFlows : ui.mode === 'heat' ? b.heatFlows : b.flows) || [];
 export const mobile = matchMedia('(max-width: 760px), (pointer: coarse)').matches;
@@ -89,7 +96,7 @@ export const built = [], composers = [];
 function getScene(i) {
   if (!built[i]) {
     const b = BUILDERS[i].build({ quality, state: ui, model: store.M });
-    b.scene.environment = env; b.scene.environmentIntensity = 0.35;
+    b.scene.environment = env; b.scene.environmentIntensity = 0.35; b.model = store.M;
     built[i] = b;
     applyMode(b);
   }
@@ -179,7 +186,7 @@ export function setMode(m) {
   document.body.dataset.mode = m;
   built.forEach(b => b && applyMode(b));
   renderSteps();
-  if (ui.scene >= 0) buildPanel(ui.scene);
+  if (ui.scene >= 0 && built[ui.scene]) buildPanel(ui.scene);
   emit('mode', m);
 }
 document.querySelectorAll('[data-mode]').forEach(x => x.addEventListener('click', () => setMode(x.dataset.mode)));
@@ -243,9 +250,10 @@ export function cycle(d) {
 export const hasPart = (scene, id, mode = ui.mode) => !!(PARTS_BY()[mode][SCENES()[scene].id] || []).find(p => p.id === id);
 
 // ---------- scene switching ----------
-let busy = false;
+let busy = false, queued = null;
 export async function go(i, fromId, { force = false, keepCamera = false } = {}) {
-  if (busy || (i === ui.scene && !force) || i < 0 || i >= BUILDERS.length) return;
+  if (busy) { queued = [i, fromId, { force, keepCamera }]; return; }   // the latest request runs when this switch lands
+  if ((i === ui.scene && !force) || i < 0 || i >= BUILDERS.length) return;
   busy = true;
   const veil = $('veil');
   const same = i === ui.scene;
@@ -275,6 +283,8 @@ export async function go(i, fromId, { force = false, keepCamera = false } = {}) 
   veil.classList.add('off');
   busy = false;
   emit('scene', i);
+  if (queued) { const q = queued; queued = null; go(...q); }
+  else if (built[ui.scene]?.model !== store.M) go(ui.scene, null, { force: true, keepCamera: true });   // the scenario changed mid-switch
 }
 export const sceneCount = BUILDERS.length;
 

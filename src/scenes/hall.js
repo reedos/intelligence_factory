@@ -15,6 +15,26 @@ function frontTex(kind) {
       for (let i = 0; i < 8; i++) { row(U * (27 + i * 1.05), U, '#1d2026', 2); g.fillStyle = '#2d323a'; for (let x = 60; x < w - 20; x += 7) g.fillRect(x, U * (27 + i * 1.05) + 3, 4, U - 8); }
       for (let i = 0; i < 4; i++) row(U * (37 + i), U, '#2a2e35', 6);
       g.fillStyle = '#0b0c0e'; g.fillRect(0, 0, 8, h); g.fillRect(w - 8, 0, 8, h);
+    } else if (kind === 'rackH100') {
+      g.fillStyle = '#121418'; g.fillRect(0, 0, w, h);
+      const U = h / 48;
+      for (let s = 0; s < 4; s++) {                                                   // four 8U servers, fans on the face
+        const y = h - U * (3 + s * 8.2) - U * 8;
+        g.fillStyle = '#1b1d21'; g.fillRect(8, y, w - 16, U * 8 - 3);
+        g.fillStyle = '#b39a6a'; g.fillRect(8, y, w - 16, 3);
+        for (let r = 0; r < 2; r++) for (let i = 0; i < 5; i++) { g.fillStyle = '#0b0c0e'; g.beginPath(); g.arc(34 + i * 47, y + U * (2 + r * 4), U * 1.6, 0, Math.PI * 2); g.fill(); }
+      }
+      g.fillStyle = '#2a2e35'; g.fillRect(8, U * 2, w - 16, U - 2);
+      g.fillStyle = '#0b0c0e'; g.fillRect(0, 0, 8, h); g.fillRect(w - 8, 0, 8, h);
+    } else if (kind === 'sst') {
+      g.fillStyle = '#d0d4d7'; g.fillRect(0, 0, w, h);
+      g.strokeStyle = '#8d9398'; g.lineWidth = 3; g.strokeRect(4, 4, w - 8, h - 8);
+      g.fillStyle = '#0e1d2a'; g.fillRect(60, 50, 136, 70); g.fillStyle = '#d8f04a'; g.fillRect(72, 64, 70, 8); g.fillStyle = '#45c6ff'; g.fillRect(72, 82, 50, 6);
+      g.fillStyle = '#aeb3b7'; for (let y = 170; y < h - 30; y += 11) g.fillRect(24, y, w - 48, 5);
+    } else if (kind === 'inrow') {
+      g.fillStyle = '#26292e'; g.fillRect(0, 0, w, h);
+      g.fillStyle = '#1a1c20'; for (let y = 30; y < h - 30; y += 9) g.fillRect(16, y, w - 32, 5);
+      g.fillStyle = '#0e1d2a'; g.fillRect(70, 40, 116, 50); g.fillStyle = '#4c8dff'; g.fillRect(80, 54, 50, 7);
     } else if (kind === 'swgr') {
       g.fillStyle = '#c4c8cb'; g.fillRect(0, 0, w, h);
       g.strokeStyle = '#8d9398'; g.lineWidth = 3; g.strokeRect(4, 4, w - 8, h - 8);
@@ -38,7 +58,9 @@ function frontTex(kind) {
 }
 const boxWithFront = (w, h, d, front, side) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [side, side, side, side, front, side]);
 
-export function build({ quality }) {
+export function build({ quality, model }) {
+  const dc = model.power.id === 'dc800', air = model.cooling.id === 'air', nvl = model.accel.gpusPerRack === 72;
+  const itV = dc ? 'hvdc' : 'lv';
   const scene = new THREE.Scene();
   scene.add(sky('#0b1220', '#18233a', '#3a4254', 800));
   scene.add(new THREE.HemisphereLight(0x9fb3d6, 0x202226, 0.9));
@@ -85,22 +107,25 @@ export function build({ quality }) {
   const lineup = (n, w, h, d, tex, x0, z, facing = 1) => {
     const t = tex.clone(); t.repeat.set(n, 1); t.needsUpdate = true;
     const front = new THREE.MeshStandardMaterial({ map: t, roughness: 0.55, metalness: 0.2 });
-    const side = new THREE.MeshStandardMaterial({ color: tex === TEX.swgr || tex === TEX.cdu ? 0xc3c7ca : 0x2b2f35, roughness: 0.55, metalness: 0.2 });
+    const side = new THREE.MeshStandardMaterial({ color: tex === TEX.swgr || (tex === TEX.cdu && !air) || (tex === TEX.ups && dc) ? 0xc3c7ca : 0x2b2f35, roughness: 0.55, metalness: 0.2 });
     const m = boxWithFront(n * w, h, d, front, side);
     m.position.set(x0 + n * w / 2, h / 2, z); if (facing < 0) m.rotation.y = Math.PI;
     m.castShadow = m.receiveShadow = true; scene.add(m); return m;
   };
-  const TEX = { swgr: frontTex('swgr'), ups: frontTex('ups'), batt: frontTex('batt'), cdu: frontTex('cdu'), rack: frontTex('rack'), net: frontTex('net') };
+  const TEX = { swgr: frontTex('swgr'), ups: frontTex(dc ? 'sst' : 'ups'), batt: frontTex('batt'), cdu: frontTex(air ? 'inrow' : 'cdu'), rack: frontTex(nvl ? 'rack' : 'rackH100'), net: frontTex('net') };
   lineup(14, 0.9, 2.3, 1.5, TEX.swgr, -33.5, -15.6);                                    // 480 V switchgear against the back wall
-  lineup(3, 1.1, 2.0, 1.0, TEX.ups, -33.5, -6.5); lineup(3, 1.1, 2.0, 1.0, TEX.ups, -29.6, -6.5); lineup(3, 1.1, 2.0, 1.0, TEX.ups, -25.7, -6.5);
+  const upsH = dc ? 2.3 : 2.0;
+  lineup(3, 1.1, upsH, 1.0, TEX.ups, -33.5, -6.5); lineup(3, 1.1, upsH, 1.0, TEX.ups, -29.6, -6.5); lineup(3, 1.1, upsH, 1.0, TEX.ups, -25.7, -6.5);
   lineup(12, 0.6, 2.0, 0.8, TEX.batt, -33.5, 1.5); lineup(12, 0.6, 2.0, 0.8, TEX.batt, -33.5, 5.5, -1);
   // cable tray over the gear, bus riser from the UPS to the ceiling
   N.box(12.6, 0.1, 0.6, MAT.galv, -27.2, 3.3, -15.2); N.box(12.6, 0.25, 0.04, MAT.galv, -27.2, 3.42, -15.5); N.box(12.6, 0.25, 0.04, MAT.galv, -27.2, 3.42, -14.9);
   S.box(0.5, 3.6, 0.6, MAT.alu, -22.5, 3.8, -6.5);                                       // riser
   S.box(10.3, 0.5, 0.6, MAT.alu, -17.4, 5.6, -6.5);                                      // main busway to the hall
   for (let i = 0; i < 4; i++) N.strut([-20 + i * 2.6, 5.85, -6.5], [-20 + i * 2.6, WALL_H - 0.9, -6.5], 0.02, MAT.darkSteel, 4);
-  flows.push(flow([[X0 - 1.5, 2.2, usZ], [X0 + 0.5, 2.2, usZ], [-33, 2.6, -15.2], [-21, 2.6, -15.2]], 'lv', { count: 16, speed: 2.4, size: 0.1, trailR: 0.03 }));
-  flows.push(flow([[-21, 2.6, -15.2], [-21, 2.6, -9], [-30.5, 2.2, -7], [-22.5, 2.2, -6.5], [-22.5, 5.6, -6.5], [-12.2, 5.6, -6.5]], 'lv', { count: 22, speed: 2.4, size: 0.1, trailR: 0.03 }));
+  // AC: 480 V from the unit substation through switchgear and UPS. DC: medium voltage through switchgear into the SSTs, 800 V DC out
+  flows.push(flow([[X0 - 1.5, 2.2, usZ], [X0 + 0.5, 2.2, usZ], [-33, 2.6, -15.2], [-21, 2.6, -15.2]], dc ? 'mv' : 'lv', { count: 16, speed: 2.4, size: 0.1, trailR: 0.03 }));
+  flows.push(flow([[-21, 2.6, -15.2], [-21, 2.6, -9], [-30.5, 2.2, -7]], dc ? 'mv' : 'lv', { count: 12, speed: 2.4, size: 0.1, trailR: 0.03 }));
+  flows.push(flow([[-30.5, 2.2, -7], [-22.5, 2.2, -6.5], [-22.5, 5.6, -6.5], [-12.2, 5.6, -6.5]], itV, { count: 14, speed: 2.4, size: 0.1, trailR: 0.03 }));
   person(N, -27, -12.5, 0.3); person(N, -29.5, 3.6, 2.4);
 
   // ---------- data hall: three contained pods, six rows ----------
@@ -137,13 +162,13 @@ export function build({ quality }) {
     for (let x = rowX0; x <= rowX1; x += 1.2) N.box(0.04, 0.05, aisle, MAT.darkSteel, x, 2.37, zc);
   }
   // overhead busway per row with tap-off boxes and drops
-  const tap = glowMat('#ff8a3d', 0.9);
+  const tap = glowMat(dc ? '#d8f04a' : '#ff8a3d', 0.9);
   rowZs.forEach((z, r) => {
     const bz = z + facing[r] * 0.25;
     S.box(rowX1 - rowX0 + 5, 0.22, 0.18, MAT.alu, (rowX0 + rowX1) / 2 - 2.5, 3.5, bz);
     for (let x = rowX0 + 0.3; x < rowX1; x += 2 * RW) N.strut([x, 3.6, bz], [x, WALL_H - 0.9, bz], 0.012, MAT.darkSteel, 4);
     rackMx.filter(k => k.z === z).forEach(k => { N.box(0.22, 0.2, 0.2, tap, k.x, 3.29, bz); N.strut([k.x, 3.2, bz], [k.x, 2.3, bz], 0.018, MAT.black, 5); });
-    flows.push(flow([[-12.2, 5.6, -6.5], [-9.5, 5.6, -6.5], [-9.5, 3.5, bz], [rowX1, 3.5, bz]], 'lv', { count: 20, speed: 2.2, size: 0.07, trailR: 0.02, trailK: 0.25 }));
+    flows.push(flow([[-12.2, 5.6, -6.5], [-9.5, 5.6, -6.5], [-9.5, 3.5, bz], [rowX1, 3.5, bz]], itV, { count: 20, speed: 2.2, size: 0.07, trailR: 0.02, trailK: 0.25 }));
   });
   // yellow fiber runway over the rows and a trunk to the network spine
   rowZs.forEach(z => { N.box(rowX1 - rowX0, 0.04, 0.3, MAT.yellowTray, (rowX0 + rowX1) / 2, 4.3, z); N.box(rowX1 - rowX0, 0.1, 0.02, MAT.yellowTray, (rowX0 + rowX1) / 2, 4.35, z - 0.15); N.box(rowX1 - rowX0, 0.1, 0.02, MAT.yellowTray, (rowX0 + rowX1) / 2, 4.35, z + 0.15); });
@@ -199,8 +224,8 @@ export function build({ quality }) {
     N.strut([c.x + 0.15, hdrY - 0.7, -16.4], [c.x + 0.15, hdrY - 0.7, c.z], 0.07, MAT.pipeRed, 8); N.strut([c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, 2.3, c.z], 0.07, MAT.pipeRed, 8);
     N.cylZ(0.12, 0.08, MAT.orange, c.x - 0.15, hdrY - 0.35, c.z, 12);                      // valve handwheel
   });
-  // rack loop from each CDU along its rack group, over the rack tops
-  rowZs.forEach((z, r) => {
+  // rack loop from each CDU along its rack group, over the rack tops (liquid-cooled racks only)
+  if (!air) rowZs.forEach((z, r) => {
     const lz = z - facing[r] * 0.35;
     for (let gI = 0; gI < groups; gI++) {
       const x0 = rowX0 + gI * (CW + perGroup * RW + GAP), x1 = x0 + CW + perGroup * RW;
@@ -220,7 +245,7 @@ export function build({ quality }) {
     heatFlows.push(flow([[c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z]], 'cool', { count: 5, speed: 2.2, size: 0.13, k: 2.6, trail: false }));
     heatFlows.push(flow([[c.x + 0.15, 2.3, c.z], [c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, hdrY - 0.7, -16.4]], 'warm', { count: 5, speed: 2.2, size: 0.13, k: 2.6, trail: false }));
   });
-  rowZs.forEach((z, r) => {
+  if (!air) rowZs.forEach((z, r) => {
     const lz = z - facing[r] * 0.35;
     for (let gI = 0; gI < groups; gI++) {
       const x0 = rowX0 + gI * (CW + perGroup * RW + GAP), x1 = x0 + CW + perGroup * RW;
@@ -271,19 +296,19 @@ export function build({ quality }) {
     hotspots: {
       unitsub: { pos: [usX, 3.3, usZ], view: { pos: [-52, 8, 2], target: [usX, 1.5, usZ] } },
       swgr: { pos: [-27, 2.8, -15.6], view: { pos: [-25, 6, -4], target: [-27, 1.3, -15.6] } },
-      ups: { pos: [-28, 2.5, -6.5], view: { pos: [-27, 5, 2.5], target: [-28, 1, -6.5] } },
+      [dc ? 'sst' : 'ups']: { pos: [-28, 2.8, -6.5], view: { pos: [-27, 5, 2.5], target: [-28, 1, -6.5] } },
       batt: { pos: [-30, 2.4, 3.5], view: { pos: [-22, 5, 10], target: [-30, 1, 3.5] } },
       busway: { pos: [0, 3.9, -8.0], view: { pos: [-6, 7, 8], target: [2, 3.2, -8] } },
       racks: { pos: [midRow.x, 2.6, -4.6], view: { pos: [2, 4.5, 6.5], target: [4, 1.2, -4.6] } },
       containment: { pos: [6, 2.5, -9.7], view: { pos: [-11, 5, -9.2], target: [4, 1.5, -9.7] } },
-      cdu: { pos: [cduMx[0].x, 2.7, cduMx[0].z], view: { pos: [-11, 4, -4], target: [cduMx[0].x, 1.2, cduMx[0].z] } },
+      [air ? 'inrow' : 'cdu']: { pos: [cduMx[0].x, 2.7, cduMx[0].z], view: { pos: [-11, 4, -4], target: [cduMx[0].x, 1.2, cduMx[0].z] } },
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
       fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
       network: { pos: [rowX0 + 5, 2.7, 10.5], view: { pos: [rowX0 + 5, 5, 18], target: [rowX0 + 5, 1.2, 10.5] } },
     },
     dataFlows, heatFlows, layers: { data: par },
     heatHotspots: {
-      cdu: { pos: [cduMx[0].x, 2.7, cduMx[0].z], view: { pos: [-11, 4, -4], target: [cduMx[0].x, 1.2, cduMx[0].z] } },
+      [air ? 'inrow' : 'cdu']: { pos: [cduMx[0].x, 2.7, cduMx[0].z], view: { pos: [-11, 4, -4], target: [cduMx[0].x, 1.2, cduMx[0].z] } },
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
       hotaisle: { pos: [6, 2.5, -9.7], view: { pos: [-11, 5, -9.2], target: [4, 1.5, -9.7] } },
       fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },

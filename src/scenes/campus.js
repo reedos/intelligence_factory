@@ -1,9 +1,14 @@
 // Scene 1: grid & campus. Units are meters. x runs east, z runs south, y up.
 import { THREE, MAT, Builder, mtx, flow, insulator, latticeTower, catenary, wires, canvasTex, sky, person, glowMat } from '../kit.js';
 
-export function build({ quality }) {
+export function build({ quality, model }) {
+  const L = model.layout, warm = model.cooling.id === 'warm';
+  const nHalls = Math.min(2, model.halls), extra = Math.max(0, model.halls - 2);
+  // halls beyond the two drawn in detail stand as plain blocks east of the site, in columns
+  const perCol = Math.min(12, Math.max(2, Math.ceil(Math.sqrt(extra / 1.2)))), cols = Math.ceil(extra / perCol);
+  const reach = extra ? 620 + cols * 320 : 0;
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x1b2436, 1400, 5200);
+  scene.fog = new THREE.Fog(0x1b2436, Math.max(1400, reach * 0.9), Math.max(5200, reach * 2.2));
   scene.add(sky('#070d19', '#1a2742', '#b9794f'));
 
   // light: low sun from the west-southwest, dusk
@@ -168,13 +173,15 @@ export function build({ quality }) {
   mptZ.forEach(z => flows.push(flow([[busX, busY, z], [mptX - 2.2, 12.5, z]], 'hv', { count: 5, speed: 20, size: 0.35, trailR: 0.08 })));
 
   // ---------- 34.5 kV duct bank to the halls ----------
-  const hallX0 = -30, hallX1 = 230, hallA = { z0: -215, z1: -125 }, hallB = { z0: 15, z1: 105 };
+  // a lone hall is drawn only as long as its load needs, 45 MW to a full 260 m hall
+  const hallLen = nHalls === 1 ? Math.round(Math.max(70, Math.min(260, 260 * model.IT_MW / 45))) : 260;
+  const hallX0 = -30, hallX1 = hallX0 + hallLen, hcx = (hallX0 + hallX1) / 2, hallA = { z0: -215, z1: -125 }, hallB = { z0: 15, z1: 105 };
   const uY = 0.9;
   mptZ.forEach(z => flows.push(flow([[mptX + 2.6, 9, z], [-382, 5, z], [-382, 5, z > -150 ? -122 : -178]], 'mv', { count: 5, speed: 18, size: 0.4, trailR: 0.1 })));
   const trunk = [[-374, uY, -150], [-340, uY, -150], [-340, uY, -62], [-40, uY, -62]];
   flows.push(flow(trunk, 'mv', { count: 40, speed: 60, size: 0.9, trailR: 0.35 }));
   flows.push(flow([[-40, uY, -62], [-40, uY, -112], [hallX1 - 5, uY, -112]], 'mv', { count: 30, speed: 55, size: 1.2, trailR: 0.4 }));
-  flows.push(flow([[-40, uY, -62], [-40, uY, 3], [hallX1 - 5, uY, 3]], 'mv', { count: 30, speed: 55, size: 1.2, trailR: 0.4 }));
+  if (nHalls > 1) flows.push(flow([[-40, uY, -62], [-40, uY, 3], [hallX1 - 5, uY, 3]], 'mv', { count: 30, speed: 55, size: 1.2, trailR: 0.4 }));
   // duct bank manholes along the route
   [[-340, -100], [-250, -62], [-150, -62], [-40, -62], [-40, -30]].forEach(([x, z]) => N.cyl(0.9, 0.3, MAT.concrete, x, 0.3, z, 16));
 
@@ -212,7 +219,8 @@ export function build({ quality }) {
   const unitSubMx = [];
   const hallCentersZ = [];
 
-  [hallA, hallB].forEach((h, hi) => {
+  const hallList = [hallA, hallB].slice(0, nHalls);
+  hallList.forEach((h, hi) => {
     const cz = (h.z0 + h.z1) / 2, cx = (hallX0 + hallX1) / 2, W = hallX1 - hallX0, D = h.z1 - h.z0, H = 22;
     hallCentersZ.push(cz);
     const shell = new THREE.Mesh(new THREE.BoxGeometry(W, H, D), [wallEnd, wallEnd, MAT.roof, MAT.roof, wallMat, wallMat]);
@@ -220,14 +228,19 @@ export function build({ quality }) {
     // parapet and roof equipment
     S.slab(W, 1.4, 0.4, MAT.wall, cx, H, h.z0 + 0.2); S.slab(W, 1.4, 0.4, MAT.wall, cx, H, h.z1 - 0.2);
     S.slab(0.4, 1.4, D, MAT.wall, hallX0 + 0.2, H, cz); S.slab(0.4, 1.4, D, MAT.wall, hallX1 - 0.2, H, cz);
-    for (let r = 0; r < 3; r++) for (let i = 0; i < 18; i++) coolerMx.push(mtx(hallX0 + 12 + i * 13.5, H + 0.6, h.z0 + 22 + r * 23));
-    // roof walkways and pipe racks to the coolers
-    for (let r = 0; r < 3; r++) N.cylX(0.35, W - 20, MAT.pipeInsul, cx, H + 1.2, h.z0 + 22 + r * 23 + 2.2, 10);
+    if (warm) {
+      for (let r = 0; r < 3; r++) for (let i = 0; i < Math.floor((W - 18) / 13.5) + 1; i++) coolerMx.push(mtx(hallX0 + 12 + i * 13.5, H + 0.6, h.z0 + 22 + r * 23));
+      // roof walkways and pipe racks to the coolers
+      for (let r = 0; r < 3; r++) N.cylX(0.35, W - 20, MAT.pipeInsul, cx, H + 1.2, h.z0 + 22 + r * 23 + 2.2, 10);
+    } else {
+      // chilled-water halls: only exhaust fans and air intakes on the roof
+      for (let i = 0; i < Math.floor((W - 30) / 27) + 1; i++) for (let r = 0; r < 2; r++) { S.cyl(1.4, 1.6, MAT.galv, hallX0 + 20 + i * 27, H + 0.8, h.z0 + 28 + r * 34, 16); N.cyl(1.2, 0.1, MAT.fan, hallX0 + 20 + i * 27, H + 1.65, h.z0 + 28 + r * 34, 16); }
+    }
     // stairs/elevator core
     S.slab(8, 5, 8, MAT.wall, hallX0 + 5, H, cz);
     // unit substations along the road-facing side
     const sideZ = hi === 0 ? h.z1 + 10 : h.z0 - 10;
-    for (let i = 0; i < 22; i++) unitSubMx.push(mtx(hallX0 + 8 + i * 11, 0.15, sideZ, hi === 0 ? 0 : Math.PI));
+    for (let i = 0; i < Math.floor((W - 12) / 11) + 1; i++) unitSubMx.push(mtx(hallX0 + 8 + i * 11, 0.15, sideZ, hi === 0 ? 0 : Math.PI));
     // MV taps from the feeder to each unit sub
     // office block at the west end
     const office = new THREE.Mesh(new THREE.BoxGeometry(28, 16, 60), officeMat);
@@ -239,18 +252,26 @@ export function build({ quality }) {
   });
   coolerUnit.instance(coolerMx, { cast: true }).children.forEach(m => scene.add(m));
   // heat: warm water up to the cooler rows, plumes of warm air above them
-  [hallA, hallB].forEach(h => {
+  if (warm) hallList.forEach(h => {
     const Hh = 22;
     for (let r = 0; r < 3; r++) {
       const pz = h.z0 + 22 + r * 23 + 2.2;
       heatFlows.push(flow([[hallX0 + 5, Hh + 1.2, (h.z0 + h.z1) / 2], [hallX0 + 10, Hh + 1.2, pz], [hallX1 - 10, Hh + 1.2, pz]], 'warm', { count: 30, speed: 30, size: 0.8, k: 2.4, trailR: 0.3, trailK: 0.4 }));
-      for (let i = 0; i < 18; i += 2) {
+      for (let i = 0; i < Math.floor((hallLen - 18) / 13.5) + 1; i += 2) {
         const x = hallX0 + 12 + i * 13.5, z = h.z0 + 22 + r * 23;
         heatFlows.push(flow([[x, Hh + 3.5, z], [x + 3, Hh + 22, z - 2], [x + 8, Hh + 50, z - 6]], 'air', { count: 5, speed: 7, size: 2.4, k: 2.0, opacity: 0.6, trail: false }));
       }
     }
   });
-  for (let i = 0; i < 6; i++) { const x = 15 + i * 12; heatFlows.push(flow([[x, 11.5, -275], [x + 2, 35, -278], [x + 6, 65, -284]], 'vapor', { count: 5, speed: 6, size: 2.4, k: 1.2, opacity: 0.4, trail: false })); }
+  const towerRows = warm ? [-275] : [-275, -290];
+  const plantX = Math.max(hallX0 + 45, Math.min(100, hcx + 20));
+  towerRows.forEach(tz => { for (let i = 0; i < 6; i++) { const x = 15 + i * 12; heatFlows.push(flow([[x, 11.5, tz], [x + 2, 35, tz - 3], [x + 6, 65, tz - 9]], 'vapor', { count: warm ? 5 : 7, speed: 6, size: 2.4, k: 1.2, opacity: warm ? 0.4 : 0.55, trail: false })); } });
+  if (!warm) {
+    // chiller plant between hall A and the towers: warm return in, cold supply back, heat on to the towers
+    heatFlows.push(flow([[plantX - 10, 2.2, -215], [plantX - 10, 2.2, -236]], 'warm', { count: 14, speed: 10, size: 0.8, k: 2.4, trailR: 0.3 }));
+    heatFlows.push(flow([[plantX + 10, 2.2, -236], [plantX + 10, 2.2, -215]], 'cool', { count: 14, speed: 10, size: 0.8, k: 2.4, trailR: 0.3 }));
+    heatFlows.push(flow([[plantX - 20, 2.2, -254], [plantX - 20, 2.2, -262], [15, 2.2, -262], [15, 9, -275]], 'warm', { count: 18, speed: 14, size: 0.8, k: 2.4, trailR: 0.3 }));
+  }
   heatFlows.push(flow([[125, 1, -280], [80, 1, -280], [80, 1, -275], [20, 1, -275]], 'cool', { count: 10, speed: 12, size: 0.6, k: 2.2, trailR: 0.2 }));
   unitSub.instance(unitSubMx).children.forEach(m => scene.add(m));
 
@@ -265,7 +286,7 @@ export function build({ quality }) {
   genset.cyl(0.26, 2.8, MAT.darkSteel, -1.2, 4.6, 0, 12);                  // stack
   genset.slab(1.2, 1.8, 1.6, MAT.ansi61, -7.4, 0.4, 0);                    // step-up transformer
   const gensetMx = [];
-  for (const blockZ of [-205, 20]) for (let c = 0; c < 4; c++) for (let r = 0; r < 5; r++) gensetMx.push(mtx(290 + c * 21, 0.15, blockZ + r * 8));
+  for (const blockZ of [-205, 20]) for (let c = 0; c < 4; c++) for (let r = 0; r < 5; r++) if (gensetMx.length < Math.min(40, L.gensets)) gensetMx.push(mtx(290 + c * 21, 0.15, blockZ + r * 8));
   genset.instance(gensetMx).children.forEach(m => scene.add(m));
   // fuel farm
   for (let i = 0; i < 6; i++) {
@@ -277,7 +298,7 @@ export function build({ quality }) {
   S.slab(6, 2.4, 3, MAT.steel, 405, 0.15, -145);                             // fuel polishing skid
   // standby flow: generators to the MV network (dim, slow)
   flows.push(flow([[285, uY, -170], [262, uY, -170], [262, uY, -112], [225, uY, -112]], 'mv', { count: 10, speed: 12, size: 1.0, k: 0.8, opacity: 0.45, trailK: 0.15 }));
-  flows.push(flow([[285, uY, 40], [262, uY, 40], [262, uY, 3], [225, uY, 3]], 'mv', { count: 10, speed: 12, size: 1.0, k: 0.8, opacity: 0.45, trailK: 0.15 }));
+  if (gensetMx.length > 20) flows.push(flow([[285, uY, 40], [262, uY, 40], [262, uY, 3], [225, uY, 3]], 'mv', { count: 10, speed: 12, size: 1.0, k: 0.8, opacity: 0.45, trailK: 0.15 }));
 
   // ---------- battery storage yard ----------
   const bessBox = new Builder();
@@ -286,17 +307,25 @@ export function build({ quality }) {
   for (let x = -2.8; x <= 2.8; x += 0.7) bessBox.slab(0.1, 2.5, 0.06, MAT.white, x, 0.35, 1.25);
   for (const x of [-3.2, 3.2]) bessBox.slab(0.4, 1.8, 1.8, MAT.darkSteel, x, 0.6, 0);
   const bessMx = [];
-  for (let c = 0; c < 5; c++) for (let r = 0; r < 4; r++) bessMx.push(mtx(-335 + c * 9, 0.15, 55 + r * 14));
+  for (let c = 0; c < 5; c++) for (let r = 0; r < 4; r++) if (bessMx.length < Math.min(20, Math.max(2, Math.ceil(L.bessMWh / 2)))) bessMx.push(mtx(-335 + c * 9, 0.15, 55 + r * 14));
   bessBox.instance(bessMx).children.forEach(m => scene.add(m));
   for (let r = 0; r < 4; r++) { S.slab(4, 2.4, 2.4, MAT.ansi61, -280, 0.15, 55 + r * 14); S.slab(2, 2.2, 2, MAT.xfmr, -275, 0.15, 55 + r * 14); }
   flows.push(flow([[-275, uY, 55], [-275, uY, 20], [-340, uY, 20], [-340, uY, -62]], 'mv', { count: 12, speed: 20, size: 1.0, k: 1.2, opacity: 0.7, trailK: 0.2 }));
 
   // ---------- cooling towers and water tanks ----------
-  for (let i = 0; i < 6; i++) {
-    const x = 15 + i * 12, z = -275;
+  towerRows.forEach(z => { for (let i = 0; i < 6; i++) {
+    const x = 15 + i * 12;
     S.slab(11.4, 8, 11, MAT.ansi61, x, 0.15, z);
     for (let y = 1; y < 6; y += 0.6) N.slab(11.5, 0.12, 0.2, MAT.darkSteel, x, y, z + 5.6);
     S.cyl(4.2, 3.2, MAT.ansi61, x, 9.8, z, 24); N.cyl(3.9, 0.2, MAT.fan, x, 11.2, z, 24);
+  } });
+  if (!warm) {
+    // chiller plant: a long shed with louvered walls, headers to hall A and to the towers
+    S.slab(60, 11, 18, MAT.white, plantX, 0.15, -245); S.slab(61, 0.5, 19, MAT.roof, plantX, 11.15, -245);
+    for (let i = 0; i < 10; i++) N.slab(4, 3.2, 0.1, MAT.darkSteel, plantX - 25 + i * 5.6, 6, -235.95);
+    for (let i = 0; i < 6; i++) N.cyl(1.1, 1.2, MAT.galv, plantX - 24 + i * 9.5, 12.2, -245, 14);
+    for (const dx of [-10, 10]) S.cylZ(0.6, 21, dx < 0 ? MAT.pipeRed : MAT.pipeBlue, plantX + dx, 2.2, -225.5, 12);
+    S.cylZ(0.6, 8, MAT.pipeRed, plantX - 20, 2.2, -258); S.cylX(0.6, plantX - 35, MAT.pipeRed, (plantX - 20 + 15) / 2, 2.2, -262);
   }
   for (const [x, z] of [[125, -280], [158, -280]]) { S.cyl(13, 12, MAT.galv, x, 6.15, z, 36); S.add(new THREE.ConeGeometry(13.2, 2.2, 36), MAT.galv, x, 13.25, z); }
   S.slab(18, 5, 12, MAT.beige, 190, 0.15, -280);                              // water treatment building
@@ -315,7 +344,7 @@ export function build({ quality }) {
   dci([[fiberA[0], 0.7, 900], [fiberA[0], 0.7, fiberA[1]]], 40);
   dci([[fiberB[0], 0.7, -1100], [fiberB[0], 0.7, fiberB[1]]], 40);
   dci([[fiberA[0], 0.7, fiberA[1]], [hutA[0], 0.7, hutA[1]], [hutA[0], 0.7, 150], [-40, 0.7, 150], [-40, 0.7, 108]], 16);
-  dci([[fiberB[0], 0.7, fiberB[1]], [hutB[0], 0.7, hutB[1]], [440, 0.7, -240], [240, 0.7, -240], [240, 0.7, -212]], 16);
+  dci([[fiberB[0], 0.7, fiberB[1]], [hutB[0], 0.7, hutB[1]], [440, 0.7, -240], [hallX1 + 10, 0.7, -240], [hallX1 + 10, 0.7, -212]], 16);
   // duct bank cutaway where the hall-to-hall route crosses open ground: concrete encasement, 3 × 4 conduits
   const dataGroup = new THREE.Group(), D = new Builder();
   const dbX = -54, dbZ = -90, dbY = 0.15;              // set beside the route so the section reads on its own
@@ -330,10 +359,28 @@ export function build({ quality }) {
   // handhole a few meters on, where cables are spliced and slack is stored
   D.slab(1.4, 0.9, 1.1, MAT.concrete, dbX, dbY, dbZ + 4); D.slab(1.2, 0.02, 0.9, MAT.darkSteel, dbX, dbY + 0.9, dbZ + 4);
   dataGroup.add(D.build({ cast: false }));
-  scene.add(dataGroup);
+  if (nHalls > 1) scene.add(dataGroup);
+
+  // ---------- the rest of a big campus: plain hall blocks east of the site ----------
+  if (extra) {
+    const roofTex = canvasTex(512, 256, (g, w, h) => {
+      g.fillStyle = '#8f9498'; g.fillRect(0, 0, w, h);
+      if (warm) for (let r = 0; r < 3; r++) for (let i = 0; i < 18; i++) { g.fillStyle = '#3c4148'; g.fillRect(8 + i * 28, 40 + r * 64, 24, 14); g.fillStyle = '#1b1e22'; for (let f = 0; f < 3; f++) g.fillRect(10 + i * 28 + f * 8, 43 + r * 64, 6, 8); }
+      else for (let r = 0; r < 2; r++) for (let i = 0; i < 9; i++) { g.fillStyle = '#5d6268'; g.beginPath(); g.arc(28 + i * 56, 80 + r * 96, 7, 0, Math.PI * 2); g.fill(); }
+    });
+    const roofMat = new THREE.MeshStandardMaterial({ map: roofTex, roughness: 0.85 });
+    const geo = new THREE.BoxGeometry(260, 22, 90); geo.translate(0, 11.15, 0);
+    const blocks = new THREE.InstancedMesh(geo, [wallEnd, wallEnd, roofMat, MAT.roof, wallMat, wallMat], extra);
+    const z0 = -55 - (perCol - 1) * 120 / 2;
+    for (let i = 0; i < extra; i++) blocks.setMatrixAt(i, mtx(750 + Math.floor(i / perCol) * 320, 0, z0 + (i % perCol) * 120));
+    blocks.castShadow = blocks.receiveShadow = true; scene.add(blocks);
+    const pads = new Builder();
+    for (let c = 0; c < cols; c++) pads.slab(300, 0.1, perCol * 120 + 20, MAT.concreteDark, 750 + c * 320, 0.05, z0 + (perCol - 1) * 60);
+    scene.add(pads.build({ cast: false }));
+  }
   // hall-to-hall: the two spines joined through the duct bank, both directions
-  dataFlows.push(flow([[-44, 0.6, -128], [-44, 0.6, 12]], 'eth', { count: 22, speed: 30, size: 0.45, k: 2.2, trailR: 0.18 }));
-  dataFlows.push(flow([[-47, 0.6, 12], [-47, 0.6, -128]], 'eth', { count: 22, speed: 30, size: 0.45, k: 2.2, trailR: 0.18 }));
+  if (nHalls > 1) dataFlows.push(flow([[-44, 0.6, -128], [-44, 0.6, 12]], 'eth', { count: 22, speed: 30, size: 0.45, k: 2.2, trailR: 0.18 }));
+  if (nHalls > 1) dataFlows.push(flow([[-47, 0.6, 12], [-47, 0.6, -128]], 'eth', { count: 22, speed: 30, size: 0.45, k: 2.2, trailR: 0.18 }));
 
   // ---------- parking, gatehouse, lights, people, trees ----------
   S.slab(160, 0.12, 60, MAT.asphalt, 0, 0.15, 170);
@@ -369,7 +416,9 @@ export function build({ quality }) {
   const hallAz = hallCentersZ[0];
   return {
     scene, flows,
-    camera: { pos: [520, 290, 780], target: [-300, 25, -150], near: 0.2, far: 9000, min: 3, max: 2600 },
+    camera: extra
+      ? { pos: [reach * 0.55, reach * 0.42, reach * 0.62], target: [reach * 0.3 - 300, 0, -120], near: 0.2, far: Math.max(9000, reach * 3), min: 3, max: Math.max(2600, reach * 1.6) }
+      : { pos: [520, 290, 780], target: [-300, 25, -150], near: 0.2, far: 9000, min: 3, max: 2600 },
     hotspots: {
       line: { pos: [-990, 50, towerZ], view: { pos: [-1100, 120, 40], target: [-800, 30, -150] } },
       substation: { pos: [-500, 22, -150], view: { pos: [-360, 120, 60], target: [-480, 5, -150] } },
@@ -378,25 +427,25 @@ export function build({ quality }) {
       gensets: { pos: [320, 10, -190], view: { pos: [440, 90, -60], target: [320, 0, -150] } },
       fuel: { pos: [397, 9, -100], view: { pos: [480, 50, -40], target: [397, 0, -100] } },
       bess: { pos: [-316, 6, 75], view: { pos: [-250, 60, 170], target: [-315, 0, 75] } },
-      unitsubs: { pos: [100, 5, -115], view: { pos: [120, 30, -40], target: [100, 0, -110] } },
-      hall: { pos: [100, 26, hallAz], view: { pos: [260, 170, 120], target: [100, 10, -120] } },
-      drycoolers: { pos: [60, 26, -170], view: { pos: [120, 70, -90], target: [60, 20, -170] } },
+      unitsubs: { pos: [hcx, 5, -115], view: { pos: [hcx + 20, 30, -40], target: [hcx, 0, -110] } },
+      hall: { pos: [hcx, 26, hallAz], view: { pos: [hcx + 160, 170, 120], target: [hcx, 10, -120] } },
+      ...(warm ? { drycoolers: { pos: [Math.min(60, hcx), 26, -170], view: { pos: [Math.min(60, hcx) + 60, 70, -90], target: [Math.min(60, hcx), 20, -170] } } } : { chillers: { pos: [plantX, 13, -245], view: { pos: [plantX + 70, 70, -160], target: [plantX - 10, 5, -250] } } }),
       towers: { pos: [45, 13, -275], view: { pos: [110, 60, -200], target: [70, 5, -275] } },
       fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-60, 60, 330], target: [-120, 0, 200] } },
     },
     dataFlows, heatFlows, layers: { data: dataGroup },
     heatHotspots: {
-      drycoolers: { pos: [60, 26, -170], view: { pos: [140, 90, -60], target: [60, 25, -170] } },
+      ...(warm ? { drycoolers: { pos: [Math.min(60, hcx), 26, -170], view: { pos: [Math.min(60, hcx) + 80, 90, -60], target: [Math.min(60, hcx), 25, -170] } } } : { chillers: { pos: [plantX, 13, -245], view: { pos: [plantX + 70, 70, -160], target: [plantX - 10, 5, -250] } } }),
       towers: { pos: [45, 13, -275], view: { pos: [110, 60, -200], target: [70, 20, -275] } },
-      plume: { pos: [100, 70, -170], view: { pos: [320, 160, 80], target: [100, 40, -110] } },
+      plume: { pos: [hcx, 70, -170], view: { pos: [hcx + 220, 160, 80], target: [hcx, 40, -110] } },
       reuse: { pos: [hallX0 - 28, 18, 60], view: { pos: [-160, 80, 180], target: [-40, 10, 60] } },
     },
     dataHotspots: {
       fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-60, 60, 330], target: [-120, 0, 200] } },
       dci: { pos: [hutA[0], 6, hutA[1]], view: { pos: [-130, 40, 290], target: [hutA[0], 0, hutA[1]] } },
-      interhall: { pos: [-45, 3, -58], view: { pos: [40, 70, 60], target: [-45, 0, -58] } },
-      ductbank: { pos: [-54, 1.1, -90], view: { pos: [-57.2, 1.9, -87.4], target: [-54, 0.45, -89.2] } },
-      hall: { pos: [100, 26, hallAz], view: { pos: [260, 170, 120], target: [100, 10, -120] } },
+      ...(nHalls > 1 ? { interhall: { pos: [-45, 3, -58], view: { pos: [40, 70, 60], target: [-45, 0, -58] } } } : {}),
+      ...(nHalls > 1 ? { ductbank: { pos: [-54, 1.1, -90], view: { pos: [-57.2, 1.9, -87.4], target: [-54, 0.45, -89.2] } } } : {}),
+      hall: { pos: [hcx, 26, hallAz], view: { pos: [hcx + 160, 170, 120], target: [hcx, 10, -120] } },
       longhaul: { pos: [fiberA[0], 3, 520], view: { pos: [200, 260, 900], target: [-150, 0, 420] } },
     },
     update() {},

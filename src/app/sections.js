@@ -94,7 +94,18 @@ function renderBandwidth() {
 }
 
 // ---------- the links, drawn and counted ----------
+function renderLinkText() {
+  const M = store.M, A = M.accel, nvl = A.gpusPerRack === 72, F = M.NET.fabric;
+  const size = M.meterMW >= 1000 ? `${+(M.meterMW / 1000).toFixed(2)} GW` : `${Math.round(M.meterMW)} MW`;
+  const speed = A.nicGbps >= 1000 ? `${A.nicGbps / 1000}T` : `${A.nicGbps}G`;
+  $('links-lede').textContent = `Three networks, three physical media. Copper ties ${nvl ? '72 GPUs into one machine inside a rack' : '8 GPUs into one machine inside each server'}; single-mode fiber and pluggable optics tie ${nvl ? 'racks' : 'servers'} into a campus fabric; coherent optics on leased fiber tie campuses together. Counts are for this ${size} campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials.`;
+  $('cap-scaleup').innerHTML = `<b style="color:var(--nvl)">Scale-up.</b> ` + (nvl
+    ? `Inside one ${A.rackName} rack every GPU connects straight to all 18 NVLink switch chips, so any GPU reaches any other through exactly one switch. One GPU's 18 links are highlighted.`
+    : 'Inside one DGX H100 every GPU spreads its 18 NVLink links over four NVSwitch chips on the baseboard. The domain ends at the server: the other 24 GPUs in the same rack are reached over the network.');
+  $('cap-scaleout').innerHTML = `<b style="color:var(--eth)">Scale-out.</b> One ${speed} optical port per GPU climbs through ${M.NET.tiers === 2 ? 'two' : 'three'} tiers of ${F.radix}-port switches${M.NET.planes > 1 ? `, in ${M.NET.planes} parallel fabrics at this size` : ''}. Non-blocking means the same number of links at every tier, so each tier adds about one more link per GPU and two more optical modules per link.`;
+}
 function renderLinks() {
+  renderLinkText();
   const M = store.M, A = M.accel, NET = M.NET, F = NET.fabric, GPUS = M.gpus, RACKS = M.racks;
   const speed = A.nicGbps >= 1000 ? `${A.nicGbps / 1000}T` : `${A.nicGbps}G`;
   const nvl72 = A.id !== 'h100';
@@ -230,6 +241,9 @@ function renderParallel() {
 
 // ---------- inventory ----------
 function renderBom() {
+  const M = store.M, size = M.meterMW >= 1000 ? `${+(M.meterMW / 1000).toFixed(2)} GW` : `${Math.round(M.meterMW)} MW`;
+  $('bom-h').textContent = `What it takes: a ${size} campus, counted`;
+  $('bom-lede').textContent = `Sized from the same assumptions as the ledger: ${size} at the meter, PUE ${M.pue.toFixed(2)}, ${Math.round(M.rack.kw)} kW ${M.accel.rackName.replace(/ rack$/, "")} racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale.`;
   $('bom').innerHTML = store.C.BOM.map(g => `<div class="bom-col"><h3>${g.group}</h3><dl>${g.rows.map(([k, v, b]) => `<div><dt>${k}</dt><dd>${v} <span class="chip ${b}">${BASIS[b].short}</span></dd></div>`).join('')}</dl></div>`).join('');
 }
 

@@ -16,7 +16,7 @@
     <p class="eyebrow">Power · Data · Heat · Six scales</p>
     <h1>The Intelligence Factory</h1>
     <p class="tagline">From <span class="v1">345,000 volts</span> to <span class="v2">0.8</span></p>
-    <p class="lede">Zoom from a 2,000 km grid into one 100 MW AI campus and keep going: off the transmission line, through the substation, the halls, a rack and a tray, into a GPU die at under a volt, and out as tokens. Then switch to the data layer and follow the links back out: NVLink inside the rack, optics across the hall, fiber between campuses. Every number carries a label saying where it comes from.</p>
+    <p class="lede">Zoom from a 2,000 km grid into one AI campus and keep going: off the transmission line, through the substation, the halls, a rack and a tray, into a GPU die at under a volt, and out as tokens. Then switch to the data layer and follow the links back out: NVLink inside the rack, optics across the hall, fiber between campuses. Every number carries a label saying where it comes from.</p>
   </header>
 
   <section class="scenario" aria-labelledby="sc-h">
@@ -114,10 +114,10 @@
     <div class="sec-head">
       <p class="eyebrow">Network</p>
       <h2 id="links-h">The links, drawn and counted</h2>
-      <p>Three networks, three physical media. Copper ties 72 GPUs into one machine inside a rack; single-mode fiber and pluggable optics tie racks into a campus fabric; coherent optics on leased fiber tie campuses together. Counts are for this 100 MW campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials.</p>
+      <p id="links-lede">Three networks, three physical media. Copper ties 72 GPUs into one machine inside a rack; single-mode fiber and pluggable optics tie racks into a campus fabric; coherent optics on leased fiber tie campuses together. Counts are for this 100 MW campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials.</p>
     </div>
-    <figure class="fig"><div class="chart-box" id="fig-scaleup"></div><figcaption><b style="color:var(--nvl)">Scale-up.</b> Inside one NVL72 rack every GPU connects straight to all 18 NVLink switch chips, so any GPU reaches any other through exactly one switch. One GPU's 18 links are highlighted.</figcaption></figure>
-    <figure class="fig"><div class="chart-box" id="fig-scaleout"></div><figcaption><b style="color:var(--eth)">Scale-out.</b> One 800G optical port per GPU climbs through up to three tiers of 144-port switches. Non-blocking means the same number of links at every tier, so each tier adds about one more link per GPU and two more optical modules per link.</figcaption></figure>
+    <figure class="fig"><div class="chart-box" id="fig-scaleup"></div><figcaption id="cap-scaleup"><b style="color:var(--nvl)">Scale-up.</b> Inside one NVL72 rack every GPU connects straight to all 18 NVLink switch chips, so any GPU reaches any other through exactly one switch. One GPU's 18 links are highlighted.</figcaption></figure>
+    <figure class="fig"><div class="chart-box" id="fig-scaleout"></div><figcaption id="cap-scaleout"><b style="color:var(--eth)">Scale-out.</b> One 800G optical port per GPU climbs through up to three tiers of 144-port switches. Non-blocking means the same number of links at every tier, so each tier adds about one more link per GPU and two more optical modules per link.</figcaption></figure>
     <figure class="fig"><div class="chart-box" id="fig-across"></div><figcaption><b style="color:var(--dci)">Scale across.</b> Traffic for another campus leaves the fabric through routers with coherent optics, which put many colors of light on each fiber pair. Amplifier huts boost the light every 80 km or so without turning it back into electricity.</figcaption></figure>
     <div class="census" id="census"></div>
   </section>
@@ -216,7 +216,7 @@
     <div class="sec-head">
       <p class="eyebrow">Inventory</p>
       <h2 id="bom-h">What it takes: a 100 MW campus, counted</h2>
-      <p>Sized from the same assumptions as the ledger: 100 MW at the meter, PUE 1.2, 132 kW racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale.</p>
+      <p id="bom-lede">Sized from the same assumptions as the ledger: 100 MW at the meter, PUE 1.2, 132 kW racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale.</p>
     </div>
     <div class="bom-grid" id="bom"></div>
   </section>

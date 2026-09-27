@@ -51,7 +51,7 @@ export const ACCELERATORS: Record<AccelId, Accel> = {
     hbmShare: 0.1, vrmEff: 0.9, ibcEff: 0.983, psuEff: 0.96, liquidShare: 0,
     hbm: { type: 'HBM3', gb: 80, tbs: 3.35, stacks: 5, layers: 8 }, dies: 1,
     nvlink: { gen: 'NVLink 4', tbs: 0.9, domain: 8 }, nicGbps: 400, fp8PF: 1.98, fp4PF: null,
-    publishedRackKW: [36, 42], coolingOptions: ['air', 'liquid'], dc800: false, basis: 'typical',
+    publishedRackKW: [36, 42], coolingOptions: ['air'], dc800: false, basis: 'typical',   // DGX H100 reference design is air-cooled
   },
   gb200: {
     id: 'gb200', name: 'NVIDIA GB200 NVL72', short: 'GB200', rackName: 'GB200 NVL72', year: '2025',
@@ -72,7 +72,7 @@ export const ACCELERATORS: Record<AccelId, Accel> = {
     publishedRackKW: [135, 155], coolingOptions: ['liquid', 'warm'], dc800: true, basis: 'typical',
   },
   rubin: {
-    id: 'rubin', name: 'NVIDIA Vera Rubin NVL144', short: 'Rubin', rackName: 'Vera Rubin NVL144', year: '2026–27',
+    id: 'rubin', name: 'NVIDIA Vera Rubin NVL72', short: 'Rubin', rackName: 'Vera Rubin NVL72', year: '2026–27',
     gpuW: 1800, gpusPerRack: 72, cpusPerRack: 36, cpuW: 400, cpuName: 'Vera CPUs + LPDDR5X',
     scaleupKW: 14, nicKW: 7.5, otherKW: 2.6, busbarKW: 0.4,
     hbmShare: 0.16, vrmEff: 0.915, ibcEff: 0.983, psuEff: 0.975, liquidShare: 1,
@@ -249,12 +249,25 @@ export function compute(s: Scenario) {
   ];
 
   // ----- layout counts for the campus scene -----
+  // Unit sizes are typical catalog sizes; counts are this model's estimates.
+  const mvaUnit = meterMW > 400 ? 300 : 75;                // big campuses buy bigger main transformers
+  const liquidMW = IT_MW * (cooling.id === 'air' ? 0 : accel.liquidShare);
   const layout = {
     halls: Math.max(1, Math.ceil(IT_MW / 45)),
-    transformers: Math.ceil(meterMW / 75) + 1,
-    gensets: Math.ceil(meterMW / 3 * 1.2),
-    bessMWh: Math.round(meterMW * 0.4),
-    chillers: cooling.id === 'warm' ? 0 : Math.ceil(IT_MW / 4),
+    mvaUnit,
+    transformers: Math.ceil(meterMW / mvaUnit) + 1,         // N+1
+    feeders: Math.max(2, Math.ceil(meterMW / 10)),
+    gensets: Math.ceil(meterMW / 3 * 1.2),                   // 3 MW class, N+20%
+    fuelML: meterMW * 48 * 0.26 / 1000,                      // 48 h at 0.26 L/kWh, million liters
+    bessMW: Math.round(meterMW * 0.2), bessMWh: Math.round(meterMW * 0.4),
+    unitSubs: Math.ceil(meterMW * 0.97 / 2.2),               // 2.5 MVA units at ≈2.2 MW
+    upsModules: power.id === 'dc800' ? 0 : Math.ceil(itIn / 1.25),
+    sstModules: power.id === 'dc800' ? Math.ceil(itIn / 2.5) : 0,
+    cdus: Math.ceil(liquidMW / 1.25),
+    airUnits: Math.ceil((IT_MW - liquidMW) / (cooling.id === 'air' ? 0.1 : 0.4)),   // in-row coolers, or fan-wall sections
+    dryCoolers: cooling.id === 'warm' ? Math.ceil(IT_MW * 1.1 / 0.8) : 0,
+    chillers: cooling.id === 'warm' ? 0 : Math.ceil(IT_MW * 1.1 / 4),              // 4 MW (≈1,100 ton) chillers
+    towers: cooling.id === 'warm' ? Math.ceil(IT_MW / 16) : Math.ceil(IT_MW * 1.3 / 6),
   };
 
   return {

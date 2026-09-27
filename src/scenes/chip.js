@@ -1,4 +1,5 @@
 // Scene 5: the GPU package, exploded, and the tokens that leave it. World unit = 1 cm.
+// Blackwell and Rubin: two dies, HBM above and below. H100: one die, HBM sites left and right.
 import { THREE, MAT, Builder, flow, canvasTex, glowMat } from '../kit.js';
 
 function dieTexture() {
@@ -31,7 +32,8 @@ function wordTexture(word) {
 }
 const TOKENS = ['The', ' heron', ' lifts', ' off', ' the', ' water', ',', ' wings', ' catching', ' the', ' last', ' light', '.', ' Every', ' word', ' here', ' cost', ' about', ' a', ' joule', '.'];
 
-export function build({ quality, state }) {
+export function build({ quality, state, model }) {
+  const A = model.accel, twin = A.dies > 1, layers = A.hbm.layers;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x090c12);
   scene.add(new THREE.HemisphereLight(0xb5c3e6, 0x111317, 0.8));
@@ -66,31 +68,42 @@ export function build({ quality, state }) {
   const bumps = new THREE.InstancedMesh(bump, MAT.nickel, nx * nz); bi = 0;
   for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) { o.position.set(-2.97 + i * 0.18, Y.bumps, -2.79 + j * 0.18); o.updateMatrix(); bumps.setMatrixAt(bi++, o.matrix); }
   scene.add(bumps);
-  // silicon interposer (CoWoS-L)
-  S.box(6.2, 0.1, 5.9, MAT.silicon, 0, Y.inter, 0);
-  for (let i = 0; i < 40; i++) N.box(0.012, 0.004, 5.6, MAT.gold, -2.9 + i * 0.15, Y.inter + 0.052, 0);
-  // two GPU dies
+  // silicon interposer
+  const IW = twin ? 6.2 : 6.0, ID = twin ? 5.9 : 4.0;
+  S.box(IW, 0.1, ID, MAT.silicon, 0, Y.inter, 0);
+  for (let i = 0; i < 40; i++) N.box(0.012, 0.004, ID - 0.3, MAT.gold, -2.9 + i * 0.15, Y.inter + 0.052, 0);
+  // GPU dies
   const dieMat = new THREE.MeshStandardMaterial({ map: dieTexture(), roughness: 0.34, metalness: 0.45, envMapIntensity: 0.5, emissive: 0x6fd8ff, emissiveIntensity: 0.0 });
   const dieSide = new THREE.MeshStandardMaterial({ color: 0x3b4262, roughness: 0.3, metalness: 0.6 });
   const dies = [];
-  for (const dx of [-1.36, 1.36]) {
+  const dieX = twin ? [-1.36, 1.36] : [0];
+  for (const dx of dieX) {
     const d = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.08, 3.3), [dieSide, dieSide, dieMat, dieSide, dieSide, dieSide]);
     d.position.set(dx, Y.dies, 0); if (dx > 0) d.rotation.y = Math.PI; d.castShadow = true; scene.add(d); dies.push(d);
   }
   // NV-HBI bridge glow between the dies
-  const hbi = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 3.0), glowMat('#6fd8ff', 2.4)); hbi.position.set(0, Y.dies + 0.02, 0); scene.add(hbi);
-  // HBM3e stacks: eight, each a base die and twelve DRAM layers, slightly spread
-  const hbmTop = canvasTex(128, 128, (g, w, h) => { g.fillStyle = '#2b2e35'; g.fillRect(0, 0, w, h); g.fillStyle = '#8b939e'; g.font = '600 18px system-ui'; g.fillText('HBM3e', 18, 70); });
+  if (twin) { const hbi = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 3.0), glowMat('#6fd8ff', 2.4)); hbi.position.set(0, Y.dies + 0.02, 0); scene.add(hbi); }
+  // HBM stacks: a base die and one DRAM layer per level, slightly spread
+  const hbmTop = canvasTex(128, 128, (g, w, h) => { g.fillStyle = '#2b2e35'; g.fillRect(0, 0, w, h); g.fillStyle = '#8b939e'; g.font = '600 18px system-ui'; g.fillText(A.hbm.type, 18, 70); });
   const hbmTopMat = new THREE.MeshStandardMaterial({ map: hbmTop, roughness: 0.4, metalness: 0.3 });
   const hbmPos = [];
-  for (const x of [-2.02, -0.7, 0.7, 2.02]) for (const z of [-2.3, 2.3]) hbmPos.push([x, z]);
-  hbmPos.forEach(([x, z]) => {
+  if (twin) { for (const x of [-2.02, -0.7, 0.7, 2.02]) for (const z of [-2.3, 2.3]) hbmPos.push([x, z]); }
+  else { for (const x of [-2.05, 2.05]) for (const z of [-1.12, 0, 1.12]) hbmPos.push([x, z]); }
+  const spare = twin ? -1 : 5;                           // H100: six sites, five working stacks and a spacer
+  const stackH = layers * 0.055;
+  hbmPos.forEach(([x, z], i) => {
     S.box(1.1, 0.05, 1.05, MAT.silicon, x, Y.dies - 0.02, z);
-    for (let l = 0; l < 12; l++) S.box(1.06, 0.035, 1.0, l % 2 ? MAT.hbm : MAT.darkSteel, x, Y.dies + 0.04 + l * 0.055, z);
+    if (i === spare) { S.box(1.06, stackH, 1.0, MAT.silicon, x, Y.dies + 0.013 + stackH / 2, z); return; }
+    for (let l = 0; l < layers; l++) S.box(1.06, 0.035, 1.0, l % 2 ? MAT.hbm : MAT.darkSteel, x, Y.dies + 0.04 + l * 0.055, z);
     const top = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.02, 1.0), [MAT.hbm, MAT.hbm, hbmTopMat, MAT.hbm, MAT.hbm, MAT.hbm]);
-    top.position.set(x, Y.dies + 0.04 + 12 * 0.055, z); scene.add(top);
-    for (let t = 0; t < 5; t++) N.box(0.01, 12 * 0.055, 0.01, MAT.copper, x - 0.3 + t * 0.15, Y.dies + 0.04 + 6 * 0.055, z - 0.505);   // TSVs, cut face
+    top.position.set(x, Y.dies + 0.04 + stackH, z); scene.add(top);
+    // TSVs on the cut face that faces away from the die
+    for (let t = 0; t < 5; t++) {
+      if (twin) N.box(0.01, stackH, 0.01, MAT.copper, x - 0.3 + t * 0.15, Y.dies + 0.04 + stackH / 2, z - Math.sign(z) * 0.505);
+      else N.box(0.01, stackH, 0.01, MAT.copper, x + Math.sign(x) * 0.535, Y.dies + 0.04 + stackH / 2, z - 0.3 + t * 0.15);
+    }
   });
+  const live = hbmPos.filter((_, i) => i !== spare);
   // lid, lifted, translucent so the dies read through it
   const lid = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.2, 7.0), new THREE.MeshPhysicalMaterial({ color: 0xc98a5c, metalness: 0.6, roughness: 0.45, envMapIntensity: 0.4, transparent: true, opacity: 0.16, depthWrite: false }));
   lid.position.set(0, Y.lid, 0); scene.add(lid);
@@ -101,27 +114,34 @@ export function build({ quality, state }) {
 
   // ---------- current climbing into the dies ----------
   let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const dieSpan = twin ? 5.0 : 2.4;
   for (let i = 0; i < 28; i++) {
-    const x = (rnd() - 0.5) * 5.0, z = (rnd() - 0.5) * 3.0;
+    const x = (rnd() - 0.5) * dieSpan, z = (rnd() - 0.5) * 3.0;
     flows.push(flow([[x, -1.4, z], [x, Y.balls, z], [x, Y.sub, z], [x, Y.bumps, z], [x, Y.inter, z], [x, Y.dies, z]], 'core', { count: 3, speed: 1.6 + rnd(), size: 0.03, k: 2.8, trail: false }));
   }
   // die-to-die traffic across NV-HBI
   flows.forEach(f => scene.add(f.group));
   // ---------- data: die to die, HBM into the dies, NVLink out of the package edge ----------
-  for (let i = 0; i < 7; i++) { const z = -1.35 + i * 0.45; dataFlows.push(flow([[-1.2, Y.dies + 0.06, z], [1.2, Y.dies + 0.06, z]], 'hbi', { count: 3, speed: 2.4, size: 0.035, k: 3.2, trail: false })); dataFlows.push(flow([[1.2, Y.dies + 0.07, z + 0.1], [-1.2, Y.dies + 0.07, z + 0.1]], 'hbi', { count: 3, speed: 2.4, size: 0.035, k: 3.2, trail: false })); }
-  hbmPos.forEach(([x, z]) => { for (const dx of [-0.25, 0, 0.25]) dataFlows.push(flow([[x + dx, Y.dies + 0.3, z], [x * 0.85 + dx, Y.dies + 0.06, z * 0.5]], 'hbm', { count: 3, speed: 1.2, size: 0.03, k: 3.4, trail: false })); });
+  if (twin) for (let i = 0; i < 7; i++) { const z = -1.35 + i * 0.45; dataFlows.push(flow([[-1.2, Y.dies + 0.06, z], [1.2, Y.dies + 0.06, z]], 'hbi', { count: 3, speed: 2.4, size: 0.035, k: 3.2, trail: false })); dataFlows.push(flow([[1.2, Y.dies + 0.07, z + 0.1], [-1.2, Y.dies + 0.07, z + 0.1]], 'hbi', { count: 3, speed: 2.4, size: 0.035, k: 3.2, trail: false })); }
+  live.forEach(([x, z]) => { for (const d of [-0.25, 0, 0.25]) dataFlows.push(flow(twin ? [[x + d, Y.dies + 0.3, z], [x * 0.85 + d, Y.dies + 0.06, z * 0.5]] : [[x, Y.dies + 0.3, z + d], [x * 0.5, Y.dies + 0.06, z * 0.8 + d]], 'hbm', { count: 3, speed: 1.2, size: 0.03, k: 3.4, trail: false })); });
   const serdes = glowMat('#ff5fd2', 1.6);
+  // NVLink leaves the free edges: the outer die edges on a twin package, the top and bottom edges on H100
   for (const side of [-1, 1]) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 3.0), serdes); m.position.set(side * 2.62, Y.dies + 0.05, 0); scene.add(m);
-    for (let i = 0; i < 9; i++) { const z = -1.3 + i * 0.325; dataFlows.push(flow([[side * 2.62, Y.dies + 0.04, z], [side * 3.1, Y.inter + 0.06, z], [side * 3.1, Y.sub + 0.14, z * 1.2], [side * 4.2, Y.sub + 0.14, z * 1.25]], 'nvl', { count: 3, speed: 1.6, size: 0.035, k: 2.8, trailR: 0.008, trailK: 0.3 })); }
+    if (twin) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 3.0), serdes); m.position.set(side * 2.62, Y.dies + 0.05, 0); scene.add(m);
+      for (let i = 0; i < 9; i++) { const z = -1.3 + i * 0.325; dataFlows.push(flow([[side * 2.62, Y.dies + 0.04, z], [side * 3.1, Y.inter + 0.06, z], [side * 3.1, Y.sub + 0.14, z * 1.2], [side * 4.2, Y.sub + 0.14, z * 1.25]], 'nvl', { count: 3, speed: 1.6, size: 0.035, k: 2.8, trailR: 0.008, trailK: 0.3 })); }
+    } else {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.03, 0.1), serdes); m.position.set(0, Y.dies + 0.05, side * 1.62); scene.add(m);
+      for (let i = 0; i < 9; i++) { const x = -1.1 + i * 0.275; dataFlows.push(flow([[x, Y.dies + 0.04, side * 1.62], [x, Y.inter + 0.06, side * 2.1], [x * 1.2, Y.sub + 0.14, side * 2.6], [x * 1.25, Y.sub + 0.14, side * 4.0]], 'nvl', { count: 3, speed: 1.6, size: 0.035, k: 2.8, trailR: 0.008, trailK: 0.3 })); }
+    }
   }
   dataFlows.forEach(f => scene.add(f.group));
   // ---------- heat: up out of the dies and HBM, through the lid ----------
   for (let i = 0; i < 30; i++) {
-    const x = (rnd() - 0.5) * 5.0, z = (rnd() - 0.5) * 3.0;
+    const x = (rnd() - 0.5) * dieSpan, z = (rnd() - 0.5) * 3.0;
     heatFlows.push(flow([[x, Y.dies + 0.06, z], [x, Y.lid - 0.12, z], [x * 1.05, Y.lid + 1.4, z * 1.05]], 'hot', { count: 3, speed: 1.1 + rnd() * 0.6, size: 0.045, k: 2.6, trail: false }));
   }
-  hbmPos.forEach(([x, z]) => heatFlows.push(flow([[x, Y.dies + 0.72, z], [x, Y.lid - 0.12, z], [x, Y.lid + 1.2, z]], 'air', { count: 2, speed: 0.9, size: 0.04, k: 2.4, trail: false })));
+  live.forEach(([x, z]) => heatFlows.push(flow([[x, Y.dies + 0.04 + stackH, z], [x, Y.lid - 0.12, z], [x, Y.lid + 1.2, z]], 'air', { count: 2, speed: 0.9, size: 0.04, k: 2.4, trail: false })));
   heatFlows.forEach(f => scene.add(f.group));
 
   // ---------- tokens ----------
@@ -139,31 +159,34 @@ export function build({ quality, state }) {
     if (!cache.has(word)) cache.set(word, wordTexture(word));
     const { tex, aspect } = cache.get(word);
     s.sp.material.map = tex; s.sp.material.needsUpdate = true;
-    s.aspect = aspect; s.live = true; s.t = 0; s.x0 = (rnd() - 0.5) * 4.2; s.z0 = (rnd() - 0.5) * 2.4; s.sp.visible = true;
+    s.aspect = aspect; s.live = true; s.t = 0; s.x0 = (rnd() - 0.5) * (twin ? 4.2 : 2.2); s.z0 = (rnd() - 0.5) * 2.4; s.sp.visible = true;
     pulse.v = 1;
   }
 
+  const d0 = dieX[0], [hx, hz] = live[live.length - 1], hy = Y.dies + 0.07 + stackH;
+  const hbmHS = { pos: [hx, hy, hz], view: { pos: [hx + 3.5, hy + 4.5, hz + 4.2], target: [hx * 0.8, Y.dies + 0.5, hz * 0.9] } };
+  const nvphyHS = twin ? { pos: [2.62, Y.dies + 0.1, -1.2], view: { pos: [8, 5, 1], target: [3, 2.6, 0] } } : { pos: [0.9, Y.dies + 0.1, 1.62], view: { pos: [2, 5.5, 8], target: [0, 2.6, 2.2] } };
   return {
     scene, flows,
     camera: { pos: [9.5, 8.2, 11.5], target: [0, 2.3, 0], near: 0.05, far: 500, min: 2, max: 40 },
     hotspots: {
       balls: { pos: [3.9, Y.sub, 3.9], view: { pos: [8, 2.5, 8], target: [2, 0.8, 2] } },
       interposer: { pos: [3.1, Y.inter, 0], view: { pos: [7.5, 4.2, 4.5], target: [1.5, 2.2, 0] } },
-      dies: { pos: [-1.36, Y.dies + 0.1, 0.4], view: { pos: [-1, 8, 5], target: [-0.6, 3.1, 0] } },
-      hbm: { pos: [2.02, Y.dies + 0.75, 2.3], view: { pos: [5.5, 5.2, 6.5], target: [1.6, 3.3, 2.1] } },
+      dies: { pos: [d0, Y.dies + 0.1, 0.4], view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
+      hbm: hbmHS,
       tokens: { pos: [3.8, 7.2, -1.0], view: { pos: [11, 8.5, 8], target: [2.5, 5.5, -1] } },
     },
     dataFlows, heatFlows,
     heatHotspots: {
-      junction: { pos: [-1.36, Y.dies + 0.1, 0.4], view: { pos: [-1, 8, 5], target: [-0.6, 3.1, 0] } },
-      flux: { pos: [1.36, Y.dies + 0.1, -0.8], view: { pos: [4, 6.5, 4], target: [1, 3.1, 0] } },
+      junction: { pos: [d0, Y.dies + 0.1, 0.4], view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
+      flux: { pos: [dieX[dieX.length - 1], Y.dies + 0.1, -0.8], view: { pos: [4, 6.5, 4], target: [1, 3.1, 0] } },
       tim: { pos: [3.2, Y.lid + 0.1, 3.0], view: { pos: [9, 7.5, 9], target: [0, 4, 0] } },
-      hbm: { pos: [2.02, Y.dies + 0.75, 2.3], view: { pos: [5.5, 5.2, 6.5], target: [1.6, 3.3, 2.1] } },
+      hbm: hbmHS,
     },
     dataHotspots: {
-      hbm: { pos: [2.02, Y.dies + 0.75, 2.3], view: { pos: [5.5, 5.2, 6.5], target: [1.6, 3.3, 2.1] } },
-      hbi: { pos: [0, Y.dies + 0.12, 1.3], view: { pos: [1.5, 7.5, 5.5], target: [0, 3.1, 0] } },
-      nvphy: { pos: [2.62, Y.dies + 0.1, -1.2], view: { pos: [8, 5, 1], target: [3, 2.6, 0] } },
+      hbm: hbmHS,
+      ...(twin ? { hbi: { pos: [0, Y.dies + 0.12, 1.3], view: { pos: [1.5, 7.5, 5.5], target: [0, 3.1, 0] } } } : {}),
+      nvphy: nvphyHS,
       cpo: { pos: [-4.2, Y.sub + 0.3, 3.8], view: { pos: [-8, 5, 9], target: [-2.5, 1.5, 2] } },
       tokens: { pos: [3.8, 7.2, -1.0], view: { pos: [11, 8.5, 8], target: [2.5, 5.5, -1] } },
     },

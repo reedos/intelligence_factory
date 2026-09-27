@@ -1,6 +1,7 @@
 // Scene 4: one compute tray, lid off. World unit = 10 cm (the tray is 4.4 units wide).
-// Front faces +z. Two superchip boards: each one Grace CPU and two Blackwell GPUs.
-import { THREE, MAT, Builder, flow, canvasTex, texMat } from '../kit.js';
+// Front faces +z. NVL72 racks: two superchip boards, each one CPU and two GPUs.
+// H100: a DGX H100 server, the GPU baseboard below and the CPU tray cut away above.
+import { THREE, MAT, Builder, flow, canvasTex, texMat, glowMat } from '../kit.js';
 
 export function pkgTex(label) {
   return canvasTex(256, 256, (g, w, h) => {
@@ -18,14 +19,169 @@ function dieTex() {
   });
 }
 
-export function build({ quality }) {
-  const scene = new THREE.Scene();
+export function build(opts) {
+  return opts.model.accel.gpusPerRack === 72 ? buildNVL(opts) : buildHGX(opts);
+}
+
+function lights(scene, quality) {
   scene.background = new THREE.Color(0x0a0d13);
   scene.add(new THREE.HemisphereLight(0xb8c6e4, 0x121418, 0.85));
   const key = new THREE.DirectionalLight(0xfff0dc, 2.3); key.position.set(4, 9, 6); key.target.position.set(0, 0, 0);
   if (quality.shadows) { key.castShadow = true; key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 1, far: 30 }); key.shadow.bias = -0.0003; key.shadow.normalBias = 0.01; }
   scene.add(key, key.target);
   const rim = new THREE.DirectionalLight(0x6e9bff, 1.0); rim.position.set(-6, 4, -7); scene.add(rim);
+}
+
+// ---------- DGX H100: 8U, air-cooled ----------
+function buildHGX({ quality }) {
+  const scene = new THREE.Scene();
+  lights(scene, quality);
+  const flows = [], dataFlows = [], heatFlows = [];
+  const S = new Builder(), N = new Builder();
+  const W = 4.4, D = 9, H = 3.56, ZF = D / 2, ZB = -D / 2, fy = 0.03;
+  const bench = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ color: 0x23262b, roughness: 0.85 }));
+  bench.rotation.x = -Math.PI / 2; bench.position.y = -0.01; bench.receiveShadow = true; scene.add(bench);
+
+  // chassis: floor, far side, rear wall; the lid is off and the near side is cut low, like a section drawing
+  S.box(W, 0.03, D, MAT.galv, 0, 0.015, 0);
+  S.box(0.03, H, D, MAT.galv, -W / 2, H / 2, 0);
+  const CUT = 0.45;
+  S.box(0.03, CUT, D, MAT.galv, W / 2, CUT / 2, 0); N.box(0.034, 0.02, D, glowMat('#d9dde2', 0.8), W / 2, CUT + 0.01, 0);
+  S.box(W, H, 0.03, MAT.galv, 0, H / 2, ZB);
+
+  // fan wall at the front: two rows of six
+  const fanX = i => -1.85 + i * 0.74;
+  for (const y of [0.9, 2.6]) for (let i = 0; i < 6; i++) {
+    S.box(0.7, 0.8, 0.45, MAT.fan, fanX(i), y, ZF - 0.35);
+    N.cylZ(0.3, 0.02, MAT.darkSteel, fanX(i), y, ZF - 0.12, 18);
+  }
+
+  // GPU baseboard, full width, from behind the fans to the middle of the chassis
+  S.box(W - 0.2, 0.03, 5.0, MAT.pcb, 0, fy + 0.015, 1.3);
+  const gpuX = [-1.62, -0.54, 0.54, 1.62], gpuZ = [2.75, 1.05];
+  const gpus = [];
+  gpuZ.forEach(z => gpuX.forEach(x => gpus.push([x, z])));
+  const LIFT = 1.5;                                  // the front-left heat sink is lifted to show the package
+  const dieM = texMat(dieTex(), { rough: 0.25, metal: 0.6 });
+  gpus.forEach(([x, z], i) => {
+    S.box(0.9, 0.03, 1.4, MAT.pcbBlack, x, fy + 0.05, z);                                  // SXM5 module board
+    S.box(0.5, 0.03, 0.52, MAT.pcbBlack, x, fy + 0.08, z);                                 // package substrate
+    const d = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.02, 0.32), [MAT.silicon, MAT.silicon, dieM, MAT.silicon, MAT.silicon, MAT.silicon]); d.position.set(x, fy + 0.105, z); scene.add(d);
+    for (const s of [-1, 1]) for (let k = 0; k < 3; k++) S.box(0.09, 0.03, 0.1, k === 2 && s > 0 ? MAT.silicon : MAT.hbm, x + s * 0.2, fy + 0.11, z - 0.12 + k * 0.12);
+    // VRM rows either side of the module
+    for (const s of [-1, 1]) for (let k = 0; k < 9; k++) S.box(0.07, 0.06, 0.07, MAT.inductor, x + s * 0.4, fy + 0.1, z - 0.56 + k * 0.14);
+    // heat sink: copper base, a stack of fins running front to back
+    const y0 = fy + 0.12 + (i === 0 ? LIFT : 0);
+    S.box(0.86, 0.08, 1.3, MAT.copper, x, y0 + 0.04, z);
+    for (let f = 0; f < 16; f++) N.box(0.018, 1.05, 1.28, MAT.alu, x - 0.4 + f * 0.0533, y0 + 0.6, z);
+    // 12 V to the ring, core power into the package
+    flows.push(flow([[x, fy + 0.07, -0.95], [x, fy + 0.07, z - 0.7], [x + 0.4, fy + 0.14, z - 0.56]], 'bus12', { count: 6, speed: 0.9, size: 0.03, trailR: 0.01 }));
+    if (i === 0) for (const s of [-1, 1]) for (const dz of [-0.3, 0, 0.3]) flows.push(flow([[x + s * 0.4, fy + 0.14, z + dz], [x + s * 0.1, fy + 0.13, z + dz * 0.4]], 'core', { count: 4, speed: 0.35, size: 0.018, trailR: 0.006, k: 2.6, trailK: 0.2 }));
+    // heat: up from the die into the sink, then swept back by the air
+    heatFlows.push(flow([[x, fy + 0.12, z], [x, y0 + 0.1, z]], 'hot', { count: 3, speed: 0.4, size: 0.035, k: 2.6, trail: false }));
+    for (const dx of [-0.25, 0.25]) heatFlows.push(flow([[x + dx, y0 + 0.6, z + 0.9], [x + dx, y0 + 0.6, z - 0.7], [x + dx * 1.1, y0 + 0.65, z - 2.0]], 'air', { count: 4, speed: 1.0, size: 0.045, k: 2.2, opacity: 0.85, trail: false }));
+  });
+  // NVSwitch chips behind the GPUs, with small sinks
+  const swX = [-1.5, -0.5, 0.5, 1.5], swZ = -0.25;
+  swX.forEach(x => { S.box(0.42, 0.03, 0.42, MAT.pcbBlack, x, fy + 0.05, swZ); S.box(0.4, 0.5, 0.4, MAT.alu, x, fy + 0.32, swZ); for (let f = 0; f < 8; f++) N.box(0.015, 0.45, 0.42, MAT.galv, x - 0.18 + f * 0.05, fy + 0.35, swZ); });
+  // bus converters 54 → 12 V along the rear edge of the baseboard
+  for (let i = 0; i < 8; i++) S.box(0.3, 0.12, 0.3, MAT.darkSteel, -1.75 + i * 0.5, fy + 0.09, -0.95);
+  // 54 V bus bar from the supplies to the baseboard
+  S.box(0.3, 0.05, 2.6, MAT.copper, 0, fy + 0.06, -2.35);
+
+  // power supplies at the rear, below the CPU tray
+  const psuX = i => -1.83 + i * 0.73;
+  for (let i = 0; i < 6; i++) { S.box(0.68, 0.7, 1.2, MAT.darkSteel, psuX(i), 0.4, ZB + 0.65); N.box(0.5, 0.5, 0.02, MAT.fan, psuX(i), 0.4, ZB - 0.02); }
+
+  // CPU tray, cut away over the rear half so the GPUs stay in view
+  const ty = 1.95, tz0 = ZB + 0.15, tz1 = -1.2, tzc = (tz0 + tz1) / 2;
+  S.box(W - 0.1, 0.03, tz1 - tz0, MAT.galv, 0, ty - 0.03, tzc);
+  S.box(W - 0.2, 0.025, tz1 - tz0 - 0.1, MAT.pcb, 0, ty, tzc);
+  N.box(W - 0.1, 0.02, 0.03, glowMat('#d9dde2', 0.8), 0, ty - 0.01, tz1 + 0.01);              // lit cut edge
+  const cpuTexM = texMat(pkgTex('XEON'), { rough: 0.5 });
+  const cpus = [[-1.0, -2.2], [1.0, -2.2]];
+  cpus.forEach(([x, z]) => {
+    const cp = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.05, 0.75), [MAT.hbm, MAT.hbm, cpuTexM, MAT.hbm, MAT.hbm, MAT.hbm]); cp.position.set(x, ty + 0.04, z); scene.add(cp);
+    for (let f = 0; f < 12; f++) N.box(0.015, 0.55, 0.7, MAT.alu, x - 0.28 + f * 0.05, ty + 0.35, z);   // CPU sink, fins front to back
+    for (const s of [-1, 1]) for (let k = 0; k < 8; k++) S.box(0.025, 0.32, 1.25, k % 2 ? MAT.black : MAT.pcbBlack, x + s * (0.42 + k * 0.055), ty + 0.17, z);   // DDR5 DIMMs
+  });
+  // PCIe switches between the CPUs and the NICs
+  const pcieX = [-1.6, -0.55, 0.55, 1.6], pcieZ = -1.55;
+  pcieX.forEach(x => { S.box(0.3, 0.03, 0.3, MAT.pcbBlack, x, ty + 0.03, pcieZ); S.box(0.26, 0.18, 0.26, MAT.alu, x, ty + 0.13, pcieZ); });
+  // ConnectX-7 boards at the rear corners, BlueField-3 in the middle, OSFP cages in the rear wall
+  const nicX = [-1.75, -1.25, 1.25, 1.75];
+  nicX.forEach(x => { S.box(0.4, 0.02, 1.4, MAT.pcb, x, ty + 0.22, -3.6); S.box(0.28, 0.1, 0.34, MAT.alu, x, ty + 0.29, -3.6); });
+  for (const x of [-0.25, 0.25]) { S.box(0.34, 0.02, 1.3, MAT.pcbBlack, x, ty + 0.3, -3.5); S.box(0.26, 0.12, 0.5, MAT.alu, x, ty + 0.37, -3.5); }
+  const cageX = [-1.65, -1.05, 1.05, 1.65];
+  cageX.forEach(x => { S.box(0.22, 0.16, 0.5, MAT.galv, x, ty + 0.35, ZB + 0.25); N.box(0.16, 0.05, 0.05, MAT.polymer, x, ty + 0.35, ZB - 0.02); });
+  // rear AC inlets
+  for (let i = 0; i < 6; i++) N.box(0.14, 0.1, 0.06, MAT.black, psuX(i) + 0.2, 0.62, ZB - 0.045);
+
+  scene.add(S.build()); scene.add(N.build({ cast: false }));
+
+  // ---------- power: AC into the supplies, 54 V forward, 12 V to the modules ----------
+  for (let i = 0; i < 6; i++) flows.push(flow([[psuX(i) + 0.2, 0.6, ZB - 0.8], [psuX(i) + 0.2, 0.6, ZB + 0.05]], 'lv', { count: 4, speed: 0.6, size: 0.03, trailR: 0.01 }));
+  for (let i = 0; i < 6; i++) flows.push(flow([[psuX(i), 0.4, ZB + 1.25], [psuX(i) * 0.3, fy + 0.1, -3.4], [0, fy + 0.1, -3.4]], 'dc', { count: 5, speed: 0.8, size: 0.035, trailR: 0.012 }));
+  flows.push(flow([[0, fy + 0.1, -3.6], [0, fy + 0.1, -1.1]], 'dc', { count: 14, speed: 1.0, size: 0.04, trailR: 0.014 }));
+  for (const s of [-1, 1]) flows.push(flow([[0, fy + 0.1, -1.1], [s * 1.75, fy + 0.1, -1.1]], 'dc', { count: 8, speed: 0.9, size: 0.035, trailR: 0.012 }));
+  gpuX.forEach(x => flows.push(flow([[x, fy + 0.16, -0.95], [x, fy + 0.07, -0.95]], 'bus12', { count: 2, speed: 0.3, size: 0.03, trail: false })));
+  flows.push(flow([[psuX(2), 0.8, ZB + 1.25], [psuX(2), ty, -3.0], [-1.0, ty + 0.05, -2.6]], 'dc', { count: 5, speed: 0.6, size: 0.03, trailR: 0.01 }));
+  flows.forEach(f => scene.add(f.group));
+
+  // ---------- data: NVLink to the switches, PCIe up to the switches, NICs out the back ----------
+  gpus.forEach(([x, z], i) => {
+    const sx = swX[i % 4];
+    dataFlows.push(flow([[x + 0.15, fy + 0.13, z - 0.5], [x + 0.15, fy + 0.1, swZ + 0.5], [sx, fy + 0.1, swZ + 0.22]], 'nvl', { count: 6, speed: 0.8, size: 0.03, k: 2.4, trailR: 0.01 }));
+    const px = pcieX[i % 4];
+    dataFlows.push(flow([[x - 0.15, fy + 0.13, z - 0.5], [x - 0.15, fy + 0.13, -1.3], [px, ty - 0.02, -1.3], [px, ty + 0.05, pcieZ]], 'pcie', { count: 4, speed: 0.7, size: 0.028, k: 2.2, trailR: 0.009 }));
+  });
+  pcieX.forEach((x, i) => dataFlows.push(flow([[x, ty + 0.2, pcieZ], [x, ty + 0.2, -2.8], [nicX[i], ty + 0.3, -3.2]], 'pcie', { count: 4, speed: 0.7, size: 0.028, k: 2.2, trailR: 0.009 })));
+  nicX.forEach((x, i) => dataFlows.push(flow([[x, ty + 0.32, -3.9], [cageX[i], ty + 0.35, ZB + 0.5], [cageX[i], ty + 0.35, ZB - 0.9]], 'eth', { count: 6, speed: 0.9, size: 0.03, k: 2.3, trailR: 0.01 })));
+  cpus.forEach(([x, z]) => dataFlows.push(flow([[x, ty + 0.1, z + 0.4], [x * 0.9, ty + 0.1, pcieZ]], 'pcie', { count: 3, speed: 0.5, size: 0.025, k: 2.0, trail: false })));
+  dataFlows.forEach(f => scene.add(f.group));
+  // air through the whole server, front to back
+  for (let i = 0; i < 6; i++) for (const y of [0.9, 2.6]) heatFlows.push(flow([[fanX(i), y, ZF - 0.6], [fanX(i), y, 0.2], [fanX(i) * 0.95, y, ZB + 1.4], [fanX(i) * 0.9, y + 0.1, ZB - 0.8]], 'air', { count: 5, speed: 1.1, size: 0.05, k: 2.0, opacity: 0.75, trail: false }));
+  heatFlows.forEach(f => scene.add(f.group));
+
+  const [g0x, g0z] = gpus[0], [g5x, g5z] = gpus[5];
+  const hsGpu = { pos: [g0x, fy + 0.4, g0z], view: { pos: [g0x - 1.6, 2.4, g0z + 2.4], target: [g0x, 0.3, g0z] } };
+  const hsSink = { pos: [g5x, 1.3, g5z], view: { pos: [g5x + 2.5, 3.6, g5z + 3.5], target: [g5x, 0.6, g5z] } };
+  return {
+    scene, flows,
+    camera: { pos: [9.2, 8.4, 4.6], target: [0, 0.7, -0.2], near: 0.02, far: 400, min: 1, max: 30 },
+    hotspots: {
+      psu: { pos: [psuX(4), 0.9, ZB + 0.65], view: { pos: [3.4, 3.0, -8.0], target: [0.8, 0.5, ZB + 0.6] } },
+      ibc: { pos: [-1.25, 0.3, -0.95], view: { pos: [-2.8, 2.2, 1.2], target: [-1, 0.1, -0.95] } },
+      vrm: { pos: [g0x + 0.4, 0.25, g0z], view: { pos: [g0x + 1.6, 1.6, g0z + 1.6], target: [g0x, 0.1, g0z] } },
+      gpu: hsGpu,
+      cpu: { pos: [cpus[1][0], ty + 0.7, cpus[1][1]], view: { pos: [3.2, 4.2, 0.4], target: [1, ty, -2.2] } },
+      heatsinks: hsSink,
+      nvswitch: { pos: [swX[2], 0.7, swZ], view: { pos: [1.8, 2.6, 2.0], target: [0.4, 0.3, swZ] } },
+      nic: { pos: [nicX[3], ty + 0.4, -3.6], view: { pos: [3.4, 4.0, -6.6], target: [1.4, ty, -3.6] } },
+    },
+    dataFlows, heatFlows,
+    heatHotspots: {
+      heatsinks: hsSink,
+      gpuheat: hsGpu,
+      fans: { pos: [fanX(3), 3.1, ZF - 0.35], view: { pos: [1.6, 3.8, 8.2], target: [0.2, 1.6, ZF - 0.5] } },
+    },
+    dataHotspots: {
+      nvswitch: { pos: [swX[1], 0.7, swZ], view: { pos: [-1.8, 2.6, 2.0], target: [-0.4, 0.3, swZ] } },
+      pcie: { pos: [pcieX[2], ty + 0.35, pcieZ], view: { pos: [2.2, 3.8, 1.4], target: [0.6, ty, pcieZ] } },
+      cx: { pos: [nicX[0], ty + 0.4, -3.6], view: { pos: [-3.4, 4.0, -6.6], target: [-1.4, ty, -3.6] } },
+      osfp: { pos: [cageX[3], ty + 0.5, ZB + 0.25], view: { pos: [2.6, 3.4, -7.4], target: [1.3, ty, ZB] } },
+      dpu: { pos: [0.25, ty + 0.55, -3.5], view: { pos: [0.8, 4.2, -6.4], target: [0, ty, -3.5] } },
+      gpu: hsGpu,
+    },
+    update() {},
+  };
+}
+
+// ---------- NVL72 compute tray: two superchip boards, liquid-cooled ----------
+function buildNVL({ quality, model }) {
+  const cpuLabel = model.accel.id === 'rubin' ? 'VERA' : 'GRACE';
+  const scene = new THREE.Scene();
+  lights(scene, quality);
 
   const flows = [], dataFlows = [], heatFlows = [];
   const S = new Builder(), N = new Builder();
@@ -63,7 +219,7 @@ export function build({ quality }) {
 
   // ---------- two superchip boards ----------
   const gpus = [], cpus = [];
-  const dieM = texMat(dieTex(), { rough: 0.25, metal: 0.6 }), cpuTex = texMat(pkgTex('GRACE'), { rough: 0.5 });
+  const dieM = texMat(dieTex(), { rough: 0.25, metal: 0.6 }), cpuTex = texMat(pkgTex(cpuLabel), { rough: 0.5 });
   for (const bx of [-1.1, 1.1]) {
     S.box(2.0, 0.02, 5.8, MAT.pcb, bx, floorY + 0.01, -0.35);
     // Grace near the front, LPDDR5X either side
