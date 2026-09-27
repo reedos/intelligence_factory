@@ -92,6 +92,44 @@ catch (e) { $('veil').textContent = 'This view needs WebGL, which this browser h
 const maxRatio = Math.min(devicePixelRatio, mobile ? 1.5 : 1.75);
 let ratio = maxRatio;
 renderer.setPixelRatio(ratio);
+
+// ---------- the quality governor ----------
+// Frame time decides what each level can afford, not a guess about the device. Each tier sheds the next most costly
+// effect, in the order measured in the data hall (tools/costs.mjs): the floor mirror (about half the frame), ambient
+// occlusion and depth of field, then 4x antialiasing and per-frame shadow maps, then resolution. Every level keeps its
+// own tier, since the hall and rack carry the mirror and the campus does not. A level steps down when its frames run
+// slower than about 40 fps because of drawing, and a tier that failed stays out of reach for a while. Frames tell
+// nothing about headroom under vsync, so it steps back up only where the browser has GPU timers and they say the
+// better tier fits. Phones never build the first four effects, so they start at tier 3 and trade only resolution.
+const TIERS = [
+  { mirror: true, ao: true, dof: true, msaa: 4, liveShadows: true, ratio: Infinity },
+  { mirror: false, ao: true, dof: true, msaa: 4, liveShadows: true, ratio: Infinity },
+  { mirror: false, ao: false, dof: false, msaa: 4, liveShadows: true, ratio: Infinity },
+  { mirror: false, ao: false, dof: false, msaa: 0, liveShadows: false, ratio: Infinity },
+  { mirror: false, ao: false, dof: false, msaa: 0, liveShadows: false, ratio: 1.25 },
+  { mirror: false, ao: false, dof: false, msaa: 0, liveShadows: false, ratio: 1 },
+  { mirror: false, ao: false, dof: false, msaa: 0, liveShadows: false, ratio: 0.75 },
+];
+const params = new URLSearchParams(location.search);
+const glx = renderer.getContext();
+const gpuName = (() => { try { const e = glx.getExtension('WEBGL_debug_renderer_info'); return (e && glx.getParameter(e.UNMASKED_RENDERER_WEBGL)) || glx.getParameter(glx.RENDERER) || ''; } catch { return ''; } })();
+// integrated and software GPUs start with the mirror off; the GPU timers put it back where there is room
+const integrated = /Intel(?!.*\bArc)|Radeon\(TM\) Graphics|Radeon Graphics|Vega \d|Mali|Adreno|PowerVR|SwiftShader|llvmpipe|Basic Render/i.test(gpuName);
+let timerExt = glx.getExtension('EXT_disjoint_timer_query_webgl2');
+const forced = /^[0-6]$/.test(params.get('quality') || '') ? +params.get('quality') : null;
+const governing = forced === null && (!navigator.webdriver || params.has('govern'));   // test browsers opt in
+const bestTier = mobile ? 3 : 0;
+const tiers = BUILDERS.map(() => forced ?? (mobile ? 3 : integrated && governing ? 1 : 0));   // test browsers: full quality
+const ceilings = BUILDERS.map(() => bestTier);            // the best tier each level may try for now
+// when a failed tier may be tried again; the wait doubles each time a level climbs back and fails straight away
+const retryAt = BUILDERS.map(() => 0), backoff = BUILDERS.map(() => 30000), climbedAt = BUILDERS.map(() => -Infinity);
+// with timers a level can climb back, so what each settled on is worth remembering; without them a bad moment would stick
+const QKEY = 'ifx-quality-1';
+if (timerExt && governing) try {
+  const s = JSON.parse(localStorage.getItem(QKEY) || 'null');
+  if (s?.gpu === gpuName && s.tiers?.length === tiers.length) s.tiers.forEach((v, i) => { if (Number.isInteger(v) && v >= bestTier && v < TIERS.length) tiers[i] = v; });
+} catch { /* start from the guess */ }
+const tierOf = i => TIERS[tiers[i]];
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = quality.shadows;
 renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -138,6 +176,8 @@ function getScene(i) {
     const L = lookOf(i);
     b.scene.environment = envFor(L.env); b.scene.environmentIntensity = L.envIntensity; b.model = store.M;
     applyMode(b);
+    b._mirrors = []; b.scene.traverse(o => { if (o.isReflector) b._mirrors.push(o); });
+    b._mirrors.forEach(m => { m.visible = tierOf(i).mirror; });
   }
   return built[i];
 }
@@ -158,11 +198,11 @@ const FINISH = {
       gl_FragColor = vec4(c, 1.0);
     }`,
 };
-let finishes = [], dofs = [];
+let finishes = [], dofs = [], aos = [];
 function getComposer(i) {
   if (!composers[i]) {
     // multisampled: thin struts, cables and fins stay clean instead of stair-stepping (phones keep the frame rate)
-    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: mobile ? 0 : 4 });
+    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: mobile ? 0 : tierOf(i).msaa });
     const b = getScene(i), c = new EffectComposer(renderer, rt);
     c.addPass(new RenderPass(b.scene, camera));
     const L = lookOf(i);
@@ -170,6 +210,7 @@ function getComposer(i) {
       const ao = new GTAOPass(b.scene, camera, 1, 1);
       ao.blendIntensity = 0.75;
       ao.updateGtaoMaterial({ radius: L.ao, distanceExponent: 1.5, thickness: 1, scale: 1, samples: 12 });
+      ao.enabled = tierOf(i).ao; aos[i] = ao;
       c.addPass(ao);
     }
     // depth of field for tour close-ups (desktop): off until a tour frames a part, then focused on it every frame
@@ -193,20 +234,97 @@ function disposeScene(b) {
 }
 // EffectComposer.dispose frees only its own two targets; bloom and AO passes hold render targets of their own
 function disposeComposer(c) { if (!c) return; c.passes.forEach(p => p.dispose?.()); c.dispose(); }
-function sizeComposer(c) { c.setSize(view.clientWidth, view.clientHeight); }
-// adaptive resolution: step the pixel ratio down when frames run slow, back up when there is room
-const perf = { n: 0, sum: 0 };
-function adapt(dt) {
-  perf.n++; perf.sum += dt;
-  if (perf.n < 90) return;
-  const avg = perf.sum / perf.n; perf.n = 0; perf.sum = 0;
-  const next = avg > 0.028 ? Math.max(0.75, ratio - 0.25) : avg < 0.015 ? Math.min(maxRatio, ratio + 0.25) : ratio;
-  if (next !== ratio) { ratio = next; renderer.setPixelRatio(ratio); resize(); }
+// a composer keeps the pixel ratio it was built with unless told, so a lower resolution tier would only shrink the
+// final picture while every pass still drew at full size
+function sizeComposer(c) {
+  c.setSize(view.clientWidth, view.clientHeight);
+  if (c.tierRatio !== ratio) { c.tierRatio = ratio; c.setPixelRatio(ratio); }
 }
+// put level i's effects at its tier; the renderer-wide settings follow the level on screen. True if the size changed.
+function applyTier(i) {
+  const t = tierOf(i), c = composers[i];
+  built[i]?._mirrors.forEach(m => { m.visible = t.mirror; });
+  if (aos[i]) aos[i].enabled = t.ao;
+  if (c) for (const rt of [c.renderTarget1, c.renderTarget2]) { const n = mobile ? 0 : t.msaa; if (rt.samples !== n) { rt.samples = n; rt.dispose(); } }
+  if (i !== ui.scene) return false;
+  renderer.shadowMap.autoUpdate = t.liveShadows; renderer.shadowMap.needsUpdate = true;   // a frozen map still draws once
+  const r = Math.min(maxRatio, t.ratio);
+  if (r === ratio) return false;
+  ratio = r; renderer.setPixelRatio(ratio); return true;
+}
+// what a tier actually changes on level i: tiers that shed an effect this level lacks are the same tier here
+const looksLike = (i, n) => { const t = TIERS[n]; return [t.mirror && built[i]?._mirrors.length > 0, t.ao && !!aos[i], t.dof && !!dofs[i], mobile ? 0 : t.msaa, t.liveShadows && quality.shadows, Math.min(maxRatio, t.ratio)].join(); };
+function stepFrom(i, dir) {
+  const now = looksLike(i, tiers[i]);
+  for (let n = tiers[i] + dir; n >= ceilings[i] && n < TIERS.length; n += dir) if (looksLike(i, n) !== now) return n;
+  return null;
+}
+const gov = { frames: [], gpu: [], cpu: [], quietUntil: 0, q: [], live: null, t0: 0, drawMs: 0 };
+const hush = ms => { gov.frames.length = gov.gpu.length = gov.cpu.length = 0; gov.quietUntil = Math.max(gov.quietUntil, performance.now() + ms); };
+function setTier(i, n) {
+  tiers[i] = n;
+  if (applyTier(i)) resize();
+  hush(2000);                                             // let the new tier settle before judging it
+  if (timerExt) try { localStorage.setItem(QKEY, JSON.stringify({ gpu: gpuName, tiers })); } catch { /* not remembered */ }
+}
+// GPU time per frame, from timer queries where the browser has them (Chromium on desktop): read a few frames late.
+// A lost context invalidates the queries and the extension; start again once it is back.
+function gpuBegin() {
+  if (!governing || !timerExt || gov.live || gov.q.length > 7) return;   // a GPU that is behind has several frames queued
+  gov.live = glx.createQuery(); glx.beginQuery(timerExt.TIME_ELAPSED_EXT, gov.live);
+}
+function gpuEnd() {
+  if (!timerExt || (!gov.live && !gov.q.length)) return;
+  if (gov.live) { glx.endQuery(timerExt.TIME_ELAPSED_EXT); gov.q.push(gov.live); gov.live = null; }
+  const disjoint = glx.getParameter(timerExt.GPU_DISJOINT_EXT), settled = performance.now() >= gov.quietUntil;
+  while (gov.q.length && glx.getQueryParameter(gov.q[0], glx.QUERY_RESULT_AVAILABLE)) {
+    const q = gov.q.shift(), ns = glx.getQueryParameter(q, glx.QUERY_RESULT); glx.deleteQuery(q);
+    if (!disjoint && settled) gov.gpu.push(ns / 1e6);
+  }
+}
+canvas.addEventListener('webglcontextlost', () => { gov.q.length = 0; gov.live = null; timerExt = null; });
+canvas.addEventListener('webglcontextrestored', () => { timerExt = glx.getExtension('EXT_disjoint_timer_query_webgl2'); hush(2000); });
+const median = a => a.slice().sort((x, y) => x - y)[a.length >> 1];
+// the frame time a reader feels: the mean interval without the slowest 5%, so one hitch is no verdict. Not the median:
+// a GPU that falls behind delivers frames in bursts, a few at the display's rate and then a long stall, and the median
+// of that reads 60 fps while the page runs at 15.
+const felt = a => { const s = a.slice().sort((x, y) => x - y); s.length -= Math.floor(s.length * 0.05); return s.reduce((x, y) => x + y, 0) / s.length; };
+// Judged every 90 steady frames, or 2 s on a slow machine. Frames slower than 25 ms (about 40 fps) shed a tier, two
+// below 20 fps, but only when drawing is what is slow: if the timers show the GPU and the draw calls both well inside a
+// frame, the limit is elsewhere (a battery saver's 30 fps, other work on the page) and fewer effects would not help.
+// A tier that failed is out of reach for 30 s, longer if it fails again as soon as it is back. GPU and draw time both
+// under 6 ms a frame, so that even a tier twice the cost fits a 60 Hz frame, earn one back.
+function govern(raw) {
+  const now = performance.now();
+  if (!governing || now < gov.quietUntil) return;
+  if (!gov.frames.length) gov.t0 = now;
+  gov.frames.push(raw * 1000); gov.cpu.push(gov.drawMs);
+  if (gov.frames.length < 90 && !(now - gov.t0 > 2000 && gov.frames.length >= 4)) return;
+  const i = ui.scene, frame = felt(gov.frames), cpu = median(gov.cpu);
+  const gpu = timerExt && gov.gpu.length >= Math.max(4, Math.min(30, gov.frames.length / 3)) ? median(gov.gpu) : null;
+  gov.frames.length = gov.gpu.length = gov.cpu.length = 0; gov.judged = { frame, gpu, cpu };
+  if (frame > 25 && (gpu === null || gpu > 14 || cpu > 14)) {
+    let n = stepFrom(i, 1);
+    if (n !== null && frame > 50) { const was = tiers[i]; tiers[i] = n; n = stepFrom(i, 1) ?? n; tiers[i] = was; }
+    if (n !== null) {
+      if (now - climbedAt[i] < 20000) backoff[i] *= 2;
+      ceilings[i] = n; retryAt[i] = now + backoff[i]; setTier(i, n);
+    }
+  } else if (gpu !== null && gpu < 6 && cpu < 6) {
+    if (now >= retryAt[i]) ceilings[i] = bestTier;         // a tier that failed gets another chance once its wait is up
+    const n = stepFrom(i, -1); if (n !== null) { climbedAt[i] = now; setTier(i, n); }
+  }
+}
+export const qualityInfo = () => ({ gpu: gpuName, integrated, timers: !!timerExt, governing, tiers: [...tiers], ceilings: [...ceilings], ratio,
+  gpuMs: gov.gpu.length >= 10 ? median(gov.gpu) : gov.judged?.gpu ?? null, drawMs: gov.cpu.length >= 10 ? median(gov.cpu) : gov.judged?.cpu ?? null,
+  composerRatio: composers[ui.scene]?.tierRatio ?? null, ao: aos[ui.scene] ? aos[ui.scene].enabled : null, judged: gov.judged ?? null, pending: gov.q.length, quietFor: Math.max(0, gov.quietUntil - performance.now()), window: gov.frames.length });
+// for probes: put level i at tier n; `hold` keeps it there (it may still step down, never up)
+export const forceTier = (n, { hold = false, i = ui.scene } = {}) => { ceilings[i] = hold ? n : Math.min(ceilings[i], n); retryAt[i] = hold ? Infinity : 0; setTier(i, n); };
 export const renderScale = () => ratio;
 export const getRenderer = () => renderer;
 function resize() {
   const w = view.clientWidth, h = view.clientHeight;
+  hush(1000);                                             // a new size is a new workload; judge it once it settles
   renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.fov = w / h < 0.9 ? 48 : 35; camera.updateProjectionMatrix();
   composers.forEach(c => c && sizeComposer(c));
@@ -282,7 +400,7 @@ const _fp = new THREE.Vector3();
 function focusDof() {
   const d = dofs[ui.scene]; if (!d) return;
   const h = cinema && ui.selected && hotspotsFor(ui.scene)[ui.selected];
-  d.enabled = !!h;
+  d.enabled = !!h && tierOf(ui.scene).dof;
   if (!h) return;
   const focus = camera.position.distanceTo(_fp.set(...h.pos));
   d.uniforms.focus.value = focus; d.uniforms.aperture.value = 0.0045 / focus; d.uniforms.maxblur.value = 0.006;
@@ -295,6 +413,17 @@ let cinema = false, drift = null, driftSign = 1, tourPace = 1;
 export const setCinema = on => { cinema = on; if (!on) drift = null; };
 // a faster tour flies faster too, by the square root so 8x still reads as a move rather than a cut
 export const setTourPace = p => { tourPace = p; };
+// level transitions: Full is the whole dive (about 2 s a level), Quick the same moves in about 60% of the time, Instant
+// a straight cut. The reader's choice is remembered; reduced motion always cuts.
+export const TRANSITIONS = { full: 1, quick: 0.6, instant: 0 };
+let transitions = 'quick';
+try { const v = localStorage.getItem('ifx-transitions'); if (Object.hasOwn(TRANSITIONS, v)) transitions = v; } catch { /* stay at Quick */ }
+export const getTransitions = () => transitions;
+export function setTransitions(v) {
+  if (!Object.hasOwn(TRANSITIONS, v)) return;
+  transitions = v;
+  try { localStorage.setItem('ifx-transitions', v); } catch { /* not remembered, still works */ }
+}
 const ease = u => (u < 0.5 ? 4 * u ** 3 : 1 - Math.pow(-2 * u + 2, 3) / 2);
 const easeIn = u => u * u * u, easeOut = u => 1 - (1 - u) ** 3, easeIn2 = u => u * u;
 // a straight move with its own easing, for the level transitions: no arc, no drift when it lands
@@ -510,10 +639,17 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   busy = true;
   const veil = $('veil');
   const same = i === ui.scene;
-  const from = ui.scene, inward = i > from, T = 1 / Math.sqrt(cinema ? tourPace : 1);
-  const travel = from >= 0 && !same && !reduced;          // a level transition, rather than the first load or a rebuild
+  const from = ui.scene, inward = i > from, T = TRANSITIONS[transitions] / Math.sqrt(cinema ? tourPace : 1);
+  const cut = reduced || transitions === 'instant';
+  const travel = from >= 0 && !same && !cut;              // a level transition, rather than the first load or a rebuild
+  const swap = cut && from >= 0 && !same && !!built[i];   // a cut to a level already built: nothing to cover
   let closedAt = 0;
-  const mine = travel ? ++travelSeq : travelSeq;          // a newer transition takes the iris over from this one
+  const mine = from >= 0 && !same ? ++travelSeq : travelSeq;   // any newer switch takes the iris over from this one
+  if (!travel && from >= 0 && !same && veilEl.classList.contains('iris')) {   // a cut while a dive is still opening
+    const r = iris?.res; iris = null; r?.();
+    veilEl.style.transition = 'none'; veilEl.classList.add('off'); veilEl.classList.remove('iris'); veilEl.textContent = ''; void veilEl.offsetWidth; veilEl.style.transition = '';
+    view.classList.remove('diving');
+  }
   if (travel) {
     view.classList.add('diving');
     let portal = inward ? portalOf(from, from + 1) : null;
@@ -527,12 +663,12 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
     }
     veil.innerHTML = jumpLabel(from, i);
     closedAt = performance.now();
-  } else if (from >= 0 && !same) {
+  } else if (from >= 0 && !same && !swap) {
     veil.textContent = ''; veil.classList.remove('off');
-    await sleep(reduced ? 0 : 420);
+    await sleep(cut ? 0 : 420);
   }
-  if (!travel) veil.textContent = `Building ${SCENES()[i].title.toLowerCase()}…`;
-  if (!same && !travel) veil.classList.remove('off');
+  if (!travel && !swap) veil.textContent = `Building ${SCENES()[i].title.toLowerCase()}…`;
+  if (!same && !travel && !swap) veil.classList.remove('off');
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   const b = getScene(i); getComposer(i);
   ui.scene = i;
@@ -555,12 +691,14 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
       openAt = back;
     } else {
       camera.position.copy(tgt.clone().lerp(end, 0.35)); controls.target.copy(tgt); controls.update();
-      flyTo(end.toArray(), c.target, 1.6);
+      flyTo(end.toArray(), c.target, from >= 0 && cut ? 0.01 : 1.6);   // the first load still flies in
     }
   }
   buildPanel(i);
   renderSteps();
+  applyTier(i);
   resize();
+  hush(1500);
   if (travel) {
     // let the level's name read, then open; the switch is done as far as anyone waiting on it is concerned
     const wait = 450 * T - (performance.now() - closedAt);
@@ -606,9 +744,10 @@ function beacon(id) {
 on('scenario', () => {
   built.forEach(b => b && disposeScene(b));
   composers.forEach(disposeComposer);
-  built.length = 0; composers.length = 0;
+  built.length = 0; composers.length = 0; aos.length = 0; dofs.length = 0; finishes.length = 0;
   renderSteps();
-  if (ui.scene >= 0) go(ui.scene, null, { force: true, keepCamera: true });
+  // mid-switch, go() rebuilds the level it lands on once it is done; a rebuild queued now would name the old level
+  if (ui.scene >= 0 && !busy) go(ui.scene, null, { force: true, keepCamera: true });
 });
 
 // ---------- scale bar ----------
@@ -652,6 +791,9 @@ function fitDepthRange(c) {
 
 // ---------- loop ----------
 const timer = new THREE.Timer();
+timer.connect(document);                                  // no rAF runs while the tab is hidden: resume without a jump
+// the frames straight after coming back say nothing about this tier
+document.addEventListener('visibilitychange', () => { if (!document.hidden) hush(1500); });
 let visible = true, t = 0, frameN = 0;
 // ---------- the clock drives the flows: null means steady state ----------
 let levels = null, levelsWere = null;
@@ -696,8 +838,8 @@ function loop(ts) {
   fitDepthRange(b.camera);
   if (finishes[ui.scene]) finishes[ui.scene].uniforms.uTime.value = t;
   focusDof();
-  composers[ui.scene].render();
-  if (!tween && !navigator.webdriver) adapt(raw);        // judge speed on steady frames; test browsers render in software
+  gpuBegin(); const d0 = performance.now(); composers[ui.scene].render(); gov.drawMs = performance.now() - d0; gpuEnd();
+  if (!tween) govern(raw);                                // judge speed on steady frames, never mid-move
   updatePins();
   if (frameN++ % 6 === 0) updateScale();
 }

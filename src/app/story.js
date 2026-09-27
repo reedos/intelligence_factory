@@ -8,7 +8,7 @@
 // Pause (the button, or Space) is the only thing that stops it. One transport at the head of the panel (play,
 // back, forward, speed, where the tour is) is the only playback control on the page.
 import { store, on } from './store.js';
-import { show, go, reduced, onTick, setCinema, setTourPace } from './stage.js';
+import { show, go, reduced, onTick, setCinema, setTourPace, getTransitions, setTransitions } from './stage.js';
 import { story, watt, request, heat, layer, everything, CHAIN } from './journeys.js';
 import { openClock, closeClock } from './clock-ui.js';
 
@@ -49,10 +49,11 @@ function setPace(p) {
   paceLabel();
 }
 function paceLabel() {
-  const c = $('tour-pace'); if (c) { c.innerHTML = `${pace}×<i aria-hidden="true"></i>`; c.setAttribute('aria-label', `Playback speed, ${pace}×`); }
+  const c = $('tour-pace'); if (c) { c.innerHTML = `${pace}×<i aria-hidden="true"></i>`; c.setAttribute('aria-label', `Tour speed ${pace}× and level transitions`); }
 }
-// ---------- the speed menu ----------
+// ---------- the speed menu: tour speed, and how every level transition plays ----------
 const PACE_NOTE = { 1: 'reading pace', 2: '', 4: '', 8: 'skim' };
+const TRANS = [['full', 'Full', 'slow dive'], ['quick', 'Quick', ''], ['instant', 'Instant', 'straight cut']];
 let paceMenu = null;
 function closePaceMenu(focus = false) {
   if (!paceMenu) return;
@@ -62,16 +63,19 @@ function closePaceMenu(focus = false) {
 function togglePaceMenu(btn) {
   if (paceMenu) { closePaceMenu(); return; }
   paceMenu = document.createElement('div');
-  paceMenu.className = 'pace-menu'; paceMenu.setAttribute('role', 'listbox'); paceMenu.setAttribute('aria-label', 'Playback speed');
-  paceMenu.innerHTML = PACES.map(p => `<button type="button" role="option" data-p="${p}" aria-selected="${p === pace}"><b>${p}×</b>${PACE_NOTE[p] ? `<span>${PACE_NOTE[p]}</span>` : ''}</button>`).join('');
+  paceMenu.className = 'pace-menu'; paceMenu.setAttribute('role', 'menu'); paceMenu.setAttribute('aria-label', 'Tour speed and level transitions');
+  const item = (attr, v, label, note, on) => `<button type="button" role="menuitemradio" ${attr}="${v}" aria-checked="${on}"><b>${label}</b>${note ? `<span>${note}</span>` : ''}</button>`;
+  paceMenu.innerHTML = `<div role="group" aria-labelledby="pace-h1"><span class="pace-h" id="pace-h1">Tour speed</span>${PACES.map(p => item('data-p', p, `${p}×`, PACE_NOTE[p], p === pace)).join('')}</div>`
+    + `<div role="group" aria-labelledby="pace-h2"><span class="pace-h" id="pace-h2">Level transitions</span>${TRANS.map(([v, l, n]) => item('data-t', v, l, n, v === getTransitions())).join('')}</div>`;
   document.body.appendChild(paceMenu);
+  paceMenu.style.maxHeight = `${innerHeight - 16}px`;     // a landscape phone is shorter than the menu
   const r = btn.getBoundingClientRect(), h = paceMenu.offsetHeight, w = paceMenu.offsetWidth;
   const below = r.bottom + 6 + h <= innerHeight;
   paceMenu.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, r.left))}px`;
-  paceMenu.style.top = `${below ? r.bottom + 6 : r.top - 6 - h}px`;
+  paceMenu.style.top = `${Math.max(8, Math.min(innerHeight - h - 8, below ? r.bottom + 6 : r.top - 6 - h))}px`;
   btn.setAttribute('aria-expanded', 'true');
-  const opts = [...paceMenu.querySelectorAll('[role="option"]')];
-  opts.forEach(o => o.addEventListener('click', () => { setPace(+o.dataset.p); closePaceMenu(true); }));
+  const opts = [...paceMenu.querySelectorAll('[role="menuitemradio"]')];
+  opts.forEach(o => o.addEventListener('click', () => { if (o.dataset.p) setPace(+o.dataset.p); else setTransitions(o.dataset.t); closePaceMenu(true); }));
   paceMenu.addEventListener('keydown', e => {
     const i = opts.indexOf(document.activeElement);
     if (e.key === 'ArrowDown') { opts[(i + 1) % opts.length].focus(); e.preventDefault(); }
@@ -79,7 +83,7 @@ function togglePaceMenu(btn) {
     else if (e.key === 'Escape' || e.key === 'Tab') { closePaceMenu(e.key === 'Escape'); e.preventDefault(); }
     e.stopPropagation();                                    // the tour's own keys (Space, arrows) stay out of the menu
   });
-  (opts.find(o => o.getAttribute('aria-selected') === 'true') || opts[0]).focus();
+  (opts.find(o => o.getAttribute('aria-checked') === 'true') || opts[0]).focus();
 }
 document.addEventListener('pointerdown', e => { if (paceMenu && !e.target.closest('.pace-menu, #tour-pace')) closePaceMenu(); }, true);
 addEventListener('resize', () => closePaceMenu());
@@ -131,7 +135,7 @@ function render() {
     + `<button type="button" class="btn play" id="tour-play" aria-pressed="${playing}" aria-label="${playing ? 'Pause' : 'Play'}">${playing ? '❚❚' : '▶'}</button>`
     + `<button type="button" class="btn icon" id="tour-prev" aria-label="Previous step">‹</button>`
     + `<button type="button" class="btn icon" id="tour-next" aria-label="Next step">›</button>`
-    + `<button type="button" class="btn pace" id="tour-pace" aria-haspopup="listbox" aria-expanded="false"></button>`
+    + `<button type="button" class="btn pace" id="tour-pace" aria-haspopup="menu" aria-expanded="false"></button>`
     + `<span class="tour-t" id="tour-t" aria-live="polite"></span>`
     + `<button type="button" class="btn icon" id="story-exit" aria-label="Leave the tour">×</button></div>`
     + `<div class="tour-pick">${tabs('Tours')}${tabs('Every part')}</div>`
