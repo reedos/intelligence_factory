@@ -1,5 +1,6 @@
 // Scene 2: power room & data hall, drawn as a section cut. Units are meters.
 import { THREE, MAT, Builder, mtx, flow, insulator, canvasTex, sky, person, glowMat, textSprite, spinners } from '../kit.js';
+import { blinkers } from '../fx.js';
 
 // Cabinet front textures (drawn once).
 function frontTex(kind) {
@@ -73,6 +74,54 @@ export function build({ quality, model }) {
   const flows = [], dataFlows = [], heatFlows = [];
   const S = new Builder(), N = new Builder();
   const X0 = -35, X1 = 25, Z0 = -18, Z1 = 18, WALL_H = 7.5, PART = -12;
+
+  // ---------- network faceplates: pluggable OSFP modules, or one CPO switch with on-chassis MPO + ELS ----------
+  // Sources: research/interconnect-sources.md section 2 (Scale-out): DSP pluggables ~17 W (800G DR8) to ~25-30 W
+  // (1.6T); LPO saves ~40-50%; NVIDIA Quantum-X/Spectrum-X Photonics (CPO) is 3.5x power efficiency and 4x fewer
+  // lasers via external laser sources; Broadcom Davisson (Tomahawk 6 CPO) is 3.5 W per 800G port of optics.
+  const moduleMetal = new THREE.MeshStandardMaterial({ color: 0xcfd3d8, roughness: 0.28, metalness: 0.85 });
+  const pullTabMat = new THREE.MeshStandardMaterial({ color: 0x101215, roughness: 0.55, metalness: 0.1 });
+  const mpoBody = new THREE.MeshStandardMaterial({ color: 0x2fb6c9, roughness: 0.4, metalness: 0.3 });
+  const elsMetal = new THREE.MeshStandardMaterial({ color: 0xbcc2c9, roughness: 0.3, metalness: 0.7 });
+  const fiberAqua = new THREE.MeshStandardMaterial({ color: 0x3fd1c8, roughness: 0.5, metalness: 0.1 });
+  const trunkJacket = new THREE.MeshStandardMaterial({ color: 0x1c1e22, roughness: 0.6 });
+  const ledItems = [];
+  // one bank of pluggable OSFP cages + modules on a network-rack face at (cx, cz), front normal +z*fs
+  function pluggableFace(cx, cz, fs, { rows = 2, cols = 6, y0 = 1.55, y1 = 1.95, w = 0.46 } = {}) {
+    const dv = (y1 - y0) / rows, du = w / cols, faceZ = cz + fs * 0.6;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const x = cx - w / 2 + du * (c + 0.5), y = y0 + dv * (r + 0.5);
+      N.box(du * 0.82, dv * 0.78, 0.05, MAT.darkSteel, x, y, faceZ + fs * 0.015);        // cage, set into the face
+      N.box(du * 0.6, dv * 0.5, 0.09, moduleMetal, x, y, faceZ + fs * 0.075);            // module body, protrudes
+      N.box(du * 0.56, dv * 0.22, 0.02, pullTabMat, x, y - dv * 0.18, faceZ + fs * 0.13); // pull tab
+      ledItems.push({ p: [x + du * 0.16, y + dv * 0.22, faceZ + fs * 0.11], color: (r + c) % 3 ? '#5cf29a' : '#ffb347', rate: 0.35 + ((r * cols + c) * 0.37) % 1.2 });
+    }
+  }
+  // the co-packaged optics switch: dense MPO connectors flush on the chassis, external laser source modules, no pluggables
+  function cpoFace(cx, cz, fs) {
+    const y0 = 1.5, y1 = 1.98, rows = 5, cols = 8, w = 0.5, dv = (y1 - y0) / rows, du = w / cols, faceZ = cz + fs * 0.6;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const x = cx - w / 2 + du * (c + 0.5), y = y0 + dv * (r + 0.5);
+      N.box(du * 0.72, dv * 0.72, 0.03, mpoBody, x, y, faceZ + fs * 0.02);               // MPO connector, near flush
+    }
+    for (let i = 0; i < 3; i++) {                                                        // external laser source modules
+      const x = cx - 0.16 + i * 0.16;
+      N.box(0.13, 0.09, 0.1, elsMetal, x, 2.1, faceZ + fs * 0.06);
+      N.box(0.09, 0.02, 0.02, glowMat('#ffb347', 1.3), x, 2.1, faceZ + fs * 0.115);
+    }
+    for (const [dx, mat] of [[-0.2, MAT.pipeBlue], [0.2, MAT.pipeRed]])                   // liquid cooling to a floor manifold
+      N.strut([cx + dx, 1.15, faceZ + fs * 0.06], [cx + dx, 0.15, faceZ + fs * 0.35], 0.03, mat, 8);
+  }
+  // thin fiber pigtails rising from a face into the overhead runway (n small strands, aqua/yellow)
+  function pigtail(x, y0, z0, y1, z1, n = 4) {
+    for (let i = 0; i < n; i++) { const o = (i - (n - 1) / 2) * 0.03; N.strut([x + o, y0, z0], [x + o, y1, z1], i % 2 ? 0.006 : 0.0075, i % 2 ? MAT.yellowTray : fiberAqua, 5); }
+  }
+  // fewer, thicker MPO trunk cables from the CPO switch (no per-port pigtails, since there are no pluggables)
+  function trunkCable(x, y0, z0, y1, z1) { for (const o of [-0.05, 0.05]) N.strut([x + o, y0, z0], [x + o, y1, z1], 0.018, trunkJacket, 6); }
+  // a compute rack's uplinks, drawn as a small fiber bundle riser (the eth data flow already carries the traffic)
+  function fiberBundle(x, y0, z0, y1, z1, n = 5) {
+    for (let i = 0; i < n; i++) { const o = (i - (n - 1) / 2) * 0.035; N.strut([x + o, y0, z0 + o * 0.3], [x + o, y1, z1 + o * 0.3], 0.008, i % 2 ? MAT.yellowTray : fiberAqua, 5); }
+  }
 
   // ---------- site, slab, walls (section cut) ----------
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), MAT.ground); ground.rotation.x = -Math.PI / 2; ground.position.y = -0.35; ground.receiveShadow = true; scene.add(ground);   // below the site pad, never flush with it
@@ -176,6 +225,12 @@ export function build({ quality, model }) {
   // network spine racks along the front
   const netItems = []; for (let i = 0; i < 10; i++) netItems.push({ x: rowX0 + 2 + i * 0.62, z: 10.5, f: 1 });
   instanced(0.6, 2.3, 1.2, TEX.net, 0x131519, netItems);
+  // spine faceplates: one CPO switch (liquid-cooled, MPO direct on the chassis), the rest pluggable OSFP
+  const CPO_I = 5;
+  netItems.forEach((it, i) => {
+    if (i === CPO_I) { cpoFace(it.x, it.z, it.f); trunkCable(it.x, 2.0, it.z + it.f * 0.66, 4.3, it.z); }
+    else { pluggableFace(it.x, it.z, it.f); pigtail(it.x, 1.97, it.z + it.f * 0.735, 4.3, it.z); }
+  });
   N.box(6.4, 0.04, 0.3, MAT.yellowTray, rowX0 + 4.8, 4.3, 10.5); N.box(0.3, 0.04, 3.5, MAT.yellowTray, rowX0 - 1.3, 4.3, 8.3);
   // fiber distribution frames: every fabric link is patched here, between the spine row and the cross-hall sleeve
   const odfTex = canvasTex(256, 512, (g, w, h) => {
@@ -201,6 +256,8 @@ export function build({ quality, model }) {
   // scale-out: a leaf-switch rack at the end of every row, a cross runway to the spine row
   const leafX = rowX1 + 0.45;
   instanced(0.6, 2.3, 1.2, TEX.net, 0x131519, rowZs.map((z, r) => ({ x: leafX, z, f: facing[r] })));
+  // leaf faceplates: pluggable OSFP modules, fiber pigtails rising into the runway overhead
+  rowZs.forEach((z, r) => { pluggableFace(leafX, z, facing[r]); pigtail(leafX, 1.97, z + facing[r] * 0.735, 4.5, z); });
   N.box(0.3, 0.04, 23, MAT.yellowTray, leafX, 4.5, -0.8); N.box(0.02, 0.1, 23, MAT.yellowTray, leafX - 0.15, 4.55, -0.8); N.box(0.02, 0.1, 23, MAT.yellowTray, leafX + 0.15, 4.55, -0.8);
   N.box(leafX - rowX0 - 3, 0.04, 0.3, MAT.yellowTray, (leafX + rowX0 + 3) / 2, 4.5, 10.5);
   // patch panels on the spine row
@@ -210,6 +267,8 @@ export function build({ quality, model }) {
     const mid = rackMx.filter(k => k.z === z)[10];
     eth([[mid.x, 2.35, z], [mid.x, 4.3, z], [leafX, 4.3, z], [leafX, 2.35, z]], 14);          // racks to the leaf
     eth([[leafX, 2.35, z + 0.2], [leafX, 4.5, z + 0.2], [leafX, 4.5, 10.5], [rowX0 + 5, 4.5, 10.5], [rowX0 + 5, 2.35, 10.5]], 22); // leaf to spine
+    fiberBundle(mid.x, 2.32, z, 4.3, z);                                                      // rack uplink, drawn as fiber
+    fiberBundle(leafX, 4.3, z, 1.97, z + facing[r] * 0.7);                                     // runway down into the leaf face
   });
   // fan wall on the east side
   S.slab(1.2, 6, 26, MAT.darkSteel, X1 - 1.0, 0, -3);
@@ -292,6 +351,8 @@ export function build({ quality, model }) {
   flows.forEach(f => scene.add(f.group));
   dataFlows.forEach(f => scene.add(f.group));
   heatFlows.forEach(f => scene.add(f.group));
+  const leds = blinkers(ledItems, { size: 0.014 });
+  scene.add(leds.mesh);
 
   const midRow = rackMx[Math.floor(rackMx.length / 2)];
   return {
@@ -327,10 +388,10 @@ export function build({ quality, model }) {
       leaf: { pos: [rowX1 + 0.45, 2.7, -1.6], view: { pos: [rowX1 - 5, 5, 8], target: [rowX1 + 0.4, 1.5, -1.6] } },
       spine: { pos: [rowX0 + 4, 2.7, 10.5], view: { pos: [rowX0 + 5, 5, 18], target: [rowX0 + 5, 1.2, 10.5] } },
       runways: { pos: [rowX1 + 0.45, 4.7, 4], view: { pos: [rowX1 - 6, 8, 12], target: [rowX1, 4, 2] } },
-      optics: { pos: [rowX1 + 0.45, 2.45, -8.2], view: { pos: [rowX1 - 3, 3.6, -4], target: [rowX1 + 0.4, 1.4, -8.2] } },
-      cpo: { pos: [rowX0 + 7, 2.7, 10.5], view: { pos: [rowX0 + 9, 4, 16], target: [rowX0 + 7, 1.4, 10.5] } },
+      optics: { pos: [leafX, 2.6, -8.2], view: { pos: [leafX + 1.0, 4.0, -4.5], target: [leafX, 1.78, -8.2] } },
+      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.0, 4.2, 15.5], target: [netItems[CPO_I].x, 1.8, 10.5] } },
       racks: { pos: [midRow.x, 2.6, -4.6], view: { pos: [2, 4.5, 6.5], target: [4, 1.2, -4.6] } },
     },
-    update(t) { fans.update(t); },
+    update(t) { fans.update(t); leds.update(t); },
   };
 }
