@@ -51,15 +51,19 @@ function cloudTexture() {
   _cloudTex.wrapS = _cloudTex.wrapT = THREE.ClampToEdgeWrapping;
   return _cloudTex;
 }
-export function clouds(n, seed, { cx = -70, cz = -40 } = {}) {
+// anchors are [x, y, z, spread] world positions picked so they actually fall inside the campus's
+// own hotspot/overview camera framings (verified by re-projecting through each view's real camera,
+// not just placed and hoped for) — a wide 360° ring at 1.5-3.2km never entered any of those tightly
+// framed, downward-looking equipment shots, so anchors sit low and close instead: just above the
+// tallest roofline, at the handful of distances/directions the establishing views actually look.
+export function clouds(anchors, seed = 11) {
   let s = seed; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const tex = cloudTexture(), g = new THREE.Group();
-  for (let i = 0; i < n; i++) {
-    const mat = new THREE.SpriteMaterial({ map: tex, color: new THREE.Color().setHSL(0.08, 0.4, 0.82 - rnd() * 0.14), transparent: true, opacity: 0.45 + rnd() * 0.25, depthWrite: false, fog: false });
+  for (const [ax, ay, az, spread = 60] of anchors) {
+    const mat = new THREE.SpriteMaterial({ map: tex, color: new THREE.Color().setHSL(0.08, 0.3, 0.86 - rnd() * 0.1), transparent: true, opacity: 0.32 + rnd() * 0.16, depthWrite: false, fog: false });
     const spr = new THREE.Sprite(mat);
-    const a = rnd() * Math.PI * 2, r = 1500 + rnd() * 1700;
-    spr.position.set(cx + Math.cos(a) * r, 560 + rnd() * 340, cz + Math.sin(a) * r * 0.6);
-    const sc = 480 + rnd() * 480; spr.scale.set(sc, sc * 0.5, 1);
+    spr.position.set(ax + (rnd() - 0.5) * spread * 0.5, ay + (rnd() - 0.5) * spread * 0.2, az + (rnd() - 0.5) * spread * 0.5);
+    const sc = spread * (0.55 + rnd() * 0.25); spr.scale.set(sc, sc * 0.5, 1);
     g.add(spr);
   }
   return g;

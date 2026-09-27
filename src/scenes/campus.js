@@ -14,9 +14,12 @@ export function build({ quality, model }) {
   scene.fog = new THREE.Fog(0x372c26, Math.max(1900, reach * 0.9), Math.max(6200, reach * 2.4));
   scene.add(sky('#070d19', '#1a2742', '#b9794f'));
 
-  // light: a real golden hour — a low, warm sun with long shadows, cool sky fill for the shadow side
-  scene.add(new THREE.HemisphereLight(0x8fa8d6, 0x2a2318, 0.85));
-  const sun = new THREE.DirectionalLight(0xffb27a, 2.35);
+  // light: a real golden hour — a low, warm sun with long shadows, cool sky fill for the shadow side.
+  // sky and sun are both nudged toward neutral (less violet hemisphere, less saturated sun) so flat
+  // gravel/concrete reads as lit dusk rather than picking up a magenta cast from the two mixing.
+  scene.add(new THREE.HemisphereLight(0x93b8cf, 0x54452f, 0.9));
+  scene.add(new THREE.AmbientLight(0x9a8b74, 1.1));   // orientation-independent floor so dark-material equipment (fans, stacks, silencers) isn't pure black even facing away from every directional light
+  const sun = new THREE.DirectionalLight(0xffc48f, 2.35);
   sun.position.set(-1250, 430, 500); sun.target.position.set(-60, 0, -60);
   if (quality.shadows) {
     sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096);
@@ -24,7 +27,11 @@ export function build({ quality, model }) {
     sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.6;
   }
   scene.add(sun, sun.target);
-  const fill = new THREE.DirectionalLight(0x7f9cff, 0.38); fill.position.set(600, 300, 800); scene.add(fill);
+  // fill from the sun's opposite quarter (east/south), stronger than a token bounce so the shadow
+  // side of anything actually has form; a second, cooler rim from due east specifically lifts the
+  // generator and battery yards, whose own equipment faces away from the low sun on that side
+  const fill = new THREE.DirectionalLight(0x9db4e6, 0.85); fill.position.set(600, 300, 800); scene.add(fill);
+  const rim = new THREE.DirectionalLight(0x9fc4e6, 0.85); rim.position.set(950, 210, -40); rim.target.position.set(-60, 0, -60); scene.add(rim, rim.target);
 
   const flows = [], dataFlows = [], heatFlows = [];
   const moverGroups = [], plumeUpdates = [];
@@ -466,8 +473,17 @@ export function build({ quality, model }) {
 
   // a handful of soft clouds catching the low sun (desktop only: full-screen alpha overdraw adds up on
   // a phone; skipped on the big-campus layout, whose camera pulls back far enough that a fixed-size
-  // cloud sprite would loom instead of read as background)
-  if (!quality.mobile && !extra) scene.add(clouds(6, 11, { cx: -70, cz: -40 }));
+  // cloud sprite would loom instead of read as background). Anchored low and close rather than on a
+  // wide 360° ring: every one of this scene's camera views pitches down at ground-level equipment, so
+  // the only sky actually in frame is a narrow band near the horizon in the direction each view looks.
+  // These three positions were solved for by re-projecting candidate points through every real
+  // hotspot/overview camera and checking BOTH that the sprite lands inside the frame and that it stays
+  // a small, background-sized thing there (<12°) rather than looming — a first pass covered the
+  // transmission-line and substation hotspots too, but their cameras sit close enough to the west side
+  // that any cloud visible there filled the whole frame like fog, which is the opposite of the fix.
+  if (!quality.mobile && !extra) scene.add(clouds([
+    [80, 90, -40, 45], [-23, 90, 228, 135], [-2173, 150, -957, 220],
+  ]));
 
   scene.add(S.build({ cast: true, receive: true }));
   scene.add(N.build({ cast: false, receive: true }));
