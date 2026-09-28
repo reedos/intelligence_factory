@@ -12,7 +12,7 @@ import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { DETAIL } from '../kit.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VOLT, BASIS } from '../data.js';
-import { chip } from '../evidence.js';
+import { chip as basisChip } from '../evidence.js';
 import { store, on, emit } from './store.js';
 import * as campus from '../scenes/campus.js';
 import * as hall from '../scenes/hall.js';
@@ -576,7 +576,7 @@ export function select(id, fly) {
   $('card').hidden = false;
   $('card-k').textContent = p.kicker; $('card-t').textContent = p.title; $('card-b').textContent = p.body;
   const key = `card:${ui.mode}:${SCENES()[ui.scene].id}:${id}`;   // each row's chip opens that row's own evidence
-  $('card-s').innerHTML = p.specs.map(([k, v, b], i) => `<div><dt>${k}</dt><dd>${v}</dd>${chip(b, `${key}:${i}`, k)}</div>`).join('');
+  $('card-s').innerHTML = p.specs.map(([k, v, b], i) => `<div><dt>${k}</dt><dd>${v}</dd>${basisChip(b, `${key}:${i}`, k)}</div>`).join('');
   const go_ = $('card-go'); go_.hidden = p.drill === undefined;
   if (p.drill !== undefined) go_.textContent = `${p.drill > ui.scene ? 'Go inside' : 'Back out'}: ${SCENES()[p.drill].title} ${p.drill > ui.scene ? '→' : '↑'}`;
   go_.onclick = () => go(p.drill, id);
