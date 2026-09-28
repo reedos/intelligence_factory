@@ -11,7 +11,7 @@
 // back, forward, speed, where the tour is) is the only playback control on the page.
 import { store, on } from './store.js';
 import { show, go, reduced, onTick, setCinema, setTourPace, getTransitions, setTransitions, pinNumber, partCount, stageActive, destination, drillOf, isInward } from './stage.js';
-import { story, watt, request, heat, layer, everything, CHAIN, OUTWARD } from './journeys.js';
+import { story, watt, request, heat, light, layer, everything, CHAIN, OUTWARD } from './journeys.js';
 import { openClock, closeClock, clockNow } from './clock-ui.js';
 import { chip } from '../evidence.js';
 import { FIGURE_CLAIMS, opticsCutawaySVG } from '../diagrams/links-media.js';
@@ -40,6 +40,7 @@ export const TOURS = {
   watt: { label: 'Follow a watt', short: 'A watt', beats: watt, group: 'Tours' },
   request: { label: 'Follow a request', short: 'A request', beats: request, group: 'Tours' },
   here: { get label() { return `This level: ${store.C.SCENES[here.scene]?.title ?? ''} · ${MODE_NAME[here.mode]}`; }, short: 'This level', beats: M => layer(M, here.mode, here.scene), group: 'Every part' },
+  light: { label: 'Electrons to light: pluggable vs co-packaged', short: 'Light', beats: light, group: 'Tours' },
   'all-power': { label: 'Every part: power, levels 1 to 6', short: 'Power', beats: M => layer(M, 'power'), group: 'Every part' },
   'all-heat': { label: 'Every part: heat, levels 6 to 1', short: 'Heat', beats: M => layer(M, 'heat'), group: 'Every part' },
   'all-data': { label: 'Every part: data, levels 1 to 6', short: 'Data', beats: M => layer(M, 'data'), group: 'Every part' },
@@ -423,7 +424,9 @@ function ctlLabel() {
   // walk plus about how much reading is left (finding 14: "Data · Level 3 · Part 9 of 11 · Stop 112 of 135")
   const b = list[active], n = pinOf(b), lv = b.link.scene + 1, layerName = LAYER_NAME[b.link.mode];
   const part = n ? `Part ${n} of ${partCount(b.link.scene, b.link.mode)}` : 'overview';
+  const trip = b.trip && b.link.scene !== b.parent ? `Side trip · inside the optics · ${part}` : null;
   const where = !perLevel() ? `Step ${active + 1} of ${list.length}`
+    : trip && tour !== 'here' ? `${layerName} · ${trip} · Stop ${active + 1} of ${list.length} · ≈${fmtMs(remainingMs(active))} left`
     : tour === 'here' ? `${layerName} · ${part}`
     : `${layerName} · Level ${lv} · ${part} · Stop ${active + 1} of ${list.length} · ≈${fmtMs(remainingMs(active))} left`;
   // finding 16: This level's own next/previous names the direction, since heat's runs outward while power and

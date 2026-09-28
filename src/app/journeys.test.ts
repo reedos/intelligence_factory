@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { compute, ACCELERATORS, POWER, COOLING } from '../model/engine';
 import { content } from '../data.js';
-import { story, watt, request, heat, layer, everything, CHAIN, OUTWARD } from './journeys.js';
+import { story, watt, request, heat, light, layer, everything, CHAIN, OUTWARD } from './journeys.js';
 import { SITES } from '../model/sites';
 
 const scenarios: any[] = [];
@@ -13,7 +13,7 @@ describe('tours', () => {
   it.each(scenarios)('$accel / $power / $cooling at $meterMW MW $site: every beat is complete and lands on a part', s => {
     const M = compute(s), C = content(M);
     const layer = { power: C.PARTS, data: C.PARTS_DATA, heat: C.PARTS_HEAT } as Record<string, Record<string, any[]>>;
-    for (const [name, beats] of Object.entries({ story: story(M), watt: watt(M), request: request(M), heat: heat(M) })) {
+    for (const [name, beats] of Object.entries({ story: story(M), watt: watt(M), request: request(M), heat: heat(M), light: light(M) })) {
       expect(beats.length, name).toBeGreaterThan(5);
       for (const b of beats as any[]) {
         for (const t of [b.k, b.title, b.text, b.tally ?? '']) expect(t, `${name}: ${b.title}`).not.toMatch(/undefined|NaN|Infinity|\[object/);
@@ -29,7 +29,12 @@ describe('tours', () => {
       const beats = layer(M, mode), parts = beats.filter((b: any) => b.link.part);
       // the six levels in a line; the side level inside the optics has its own This level walk, not a place in these
       const line = C.SCENES.filter((sc: any) => !sc.side), scenes = OUTWARD.has(mode) ? [...line].reverse() : line;
-      const cards = scenes.flatMap((sc: any) => ((C as any)[key][sc.id] || []).map((p: any) => `${sc.id}:${p.id}`));
+      const side = C.SCENES.find((sc: any) => sc.side)!, sideCards = ((C as any)[key][side.id] || []) as any[];
+      // each door card is followed by the side trip through its half of the level inside the optics
+      const cards = scenes.flatMap((sc: any) => ((C as any)[key][sc.id] || []).flatMap((p: any) => [`${sc.id}:${p.id}`,
+        ...(p.trip ? sideCards.filter(q => q.half === p.trip).map(q => `${side.id}:${q.id}`) : [])]));
+      // and between them the trips cover every card of the side level, once
+      expect(cards.filter(c => c.startsWith(`${side.id}:`)).sort(), `${mode}: side level`).toEqual(sideCards.map(q => `${side.id}:${q.id}`).sort());
       expect(parts.map((b: any) => `${C.SCENES[b.link.scene].id}:${b.link.part}`)).toEqual(cards);
       expect(beats.filter((b: any) => b.level).length).toBe(6);
       for (const b of beats as any[]) for (const t of [b.k, b.title, b.text, b.tally]) expect(t, b.title).not.toMatch(/undefined|NaN/);
@@ -54,13 +59,14 @@ describe('tours', () => {
   });
 
   // Reed, 09/27: tours felt like they jumped to another level and back. A tour now moves one level at a time, one way.
-  const levels = (beats: any[]) => beats.map(b => b.link.scene);
+  // a side trip counts as the level it returns to: the camera goes in and comes straight back out there
+  const levels = (beats: any[]) => beats.map(b => b.parent ?? b.link.scene);
   const oneWay = (lv: number[]) => {
     const steps = lv.slice(1).map((v, i) => v - lv[i]);
     return steps.every(d => Math.abs(d) <= 1) && (steps.every(d => d >= 0) || steps.every(d => d <= 0));
   };
   const TOUR: Record<string, (M: any) => any[]> = {
-    story, watt, request, heat,
+    story, watt, request, heat, light,
     'all-power': M => layer(M, 'power'), 'all-heat': M => layer(M, 'heat'), 'all-data': M => layer(M, 'data'),
   };
   it.each(scenarios)('every tour moves one level at a time, one way: $accel / $power / $cooling at $meterMW MW $site', s => {
@@ -79,5 +85,18 @@ describe('tours', () => {
     const jumps = (chain: string[]) => chain.slice(1).filter((id, k) => Math.abs(ends(id)[0] - ends(chain[k])[1]) > 1).length;
     expect(jumps(CHAIN['Every part'])).toBe(0);
     expect(jumps(CHAIN.Tours)).toBeLessThanOrEqual(1);
+  });
+  it.each(scenarios)('every side trip dives in from its parent level and returns to it: $accel / $power / $cooling at $meterMW MW $site', s => {
+    const M = compute(s), C = content(M), side = C.SCENES.findIndex((sc: any) => sc.side);
+    for (const [name, beats] of Object.entries(TOUR)) {
+      const bs = beats(M) as any[];
+      bs.forEach((b, i) => {
+        if (b.link.scene !== side) return;
+        expect(b.parent, `${name} ${i}: a side-level beat names its parent`).toBeTypeOf('number');
+        const before = bs.slice(0, i).reverse().find(x => x.link.scene !== side), after = bs.slice(i + 1).find(x => x.link.scene !== side);
+        expect(before?.link.scene, `${name} ${i}: entered from its parent`).toBe(b.parent);
+        if (after) expect(after.link.scene, `${name} ${i}: back out to its parent`).toBe(b.parent);
+      });
+    }
   });
 });

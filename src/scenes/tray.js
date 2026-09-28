@@ -208,6 +208,7 @@ function buildHGX({ quality }) {
     look: { env: 'studio', envIntensity: 0.5, exposure: 0.95, bloom: 0.38, threshold: 2.0, ao: 0.14, dof: true },
     camera: { pos: [9.2, 8.4, 4.6], target: [0, 0.7, -0.2], near: 0.02, far: 400, min: 1, max: 30 },
     hotspots: {
+      osfp: { pos: [cageX[3], ty + 0.5, ZB + 0.25], view: { pos: [2.6, 3.4, -7.4], target: [1.3, ty, ZB] } },
       psu: { pos: [psuX(4), 0.9, ZB + 0.65], view: { pos: [3.4, 3.0, -8.0], target: [0.8, 0.5, ZB + 0.6] } },
       ibc: { pos: [-1.25, 0.3, -0.95], view: { pos: [-2.8, 2.2, 1.2], target: [-1, 0.1, -0.95] } },
       vrm: { pos: [g0x + 0.4, 0.25, g0z], view: { pos: [g0x + 1.6, 1.6, g0z + 1.6], target: [g0x, 0.1, g0z] } },
@@ -219,6 +220,7 @@ function buildHGX({ quality }) {
     },
     dataFlows, heatFlows,
     heatHotspots: {
+      osfp: { pos: [cageX[3], ty + 0.5, ZB + 0.25], view: { pos: [2.6, 3.4, -7.4], target: [1.3, ty, ZB] } },
       heatsinks: hsSink,
       gpuheat: hsGpu,
       fans: { pos: [fanX(3), 3.1, ZF - 0.35], view: { pos: [1.6, 3.8, 8.2], target: [0.2, 1.6, ZF - 0.5] } },
@@ -408,6 +410,7 @@ function buildNVL({ quality, model }) {
     look: { env: 'studio', envIntensity: 0.5, exposure: 0.98, bloom: 0.36, threshold: 2.0, ao: 0.12, dof: true },
     camera: { pos: [5.9, 6.4, 8.3], target: [0, 0.1, -0.5], near: 0.02, far: 400, min: 1, max: 30 },
     hotspots: {
+      osfp: { pos: [0.7, 0.4, ZF - 0.2], view: { pos: [1.6, 1.4, 6.8], target: [0.9, 0.2, ZF - 0.3] } },
       clip: { pos: [0, 0.4, ZB - 0.15], view: { pos: [2.4, 2.2, -7.5], target: [0, 0.2, ZB] } },
       ibc: { pos: [-1.5, 0.35, ZB + 0.85], view: { pos: [-2.8, 2.5, -1.6], target: [-1, 0.1, ZB + 0.9] } },
       vrm: { pos: [g0x + 0.72, 0.2, g0z + 0.1], view: { pos: [g0x + 2.2, 1.6, g0z + 1.4], target: [g0x, 0.05, g0z] } },
@@ -420,6 +423,7 @@ function buildNVL({ quality, model }) {
     },
     dataFlows, heatFlows,
     heatHotspots: {
+      osfp: { pos: [0.7, 0.4, ZF - 0.2], view: { pos: [1.6, 1.4, 6.8], target: [0.9, 0.2, ZF - 0.3] } },
       coldplates: { pos: [-1.1, 0.95, 0.2], view: { pos: [-3.6, 2.6, 2.4], target: [-1.1, 0.6, 0] } },
       gpuheat: { pos: [gpus[3][0], 0.2, gpus[3][1]], view: { pos: [gpus[3][0] + 1.5, 2.0, gpus[3][1] + 1.8], target: [gpus[3][0], 0.05, gpus[3][1]] } },
       fans: { pos: [0.2, 0.5, ZF - 1.95], view: { pos: [2.4, 2.4, 6.8], target: [0.4, 0.2, ZF - 2] } },

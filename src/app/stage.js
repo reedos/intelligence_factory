@@ -682,6 +682,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   busy = true; goingTo = i;
   const veil = $('veil');
   const same = i === ui.scene;
+  if (i === SIDE && ui.scene !== SIDE && ui.scene >= 0) { sideFrom = ui.scene === 2 ? 2 : 4; sideVia = fromId; }   // entered from the hall, or a tray's cages
   const from = ui.scene, inward = isInward(from, i), T = TRANSITIONS[transitions] / Math.sqrt(cinema ? tourPace : 1);
   const cut = reduced || transitions === 'instant';
   const travel = from >= 0 && !same && !cut;              // a level transition, rather than the first load or a rebuild
@@ -696,7 +697,6 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   if (travel) {
     view.classList.add('diving');
     veil.innerHTML = jumpLabel(from, i);                   // the next level's name, revealed as the view closes around it
-    if (i === SIDE && from !== SIDE) { sideFrom = from === 2 ? 2 : 4; sideVia = fromId; }   // entered from the hall, or a tray's cages
     // the side level has more than one way in (the hall's pluggables and its CPO switch): dive at the one picked
     const via = i === SIDE && fromId ? hotspotsFor(from)[fromId] : null;
     let portal = via ? V(via.pos) : inward ? portalOf(from, i === SIDE ? SIDE : from + 1) : null;

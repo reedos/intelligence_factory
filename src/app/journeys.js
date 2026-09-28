@@ -4,7 +4,9 @@
 //   request  one question from a phone to an answer; the tally is elapsed time
 //   heat     one GPU's heat from the die to the sky; the tally is where the heat is and how warm
 // Every tour moves through the levels one way, one level at a time: it never skips a level and never goes back to
-// one it has left (journeys.test.ts holds them to it), so the camera never jumps out and back in.
+// one it has left (journeys.test.ts holds them to it), so the camera never jumps out and back in. The one exception
+// is a side trip into the level inside the optics: a tour dives in at the part that holds it and comes back out to
+// the level it left before going on. Side-trip beats carry `parent`, the level they return to.
 // Beats: { link, k, title, text, tally, sim, specs, specKey, figure }. A sim runs that clock while the beat is on.
 // specs are the figures a beat states, each with its basis and evidence the way a card row carries them, and a card's
 // own row wherever the card already backs the figure, so entering a tour never strips a number of its qualification.
@@ -37,6 +39,7 @@ const keyed = (id, beats) => beats.map((b, i) => ({ ...b, specKey: `tour:${id}:$
 // said once at the head of a tour, where its numbers need a caveat no single beat carries
 export const TOUR_NOTES = {
   request: 'An illustrative timeline: the timings are round numbers, the same for every GPU choice, not a benchmark of the selected hardware. The energy and water come from this campus’s scenario.',
+  light: 'The module drawn is one silicon photonics design of several; the switch package follows NVIDIA’s published counts. Power figures are the vendors’ own.',
   heat: 'Temperatures are one illustrative operating point for each cooling design, the same the cards and the Hot to cold chart use. Real plants move with load, flow and weather.',
 };
 
@@ -108,6 +111,13 @@ export function story(M) {
         specs: rows(card('power', 3, 'psus', 'Per server'), card('power', 3, 'psus', 'Efficiency'), ['Rack power, this model', `≈${Math.round(M.rack.kw)} kW`, 'derived', { calc: 'hall-rack-power' }]) },
     ]),
     // 5 · the tray or server
+    // a side trip from the tray's module cages: where the scale-out traffic becomes light, then back
+    { link: at(4, 'osfp', 'data'), k: nvl ? 'Data · compute tray' : 'Data · the server', title: 'Out as light',
+      text: `Every GPU’s traffic to other racks leaves ${nvl ? 'the tray' : 'the server'} through pluggable optical modules at its edge. Step inside one.`,
+      specs: rows(card('data', 4, 'osfp', 'NVIDIA'), card('data', 4, 'osfp', 'Cages')) },
+    { link: at(6, 'pic', 'data'), parent: 4, trip: 'module', k: 'Side trip · inside the module', title: 'Where electrons become light',
+      text: 'Modulators imprint each electrical lane onto laser light, and waveguides carry it to the fiber. Photodiodes on the other side turn light coming back into current. Then back out to the tray.',
+      specs: rows(card('data', 6, 'pic', 'Design drawn')) },
     { link: at(4, 'vrm'), k: nvl ? 'Compute tray' : 'The server', title: 'The last volt',
       text: `Voltage regulators ring each GPU and make the final step to about 0.8 V: ${M.staircase[M.staircase.length - 1].current} into one chip. They lose ${mw(loss('Voltage regulators'))} across the campus doing it.`,
       specs: rows(card('power', 4, 'vrm', 'Core current'), card('power', 4, 'vrm', 'Efficiency'), card('power', 4, 'vrm', 'Loss, campus-wide')) },
@@ -203,6 +213,28 @@ export function request(M) {
   ]);
 }
 
+// ---------- electrons to light: one lane through a pluggable module, then the same lane co-packaged ----------
+export function light(M) {
+  const C = content(M), nvl = M.accel.gpusPerRack === 72;
+  const card = (mode, scene, part, label) => cardRow(C, mode, scene, part, label);
+  const d = id => C.PARTS_DATA.optics.find(p => p.id === id);
+  const inside = (id, title, text, ...specs) => ({ link: at(6, id, 'data'), parent: 4, trip: d(id).half, k: d(id).half === 'module' ? 'Inside the pluggable module' : 'Inside the co-packaged switch', title, text, specs: rows(...specs) });
+  return keyed('light', [
+    { link: at(4, 'osfp', 'data'), k: nvl ? 'Compute tray' : 'The server', title: 'One lane, leaving the tray',
+      text: `Follow one electrical lane from the NIC to the fiber: first through a pluggable module in ${nvl ? 'the tray’s' : 'the server’s'} cage, then the same job done inside a switch package.`,
+      specs: rows(card('data', 4, 'osfp', 'NVIDIA'), card('data', 4, 'osfp', 'Cages')) },
+    inside('fingers', 'In at the edge', 'The lane arrives on the edge connector’s gold fingers, one of eight electrical lanes each way.', card('data', 6, 'fingers', 'Host lanes')),
+    inside('dsp', 'Cleaned up', d('dsp').body, card('data', 6, 'dsp', 'What it does')),
+    inside('driver', 'Swinging the modulator', d('driver').body, card('data', 6, 'driver', 'Receive')),
+    inside('pic', 'Onto light', d('pic').body, card('data', 6, 'pic', 'Design drawn')),
+    inside('mpo', 'Out on its own fiber', d('mpo').body, card('data', 6, 'mpo', 'Connectors'), card('data', 6, 'mpo', 'Fibers lit')),
+    inside('asic', 'The same lane, co-packaged', d('asic').body, card('data', 6, 'asic', 'Electrical loss')),
+    inside('engine', 'A ring beside the switch', d('engine').body, card('data', 6, 'engine', 'Per engine'), card('data', 6, 'engine', 'Modulators')),
+    inside('els', 'Light from the front panel', d('els').body, card('data', 6, 'els', 'Laser modules')),
+    inside('fiberout', 'Out through the package edge', `${d('fiberout').body} The power per port is where the two designs part ways, by NVIDIA’s own figures.`, card('data', 6, 'fiberout', 'Fibers per engine'), card('data', 6, 'asic', 'Per port')),
+  ]);
+}
+
 // ---------- the heat ----------
 // Every temperature comes from the engine's one operating point per cooling design (M.temps), the same the cards and
 // the Hot to cold chart read, and each says which loop and which side of it: supply runs to the heat, return away.
@@ -267,7 +299,7 @@ const OPTICS_FIGURE = new Set(['hall:cpo', 'hall:optics', 'tray:osfp']);
 export function layer(M, mode, only = null) {
   const C = content(M), [key, introKey, name] = LAYER[mode], out = [];
   // the six levels in a line; the side level inside the optics (index 6) plays only when asked for by name
-  const levels = C.SCENES.map((sc, i) => [sc, i]).filter(([, i]) => only === null ? i < 6 : i === only);
+  const levels = C.SCENES.map((sc, i) => [sc, i]).filter(([sc, i]) => only === null ? !sc.side : i === only);
   if (OUTWARD.has(mode)) levels.reverse();
   levels.forEach(([sc, i]) => {
     const parts = C[key][sc.id] || [];
@@ -283,8 +315,23 @@ export function layer(M, mode, only = null) {
       specs: p.specs, specKey: `card:${mode}:${sc.id}:${p.id}`, tally: `Level ${i + 1} · ${j + 1} of ${parts.length}`,
       ...(mode === 'data' && OPTICS_FIGURE.has(`${sc.id}:${p.id}`) ? { figure: 'optics-cutaway' } : {}),
     }));
+    // a door into the side level: take the trip through the half of it that lives here, then carry on here. Not in a
+    // one-level playthrough, whose steps are numbered like the pins
+    if (only === null) for (let j = out.length - 1, n = 0; n < parts.length; n++) {
+      const p = parts[parts.length - 1 - n]; if (!p.trip) continue;
+      const at_ = out.findIndex(b => b.link.scene === i && b.link.part === p.id);
+      out.splice(at_ + 1, 0, ...sideTrip(C, key, mode, name, p.trip, i));
+    }
   });
   return out;
+}
+const SIDE_NAME = { module: 'the pluggable module', cpo: 'the co-packaged switch' };
+function sideTrip(C, key, mode, name, half, parent) {
+  const side = C.SCENES.findIndex(sc => sc.side), sc = C.SCENES[side], parts = (C[key][sc.id] || []).filter(p => p.half === half);
+  return parts.map((p, j) => ({
+    link: { scene: side, mode, part: p.id }, parent, trip: half, k: `${name} · Side trip · Inside ${SIDE_NAME[half]}`, title: p.title, text: p.body,
+    specs: p.specs, specKey: `card:${mode}:${sc.id}:${p.id}`, tally: `Side trip · ${j + 1} of ${parts.length}`,
+  }));
 }
 // in, out, in: each layer starts on the level the one before it ended on
 export const everything = M => ['power', 'heat', 'data'].flatMap(m => layer(M, m));
@@ -293,4 +340,4 @@ export const everything = M => ['power', 'heat', 'data'].flatMap(m => layer(M, m
 // stop, story -> heat -> watt -> request, which broke the overview's own promise of "once" - story.js now stops
 // there and offers the three as separate choices. Every-part tours still hand over while playing: that walk is
 // meant to be exhaustive and continuous, not a menu of choices.
-export const CHAIN = { Tours: ['story', 'heat', 'watt', 'request'], 'Every part': ['all-power', 'all-heat', 'all-data'] };
+export const CHAIN = { Tours: ['story', 'heat', 'watt', 'request', 'light'], 'Every part': ['all-power', 'all-heat', 'all-data'] };
