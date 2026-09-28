@@ -196,6 +196,11 @@ export const SOURCES = {
   'lcom-lr4-10km': { title: 'LR4 Optics Solutions: 10km Long-Haul Data Center Links', publisher: 'L-Com', url: 'https://www.l-p.com/blog/use-cases-solutions/lr4-optics-solutions-10km-long-haul-data-center-links.htm' },
   'nvidia-dgx-gb200-user-guide': { title: 'DGX GB200 User Guide, hardware overview', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx/dgxgb200-user-guide/hardware.html' },
   'arxiv-2601-14342': { title: 'Shoreline bandwidth density and interconnect scaling (arXiv 2601.14342, Kohli & Teissier)', publisher: 'arXiv', url: 'https://arxiv.org/abs/2601.14342' },
+
+  // energy workstream (2026-09-27 audit review): the primary sources behind the IT-energy WUE
+  // denominator fix and the NFPA 110 Type/Level wording fix
+  'green-grid-wue-wp35': { title: 'Water Usage Effectiveness (WUE): A Green Grid Data Center Sustainability Metric (White Paper #35)', publisher: 'The Green Grid', url: 'https://www.thegreengrid.org/system/files/store/WUE_v1.pdf' },
+  'cummins-nfpa110-ate': { title: "Ask the Experts: NFPA 110 for Emergency Power Systems", publisher: 'Cummins', url: 'https://www.cummins.com/sites/default/files/2021-04/AtE-NFPA110_EXT_3.25.21.pdf' },
 };
 
 // PART_SOURCES: which sources back the specs on each card. Key = '<layer>:<sceneId>:<partId>',
@@ -225,7 +230,7 @@ export const PART_SOURCES = {
   'power:campus:hall': [],
   'power:campus:drycoolers': ['ashrae-liquid-cooling-classes', 'introl-wue', 'evapco-apex', 'bac-data-centers'],
   'power:campus:chillers': ['schneider-uniflair'],
-  'power:campus:towers': ['introl-wue', 'nrel-water-electricity'],
+  'power:campus:towers': ['introl-wue', 'nrel-water-electricity', 'green-grid-wue-wp35'],
   'power:campus:fiber': ['zayo-route-diversity'],
 
   'power:hall:unitsub': ['doe-transformer-efficiency'],
@@ -331,7 +336,7 @@ export const PART_SOURCES = {
 
   'heat:campus:drycoolers': ['ashrae-liquid-cooling-classes', 'alliance-chemical-gpu-thermal'],
   'heat:campus:chillers': [],
-  'heat:campus:towers': ['introl-wue', 'nrel-water-electricity'],
+  'heat:campus:towers': ['introl-wue', 'nrel-water-electricity', 'green-grid-wue-wp35'],
   'heat:campus:plume': [],
   'heat:campus:reuse': ['fortum-finland-heat', 'munters-odense', 'stockholm-data-parks'],
 
