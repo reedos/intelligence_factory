@@ -27,16 +27,15 @@ describe('tours', () => {
     const M = compute(s), C = content(M);
     for (const [mode, key] of [['power', 'PARTS'], ['data', 'PARTS_DATA'], ['heat', 'PARTS_HEAT']] as const) {
       const beats = layer(M, mode), parts = beats.filter((b: any) => b.link.part);
-      // the six levels in a line; the side level inside the optics has its own This level walk, not a place in these
+      // the six levels in a line; the side levels have their own This level walks, and a door's trip, not a place here
       const line = C.SCENES.filter((sc: any) => !sc.side), scenes = OUTWARD.has(mode) ? [...line].reverse() : line;
-      const side = C.SCENES.find((sc: any) => sc.side)!, sideCards = ((C as any)[key][side.id] || []) as any[];
-      // each door card is followed by the side trip through its half of the level inside the optics
-      const cards = scenes.flatMap((sc: any) => ((C as any)[key][sc.id] || []).flatMap((p: any) => [`${sc.id}:${p.id}`,
-        ...(p.trip ? sideCards.filter(q => q.half === p.trip).map(q => `${side.id}:${q.id}`) : [])]));
-      // and between them the trips cover every card of the side level, once
-      const opened = new Set(scenes.flatMap((sc: any) => ((C as any)[key][sc.id] || []).map((p: any) => p.trip).filter(Boolean)));
-      expect(cards.filter(c => c.startsWith(`${side.id}:`)).sort(), `${mode}: side level`).toEqual(sideCards.filter(q => opened.has(q.half)).map(q => `${side.id}:${q.id}`).sort());
+      const P = (C as any)[key] as Record<string, any[]>;
+      // each door card is followed by the side trip through every part of the side level it opens
+      const cards = scenes.flatMap((sc: any) => (P[sc.id] || []).flatMap((p: any) => [`${sc.id}:${p.id}`, ...(p.trip ? (P[p.trip] || []).map(q => `${p.trip}:${q.id}`) : [])]));
       expect(parts.map((b: any) => `${C.SCENES[b.link.scene].id}:${b.link.part}`)).toEqual(cards);
+      // and a side level a door opens is covered once, whole
+      const opened = new Set(scenes.flatMap((sc: any) => (P[sc.id] || []).map((p: any) => p.trip).filter(Boolean)));
+      for (const trip of opened) expect(cards.filter(c => c.startsWith(`${trip}:`)), `${mode}: ${trip}`).toEqual((P[trip] || []).map(q => `${trip}:${q.id}`));
       expect(beats.filter((b: any) => b.level).length).toBe(6);
       for (const b of beats as any[]) for (const t of [b.k, b.title, b.text, b.tally]) expect(t, b.title).not.toMatch(/undefined|NaN/);
     }
@@ -88,13 +87,13 @@ describe('tours', () => {
     expect(jumps(CHAIN.Tours)).toBeLessThanOrEqual(1);
   });
   it.each(scenarios)('every side trip dives in from its parent level and returns to it: $accel / $power / $cooling at $meterMW MW $site', s => {
-    const M = compute(s), C = content(M), side = C.SCENES.findIndex((sc: any) => sc.side);
+    const M = compute(s), C = content(M), isSide = (i: number) => !!(C.SCENES[i] as any)?.side;
     for (const [name, beats] of Object.entries(TOUR)) {
       const bs = beats(M) as any[];
       bs.forEach((b, i) => {
-        if (b.link.scene !== side) return;
+        if (!isSide(b.link.scene)) return;
         expect(b.parent, `${name} ${i}: a side-level beat names its parent`).toBeTypeOf('number');
-        const before = bs.slice(0, i).reverse().find(x => x.link.scene !== side), after = bs.slice(i + 1).find(x => x.link.scene !== side);
+        const before = bs.slice(0, i).reverse().find(x => !isSide(x.link.scene)), after = bs.slice(i + 1).find(x => !isSide(x.link.scene));
         expect(before?.link.scene, `${name} ${i}: entered from its parent`).toBe(b.parent);
         if (after) expect(after.link.scene, `${name} ${i}: back out to its parent`).toBe(b.parent);
       });

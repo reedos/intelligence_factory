@@ -115,9 +115,9 @@ export function story(M) {
     { link: at(4, 'osfp', 'data'), k: nvl ? 'Data · compute tray' : 'Data · the server', title: 'Out as light',
       text: `Every GPU’s traffic to other racks leaves ${nvl ? 'the tray' : 'the server'} through pluggable optical modules at its edge. Step inside one.`,
       specs: rows(card('data', 4, 'osfp', 'NVIDIA'), card('data', 4, 'osfp', 'Cages')) },
-    { link: at(6, 'pic', 'data'), parent: 4, trip: 'module', k: 'Side trip · inside the module', title: 'Where electrons become light',
-      text: 'Modulators imprint each electrical lane onto laser light, and waveguides carry it to the fiber. Photodiodes on the other side turn light coming back into current. Then back out to the tray.',
-      specs: rows(card('data', 6, 'pic', 'Design drawn')) },
+    { link: at(6, 'mzm', 'data'), parent: 4, trip: 'module', k: 'Side trip · inside the module', title: 'Where electrons become light',
+      text: 'On the transmit side, modulators put each electrical lane onto laser light, and waveguides carry it to its fiber. The receive side runs the other way, through photodiodes, with no laser at all. Then back out to the tray.',
+      specs: rows(card('data', 6, 'mzm', 'Kind')) },
     { link: at(4, 'vrm'), k: nvl ? 'Compute tray' : 'The server', title: 'The last volt',
       text: `Voltage regulators ring each GPU and make the final step to about 0.8 V: ${M.staircase[M.staircase.length - 1].current} into one chip. They lose ${mw(loss('Voltage regulators'))} across the campus doing it.`,
       specs: rows(card('power', 4, 'vrm', 'Core current'), card('power', 4, 'vrm', 'Efficiency'), card('power', 4, 'vrm', 'Loss, campus-wide')) },
@@ -217,21 +217,24 @@ export function request(M) {
 export function light(M) {
   const C = content(M), nvl = M.accel.gpusPerRack === 72;
   const card = (mode, scene, part, label) => cardRow(C, mode, scene, part, label);
-  const d = id => C.PARTS_DATA.optics.find(p => p.id === id);
-  const inside = (id, title, text, ...specs) => ({ link: at(6, id, 'data'), parent: 4, trip: d(id).half, k: d(id).half === 'module' ? 'Inside the pluggable module' : 'Inside the co-packaged switch', title, text, specs: rows(...specs) });
+  const d = (sc, id) => C.PARTS_DATA[sc].find(p => p.id === id);
+  // every step inside counts as the tray, the level the tour went in from: the camera goes into the module, across to
+  // the CPO package, and the tour ends there
+  const inside = (sc, id, title, text, ...specs) => ({ link: at(sc === 'module' ? 6 : 7, id, 'data'), parent: 4, trip: sc, k: sc === 'module' ? 'Inside the pluggable module' : 'Inside the CPO package', title, text, specs: rows(...specs) });
   return keyed('light', [
     { link: at(4, 'osfp', 'data'), k: nvl ? 'Compute tray' : 'The server', title: 'One lane, leaving the tray',
       text: `Follow one electrical lane from the NIC to the fiber: first through a pluggable module in ${nvl ? 'the tray’s' : 'the server’s'} cage, then the same job done inside a switch package.`,
       specs: rows(card('data', 4, 'osfp', 'NVIDIA'), card('data', 4, 'osfp', 'Cages')) },
-    inside('fingers', 'In at the edge', 'The lane arrives on the edge connector’s gold fingers, one of eight electrical lanes each way.', card('data', 6, 'fingers', 'Host lanes')),
-    inside('dsp', 'Cleaned up', d('dsp').body, card('data', 6, 'dsp', 'What it does')),
-    inside('driver', 'Swinging the modulator', d('driver').body, card('data', 6, 'driver', 'Receive')),
-    inside('pic', 'Onto light', d('pic').body, card('data', 6, 'pic', 'Design drawn')),
-    inside('mpo', 'Out on its own fiber', d('mpo').body, card('data', 6, 'mpo', 'Connectors'), card('data', 6, 'mpo', 'Fibers lit')),
-    inside('asic', 'The same lane, co-packaged', `${d('asic').body} Compare like with like: the module you just left carries 1.6 Tb/s each way, and so does one optical engine here. This package holds 18 of them.`, card('data', 6, 'engine', 'Per engine'), card('data', 6, 'asic', 'Electrical loss')),
-    inside('engine', 'A ring beside the switch', d('engine').body, card('data', 6, 'engine', 'Per engine'), card('data', 6, 'engine', 'Modulators')),
-    inside('els', 'Light from the front panel', d('els').body, card('data', 6, 'els', 'Laser modules')),
-    inside('fiberout', 'Out through the package edge', `${d('fiberout').body} The power per port is where the two designs part ways, by NVIDIA’s own figures.`, card('data', 6, 'fiberout', 'Fibers per engine'), card('data', 6, 'asic', 'Per port')),
+    inside('module', 'fingers', 'In at the edge', 'The lane arrives on the edge connector’s gold fingers, one of eight transmit lanes. Eight more leave on other fingers: the receive side.', card('data', 6, 'fingers', 'Host lanes')),
+    inside('module', 'dsp', 'Cleaned up', d('module', 'dsp').body, card('data', 6, 'dsp', 'What it does')),
+    inside('module', 'driver', 'The driver', d('module', 'driver').body, card('data', 6, 'driver', 'LPO keeps')),
+    inside('module', 'mzm', 'Onto light', d('module', 'mzm').body, card('data', 6, 'mzm', 'Kind')),
+    inside('module', 'mpo', 'Out on its own fiber', d('module', 'mpo').body, card('data', 6, 'mpo', 'Connectors'), card('data', 6, 'mpo', 'Fibers lit')),
+    inside('cpo', 'serdes', 'The same lane, co-packaged', `${d('cpo', 'serdes').body} Compare like with like: the module you just left carries 1.6 Tb/s each way, and so does one optical engine here. This package holds 18 of them.`, card('data', 7, 'rings', 'Per engine'), card('data', 7, 'serdes', 'Electrical loss')),
+    inside('cpo', 'eic', 'The driver, micrometers from the light', d('cpo', 'eic').body, card('data', 7, 'eic', 'Engine stack')),
+    inside('cpo', 'rings', 'Onto light, by a ring', d('cpo', 'rings').body, card('data', 7, 'rings', 'Modulators')),
+    inside('cpo', 'els', 'Light from the front panel', d('cpo', 'els').body, card('data', 7, 'els', 'Laser modules')),
+    inside('cpo', 'fiberout', 'Out through the package edge', `${d('cpo', 'fiberout').body} The power per port is where the two designs part ways, by NVIDIA’s own figures.`, card('data', 7, 'fiberout', 'Fibers per engine'), card('data', 7, 'asic', 'Per port')),
   ]);
 }
 
@@ -325,12 +328,13 @@ export function layer(M, mode, only = null) {
   });
   return out;
 }
-const SIDE_NAME = { module: 'the pluggable module', cpo: 'the co-packaged switch', copper: 'the copper cable heads', coherent: 'the coherent module' };
-function sideTrip(C, key, mode, name, half, parent) {
-  const side = C.SCENES.findIndex(sc => sc.side), sc = C.SCENES[side], parts = (C[key][sc.id] || []).filter(p => p.half === half);
+const SIDE_NAME = { module: 'the pluggable module', cpo: 'the CPO package', copper: 'the copper cables', coherent: 'the coherent module' };
+// a side trip: every part of the side level a door opens, in that level's own order
+function sideTrip(C, key, mode, name, trip, parent) {
+  const side = C.SCENES.findIndex(sc => sc.id === trip), parts = C[key][trip] || [];
   return parts.map((p, j) => ({
-    link: { scene: side, mode, part: p.id }, parent, trip: half, k: `${name} · Side trip · Inside ${SIDE_NAME[half]}`, title: p.title, text: p.body,
-    specs: p.specs, specKey: `card:${mode}:${sc.id}:${p.id}`, tally: `Side trip · ${j + 1} of ${parts.length}`,
+    link: { scene: side, mode, part: p.id }, parent, trip, k: `${name} · Side trip · Inside ${SIDE_NAME[trip]}`, title: p.title, text: p.body,
+    specs: p.specs, specKey: `card:${mode}:${trip}:${p.id}`, tally: `Side trip · ${j + 1} of ${parts.length}`,
   }));
 }
 // in, out, in: each layer starts on the level the one before it ended on

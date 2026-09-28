@@ -22,7 +22,7 @@ for (const s of combos) {
     ifx.setScenario(s);
     const M = ifx.store.M, key = `${M.accel.id} ${M.power.id} ${M.cooling.id} ${Math.round(M.meterMW)}${M.scenario.site ? ` ${M.scenario.site}` : ""}${M.stage != null ? ` stage ${M.stage}` : ""}`;
     const out = [], C = ifx.store.C, by = { power: C.PARTS, data: C.PARTS_DATA, heat: C.PARTS_HEAT };
-    for (let i = 0; i < 7; i++) {   // six levels and the side level inside the optics
+    for (let i = 0; i < 10; i++) {   // six levels and the four side levels inside the links
       await ifx.go(i, null, { force: true, keepCamera: true });
       await new Promise(r => { const t = () => (ifx.built[i] && ifx.built[i].model === ifx.store.M && ifx.state.scene === i ? r() : requestAnimationFrame(t)); t(); });
       const bb = ifx.built[i];

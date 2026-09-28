@@ -20,7 +20,7 @@ const scenarios = [
 ];
 for (const s of scenarios) {
   await p.evaluate(s => window.ifx.setScenario(s), s);
-  for (let sc = 0; sc < 7; sc++) {   // six levels and the side level inside the optics
+  for (let sc = 0; sc < 10; sc++) {   // six levels and the four side levels inside the links
     await p.evaluate(i => window.ifx.go(i), sc);
     await p.waitForFunction(i => window.ifx.state.scene === i, sc, { timeout: 90000 });
     for (const mode of ['power', 'data', 'heat']) {

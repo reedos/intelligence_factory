@@ -8,8 +8,8 @@ const p = await b.newPage({ viewport: { width: 1000, height: 700 } });
 p.on('pageerror', e => console.log('pageerror', e.message));
 await p.goto(process.env.URL || 'http://127.0.0.1:47400/');
 await p.waitForFunction(() => window.ifx && window.ifx.state.scene === 0, null, { timeout: 90000 });
-const names = ['across', 'campus', 'hall', 'rack', 'tray', 'chip', 'optics'];
-for (let sc = 0; sc < 7; sc++) {   // six levels and the side level inside the optics
+const names = ['across', 'campus', 'hall', 'rack', 'tray', 'chip', 'module', 'cpo', 'coherent', 'copper'];
+for (let sc = 0; sc < 10; sc++) {   // six levels and the four side levels inside the links
   await p.evaluate(i => window.ifx.go(i), sc); await p.waitForFunction(i => window.ifx.state.scene === i, sc);
   const res = await p.evaluate(() => {
     const w = window.ifx, B = w.built[w.state.scene], cam = B.camera;

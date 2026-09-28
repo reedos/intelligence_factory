@@ -23,7 +23,7 @@ const scenarios = [
   ['GB300 5 GW DC', { meterMW: 5000, accel: 'gb300', power: 'dc800', cooling: 'warm', site: undefined }],
   ['H100 1 GW air', { meterMW: 1000, accel: 'h100', power: 'ac415', cooling: 'air', site: undefined }],
 ];
-const NAMES = ['across', 'campus', 'hall', 'rack', 'tray', 'chip', 'optics'];
+const NAMES = ['across', 'campus', 'hall', 'rack', 'tray', 'chip', 'module', 'cpo', 'coherent', 'copper'];
 const measure = () => new Promise(res => {
   const R = ifx.renderer(), ts = []; let last = performance.now(), n = 0, calls = 0, tris = 0;
   const tick = now => {
@@ -38,7 +38,7 @@ const measure = () => new Promise(res => {
 const rows = [];
 for (const [label, s] of scenarios) {
   await p.evaluate(s => ifx.setScenario(s), s);
-  for (let sc = 0; sc < 7; sc++) {   // six levels and the side level inside the optics
+  for (let sc = 0; sc < 10; sc++) {   // six levels and the four side levels inside the links
     await p.evaluate(i => ifx.go(i), sc);
     await p.waitForFunction(i => ifx.state.scene === i && ifx.built[i], sc, { timeout: 90000 });
     for (const mode of ['power', 'data', 'heat']) {

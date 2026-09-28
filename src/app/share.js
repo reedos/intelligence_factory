@@ -23,7 +23,7 @@ const v = new URLSearchParams(location.search).get('view');
 if (v) {
   const [scene, mode, part] = v.split('.');
   const s = +scene;
-  if (s >= 0 && s <= 6 && MODES.includes(mode)) {
+  if (s >= 0 && s <= 9 && MODES.includes(mode)) {
     const wait = setInterval(() => { if (store.ui.scene >= 0) { clearInterval(wait); show({ scene: s, mode, part: part || null }, { scroll: s > 0 || !!part }); } }, 100);
   }
 }

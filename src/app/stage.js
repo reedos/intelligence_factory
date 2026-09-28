@@ -20,25 +20,31 @@ import * as rack from '../scenes/rack.js';
 import * as tray from '../scenes/tray.js';
 import * as chip from '../scenes/chip.js';
 import * as across from '../scenes/across.js';
-import * as optics from '../scenes/optics.js';
+import * as sideModule from '../scenes/side-module.js';
+import * as sideCpo from '../scenes/side-cpo.js';
+import * as sideCoherent from '../scenes/side-coherent.js';
+import * as sideCopper from '../scenes/side-copper.js';
 
-// six levels in a line, outermost first, then the side level: inside the optics, entered from a module cage on the
-// tray or the CPO switch in the hall, and left back to whichever of those the reader came from
-const BUILDERS = [across, campus, hall, rack, tray, chip, optics];
-export const MAIN_LEVELS = 6, SIDE = 6;
+// six levels in a line, outermost first, then the side levels inside the links, each its own diagram: the module, the
+// CPO package, the coherent module, the copper cables. Each is entered from the part that holds it and left back to
+// the level the reader came from.
+const BUILDERS = [across, campus, hall, rack, tray, chip, sideModule, sideCpo, sideCoherent, sideCopper];
+export const MAIN_LEVELS = 6, MODULE_LEVEL = 6;
+export const isSide = i => i >= MAIN_LEVELS;
 let sideFrom = 4, sideVia = null;                          // the level the reader entered the side level from, and the part
 // where a part's go-button leads: a number, or 'out' for the side level's way back
 export const drillOf = p => p?.drill === 'out' ? sideFrom : p?.drill;
-// whether moving from one level to another goes in (the side level counts as inside whatever it was entered from)
 // the pluggable module inside the optics, with its DSP or without (LPO); a view of the module only, since the
 // fabric this scenario counts still uses DSP modules
 let lpoOn = false;
 function applyVariant() {
-  built[SIDE]?.variant?.setLpo(lpoOn);
+  built[MODULE_LEVEL]?.variant?.setLpo(lpoOn);
   document.querySelectorAll('[data-variant]').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.variant === 'lpo') === lpoOn)));
 }
 document.querySelectorAll('[data-variant]').forEach(b => b.addEventListener('click', () => { lpoOn = b.dataset.variant === 'lpo'; applyVariant(); }));
-export const isInward = (from, to) => to === SIDE ? from !== SIDE : from === SIDE ? false : to > from;
+// whether moving from one level to another goes in: a side level counts as inside whatever it was entered from, and
+// moving between two side levels (a tour crossing from the module to the CPO package) goes across, drawn as in
+export const isInward = (from, to) => isSide(to) ? true : isSide(from) ? false : to > from;
 
 // per scene defaults: bloom, ambient occlusion radius (world units, 0 = off), exposure. A scene can override any of
 // these, and pick its lighting environment and depth of field, by returning `look` from build():
@@ -50,7 +56,10 @@ const LOOK = [
   { bloom: 0.55, threshold: 1.0, ao: 0.06, exposure: 1.0 },
   { bloom: 0.55, threshold: 1.35, ao: 0.12, exposure: 0.95 },
   { bloom: 0.6, threshold: 1.7, ao: 0.15, exposure: 0.95 },
-  { bloom: 0.6, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // inside the optics
+  { bloom: 0.6, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // inside the module
+  { bloom: 0.6, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // the CPO package
+  { bloom: 0.6, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // the coherent module
+  { bloom: 0.5, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // the copper cables
 ];
 function legends(M) {
   const dc = M.power.id === 'dc800', nvl = M.accel.gpusPerRack === 72, warm = M.cooling.id === 'warm';
@@ -64,7 +73,10 @@ function legends(M) {
       nvl ? [rackIn, ['dc', '≈50 V DC'], ['cool', 'Supply'], ['warm', 'Return']] : [['lv', '415 V AC'], ['dc', '54 V DC, in the server']],
       nvl ? [['dc', '≈50 V'], ['bus12', '12 V'], ['core', '≈0.8 V'], ['cool', 'Supply'], ['warm', 'Return']] : [['lv', '240 V AC in'], ['dc', '54 V'], ['bus12', '12 V'], ['core', '≈0.8 V']],
       [['core', '≈0.8 V, rising']],
-      [['v33', '3.3 V into the module'], ['core', 'Sub-volt rails'], ['cw', 'Laser light, no data']],
+      [['v33', '3.3 V into the module'], ['core', 'Sub-volt rails']],
+      [['core', 'Package power'], ['v33', 'Engines and laser modules']],
+      [['v33', '3.3 V into the module'], ['core', 'Sub-volt rails']],
+      [['v33', 'Port power, active cables only']],
     ],
     data: [
       [['dci', 'DWDM routes']],
@@ -73,7 +85,10 @@ function legends(M) {
       nvl ? [['nvl', 'Scale-up, NVLink copper'], ['eth', 'Scale-out, optical']] : [['nvl', 'NVLink, inside one server'], ['eth', 'Scale-out, optical']],
       nvl ? [['nvl', 'NVLink'], ['c2c', 'NVLink-C2C'], ['eth', 'To the NIC and optics']] : [['nvl', 'NVLink'], ['pcie', 'PCIe'], ['eth', 'To the optics']],
       M.accel.dies > 1 ? [['hbm', 'HBM'], ['hbi', 'Die to die'], ['nvl', 'NVLink out']] : [['hbm', 'HBM'], ['nvl', 'NVLink out']],
-      [['eth', 'Electrical lanes'], ['tx', 'Light out, transmit'], ['rx', 'Light in, receive'], ['cw', 'Laser light, no data']],
+      [['eth', 'Electrical, copper'], ['tx', 'Light out, transmit'], ['rx', 'Light in, receive'], ['cw', 'Laser light, no data']],
+      [['eth', 'Electrical, copper'], ['tx', 'Light out, transmit'], ['rx', 'Light in, receive'], ['cw', 'Laser light, no data']],
+      [['eth', 'Electrical, copper'], ['tx', 'Light out, transmit'], ['rx', 'Light in, receive'], ['cw', 'Laser light, no data']],
+      [['eth', 'Electrical pairs, both directions']],
     ],
     heat: [
       [['hv', 'Grid, for reference']],
@@ -84,7 +99,10 @@ function legends(M) {
       nvl ? (M.accel.liquidShare < 0.99 ? [['cool', 'Supply'], ['warm', 'Return'], ['air', 'Exhaust air']] : [['cool', 'Supply'], ['warm', 'Return']]) : [['cool', 'Cold air in'], ['air', 'Hot air out']],
       nvl ? [['hot', 'Heat into the plates'], ['cool', 'Supply'], ['warm', 'Return'], ['air', 'Fan air']] : [['hot', 'Heat into the sinks'], ['air', 'Air through the server']],
       [['hot', `Heat out of the ${M.accel.dies > 1 ? 'dies' : 'die'}`], ['air', 'Out of HBM']],
-      [['hot', 'Heat out of the chips'], ['air', 'Air through the fins'], ['cool', 'Water through the plate']],
+      [['hot', 'Heat out of the chips'], ['air', 'Air through the fins']],
+      [['hot', 'Heat into the plate'], ['cool', 'Water through the plate']],
+      [['hot', 'Heat out of the chips']],
+      [['hot', 'Little heat']],
     ],
   };
 }
@@ -541,7 +559,7 @@ function renderSteps() {
     b.innerHTML = `<span class="top"><span class="n">${s.n}</span><span class="t">${s.title}</span></span><span class="meta"><span class="dot"></span><span>${v.short} · ${s.scale}</span></span>`;
     b.setAttribute('aria-label', `${s.n}. ${s.title}, ${v.name}`);
     if (i === ui.scene) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
-    if (i === SIDE) { b.classList.add('side'); b.hidden = ui.scene !== SIDE; }
+    if (isSide(i)) { b.classList.add('side'); b.hidden = ui.scene !== i; }
   });
 }
 
@@ -572,7 +590,7 @@ function buildPanel(i) {
   const s = SCENES()[i], parts = partsFor(i);
   $('intro').textContent = { power: s.intro, data: s.dataIntro, heat: s.heatIntro }[ui.mode];
   $('hud-title').textContent = s.side ? s.title : `${s.n}. ${s.title}`;
-  $('optics-variant').hidden = i !== SIDE;
+  $('optics-variant').hidden = i !== MODULE_LEVEL;
   $('hud-sub').textContent = `${voltFor(s).name} · ${s.scale}`;
   const list = $('parts'); list.innerHTML = '';
   $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · ${s.side ? 'inside the links' : `level ${s.n}`} · ${parts.length} parts`;
@@ -668,7 +686,7 @@ function stepIris(dt) {
 }
 function jumpLabel(from, to) {
   const a = SCENES()[from], b = SCENES()[to];
-  const where = to === SIDE ? `In · inside level ${a.n}` : from === SIDE ? `Out · level ${b.n} of ${MAIN_LEVELS}` : `${to > from ? 'In' : 'Out'} · level ${b.n} of ${MAIN_LEVELS}`;
+  const where = isSide(to) && isSide(from) ? 'Across' : isSide(to) ? `In · inside level ${a.n}` : isSide(from) ? `Out · level ${b.n} of ${MAIN_LEVELS}` : `${to > from ? 'In' : 'Out'} · level ${b.n} of ${MAIN_LEVELS}`;
   return `<div class="jump"><span class="jump-k">${where}</span><b>${b.title}</b><span class="jump-s">${a.scale} → ${b.scale}</span></div>`;
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -682,7 +700,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   busy = true; goingTo = i;
   const veil = $('veil');
   const same = i === ui.scene;
-  if (i === SIDE && ui.scene !== SIDE && ui.scene >= 0) { sideFrom = ui.scene; sideVia = fromId; }   // whichever level and part the reader came in by
+  if (isSide(i) && !isSide(ui.scene) && ui.scene >= 0) { sideFrom = ui.scene; sideVia = fromId; }   // whichever level and part the reader came in by
   const from = ui.scene, inward = isInward(from, i), T = TRANSITIONS[transitions] / Math.sqrt(cinema ? tourPace : 1);
   const cut = reduced || transitions === 'instant';
   const travel = from >= 0 && !same && !cut;              // a level transition, rather than the first load or a rebuild
@@ -698,8 +716,8 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
     view.classList.add('diving');
     veil.innerHTML = jumpLabel(from, i);                   // the next level's name, revealed as the view closes around it
     // the side level has more than one way in (the hall's pluggables and its CPO switch): dive at the one picked
-    const via = i === SIDE && fromId ? hotspotsFor(from)[fromId] : null;
-    let portal = via ? V(via.pos) : inward ? portalOf(from, i === SIDE ? SIDE : from + 1) : null;
+    const via = isSide(i) && fromId ? hotspotsFor(from)[fromId] : null;
+    let portal = via ? V(via.pos) : inward ? portalOf(from, isSide(i) ? i : from + 1) : null;
     if (inward && !portal && fromId) { const h = hotspotsFor(from)[fromId]; if (h) portal = V(h.pos); }
     if (portal) {                                          // dive at the part that holds the next level
       glide(portal.clone().lerp(camera.position, 0.05), portal, 0.95 * T, easeIn2);
@@ -721,7 +739,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   ui.scene = i;
   DETAIL.unit.value = SCENES()[i].unit;                   // surface detail at this scale's real size
   if (mobile) built.forEach((bb, j) => { if (bb && Math.abs(j - i) > 1) { disposeScene(bb); disposeComposer(composers[j]); built[j] = undefined; composers[j] = undefined; } });
-  const c = (i === SIDE && b.cameraFrom?.[sideVia]) || b.camera;   // the side level opens on the half you came in for
+  const c = (isSide(i) && b.cameraFrom?.[sideVia]) || b.camera;   // the side level opens on the half you came in for
   camera.near = c.near; camera.far = c.far; camera.updateProjectionMatrix();
   controls.minDistance = c.min; controls.maxDistance = c.max;
   renderer.toneMappingExposure = lookOf(i).exposure;
@@ -731,8 +749,8 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
     const tgt = V(c.target), end = view.clientWidth / view.clientHeight < 0.9 ? tgt.clone().lerp(V(c.pos), 0.72) : V(c.pos);
     if (travel) {
       // in: from right up against the new level, as if the dive carried on; out: from the part just left
-      const outVia = from === SIDE && sideVia ? hotspotsFor(i)[sideVia] : null;   // back out at the part the reader went in by
-      const back = inward ? null : outVia ? V(outVia.pos) : portalOf(i, from === SIDE ? SIDE : i + 1);
+      const outVia = isSide(from) && !isSide(i) && sideVia ? hotspotsFor(i)[sideVia] : null;   // back out at the part the reader went in by
+      const back = inward ? null : outVia ? V(outVia.pos) : portalOf(i, isSide(from) ? from : i + 1);
       const aim = back || tgt;
       tween = null; drift = null;                          // the dive's own move ends here, not under the new level
       camera.position.copy(aim.clone().lerp(end, inward ? 0.08 : 0.06)); controls.target.copy(aim); controls.update();
@@ -745,7 +763,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
       flyTo(end.toArray(), c.target, from >= 0 && cut ? 0.01 : 1.6);   // the first load still flies in
     }
   }
-  if (i === SIDE) applyVariant();
+  if (i === MODULE_LEVEL) applyVariant();
   buildPanel(i);
   renderSteps();
   applyTier(i);
