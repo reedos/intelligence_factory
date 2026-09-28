@@ -134,6 +134,10 @@ function tick(dt) {
   }
   draw();
 }
+// tour audit finding 17: the clock always runs at its own speed() (below, in tick()), never at the tour's
+// playback pace, so story.js polls this to hold a sim beat until the simulation itself has reached the moment
+// the beat is there to show, instead of a fixed dwell that a fast tour would blow through
+export const clockNow = () => ({ id: sim?.id ?? null, t, events: sim?.events || [] });
 export function openClock(id = sim?.id || 'training') {
   if (!strip.hidden && sim?.id === id) return;           // already running this one; leave its clock where it is
   strip.hidden = false; document.body.classList.add('clocking');
