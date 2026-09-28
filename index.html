@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">  <!-- until the phone check; remove to let search engines in -->
 <title>The Intelligence Factory</title>
-<meta name="description" content="Zoom from a 2,000 km grid into one AI campus and down to a GPU die at 0.8 V: power, data and heat at six scales, with every number sourced.">
+<meta name="description" content="Zoom from a 2,000 km grid into one AI campus and down to a GPU die at 0.8 V: power, data and heat at six scales, every figure labeled by where it comes from.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -36,7 +36,7 @@
     <p class="eyebrow">Power · Data · Heat · Six scales</p>
     <h1 id="hero-h">The Intelligence Factory</h1>
     <p class="tagline"><span class="v1">Electricity in.</span> <span class="v2">Intelligence out.</span></p>
-    <p class="lede">Follow the power from the plants on a 2,000 km grid into one AI campus: 345,000 volts at the fence, down through the substation, the halls, a rack and a tray, to 0.8 V at a GPU die, and out as tokens. Switch to the data layer to follow the links back out, or to heat to follow every watt to the sky. Every number says where it comes from.</p>
+    <p class="lede">Follow the power from the plants on a 2,000 km grid into one AI campus: 345,000 volts at the fence, down through the substation, the halls, a rack and a tray, to 0.8 V at a GPU die, and out as tokens. Switch to the data layer to follow the links back out, or to heat to follow every watt to the sky. Every figure carries a label for what backs it — a published spec, a vendor claim, a third party's report, or this page's own math or assumption.</p>
     <div class="hero-actions"><a class="btn go" href="#tour-story" id="story-hero-play">▶ Play the overview</a><a class="btn" href="#explore" id="hero-explore">Explore the campus</a><span class="hint-inline">or follow <a href="#tour-watt" data-tour-start="watt">a watt</a>, <a href="#tour-request" data-tour-start="request">a request</a> or <a href="#tour-heat" data-tour-start="heat">the heat</a></span></div>
   </div>
   <p class="hero-cap" id="hero-cap">Illustration, drawn by an image model from this site's campus layout</p>
@@ -44,7 +44,7 @@
 <main class="wrap">
   <header class="chapter" id="explore" style="--c: var(--accent)">
     <p class="ch-k"><span>01</span>Visualizer</p>
-    <p class="ch-s">Set up a campus, then fly through it at six scales in three layers. Every pin is a part with its numbers and sources.</p>
+    <p class="ch-s">Set up a campus, then fly through it at six scales in three layers. Every pin is a part with its own numbers, each labeled by what backs it.</p>
   </header>
   <section class="scenario" aria-labelledby="sc-h">
     <div class="sc-head">
@@ -290,13 +290,13 @@
           <div class="stat"><span class="sv" id="o-water">–</span><span class="sl">mL water per reply, on site</span></div>
         </div>
         <ul class="refs">
-          <li><span>Google, median Gemini text prompt (2025). Includes idle capacity, host CPU and DRAM, PUE and embodied hardware; excludes training</span><span><b>0.24 Wh · 0.03 g · 0.26 mL</b> <span class="chip spec">Spec</span></span></li>
+          <li><span>Google, median Gemini text prompt (2025). Includes idle capacity, host CPU and DRAM, and PUE overhead; excludes training. Google's own write-up doesn't mention embodied hardware, so this page doesn't count that as included</span><span><b>0.24 Wh · 0.03 g · 0.26 mL</b> <span class="chip reported">Reported</span></span></li>
           <li><span>Llama 3.1 405B pretraining (Meta model card), location-based</span><span><b>39.3M H100 GPU-hours · 11,390 t CO₂e</b> <span class="chip spec">Spec</span></span></li>
-          <li><span>GPT-4 training electricity (Epoch AI reconstruction)</span><span><b>≈52–62 GWh</b> <span class="chip est">Est.</span></span></li>
+          <li><span>GPT-4 training electricity (Epoch AI reconstruction)</span><span><b>≈52–62 GWh</b> <span class="chip reported">Reported</span></span></li>
           <li><span>Embodied carbon, HGX H100 board of 8 GPUs (NVIDIA)</span><span><b>1,312 kg CO₂e</b> <span class="chip spec">Spec</span></span></li>
-          <li><span>LLaMA-65B on A100, GPU only (Samsi et al., 2023)</span><span><b>3–4 J/token</b> <span class="chip spec">Spec</span></span></li>
-          <li><span>DeepSeek-R1 decode on GB200, per GPU (SemiAnalysis)</span><span><b>≈13k tok/s</b> <span class="chip typical">Typical</span></span></li>
-          <li><span>GB200 NVL72 vs H200, tokens per MW</span><span><b>≈8–10×</b> <span class="chip typical">Typical</span></span></li>
+          <li><span>LLaMA-65B on A100, GPU only (Samsi et al., 2023)</span><span><b>3–4 J/token</b> <span class="chip reported">Reported</span></span></li>
+          <li><span>DeepSeek-R1 decode on GB200, per GPU (SemiAnalysis)</span><span><b>≈13k tok/s</b> <span class="chip reported">Reported</span></span></li>
+          <li><span>NVIDIA: GB200 NVL72 vs H200, tokens per MW</span><span><b>≈8–10×</b> <span class="chip vendor">Vendor</span></span></li>
         </ul>
       </div>
     </div>
@@ -312,7 +312,7 @@
   </section>
 
   <footer class="sources">
-    <div class="basis-key"><span class="chip spec">Spec</span> a vendor or standards body states it <span class="chip typical">Typical</span> trade press or reference designs agree <span class="chip est">Est.</span> derived here, or sources conflict</div>
+    <div class="basis-key"><span class="chip spec">Spec</span> the maker or a standard states it <span class="chip vendor">Vendor</span> a vendor's own claim, not checked independently <span class="chip reported">Reported</span> a named third party states it <span class="chip derived">Derived</span> this page calculates it <span class="chip assumed">Assumed</span> chosen here, no single figure applies — click any chip for that figure's own evidence, or see <a href="method.html">Method</a> and <a href="evidence.html">Evidence</a>. A few figures not yet traced this way still carry an older "Typical" or "Est." label.</div>
     <p>Key sources: </p>
     <ul>
       <li><a href="https://www.eia.gov/tools/faqs/faq.php?id=105&amp;t=5">EIA, T&amp;D losses averaged about 5%, 2018–2022</a></li>
