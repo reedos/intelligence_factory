@@ -5,7 +5,7 @@ import { compute, DEFAULT_SCENARIO } from '../model/engine.ts';
 import { content } from '../data.js';
 import { BASIS, CALCS, ASSUMPTIONS, CITED } from '../evidence.js';
 import { allClaims } from '../claims.js';
-import { SOURCES, PART_SOURCES, LEDGER_SOURCES } from '../sources.js';
+import { SOURCES } from '../sources.js';
 import '../app/site.js';
 
 const $ = id => document.getElementById(id);
@@ -38,12 +38,7 @@ function backing(c) {
     if (ev.assume && ASSUMPTIONS[ev.assume]) bits.push(`Assumed: ${esc(ASSUMPTIONS[ev.assume].title)}, ${esc(ASSUMPTIONS[ev.assume].value)}. ${method(`assume-${ev.assume}`, 'Why')}`);
     return bits.map(b => `<p class="ev-back">${b}</p>`).join('');
   }
-  // not yet traced one by one: the sources its card or row listed as a whole, labeled as such
-  const [kind, ...rest] = c.key.split(':');
-  const ids = kind === 'card' ? PART_SOURCES[`${rest[0]}:${rest[1]}:${rest[2]}`] || []
-    : kind === 'ledger' ? LEDGER_SOURCES.find(([p]) => c.label.startsWith(p))?.[1] || []
-    : kind === 'links' ? PART_SOURCES[c.key] || [] : kind === 'site' ? c.site?.sources || [] : [];
-  return `<p class="ev-back ev-todo">Not yet traced to this figure.${ids.length ? ` Listed for the ${kind === 'card' ? 'card' : 'row'}: ${ids.map(id => srcLine(id, '')).join('<span aria-hidden="true"> · </span>')}` : ''}</p>`;
+  return '<p class="ev-back ev-todo">Not traced to a source, a calculation or an assumption.</p>';
 }
 const row = c => `<div class="ev-claim"><dt>${esc(c.label)}</dt><dd>${esc(c.value)}</dd><span class="chip ${c.basis}">${BASIS[c.basis]?.short || c.basis}</span>${backing(c)}</div>`;
 const view = (i, mode, id) => `index.html?view=${i}.${mode}.${id}#explore`;

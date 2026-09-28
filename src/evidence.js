@@ -33,8 +33,8 @@ export const BASIS = {
 };
 export const CITED = new Set(['spec', 'vendor', 'reported']);
 
-// Until every claim is traced, a claim may still carry a legacy label and no evidence; STRICT makes that a test failure.
-export const STRICT = false;
+// Every claim is traced: a legacy label, or a claim with no evidence, is a test failure (tools/claims.mjs reports it too).
+export const STRICT = true;
 
 // the evidence carried by a claim row, wherever it sits
 export function evOf(row) {

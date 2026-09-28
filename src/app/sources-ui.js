@@ -1,8 +1,7 @@
 // Source popovers. A basis chip with data-src names one claim (src/claims.js); its popover says what the label means
 // and what backs that one figure: each source with where in it the figure is, when it was published and when it was
-// checked; or how the model calculates it; or what the model assumes and why. Claims not yet traced one by one fall
-// back to the sources listed for their whole card, and say so.
-import { SOURCES, PART_SOURCES, LEDGER_SOURCES } from '../sources.js';
+// checked; or how the model calculates it; or what the model assumes and why.
+import { SOURCES } from '../sources.js';
 import { BASIS, CALCS, ASSUMPTIONS } from '../evidence.js';
 import { claimByKey } from '../claims.js';
 import { store } from './store.js';
@@ -21,15 +20,6 @@ const refItem = ([id, at]) => {
   return `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a><span>${esc(s.publisher)}${at ? ` · ${esc(at)}` : ''}</span>${dated(s) ? `<span class="sp-d">${dated(s)}</span>` : ''}</li>`;
 };
 
-// the sources a card or ledger row listed as a whole, before its figures were traced one by one
-function legacyIds(key) {
-  if (key.startsWith('card:')) { const [, mode, scene, part] = key.split(':'); return PART_SOURCES[`${mode}:${scene}:${part}`] || []; }
-  if (key.startsWith('ledger:')) { const r = store.M.ledger[+key.slice(7)]; return (r && LEDGER_SOURCES.find(([p]) => r.label.startsWith(p))?.[1]) || []; }
-  if (key.startsWith('links:')) return PART_SOURCES[key] || [];
-  if (key.startsWith('site:')) { const s = claimByKey(store.M, store.C, key)?.site; return s?.sources || []; }
-  return [];
-}
-
 function body(key) {
   const c = claimByKey(store.M, store.C, key);
   const basis = c?.basis && BASIS[c.basis] ? c.basis : 'est', b = BASIS[basis], ev = c?.ev;
@@ -43,10 +33,7 @@ function body(key) {
     if (ev.refs?.length) html += `<p class="sp-k">${ev.calc ? 'Its published inputs' : 'Sources for this figure'}</p><ul>${ev.refs.map(refItem).join('')}</ul>`;
     return html;
   }
-  const ids = legacyIds(key).filter(id => SOURCES[id]);
-  return head + (ids.length
-    ? `<p class="sp-k">Sources for this ${key.startsWith('card:') ? 'card' : 'row'}, not yet matched to this figure</p><ul>${ids.map(id => refItem([id, ''])).join('')}</ul>`
-    : '<p class="sp-k">Not yet traced to a source, a calculation or an assumption.</p>');
+  return head + '<p class="sp-k">Not traced to a source, a calculation or an assumption.</p>';
 }
 
 function open(chip) {
