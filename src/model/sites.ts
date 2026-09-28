@@ -1,6 +1,6 @@
 // Real campuses and state grid carbon, for presets and the map. Sources: research/scenario-sources.md, sections E and F.
 // A preset sets the four scenario choices to the closest match; every choice the owner has not disclosed says so.
-import type { Scenario, Basis } from './engine';
+import type { Scenario, Basis, Ev } from './engine';
 
 export type SiteId = 'abilene' | 'colossus1' | 'colossus2' | 'fairwater-atl' | 'fairwater-wi' | 'hyperion' | 'rainier' | 'prometheus';
 
@@ -26,7 +26,7 @@ export interface Site {
   id: SiteId; name: string; owner: string; place: string; lat: number; lon: number; state: string;
   scenario: Omit<Scenario, 'site'>;
   carbonG: number; carbonNote: string;
-  facts: [string, string, Basis][];
+  facts: ([string, string, Basis] | [string, string, Basis, Ev])[];
   unknowns: string[];               // what the preset had to assume
   sources: string[];                // ids in src/sources.js
   status: Status;

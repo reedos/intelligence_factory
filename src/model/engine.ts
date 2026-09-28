@@ -2,7 +2,10 @@
 // PUE, rack count, network size, the power ledger, the voltage and bandwidth staircases, and inventory counts.
 // Nothing here touches the DOM or Three.js, so it is tested directly (engine.test.ts).
 
-export type Basis = 'spec' | 'typical' | 'est';
+// what kind of statement a figure is, and what backs it (src/evidence.js); 'typical' and 'est' are the labels
+// figures carried before they were traced one by one
+export type Basis = 'spec' | 'vendor' | 'reported' | 'derived' | 'assumed' | 'typical' | 'est';
+export interface Ev { refs?: [string, string][]; vs?: string; calc?: string; assume?: string }
 export type AccelId = 'h100' | 'gb200' | 'gb300' | 'rubin';
 export type PowerId = 'ac415' | 'dc800';
 export type CoolingId = 'air' | 'liquid' | 'warm';
@@ -129,7 +132,7 @@ const FABRICS = {
 // Where a figure lives in 3D: scene index, layer and part id. The page uses it to jump from a chart row to the part.
 export interface Link { scene: number; mode: 'power' | 'data' | 'heat'; part: string }
 const L = (scene: number, part: string, mode: Link['mode'] = 'power'): Link => ({ scene, mode, part });
-export interface LedgerRow { label: string; mw: number; kind: 'loss' | 'overhead' | 'net' | 'work'; scene: number; basis: Basis; link?: Link }
+export interface LedgerRow { label: string; mw: number; kind: 'loss' | 'overhead' | 'net' | 'work'; scene: number; basis: Basis; ev?: Ev; link?: Link }
 
 export function compute(s: Scenario) {
   const accel = ACCELERATORS[s.accel];

@@ -4,7 +4,7 @@
 //   hotday     24 hours: outdoor heat raises cooling power; dry coolers turn to water above ≈35 °C
 //   inference  24 hours: demand follows people awake; idle GPUs still draw power
 // Pure functions of (model, time): the page samples them for charts, counters and the 3D flows.
-import { waterM3h, WATER, type Model } from './engine';
+import { waterM3h, WATER, type Model, type Basis, type Ev } from './engine';
 
 export type SimId = 'training' | 'outage' | 'hotday' | 'inference';
 export interface SimOpts { peakTrough?: number; hotMax?: number }
@@ -26,7 +26,7 @@ export interface Sim {
   series: Series[]; events: SimEvent[];
   sample: (t: number) => Sample;
   speed: (t: number) => number;    // simulated units per real second, for playback
-  notes: { text: string; basis: 'spec' | 'typical' | 'est' }[];
+  notes: { text: string; basis: Basis; ev?: Ev }[];
 }
 
 const clamp = (v: number, a = 0, b = 1) => Math.min(b, Math.max(a, v));
