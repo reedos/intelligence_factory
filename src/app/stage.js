@@ -383,6 +383,11 @@ function safeBox() {
 }
 function onScreen(pos, target, part, box) {
   _cam.copy(camera); _cam.position.copy(pos); _cam.lookAt(target); _cam.updateMatrixWorld();
+  // project at the view's size as it is now, not as the camera last saw it: a tour step that opens or closes the
+  // clock strip resizes the view before the ResizeObserver catches up, and a part framed at the old aspect can land
+  // off screen once it does (the overview's racks stop on a phone, right after the outage clock closes)
+  const w = view.clientWidth, h = view.clientHeight;
+  if (w && h) { _cam.aspect = w / h; _cam.fov = w / h < 0.9 ? 48 : 35; _cam.updateProjectionMatrix(); }
   const v = part.clone().project(_cam);
   return v.z < 1 && v.x > box.x0 && v.x < box.x1 && v.y > box.y0 && v.y < box.y1;
 }
