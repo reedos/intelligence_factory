@@ -407,15 +407,15 @@ export function content(M) {
   // and the fetches behind this commit for the exact quotes each ref location paraphrases.
   const EV6 = {
     h100: {
-      pack: { basis: 'reported', ev: { refs: [['techinsights-h100-cowos-s', 'body text: "Nvidia’s H100 is 7-die packaged on CoWoS-S"']] } },
+      pack: { basis: 'reported', ev: { refs: [['tomshardware-cowos-l-blackwell', 'body text, quoting NVIDIA CEO Jensen Huang: "We will also transition the CoWoS-S capacity to CoWoS-L" — said of Hopper, which "will use CoWoS-S"']] } },
       process: { basis: 'spec', ev: { refs: [['nvidia-hopper-architecture-indepth', 'body text: "TSMC 4N process customized for NVIDIA"']] } },
       transistors: { basis: 'spec', ev: { refs: [['nvidia-hopper-architecture-indepth', 'body text: "80 billion transistors"']] } },
-      dieRow: { basis: 'reported', ev: { refs: [['techinsights-h100-cowos-s', 'body text: "H100 GPU ASIC having a die size of 814mm2"']] } },
-      fluxDie: { basis: 'reported', ev: { refs: [['techinsights-h100-cowos-s', 'body text: die size 814 mm² (= 8.14 cm²)']] } },
-      layers: { basis: 'reported', ev: { refs: [['techinsights-h100-cowos-s', 'body text: "6 stacks of memory... with each stack being 16GB" (5 of 6 active, per NVIDIA’s own 80GB datasheet total); 16 GB at HBM3’s standard 8-Hi die count']] } },
-      hbm: { basis: 'spec', ev: { refs: [['nvidia-h100-datasheet', 'specifications table: 80GB HBM3, 3.35TB/s (SXM5)']] } },
-      nvlink: { basis: 'spec', ev: { refs: [['nvidia-hopper-architecture-indepth', 'body text: "900 GB/sec total bandwidth... 18 fourth-generation NVLink links at 25 GB/sec each"'], ['nvidia-h100-datasheet', 'specifications table: NVLink 900GB/s']] } },
-      pkgPower: { basis: 'spec', ev: { refs: [['nvidia-hopper-architecture-indepth', 'body text: SXM5 "700 Watts"'], ['nvidia-h100-datasheet', 'specifications table: "Up to 700W (configurable)"']] } },
+      dieRow: { basis: 'spec', ev: { refs: [['nvidia-hopper-architecture-indepth', 'body text: "a die size of 814 mm2"; also in the A100/H100 comparison table, "GPU Die Size ... 814mm2"']] } },
+      fluxDie: { basis: 'spec', ev: { refs: [['nvidia-hopper-architecture-indepth', 'body text: "a die size of 814 mm2" (= 8.14 cm²)']] } },
+      layers: { basis: 'reported', ev: { refs: [['tomshardware-hynix-hbm3-h100', 'body text: "each stack packs eight 2GB DRAM devices for a total of 16GB per package... the company kicks off production with 8-Hi stacks", shipping "for its H100 compute GPUs"']] } },
+      hbm: { basis: 'spec', ev: { refs: [['nvidia-h100-product-page', 'specifications table: "GPU Memory 80GB", "GPU Memory Bandwidth 3.35TB/s" (SXM5 column)']] } },
+      nvlink: { basis: 'spec', ev: { refs: [['nvidia-hopper-architecture-indepth', 'body text: "900 GB/sec total bandwidth... 18 fourth-generation NVLink links at 25 GB/sec each"'], ['nvidia-h100-product-page', 'specifications table: NVLink 900GB/s']] } },
+      pkgPower: { basis: 'spec', ev: { refs: [['nvidia-hopper-architecture-indepth', 'body text: SXM5 "700 Watts"'], ['nvidia-h100-product-page', 'specifications table: "Up to 700W (configurable)"']] } },
     },
     gb200: {
       pack: { basis: 'reported', ev: { refs: [['tomshardware-cowos-l-blackwell', 'headline and body: NVIDIA "shifts to CoWoS-L packaging for Blackwell GPU production"']] } },
@@ -474,7 +474,7 @@ export function content(M) {
       body: 'Every token a model writes is a pass through billions of weights. Run the numbers below to see how many a kilowatt-hour buys.',
       specs: [
         ['Google, median Gemini text prompt', '0.24 Wh, all-in', 'spec', { refs: [['google-inference-impact', 'body text: "the median Gemini Apps text prompt uses 0.24 watt-hours (Wh) of energy"']] }],
-        ['LLaMA-65B on A100, 2023', '≈3–4 J per token', 'spec', { refs: [['samsi-words-to-watts', 'Section IV.C: "with length 512, we see that it takes about 3-4 Joules for a output token"']] }],
+        ['LLaMA-65B on V100, 2023', '≈3–4 J per token', 'spec', { refs: [['samsi-words-to-watts', 'Section IV.C: "with length 512, we see that it takes about 3-4 Joules for a output token" — Figs. 6-7\'s 8/16/32-shard x-axis is the paper\'s V100 config (Table II: 65B needs 8 V100s but only 4 A100s)']] }],
         ['GB200 vs H200', '≈8× tokens per MW', 'reported', { refs: [['semianalysis-inferencex-inferencemax', 'body text: "single node H200 FP8 vs a GB200 NVL72 FP4 (without Multi Token Prediction)... ~8x improvement in token/s processed per all-in provisioned MW" (DeepSeek R1)']] }],
       ] },
   ];
@@ -695,7 +695,7 @@ export function content(M) {
         specs: [['Per GPU', nvlTB, EV6.nvlink.basis, EV6.nvlink.ev]] },
       { id: 'cpo', title: 'Light on the package', kicker: 'What comes next',
         body: 'Today the GPU speaks copper and a module turns it into light. Switches already carry optical engines on the package; bringing them to the GPU would let scale-up reach beyond one rack.',
-        specs: [[A.short, 'electrical I/O only', 'reported', { refs: [['nvidia-linkx-interconnect', 'product line description: NVLink scale-up ships today as DAC/ACC/AEC copper cables, not optical modules']] }]] },
+        specs: [[A.short, 'electrical I/O only', 'reported', { refs: [['nvidia-dgx-gb200-user-guide', 'hardware overview: "connected by NVLink through the NVLink passive copper cable cartridge backplane"']] }]] },
       { id: 'tokens', title: 'Tokens', kicker: 'What leaves',
         body: 'After all those links, the output is small: a few bytes per token, sent back out the front-end network to whoever asked.',
         specs: [['Per token of text', 'a few bytes', 'assumed', { assume: 'token-byte-size' }]] },

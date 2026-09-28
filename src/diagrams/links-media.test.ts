@@ -49,10 +49,16 @@ describe('audit 2026-09-27 — optics workstream invariants', () => {
     const row200 = COPPER_WALL.find(d => d.lane === 200)!;
     expect(row200.note).toMatch(/≥1/);
   });
-  // item 3: an LPO-vs-retimed power comparison must not silently swap in a different generation's capacity
-  it('the LPO row ties its 23–25 W comparison to a named 1.6T module, not an unlabeled "same lane rate"', () => {
+  // item 3, revised 09/28/2026 (tracing pass): the LPO row's 23-25 W retimed figure was previously tied to
+  // "a complete 1.6T DR8 module," but re-reading the cited Semtech source (blog.semtech.com, full text
+  // checked) found it never states a port/module capacity for either its ~10 W LPO figure or its ~23-25 W
+  // retimed figure -- no "1.6T", "800G" or "DR8" appears anywhere in the piece. Asserting "1.6T" here was
+  // itself the silent, unlabeled swap the original item 3 finding was trying to catch. The corrected
+  // invariant: the row must say the capacity is unstated, not assert one the source doesn't give.
+  it('the LPO row does not attribute an unstated port/module capacity to its 23–25 W comparison', () => {
     const lpo = MEDIA_LADDER.find(r => r.id === 'lpo')!;
-    expect(lpo.power).toMatch(/1\.6T/);
+    expect(lpo.power).not.toMatch(/1\.6T|800G/);
+    expect(lpo.power).toMatch(/capacity.*(not|isn.t) stated/i);
   });
   // reviewer pass: interconnect-sources.md:68 gives 800ZR ≈23-25 W separately from the longer-reach 800ZR+
   // variant at ≈26-30 W; a blended "23-30 W at 800ZR" figure misstates plain 800ZR's own draw

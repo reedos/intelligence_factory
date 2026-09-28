@@ -31,7 +31,7 @@ export const MEDIA_LADDER = [
     where: 'Short multi-rack scale-up hops — “the rack next door”',
     basis: 'reported',
     ev: { refs: [
-      ['nvidia-copper-dac-lacc-overview', 'defines LACC as a linear redriver/equalizer in each connector plug — amplifies and cleans the signal, no clock-and-data recovery'],
+      ['nvidia-copper-dac-lacc-overview', '"LACCs are essentially DAC cables with an additional IC in each end to boost the signal power and noise reduction. This cable uses a pre-emphasis type of circuit..." (an amplifying IC, not a DSP); the companion MCA4J80-Nxxx datasheet below calls the same part a "pre-emphasis equalizer IC"'],
       ['nvidia-mca4j80n-datasheet', 'MCA4J80-Nxxx datasheet: 3/4/5 m reach by wire gauge, 1.5 W max per end, at 100 Gb/s per lane on an 800G port'],
       ['viksnewsletter-acc-power', '"pushes copper out to 3 meters at 200G/lane for just a couple of watts per end"'],
     ] } },
@@ -44,7 +44,7 @@ export const MEDIA_LADDER = [
     ev: { refs: [
       ['nvidia-linkx-interconnect', '"AECs use digital signal processors (DSPs) at each end to restore and retime signals"'],
       ['credo-zeroflap-aec', 'product page: a 7 m 800G AEC, built on ahead of the 9 m part below'],
-      ['infraeo-9m-aec-release', '9 m 800G OSFP AEC, pre-FEC BER < 1E-8, built on Credo’s prior 7 m 800G AEC product'],
+      ['infraeo-9m-aec-release', '9 m 800G OSFP AEC, pre-FEC BER < 1E-8, built on Infraeo’s own prior 7 m 800G AEC (its release names no other maker; Credo’s separate 7 m part is the row above)'],
       ['viksnewsletter-acc-power', '"[AEC] burns around 20 watts per end"'],
       ['marvell-aec-prnewswire', 'Marvell’s own framing: AEC DSPs for server/NIC-to-ToR and switch-to-switch links'],
     ] } },
@@ -52,15 +52,15 @@ export const MEDIA_LADDER = [
     what: 'The module keeps the laser and photodetectors but drops the DSP; the host chip’s own SerDes drives and reads the line directly, doing the equalization the DSP used to.',
     reach: '500 m standard; ≈2 km in a DR variant',
     // Semtech states its own ≈10 W LPO target and ≈23–25 W fully-retimed baseline together, both at
-    // 200 Gb/s/lane signaling — but Semtech ties that 23–25 W figure specifically to a complete 1.6T DR8
-    // module elsewhere in the same piece, and never states the port capacity behind its 10 W LPO number.
-    // So this is a same-generation, same-lane-rate comparison, not a confirmed same-capacity one — don't
-    // paper over that by mechanically relabeling the LPO figure "1.6T" either.
-    power: '≈10 W target per port at 200 Gb/s per lane (Semtech; the exact port capacity isn’t stated) — Semtech’s own retimed baseline at that lane rate is a complete 1.6T DR8 module at 23–25 W, not an 800G one',
+    // 200 Gb/s/lane signaling — checked 09/28/2026 against the article's full text (4,160 words):
+    // Semtech never states a port/module capacity (no "1.6T", "800G" or "DR8" anywhere in the piece) for
+    // EITHER figure, so this is a same-generation, same-lane-rate comparison only, not a same-capacity
+    // one — don't attribute a capacity to either number that the source itself doesn't give.
+    power: '≈10 W target per port at 200 Gb/s per lane, vs. ≈23–25 W for a fully-retimed DSP module at the same lane rate — port/module capacity is not stated for either figure (Semtech)',
     where: 'Leaf-to-spine fabric links; early commercial deployment as of 2026',
     basis: 'spec',
     ev: { refs: [
-      ['semtech-200g-lpo-power-blog', '"200G LPO Power, Reach and Loss": Semtech’s own 200 Gb/s-per-lane ladder (retimed ≈23–25 W, LPO ≈10 W target), the 23–25 W figure tied elsewhere in the same piece to a complete 1.6T DR8 module'],
+      ['semtech-200g-lpo-power-blog', '"200G LPO Power, Reach and Loss": Semtech’s own 200 Gb/s-per-lane ladder ("currently 23 to 25 watts per module" retimed DSP, "targeting approximately 10 watts" LPO) — the article never states either figure’s port/module capacity'],
       ['lpo-msa-lightwave', 'LPO MSA’s 100 Gbps/lane spec completed March 31, 2025, a 200 Gbps/lane follow-on in development'],
     ] } },
   { id: 'dsp', cls: 'eth', name: 'DSP pluggable optics', scope: 'leaf to spine, hall to hall',
@@ -104,9 +104,9 @@ export const MEDIA_LADDER = [
     where: 'Leaf and spine switch packages; NVIDIA Quantum-X/Spectrum-X Photonics, Broadcom Tomahawk 5/6',
     basis: 'spec',
     ev: { refs: [
-      ['nextplatform-broadcom-cpo', '≈ 5.5 W optical-engine-plus-laser power per 800G port on Broadcom Bailly (Tomahawk 5 CPO), a 14.1% cut vs. the prior Tomahawk-4 generation'],
-      ['broadcom-davisson-cpo', 'Broadcom’s own release: Tomahawk 6 "Davisson," 102.4 Tbps, optics at ≈ 3.5 W per 800G port'],
-      ['broadcom-davisson-servethehome', 'independent write-up of the same Davisson launch, corroborating the 3.5 W/port figure'],
+      ['nextplatform-broadcom-cpo', 'body text: "an 800 Gb/sec port on the CPO consumed about 6.4 watts..." vs. Bailly (Tomahawk 5) "took 5.5 watts, which was a 14.1 percent reduction"; and, on Davisson (Tomahawk 6), "An 800 Gb/sec port will burn about 3.5 watts, says Broadcom, which is 36.4 percent lower than... the Tomahawk 5 CPO port" — the 3.5 W figure is this outlet’s direct quote of Broadcom, not a number Broadcom’s own release states in watts (see next ref)'],
+      ['broadcom-davisson-cpo', 'Broadcom’s own release states "102.4 Tbps" and a ratio, "a 70% reduction in optical interconnect power consumption—more than 3.5x lower than traditional pluggable solutions," not an absolute per-port wattage'],
+      ['broadcom-davisson-servethehome', 'independent write-up of the same Davisson launch: 102.4 Tbps, sixteen 6.4 Tbps Davisson DR optical engines, "on the order of 70% lower power consumption" — this write-up does not itself give a watts-per-port figure'],
     ] } },
 ];
 
@@ -136,7 +136,8 @@ export const FIGURE_CLAIMS = {
     ['lpo-msa-lightwave', 'the LPO MSA’s own scope: a linear pluggable module specification with no retiming DSP'],
   ] } },
   'cutaway-cpo': { short: 'CPO', label: 'Co-packaged optics', basis: 'spec', ev: { refs: [
-    ['nvidia-spectrum-x-cpo', 'NVIDIA’s own description: optical engines co-packaged with the switch ASIC, fed by external laser source (ELS) modules as a separate side feed'],
+    ['nvidia-spectrum-x-cpo', 'NVIDIA’s own description of the co-packaged optical engines and "4x fewer lasers" vs. pluggables'],
+    ['nvidia-photonics-switching-blog', 'NVIDIA’s own description: "Lasers reside on front-panel external laser source pluggable OSFP modules, enabling quick diagnosis and replacement while the switch core remains sealed" — the ELS is a separate side feed, not inline with the traffic fibers'],
     ['broadcom-davisson-cpo', 'Broadcom’s own description of Tomahawk 6 "Davisson": optical engines built onto the switch package with field-replaceable laser modules'],
   ] } },
 };
