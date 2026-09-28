@@ -413,6 +413,9 @@ body.clocking .hud-btns #clock-btn, .story-btn[aria-pressed="true"] { background
 .tour-tabs button small { display: block; font: 400 9.5px/1.3 var(--mono); letter-spacing: .02em; color: var(--faint); text-transform: none; white-space: normal; }
 .tour-tabs button[aria-selected="true"] { background: var(--ink); color: #000; }
 .tour-tabs button[aria-selected="true"] small { color: #3a4048; }
+/* the full-screen tour player has one row for the tabs: their lengths would wrap it and push the last tab off screen,
+   and the counter already says where the tour is */
+@media (max-width: 1100px) { body.story .tour-tabs button small { display: none; } }
 .tour-tabs button:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
 /* "Every part" is the exhaustive option: a closed disclosure, not a tab row the same size as the four tours */
 .tour-more { display: grid; gap: 6px; }
