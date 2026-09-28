@@ -82,7 +82,7 @@ export function build({ quality, state }) {
   scene.background = new THREE.Color(0x080b11);
   scene.add(new THREE.HemisphereLight(0xb5c3e6, 0x111317, 0.8));
   const key = new THREE.DirectionalLight(0xfff0de, 2.0); key.position.set(-6, 14, 5);
-  if (quality.shadows) { key.castShadow = true; key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -16, right: 16, top: 12, bottom: -12, near: 1, far: 50 }); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.01; }
+  if (quality.shadows) { key.castShadow = true; key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -20, right: 20, top: 14, bottom: -14, near: 1, far: 50 }); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.01; }
   scene.add(key);
   const rim = new THREE.DirectionalLight(0x7aa6ff, 1.2); rim.position.set(-8, 5, -9); scene.add(rim);
 
@@ -171,7 +171,13 @@ export function build({ quality, state }) {
   const lpoTag = textSprite('LPO · no DSP', '#8fd3ff', 0.22); lpoTag.position.set(DSPX, MY.parts + 0.7, 0); lpoTag.visible = false; scene.add(lpoTag);
 
   // ======================= the co-packaged optics switch (right) =======================
-  const CX = 6.8, SUB = 10.4;
+  // set well apart from the module: the two are alternatives, not parts of one assembly, and no fiber joins them here
+  // (a real link between a NIC's module and a CPO switch is meters of fiber, not this gap)
+  const CX = 9.2, SUB = 10.4;
+  const gapX = (MX1 + CX - SUB / 2) / 2;
+  const gapLine = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.01, 16), new THREE.MeshBasicMaterial({ color: 0x3a4658, transparent: true, opacity: 0.8 }));
+  gapLine.position.set(gapX, 0, -1); scene.add(gapLine);
+  const altTag = textSprite('Two alternatives · not connected', '#8a96a8', 0.2); altTag.position.set(gapX, 0.35, 5.6); scene.add(altTag);
   const CY = { board: 0, sub: 0.9, inter: 1.45, die: 1.62, eng: 1.5, plate: 4.2 };
   S.box(SUB + 3.2, 0.14, SUB + 3.2, MAT.pcb, CX, CY.board, 0);
   S.box(SUB, 0.28, SUB, MAT.pcbBlack, CX, CY.sub, 0);
@@ -253,6 +259,15 @@ export function build({ quality, state }) {
   // water in and out at the back of the plate, away from the fibers
   for (const [dx, m] of [[-1.4, MAT.pipeBlue], [1.4, MAT.pipeRed]]) S.add(new THREE.CylinderGeometry(0.28, 0.28, 3.2, 16), m, CX + dx, CY.plate, -SUB / 2 - 1.0, Math.PI / 2, 0, 0);
 
+  // the fair comparison: one 1.6T module does the job of one 1.6T engine; this package holds 18 of them
+  const EQ = engines[1];
+  const eqBox = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.34, 1.15), new THREE.MeshBasicMaterial({ color: 0x62e6ff, transparent: true, opacity: 0.07, depthWrite: false }));
+  eqBox.position.set(EQ.x, CY.eng + 0.08, EQ.z); eqBox.rotation.y = -EQ.rot; scene.add(eqBox);
+  const eqEdge = new THREE.LineSegments(new THREE.EdgesGeometry(eqBox.geometry), new THREE.LineBasicMaterial({ color: 0x62e6ff, transparent: true, opacity: 0.9 }));
+  eqEdge.position.copy(eqBox.position); eqEdge.rotation.copy(eqBox.rotation); scene.add(eqEdge);
+  const eqTag = textSprite('1 engine = 1.6T each way, like one module', '#9ff1ff', 0.2); eqTag.position.set(EQ.x, CY.sub + 0.9, EQ.z + 2.6);   // out over its own fibers, clear of the part's pin scene.add(eqTag);
+  const pkgTag = textSprite('18 engines · 28.8T each way', '#9ff1ff', 0.24); pkgTag.position.set(CX, CY.plate + 0.9, 0); scene.add(pkgTag);
+  const modTag = textSprite('1 module = 1.6T each way', '#9ff1ff', 0.2); modTag.position.set(MX0 + LEN / 2, MY.lid + 1.05, 0); scene.add(modTag);
   scene.add(S.build()); scene.add(N.build({ cast: false }));
 
   // ======================= power =======================
@@ -276,13 +291,13 @@ export function build({ quality, state }) {
     const a = flow([[mx(-1.2), MY.pcb + 0.06, z], [mx(0.62), MY.pcb + 0.06, z], [DSPX - 0.75, MY.pcb + 0.06, z]], 'eth', { count: 3, speed: 1.6, size: 0.03, k: 2.8, trail: false });
     const b = flow([[DSPX - 0.4, MY.parts + 0.17, z * 0.6], [DSPX + 0.4, MY.parts + 0.17, z * 0.6]], 'eth', { count: 2, speed: 1.6, size: 0.03, k: 2.8, trail: false });
     const c = flow([[DSPX + 0.75, MY.pcb + 0.06, z], [mx(6.25), MY.parts + 0.08, -0.5 + (i - 1.5) * 0.12], [PICX - 0.2, MY.parts + 0.08, -0.5 + (i - 1.5) * 0.12]], 'eth', { count: 3, speed: 1.6, size: 0.03, k: 2.8, trail: false });
-    const d = flow([[PICX - 0.2, MY.parts + 0.09, -0.62 + i * 0.1], [PICX + PICW / 2, MY.parts + 0.09, -0.62 + i * 0.1], [MPOX - 0.3, MY.parts + 0.22, MPOZ[i >> 1] + slot(i % 2 * 2)], [MX1 + 1.8, MY.parts + 0.22, MPOZ[i >> 1] + slot(i % 2 * 2)]], 'tx', { count: 4, speed: 1.9, size: 0.035, k: 3.2, trailR: 0.008, trailK: 0.3 });
+    const d = flow([[PICX - 0.2, MY.parts + 0.09, -0.62 + i * 0.1], [PICX + PICW / 2, MY.parts + 0.09, -0.62 + i * 0.1], [MPOX - 0.3, MY.parts + 0.22, MPOZ[i >> 1] + slot(i % 2 * 2)], [MX1 + 0.5, MY.parts + 0.22, MPOZ[i >> 1] + slot(i % 2 * 2)]], 'tx', { count: 4, speed: 1.9, size: 0.035, k: 3.2, trailR: 0.008, trailK: 0.3 });
     modTx.push(a, c, d); dspHops.push(b);
   }
   // module receive: light in at the connector, to a photodiode, a TIA, the DSP, and back out the fingers
   for (let i = 0; i < 4; i++) {
     const z = 0.12 + i * 0.24;
-    const d = flow([[MX1 + 1.8, MY.parts + 0.22, MPOZ[i >> 1] + slot(9 + i % 2 * 2)], [MPOX - 0.3, MY.parts + 0.22, MPOZ[i >> 1] + slot(9 + i % 2 * 2)], [PICX + PICW / 2, MY.parts + 0.09, 0.2 + i * 0.1], [PICX - 0.55, MY.parts + 0.09, 0.2 + i * 0.1]], 'rx', { count: 4, speed: 1.9, size: 0.035, k: 3.2, trailR: 0.008, trailK: 0.3 });
+    const d = flow([[MX1 + 0.5, MY.parts + 0.22, MPOZ[i >> 1] + slot(9 + i % 2 * 2)], [MPOX - 0.3, MY.parts + 0.22, MPOZ[i >> 1] + slot(9 + i % 2 * 2)], [PICX + PICW / 2, MY.parts + 0.09, 0.2 + i * 0.1], [PICX - 0.55, MY.parts + 0.09, 0.2 + i * 0.1]], 'rx', { count: 4, speed: 1.9, size: 0.035, k: 3.2, trailR: 0.008, trailK: 0.3 });
     const c = flow([[PICX - 0.55, MY.parts + 0.08, 0.5 + (i - 1.5) * 0.12], [mx(6.95), MY.parts + 0.08, 0.5 + (i - 1.5) * 0.12], [DSPX + 0.75, MY.pcb + 0.06, z]], 'eth', { count: 3, speed: 1.6, size: 0.03, k: 2.8, trail: false });
     const b = flow([[DSPX + 0.4, MY.parts + 0.17, z * 0.6], [DSPX - 0.4, MY.parts + 0.17, z * 0.6]], 'eth', { count: 2, speed: 1.6, size: 0.03, k: 2.8, trail: false });
     const a = flow([[DSPX - 0.75, MY.pcb + 0.06, z], [mx(0.62), MY.pcb + 0.06, z], [mx(-1.2), MY.pcb + 0.06, z]], 'eth', { count: 3, speed: 1.6, size: 0.03, k: 2.8, trail: false });
@@ -298,8 +313,8 @@ export function build({ quality, state }) {
     const ax = CX + out[0] * 1.85, az = out[1] * 1.85 + (out[0] !== 0 ? z * 0.5 : 0), axx = out[1] !== 0 ? CX + (x - CX) * 0.5 : ax;
     const [ex, ez] = edgeConn[i];
     dataFlows.push(flow([[axx, CY.die + 0.06, az], [x - out[0] * 0.3, CY.eng + 0.1, z - out[1] * 0.3]], 'eth', { count: 2, speed: 1.8, size: 0.03, k: 2.8, trail: false }));
-    dataFlows.push(flow([[x + out[0] * 0.5, CY.eng + 0.08, z + out[1] * 0.5], [ex, CY.sub + 0.3, ez], [ex + out[0] * 2.4, CY.sub + 0.3, ez + out[1] * 2.4]], 'tx', { count: 3, speed: 1.9, size: 0.035, k: 3.2, trailR: 0.008, trailK: 0.3 }));
-    dataFlows.push(flow([[ex + out[0] * 2.4 + out[1] * 0.12, CY.sub + 0.32, ez + out[1] * 2.4 - out[0] * 0.12], [ex + out[1] * 0.12, CY.sub + 0.32, ez - out[0] * 0.12], [x + out[0] * 0.5, CY.eng + 0.1, z + out[1] * 0.5]], 'rx', { count: 3, speed: 1.9, size: 0.035, k: 3.2, trailR: 0.008, trailK: 0.3 }));
+    dataFlows.push(flow([[x + out[0] * 0.5, CY.eng + 0.08, z + out[1] * 0.5], [ex, CY.sub + 0.3, ez], [ex + out[0] * 0.9, CY.sub + 0.3, ez + out[1] * 0.9]], 'tx', { count: 3, speed: 1.9, size: 0.035, k: 3.2, trailR: 0.008, trailK: 0.3 }));
+    dataFlows.push(flow([[ex + out[0] * 0.9 + out[1] * 0.12, CY.sub + 0.32, ez + out[1] * 0.9 - out[0] * 0.12], [ex + out[1] * 0.12, CY.sub + 0.32, ez - out[0] * 0.12], [x + out[0] * 0.5, CY.eng + 0.1, z + out[1] * 0.5]], 'rx', { count: 3, speed: 1.9, size: 0.035, k: 3.2, trailR: 0.008, trailK: 0.3 }));
     dataFlows.push(flow(laserRoute(i), 'cw', { count: 3, speed: 1.4, size: 0.03, k: 2.6, trail: false }));
   });
   dataFlows.forEach(f => scene.add(f.group));
@@ -318,7 +333,9 @@ export function build({ quality, state }) {
 
   // ---------- labels over each half ----------
   const tagA = textSprite('Pluggable module · 1.6T OSFP', '#e8ecf2', 0.34); tagA.position.set(MX0 + LEN / 2, 5.2, 0); scene.add(tagA);
+  const scaleA = textSprite('To scale: 107.8 × 22.58 × 13.0 mm', '#8a96a8', 0.2); scaleA.position.set(MX0 + LEN / 2, 4.7, 0); scene.add(scaleA);
   const tagB = textSprite('Co-packaged optics · one switch package', '#e8ecf2', 0.34); tagB.position.set(CX, 5.9, 0); scene.add(tagB);
+  const scaleB = textSprite('Size representative · counts are NVIDIA’s', '#8a96a8', 0.2); scaleB.position.set(CX, 5.4, 0); scene.add(scaleB);
 
   function setLpo(on) {
     lpo.on = on;
@@ -345,7 +362,7 @@ export function build({ quality, state }) {
   };
   return {
     scene, flows, dataFlows, heatFlows,
-    camera: { pos: [0.5, 17, 22], target: [0.5, 1.2, 0], near: 0.05, far: 500, min: 2, max: 60 },
+    camera: { pos: [1.8, 19, 25], target: [1.8, 1.2, 0], near: 0.05, far: 500, min: 2, max: 70 },
     // from the hall's CPO switch, open on the package; from a tray's cages, on the whole level with the module first
     cameraFrom: {
       osfp: { pos: [-4.2, 10.5, 12.5], target: [-6.8, 1.3, 0], near: 0.05, far: 500, min: 2, max: 60 },

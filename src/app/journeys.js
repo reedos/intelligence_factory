@@ -228,7 +228,7 @@ export function light(M) {
     inside('driver', 'Swinging the modulator', d('driver').body, card('data', 6, 'driver', 'Receive')),
     inside('pic', 'Onto light', d('pic').body, card('data', 6, 'pic', 'Design drawn')),
     inside('mpo', 'Out on its own fiber', d('mpo').body, card('data', 6, 'mpo', 'Connectors'), card('data', 6, 'mpo', 'Fibers lit')),
-    inside('asic', 'The same lane, co-packaged', d('asic').body, card('data', 6, 'asic', 'Electrical loss')),
+    inside('asic', 'The same lane, co-packaged', `${d('asic').body} Compare like with like: the module you just left carries 1.6 Tb/s each way, and so does one optical engine here. This package holds 18 of them.`, card('data', 6, 'engine', 'Per engine'), card('data', 6, 'asic', 'Electrical loss')),
     inside('engine', 'A ring beside the switch', d('engine').body, card('data', 6, 'engine', 'Per engine'), card('data', 6, 'engine', 'Modulators')),
     inside('els', 'Light from the front panel', d('els').body, card('data', 6, 'els', 'Laser modules')),
     inside('fiberout', 'Out through the package edge', `${d('fiberout').body} The power per port is where the two designs part ways, by NVIDIA’s own figures.`, card('data', 6, 'fiberout', 'Fibers per engine'), card('data', 6, 'asic', 'Per port')),
