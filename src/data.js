@@ -30,10 +30,20 @@ export const VOLT = {
   vapor: { css: '#d6e6ff', name: 'Evaporation', short: 'vapor' },
 };
 
-import { SITES, PLACES, placeKey, STATE_CARBON, DEFAULT_PLACE, US_CARBON_G, STATUS_WORD } from './model/sites.ts';
+import { SITES, PLACES, placeKey, STATE_CARBON, STATE_EIA_SOURCE, DEFAULT_PLACE, US_CARBON_G, STATUS_WORD } from './model/sites.ts';
 import { waterM3h, WATER } from './model/engine.ts';
-// a real campus's status as spec rows: its state and live figure, and a ranking where one is claimed
-const statusRows = s => [[`Status, ${s.status.asOf}`, `${STATUS_WORD[s.status.state]} · ${s.status.live}`, 'est'], ...(s.status.rank ? [['Ranking, Epoch AI', 'Most powerful operating today', 'est']] : [])];
+// a real campus's status as spec rows: its state and live figure, and a ranking where one is claimed. Both are
+// reported by the tracker named in s.status.source (Epoch AI's Frontier Data Centers directory for every site but
+// Colossus 1, which follows Compute Atlas instead; see src/model/sites.ts).
+const statusRows = s => { const loc = s.status.source === 'compute-atlas-colossus'
+  ? 'facility profile: operating-status line and grid-power figure'
+  : 'directory entry: "CURRENT IT POWER" figure';
+  return [
+    [`Status, ${s.status.asOf}`, `${STATUS_WORD[s.status.state]} · ${s.status.live}`, 'reported', { refs: [[s.status.source, loc]] }],
+    ...(s.status.rank ? [['Ranking, Epoch AI', 'Most powerful operating today', 'reported',
+      { refs: [['epoch-largest-dc', 'ranking page lead text: "Colossus 2 is the largest tracked AI data center at about 946 MW of current IT power"']] }]] : []),
+  ];
+};
 
 // Facts the text needs per accelerator that the engine does not use for arithmetic.
 const FACTS = {
@@ -174,26 +184,37 @@ export function content(M) {
   PARTS.across = [
     { id: 'grid', title: 'Each campus, its own grid', kicker: '345–500 kV backbone',
       body: 'High-voltage lines tie every campus to power plants and the wider grid. A gigawatt campus needs a new substation and often new lines, which is why builders spread clusters across regions where power is available.',
-      specs: [['Interconnection', '230–500 kV', 'typical'], ['Example', 'Meta Hyperion: new 500 kV substation and lines', 'typical']] },
+      specs: [
+        ['Interconnection', '230–500 kV', 'assumed', { assume: 'campus-interconnection-voltage-range' }],
+        ['Example', 'Amazon Project Rainier: existing Olive 345 kV station, new interconnection', 'reported',
+          { refs: [['measuredai-new-carlisle', 'body text: "the campus already adjoined extra-high-voltage (EHV) transmission and a very substantial existing substation — the Olive 345 kV station"']] }],
+      ] },
     { id: 'plants', title: 'Generation', kicker: 'Gas, nuclear, wind, solar',
       body: 'Plants inject power into the grid far from the campus; the grid delivers it with about 5% lost on the way.',
-      specs: [['US grid losses', '≈5% (EIA)', 'spec']] },
+      specs: [['US grid losses', '≈5% (EIA)', 'spec', { refs: [['eia-td-losses', 'FAQ answer: "annual electricity transmission and distribution (T&D) losses averaged about 5% of the electricity transmitted and distributed in the United States in 2018 through 2022"']] }]] },
     site
       ? { id: 'home', title: site.name, kicker: `${site.place} · ${meter} modeled`,
         body: `${site.owner}. This page rebuilds the campus from the closest scenario it can: ${site.unknowns.join(' ')} Go in to follow the power down.`,
-        specs: [...statusRows(site), ...site.facts, ['Modeled here', `${meter} at the meter, ${A.short}, ${M.cooling.short.toLowerCase()} cooling`, 'est']], drill: 1 }
+        specs: [...statusRows(site), ...site.facts, ['Modeled here', `${meter} at the meter, ${A.short}, ${M.cooling.short.toLowerCase()} cooling`, 'assumed', { assume: 'scenario-meter-choice' }]], drill: 1 }
       : { id: 'home', title: 'This campus', kicker: `${meter} at the meter`,
         body: `The campus this page follows, ${meter} at the meter, placed in southwest Ohio for the map. Pick a real campus in the scenario bar to move it. Go in to the substation and follow the power down.`,
-        specs: [['Meter', meter, 'est'], ['IT load', `${mwTxt(IT_MW)} at PUE ${M.pue.toFixed(2)}`, 'est']], drill: 1 },
+        specs: [['Meter', meter, 'assumed', { assume: 'scenario-meter-choice' }], ['IT load', `${mwTxt(IT_MW)} at PUE ${M.pue.toFixed(2)}`, 'derived', { calc: 'it-load-from-pue' }]], drill: 1 },
     { id: 'carbon', title: 'Grid carbon by state', kicker: `${stateC ? `${stateC.name}: ${stateC.g} g CO₂/kWh` : 'EIA state profiles, 2024'}`,
       body: `Shaded states have EIA figures: teal for hydro-heavy grids, amber and red for coal and gas. The same campus emits three to four times more in Wisconsin than in Washington.${site ? ` ${site.carbonNote}` : ''}`,
-      specs: [...(stateC ? [[`${stateC.name}, 2024`, `${stateC.lb.toLocaleString('en-US')} lb/MWh, ${stateC.g} g/kWh`, 'spec']] : []), ['US average, eGRID 2022', `${US_CARBON_G} g/kWh`, 'spec'], ['Lowest shown, Washington', '113 g/kWh', 'spec'], ['Highest shown, Wisconsin', '494 g/kWh', 'spec']] },
+      specs: [
+        ...(stateC ? [[`${stateC.name}, 2024`, `${stateC.lb.toLocaleString('en-US')} lb/MWh, ${stateC.g} g/kWh`, 'spec',
+          { refs: [[STATE_EIA_SOURCE[(site || DEFAULT_PLACE).state], `Table 1. 2024 Summary statistics (${stateC.name}), row "Carbon Dioxide (lbs/MWh)"`]] }]] : []),
+        ['US average, eGRID 2022', `${US_CARBON_G} g/kWh`, 'spec',
+          { refs: [['epa-egrid2022-summary-tables', 'Table 3, State Output Emission Rates (eGRID2022), "U.S." row, CO2 lb/MWh (823.1, matching Table 1’s subregion total)']] }],
+        ['Lowest shown, Washington', '113 g/kWh', 'spec', { refs: [['eia-state-washington', 'Table 1. 2024 Summary statistics (Washington), row "Carbon Dioxide (lbs/MWh)": 249']] }],
+        ['Highest shown, Wisconsin', '494 g/kWh', 'spec', { refs: [['eia-state-wisconsin', 'Table 1. 2024 Summary statistics (Wisconsin), row "Carbon Dioxide (lbs/MWh)"']] }],
+      ] },
     ...PLACES.filter(p => !site || !p.ids.includes(site.id)).map(p => {
       // Colossus 1 and 2 share a pin; the card leads with the one that is bigger now
       const ss = p.ids.map(id => SITES[id]), lead = ss.find(x => x.status.rank) || ss[0];
       return { id: placeKey(p), title: p.name, kicker: `${p.site.place} · ${ss.map(x => STATUS_WORD[x.status.state].toLowerCase()).join(', ')}`,
         body: `${p.site.owner}. ${ss.map(x => (ss.length > 1 ? `${x.name.replace(/^xAI /, '')}: ` : '') + x.status.line).join(' ')}${lead.status.rank ? ` ${lead.status.rank}` : ''} Choose it under Real campuses in the scenario bar to rebuild this page around it.`,
-        specs: [...ss.flatMap(x => statusRows(x).map(([k, v, b]) => [ss.length > 1 ? `${x.name.replace(/^xAI /, '')}: ${k.toLowerCase()}` : k, v, b])), ...p.site.facts] };
+        specs: [...ss.flatMap(x => statusRows(x).map(row => [ss.length > 1 ? `${x.name.replace(/^xAI /, '')}: ${row[0].toLowerCase()}` : row[0], ...row.slice(1)])), ...p.site.facts] };
     }),
   ];
   const lineA = M.staircase[0].current;
@@ -471,19 +492,33 @@ export function content(M) {
     across: [
       { id: 'dci', title: 'Line terminals', kicker: 'Coherent DWDM',
         body: 'At each campus, coherent transceivers—in routers or dedicated transponder shelves—each turn one signal into one wavelength, 800 Gb/s to 1.6 Tb/s. A multiplexer combines many of those wavelengths onto a single fiber pair; amplifier huts (next) carry the combined light between campuses, and a demultiplexer splits it back into wavelengths at the far end.',
-        specs: [['Per wavelength, WaveLogic 6', 'up to 1.6 Tb/s', 'spec'], ['800G pluggable, e.g. Marvell COLORZ 800', '800 Gb/s to ≈500 km', 'spec'], ['Field trial', '1.6 Tb/s over 1,100 km (Telstra)', 'spec'], ['C+L band', 'about 2× capacity per fiber', 'spec']] },
+        specs: [
+          ['Per wavelength, WaveLogic 6', 'up to 1.6 Tb/s', 'spec', { refs: [['ciena-wavelogic6', 'product announcement: WaveLogic 6 family, up to 1.6 Tb/s per wavelength']] }],
+          ['800G pluggable, e.g. Marvell COLORZ 800', '800 Gb/s to ≈500 km', 'spec', { refs: [['marvell-colorz-800', 'press release: "up to 800 Gbps of bandwidth for DCI links up to 500km"']] }],
+          ['Field trial', '1.6 Tb/s over 1,100 km (Telstra)', 'reported', { refs: [['convergedigest-telstra-ciena-1100km', 'lead sentence: "Telstra has transmitted four 400GbE client services over a single 1.6 Tbps wavelength across approximately 1,100 km between Melbourne and Sydney"']] }],
+          ['C+L band', 'about 2× capacity per fiber', 'reported', { refs: [['convergedigest-telstra-ciena-1100km', 'body text: expanding from C-band into L-band "effectively opens a second optical transmission band, increasing the usable spectrum"']] }],
+        ] },
       { id: 'ila', title: 'Amplifier huts', kicker: 'Every 60–100 km',
         body: 'Small buildings along the route boost the light directly, in the optical domain, without converting it back to electricity or reading the data.',
-        specs: [['Spacing', '≈80–100 km, rule of thumb', 'typical']] },
+        specs: [['Spacing', '≈80–100 km, rule of thumb', 'assumed', { assume: 'amplifier-spacing' }]] },
       { id: 'route', title: 'Fiber route', kicker: '≈5 milliseconds per 1,000 km, one way',
         body: 'Illustrative route: real campuses, an invented path between them. Light in glass covers about 200 km per millisecond one way, before any switching, routing or queueing delay. An illustrative 1,000 km route adds about 5 ms of propagation each way, roughly 10 ms round trip—fine for inference, hard for tightly synchronized training.',
-        specs: [['Speed in fiber', '≈4.9 µs per km, one way', 'typical'], ['1,000 km, propagation only', '≈5 ms one way, ≈10 ms round trip', 'est'], ['Microsoft hollow-core fiber', '≈33% lower latency; 1,280 km laid', 'spec'], ['Per fiber pair, C-band 800ZR', '32 × 800G = 25.6 Tb/s', 'spec']] },
+        specs: [
+          ['Speed in fiber', '≈4.9 µs per km, one way', 'derived', { calc: 'fiber-speed' }],
+          ['1,000 km, propagation only', '≈5 ms one way, ≈10 ms round trip', 'derived', { calc: 'route-1000km-latency' }],
+          ['Microsoft hollow-core fiber', '≈33% lower latency; over 1,200 km carrying live traffic', 'reported', { refs: [['microsoft-hollow-core-fiber', 'body text: hollow-core fiber "cutting latency by 33%" versus solid-glass fiber'], ['networkworld-hollow-core-fiber', 'article text: Microsoft’s pilot "involved over 1,200 km of fibre, now installed underground and actively carrying live traffic"']] }],
+          ['Per fiber pair, C-band 800ZR', '32 × 800G = 25.6 Tb/s', 'reported', { refs: [['coherent-full-cband-pols', 'article text: "the enhanced POLS can support 32 DWDM wavelengths over a fiber pair," an "aggregate capacity of 25.6 Tbps"']] }],
+        ] },
       { id: 'remote', title: 'Other campuses', kicker: 'One model, several sites',
         body: 'Builders now train single models across campuses, splitting the work so the slow links carry the least traffic. Google trains its largest models across campuses and metros; Microsoft links Fairwater sites about 700 miles apart.',
-        specs: [['Microsoft AI WAN fiber added', '120,000 miles', 'spec'], ['NVIDIA Spectrum-XGS', 'nearly 2× NCCL across sites', 'spec'], ['DeepMind Decoupled DiLoCo', '4 US regions over 2–5 Gb/s', 'spec']] },
+        specs: [
+          ['Microsoft AI WAN fiber added', '120,000 miles', 'spec', { refs: [['microsoft-ai-wan', 'body text: "The company has deployed 120,000 miles of dedicated fiber for the network"']] }],
+          ['NVIDIA Spectrum-XGS', 'nearly 2× NCCL across sites', 'vendor', { vs: 'NVIDIA’s own NCCL (Collective Communications Library) baseline, in geographically distributed multi-site clusters', refs: [['nvidia-spectrum-xgs', 'announcement text: "Spectrum-XGS Ethernet nearly doubles the performance of the NVIDIA Collective Communications Library"']] }],
+          ['DeepMind Decoupled DiLoCo', '4 US regions over 2–5 Gb/s', 'reported', { refs: [['deepmind-decoupled-diloco', 'blog post: "We successfully trained a 12 billion parameter model across four separate U.S. regions using 2-5 Gbps of wide-area networking"']] }],
+        ] },
       { id: 'home', title: site ? site.name : 'This campus', kicker: 'Go in', drill: 1,
         body: 'Go into the campus and follow the data in.',
-        specs: [['GPUs', `≈${n0(GPUS)}`, 'est']] },
+        specs: [['GPUs', `≈${n0(GPUS)}`, 'derived', { calc: 'gpu-count-scenario' }]] },
     ],
     campus: [
       { id: 'fiber', title: 'Fiber entrances', kicker: 'Two diverse routes',
@@ -649,10 +684,10 @@ export function content(M) {
     across: [
       { id: 'climate', title: 'Climate picks sites', kicker: 'Heat stays local',
         body: 'Power travels, heat does not. Builders favor places where outside air is cool enough to reject heat most of the year, and where water is not scarce.',
-        specs: [['Free cooling', 'most hours in cool climates', 'typical']] },
+        specs: [['Free cooling', 'most hours in cool climates', 'assumed', { assume: 'free-cooling-framing' }]] },
       { id: 'home', title: site ? site.name : 'This campus', kicker: 'Go in', drill: 1,
         body: 'Go into the campus and follow the heat out.',
-        specs: [['Heat out', meter, 'est']] },
+        specs: [['Heat out', meter, 'derived', { calc: 'heat-out-equals-power-in' }]] },
     ],
     campus: [
       warm
