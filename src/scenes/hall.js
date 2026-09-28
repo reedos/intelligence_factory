@@ -252,22 +252,25 @@ export function build({ quality, model }) {
   rowZs.forEach(z => { N.box(rowX1 - rowX0, 0.04, 0.3, MAT.yellowTray, (rowX0 + rowX1) / 2, 4.3, z); N.box(rowX1 - rowX0, 0.1, 0.02, MAT.yellowTray, (rowX0 + rowX1) / 2, 4.35, z - 0.15); N.box(rowX1 - rowX0, 0.1, 0.02, MAT.yellowTray, (rowX0 + rowX1) / 2, 4.35, z + 0.15); });
   N.box(0.3, 0.04, 23, MAT.yellowTray, rowX0 - 1.3, 4.3, -1.6);
   // network spine racks along the front
+  // ten pluggable spine switches, then the CPO comparison unit set apart past the end of the row: a fabric that
+  // adopts CPO uses it in place of pluggable switches, so it must not read as one mixed into the row
   const netItems = []; for (let i = 0; i < 10; i++) netItems.push({ x: rowX0 + 2 + i * 0.62, z: 10.5, f: 1 });
+  netItems.push({ x: rowX0 + 2 + 9 * 0.62 + 1.2, z: 10.5, f: 1 });
   instanced(0.6, 2.3, 1.2, TEX.net, 0x131519, netItems);
-  // spine faceplates: one CPO switch (liquid-cooled, MPO direct on the chassis), the rest pluggable OSFP
-  const CPO_I = 5;
+  // spine faceplates: pluggable OSFP; the unit apart is the CPO switch (liquid-cooled, MPO direct on the chassis)
+  const CPO_I = 10;
   netItems.forEach((it, i) => {
     if (i === CPO_I) { cpoFace(it.x, it.z, it.f); trunkCable(it.x, 2.0, it.z + it.f * 0.66, 4.3, it.z); }
     else { pluggableFace(it.x, it.z, it.f); pigtail(it.x, 1.97, it.z + it.f * 0.735, 4.3, it.z); }
   });
-  // this one switch stands beside the pluggable row for comparison, not as a claim that the spine
+  // this one switch stands apart from the pluggable row for comparison, not as a claim that the spine
   // actually mixes both — the tag keeps it from reading as deployed hardware or a ledger change.
   // kept small: the 'cpo' hotspot camera is close enough that a sprite sized like the rack-top
   // stage numbers below would fill the frame and hide the very chassis it is meant to label
-  const cpoTag = textSprite('CPO · comparison', '#8fe4ff', 0.065);
+  const cpoTag = textSprite('CPO · the alternative', '#8fe4ff', 0.065);
   cpoTag.position.set(netItems[CPO_I].x, 2.42, netItems[CPO_I].z + netItems[CPO_I].f * 0.85);
   scene.add(cpoTag);
-  N.box(6.4, 0.04, 0.3, MAT.yellowTray, rowX0 + 4.8, 4.3, 10.5); N.box(0.3, 0.04, 3.5, MAT.yellowTray, rowX0 - 1.3, 4.3, 8.3);
+  N.box(7.8, 0.04, 0.3, MAT.yellowTray, rowX0 + 5.5, 4.3, 10.5); N.box(0.3, 0.04, 3.5, MAT.yellowTray, rowX0 - 1.3, 4.3, 8.3);
   // fiber distribution frames: every fabric link is patched here, between the spine row and the cross-hall sleeve
   const odfTex = canvasTex(256, 512, (g, w, h) => {
     g.fillStyle = '#d7dadd'; g.fillRect(0, 0, w, h);
