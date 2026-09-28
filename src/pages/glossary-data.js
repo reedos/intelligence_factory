@@ -40,7 +40,7 @@ export const TERMS = [
   "aka": [
    "MPT"
   ],
-  "def": "An oil-filled transformer, each about the weight of a loaded freight car, that steps the 345 kV transmission line down to the campus's 34.5 kV distribution voltage. Units this size run above 99.6% efficient, and reported 2026 lead times for large HV transformers ran from about a year and a half up to five years depending on the manufacturer and tier.",
+  "def": "An oil-filled transformer, each about the weight of a loaded freight car, that steps the 345 kV transmission line down to the campus's 34.5 kV distribution voltage. Units this size run above 99.6% efficient, and reported 2026 lead times for large HV transformers ran from about a year up to five years depending on the manufacturer and tier.",
   "layer": "power",
   "sources": [
    "pa-transformer-345kv",
