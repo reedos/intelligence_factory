@@ -285,21 +285,30 @@ function renderBom() {
 
 // ---------- cost per token ----------
 const logSlider = (el, lo, hi) => ({ get: () => Math.pow(10, lo + (el.value / 1000) * (hi - lo)), set: v => (el.value = Math.round((Math.log10(v) - lo) / (hi - lo) * 1000)) });
-export function syncRange(el) { el.style.setProperty('--pct', `${(el.value - el.min) / (el.max - el.min) * 100}%`); }
+// text: the value a screen reader should announce, displayed units and all - a log slider's raw position (2,000
+// tok/s sits at 565) is meaningless read aloud, so every slider gets its aria-valuetext set here, not just its --pct
+export function syncRange(el, text) {
+  el.style.setProperty('--pct', `${(el.value - el.min) / (el.max - el.min) * 100}%`);
+  if (text !== undefined) el.setAttribute('aria-valuetext', text);
+}
 const T = { tps: logSlider($('tps'), 2, Math.log10(20000)), train: logSlider($('train'), 0, Math.log10(300)), life: logSlider($('life'), 13, 17) };
 const sig = (v, d = 2) => v >= 100 ? fmt(v) : v >= 10 ? v.toFixed(1) : v.toFixed(d);
 const big = v => v >= 1e12 ? `${sig(v / 1e12)} T` : v >= 1e9 ? `${sig(v / 1e9)} B` : v >= 1e6 ? `${sig(v / 1e6)} M` : v >= 1e3 ? `${sig(v / 1e3)} k` : sig(v);
 function renderTokens() {
   const M = store.M, f = tokenFigures(M);
-  $('tps-v').textContent = fmt(calc.tokPerGpu);
-  $('util-v').textContent = `${Math.round(calc.util * 100)}%`; $('carbon-v').textContent = `${fmt(calc.carbon)} g`;
-  $('train-v').textContent = `${sig(calc.trainGWh)} GWh`; $('life-v').textContent = big(calc.lifeTokens);
+  const tpsTxt = fmt(calc.tokPerGpu), utilTxt = `${Math.round(calc.util * 100)}%`, carbonTxt = `${fmt(calc.carbon)} g`;
+  const trainTxt = `${sig(calc.trainGWh)} GWh`, lifeTxt = big(calc.lifeTokens);
+  $('tps-v').textContent = tpsTxt;
+  $('util-v').textContent = utilTxt; $('carbon-v').textContent = carbonTxt;
+  $('train-v').textContent = trainTxt; $('life-v').textContent = lifeTxt;
   $('calc-from').innerHTML = `PUE <b>${M.pue.toFixed(2)}</b> · water <b>${M.wue.toFixed(2)} L/kWh</b> · <b>${n0(M.gpus)}</b> ${M.accel.short} GPUs, from the scenario above`;
   $('o-j').textContent = sig(f.j); $('o-kwh').textContent = big(3.6e6 / f.j);
   $('o-wh').textContent = sig(f.whReply, 3); $('o-co2').textContent = sig(f.co2Reply, 3);
   $('o-water').textContent = sig(f.waterReply, 3); $('o-train').textContent = `${sig(f.jTrain / f.j * 100, 1)}%`;
   document.querySelector('.train-ctl').classList.toggle('off', !calc.withTrain);
-  ['tps', 'util', 'carbon', 'train', 'life'].forEach(id => syncRange($(id)));
+  // the displayed value and its unit, not the log slider's raw position (WAI-ARIA slider pattern)
+  syncRange($('tps'), `${tpsTxt} tok/s`); syncRange($('util'), utilTxt); syncRange($('carbon'), `${carbonTxt} CO₂/kWh`);
+  syncRange($('train'), trainTxt); syncRange($('life'), `${lifeTxt} tokens`);
   emit('tokens');
 }
 T.tps.set(calc.tokPerGpu); T.train.set(calc.trainGWh); T.life.set(calc.lifeTokens);

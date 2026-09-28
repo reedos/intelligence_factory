@@ -3,7 +3,7 @@
 // below the ledger draws all four as charts. Everything is resampled when the scenario changes.
 import { makeSim, SIMS, totals } from '../model/clock.ts';
 import { store, on } from './store.js';
-import { setLevels, onTick, show, reduced } from './stage.js';
+import { setLevels, onTick, show, reduced, stageActive } from './stage.js';
 import { calc } from './sections.js';
 import { BASIS } from '../data.js';
 
@@ -142,6 +142,7 @@ $('ck-spark').addEventListener('pointerdown', e => {
 $('clock-btn')?.addEventListener('click', () => (strip.hidden ? openClock() : closeClock()));
 addEventListener('keydown', e => {
   if (e.target.matches?.('input, textarea, select') || e.target.closest?.('.pace-menu')) return;
+  if (!stageActive()) return;                              // scoped to the stage: see stage.js's stageActive
   if (e.key === 'c' || e.key === 'C') strip.hidden ? openClock() : closeClock();
   else if (e.key === ' ' && !strip.hidden && document.activeElement === document.body) { e.preventDefault(); $('ck-play').click(); }
 });

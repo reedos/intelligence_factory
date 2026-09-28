@@ -22,8 +22,9 @@ function seg(el, options, current, disabled, onPick) {
 }
 function renderControls() {
   const s = store.scenario, A = ACCELERATORS[s.accel];
-  $('sc-mw-v').textContent = mwLabel(s.meterMW);
-  const r = $('sc-mw'); r.value = sliderFrom(s.meterMW); syncRange(r);
+  const mwTxt = mwLabel(s.meterMW);
+  $('sc-mw-v').textContent = mwTxt;
+  const r = $('sc-mw'); r.value = sliderFrom(s.meterMW); syncRange(r, mwTxt);
   seg($('sc-accel'), Object.values(ACCELERATORS).map(a => [a.id, a.short, a.year]), s.accel, () => false, id => setScenario({ accel: id }));
   seg($('sc-power'), Object.values(POWER).map(p => [p.id, p.short]), s.power, id => id === 'dc800' && !A.dc800, id => setScenario({ power: id }));
   seg($('sc-cooling'), Object.values(COOLING).map(c => [c.id, c.short, c.sub]), s.cooling, id => !A.coolingOptions.includes(id), id => setScenario({ cooling: id }));
@@ -55,7 +56,7 @@ function renderSiteCard() {
     ${x.sources.length ? `<p class="site-src">Sources: ${x.sources.map(id => SOURCES[id]).filter(Boolean).map(r => `<a href="${r.url}" target="_blank" rel="noopener">${r.publisher}</a>`).join(' · ')}</p>` : ''}`;
   $('site-reset')?.addEventListener('click', () => pickSite(x.id));
 }
-$('sc-mw').addEventListener('input', e => { $('sc-mw-v').textContent = mwLabel(mwFrom(+e.target.value)); syncRange(e.target); });
+$('sc-mw').addEventListener('input', e => { const t = mwLabel(mwFrom(+e.target.value)); $('sc-mw-v').textContent = t; syncRange(e.target, t); });
 $('sc-mw').addEventListener('change', e => setScenario({ meterMW: mwFrom(+e.target.value) }));
 document.querySelectorAll('[data-mw]').forEach(b => b.addEventListener('click', () => setScenario({ meterMW: +b.dataset.mw })));
 
