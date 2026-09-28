@@ -122,7 +122,7 @@ function training(M: Model): Sim {
     speed: () => 1,
     notes: [
       { text: 'Production clusters swing in the 0.2–3 Hz band (Microsoft, OpenAI and NVIDIA, 2025). The 2-second step drawn here sits inside it.', basis: 'spec',
-        ev: { refs: [['arxiv-power-stabilization-2508', 'Section III-B: "AI workload power traces... show FFT energy concentrated between 0.2–3 Hz" (Microsoft, OpenAI and NVIDIA researchers, submitted Aug. 20, 2025)']] } },
+        ev: { refs: [['arxiv-power-stabilization-2508', 'Section III-A, "Frequency-domain spec": "AI workload power traces... show FFT energy concentrated between 0.2–3 Hz" (Microsoft, OpenAI and NVIDIA researchers, submitted Aug. 20, 2025)']] } },
       { text: storage
           ? `GB300 racks store 65 J per GPU in capacitors that charge on the down-swings and discharge on the up-swings; NVIDIA reports a 30% cut in peak grid demand from it when training the Megatron LLM. That capacity is small next to a multi-second swing: the checkpoint empties it almost immediately, so the raw swing shows through again until it recharges.`
           : 'This generation has no on-rack storage, so every swing reaches the site batteries directly.',
@@ -183,8 +183,8 @@ function outage(M: Model): Sim {
     notes: [
       { text: 'NFPA 110 Type 10 requires standby power to assume its full rated load within 10 seconds of a utility failure; data centers commonly specify this class for their generators, the timing this scenario assumes.', basis: 'spec',
         ev: { refs: [['nixonpower-nfpa110', 'comparison table: Type 10 = 10 seconds; "data centers generally use Level 1, Type 10 systems"'], ['cummins-nfpa110-ate', 'Cummins "Ask the Experts" sheet on NFPA 110 Type/Level classes']] } },
-      { text: 'UPS batteries are commonly sized for 3–10 minutes, far longer than the 10 s they need here.', basis: 'reported',
-        ev: { refs: [['datacentrereview-ups-sizing', '"a typical target is in the 3-10 minute range for a data center"']] } },
+      { text: 'UPS battery runtime commonly ranges from 1–2 minutes at hyperscale facilities up to 10–15 minutes in the financial sector, far longer than the 10 s they need here.', basis: 'reported',
+        ev: { refs: [['datacentrereview-ups-sizing', '"hyperscale data centres are being designed with 1-2 minutes of battery runtime... in the financial industry, you will typically see 10-15 minutes of battery runtime"']] } },
       { text: `Chiller restart (≈2 min), outage length (15 min) and the 5 minutes of grid stability before transfer back are illustrative.`, basis: 'assumed',
         ev: { assume: 'outage-timeline' } },
     ],

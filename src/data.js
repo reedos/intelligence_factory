@@ -249,7 +249,7 @@ export function content(M) {
       body: 'Thousands of GPUs stepping in lockstep during training can swing campus load by tens of megawatts in seconds. Grid-side batteries absorb the swings the utility would otherwise see, and can sell grid services.',
       specs: [
         ['Size here', `≈${n0(L.bessMW)} MW / ${n0(L.bessMWh)} MWh`, 'derived', evCalc('campus-bess-size')],
-        ['Training load swings', 'tens to hundreds of MW, seconds', 'reported', evRefs([['arxiv-power-stabilization-2508', 'Section III-B: "aggregate power consumption can oscillate by tens or hundreds of megawatts within a single datacenter" (Microsoft, OpenAI, NVIDIA)']])],
+        ['Training load swings', 'tens to hundreds of MW, seconds', 'reported', evRefs([['arxiv-power-stabilization-2508', 'Section I (Introduction): "these swings can amount to tens or hundreds of megawatts" (Microsoft, OpenAI, NVIDIA)']])],
         ['Example', 'xAI Colossus: ≈150 MW of Megapacks', 'reported', evRefs([['interestingengineering-xai-megapack', '"150 megawatts of Tesla Megapack batteries have been installed to serve as a stored energy backup"']])],
       ] },
     { id: 'unitsubs', title: 'Unit substations', kicker: '34.5 kV → 480 V',
@@ -285,7 +285,7 @@ export function content(M) {
         specs: [
           ['Chillers, ≈4 MW (1,100 ton) each', `≈${n0(L.chillers)}`, 'derived', evCalc('campus-chiller-count')],
           ['Cooling power', mwTxt(M.coolMW), 'derived', evCalc('campus-cooling-power')],
-          ['Chiller efficiency', 'COP ≈5.5–8', 'reported', evRefs([['hvactoolskit-chiller-cop', 'chiller COP reference chart: "Water-cooled centrifugal: 5.5–8.0"']])],
+          ['Chiller efficiency', 'COP ≈5.5–8', 'reported', evRefs([['hvactoolskit-chiller-cop', 'chiller COP reference chart, two size classes combined: "Water-Cooled Centrifugal (<300T): 5.5-6.5" and "Water-Cooled Centrifugal (300+T): 6.0-8.0"']])],
         ] },
     { id: 'towers', title: warm ? 'Cooling towers & tanks' : 'Cooling towers', kicker: warm ? 'For the hottest days' : 'Where the heat and water go',
       body: warm
