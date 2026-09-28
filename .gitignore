@@ -7,3 +7,4 @@ shots/
 .vite/
 design/hero/incoming/
 dist-gates/
+.local/
