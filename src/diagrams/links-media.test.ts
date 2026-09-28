@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { MEDIA_LADDER, COPPER_WALL, copperWallSVG, opticsCutawaySVG } from './links-media.js';
 import { SOURCES, PART_SOURCES } from '../sources.js';
+import { BASIS } from '../evidence.js';
 
 const PS = PART_SOURCES as Record<string, string[]>;
 const SRC = SOURCES as Record<string, { title: string; publisher: string; url: string }>;
@@ -9,7 +10,7 @@ describe('links media ladder', () => {
   it('has a title, a basis and a source list for every rung', () => {
     for (const r of MEDIA_LADDER) {
       expect(r.name, r.id).toBeTruthy();
-      expect(['spec', 'typical', 'est'], `${r.id} basis`).toContain(r.basis);
+      expect(Object.keys(BASIS), `${r.id} basis`).toContain(r.basis);
       const ids = PS[`links:${r.id}`];
       expect(ids, `PART_SOURCES['links:${r.id}']`).toBeDefined();
       expect(ids.length, `links:${r.id} has no sources`).toBeGreaterThan(0);

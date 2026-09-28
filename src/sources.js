@@ -128,7 +128,7 @@ export const SOURCES = {
   'arxiv-gpu-power-visibility': { title: 'Methodology for Fine-Grain GPU Power Visibility and Insights', publisher: 'arXiv', url: 'https://arxiv.org/html/2412.12426v1', published: '2024', dated: "17 Dec 2024 (v1)", accessed: '09/27/2026', kind: 'primary' },
   'nvidia-blackwell-ultra-blog': { title: 'Inside NVIDIA Blackwell Ultra: The Chip Powering the AI Factory Era', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/inside-nvidia-blackwell-ultra-the-chip-powering-the-ai-factory-era', published: '2025', dated: "Aug 22, 2025", accessed: '09/27/2026', kind: 'primary', marketing: true },
   'wccftech-nv-hbi': { title: 'NVIDIA Deep-Dives Into Blackwell Infrastructure: NV-HBI Used to Fuse Two AI GPUs Together', publisher: 'WCCFTech', url: 'https://wccftech.com/nvidia-blackwell-ai-deep-dive-nv-hbi-fuse-two-ai-gpus-together-5th-gen-tensor-cores-5th-gen-nvlink-spectrum-x/', published: '2024', dated: "Aug 27, 2024", accessed: '09/27/2026', kind: 'secondary' },
-  'micron-hbm3e-brief': { title: 'HBM3E product brief', publisher: 'Micron', url: 'https://assets.micron.com/adobe/assets/urn:aaid:aem:b710d8f2-7f66-44c1-a234-456e2b986347/original/as/hbm3e-product-brief.pdf', unchecked: "blocked: WAF-blocked on all attempts; title/publisher from a search snippet only, not confirmed by opening the document.", kind: 'primary', marketing: true },
+  'micron-hbm3e-brief': { title: 'HBM3E product brief', publisher: 'Micron', url: 'https://assets.micron.com/adobe/assets/urn:aaid:aem:b710d8f2-7f66-44c1-a234-456e2b986347/original/as/hbm3e-product-brief.pdf', published: '10/2023', dated: "footer reads \"Rev. C 10/2023\"", accessed: '09/27/2026', via: 'Wayback Machine copy (the live URL is WAF-blocked)', kind: 'primary', marketing: true },
 
   // tokens, training, carbon, models
   'samsi-words-to-watts': { title: 'From Words to Watts: Benchmarking the Energy Costs of Large Language Model Inference', publisher: 'Samsi et al., arXiv', url: 'https://arxiv.org/pdf/2310.03003', published: '2023', dated: "4 Oct 2023 (v1)", accessed: '09/27/2026', kind: 'primary' },
@@ -200,8 +200,8 @@ export const SOURCES = {
   // ---- optics workstream (2026-09-27 audit pass, findings 1/3/5/18c/18g): OIF's own 400ZR reach figures,
   // separating direct-detect campus optics (LR4) from coherent DCI, and the NVIDIA CPO laser-module count ----
   'oif-400zr-ia': { title: 'Implementation Agreement 400ZR (OIF-400ZR-02.0)', publisher: 'Optical Internetworking Forum (OIF)', url: 'https://www.oiforum.com/wp-content/uploads/OIF-400ZR-02.0.pdf' },
-  'edgeoptic-400g-coherent-guide': { title: '400G Coherent Optics Guide: ZR, ZR+ & MZR Comparison', publisher: 'EDGE Optical Solutions', url: 'https://edgeoptic.com/kb_article/deep-dive-400g-coherent-optics-guide' },
-  'ieee-spectrum-cpo-nvidia': { title: 'Nvidia Unveils Game-Changing Optical Network Switch', publisher: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/co-packaged-optics' },
+  'edgeoptic-400g-coherent-guide': { title: '400G Coherent Optics Guide: ZR, ZR+ & MZR Comparison', publisher: 'EDGE Optical Solutions', url: 'https://edgeoptic.com/kb_article/deep-dive-400g-coherent-optics-guide', accessed: '09/27/2026', kind: 'secondary', marketing: true },
+  'ieee-spectrum-cpo-nvidia': { title: 'Nvidia Unveils Game-Changing Optical Network Switch', publisher: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/co-packaged-optics', accessed: '09/27/2026', kind: 'secondary' },
 
   // ---- optics review pass (2026-09-27, finding 18g): NVIDIA's own account of the external-laser-source
   // module count, reconciling the "one laser per eight links" figure the audit found unsourced ----
@@ -237,7 +237,14 @@ export const SOURCES = {
 
 
   // ---- traced 09/27/2026: level 6, the GPU package, and the links ladder ----
-
+  'nvidia-hopper-architecture-indepth': { title: 'NVIDIA Hopper Architecture In-Depth', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/nvidia-hopper-architecture-in-depth/', published: '03/22/2022', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'techinsights-h100-cowos-s': { title: 'NVIDIA H100 Hopper TSMC CoWoS-S Flip Chip Ball Grid Array', publisher: 'TechInsights', url: 'https://www.techinsights.com/blog/nvidia-h100-hopper-tsmc-cowos-s-flip-chip-ball-grid-array', accessed: '09/27/2026', kind: 'secondary' },
+  'nvidianews-blackwell-platform-arrival': { title: 'NVIDIA Blackwell Platform Arrives to Power a New Era of Computing', publisher: 'NVIDIA Newsroom', url: 'https://nvidianews.nvidia.com/news/nvidia-blackwell-platform-arrives-to-power-a-new-era-of-computing', published: '03/18/2024', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'tomshardware-cowos-l-blackwell': { title: 'Nvidia shifts to CoWoS-L packaging for Blackwell GPU production ramp-up', publisher: "Tom's Hardware", url: 'https://www.tomshardware.com/tech-industry/nvidia-shifts-to-cowos-l-packaging-for-blackwell-gpu-production-ramp-up', accessed: '09/27/2026', kind: 'secondary' },
+  'wccftech-rubin-gpu-architecture': { title: 'NVIDIA Rubin GPUs Bring 10x Increase in Agentic AI Performance Versus Blackwell as Its Architecture Gets Fully Unpacked, Featuring 336 Billion Transistors', publisher: 'WCCFTech', url: 'https://wccftech.com/nvidia-rubin-gpu-architecture/', accessed: '09/27/2026', kind: 'secondary' },
+  'nvidia-rubin-gpu-architecture-blog': { title: 'Inside NVIDIA Rubin GPU Architecture: Powering the Era of Agentic AI', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/inside-nvidia-rubin-gpu-architecture-powering-the-era-of-agentic-ai/', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'semianalysis-inferencex-inferencemax': { title: 'InferenceMAX: Open Source Inference Benchmarking', publisher: 'SemiAnalysis / InferenceX', url: 'https://inferencex.semianalysis.com/blog/inferencemax-open-source-inference-benchmarking', accessed: '09/27/2026', kind: 'secondary' },
+  'ascentoptics-coherent-power': { title: 'Coherent Optical Module Power Consumption: Complete Guide for Network Engineers', publisher: 'AscentOptics', url: 'https://ascentoptics.com/blog/coherent-optical-module-power-consumption/', accessed: '09/27/2026', kind: 'secondary', marketing: true },
 
   // ---- traced 09/27/2026: the glossary, the method page and prose claims ----
 

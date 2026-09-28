@@ -17,19 +17,37 @@ export const MEDIA_LADDER = [
     reach: '2–5 m at 25–100 Gb/s per lane (ratified clauses); at 200 Gb/s per lane, IEEE’s own P802.3dj objective is a floor of at least 1 m — trade estimates for what a design actually achieves spread from under 1 m to about 3 m',
     power: '0 W added — passive',
     where: 'NVLink spine inside a rack; GPU-to-switch links; tray and board backplanes',
-    basis: 'typical' },
+    basis: 'reported',
+    ev: { refs: [
+      ['ieee-25gbe-wiki', '"25GBASE-CR (Direct Attach): 5 meters maximum reach... 25GBASE-CR-S: 3 meters"'],
+      ['ieee-100gbe-wiki', '100GBASE-CR2 (2 lanes, 100G port) PHY row: 3 meters, 802.3cd-2018'],
+      ['ieee-8023dj-electrical-adhoc', 'objectives table: "Reach of up to at least 1.0 meter," stated for 200/400/800/1600 Gb/s passive twin-ax alike'],
+      ['ethernet-alliance-400g-lane', 'the project’s own scope table lists 400 Gb/s-per-lane copper cable reach as not yet defined'],
+    ] } },
   { id: 'acc', cls: 'nvl', name: 'ACC — active copper cable', scope: 'Scale-up, one rack over',
     what: 'A linear redriver chip in each connector plug amplifies and cleans the signal; no clock-and-data recovery.',
     reach: '≈3 m at 200 Gb/s per lane, commonly reaching one adjacent rack; 3–5 m at 100 Gb/s per lane (NVIDIA LACC)',
     power: '≈2–3 W per end at 200 Gb/s per lane; 1.5 W max per end at 100 Gb/s per lane (NVIDIA LACC, 800G port)',
     where: 'Short multi-rack scale-up hops — “the rack next door”',
-    basis: 'typical' },
+    basis: 'reported',
+    ev: { refs: [
+      ['nvidia-copper-dac-lacc-overview', 'defines LACC as a linear redriver/equalizer in each connector plug — amplifies and cleans the signal, no clock-and-data recovery'],
+      ['nvidia-mca4j80n-datasheet', 'MCA4J80-Nxxx datasheet: 3/4/5 m reach by wire gauge, 1.5 W max per end, at 100 Gb/s per lane on an 800G port'],
+      ['viksnewsletter-acc-power', '"pushes copper out to 3 meters at 200G/lane for just a couple of watts per end"'],
+    ] } },
   { id: 'aec', cls: 'nvl', name: 'AEC — active electrical cable', scope: 'NIC to leaf, switch to switch',
     what: 'A full DSP retimer chip at each end regenerates the signal instead of just amplifying it. Credo’s HiWire cables and Astera Labs’ Taurus modules carry their own; Marvell’s Alaska A DSP goes into other makers’ cables.',
     reach: 'Commonly ≈7 m, demonstrated to 9 m',
     power: '≈20 W per end at 200 Gb/s per lane',
     where: 'Server/NIC-to-leaf and switch-to-switch links; also cross-rack scale-up in practice (AWS Trainium2/3, reportedly xAI Colossus)',
-    basis: 'typical' },
+    basis: 'reported',
+    ev: { refs: [
+      ['nvidia-linkx-interconnect', '"AECs use digital signal processors (DSPs) at each end to restore and retime signals"'],
+      ['credo-zeroflap-aec', 'product page: a 7 m 800G AEC, built on ahead of the 9 m part below'],
+      ['infraeo-9m-aec-release', '9 m 800G OSFP AEC, pre-FEC BER < 1E-8, built on Credo’s prior 7 m 800G AEC product'],
+      ['viksnewsletter-acc-power', '"[AEC] burns around 20 watts per end"'],
+      ['marvell-aec-prnewswire', 'Marvell’s own framing: AEC DSPs for server/NIC-to-ToR and switch-to-switch links'],
+    ] } },
   { id: 'lpo', cls: 'eth', name: 'LPO — linear pluggable optics', scope: 'leaf to spine',
     what: 'The module keeps the laser and photodetectors but drops the DSP; the host chip’s own SerDes drives and reads the line directly, doing the equalization the DSP used to.',
     reach: '500 m standard; ≈2 km in a DR variant',
@@ -40,19 +58,33 @@ export const MEDIA_LADDER = [
     // paper over that by mechanically relabeling the LPO figure "1.6T" either.
     power: '≈10 W target per port at 200 Gb/s per lane (Semtech; the exact port capacity isn’t stated) — Semtech’s own retimed baseline at that lane rate is a complete 1.6T DR8 module at 23–25 W, not an 800G one',
     where: 'Leaf-to-spine fabric links; early commercial deployment as of 2026',
-    basis: 'spec' },
+    basis: 'spec',
+    ev: { refs: [
+      ['semtech-200g-lpo-power-blog', '"200G LPO Power, Reach and Loss": Semtech’s own 200 Gb/s-per-lane ladder (retimed ≈23–25 W, LPO ≈10 W target), the 23–25 W figure tied elsewhere in the same piece to a complete 1.6T DR8 module'],
+      ['lpo-msa-lightwave', 'LPO MSA’s 100 Gbps/lane spec completed March 31, 2025, a 200 Gbps/lane follow-on in development'],
+    ] } },
   { id: 'dsp', cls: 'eth', name: 'DSP pluggable optics', scope: 'leaf to spine, hall to hall',
     what: 'Today’s default: a full DSP retimer regenerates the signal at each end, alongside a laser and photodetectors. The DSP comes from chipmakers such as Marvell (Ara), Broadcom (Sian) and Credo (Bluebird).',
     reach: '500 m (DR8) to 2 km (FR4/FR8)',
     power: '12 W max (400G QSFP-DD, today’s 100 Gb/s/lane generation); ≈15 W (800G 2×FR4, same generation); on the newest 3 nm, 200 Gb/s/lane DSPs: sub-13 W (800G) and sub-23 W (1.6T) — a different chip generation, not a lower price for the same part',
     where: 'Today’s default fabric backbone and campus-length links',
-    basis: 'spec' },
+    basis: 'spec',
+    ev: { refs: [
+      ['cisco-400g-qsfpdd-datasheet', 'datasheet: 400G QSFP-DD (DR4/FR4), 12 W max'],
+      ['semianalysis-cpo-newsletter', 'newsletter figure: 800G 2×FR4 ≈ 15 W'],
+      ['broadcom-sian3-200g-lane-dsp', 'Broadcom’s own DSP spec: "sub-13 W" (800G modules) / "sub-23 W" (1.6T modules) on its newest 200 Gb/s-per-lane DSP'],
+      ['marvell-ara-1-6t-prnewswire', 'Marvell’s own release: >20% lower 1.6T module power on its 3 nm, 200 Gbps/lane Ara platform vs. its prior Nova 2 generation'],
+    ] } },
   { id: 'lr4', cls: 'eth', name: 'LR4 — direct-detect campus optics', scope: 'building to building, still direct detect',
     what: 'The same DSP-retimed, on/off (direct-detect) family as the leaf-spine backbone above, just tuned for reach instead of density: four CWDM wavelengths on one fiber pair. Not a coherent receiver, and not multiplexed with anything else on that fiber.',
     reach: '10 km, single-mode — sized to absorb a campus’s routing and conduit slack, no optical amplification needed',
     power: 'Same DSP-pluggable class as the backbone above (roughly 12–15 W in today’s generation) — a longer-reach optic, not a separate power class',
     where: 'Building-to-building campus links short enough that neither amplification nor coherent detection is needed',
-    basis: 'typical' },
+    basis: 'reported',
+    ev: { refs: [
+      ['cisco-400g-qsfpdd-datasheet', 'the same datasheet’s LR4 variant sits alongside DR4/FR4 in the DSP-pluggable family cited for the rung above'],
+      ['lcom-lr4-10km', '10 km, single-mode LR4 reach, sized to absorb a campus’s routing and conduit slack'],
+    ] } },
   { id: 'coherent', cls: 'dci', name: 'Coherent (400ZR/800ZR-class)', scope: 'campus to campus',
     what: 'A coherent transceiver — a pluggable like Marvell’s COLORZ 800 or Ciena’s WaveLogic 6 Nano, or a transponder in a line-terminal shelf — encodes each wavelength in amplitude, phase and polarization together, carrying far more bits per symbol than direct-detect optics. A separate mux/demux combines many such wavelengths onto one fiber pair; separate optical amplifiers, not the transceiver, extend the run. None of that is what LR4 above does, and coherent detection isn’t what makes multiplexing possible — direct-detect wavelengths can be muxed too.',
     reach: '≈40 km unamplified at 400ZR’s standard 11 dB loss budget, extending toward ≈75 km in longer-reach variants (both per OIF); 80–120 km per amplified span for longer routes — repeating amplifiers every ≈80 km extends reach, but noise accumulates with every span, so it is not unlimited',
@@ -60,13 +92,22 @@ export const MEDIA_LADDER = [
     // blending them into one "23-30 W at 800ZR" figure would misstate plain 800ZR's own power draw
     power: '≈15–20 W at 400ZR; ≈23–25 W at 800ZR (≈26–30 W in longer-reach 800ZR+ variants)',
     where: 'Scale-across: building-to-building and site-to-site links',
-    basis: 'typical' },
+    basis: 'reported',
+    ev: { refs: [
+      ['edgeoptic-400g-coherent-guide', '"≈40 km unamplified" / "≈120 km amplified" for 400ZR, and 50–75 km unamplified for the longer-reach MZR-class variant'],
+      ['ascentoptics-coherent-power', '"400ZR (Standard)... Typical Power 18 to 20 W... Maximum Power 22 W"; 800ZR "typically... 23 to 25 watts"; 800ZR+ "approximately 20–30W" with real modules rated to 30 W max'],
+    ] } },
   { id: 'cpo', cls: 'eth', name: 'CPO — co-packaged optics', scope: 'built into the switch, leaf and spine',
     what: 'The optical engines move onto or next to the switch ASIC’s own package, shortening the electrical channel and removing the pluggable module and its connector — it does not by itself mean fewer traffic fibers.',
     reach: 'Same reach class as the pluggables it replaces; this is a switch-side packaging change, without its own separate reach spec',
     power: '≈5.5 W per 800G port, optics plus external laser (Broadcom Bailly, 2025); ≈3.5 W per 800G port (Broadcom Tomahawk 6 “Davisson,” newest) — both exclude the switch ASIC’s own host-side SerDes power',
     where: 'Leaf and spine switch packages; NVIDIA Quantum-X/Spectrum-X Photonics, Broadcom Tomahawk 5/6',
-    basis: 'spec' },
+    basis: 'spec',
+    ev: { refs: [
+      ['nextplatform-broadcom-cpo', '≈ 5.5 W optical-engine-plus-laser power per 800G port on Broadcom Bailly (Tomahawk 5 CPO), a 14.1% cut vs. the prior Tomahawk-4 generation'],
+      ['broadcom-davisson-cpo', 'Broadcom’s own release: Tomahawk 6 "Davisson," 102.4 Tbps, optics at ≈ 3.5 W per 800G port'],
+      ['broadcom-davisson-servethehome', 'independent write-up of the same Davisson launch, corroborating the 3.5 W/port figure'],
+    ] } },
 ];
 
 // ---------- (b) the copper wall: passive reach vs. lane rate ----------
@@ -80,10 +121,24 @@ export const COPPER_WALL = [
 // The claims the two figures make as a whole, each with its own basis chip under the figure. (The rungs above carry
 // their own.) Evidence is added per claim, as everywhere (src/evidence.js).
 export const FIGURE_CLAIMS = {
-  copperwall: { label: 'Where copper runs out, by lane rate', basis: 'typical' },
-  'cutaway-dsp': { short: 'DSP', label: 'Inside a DSP pluggable module', basis: 'spec' },
-  'cutaway-lpo': { short: 'LPO', label: 'Inside a linear pluggable module', basis: 'spec' },
-  'cutaway-cpo': { short: 'CPO', label: 'Co-packaged optics', basis: 'spec' },
+  copperwall: { label: 'Where copper runs out, by lane rate', basis: 'derived', ev: { calc: 'copper-wall-chart', refs: [
+    ['ieee-25gbe-wiki', '25GBASE-CR/CR-S reach, the chart’s 25 Gb/s/lane bar'],
+    ['ieee-100gbe-wiki', '100GBASE-CR2/CR1 reach, the chart’s 50 and 100 Gb/s/lane bars'],
+    ['ieee-8023dj-electrical-adhoc', 'the draft P802.3dj objective (≥ 1 m), the chart’s 200 Gb/s/lane bar and its floor tick'],
+    ['ethernet-alliance-400g-lane', 'the project’s own scope table lists 400 Gb/s/lane copper reach as not yet defined, the chart’s "not yet defined" bar'],
+  ] } },
+  'cutaway-dsp': { short: 'DSP', label: 'Inside a DSP pluggable module', basis: 'spec', ev: { refs: [
+    ['cisco-400g-qsfpdd-datasheet', 'a full DSP retimer regenerates the signal at each end of a QSFP-DD/OSFP module, alongside a laser and photodetectors'],
+    ['broadcom-sian3-200g-lane-dsp', 'Broadcom’s own description of its Sian3 DSP’s place inside a retimed pluggable module'],
+  ] } },
+  'cutaway-lpo': { short: 'LPO', label: 'Inside a linear pluggable module', basis: 'spec', ev: { refs: [
+    ['semtech-200g-lpo-power-blog', 'the module keeps the laser and photodetectors but drops the DSP; the host chip’s own SerDes drives and reads the line directly'],
+    ['lpo-msa-lightwave', 'the LPO MSA’s own scope: a linear pluggable module specification with no retiming DSP'],
+  ] } },
+  'cutaway-cpo': { short: 'CPO', label: 'Co-packaged optics', basis: 'spec', ev: { refs: [
+    ['nvidia-spectrum-x-cpo', 'NVIDIA’s own description: optical engines co-packaged with the switch ASIC, fed by external laser source (ELS) modules as a separate side feed'],
+    ['broadcom-davisson-cpo', 'Broadcom’s own description of Tomahawk 6 "Davisson": optical engines built onto the switch package with field-replaceable laser modules'],
+  ] } },
 };
 
 export const OPTICS_CROSSOVER_M = 7; // upper end of the "on the margin" band a 200G-class signal hits (SemiEngineering)
