@@ -97,6 +97,9 @@ export function content(M) {
   const lossOf = prefix => M.ledger.filter(r => r.label.startsWith(prefix)).reduce((a, r) => a + r.mw, 0);
   const lossTxt = prefix => { const v = lossOf(prefix); return v >= 10 ? `≈${n0(v)} MW` : `≈${v.toFixed(1)} MW`; };
   const rackKW = Math.round(RK.kw);
+  // a real campus's own mix (sites.ts fleet): every total counts each accelerator at its own figures
+  const FL = M.fleet, mixed = M.mixed;
+  const tPerGpu = a => parseFloat(FACTS[a.id].transistors.replace('≈', '')) * 1e9;
   const liq = air ? 0 : A.liquidShare, liqKW = Math.round(RK.kw * liq), airKW = rackKW - liqKW;
   const halls = M.halls, multiHall = halls > 1;
   const hbmTB = `${A.hbm.tbs} TB/s`;
@@ -279,9 +282,9 @@ export function content(M) {
     ]),
     bat
       ? { id: 'bess', title: 'Battery storage', kicker: 'Planned pack; no diesel mentioned',
-        body: `SpaceXAI’s page lists a grid-connected battery pack for this campus that “will provide 3.3 gigawatt hours,” and mentions no diesel generators. At its first Memphis site, it says, more than 240 batteries let the campus come completely offline in emergencies or at peak demand. The pack’s power rating is not published; the model assumes it can carry the whole campus, about ${bessH.toFixed(0)} hours at full load, and that the same batteries soak up training load swings.`,
+        body: `SpaceXAI’s page lists a grid-connected battery pack for this campus that “will provide 3.3 gigawatt hours,” and mentions no diesel generators; its energy developer, Riley Trettel, told the TVA board the same figure on 08/20/2026, and TVA approved a direct grid hookup that day. At its first Memphis site, it says, more than 240 batteries let the campus come completely offline in emergencies or at peak demand. The pack’s power rating is not published; the model assumes it can carry the whole campus, about ${bessH.toFixed(0)} hours at full load, and that the same batteries soak up training load swings.`,
         specs: [
-          ['Energy, per SpaceXAI (planned)', `${+(L.bessMWh / 1000).toFixed(1)} GWh`, 'spec', evRefs([['spacexai-mid-south', 'Colossus II tab, Power: "America’s largest grid-connected battery pack will provide 3.3 gigawatt hours"']])],
+          ['Energy, per SpaceXAI (planned)', `${+(L.bessMWh / 1000).toFixed(1)} GWh`, 'spec', evRefs([['spacexai-mid-south', 'Colossus II tab, Power: "America’s largest grid-connected battery pack will provide 3.3 gigawatt hours"'], ['canarymedia-xai-battery', 'body text: on Aug. 20 SpaceXAI energy and data center developer Riley Trettel told the TVA board the battery has "3.3 GWh of storage"']])],
           ['Power, assumed', `≈${mwTxt(L.bessMW)}, the whole campus`, 'assumed', evAssume('site-battery-carries-campus')],
           ['At full load', `≈${bessH.toFixed(1)} h`, 'derived', evCalc('site-battery-hours')],
           ['Diesel generators', 'none mentioned by SpaceXAI', 'spec', evRefs([['spacexai-mid-south', 'all five tabs (Colossus I, Colossus II, Water, Power, Air), checked 09/27/2026: no diesel generators are mentioned']])],
@@ -395,12 +398,12 @@ export function content(M) {
       specs: dc
         ? [['Rack voltage', '800 V DC', 'spec', { refs: [['nvidia-800v-hvdc', "NVIDIA's own architecture post names 800 V as the DC bus voltage for its next-generation AI-factory power design"]] }], ['Per rack', M.staircase.find(s => s.v === 800)?.current ?? '', 'derived', { calc: 'hall-busway-current' }], ['Copper, NVIDIA claim', '−45%', 'vendor', { refs: [['nvidia-800v-hvdc', '"With lower current, thinner conductors can handle the same load, reducing copper requirements by 45%."']], vs: '415 V AC busway distribution at the same delivered power' }]]
         : [['Rack voltage', '415 V three-phase', 'reported', { refs: [['lv-distribution-busway', '"415V (and its 400V European twin) is the de facto rack standard for liquid-density AI rows", vs. 208V three-phase in legacy air-cooled halls (the page does not separately discuss 480 V upstream distribution)']] }], ['Per rack', `${M.staircase.find(s => s.v === 415)?.current ?? ''} at ${rackKW} kW`, 'derived', { calc: 'hall-busway-current', assume: 'power-factor' }], ['Why busway', 'tap-offs move without rewiring', 'assumed', { assume: 'hall-standard-practice' }]] },
-    { id: 'racks', title: nvl ? `${A.short} NVL72 racks` : 'DGX H100 racks', kicker: `${rackKW} kW each`,
+    { id: 'racks', title: mixed ? 'NVL72 racks' : nvl ? `${A.short} NVL72 racks` : 'DGX H100 racks', kicker: mixed ? FL.map(m => `≈${n0(m.racksShown)} ${m.accel.short}`).join(', ') : `${rackKW} kW each`,
       body: nvl
-        ? `Each rack draws what a whole row of racks drew ten years ago. About ${Math.round(liq * 100)}% of its heat leaves in water${liq < 1 ? ', the rest in air' : ''}.`
+        ? `Each rack draws what a whole row of racks drew ten years ago. About ${Math.round(liq * 100)}% of its heat leaves in water${liq < 1 ? ', the rest in air' : ''}.${mixed ? ` This campus runs ${FL.map(m => `≈${n0(m.racksShown)} ${m.accel.rackName}`).join(' and ')} racks; the levels below show a ${A.rackName}.` : ''}`
         : 'Four air-cooled servers per rack, eight GPUs each. More would overheat: NVIDIA caps air-cooled DGX H100 at four per rack.',
       specs: nvl
-        ? [['Power, this model', `≈${rackKW} kW`, 'derived', { calc: 'hall-rack-power' }], ['Published range', `${A.publishedRackKW[0]}–${A.publishedRackKW[1]} kW`, rackPublishedBasis, rackPublishedEv], ['GPUs', `72 ${X.arch}`, 'spec', { refs: [['nvidia-gb200-nvl72', 'product page: the NVL72 platform name and specifications describe a 72-GPU rack']] }], ['Liquid / air', `${liqKW} kW / ${airKW} kW`, 'derived', { calc: 'hall-liquid-air-split' }]]
+        ? [...(mixed ? FL.map(m => [`${m.accel.short} rack, this model`, `≈${Math.round(m.rackKW)} kW`, 'derived', { calc: 'hall-rack-power' }]) : [['Power, this model', `≈${rackKW} kW`, 'derived', { calc: 'hall-rack-power' }]]), ['Published range', `${A.publishedRackKW[0]}–${A.publishedRackKW[1]} kW`, rackPublishedBasis, rackPublishedEv], ['GPUs', `72 ${X.arch}`, 'spec', { refs: [['nvidia-gb200-nvl72', 'product page: the NVL72 platform name and specifications describe a 72-GPU rack']] }], ['Liquid / air', `${liqKW} kW / ${airKW} kW`, 'derived', { calc: 'hall-liquid-air-split' }]]
         : [['Power, this model', `≈${rackKW} kW`, 'derived', { calc: 'hall-rack-power' }], ['Published', '≈41 kW for 4 systems', 'spec', { refs: [['nvidia-dgx-h100', 'product page: per-server maximum power draw, ×4 servers per rack']] }], ['GPUs', '32 H100', 'spec', { refs: [['nvidia-dgx-h100', 'product page: 8 GPUs per DGX H100 server × 4 servers per rack']] }]],
       drill: 3 },
     { id: 'containment', title: 'Hot aisle containment', kicker: air ? 'Keeps hot and cold air apart' : 'For the heat water misses',
@@ -683,7 +686,7 @@ export function content(M) {
       ['Busway runs', `≈${n0(RACKS / 10)}`, 'derived', Lk(2, 'busway'), bomRack],
     ] },
     { group: 'Racks', rows: nvl ? [
-      [`${A.rackName} racks`, `≈${n0(RACKS)}`, 'derived', Lk(2, 'racks'), { calc: 'bom-racks-from-power' }],
+      ...FL.map(m => [`${m.accel.rackName} racks`, `≈${n0(m.racksShown)}`, 'derived', Lk(2, 'racks'), { calc: M.stage != null ? 'bom-racks-from-gpus' : 'bom-racks-from-power' }]),
       [dc ? 'DC-DC shelves' : 'Power shelves', `≈${n0(RACKS * 6)}`, 'derived', Lk(3, 'shelves'), bomRack],
       ...(dc ? [] : [['Rectifiers', `≈${n0(RACKS * 36)}`, 'derived', Lk(3, 'shelves'), bomRack]]),
       ['NVLink copper connections', `≈${kfmt(NET.nvlinkPairs)}`, 'derived', Lk(3, 'spine'), bomRack],
@@ -693,11 +696,11 @@ export function content(M) {
       ['Server power supplies', `≈${n0(RACKS * 24)}`, 'derived', Lk(4, 'psu'), bomRack],
     ] },
     { group: 'Silicon', rows: [
-      [X.gpus, `≈${n0(GPUS)}`, 'derived', Lk(4, 'gpu'), bomSilicon],
+      ...(mixed ? FL.map(m => [`${FACTS[m.accel.id].gpus} (${m.accel.short})`, `≈${n0(m.gpus)}`, 'reported', Lk(4, 'gpu'), { refs: [['elonmusk-x-colossus-2026-09-25', 'post on X, 09/25/2026: "Colossus 2 is 110k GB200 and 440k GB300" (later stages: his stated plans)']] }]) : [[X.gpus, `≈${n0(GPUS)}`, 'derived', Lk(4, 'gpu'), bomSilicon]]),
       [`${X.cpu} CPUs`, `≈${n0(M.cpus)}`, 'derived', Lk(4, nvl ? 'grace' : 'cpu'), bomSilicon],
-      [`${A.hbm.type} stacks`, `≈${kfmt(GPUS * (A.id === 'h100' ? 5 : A.hbm.stacks))}`, 'derived', Lk(5, 'hbm'), bomSilicon],
+      [`${A.hbm.type} stacks`, `≈${kfmt(M.hbmStacks)}`, 'derived', Lk(5, 'hbm'), bomSilicon],
       ['VRM phases', `≈${kfmt(GPUS * 24)}`, 'derived', Lk(4, 'vrm'), bomSilicon],
-      ['Transistors in GPUs', `≈${(GPUS * parseFloat(X.transistors.replace('≈', '')) * 1e9 / 1e15).toFixed(1)} quadrillion`, 'derived', Lk(5, 'dies'), bomSilicon],
+      ['Transistors in GPUs', `≈${(FL.reduce((t, m) => t + m.gpus * tPerGpu(m.accel), 0) / 1e15).toFixed(1)} quadrillion`, 'derived', Lk(5, 'dies'), bomSilicon],
     ] },
     { group: 'Network', rows: [
       [nvl ? 'NVLink switch chips' : 'NVSwitch chips', `≈${n0(NET.nvswitchChips)}`, 'derived', nvl ? Lk(3, 'nvswitch', 'data') : Lk(4, 'nvswitch', 'data'), bomRack],

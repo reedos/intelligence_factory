@@ -10,7 +10,8 @@ const URL = process.env.URL || 'http://127.0.0.1:47400/';
 const combos = [];
 for (const accel of ['h100', 'gb200', 'gb300', 'rubin']) for (const power of ['ac415', 'dc800']) for (const cooling of ['air', 'liquid', 'warm']) combos.push({ meterMW: 300, accel, power, cooling });
 for (const meterMW of [10, 100, 1000, 5000]) combos.push({ meterMW, accel: 'gb200', power: 'dc800', cooling: 'liquid' });
-combos.push({ meterMW: 1100, accel: 'gb300', power: 'ac415', cooling: 'liquid', site: 'colossus2' });   // a real campus's own plant: battery backup, closed loop
+combos.push({ meterMW: 1461, accel: 'gb300', power: 'ac415', cooling: 'liquid', site: 'colossus2', stage: 0 });   // Elon Musk's 550k mixed fleet, battery backup, closed loop
+combos.push({ meterMW: 3253, accel: 'gb300', power: 'ac415', cooling: 'liquid', site: 'colossus2', stage: 3 });   // its largest stage
 const b = await chromium.launch({ headless: true, args: ['--use-angle=d3d11', '--ignore-gpu-blocklist'] });
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
 const errors = []; p.on('pageerror', e => errors.push(e.message));
@@ -19,7 +20,7 @@ const seen = new Set(); let missingTotal = 0; const extras = new Set();
 for (const s of combos) {
   const r = await p.evaluate(async s => {
     ifx.setScenario(s);
-    const M = ifx.store.M, key = `${M.accel.id} ${M.power.id} ${M.cooling.id} ${M.meterMW}${M.scenario.site ? ` ${M.scenario.site}` : ""}`;
+    const M = ifx.store.M, key = `${M.accel.id} ${M.power.id} ${M.cooling.id} ${Math.round(M.meterMW)}${M.scenario.site ? ` ${M.scenario.site}` : ""}${M.stage != null ? ` stage ${M.stage}` : ""}`;
     const out = [], C = ifx.store.C, by = { power: C.PARTS, data: C.PARTS_DATA, heat: C.PARTS_HEAT };
     for (let i = 0; i < 6; i++) {
       await ifx.go(i, null, { force: true, keepCamera: true });

@@ -1338,7 +1338,7 @@ export const TERMS = [
   "aka": [
    "xAI Colossus 2"
   ],
-  "def": "SpaceXAI's second Memphis campus (xAI until July 2026), about 3 km from Colossus 1: live and still growing, and called the \"First Gigawatt Datacenter\" by SemiAnalysis in 09/2025. By satellite estimate it ran about 946 MW of IT power and 440,000 Nvidia chips as of 09/24/2026; the company reported about 550,000 chips installed by 09/25/2026 and says it plans 1M+ GPUs. SpaceXAI lists a planned 3.3 GWh grid-connected battery pack for it, says its temporary gas turbines must be removed by July 2027, mentions no diesel generators, and says it uses closed-loop cooling that takes only domestic water. By Epoch AI's tracking, it is the most powerful AI data center operating today, by both IT power and compute; Amazon and Anthropic's New Carlisle campus is next, at about 910 MW with more chips but less compute.",
+  "def": "SpaceXAI's second Memphis campus (xAI until July 2026), about 3 km from Colossus 1: live and still growing, and called the \"First Gigawatt Datacenter\" by SemiAnalysis in 09/2025. By satellite estimate it ran about 946 MW of IT power and 440,000 Nvidia chips as of 09/24/2026; a day later Elon Musk put it at 550,000 GPUs, 110k GB200 and 440k GB300, with another 220k GB300 due the following week, 220k in November and, \"if we get lucky\", 220k more by late December. SpaceXAI says it plans 1M+ GPUs. It lists a planned 3.3 GWh grid-connected battery pack for it (its energy developer Riley Trettel told the TVA board so on 08/20/2026), says its temporary gas turbines must be removed by July 2027, mentions no diesel generators, and says it uses closed-loop cooling that takes only domestic water. By Epoch AI's tracking, it is the most powerful AI data center operating today, by both IT power and compute; Amazon and Anthropic's New Carlisle campus is next, at about 910 MW with more chips but less compute.",
   "layer": "general",
   "sources": [
    "epoch-dc-colossus2",
@@ -1346,7 +1346,9 @@ export const TERMS = [
    "semianalysis-xai-colossus2",
    "wikipedia-colossus",
    "spacexai-mid-south",
-   "bi-spacexai-rebrand"
+   "bi-spacexai-rebrand",
+   "elonmusk-x-colossus-2026-09-25",
+   "canarymedia-xai-battery"
   ],
   "cites": [
    ["epoch-dc-colossus2", "directory entry, updated 09/24/2026: '1,112k H100-eq AI compute, supported by 946 MW of IT power,' with '110k' B200 and '330k' B300 chips (≈440k total)"],

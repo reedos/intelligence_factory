@@ -17,7 +17,8 @@ export interface Scenario {
   accel: AccelId;
   power: PowerId;
   cooling: CoolingId;
-  site?: string;     // a real campus this scenario is based on (sites.ts); location and facts only
+  site?: string;     // a real campus this scenario is based on (sites.ts)
+  stage?: number;    // with a site that publishes its fleet (sites.ts `fleet`), which dated stage of it
 }
 
 export const DEFAULT_SCENARIO: Scenario = { meterMW: 100, accel: 'gb200', power: 'ac415', cooling: 'warm' };
@@ -162,13 +163,8 @@ export interface Link { scene: number; mode: 'power' | 'data' | 'heat'; part: st
 const L = (scene: number, part: string, mode: Link['mode'] = 'power'): Link => ({ scene, mode, part });
 export interface LedgerRow { label: string; mw: number; kind: 'loss' | 'overhead' | 'net' | 'work'; scene: number; basis: Basis; ev?: Ev; link?: Link }
 
-export function compute(s: Scenario) {
-  const accel = ACCELERATORS[s.accel];
-  const power = POWER[accel.dc800 ? s.power : 'ac415'];
-  const cooling = COOLING[accel.coolingOptions.includes(s.cooling) ? s.cooling : accel.coolingOptions[accel.coolingOptions.length - 1]];
-  const meterMW = s.meterMW;
-
-  // ----- one rack, bottom up (kW) -----
+// one rack, bottom up (kW), for an accelerator on a power design
+function rackOf(accel: Accel, power: PowerArch) {
   const pkgKW = accel.gpuW * accel.gpusPerRack / 1000;
   const hbmKW = pkgKW * accel.hbmShare, gpuSiliconKW = pkgKW - hbmKW;
   const vrmLossKW = pkgKW / accel.vrmEff - pkgKW;
@@ -178,68 +174,116 @@ export function compute(s: Scenario) {
   const dcBusKW = load12 + ibcLossKW + accel.busbarKW;
   const rackEff = power.id === 'dc800' ? EFF.rackDcDc : accel.psuEff;
   const rackKW = dcBusKW / rackEff;
-  const rackConvKW = rackKW - dcBusKW;
+  return { kw: rackKW, dcBusKW, convKW: rackKW - dcBusKW, pkgKW, hbmKW, gpuSiliconKW, vrmLossKW, ibcLossKW, cpuKW, gpus: accel.gpusPerRack, eff: rackEff };
+}
 
-  // ----- fabric per GPU (two tiers if it fits, else three; beyond that, parallel fabrics) -----
-  const F = FABRICS[accel.nicGbps];
-  const twoTierMax = F.radix * F.radix / 2, threeTierMax = F.radix ** 3 / 4;
-  // A tier's own port count sets how many links and switch ports a GPU needs, which sets kwPerGpu, which sets
-  // how many racks the site's power actually buys — so "how many GPUs" and "how many tiers" depend on each
-  // other. Evaluate both tier configurations directly (rather than iterating a fixed number of passes and
-  // hoping it lands somewhere consistent) and pick the smaller one that stays inside its own port budget.
-  const tierConfig = (tiers: 2 | 3) => {
-    const portsPerGpu = tiers === 2 ? 3 : 5, linksPerGpu = tiers === 2 ? 2 : 3;
-    const kwPerGpu = portsPerGpu / F.radix * F.switchKW + (F.gpuModuleW + portsPerGpu * F.portModuleW) / 1000;
-    return { tiers, portsPerGpu, linksPerGpu, kwPerGpu };
+// A tier's own port count sets how many links and switch ports a GPU needs, which sets kwPerGpu, which sets how many
+// racks the site's power actually buys — so "how many GPUs" and "how many tiers" depend on each other. Evaluate both
+// tier configurations directly and pick the smaller one that stays inside its own port budget.
+function tierConfig(F: (typeof FABRICS)[keyof typeof FABRICS], tiers: 2 | 3) {
+  const portsPerGpu = tiers === 2 ? 3 : 5, linksPerGpu = tiers === 2 ? 2 : 3;
+  const kwPerGpu = portsPerGpu / F.radix * F.switchKW + (F.gpuModuleW + portsPerGpu * F.portModuleW) / 1000;
+  return { tiers, portsPerGpu, linksPerGpu, kwPerGpu };
+}
+// one non-blocking fabric for G GPUs on one NIC speed: its counts and its power
+function fabricOf(F: (typeof FABRICS)[keyof typeof FABRICS], G: number, cfg: ReturnType<typeof tierConfig>) {
+  const threeTierMax = F.radix ** 3 / 4;
+  const leaf = Math.ceil(G / (F.radix / 2));
+  const spine = cfg.tiers === 2 ? Math.ceil(G / F.radix) : Math.ceil(G / (F.radix / 2));
+  const core = cfg.tiers === 3 ? Math.ceil(G / F.radix) : 0;
+  const switches = leaf + spine + core, links = G * cfg.linksPerGpu;
+  const gpuModules = G, switchModules = G * cfg.portsPerGpu / F.portsPerModule;   // twin-port modules carry two switch ports
+  return {
+    F, ...cfg, planes: Math.max(1, Math.ceil(G / threeTierMax)), gpus: G, leaf, spine, core, switches, links, gpuModules, switchModules,
+    switchMW: switches * F.switchKW / 1000, opticsMW: (gpuModules * F.gpuModuleW + G * cfg.portsPerGpu * F.portModuleW) / 1e6,
   };
+}
 
-  // ----- facility: solve for IT load from the meter -----
+// A real campus whose operator has said what it runs (sites.ts `fleet`) is sized from that fleet, one dated stage at a
+// time: GPUs set the racks, the racks and their network set the IT load, and the IT load sets the meter. Each
+// accelerator keeps its own rack power and gets its own scale-out fabric at its own NIC speed (ASSUMPTIONS
+// 'fleet-own-fabrics'). It holds only while the reader keeps the preset's accelerator, the one its 3D rack, tray and
+// package show; any other scenario is sized the usual way, from the meter, as a one-member fleet.
+export interface FleetMember { accel: Accel; gpus: number; racks: number; rack: ReturnType<typeof rackOf>; fab: ReturnType<typeof fabricOf> }
+
+export function compute(s: Scenario) {
+  const accel = ACCELERATORS[s.accel];
+  const power = POWER[accel.dc800 ? s.power : 'ac415'];
+  const cooling = COOLING[accel.coolingOptions.includes(s.cooling) ? s.cooling : accel.coolingOptions[accel.coolingOptions.length - 1]];
+  const site = s.site ? SITES[s.site as SiteId] : undefined, plant = site?.plant;
+  const stages = site?.fleet;
+  const stage = stages && s.stage != null && stages[s.stage]?.parts.some(p => p.gpus > 0) && accel.id === site!.scenario.accel ? s.stage : null;
+
+  // ----- one rack of the accelerator the scenario names, the one the 3D levels draw -----
+  const rack = rackOf(accel, power);
+  const { pkgKW, vrmLossKW, dcBusKW } = rack, rackKW = rack.kw;
+  const F = FABRICS[accel.nicGbps];
+  const twoTierMax = F.radix * F.radix / 2;
+
+  // ----- facility -----
   const upstream = EFF.mpt * EFF.campus;
   const itPath = power.id === 'dc800' ? EFF.sst * EFF.dcBus * EFF.dcBattery : EFF.unitSub * EFF.ups * EFF.busway;
   const sidePath = EFF.unitSub;   // cooling and building loads
   // meter · upstream = IT / itPath + (coolFrac + misc) · IT / sidePath
-  const IT_MW = meterMW * upstream / (1 / itPath + (cooling.coolFrac + MISC_FRAC) / sidePath);
+  const meterPerIT = (1 / itPath + (cooling.coolFrac + MISC_FRAC) / sidePath) / upstream;
+
+  let meterMW: number, IT_MW: number, fleet: FleetMember[];
+  if (stage !== null) {
+    // the operator's own GPU counts; a partly filled last rack counts toward power as the share it holds
+    fleet = stages![stage].parts.filter(p => p.gpus > 0).map(p => {
+      const a = ACCELERATORS[p.accel], Fa = FABRICS[a.nicGbps];
+      const cfg = tierConfig(Fa, p.gpus <= Fa.radix * Fa.radix / 2 ? 2 : 3);
+      return { accel: a, gpus: p.gpus, racks: p.gpus / a.gpusPerRack, rack: rackOf(a, a.dc800 ? power : POWER.ac415), fab: fabricOf(Fa, p.gpus, cfg) };
+    });
+    // the IT load is what the fleet draws: its racks, and its switches and optics as counted, so nothing is left over
+    IT_MW = fleet.reduce((w, m) => w + m.racks * m.rack.kw / 1000 + m.fab.switchMW + m.fab.opticsMW, 0);
+    meterMW = IT_MW * meterPerIT;
+  } else {
+    // solve for the IT load from the meter; racks and the network outside them share it
+    meterMW = s.meterMW;
+    IT_MW = meterMW / meterPerIT;
+    const racksFor = (cfg: ReturnType<typeof tierConfig>) => Math.floor(IT_MW * 1000 / (rackKW + accel.gpusPerRack * cfg.kwPerGpu));
+    const two = tierConfig(F, 2), twoRacks = racksFor(two), twoGpus = twoRacks * accel.gpusPerRack;
+    // Two tiers is only a valid fabric if the GPUs it would actually buy fit its own port budget; once the site's
+    // power buys more GPUs than that, the campus needs a third tier (which costs more per GPU, so it always buys
+    // fewer of them — this can never flip back to "two tiers fits after all").
+    const feasible2Tier = twoGpus <= twoTierMax;
+    const chosen = feasible2Tier ? two : tierConfig(F, 3);
+    const r = feasible2Tier ? twoRacks : racksFor(chosen), g = r * accel.gpusPerRack;
+    fleet = [{ accel, gpus: g, racks: r, rack, fab: fabricOf(F, g, chosen) }];
+  }
   const coolMW = cooling.coolFrac * IT_MW, miscMW = MISC_FRAC * IT_MW;
+  const gpus = fleet.reduce((n, m) => n + m.gpus, 0);
+  const racks = Math.round(fleet.reduce((n, m) => n + m.racks, 0));
+  // the campus total of one per-rack quantity
+  const perRack = (f: (m: FleetMember) => number) => fleet.reduce((a, m) => a + m.racks * f(m), 0);
+  const sumFab = (f: (x: FleetMember['fab']) => number) => fleet.reduce((a, m) => a + f(m.fab), 0);
+  const fab = fleet[fleet.length - 1].fab;   // the drawn accelerator's fabric (last in a fleet: the majority)
 
-  // racks and the network outside them share the IT load
-  const racksFor = (cfg: ReturnType<typeof tierConfig>) => Math.floor(IT_MW * 1000 / (rackKW + accel.gpusPerRack * cfg.kwPerGpu));
-  const two = tierConfig(2), twoRacks = racksFor(two), twoGpus = twoRacks * accel.gpusPerRack;
-  // Two tiers is only a valid fabric if the GPUs it would actually buy fit its own port budget; once the site's
-  // power buys more GPUs than that, the campus needs a third tier (which costs more per GPU, so it always buys
-  // fewer of them — this can never flip back to "two tiers fits after all").
-  const feasible2Tier = twoGpus <= twoTierMax;
-  const chosen = feasible2Tier ? two : tierConfig(3);
-  const racks = feasible2Tier ? twoRacks : racksFor(chosen);
-  const gpus = racks * accel.gpusPerRack;
-  const fab = { ...chosen, planes: Math.max(1, Math.ceil(gpus / threeTierMax)) };
-
-  // ----- network counts -----
-  const perTier = gpus;                                    // non-blocking: one link per GPU at every tier
-  const leaf = Math.ceil(gpus / (F.radix / 2));
-  const spine = fab.tiers === 2 ? Math.ceil(gpus / F.radix) : Math.ceil(gpus / (F.radix / 2));
-  const core = fab.tiers === 3 ? Math.ceil(gpus / F.radix) : 0;
-  const switches = leaf + spine + core;
-  const links = perTier * fab.linksPerGpu;
-  const gpuModules = gpus, switchModules = gpus * fab.portsPerGpu / F.portsPerModule;   // twin-port modules carry two switch ports
-  const switchMW = switches * F.switchKW / 1000;
-  const opticsMW = (gpuModules * F.gpuModuleW + gpus * fab.portsPerGpu * F.portModuleW) / 1e6;
+  // ----- network counts: every fleet member's fabric, summed -----
+  const leaf = sumFab(x => x.leaf), spine = sumFab(x => x.spine), core = sumFab(x => x.core), switches = sumFab(x => x.switches);
+  const links = sumFab(x => x.links), gpuModules = sumFab(x => x.gpuModules), switchModules = sumFab(x => x.switchModules);
+  const switchMW = sumFab(x => x.switchMW), opticsMW = sumFab(x => x.opticsMW);
   const dci = { routes: 2, lambdas: 32, gbps: 800, routeKm: 1100, spanKm: 80, cableStrands: 432, portsPerLinecard: 36, litPairs: 0, tbpsPerRoute: 0, modulesPerEnd: 0, huts: 0 };
   dci.litPairs = Math.max(2, Math.round(gpus * 10 / 1000 / 2 / (dci.lambdas * dci.gbps / 1000)));   // ≈10 Gb/s per GPU to other sites
   dci.tbpsPerRoute = dci.litPairs * dci.lambdas * dci.gbps / 1000;
   dci.modulesPerEnd = dci.routes * dci.litPairs * dci.lambdas;
   dci.huts = Math.ceil(dci.routeKm / dci.spanKm) - 1;
+  const h = (m: FleetMember) => m.accel.id === 'h100';
   const NET = {
-    leaf, spine, core, switches, tiers: fab.tiers, planes: fab.planes, links, gpuModules, switchModules,
-    modules: gpuModules + switchModules, fibers: links * F.fibersPerLink,
-    crossHallFibers: gpus / 2 * F.fibersPerLink, switchMW, opticsMW,
-    nvlinkLinks: racks * (accel.id === 'h100' ? accel.gpusPerRack * 18 : 1296),
-    nvlinkPairs: racks * (accel.id === 'h100' ? accel.gpusPerRack * 18 * 4 : 5184),
-    nvswitchChips: racks * (accel.id === 'h100' ? 16 : 18),
-    dpus: racks * (accel.id === 'h100' ? 8 : 36), dci, fabric: F,
+    leaf, spine, core, switches, tiers: fab.tiers, planes: sumFab(x => x.planes), links, gpuModules, switchModules,
+    modules: gpuModules + switchModules, fibers: sumFab(x => x.links * x.F.fibersPerLink),
+    crossHallFibers: sumFab(x => x.gpus / 2 * x.F.fibersPerLink), switchMW, opticsMW,
+    nvlinkLinks: Math.round(perRack(m => (h(m) ? m.accel.gpusPerRack * 18 : 1296))),
+    nvlinkPairs: Math.round(perRack(m => (h(m) ? m.accel.gpusPerRack * 18 * 4 : 5184))),
+    nvswitchChips: Math.round(perRack(m => (h(m) ? 16 : 18))),
+    dpus: Math.round(perRack(m => (h(m) ? 8 : 36))), dci, fabric: F,
+    // a mixed fleet runs one fabric per accelerator, each at its own NIC speed
+    fabrics: fleet.map(m => ({ accel: m.accel.short, gpus: m.gpus, nicGbps: m.accel.nicGbps, tiers: m.fab.tiers, switches: m.fab.switches, radix: m.fab.F.radix, switchName: m.fab.F.switchName })),
   };
 
   // ----- the ledger: meter to GPU silicon -----
-  const R = racks / 1000;   // kW per rack → MW for the campus
+  const R = (f: (m: FleetMember) => number) => perRack(f) / 1000;   // kW per rack → MW for the campus
   const itIn = IT_MW / itPath;                 // power entering the IT path
   const sideIn = (coolMW + miscMW) / sidePath;
   const hgx = accel.id === 'h100';
@@ -257,26 +301,26 @@ export function compute(s: Scenario) {
     ]),
     { label: `Cooling: ${cooling.short.toLowerCase()}, ${cooling.sub}`, mw: coolMW, kind: 'overhead', scene: 2, basis: 'derived', ev: { calc: 'ledger-overhead-frac', assume: 'cooling-overhead-frac', refs: [['google-pue', 'Efficiency page: Google’s own fleet-wide PUE, anchoring the low end of the warm-water/liquid band']] }, link: L(1, cooling.id === 'warm' ? 'drycoolers' : 'chillers') },
     { label: 'Lighting, controls, offices', mw: miscMW, kind: 'overhead', scene: 2, basis: 'derived', ev: { calc: 'ledger-overhead-frac', assume: 'cooling-overhead-frac' } },
-    { label: `Scale-out switches, ${fab.tiers} tiers`, mw: switchMW, kind: 'net', scene: 2, basis: 'derived', ev: { calc: 'ledger-fabric-power' }, link: L(2, 'spine', 'data') },
+    { label: fleet.length > 1 ? 'Scale-out switches, one fabric per accelerator' : `Scale-out switches, ${fab.tiers} tiers`, mw: switchMW, kind: 'net', scene: 2, basis: 'derived', ev: { calc: 'ledger-fabric-power', ...(fleet.length > 1 ? { assume: 'fleet-own-fabrics' } : {}) }, link: L(2, 'spine', 'data') },
     { label: 'Optical transceivers', mw: opticsMW, kind: 'net', scene: 2, basis: 'derived', ev: { calc: 'ledger-fabric-power', refs: [['nvidia-800g-dr8-datasheet', 'section 4.2, Recommended Operating Conditions and Power Supply Requirements: Maximum Power Dissipation, Max 17 W (the 400G-class per-module figure the fabric model scales from)']] }, link: L(2, 'optics', 'data') },
-    { label: power.id === 'dc800' ? 'In-rack DC-DC, 800 → 50 V' : (hgx ? 'Server power supplies, AC → DC' : 'Rack power shelves, AC → DC'), mw: rackConvKW * R, kind: 'loss', scene: 3, basis: 'derived', ev: power.id === 'dc800' ? { calc: 'ledger-conv-loss', assume: 'rack-dcdc-eff-98.5', refs: [['navitas-10kw-dcdc-800v50v', "\"deliver 98.5% peak efficiency and 98.1% full load efficiency\" for its \"800 V-to-50 V\" DC-DC platform (the site's earlier navitas-800vdc citation for this figure states no efficiency percentage)"]] } : { calc: 'ledger-conv-loss', refs: [['nvidia-h100-datasheet', 'system power figures behind the ≈96% AC→54 V PSU efficiency assumed for the DGX H100 case'], ['nvidia-gb200-ocp', 'OCP contribution post describing the GB200 ORv3 power-shelf conversion this figure covers']] }, link: L(3, hgx ? 'psus' : 'shelves') },
-    { label: hgx ? 'Server power cabling' : 'Busbar', mw: accel.busbarKW * R, kind: 'loss', scene: 3, basis: 'derived', ev: { calc: 'ledger-rack-share' }, link: L(3, hgx ? 'cabling' : 'busbar') },
-    { label: hgx ? 'NVSwitch chips (scale-up)' : 'NVLink switch trays (scale-up)', mw: accel.scaleupKW * R, kind: 'net', scene: 3, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power' }, link: hgx ? L(4, 'nvswitch') : L(3, 'nvswitch') },
-    { label: accel.cpuName, mw: cpuKW * R, kind: 'work', scene: 4, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power' }, link: L(4, hgx ? 'cpu' : 'grace') },
-    { label: hgx ? 'NICs & DPUs' : 'SuperNICs & DPUs', mw: accel.nicKW * R, kind: 'net', scene: 4, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power', refs: [['nvidia-coreweave-gb200-400g', "\"NVIDIA Quantum-2 InfiniBand networking that delivers 400Gb/s bandwidth per GPU\" -- the per-GPU NIC rate this row's per-rack figure is built from"]] }, link: L(4, 'nic') },
-    { label: 'SSDs, fans, management', mw: accel.otherKW * R, kind: 'work', scene: 4, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power' }, ...(hgx ? { link: L(4, 'fans', 'heat') } : {}) },
-    { label: hgx ? 'Bus converters, 54 → 12 V' : 'Bus converters, 50 → 12 V', mw: ibcLossKW * R, kind: 'loss', scene: 4, basis: 'derived', ev: { calc: 'ledger-conv-loss', refs: [['semianalysis-blackwell-power-delivery', 'board-level power-delivery survey behind the assumed ≈97–98% intermediate-bus-converter efficiency (no vendor publishes an absolute IBC efficiency at a stated voltage/current point)']] }, link: L(4, 'ibc') },
-    { label: 'Voltage regulators, 12 → 0.8 V', mw: vrmLossKW * R, kind: 'loss', scene: 4, basis: 'derived', ev: { calc: 'ledger-conv-loss', refs: [['semianalysis-blackwell-power-delivery', 'board-level power-delivery survey behind the assumed VRM efficiency at ≈0.8 V core voltage (no vendor publishes an absolute figure at a stated current)']] }, link: L(4, 'vrm') },
-    { label: `${accel.hbm.type} memory`, mw: hbmKW * R, kind: 'work', scene: 5, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'hbm-share-of-gpu-power' }, link: L(5, 'hbm') },
+    { label: power.id === 'dc800' ? 'In-rack DC-DC, 800 → 50 V' : (hgx ? 'Server power supplies, AC → DC' : 'Rack power shelves, AC → DC'), mw: R(m => m.rack.convKW), kind: 'loss', scene: 3, basis: 'derived', ev: power.id === 'dc800' ? { calc: 'ledger-conv-loss', assume: 'rack-dcdc-eff-98.5', refs: [['navitas-10kw-dcdc-800v50v', "\"deliver 98.5% peak efficiency and 98.1% full load efficiency\" for its \"800 V-to-50 V\" DC-DC platform (the site's earlier navitas-800vdc citation for this figure states no efficiency percentage)"]] } : { calc: 'ledger-conv-loss', refs: [['nvidia-h100-datasheet', 'system power figures behind the ≈96% AC→54 V PSU efficiency assumed for the DGX H100 case'], ['nvidia-gb200-ocp', 'OCP contribution post describing the GB200 ORv3 power-shelf conversion this figure covers']] }, link: L(3, hgx ? 'psus' : 'shelves') },
+    { label: hgx ? 'Server power cabling' : 'Busbar', mw: R(m => m.accel.busbarKW), kind: 'loss', scene: 3, basis: 'derived', ev: { calc: 'ledger-rack-share' }, link: L(3, hgx ? 'cabling' : 'busbar') },
+    { label: hgx ? 'NVSwitch chips (scale-up)' : 'NVLink switch trays (scale-up)', mw: R(m => m.accel.scaleupKW), kind: 'net', scene: 3, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power' }, link: hgx ? L(4, 'nvswitch') : L(3, 'nvswitch') },
+    { label: accel.cpuName, mw: R(m => m.rack.cpuKW), kind: 'work', scene: 4, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power' }, link: L(4, hgx ? 'cpu' : 'grace') },
+    { label: hgx ? 'NICs & DPUs' : 'SuperNICs & DPUs', mw: R(m => m.accel.nicKW), kind: 'net', scene: 4, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power', refs: [['nvidia-coreweave-gb200-400g', "\"NVIDIA Quantum-2 InfiniBand networking that delivers 400Gb/s bandwidth per GPU\" -- the per-GPU NIC rate this row's per-rack figure is built from"]] }, link: L(4, 'nic') },
+    { label: 'SSDs, fans, management', mw: R(m => m.accel.otherKW), kind: 'work', scene: 4, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power' }, ...(hgx ? { link: L(4, 'fans', 'heat') } : {}) },
+    { label: hgx ? 'Bus converters, 54 → 12 V' : 'Bus converters, 50 → 12 V', mw: R(m => m.rack.ibcLossKW), kind: 'loss', scene: 4, basis: 'derived', ev: { calc: 'ledger-conv-loss', refs: [['semianalysis-blackwell-power-delivery', 'board-level power-delivery survey behind the assumed ≈97–98% intermediate-bus-converter efficiency (no vendor publishes an absolute IBC efficiency at a stated voltage/current point)']] }, link: L(4, 'ibc') },
+    { label: 'Voltage regulators, 12 → 0.8 V', mw: R(m => m.rack.vrmLossKW), kind: 'loss', scene: 4, basis: 'derived', ev: { calc: 'ledger-conv-loss', refs: [['semianalysis-blackwell-power-delivery', 'board-level power-delivery survey behind the assumed VRM efficiency at ≈0.8 V core voltage (no vendor publishes an absolute figure at a stated current)']] }, link: L(4, 'vrm') },
+    { label: `${accel.hbm.type} memory`, mw: R(m => m.rack.hbmKW), kind: 'work', scene: 5, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'hbm-share-of-gpu-power' }, link: L(5, 'hbm') },
   ];
   // GPU silicon from the actual, physical component sum (one rack's own share, times the whole racks the site
   // built) — not "whatever the ledger hasn't claimed yet". Building a whole number of racks always leaves a
   // sliver of the meter's IT budget short of one more rack; show that sliver as its own row instead of quietly
   // folding it into the silicon figure. Appended last so it never shifts the `marks` indices above.
-  const gpuSiliconMW = gpuSiliconKW * R;
+  const gpuSiliconMW = R(m => m.rack.gpuSiliconKW);
   const ledgerSum = ledger.reduce((a, r) => a + r.mw, 0);
   const spareMW = meterMW - ledgerSum - gpuSiliconMW;
-  ledger.push({ label: 'Unallocated: rounds down to a whole rack', mw: spareMW, kind: 'overhead', scene: 2, basis: 'derived', ev: { calc: 'ledger-remainder' } });
+  if (stage === null) ledger.push({ label: 'Unallocated: rounds down to a whole rack', mw: spareMW, kind: 'overhead', scene: 2, basis: 'derived', ev: { calc: 'ledger-remainder' } });
   const marks = [
     { after: 1, label: '34.5 kV feeders' },     // both power paths have three facility rows, so the marks line up
     { after: 6, label: 'IT load' },
@@ -284,6 +328,9 @@ export function compute(s: Scenario) {
     { after: 14, label: 'GPU modules' },
   ];
   const pue = meterMW / IT_MW;
+  // whole racks per kind for display, apportioned so they add up to the campus total
+  const shown = fleet.map(m => Math.floor(m.racks)), rest = racks - shown.reduce((a, b) => a + b, 0);
+  fleet.map((m, k) => [m.racks - Math.floor(m.racks), k]).sort((a, b) => b[0] - a[0]).slice(0, Math.max(0, rest)).forEach(([, k]) => { shown[k]++; });
 
   // ----- staircases -----
   const kA = (w: number, v: number) => w / (Math.sqrt(3) * v * 0.95);   // three-phase current at pf 0.95, from real power
@@ -295,12 +342,12 @@ export function compute(s: Scenario) {
     { link: L(1, 'line'), v: 345000, label: '345 kV', where: 'Transmission line', current: `${fmtA(kA(meterMW * 1e6, 345000) / 2)} per phase`, note: `the whole ${meterMW >= 1000 ? (meterMW / 1000).toFixed(1) + ' GW' : Math.round(meterMW) + ' MW'} campus, 2 circuits`, volt: 'hv', basis: 'est' as Basis },
     { link: L(1, 'ehouse'), v: 34500, label: '34.5 kV', where: 'Campus feeders', current: `${fmtA(kA(10e6, 34500))} per feeder`, note: 'one 10 MW feeder', volt: 'mv', basis: 'est' as Basis },
     ...(power.id === 'dc800' ? [
-      { link: L(2, 'busway'), v: 800, label: '800 V DC', where: 'DC busway to the rack', current: fmtA(rackKW * 1000 / 800), note: `one ${Math.round(rackKW)} kW rack`, volt: 'dc', basis: 'est' as Basis },
+      { link: L(2, 'busway'), v: 800, label: '800 V DC', where: 'DC busway to the rack', current: fmtA(rackKW * 1000 / 800), note: `one ${Math.round(rackKW)} kW ${accel.short} rack`, volt: 'dc', basis: 'est' as Basis },
     ] : [
       { link: L(2, 'unitsub'), v: 480, label: '480 V', where: 'Unit substation out', current: fmtA(kAapp(2.5e6, 480)), note: 'one 2.5 MVA transformer', volt: 'lv', basis: 'est' as Basis },
-      { link: L(2, 'busway'), v: 415, label: '415 V', where: 'Busway to the rack', current: `${fmtA(kA(rackKW * 1000, 415))} per phase`, note: `one ${Math.round(rackKW)} kW rack`, volt: 'lv', basis: 'est' as Basis },
+      { link: L(2, 'busway'), v: 415, label: '415 V', where: 'Busway to the rack', current: `${fmtA(kA(rackKW * 1000, 415))} per phase`, note: `one ${Math.round(rackKW)} kW ${accel.short} rack`, volt: 'lv', basis: 'est' as Basis },
     ]),
-    { link: accel.id === 'h100' ? L(4, 'psu') : L(3, 'busbar'), v: busbarV, label: `${busbarV} V`, where: accel.id === 'h100' ? `Server ${busbarV} V rail` : 'Rack busbar', current: fmtA(dcBusKW * 1000 / busbarV), note: accel.id === 'h100' ? 'all 4 servers in a rack' : `one ${Math.round(rackKW)} kW rack, all sections`, volt: 'dc', basis: 'est' as Basis },
+    { link: accel.id === 'h100' ? L(4, 'psu') : L(3, 'busbar'), v: busbarV, label: `${busbarV} V`, where: accel.id === 'h100' ? `Server ${busbarV} V rail` : 'Rack busbar', current: fmtA(dcBusKW * 1000 / busbarV), note: accel.id === 'h100' ? 'all 4 servers in a rack' : `one ${Math.round(rackKW)} kW ${accel.short} rack, all sections`, volt: 'dc', basis: 'est' as Basis },
     { link: L(4, 'ibc'), v: 12, label: '12 V', where: 'Board power rail', current: fmtA((pkgKW + vrmLossKW) * 1000 / accel.gpusPerRack / 12), note: 'one GPU’s share', volt: 'bus12', basis: 'est' as Basis },
     { link: L(5, 'balls'), v: 0.8, label: '0.8 V', where: 'GPU core', current: `≈${(Math.round(accel.gpuW * (1 - accel.hbmShare) / 0.8 / 100) * 100).toLocaleString('en-US')} A`, note: 'into one GPU, split across rails', volt: 'core', basis: 'est' as Basis },
   ];
@@ -322,11 +369,10 @@ export function compute(s: Scenario) {
   // Unit sizes are typical catalog sizes; counts are this model's estimates. A real campus whose operator publishes its
   // own plant (sites.ts `plant`) replaces the generic one: battery backup instead of diesel, a published battery size
   // (its power rating, never published, is assumed to carry the whole campus), a closed cooling loop with no towers.
-  const site = s.site ? SITES[s.site as SiteId] : undefined, plant = site?.plant;
   // the closed loop is the operator's own cooling design: it holds only while the reader keeps that design
   const batteryBackup = plant?.backup === 'battery', closedLoop = !!plant?.closedLoop && cooling.id === site?.scenario.cooling;
   const mvaUnit = meterMW > 400 ? 300 : 75;                // big campuses buy bigger main transformers
-  const liquidMW = IT_MW * (cooling.id === 'air' ? 0 : accel.liquidShare);
+  const liquidMW = IT_MW * (cooling.id === 'air' ? 0 : perRack(m => m.rack.kw * m.accel.liquidShare) / perRack(m => m.rack.kw));
   const layout = {
     halls: Math.max(1, Math.ceil(IT_MW / 45)),
     mvaUnit,
@@ -346,17 +392,25 @@ export function compute(s: Scenario) {
   };
 
   return {
-    scenario: { meterMW, accel: accel.id, power: power.id, cooling: cooling.id, ...(s.site ? { site: s.site } : {}) } as Scenario,
+    scenario: { meterMW: stage !== null ? Math.round(meterMW) : meterMW, accel: accel.id, power: power.id, cooling: cooling.id, ...(s.site ? { site: s.site } : {}), ...(stage !== null ? { stage } : {}) } as Scenario,
     accel, power, cooling,
     meterMW, IT_MW, pue, wue: closedLoop ? 0 : cooling.wue, coolMW, miscMW,
     backup: batteryBackup ? 'battery' as const : 'diesel' as const, closedLoop,
     temps: loopTemps(cooling.id),
-    rack: { kw: rackKW, dcBusKW, convKW: rackConvKW, pkgKW, hbmKW, gpuSiliconKW, vrmLossKW, ibcLossKW, cpuKW, gpus: accel.gpusPerRack },
-    racks, gpus, cpus: racks * accel.cpusPerRack,
-    fabric: fab, NET,
+    rack,                                          // one rack of the drawn accelerator
+    racks, gpus, cpus: Math.round(perRack(m => m.accel.cpusPerRack)),
+    // what the campus runs: one member for a generic scenario, the operator's own mix for a real campus's stage
+    fleet: fleet.map((m, k) => ({ accel: m.accel, gpus: m.gpus, racks: m.racks, racksShown: shown[k], rackKW: m.rack.kw,
+      gpuMW: m.racks * (m.rack.pkgKW + m.rack.vrmLossKW) / m.rack.eff / 1000 })),
+    mixed: fleet.length > 1, stage,
+    rackAvgKW: perRack(m => m.rack.kw) / perRack(() => 1),
+    gpuRackMW: R(m => (m.rack.pkgKW + m.rack.vrmLossKW) / m.rack.eff),   // the part of rack power that swings with the GPUs
+    hbmStacks: fleet.reduce((n, m) => n + m.gpus * (m.accel.id === 'h100' ? 5 : m.accel.hbm.stacks), 0),
+    fabric: { tiers: fab.tiers, portsPerGpu: fab.portsPerGpu, linksPerGpu: fab.linksPerGpu, kwPerGpu: fab.kwPerGpu, planes: fab.planes }, NET,
     ledger, gpuSiliconMW, marks,
     staircase, bandwidth, layout,
-    tokPerGpuRef: Math.round(2000 * accel.hbm.tbs / 8 / 50) * 50,   // decode is memory-bound: scale with HBM bandwidth
+    // decode is memory-bound: scale with HBM bandwidth (a mixed fleet averages its members, per GPU)
+    tokPerGpuRef: Math.round(fleet.reduce((a, m) => a + m.gpus * 2000 * m.accel.hbm.tbs / 8, 0) / Math.max(1, gpus) / 50) * 50,
     halls: layout.halls,
   };
 }

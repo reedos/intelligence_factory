@@ -34,8 +34,7 @@ const smooth = (x: number) => x * x * (3 - 2 * x);
 
 // GPU share of rack power: the part that swings with the math
 function gpuMW(M: Model) {
-  const r = M.rack;
-  return M.racks * (r.pkgKW + r.vrmLossKW) / 1000 / (M.power.id === 'dc800' ? 0.985 : M.accel.psuEff);
+  return M.gpuRackMW;   // every rack in the fleet, at its own accelerator's power
 }
 
 // ---------- training: seconds ----------
@@ -58,7 +57,9 @@ const RACK_CAP_J_PER_GPU = 65, RACK_POWER_W_PER_GPU = 700;
 export function trainingStorage(M: Model) {
   const G = gpuMW(M), P = 2.0, comm = 0.3, low = 0.35;               // 0.5 Hz steps, 30% of each spent communicating
   const ckpt: [number, number] = [38, 44];                           // a checkpoint pause
-  const storage = M.accel.id === 'gb300' || M.accel.id === 'rubin';  // rack energy storage (GB300 onward)
+  // rack energy storage is a GB300-onward feature: in a mixed fleet only those racks' share is smoothed
+  const Gs = M.fleet.filter(m => m.accel.id === 'gb300' || m.accel.id === 'rubin').reduce((a, m) => a + m.gpuMW, 0);
+  const storage = Gs > 0, partial = storage && Gs < G - 1e-9;
   const g = (t: number) => {
     if (t >= ckpt[0] && t < ckpt[1]) {                                // ramp down into the checkpoint, back up after
       const into = clamp((t - ckpt[0]) / 0.4), out = clamp((ckpt[1] - t) / 0.4);
@@ -74,7 +75,8 @@ export function trainingStorage(M: Model) {
   const tau = 0.6, dt = 0.01, N = Math.ceil(60 / dt) + 1;
   let mean = 0; for (let i = 0; i < N; i++) mean += g(i * dt); mean /= N;
 
-  const rackCapMJ = RACK_CAP_J_PER_GPU * M.gpus / 1e6, rackPowerMW = RACK_POWER_W_PER_GPU * M.gpus / 1e6;
+  const storeGpus = M.fleet.filter(m => m.accel.id === 'gb300' || m.accel.id === 'rubin').reduce((n, m) => n + m.gpus, 0);
+  const rackCapMJ = RACK_CAP_J_PER_GPU * storeGpus / 1e6, rackPowerMW = RACK_POWER_W_PER_GPU * storeGpus / 1e6;
   const siteCapMJ = M.layout.bessMWh * 3600, sitePowerMW = M.layout.bessMW;
   const target = new Float64Array(N);                                  // the rack buffer's low-pass aim
   const rackMW = new Float64Array(N), rackSocMJ = new Float64Array(N);
@@ -85,19 +87,19 @@ export function trainingStorage(M: Model) {
     const t = i * dt;
     if (i > 0) target[i] = target[i - 1] + (g(t) - target[i - 1]) * (dt / tau);
     const demandMW = g(t) * G;
-    if (storage) {
-      const b = bufferStep(rackMJ, demandMW, target[i] * G, rackPowerMW, rackCapMJ, dt);
-      rackMJ = b.mj; rackMW[i] = b.sourceMW;
+    if (storage) {                                                      // the storage racks' own share, buffered; the rest raw
+      const b = bufferStep(rackMJ, g(t) * Gs, target[i] * Gs, rackPowerMW, rackCapMJ, dt);
+      rackMJ = b.mj; rackMW[i] = b.sourceMW + g(t) * (G - Gs);
     } else rackMW[i] = demandMW;
     rackSocMJ[i] = rackMJ;
     const s = bufferStep(siteMJ, rackMW[i], mean * G, sitePowerMW, siteCapMJ, dt);
     siteMJ = s.mj; siteMW[i] = s.sourceMW; siteSocMJ[i] = siteMJ;
   }
-  return { G, g, ckpt, low, dt, N, mean, storage, rackCapMJ, rackPowerMW, siteCapMJ, sitePowerMW, target, rackMW, rackSocMJ, siteMW, siteSocMJ };
+  return { G, Gs, partial, g, ckpt, low, dt, N, mean, storage, rackCapMJ, rackPowerMW, siteCapMJ, sitePowerMW, target, rackMW, rackSocMJ, siteMW, siteSocMJ };
 }
 
 function training(M: Model): Sim {
-  const { G, g, ckpt, low, dt, N, mean, storage, rackPowerMW, sitePowerMW, rackMW, siteMW } = trainingStorage(M);
+  const { G, Gs, partial, g, ckpt, low, dt, N, mean, storage, rackPowerMW, sitePowerMW, rackMW, siteMW } = trainingStorage(M);
   const idx = (t: number) => Math.min(N - 1, Math.max(0, Math.round(t / dt)));
   const base = M.meterMW - G;
   const swingMW = Math.round(G * (1 - low));
@@ -124,7 +126,7 @@ function training(M: Model): Sim {
       { text: 'Production clusters swing in the 0.2–3 Hz band (Microsoft, OpenAI and NVIDIA, 2025). The 2-second step drawn here sits inside it.', basis: 'spec',
         ev: { refs: [['arxiv-power-stabilization-2508', 'Section III-A, "Frequency-domain spec": "AI workload power traces... show FFT energy concentrated between 0.2–3 Hz" (Microsoft, OpenAI and NVIDIA researchers, submitted Aug. 20, 2025)']] } },
       { text: storage
-          ? `GB300 racks store 65 J per GPU in capacitors that charge on the down-swings and discharge on the up-swings; NVIDIA reports a 30% cut in peak grid demand from it when training the Megatron LLM. That capacity is small next to a multi-second swing: the checkpoint empties it almost immediately, so the raw swing shows through again until it recharges.`
+          ? `GB300 racks store 65 J per GPU in capacitors that charge on the down-swings and discharge on the up-swings; NVIDIA reports a 30% cut in peak grid demand from it when training the Megatron LLM. That capacity is small next to a multi-second swing: the checkpoint empties it almost immediately, so the raw swing shows through again until it recharges.${partial ? ` Only the GB300 racks have it: the rest of this fleet, ${Math.round((G - Gs) / G * 100)}% of the GPU load, swings unsmoothed.` : ''}`
           : 'This generation has no on-rack storage, so every swing reaches the site batteries directly.',
         basis: storage ? 'spec' : 'reported',
         ev: storage

@@ -283,7 +283,7 @@ function renderParallel() {
 function renderBom() {
   const M = store.M, size = M.meterMW >= 1000 ? `${+(M.meterMW / 1000).toFixed(2)} GW` : `${Math.round(M.meterMW)} MW`;
   $('bom-h').textContent = `What it takes: a ${size} campus, counted`;
-  $('bom-lede').textContent = `Sized from the same assumptions as the ledger: ${size} at the meter, PUE ${M.pue.toFixed(2)}, ${Math.round(M.rack.kw)} kW ${M.accel.rackName.replace(/ rack$/, "")} racks. Real campuses differ in redundancy and layout; the counts are this model’s estimates, there to give a sense of scale.`;
+  $('bom-lede').textContent = `Sized from the same assumptions as the ledger: ${size} at the meter, PUE ${M.pue.toFixed(2)}, ${M.mixed ? M.fleet.map(m => `${Math.round(m.rackKW)} kW ${m.accel.rackName.replace(/ rack$/, '')}`).join(' and ') : `${Math.round(M.rack.kw)} kW ${M.accel.rackName.replace(/ rack$/, '')}`} racks. Real campuses differ in redundancy and layout; the counts are this model’s estimates, there to give a sense of scale.`;
   $('bom').innerHTML = store.C.BOM.map((g, gi) => `<div class="bom-col"><h3>${g.group}</h3><dl>${g.rows.map(([k, v, b, link], ri) => `<div data-bom="${gi}-${ri}" ${goAttr(link, k)}><dt>${k}</dt><dd>${v} ${chip(b, `bom:${gi}-${ri}`, k)}</dd></div>`).join('')}</dl></div>`).join('');
 }
 
@@ -305,7 +305,7 @@ function renderTokens() {
   $('tps-v').textContent = tpsTxt;
   $('util-v').textContent = utilTxt; $('carbon-v').textContent = carbonTxt;
   $('train-v').textContent = trainTxt; $('life-v').textContent = lifeTxt;
-  $('calc-from').innerHTML = `PUE <b>${M.pue.toFixed(2)}</b> · WUE <b>${M.wue.toFixed(2)} L/kWh IT</b> · <b>${n0(M.gpus)}</b> ${M.accel.short} GPUs, from the scenario above`;
+  $('calc-from').innerHTML = `PUE <b>${M.pue.toFixed(2)}</b> · WUE <b>${M.wue.toFixed(2)} L/kWh IT</b> · <b>${n0(M.gpus)}</b> ${M.mixed ? `GPUs (${M.fleet.map(m => `${n0(m.gpus)} ${m.accel.short}`).join(' + ')})` : `${M.accel.short} GPUs`}, from the scenario above`;
   $('o-j').textContent = sig(f.j); $('o-kwh').textContent = big(3.6e6 / f.j);
   $('o-wh').textContent = sig(f.whReply, 3); $('o-co2').textContent = sig(f.co2Reply, 3);
   $('o-water').textContent = sig(f.waterReply, 3); $('o-train').textContent = `${sig(f.jTrain / f.j * 100, 1)}%`;

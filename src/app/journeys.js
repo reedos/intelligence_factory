@@ -49,7 +49,7 @@ export function story(M) {
   const t = tokenFigures(M), meter = mw(M.meterMW);
   const lineA = M.staircase[0].current.replace(' per phase', '');
   const rackV = dc ? 800 : 415, rackA = M.meterMW * 1e6 / (dc ? 800 : Math.sqrt(3) * 415 * 0.95);   // pf 0.95, as engine.ts's kA()
-  const net = M.NET.switchMW + M.NET.opticsMW, racksMW = M.racks * M.rack.kw / 1000, spare = loss('Unallocated');
+  const net = M.NET.switchMW + M.NET.opticsMW, racksMW = M.fleet.reduce((w, m) => w + m.racks * m.rackKW, 0) / 1000, spare = loss('Unallocated');
   const dci = M.bandwidth[M.bandwidth.length - 1];
   const where = nvl ? 'trays' : 'servers';
   const homes = +(M.meterMW * 1000 / 1.2).toPrecision(2);   // for scale only: two figures is all the 1.2 kW average supports
@@ -88,11 +88,11 @@ export function story(M) {
         text: `UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs ${mw(loss('UPS'))}, more than any other step before the rack.`,
         specs: rows(card('power', 2, 'ups', 'Efficiency'), card('power', 2, 'ups', 'Loss at')) },
     { link: at(2, 'racks'), k: 'Data hall', title: `${n0(M.racks)} racks`,
-      text: `Of the ${mw(M.IT_MW)} of IT load, ${mw(racksMW)} runs ${n0(M.racks)} ${nvl ? A.rackName : 'DGX H100'} racks of about ${Math.round(M.rack.kw)} kW each, in ${M.halls} ${M.halls > 1 ? 'halls' : 'hall'}: ${n0(M.gpus)} GPUs. The network switches, and the optical modules at both ends of each scale-out link, take ${mw(net)}${spare >= 0.05 ? `, and ${mw(spare)} is spare capacity, short of one more rack` : ''}.`,
-      specs: rows(['IT load', mw(M.IT_MW), 'derived', { calc: 'it-load-pue' }], ['Compute racks', `${n0(M.racks)} × ≈${Math.round(M.rack.kw)} kW = ${mw(racksMW)}`, 'derived', { calc: 'campus-rack-count' }],
+      text: `Of the ${mw(M.IT_MW)} of IT load, ${mw(racksMW)} runs ${M.mixed ? `${n0(M.racks)} racks in ${M.halls} halls, ${M.fleet.map(m => `${n0(m.racksShown)} ${m.accel.rackName} racks of about ${Math.round(m.rackKW)} kW`).join(' and ')}` : `${n0(M.racks)} ${nvl ? A.rackName : 'DGX H100'} racks of about ${Math.round(M.rack.kw)} kW each, in ${M.halls} ${M.halls > 1 ? 'halls' : 'hall'}`}: ${n0(M.gpus)} GPUs. The network switches, and the optical modules at both ends of each scale-out link, take ${mw(net)}${spare >= 0.05 ? `, and ${mw(spare)} is spare capacity, short of one more rack` : ''}.`,
+      specs: rows(['IT load', mw(M.IT_MW), 'derived', { calc: 'it-load-pue' }], ...(M.mixed ? M.fleet.map(m => [`${m.accel.rackName} racks`, `${n0(m.racksShown)} × ≈${Math.round(m.rackKW)} kW`, 'derived', { calc: 'campus-rack-count' }]) : [['Compute racks', `${n0(M.racks)} × ≈${Math.round(M.rack.kw)} kW = ${mw(racksMW)}`, 'derived', { calc: 'campus-rack-count' }]]),
         ['Network, switches and optics', mw(net), 'derived', { calc: 'ledger-fabric-power' }], ['GPUs', n0(M.gpus), 'derived', { calc: 'campus-gpu-count' }]) },
     { link: at(2, 'spine', 'data'), k: 'Data · the hall', title: `${n0(M.NET.switches)} switches`, figure: 'optics-cutaway',
-      text: `Every GPU gets its own optical port into a ${M.NET.tiers}-tier fabric. The switches, and the optical modules at both ends of each link, including the ones plugged into the ${where}, draw ${mw(net)}, and there are about ${big(M.NET.fibers)} strands of fiber.`,
+      text: `Every GPU gets its own optical port into ${M.mixed ? `its accelerator’s own fabric (${M.NET.fabrics.map(f => `${f.accel} at ${f.nicGbps >= 1000 ? f.nicGbps / 1000 + ' Tb/s' : f.nicGbps + 'G'}, ${f.tiers} tiers`).join('; ')})` : `a ${M.NET.tiers}-tier fabric`}. The switches, and the optical modules at both ends of each link, including the ones plugged into the ${where}, draw ${mw(net)}, and there are about ${big(M.NET.fibers)} strands of fiber.`,
       specs: rows(ledgerRow('Scale-out switches'), ledgerRow('Optical transceivers'), card('data', 2, 'odf', 'Fabric strands')) },
     // 4 · the rack
     ...(nvl ? [

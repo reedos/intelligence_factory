@@ -7,8 +7,8 @@
 //   spec      Published spec. The maker or a standards body states it for the named product or standard.
 //   vendor    Vendor claim. A vendor's own comparison or performance figure, attributed to it, with the baseline it
 //             is compared against. Not checked independently here.
-//   reported  Published report. Stated by a named third party: a government agency, a researcher, an analyst or the
-//             trade press.
+//   reported  Published report. Stated by a named party outside a formal specification: a government agency, a
+//             researcher, an analyst, the trade press, or an operator in an informal statement such as a post.
 //   derived   Calculated here. This site's model computes it from the scenario and cited inputs; CALCS says how.
 //   assumed   Assumption. A value the model chooses where no single published figure applies; ASSUMPTIONS says why.
 //
@@ -24,7 +24,7 @@
 export const BASIS = {
   spec: { label: 'Published spec', short: 'Spec', meaning: 'The maker or a standards body publishes this figure for the named product or standard.' },
   vendor: { label: 'Vendor claim', short: 'Vendor', meaning: 'The vendor’s own comparison or performance figure, attributed to it. The site has not checked it independently.' },
-  reported: { label: 'Published report', short: 'Reported', meaning: 'Stated by a named third party: a government agency, a researcher, an analyst or the trade press.' },
+  reported: { label: 'Published report', short: 'Reported', meaning: 'Stated by a named party outside a formal specification: a government agency, a researcher, an analyst, the trade press, or an operator in an informal statement such as a post.' },
   derived: { label: 'Calculated here', short: 'Calc.', meaning: 'Calculated by this site’s model from the scenario and the figures it cites. The method page shows how.' },
   assumed: { label: 'Assumption', short: 'Assumed', meaning: 'A value the model chooses where no single published figure applies. The method page says why.' },
   // the labels every figure carried before claims were traced one by one; none may remain once they are (STRICT)
@@ -127,6 +127,7 @@ export const CALCS = {
 
   // ---- traced 09/27/2026: the glossary, the method page and prose claims ----
   // ---- 09/28/2026: the tours' own figures, and the one temperature operating point ----
+  'bom-racks-from-gpus': { title: 'Racks from an operator’s GPU counts', how: 'Racks of each kind = that accelerator’s GPUs ÷ its GPUs per rack (72 for an NVL72), with the kinds rounded so they add up to the campus total. A partly filled last rack counts toward power as the share it holds.', inputs: ['the operator’s GPU counts by accelerator', 'GPUs per rack'] },
   'homes-equivalent': { title: 'Homes with the same power', how: 'Homes = meter kW ÷ 1.2 kW, a round figure for the average continuous electricity draw of an American home (1.2 kW × 8,760 hours ≈ 10,500 kWh a year), rounded to two figures. For scale only.', inputs: ['meter MW', 'an average home’s draw, ≈1.2 kW'] },
   'current-at-rack-voltage': { title: 'The same power at the rack’s voltage', how: 'Current = meter W ÷ (√3 × 415 V × 0.95) for three-phase AC, at the same 0.95 power factor the voltage staircase uses, or meter W ÷ 800 V for DC, rounded to the nearest thousand amps. It shows why power travels at high voltage; no conductor carries a whole campus at rack voltage.', inputs: ['meter MW', 'the rack’s voltage'] },
   'gpu-die-power': { title: 'Power that reaches the GPU dies', how: 'Per GPU, the package power less its HBM share; for the campus, that times the GPU count, and as a share, that over the meter MW. The ledger’s rows, this, and the unallocated remainder add up to the meter power. It covers everything on the compute dies (computation, on-chip memory, communication, control and leakage); the model does not estimate the part that is useful arithmetic.', inputs: ['GPU package power', 'HBM share of package power', 'GPU count', 'meter MW'] },
@@ -238,6 +239,7 @@ export const ASSUMPTIONS = {
 
   // ---- traced 09/27/2026: the glossary, the method page and prose claims ----
   // ---- 09/28/2026: the tours' own figures, and the one temperature operating point ----
+  'fleet-own-fabrics': { title: 'One scale-out fabric per accelerator in a mixed fleet', value: 'GB200 GPUs on a 400G fabric, GB300 GPUs on an 800G fabric, each non-blocking and sized for its own GPU count', why: 'An accelerator’s NIC speed sets the fabric it plugs into, and the model does not join two speeds in one non-blocking tree. How SpaceXAI actually connects its GB200s and GB300s is not public; Elon Musk ties the 110k GB200 figure to the number of fiber optic cables one central switch can take, which fits a separate fabric but does not describe it.' },
   'loop-temps': { title: 'One operating point for the cooling loops', value: 'rack loop +10 °C across a rack; the CDU ≈3 °C apart on each side; die ≈20 °C above the coolant leaving its plate; chiller-made water 12 °C (air) or 20 °C (liquid); supply air 22 °C with an 18 °C rise (air); condenser water 35 °C; a 35 °C design afternoon', why: 'NVIDIA publishes a 45 °C coolant inlet and a ≈55 °C outlet for its warm-water racks, and ASHRAE a recommended 18–27 °C for supply air; the rest of each chain is this model’s own illustrative operating point, chosen so the heat tour, the cards and the Hot to cold chart all use the same numbers. Real plants move with load, flow rate and weather, and a die’s temperature depends on its package and cold plate.' },
   'request-timeline': { title: 'An illustrative request timeline', value: 'internet ≈25 ms each way, fiber vault 1 ms, queue 50 ms, front-end network 0.2 ms, prefill 200 ms, 60 tokens a second per stream, a 500-token reply', why: 'Round numbers chosen to show the shape of one request. They are the same for every GPU choice, and are not a measurement of the selected hardware, a benchmark, or any particular service; real queueing, prefill and stream rates move with the model, the batch, the prompt and the load.' },
   'serving-replica': { title: 'One serving copy per NVLink domain', value: 'one NVL72 rack (72 GPUs), or one 8-GPU server for H100', why: 'How many GPUs hold one serving copy depends on the model and the traffic: a copy can be smaller than a rack, several to a rack, or split so prefill and decode run on different GPUs. The request tour picks one NVLink domain so all its stops describe the same copy; the pipeline and data-parallel cards show a training layout instead.' },
