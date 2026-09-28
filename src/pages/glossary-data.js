@@ -23,8 +23,12 @@ export const TERMS = [
   "aka": [
    "campus substation"
   ],
-  "def": "Where the transmission line dead-ends on steel gantries and lands on a ring of SF6 circuit breakers and disconnect switches, with instrument transformers to measure the power and surge arresters to clip lightning. Building one, with its interconnection study, typically takes two to four years.",
+  "def": "Where the transmission line dead-ends on steel gantries and lands on a ring of SF6 circuit breakers and disconnect switches, with instrument transformers to measure the power and surge arresters to clip lightning. Building one, with its interconnection study, commonly takes two to four years — see Interconnection.",
   "layer": "power",
+  "sources": [
+   "ieee-spectrum-hyperion",
+   "epoch-stargate-abilene"
+  ],
   "link": {
    "scene": 1,
    "mode": "power",
@@ -36,11 +40,15 @@ export const TERMS = [
   "aka": [
    "MPT"
   ],
-  "def": "An oil-filled transformer, each about the weight of a loaded freight car, that steps the 345 kV transmission line down to the campus's 34.5 kV distribution voltage. Units this size run 99.5-99.7% efficient, and lead times ran 120-144 weeks in 2026.",
+  "def": "An oil-filled transformer, each about the weight of a loaded freight car, that steps the 345 kV transmission line down to the campus's 34.5 kV distribution voltage. Units this size run above 99.6% efficient, and reported 2026 lead times for large HV transformers ran from about a year and a half up to five years depending on the manufacturer and tier.",
   "layer": "power",
   "sources": [
    "pa-transformer-345kv",
    "transformer-lead-times"
+  ],
+  "cites": [
+   ["pa-transformer-345kv", "345kV Power Transformer Performance Highlights: 'efficiencies exceeding 99.6%' for a 90/120/150 MVA unit; Key Specifications lists total shipping weight 543,350 lb"],
+   ["transformer-lead-times", "June 2026 lead-time tracker by manufacturer: Tier 1 OEMs (Hitachi Energy, Siemens, GE Vernova) 48-60+ months, Tier 2 EU/Asian manufacturers 12-36 months"]
   ],
   "link": {
    "scene": 1,
@@ -54,6 +62,9 @@ export const TERMS = [
   "layer": "power",
   "sources": [
    "mv-distribution-atk"
+  ],
+  "cites": [
+   ["mv-distribution-atk", "'On a large campus, 34.5 kV has become the standard distribution voltage because it carries more power with fewer and smaller feeders than 13.8 kV'; describes MV switchgear at the substation feeding unit substations at each data hall"]
   ],
   "link": {
    "scene": 1,
@@ -89,10 +100,13 @@ export const TERMS = [
   "aka": [
    "uninterruptible power supply"
   ],
-  "def": "A unit that turns incoming AC into DC and back to clean AC, with batteries on the DC link, so the racks never see a flicker between a grid failure and the generators taking load. Eaton's 9395XR, cited on this page, reaches up to 97.5% efficiency online.",
+  "def": "A unit that turns incoming AC into DC and back to clean AC, with batteries on the DC link, so the racks never see a flicker between a grid failure and the generators taking load. Eaton's 9395XR, cited on this page, is reported at up to 97.5% efficiency online — eaton.com itself would not load for this page's own check, so the figure rests on reseller and distributor listings that reproduce Eaton's spec sheet rather than a page this project opened directly.",
   "layer": "power",
   "sources": [
    "eaton-9395xr-ups"
+  ],
+  "cites": [
+   ["eaton-9395xr-ups", "eaton.com timed out on every direct attempt (see the 'unchecked' note on this source); the 97.5% online-mode figure is reproduced by multiple third-party resellers (e.g. distributor spec sheets) citing Eaton's own datasheet"]
   ],
   "link": {
    "scene": 2,
@@ -118,11 +132,16 @@ export const TERMS = [
   "aka": [
    "battery energy storage system"
   ],
-  "def": "Grid-side batteries, sized on this page at roughly a fifth of the campus's meter MW and twice that in MWh, that absorb the megawatt swings a synchronized fleet of GPUs can put on the grid in under a second. xAI's Colossus uses Tesla Megapacks rated up to about 150 MW for this.",
+  "def": "Grid-side batteries, sized on this page at roughly a fifth of the campus's meter MW and twice that in MWh, that absorb the megawatt swings a synchronized fleet of GPUs can put on the grid in under a second. xAI's Colossus campuses are reported to use large Tesla Megapack installations for exactly this, though public reporting on their total rated power is inconsistent — from a couple hundred megawatts at the first Memphis site to gigawatt-scale estimates at the newer, much larger Colossus 2.",
   "layer": "power",
   "sources": [
    "nvidia-bess-blog",
-   "dcd-xai-colossus-memphis"
+   "dcd-xai-colossus-memphis",
+   "canarymedia-xai-battery"
+  ],
+  "cites": [
+   ["dcd-xai-colossus-memphis", "reports TVA/MLGW granting xAI 150 MW of grid power plus 'discounted Tesla Megapack battery storage to improve stability of the Memphis power grid,' without a Megapack power rating"],
+   ["canarymedia-xai-battery", "09/11/2026: counts 720 Tesla Megapack containers at Colossus 2 by satellite imagery and reports estimates 'between 720 megawatts and 1,400 MW' depending on model, and a Memphis utility CEO's figure of '2,000 MW of batteries behind the meter' — the article itself calls the exact size 'unclear'"]
   ],
   "link": {
    "scene": 1,
@@ -138,7 +157,12 @@ export const TERMS = [
   "def": "Containerized diesel generators, 2.5-3 MW class, that start within about ten seconds of a grid failure and take the load once UPS or DC-bus batteries have carried it that far. They run only a few hours a year, mostly for testing.",
   "layer": "power",
   "sources": [
-   "cummins-dqkan-genset"
+   "cummins-dqkan-genset",
+   "cummins-nfpa110-ate"
+  ],
+  "cites": [
+   ["cummins-dqkan-genset", "DQKAN generator set data sheet: 2,500 kW (2.5 MW) standby rating"],
+   ["cummins-nfpa110-ate", "course listing: 'The 10-second start: NFPA 110 Type 10 starting requirements for generator set applications'"]
   ],
   "link": {
    "scene": 1,
@@ -153,6 +177,9 @@ export const TERMS = [
   "sources": [
    "lv-distribution-busway",
    "nvidia-800v-hvdc"
+  ],
+  "cites": [
+   ["lv-distribution-busway", "'LV Distribution: Busway, PDUs, RPPs & Rack Power' describes overhead busway with plug-in tap-off boxes as the standard way to run low-voltage power down a data hall row"]
   ],
   "link": {
    "scene": 2,
@@ -178,6 +205,9 @@ export const TERMS = [
    "nvidia-800v-hvdc",
    "navitas-800vdc"
   ],
+  "cites": [
+   ["nvidia-800v-hvdc", "Row-level power management section: 'With lower current, thinner conductors can handle the same load, reducing copper requirements by 45%'"]
+  ],
   "link": {
    "scene": 2,
    "mode": "power",
@@ -189,11 +219,15 @@ export const TERMS = [
   "aka": [
    "SST"
   ],
-  "def": "Power electronics switching at high frequency that replace the 60 Hz transformer, the UPS, and the rack rectifiers with a single conversion from 34.5 kV AC straight to 800 V DC. Navitas claims better than 98% efficiency for this step, a vendor figure this page treats as an estimate, since the racks it targets are not yet shipping.",
+  "def": "Power electronics switching at high frequency that replace the 60 Hz transformer, the UPS, and the rack rectifiers with a single conversion from 34.5 kV AC straight to 800 V DC. Navitas and NVIDIA both describe this step as eliminating conversion stages to cut losses, but neither publishes a single efficiency figure for it; this page's better-than-98% figure is its own assumption, informed by that direction, for hardware that is not yet shipping.",
   "layer": "power",
   "sources": [
    "navitas-800vdc",
    "nvidia-800v-hvdc"
+  ],
+  "cites": [
+   ["navitas-800vdc", "'Navitas Supports 800 VDC Power Architecture...' (10/13/2025): describes the architecture as eliminating 'multiple traditional AC/DC and DC/DC conversion stages, maximizing energy efficiency, reducing losses' without stating a percentage for this specific conversion"],
+   ["nvidia-800v-hvdc", "Key benefits section: 'Improves end-to-end efficiency by up to 5% compared to current 54 V systems' — a whole-chain figure, not a single-stage SST number"]
   ],
   "link": {
    "scene": 2,
@@ -208,7 +242,11 @@ export const TERMS = [
   "sources": [
    "navitas-800vdc",
    "nvidia-gb200-ocp",
-   "liteon-gb200-power-system"
+   "liteon-gb200-power-system",
+   "nvidia-gb300-power"
+  ],
+  "cites": [
+   ["nvidia-gb300-power", "'Measured benefits and results': LITEON-optimized power electronics 'filled the remaining space with 65 joules/GPU of energy storage'; 'the peak power demand seen by the grid is reduced by 30% when training the Megatron LLM'"]
   ],
   "link": {
    "scene": 3,
@@ -278,10 +316,13 @@ export const TERMS = [
   "aka": [
    "power usage effectiveness"
   ],
-  "def": "The ratio of power drawn at the campus meter to the power that actually reaches IT equipment; the gap is cooling, conversion losses, and building overhead. This page's cooling choices land around 1.5 for air, 1.10-1.20 for chilled liquid, and 1.05-1.15 for warm water.",
+  "def": "The ratio of power drawn at the campus meter to the power that actually reaches IT equipment; the gap is cooling, conversion losses, and building overhead. This page calibrates its own cooling designs to land around 1.5 for air, 1.10-1.20 for chilled liquid, and 1.05-1.15 for warm water — bands chosen to bracket real operating figures rather than measured from a specific campus.",
   "layer": "power",
   "sources": [
    "google-pue"
+  ],
+  "cites": [
+   ["google-pue", "Efficiency page: Google's own 2025 fleet-wide PUE was 1.09, against 'the global average PUE of respondents' data centers was 1.54' per the Uptime Institute's 2025 survey it cites — the real-world spread this page's own bands sit inside"]
   ],
   "link": {
    "scene": 1,
@@ -294,7 +335,11 @@ export const TERMS = [
   "def": "NVIDIA's copper scale-up link that ties GPUs into one shared-memory domain. The current generation, NVLink 5, moves 1.8 TB/s per GPU across all 72 GPUs of an NVL72 rack, fast enough that the rack behaves like one giant GPU.",
   "layer": "data",
   "sources": [
-   "nvidia-nvl72-reference-arch"
+   "nvidia-nvl72-reference-arch",
+   "nvidia-gb200-nvl72"
+  ],
+  "cites": [
+   ["nvidia-gb200-nvl72", "Highlights section: 'the fifth-generation NVLink, which provides 1.8 TB/s of GPU-to-GPU interconnect'"]
   ],
   "link": {
    "scene": 3,
@@ -309,6 +354,10 @@ export const TERMS = [
   "sources": [
    "nvidia-nvl72-reference-arch",
    "nvidia-h100-datasheet"
+  ],
+  "cites": [
+   ["nvidia-nvl72-reference-arch", "NVIDIA NVLink Switch Tray section: 'Each GB300 NVL72 rack includes 9 NVLink Fifth-Generation switch trays, with 2 NVSwitch ASICs per tray' (18 total)"],
+   ["nvidia-h100-datasheet", "DGX H100 platform (nvidia-dgx-h100) pairs eight H100 GPUs with four third-generation NVSwitch chips on one system baseboard"]
   ],
   "link": {
    "scene": 3,
@@ -421,7 +470,11 @@ export const TERMS = [
   "def": "NVIDIA's per-GPU network card for scale-out traffic, letting a GPU reach other racks without going through its CPU. GB300 pairs each GPU with a ConnectX-8 SuperNIC running 800 Gb/s.",
   "layer": "data",
   "sources": [
-   "nvidia-connectx8-datasheet"
+   "nvidia-connectx8-datasheet",
+   "nvidia-connectx8-specs-page"
+  ],
+  "cites": [
+   ["nvidia-connectx8-specs-page", "Specifications, C8180 single-port variant: InfiniBand speed 'XDR/NDR/HDR/HDR100/EDR/SDR' — XDR is NVIDIA's 800 Gb/s InfiniBand generation (see nvidia-xdr-switch-specs)"]
   ],
   "link": {
    "scene": 4,
@@ -438,6 +491,9 @@ export const TERMS = [
   "layer": "data",
   "sources": [
    "nvidia-dgx-gb200-hardware"
+  ],
+  "cites": [
+   ["nvidia-dgx-gb200-hardware", "Compute Trays table: '2x NVIDIA BlueField-3 DPU, dual port 400G Infiniband or Ethernet' per tray; 18 compute trays per rack give 36 total"]
   ],
   "link": {
    "scene": 4,
@@ -502,12 +558,17 @@ export const TERMS = [
   "aka": [
    "co-packaged optics"
   ],
-  "def": "Optical engines built onto or next to a switch ASIC's own package, shortening the electrical channel between SerDes and modulator, instead of living in separate pluggable modules at the faceplate — a packaging change, not a claim about how many traffic fibers still leave the switch. NVIDIA's Quantum-X and Spectrum-X Photonics claim four times fewer lasers and, as of its August 2026 update, 5x lower power (up from an initial 3.5x); Broadcom's Davisson reaches 102.4 Tb/s at 3.5 W per 800G port.",
+  "def": "Optical engines built onto or next to a switch ASIC's own package, shortening the electrical channel between SerDes and modulator, instead of living in separate pluggable modules at the faceplate — a packaging change, not a claim about how many traffic fibers still leave the switch. NVIDIA's Quantum-X and Spectrum-X Photonics claim four times fewer lasers and, as of its August 2026 update, 5x lower power (up from an initial 3.5x); Broadcom's Davisson reaches 102.4 Tb/s at about 3.5 W per 800G port.",
   "layer": "data",
   "sources": [
    "nvidia-spectrum-x-cpo",
    "broadcom-davisson-cpo",
    "storagereview-nvidia-cpo-production"
+  ],
+  "cites": [
+   ["nvidia-spectrum-x-cpo", "03/18/2025 announcement: 'integrate optics innovations with 4x fewer lasers to deliver 3.5x more power efficiency'"],
+   ["storagereview-nvidia-cpo-production", "08/2026: production Spectrum-X Photonics delivers '5x lower power consumption'"],
+   ["broadcom-davisson-cpo", "Broadcom's own 10/08/2025 announcement names the 102.4-Tbps figure; the power-per-port figure is reported by NextPlatform (see links:cpo), not stated in this release itself"]
   ],
   "link": {
    "scene": 2,
@@ -526,6 +587,9 @@ export const TERMS = [
    "nvidia-spectrum-x-cpo",
    "ieee-spectrum-cpo-nvidia",
    "nvidia-cpo-industry-collaboration-blog"
+  ],
+  "cites": [
+   ["nvidia-cpo-industry-collaboration-blog", "confirms the Q3450 system's '144 ports with 800Gbps apiece' (115.2 Tbps full-duplex) and 'Each ELS contains eight high-quality lasers'; an individual ELS is stated to power 32 of the switch's 576 transmit lanes — 576 ÷ 32 = 18 ELS modules, and 144 ports ÷ 18 modules = 8 ports per module, which is where this page's 'eight channels per module' figure comes from"]
   ],
   "link": {
    "scene": 2,
@@ -618,6 +682,9 @@ export const TERMS = [
   "sources": [
    "ciena-wavelogic6"
   ],
+  "cites": [
+   ["ciena-wavelogic6", "02/21/2023 release, headlined (per its own indexed title and a BusinessWire mirror) 'Ciena Unveils WaveLogic 6, Industry's First 1.6Tb/s Coherent Optic Solution'; ciena.com blocked direct and Wayback access on every attempt this pass, so this rests on that title and third-party coverage, not a page this workstream opened itself"]
+  ],
   "link": {
    "scene": 1,
    "mode": "data",
@@ -640,11 +707,14 @@ export const TERMS = [
  },
  {
   "term": "400ZR / 800ZR",
-  "def": "Standardized coherent pluggable formats for metro and data-center-interconnect links, running 400 Gb/s or 800 Gb/s per wavelength. 400ZR reaches about 40 km unamplified (OIF's own 11 dB loss budget) or 80-120 km amplified, at about 15-20 W per module; 800ZR draws about 23-25 W, and the longer-reach 800ZR+ variant about 26-30 W.",
+  "def": "Standardized coherent pluggable formats for metro and data-center-interconnect links, running 400 Gb/s or 800 Gb/s per wavelength. OIF's own implementation agreement targets 80 km or more for amplified 400ZR links (120 km class for the higher-loss-budget variant); an unamplified link's reach instead depends on the specific module's transmit power and receiver sensitivity, commonly quoted around 40 km. Module power runs about 15-20 W for 400ZR; 800ZR draws about 23-25 W, and the longer-reach 800ZR+ variant about 26-30 W.",
   "layer": "data",
   "sources": [
    "ciena-wavelogic6",
    "oif-400zr-ia"
+  ],
+  "cites": [
+   ["oif-400zr-ia", "Section 7.1 'use cases': 'The 400ZR targeted reach for these applications is 80km or more' for amplified, 100/75 GHz DWDM links (Application Codes 0x01/0x03); Section 7.2 states unamplified reach 'is dependent on the transmit output power, input receive sensitivity, and the channel's loss characteristics' rather than giving one fixed number"]
   ],
   "link": {
    "scene": 1,
@@ -700,6 +770,9 @@ export const TERMS = [
    "nvidia-blackwell-ultra-blog",
    "wccftech-nv-hbi"
   ],
+  "cites": [
+   ["nvidia-blackwell-ultra-blog", "'Blackwell Ultra is composed of two reticle-sized dies connected using NVIDIA High-Bandwidth Interface (NV-HBI)...that provides 10 TB/s of bandwidth'"]
+  ],
   "link": {
    "scene": 5,
    "mode": "power",
@@ -718,6 +791,9 @@ export const TERMS = [
    "nvidia-blackwell-ultra-blog",
    "wccftech-nv-hbi"
   ],
+  "cites": [
+   ["nvidia-blackwell-ultra-blog", "confirms the dual-reticle join at 10 TB/s (NV-HBI); H100's single-die, 814 mm² figure is the well-corroborated industry figure for the GH100 die rather than a number stated on NVIDIA's own two-page H100 datasheet, which gives only 80 billion transistors and TDP"]
+  ],
   "link": {
    "scene": 5,
    "mode": "power",
@@ -729,10 +805,13 @@ export const TERMS = [
   "aka": [
    "high-bandwidth memory"
   ],
-  "def": "Stacked DRAM built beside the GPU die on the same interposer, feeding it at several terabytes per second over millimeters of wiring. It runs 8-15% of a GPU's power on this page, and moving weights out of it for every token is a large share of inference energy.",
+  "def": "Stacked DRAM built beside the GPU die on the same interposer, feeding it at several terabytes per second over millimeters of wiring. This page assumes it runs 8-15% of a GPU's power, an estimate drawn from academic GPU power-characterization studies rather than a vendor disclosure; moving weights out of it for every token is a large share of inference energy.",
   "layer": "compute",
   "sources": [
    "micron-hbm3e-brief"
+  ],
+  "cites": [
+   ["micron-hbm3e-brief", "cited for HBM3E's own bandwidth/capacity specs; the WAF on assets.micron.com blocked every attempt to open it this pass (see its 'unchecked' note), so it is not relied on here for the 8-15% power-share figure, which the model treats as its own assumption"]
   ],
   "link": {
    "scene": 5,
@@ -761,6 +840,9 @@ export const TERMS = [
   "sources": [
    "meta-llama3-herd-parallelism"
   ],
+  "cites": [
+   ["meta-llama3-herd-parallelism", "Table 4, 'Scaling configurations and MFU for each stage of Llama 3 405B pre-training': all three listed stages run TP=8 (with PP=16, CP=1 or 16, and DP=64/128/8)"]
+  ],
   "link": {
    "scene": 3,
    "mode": "data",
@@ -773,6 +855,9 @@ export const TERMS = [
   "layer": "compute",
   "sources": [
    "meta-llama3-herd-parallelism"
+  ],
+  "cites": [
+   ["meta-llama3-herd-parallelism", "Table 4, 'Scaling configurations and MFU for each stage of Llama 3 405B pre-training': PP=16 at every listed GPU count (8,192 and 16,384)"]
   ],
   "link": {
    "scene": 2,
@@ -788,6 +873,10 @@ export const TERMS = [
    "meta-llama3-herd-parallelism",
    "deepseek-v3-technical-report"
   ],
+  "cites": [
+   ["meta-llama3-herd-parallelism", "Table 4: data parallel degree scales with GPU count (DP=64 at 8,192 GPUs, up to DP=128 at 16,384)"],
+   ["deepseek-v3-technical-report", "Section 3: training combines expert and pipeline parallelism with 'ZeRO-1 Data Parallelism (DP)'"]
+  ],
   "link": {
    "scene": 2,
    "mode": "data",
@@ -796,11 +885,15 @@ export const TERMS = [
  },
  {
   "term": "Expert parallel",
-  "def": "Spreading a mixture-of-experts model's experts across GPUs so each token only visits the few experts it's routed to. DeepSeek-V3 runs expert parallel 64 with no tensor parallel at all; NVL72's wide NVLink domain lets experts spread across all 72 GPUs of a rack.",
+  "def": "Spreading a mixture-of-experts model's experts across GPUs so each token only visits the few experts it's routed to. DeepSeek-V3's own training used expert parallel 64 with no tensor parallel at all; NVIDIA describes NVL72's wide NVLink domain as enabling wide expert parallelism for inference too — its own reference deployment of DeepSeek R1 spreads 256 routed experts across 64 of a rack's 72 GPUs.",
   "layer": "compute",
   "sources": [
    "deepseek-v3-technical-report",
    "nvidia-gb200-dynamo-moe"
+  ],
+  "cites": [
+   ["deepseek-v3-technical-report", "Section 3.2.1: 'DeepSeek-V3 applies 16-way Pipeline Parallelism (PP)...64-way Expert Parallelism (EP)...spanning 8 nodes' and elsewhere: trained 'without using costly Tensor Parallelism (TP)'"],
+   ["nvidia-gb200-dynamo-moe", "'For the DeepSeek R1 model, this is typically around four experts per GPU, which requires 64 GPUs to accommodate the full 256 routed experts during decoding'"]
   ],
   "link": {
    "scene": 3,
@@ -870,6 +963,9 @@ export const TERMS = [
   "sources": [
    "nvidia-h100-datasheet"
   ],
+  "cites": [
+   ["nvidia-h100-datasheet", "specifications table: 'Max thermal design power (TDP): Up to 700W (configurable)' for the SXM form factor"]
+  ],
   "link": {
    "scene": 4,
    "mode": "heat",
@@ -917,11 +1013,15 @@ export const TERMS = [
   "aka": [
    "coolant distribution unit"
   ],
-  "def": "A cabinet at the end of a row that keeps a rack's own filtered coolant loop separate from the building's facility water, passing heat between the two through a plate heat exchanger without mixing them. Units on this page range 70 kW to 2.5 MW of capacity.",
+  "def": "A cabinet at the end of a row that keeps a rack's own filtered coolant loop separate from the building's facility water, passing heat between the two through a plate heat exchanger without mixing them. Units on this page range 70 kW to 2.3 MW of capacity.",
   "layer": "heat",
   "sources": [
    "vertiv-coolchip-cdu",
    "motivair-cdu-brochure"
+  ],
+  "cites": [
+   ["vertiv-coolchip-cdu", "CoolChip CDU family page lists models at 70, 121, 600, 1,350 and 2,300 kW"],
+   ["motivair-cdu-brochure", "brochure: 'COOLING UP TO 2.3MW' from '102kW up to 2.3MW, depending on the model'"]
   ],
   "link": {
    "scene": 2,
@@ -963,6 +1063,9 @@ export const TERMS = [
   "sources": [
    "ashrae-liquid-cooling-classes"
   ],
+  "cites": [
+   ["ashrae-liquid-cooling-classes", "'the 5th Edition redesignated the classes based on their upper temperature limit — therefore the classes are now W17, W27, W32, [W40,] W45, and the now named W+', redesignated from the prior W1-W5 bands (upper limits 17/27/32/45/over-45°C)"]
+  ],
   "link": {
    "scene": 1,
    "mode": "heat",
@@ -1001,10 +1104,13 @@ export const TERMS = [
   "aka": [
    "water usage effectiveness"
   ],
-  "def": "Liters of water used on site per kilowatt-hour of IT power. This page's designs span about 0.16 L/kWh for warm-water dry coolers up to about 1.0 L/kWh for an air-cooled chiller-and-tower plant.",
+  "def": "Liters of water used on site per kilowatt-hour of IT power. This page's own cooling-design calibration spans about 0.16 L/kWh for warm-water dry coolers up to about 1.0 L/kWh for an air-cooled chiller-and-tower plant — figures this model chose to sit near, not the literal numbers introl-wue reports (which gives a wider industry range: 'ideal' 0.0, 'best-in-class' 0.3-0.7, and an industry average of 1.8-1.9 L/kWh).",
   "layer": "heat",
   "sources": [
    "introl-wue"
+  ],
+  "cites": [
+   ["introl-wue", "gives 'Ideal WUE: 0.0 L/kWh', 'Best-in-class: 0.3-0.7 L/kWh' and 'Industry average: 1.8-1.9 L/kWh' — context this page's own air (≈1.0) and warm-water (≈0.16) design values sit inside and below, respectively"]
   ],
   "link": {
    "scene": 1,
@@ -1050,7 +1156,12 @@ export const TERMS = [
   "def": "Grams of CO2 emitted per kilowatt-hour of grid electricity, which this page's state map shows varying more than fourfold: 113 g/kWh in hydro-heavy Washington versus 494 g/kWh in coal-and-gas-heavy Wisconsin. The same campus can emit three to four times more in one state than another.",
   "layer": "general",
   "sources": [
-   "eia-co2-per-kwh"
+   "eia-state-washington",
+   "eia-state-wisconsin"
+  ],
+  "cites": [
+   ["eia-state-washington", "Washington Electricity Profile 2024, Table 1: Carbon Dioxide, 249 lb/MWh (≈113 g/kWh)"],
+   ["eia-state-wisconsin", "Wisconsin Electricity Profile 2024, Table 1: Carbon Dioxide, 1,090 lb/MWh (≈494 g/kWh)"]
   ],
   "link": {
    "scene": 0,
@@ -1063,10 +1174,13 @@ export const TERMS = [
   "aka": [
    "Emissions & Generation Resource Integrated Database"
   ],
-  "def": "The EPA database this page cites for the US national average grid carbon figure, 373 g CO2/kWh on 2022 data, alongside EIA's separate state-by-state electricity profiles for 2024.",
+  "def": "The EPA database this page cites for the US national average grid carbon figure, 373 g CO2/kWh (823 lb/MWh) on 2022 data, alongside EIA's separate state-by-state electricity profiles for 2024. EPA has since published a newer eGRID2023 release with a lower national figure, so this page's number is a specific, dated historical reading rather than today's current average.",
   "layer": "general",
   "sources": [
-   "eia-co2-per-kwh"
+   "epa-egrid2022-summary"
+  ],
+  "cites": [
+   ["epa-egrid2022-summary", "eGRID Summary Tables 2022, Table 1 (Subregion Output Emission Rates, eGRID2022), U.S. row: CO2 823.1 lb/MWh"]
   ],
   "link": {
    "scene": 0,
@@ -1089,13 +1203,15 @@ export const TERMS = [
   }
  },
  {
-  "term": "Basis (Spec / Typical / Est.)",
+  "term": "Basis (Spec / Vendor / Reported / Derived / Assumed)",
   "aka": [
    "Spec",
-   "Typical",
-   "Est."
+   "Vendor",
+   "Reported",
+   "Derived",
+   "Assumed"
   ],
-  "def": "The label this page puts on every number it shows. \"Spec\" means a vendor or standards body states it; \"Typical\" means an industry-wide figure several sources agree on; \"Est.\" means the page derived it or only one uncertain source exists, and it's shown that way rather than dressed up as settled.",
+  "def": "The label this page puts on every figure that carries a basis chip, one of five: \"Spec\" means the maker or a standards body states the figure for the named product or standard, with at least one primary source; \"Vendor\" means a vendor's own comparison or performance claim, attributed to it and stating what it's compared against, not checked independently here; \"Reported\" means a named third party — a government agency, researcher, analyst or the trade press — states it; \"Derived\" means this page's model calculates it from the scenario and its cited inputs, with the formula on the Method page; \"Assumed\" means the model chose a value where no single published figure applies, with the reason on the Method page. Two earlier labels, \"Typical\" and \"Est.\", covered figures not yet traced to one of these five; the site's build checks (`tools/claims.mjs`) fail if either still appears.",
   "layer": "general"
  },
  {
@@ -1139,7 +1255,10 @@ export const TERMS = [
   "layer": "data",
   "sources": [
    "nvidia-gb200-nvl72",
-   "naddod-gb200-interconnect"
+   "nvidia-gb200-nvl72-blog"
+  ],
+  "cites": [
+   ["nvidia-gb200-nvl72-blog", "03/18/2024: 'NVLink-Chip-to-Chip (C2C) interface that delivers 900 GB/s of bidirectional bandwidth'"]
   ],
   "link": {
    "scene": 4,
@@ -1151,6 +1270,12 @@ export const TERMS = [
   "term": "PCIe",
   "def": "The general-purpose bus connecting a GPU to its CPU and network card inside a DGX H100 server, PCIe Gen5 at about 64 GB/s per x16 direction. NVL72 racks replace it with NVLink-C2C to the CPU and dedicated NVLink for anything chattier.",
   "layer": "data",
+  "sources": [
+   "nvidia-h100-datasheet"
+  ],
+  "cites": [
+   ["nvidia-h100-datasheet", "specifications table: 'Interconnect... PCIe Gen5: 128GB/s' (bidirectional total for an x16 link, i.e. about 64 GB/s per direction)"]
+  ],
   "link": {
    "scene": 4,
    "mode": "data",
@@ -1167,6 +1292,10 @@ export const TERMS = [
   "sources": [
    "epoch-dc-abilene",
    "epoch-stargate-abilene"
+  ],
+  "cites": [
+   ["epoch-dc-abilene", "directory entry, updated 09/24/2026: '421 MW of IT power'; buildings 5-8 'structurally complete and roofed but not yet confirmed operational'"],
+   ["epoch-stargate-abilene", "'Projected capacity: 1.2 GW | 1.0 million H100-equivalents...Projected completion: Q4 2026' for the full site"]
   ],
   "link": {
    "scene": 0,
@@ -1187,6 +1316,10 @@ export const TERMS = [
    "tomshardware-colossus",
    "dcd-xai-colossus-memphis"
   ],
+  "cites": [
+   ["compute-atlas-colossus", "'About 35 on-site natural-gas turbines (a combined 422 MW per SELC and aerial imagery) supplement a 150 MW grid substation and Tesla Megapack storage'; ~100,000 H100 GPUs Phase 1, later expanded with H200s"],
+   ["dcd-xai-colossus-memphis", "reports TVA/MLGW's board approving 'an additional 150MW of power' for Colossus"]
+  ],
   "link": {
    "scene": 0,
    "mode": "power",
@@ -1202,6 +1335,10 @@ export const TERMS = [
    "epoch-largest-dc",
    "semianalysis-xai-colossus2",
    "wikipedia-colossus"
+  ],
+  "cites": [
+   ["epoch-dc-colossus2", "directory entry, updated 09/24/2026: '1,112k H100-eq AI compute, supported by 946 MW of IT power,' with '110k' B200 and '330k' B300 chips (≈440k total)"],
+   ["epoch-largest-dc", "'Colossus 2 is the largest tracked AI data center at about 946 MW of current IT power, followed by Anthropic-Amazon New Carlisle at about 910 MW'"]
   ],
   "link": {
    "scene": 0,
@@ -1219,6 +1356,9 @@ export const TERMS = [
    "dcd-fairwater-atlanta",
    "datacenterfrontier-fairwater"
   ],
+  "cites": [
+   ["epoch-dc-fairwater-atl", "directory entry, updated 09/24/2026: 636 MW current IT power, 4 buildings operational (Buildings 1-2 by 10/2025, 3-4 by 06/2026)"]
+  ],
   "link": {
    "scene": 0,
    "mode": "power",
@@ -1234,6 +1374,9 @@ export const TERMS = [
    "dcd-fairwater-wisconsin",
    "techtimes-fairwater-wisconsin"
   ],
+  "cites": [
+   ["epoch-dc-fairwater-wi", "directory entry, updated 09/24/2026: Building 1 operational, dated to a 04/16/2026 Microsoft post; 369 MW of current IT power. Epoch's own construction-pace estimate for Building 2 (~early 2027) is earlier than the 2028 date reported elsewhere for this campus — see techtimes-fairwater-wisconsin, which this page follows"]
+  ],
   "link": {
    "scene": 0,
    "mode": "power",
@@ -1242,13 +1385,16 @@ export const TERMS = [
  },
  {
   "term": "Meta Hyperion",
-  "def": "Meta's Richland Parish, Louisiana campus: still under construction, with nothing live yet in the latest satellite imagery (04/2026). Phase 1, 1.5 GW, is due in late 2027; the full build, 5 GW and more than 1.3 million GPUs, is planned by 2030-2032.",
+  "def": "Meta's Richland Parish, Louisiana campus: still under construction, with nothing live yet in the latest satellite imagery (04/2026). Phase 1, roughly 1.5-1.6 GW, is projected around late 2027 to early 2028; Meta itself has said the full build will reach 5 GW, though Epoch AI notes it has found no concrete evidence yet that all 5 GW lands at this specific Richland Parish site rather than being spread across Meta's broader build-out.",
   "layer": "general",
   "sources": [
    "epoch-dc-hyperion",
    "meta-richland-parish",
    "cnbc-meta-louisiana",
    "led-meta-louisiana"
+  ],
+  "cites": [
+   ["epoch-dc-hyperion", "directory entry: latest satellite imagery '04/17/2026' shows nothing serving yet; Epoch's own projection has 'first phase operational' around 01/01/2028 at about 1,632 MW IT power, and notes 'no concrete evidence' the full 5 GW Meta has announced lands entirely at this one site"]
   ],
   "link": {
    "scene": 0,

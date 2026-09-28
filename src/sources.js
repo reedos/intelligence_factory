@@ -240,7 +240,10 @@ export const SOURCES = {
 
 
   // ---- traced 09/27/2026: the glossary, the method page and prose claims ----
-
+  'epa-egrid2022-summary': { title: 'eGRID Summary Tables 2022, Table 1: Subregion Output Emission Rates (eGRID2022)', publisher: 'U.S. Environmental Protection Agency', url: 'https://www.epa.gov/system/files/documents/2024-01/egrid2022_summary_tables.pdf', published: '01/30/2024', dated: "document footer 'Created: 1/30/2024'", accessed: '09/27/2026', kind: 'primary' },
+  'canarymedia-xai-battery': { title: "xAI has quietly built a massive battery at its Memphis data center", publisher: 'Canary Media', url: 'https://www.canarymedia.com/articles/batteries/xai-massive-battery-memphis-data-center', published: '09/11/2026', accessed: '09/27/2026', kind: 'secondary' },
+  'nvidia-gb200-nvl72-blog': { title: 'NVIDIA GB200 NVL72 Delivers Trillion-Parameter LLM Training and Real-Time Inference', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/nvidia-gb200-nvl72-delivers-trillion-parameter-llm-training-and-real-time-inference/', published: '03/18/2024', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'nvidia-connectx8-specs-page': { title: 'Specifications | NVIDIA ConnectX-8 SuperNIC User Manual', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/connectx8hw/specifications', accessed: '09/27/2026', kind: 'primary' },
 
 };
 
