@@ -223,6 +223,25 @@ export const SOURCES = {
 
   // content workstream (audit item 18h, 09/27/2026): copper-in-cube vs OCS-between-cubes on the TPU card
   'google-ironwood-codesign': { title: 'Inside the Ironwood TPU codesigned AI stack', publisher: 'Google Cloud', url: 'https://cloud.google.com/blog/products/compute/inside-the-ironwood-tpu-codesigned-ai-stack' },
+
+  // ---- traced 09/27/2026: level 1, Scale across, and the real campuses ----
+
+
+  // ---- traced 09/27/2026: level 2, Grid & campus, and the clock notes ----
+
+
+  // ---- traced 09/27/2026: level 3, the data hall, the ledger and the inventory ----
+
+
+  // ---- traced 09/27/2026: levels 4 and 5, the rack and the compute tray ----
+
+
+  // ---- traced 09/27/2026: level 6, the GPU package, and the links ladder ----
+
+
+  // ---- traced 09/27/2026: the glossary, the method page and prose claims ----
+
+
 };
 
 // PART_SOURCES: which sources back the specs on each card. Key = '<layer>:<sceneId>:<partId>',

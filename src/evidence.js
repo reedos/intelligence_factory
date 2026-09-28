@@ -57,6 +57,25 @@ export const CALCS = {
   'heat-flux': { title: 'Average heat flux through the die', how: 'Flux = GPU power less its HBM share ÷ die area. Hot spots run well above this average.', inputs: ['GPU power', 'HBM share', 'die area'] },
   'fan-airflow': { title: 'Fan airflow', how: 'Airflow from Q = ṁ · cp · ΔT: rack heat carried by air, air density and specific heat, at the stated temperature rise.', inputs: ['air-cooled heat', 'assumed temperature rise'] },
   // ---- level workstreams add theirs below, each in its own block ----
+
+  // ---- traced 09/27/2026: level 1, Scale across, and the real campuses ----
+
+
+  // ---- traced 09/27/2026: level 2, Grid & campus, and the clock notes ----
+
+
+  // ---- traced 09/27/2026: level 3, the data hall, the ledger and the inventory ----
+
+
+  // ---- traced 09/27/2026: levels 4 and 5, the rack and the compute tray ----
+
+
+  // ---- traced 09/27/2026: level 6, the GPU package, and the links ladder ----
+
+
+  // ---- traced 09/27/2026: the glossary, the method page and prose claims ----
+
+
 };
 
 // ---------- what the model assumes ----------
@@ -66,6 +85,25 @@ export const ASSUMPTIONS = {
   'fuel-truckload': { title: 'Fuel truckload', value: '30,000 L', why: 'A typical road tanker; used only to show the scale of refueling.' },
   'core-voltage': { title: 'GPU core voltage', value: '≈0.8 V', why: 'Chipmakers do not publish core voltages for these parts; 0.7–0.9 V is the usual range for this class of process.' },
   // ---- level workstreams add theirs below, each in its own block ----
+
+  // ---- traced 09/27/2026: level 1, Scale across, and the real campuses ----
+
+
+  // ---- traced 09/27/2026: level 2, Grid & campus, and the clock notes ----
+
+
+  // ---- traced 09/27/2026: level 3, the data hall, the ledger and the inventory ----
+
+
+  // ---- traced 09/27/2026: levels 4 and 5, the rack and the compute tray ----
+
+
+  // ---- traced 09/27/2026: level 6, the GPU package, and the links ladder ----
+
+
+  // ---- traced 09/27/2026: the glossary, the method page and prose claims ----
+
+
 };
 
 // the basis chip for one claim: a button that opens that claim's evidence (src/app/sources-ui.js)
@@ -74,11 +112,11 @@ export const chip = (basis, key, label = '') => { const b = BASIS[basis] || BASI
   return `<button type="button" class="chip ${basis}" data-src="${attr(key)}" aria-expanded="false" aria-label="${attr(`${b.label}${label ? ` for ${String(label).replace(/<[^>]+>/g, '')}` : ''}: what backs it`)}">${b.short}</button>`; };
 
 // what is wrong with one claim's evidence, as sentences (empty when it holds up)
-export function problems(claim, SOURCES) {
+export function problems(claim, SOURCES, strict = STRICT) {
   const out = [], { basis, ev } = claim, b = BASIS[basis];
   if (!b) return [`unknown basis ${basis}`];
-  if (b.legacy) { if (STRICT) out.push(`still labeled ${basis}`); return out; }
-  if (!ev) return STRICT ? [`no evidence for a ${basis} claim`] : [];   // not yet traced one by one
+  if (b.legacy) { if (strict) out.push(`still labeled ${basis}`); return out; }
+  if (!ev) return strict ? [`no evidence for a ${basis} claim`] : [];   // not yet traced one by one
   if (CITED.has(basis)) {
     if (!ev.refs?.length) out.push('cites no source');
     if (basis === 'vendor' && !ev.vs) out.push('vendor claim without its baseline');
