@@ -56,7 +56,9 @@ export const MEDIA_LADDER = [
   { id: 'coherent', cls: 'dci', name: 'Coherent (400ZR/800ZR-class)', scope: 'campus to campus',
     what: 'A coherent transceiver — a pluggable like Marvell’s COLORZ 800 or Ciena’s WaveLogic 6 Nano, or a transponder in a line-terminal shelf — encodes each wavelength in amplitude, phase and polarization together, carrying far more bits per symbol than direct-detect optics. A separate mux/demux combines many such wavelengths onto one fiber pair; separate optical amplifiers, not the transceiver, extend the run. None of that is what LR4 above does, and coherent detection isn’t what makes multiplexing possible — direct-detect wavelengths can be muxed too.',
     reach: '≈40 km unamplified at 400ZR’s standard 11 dB loss budget, extending toward ≈75 km in longer-reach variants (both per OIF); 80–120 km per amplified span for longer routes — repeating amplifiers every ≈80 km extends reach, but noise accumulates with every span, so it is not unlimited',
-    power: '≈15–20 W at 400ZR; ≈23–30 W at 800ZR',
+    // interconnect-sources.md:68 splits 800ZR (≈23-25 W) from the longer-reach 800ZR+ variant (≈26-30 W);
+    // blending them into one "23-30 W at 800ZR" figure would misstate plain 800ZR's own power draw
+    power: '≈15–20 W at 400ZR; ≈23–25 W at 800ZR (≈26–30 W in longer-reach 800ZR+ variants)',
     where: 'Scale-across: building-to-building and site-to-site links',
     basis: 'typical' },
   { id: 'cpo', cls: 'eth', name: 'CPO — co-packaged optics', scope: 'built into the switch, leaf and spine',
@@ -149,24 +151,24 @@ function arrowDefs(id) {
   </defs>`;
 }
 
-// a single labeled block; 'hl' marks the optical-conversion block (modulator or photodiode), 'faint' marks a
-// block that this variant removes (struck through, kept in place so DSP/LPO/CPO stay visually comparable)
-function block(x, y, label, { hl = false, faint = false } = {}) {
+// a single labeled block; 'hl' marks the optical-conversion block (modulator or photodiode). A block a
+// variant removes (LPO's DSP) is simply left out of that row's block list, not drawn struck-through in
+// place — the row is shorter than the DSP row, and the title/subtitle/caption already say what's missing.
+function block(x, y, label, { hl = false } = {}) {
   const fill = hl ? 'var(--eth)' : 'var(--ink)';
-  const op = faint ? 0.05 : hl ? 0.16 : 0.07;
-  let out = `<rect x="${x}" y="${y}" width="${BW}" height="${BH}" rx="4" fill="${fill}" fill-opacity="${op}" stroke="${hl ? 'var(--eth)' : 'var(--line-2)'}" stroke-opacity="${faint ? 0.3 : 0.9}"/>`;
+  const op = hl ? 0.16 : 0.07;
+  let out = `<rect x="${x}" y="${y}" width="${BW}" height="${BH}" rx="4" fill="${fill}" fill-opacity="${op}" stroke="${hl ? 'var(--eth)' : 'var(--line-2)'}" stroke-opacity="0.9"/>`;
   const lines = label.split('\n'), cx = x + BW / 2, ly0 = y + BH / 2 - (lines.length - 1) * 8 + 4;
-  lines.forEach((ln, i) => out += TXT(cx, ly0 + i * 16, ln, { size: 11.5, w: 600, fill: faint ? 'var(--muted)' : 'var(--ink)', op: faint ? 0.5 : 1 }));
-  if (faint) out += `<line x1="${x + 6}" x2="${x + BW - 6}" y1="${y + 8}" y2="${y + BH - 8}" stroke="var(--muted)" stroke-width="1.5"/>`;
+  lines.forEach((ln, i) => out += TXT(cx, ly0 + i * 16, ln, { size: 11.5, w: 600 }));
   return out;
 }
 
 // a connecting arrow between two block edges (or a stub to/from the faceplate); 'rev' points it right-to-left
-function wire(markerId, x1, x2, y, { optical = false, rev = false, dashed = false } = {}) {
+function wire(markerId, x1, x2, y, { optical = false, rev = false } = {}) {
   const [xa, xb] = rev ? [x2, x1] : [x1, x2];
   const marker = optical ? `${markerId}-ao` : `${markerId}-ae`;
   const color = optical ? 'var(--fiber)' : 'var(--muted)';
-  return `<line x1="${xa}" x2="${xb}" y1="${y}" y2="${y}" stroke="${color}" stroke-width="2" ${dashed ? 'stroke-dasharray="4 3"' : ''} marker-end="url(#${marker})"/>`;
+  return `<line x1="${xa}" x2="${xb}" y1="${y}" y2="${y}" stroke="${color}" stroke-width="2" marker-end="url(#${marker})"/>`;
 }
 
 // one directed lane (TX or RX): a row of blocks plus a stub at each end, spanning from x0 to x0+rowW regardless
@@ -224,7 +226,10 @@ function cpoSVG() {
   const W = PAD_L + asicW + gap + engineW + tail;
   const yMid = 150, bh = BH + 10;
   const boxTop = yMid - bh / 2 - 30, boxRight = xEngine + engineW + 26, boxBottom = boxTop + bh + 60;
-  const elsY = yMid + bh / 2 + 74, elsW = 168, elsX = xEngine + engineW / 2 - elsW / 2;
+  // elsY sits far enough below the ASIC/engine row that the "CW light in" annotation (which lives in the gap
+  // between them) doesn't crowd the "switch package boundary" label above it — the two used to land on almost
+  // the same row and read as one run-on line
+  const elsY = yMid + bh / 2 + 94, elsW = 168, elsX = xEngine + engineW / 2 - elsW / 2;
   const capY = elsY + 24 + 26;
   const H = capY + 14;
   const id = 'oc-cpo';
@@ -254,7 +259,8 @@ function cpoSVG() {
   out += TXT(elsX + elsW / 2, elsY - 4, 'External laser', { size: 11.5, w: 600 });
   out += TXT(elsX + elsW / 2, elsY + 13, 'source (ELS)', { size: 11.5, w: 600 });
   out += `<line x1="${xEngine + engineW / 2}" x2="${xEngine + engineW / 2}" y1="${elsY - 24}" y2="${yMid + bh / 2}" stroke="var(--muted)" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#${id}-ae)"/>`;
-  out += TXT(xEngine + engineW / 2 + 12, (yMid + bh / 2 + elsY - 24) / 2 + 4, 'CW light in — a side feed, not data', { a: 'start', size: 10, fill: 'var(--muted)', mono: true });
+  // sits just above the ELS box, clear of the "switch package boundary" label near the top of this same gap
+  out += TXT(xEngine + engineW / 2 + 12, elsY - 42, 'CW light in — a side feed, not data', { a: 'start', size: 10, fill: 'var(--muted)', mono: true });
   out += TXT(x0 - 30, TITLE_Y, 'CPO — built into the switch', { a: 'start', size: 16, w: 700 });
   out += TXT(x0 - 30, SUB_Y, '≈3.5–5.5 W per 800G port — optics + laser, no host SerDes', { a: 'start', size: 11.5, fill: 'var(--muted)', mono: true });
   out += TXT(W / 2, capY, 'The laser is a side feed only — traffic runs TX/RX straight through the engine.', { size: 11, fill: 'var(--muted)' });

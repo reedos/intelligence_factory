@@ -53,6 +53,13 @@ describe('audit 2026-09-27 — optics workstream invariants', () => {
     const lpo = MEDIA_LADDER.find(r => r.id === 'lpo')!;
     expect(lpo.power).toMatch(/1\.6T/);
   });
+  // reviewer pass: interconnect-sources.md:68 gives 800ZR ≈23-25 W separately from the longer-reach 800ZR+
+  // variant at ≈26-30 W; a blended "23-30 W at 800ZR" figure misstates plain 800ZR's own draw
+  it('the coherent row states 800ZR power separately from its longer-reach 800ZR+ variant', () => {
+    const coherent = MEDIA_LADDER.find(r => r.id === 'coherent')!;
+    expect(coherent.power).toMatch(/23–25 W at 800ZR/);
+    expect(coherent.power).toMatch(/800ZR\+/);
+  });
 });
 
 describe('optics cutaway diagrams (audit item 1: directed TX/RX, item 19: three independent SVGs)', () => {

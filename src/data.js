@@ -540,7 +540,7 @@ export function content(M) {
         specs: [['NVIDIA 800G DR8, 500 m', '17 W max', 'spec'], ['1.6T modules, e.g. InnoLight or Coherent 1.6T-DR8', '≈25–30 W, still ramping', 'est'], ['The DSP inside each module', 'e.g. Marvell Ara, Broadcom Sian, Credo Bluebird', 'spec'], ['Linear-drive (LPO)', 'roughly half the power', 'typical']] },
       { id: 'cpo', title: 'Co-packaged optics', kicker: 'Light inside the switch',
         body: 'New switches put the optical engines on the switch package itself, cutting out the pluggable modules and much of their power. One spine switch here is drawn that way: liquid-cooled, with fiber landing straight on the chassis beside a few external laser modules. Every other switch in the hall still takes pluggables, as most fabrics do today.',
-        specs: [['NVIDIA Quantum-X / Spectrum-X Photonics', '3.5× power efficiency, 4× fewer lasers', 'spec'], ['Broadcom Davisson', '102.4 Tb/s, 3.5 W per 800G port', 'spec']] },
+        specs: [['NVIDIA Quantum-X / Spectrum-X Photonics', '4× fewer lasers, 5× power efficiency (Aug. 2026 update; was 3.5×)', 'spec'], ['Broadcom Davisson', '102.4 Tb/s, 3.5 W per 800G port', 'spec']] },
       { id: 'racks', title: nvl ? 'NVL72 racks' : 'DGX H100 racks', kicker: 'Scale-up stays inside', drill: 3,
         body: nvl
           ? `Inside each rack, 72 GPUs talk over copper NVLink, ${Math.round(A.nvlink.tbs * 8000 / A.nicGbps)} times faster than the fabric outside.`

@@ -520,11 +520,12 @@ export const TERMS = [
   "aka": [
    "ELS"
   ],
-  "def": "In a co-packaged optics design, a laser built as its own field-replaceable module instead of one tiny laser inside every optical engine. NVIDIA's Quantum-X Photonics supplies all 144 of a chassis's 800G channels from 18 such modules at the front panel; consolidating into fewer, larger, swappable units is most of where NVIDIA's \"fewer lasers\" claim comes from. NVIDIA's own public materials don't state a single links-per-laser ratio precisely enough to give one here, so this page doesn't repeat one.",
+  "def": "In a co-packaged optics design, a laser supplied from its own field-replaceable module at the front panel instead of one tiny laser built into every optical engine. NVIDIA's Quantum-X Photonics feeds all 144 of a chassis's 800G channels from 18 such modules, each packing eight individual laser diodes and each one lighting eight of those channels — the \"one laser for every eight links\" figure quoted for this design is at that module level, not a count of individual diodes. Consolidating into fewer, larger, swappable units is most of where NVIDIA's \"fewer lasers\" claim comes from.",
   "layer": "data",
   "sources": [
    "nvidia-spectrum-x-cpo",
-   "ieee-spectrum-cpo-nvidia"
+   "ieee-spectrum-cpo-nvidia",
+   "nvidia-cpo-industry-collaboration-blog"
   ],
   "link": {
    "scene": 2,
@@ -639,7 +640,7 @@ export const TERMS = [
  },
  {
   "term": "400ZR / 800ZR",
-  "def": "Standardized coherent pluggable formats for metro and data-center-interconnect links, running 400 Gb/s or 800 Gb/s per wavelength. 400ZR reaches about 40 km unamplified (OIF's own 11 dB loss budget) or 80-120 km amplified, at about 15-20 W per module; 800ZR draws about 23-30 W.",
+  "def": "Standardized coherent pluggable formats for metro and data-center-interconnect links, running 400 Gb/s or 800 Gb/s per wavelength. 400ZR reaches about 40 km unamplified (OIF's own 11 dB loss budget) or 80-120 km amplified, at about 15-20 W per module; 800ZR draws about 23-25 W, and the longer-reach 800ZR+ variant about 26-30 W.",
   "layer": "data",
   "sources": [
    "ciena-wavelogic6",

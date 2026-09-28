@@ -202,6 +202,10 @@ export const SOURCES = {
   'oif-400zr-ia': { title: 'Implementation Agreement 400ZR (OIF-400ZR-02.0)', publisher: 'Optical Internetworking Forum (OIF)', url: 'https://www.oiforum.com/wp-content/uploads/OIF-400ZR-02.0.pdf' },
   'edgeoptic-400g-coherent-guide': { title: '400G Coherent Optics Guide: ZR, ZR+ & MZR Comparison', publisher: 'EDGE Optical Solutions', url: 'https://edgeoptic.com/kb_article/deep-dive-400g-coherent-optics-guide' },
   'ieee-spectrum-cpo-nvidia': { title: 'Nvidia Unveils Game-Changing Optical Network Switch', publisher: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/co-packaged-optics' },
+
+  // ---- optics review pass (2026-09-27, finding 18g): NVIDIA's own account of the external-laser-source
+  // module count, reconciling the "one laser per eight links" figure the audit found unsourced ----
+  'nvidia-cpo-industry-collaboration-blog': { title: 'How Industry Collaboration Fosters NVIDIA Co-Packaged Optics', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/how-industry-collaboration-fosters-nvidia-co-packaged-optics/' },
 };
 
 // PART_SOURCES: which sources back the specs on each card. Key = '<layer>:<sceneId>:<partId>',
@@ -304,7 +308,7 @@ export const PART_SOURCES = {
   'data:hall:spine': ['nvidia-xdr-switch-specs', 'nvidia-rubin-platform', 'broadcom-tomahawk6', 'marvell-teralynx10'],
   'data:hall:runways': [],
   'data:hall:optics': ['nvidia-800g-dr8-datasheet', 'innolight-1p6t', 'coherent-1p6t-dr8', 'marvell-ara-1p6t-portfolio', 'broadcom-sian3-200g-lane-dsp', 'credo-bluebird-dsp'],
-  'data:hall:cpo': ['nvidia-spectrum-x-cpo', 'broadcom-davisson-cpo'],
+  'data:hall:cpo': ['nvidia-spectrum-x-cpo', 'broadcom-davisson-cpo', 'storagereview-nvidia-cpo-production'],
   'data:hall:racks': ['nvidia-gb200-nvl72'],
 
   'data:rack:tp': ['meta-llama3-herd-parallelism'],
