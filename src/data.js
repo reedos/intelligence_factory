@@ -76,6 +76,8 @@ export function content(M) {
   const { accel: A, power: P, cooling: CL, NET, racks: RACKS, gpus: GPUS, IT_MW, layout: L, rack: RK } = M;
   const X = FACTS[A.id];
   const nvl = A.gpusPerRack === 72, dc = P.id === 'dc800', air = CL.id === 'air', warm = CL.id === 'warm';
+  // a real campus's published plant (sites.ts): battery backup instead of diesel, a closed loop instead of towers
+  const bat = M.backup === 'battery', closed = M.closedLoop, bessH = L.bessMW ? L.bessMWh / L.bessMW : 0;
   const n0 = v => Math.round(v).toLocaleString('en-US');
   const kfmt = v => v >= 1e6 ? `${(v / 1e6).toFixed(1)} million` : v >= 1e4 ? `${n0(v / 1000)}k` : n0(v);
   const mwTxt = v => v >= 1000 ? `${+(v / 1000).toFixed(2)} GW` : v >= 10 ? `${n0(v)} MW` : `${v.toFixed(1)} MW`;
@@ -116,11 +118,13 @@ export function content(M) {
         ? `All ${meter} leaves as heat. Warm water climbs to rows of dry coolers on the roofs, which dump it into the air; on the hottest afternoons evaporative towers help, and cost water.`
         : air
           ? `All ${meter} leaves as heat. Chillers make cold water for the cooling units in the halls, and cooling towers throw the chillers' heat away by evaporating water: the most water-hungry way to cool.`
-          : `All ${meter} leaves as heat. Chillers make cold water for the coolant units beside the racks, and cooling towers throw the chillers' heat away by evaporating water.`,
+          : closed
+            ? `All ${meter} leaves as heat. Air-cooled chillers make cold water for the coolant units beside the racks and push the heat into outside air. The loop is closed, so, by the operator's account, no water is evaporated.`
+            : `All ${meter} leaves as heat. Chillers make cold water for the coolant units beside the racks, and cooling towers throw the chillers' heat away by evaporating water.`,
       dataIntro: multiHall
         ? `Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while thousands of strands in duct banks tie ${halls === 2 ? 'the two halls' : `all ${halls} halls`} into one fabric.`
         : 'Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses. With one hall, the whole fabric lives under one roof.',
-      intro: `A 345 kV line lands at the campus substation. ${count(L.transformers)} transformers step it down to 34.5 kV, which runs underground to transformers along ${multiHall ? `each of ${halls} data halls` : 'the data hall'}. The grid itself lost about 5% getting here. Diesel generators and batteries stand by for when the grid drops.${halls > 2 ? ` The two halls in front are drawn in detail; the other ${halls - 2} are the plain blocks beyond.` : ''}`,
+      intro: `A 345 kV line lands at the campus substation. ${count(L.transformers)} transformers step it down to 34.5 kV, which runs underground to transformers along ${multiHall ? `each of ${halls} data halls` : 'the data hall'}. The grid itself lost about 5% getting here. ${bat ? 'Batteries stand by for when the grid drops; the operator names no diesel generators.' : 'Diesel generators and batteries stand by for when the grid drops.'}${halls > 2 ? ` The two halls in front are drawn in detail; the other ${halls - 2} are the plain blocks beyond.` : ''}`,
     },
     {
       id: 'hall', n: 3, title: 'Power room & data hall', scale: '70 m across', unit: 1, volt: dc ? 'hvdc' : 'lv', dataVolt: 'eth', heatVolt: air ? 'air' : 'warm', heatShort: air ? 'all air' : 'water + air',
@@ -195,8 +199,8 @@ export function content(M) {
       // Colossus 1 and 2 share a pin; the card leads with the one that is bigger now
       const ss = p.ids.map(id => SITES[id]), lead = ss.find(x => x.status.rank) || ss[0];
       return { id: placeKey(p), title: p.name, kicker: `${p.site.place} · ${ss.map(x => STATUS_WORD[x.status.state].toLowerCase()).join(', ')}`,
-        body: `${p.site.owner}. ${ss.map(x => (ss.length > 1 ? `${x.name.replace(/^xAI /, '')}: ` : '') + x.status.line).join(' ')}${lead.status.rank ? ` ${lead.status.rank}` : ''} Choose it under Real campuses in the scenario bar to rebuild this page around it.`,
-        specs: [...ss.flatMap(x => statusRows(x).map(([k, v, b]) => [ss.length > 1 ? `${x.name.replace(/^xAI /, '')}: ${k.toLowerCase()}` : k, v, b])), ...p.site.facts] };
+        body: `${p.site.owner}. ${ss.map(x => (ss.length > 1 ? `${x.name.replace(/^SpaceXAI /, '')}: ` : '') + x.status.line).join(' ')}${lead.status.rank ? ` ${lead.status.rank}` : ''} Choose it under Real campuses in the scenario bar to rebuild this page around it.`,
+        specs: [...ss.flatMap(x => statusRows(x).map(([k, v, b]) => [ss.length > 1 ? `${x.name.replace(/^SpaceXAI /, '')}: ${k.toLowerCase()}` : k, v, b])), ...p.site.facts] };
     }),
   ];
   const lineA = M.staircase[0].current;
@@ -213,13 +217,19 @@ export function content(M) {
     { id: 'ehouse', title: '34.5 kV switchgear', kicker: 'Campus distribution',
       body: 'Prefabricated switchgear buildings split the transformer output into feeders, each breaker-protected, that run in concrete duct banks under the roads to the data halls.',
       specs: [['Feeders', `≈${n0(L.feeders)}, each ≈10 MW`, 'est'], ['Voltage', '34.5 kV (some campuses use 13.8 kV)', 'typical'], ['Loss, cables + gear', lossTxt('Campus cables'), 'est']] },
+    ...(bat ? [] : [
     { id: 'gensets', title: 'Standby generator yard', kicker: 'Diesel, 480 V stepped up to 34.5 kV',
       body: 'Containerized diesel sets, such as Cummins’ QSK78 or Caterpillar’s C175-16 in the 2.5-3 MW class, start within about ten seconds of a grid failure. The UPS batteries carry the load until they take over. They run a few hours a year, mostly for testing.',
       specs: [['Unit size', '2.5–3 MW class', 'spec'], ['Units here', `≈${n0(L.gensets)}, N+20%`, 'est'], ['Fuel, 2.5 MW at full load', '173 US gal/h (≈0.26 L/kWh)', 'spec'], ['Start to load', '≈10 s', 'typical']] },
     { id: 'fuel', title: 'Bulk fuel storage', kicker: '48 hours at full load',
       body: 'Horizontal steel tanks hold enough diesel to run the whole campus for two days, with polishing skids that keep stored fuel clean.',
       specs: [[`Volume, 48 h at ${meter}`, `≈${L.fuelML >= 10 ? n0(L.fuelML) : L.fuelML.toFixed(1)} million L`, 'est'], ['Tanker deliveries to refill', `≈${n0(L.fuelML * 1e6 / 30000)}`, 'est']] },
-    { id: 'bess', title: 'Battery energy storage', kicker: 'Smooths GPU load swings',
+    ]),
+    bat
+      ? { id: 'bess', title: 'Battery storage', kicker: 'Backup and smoothing, no diesel',
+        body: `The operator names batteries, not diesel generators, as this campus's backup: SpaceXAI says a grid-connected pack will provide 3.3 GWh here, and that more than 240 batteries already let its first Memphis site come fully off the grid in emergencies or at peak demand. The pack's power rating is not published; the model assumes it can carry the whole campus, about ${bessH.toFixed(0)} hours at full load. The same batteries soak up training load swings.`,
+        specs: [['Energy, per SpaceXAI (planned)', '3.3 GWh', 'typical'], ['Power, assumed', `≈${mwTxt(L.bessMW)}, the whole campus`, 'est'], ['At full load', `≈${bessH.toFixed(1)} h`, 'est'], ['Diesel generators', 'none mentioned by SpaceXAI', 'typical']] }
+      : { id: 'bess', title: 'Battery energy storage', kicker: 'Smooths GPU load swings',
       body: 'Thousands of GPUs stepping in lockstep during training can swing campus load by tens of megawatts in seconds. Grid-side batteries absorb the swings the utility would otherwise see, and can sell grid services.',
       specs: [['Size here', `≈${n0(L.bessMW)} MW / ${n0(L.bessMWh)} MWh`, 'est'], ['Training load swings', 'up to ≈100 MW, sub-second', 'typical'], ['Example', 'xAI Colossus: up to ≈150 MW of Megapacks', 'typical']] },
     { id: 'unitsubs', title: 'Unit substations', kicker: '34.5 kV → 480 V',
@@ -234,14 +244,20 @@ export function content(M) {
       ? { id: 'drycoolers', title: 'Dry coolers', kicker: 'Heat out, no water used',
         body: 'Rooftop coils, such as EVAPCO’s Apex or Baltimore Aircoil’s TrilliumSeries dry coolers, reject the heat carried out of the GPUs by warm water with big fans. Water at 30–40 °C is warm enough to dump heat to outside air most of the year without chillers.',
         specs: [['Heat rejected', `≈${mwTxt(IT_MW * 1.05)}`, 'est'], ['Units, ≈0.8 MW each', `≈${n0(L.dryCoolers)}`, 'est'], ['Water classes', 'ASHRAE W32–W45: 32–45 °C max supply', 'spec'], ['Water use, dry + adiabatic', '≈0.15–0.17 L/kWh', 'typical']] }
+      : closed
+        ? { id: 'chillers', title: 'Chiller plant', kicker: 'Air-cooled, closed loop',
+          body: `Air-cooled chillers make cold water for the racks’ coolant units and push the heat into outside air through fans on their condenser coils. SpaceXAI says the loop is closed and the site takes only domestic water, so no towers evaporate water here. Their compressors are the biggest power draw in cooling, which is why this design lands at PUE ${M.pue.toFixed(2)}.`,
+          specs: [['Chillers, ≈4 MW (1,100 ton) each', `≈${n0(L.chillers)}`, 'est'], ['Reported, Aug 2025', '119 air-cooled chillers, ≈200 MW', 'typical'], ['Cooling power', mwTxt(M.coolMW), 'est'], ['Cooling water, per SpaceXAI', 'none evaporated; domestic water only', 'typical']] }
       : { id: 'chillers', title: 'Chiller plant', kicker: 'Makes cold water',
         body: `Chillers, such as Schneider Electric’s Uniflair line, run a refrigeration cycle to cool water to ${air ? 'about 12 °C for the air coolers in the halls' : 'about 20 °C for the racks’ coolant units'}. Their compressors are the biggest power draw in cooling, which is why this design lands at PUE ${M.pue.toFixed(2)}.`,
         specs: [['Chillers, ≈4 MW (1,100 ton) each', `≈${n0(L.chillers)}`, 'est'], ['Cooling power', mwTxt(M.coolMW), 'est'], ['Chiller efficiency', 'COP ≈5–7 at design', 'typical']] },
+    ...(closed ? [] : [
     { id: 'towers', title: warm ? 'Cooling towers & tanks' : 'Cooling towers', kicker: warm ? 'For the hottest days' : 'Where the heat and water go',
       body: warm
         ? 'Evaporative towers trim water temperature on hot afternoons, and the tanks hold treated makeup water and fire water.'
         : 'Towers take the chillers’ heat, and the heat of their compressors, and throw it away by evaporating water. That is where most of a data center’s water goes.',
       specs: [['Towers', `≈${n0(L.towers)}`, 'est'], ['Water, on site', `≈${M.wue.toFixed(2)} L/kWh`, 'typical'], ['Use', warm ? 'peak days only' : 'all year', 'est']] },
+    ]),
     { id: 'fiber', title: 'Fiber entrances', kicker: 'Two diverse routes',
       body: 'Long-haul fiber enters at two vaults on opposite sides of the site, so one backhoe cannot cut the campus off. Tokens leave the same way the questions arrive.',
       specs: [['Routes', '2 or more, physically separate', 'typical']] },
@@ -254,20 +270,20 @@ export function content(M) {
       specs: [['Rating', '2.5 MVA', 'typical'], ['Secondary current', '≈3,000 A at full load', 'est'], ['Efficiency', '≈99%', 'typical']] },
     { id: 'swgr', title: dc ? 'Medium-voltage switchgear' : '480 V switchgear', kicker: 'Breakers and transfer',
       body: dc
-        ? 'Breakers protect each 34.5 kV feed into the solid-state transformers and switch between utility and generator power when the grid drops.'
-        : 'A lineup of drawout breakers protects every outgoing circuit and switches the room between utility and generator when the grid drops.',
-      specs: [['Transfer', 'automatic, utility ↔ generator', 'typical']] },
+        ? `Breakers protect each 34.5 kV feed into the solid-state transformers and switch between utility and ${bat ? 'the site batteries' : 'generator power'} when the grid drops.`
+        : `A lineup of drawout breakers protects every outgoing circuit and switches the room between utility and ${bat ? 'the site batteries' : 'generator'} when the grid drops.`,
+      specs: [['Transfer', bat ? 'automatic, utility ↔ site batteries' : 'automatic, utility ↔ generator', bat ? 'est' : 'typical']] },
     dc
       ? { id: 'sst', title: 'Solid-state transformers', kicker: '34.5 kV AC → 800 V DC',
         body: 'Power electronics switching at high frequency replace the 60 Hz transformer, the UPS and the rack rectifiers with one conversion. NVIDIA and partners such as Navitas, Delta and Infineon/SolarEdge target these for 2027 racks; the efficiency here is a vendor claim.',
         specs: [['Efficiency, Navitas claim', '>98%', 'est'], ['Modules here, ≈2.5 MW', `≈${n0(L.sstModules)}`, 'est'], ['Loss', lossTxt('Solid-state'), 'est']] }
       : { id: 'ups', title: 'UPS modules', kicker: 'Double conversion',
-        body: 'The UPS turns AC into DC and back to clean AC, with batteries on the DC link. It rides through the seconds between a grid failure and the generators taking load.',
+        body: `The UPS turns AC into DC and back to clean AC, with batteries on the DC link. It rides through the seconds between a grid failure and ${bat ? 'the site batteries' : 'the generators'} taking load.`,
         specs: [['Module', '1.25–1.5 MW', 'typical'], ['Modules here', `≈${n0(L.upsModules)}`, 'est'], ['Efficiency, Eaton 9395XR', 'up to 97.5% online, 99% eco', 'spec'], [`Loss at ${meter}`, lossTxt('UPS'), 'est']] },
     { id: 'batt', title: dc ? 'DC battery cabinets' : 'Battery cabinets', kicker: 'Lithium-ion, ≈5 minutes',
       body: dc
         ? 'Batteries sit right on the 800 V DC bus, with no inverter between them and the racks, so there is no UPS conversion loss at all.'
-        : 'Racks of lithium-ion modules on the UPS DC link. Five minutes is plenty: the generators are carrying the load within a minute.',
+        : `Racks of lithium-ion modules on the UPS DC link. Five minutes is plenty: ${bat ? 'the site batteries are carrying the load within seconds' : 'the generators are carrying the load within a minute'}.`,
       specs: [['Runtime', 'set by string count, often ≈5 min', 'est'], ['Chemistry', 'Li-ion (LFP or NMC)', 'typical']] },
     { id: 'busway', title: dc ? '800 V DC busway' : 'Overhead busway', kicker: dc ? '800 V DC to every rack' : '415 V to every rack',
       body: dc
@@ -430,11 +446,17 @@ export function content(M) {
     { group: 'Grid & campus', rows: [
       [`Main power transformers, ${L.mvaUnit} MVA`, n0(L.transformers), 'est', Lk(1, 'mpt')],
       ['34.5 kV feeders', `≈${n0(L.feeders)}`, 'est', Lk(1, 'ehouse')],
-      ['Diesel generators, 3 MW', `≈${n0(L.gensets)}`, 'est', Lk(1, 'gensets')],
-      ['Diesel on site, 48 h', `≈${L.fuelML >= 10 ? n0(L.fuelML) : L.fuelML.toFixed(1)} million L`, 'est', Lk(1, 'fuel')],
-      ['Battery storage', `≈${n0(L.bessMW)} MW / ${n0(L.bessMWh)} MWh`, 'est', Lk(1, 'bess')],
+      ...(bat ? [
+        ['Battery storage, per SpaceXAI (planned)', '3.3 GWh', 'typical', Lk(1, 'bess')],
+        ['Battery power, assumed', `≈${n0(L.bessMW)} MW, ≈${bessH.toFixed(1)} h at full load`, 'est', Lk(1, 'bess')],
+        ['Diesel generators', 'none mentioned by SpaceXAI', 'typical', Lk(1, 'bess')],
+      ] : [
+        ['Diesel generators, 3 MW', `≈${n0(L.gensets)}`, 'est', Lk(1, 'gensets')],
+        ['Diesel on site, 48 h', `≈${L.fuelML >= 10 ? n0(L.fuelML) : L.fuelML.toFixed(1)} million L`, 'est', Lk(1, 'fuel')],
+        ['Battery storage', `≈${n0(L.bessMW)} MW / ${n0(L.bessMWh)} MWh`, 'est', Lk(1, 'bess')],
+      ]),
       ...(warm ? [['Rooftop dry coolers', `≈${n0(L.dryCoolers)}`, 'est', Lk(1, 'drycoolers')]] : [['Chillers, 4 MW', `≈${n0(L.chillers)}`, 'est', Lk(1, 'chillers')]]),
-      ['Cooling towers', `≈${n0(L.towers)}`, 'est', Lk(1, 'towers')],
+      ...(closed ? [] : [['Cooling towers', `≈${n0(L.towers)}`, 'est', Lk(1, 'towers')]]),
     ] },
     { group: 'Buildings', rows: [
       ['Data halls', n0(halls), 'est', Lk(1, 'hall')],
@@ -660,15 +682,19 @@ export function content(M) {
           body: 'Warm facility water runs through finned coils on the roofs while big fans pull outside air across them. With water at 30–45 °C, outside air can take the heat most of the year without chillers.',
           specs: [['Heat rejected', `≈${mwTxt(IT_MW * 1.05)}`, 'est'], ['NVIDIA warm-water spec', '45 °C in, ≈55 °C out', 'typical'], ['Water classes', 'ASHRAE W32–W45', 'spec']] }
         : { id: 'chillers', title: 'Chiller plant', kicker: 'Pumping heat uphill',
-          body: 'Chillers move heat from cold water into warmer tower water, and spend electricity to do it: every megawatt they move adds roughly a sixth more to reject.',
+          body: closed
+            ? 'Air-cooled chillers move heat from cold water into outside air through their condenser fans, and spend electricity to do it: every megawatt they move adds roughly a sixth more to reject. On a closed loop, no water leaves as vapor.'
+            : 'Chillers move heat from cold water into warmer tower water, and spend electricity to do it: every megawatt they move adds roughly a sixth more to reject.',
           specs: [['Cooling power', mwTxt(M.coolMW), 'est'], ['Chillers', `≈${n0(L.chillers)}`, 'est']] },
+      ...(closed ? [] : [
       { id: 'towers', title: 'Cooling towers', kicker: warm ? 'Hot days cost water' : 'Where the water goes',
         body: warm
           ? 'Evaporating water carries heat away far better than air, so towers trim the loop on the hottest afternoons. Every kilowatt-hour moved this way costs water.'
           : 'Evaporation carries the heat away all year. Each kilogram of water evaporated takes about 2.4 MJ with it, which adds up to rivers of water at this scale.',
         specs: [['On site, this design', `≈${M.wue.toFixed(2)} L/kWh`, 'typical'], ['Water per day', `≈${kfmt(M.meterMW * 24 * M.wue)} m³`, 'est'], ['At the power plant, typical thermal', '≈1.8 L/kWh (NREL)', 'spec']] },
+      ]),
       { id: 'plume', title: `Where ${meter} goes`, kicker: 'All of it, as heat',
-        body: `Every watt that came in on the 345 kV line leaves as warm air${warm ? '' : ' and water vapor'} above the roofs. The campus is, physically, a ${meter} heater that happens to make tokens on the way.`,
+        body: `Every watt that came in on the 345 kV line leaves as warm air${warm || closed ? '' : ' and water vapor'} above the roofs. The campus is, physically, a ${meter} heater that happens to make tokens on the way.`,
         specs: [['Heat out', meter, 'est']] },
       { id: 'reuse', title: 'Heat reuse', kicker: 'Warm water is still worth something',
         body: 'In cold climates the return water can feed a district heating network, with heat pumps lifting it to 70–75 °C. This campus exports none; these do.',

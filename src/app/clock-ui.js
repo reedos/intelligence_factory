@@ -93,16 +93,17 @@ function draw() {
     [sim.id === 'outage' ? 'Site draw' : 'At the meter', mwTxt(sim.id === 'outage' ? s.values.grid + s.values.gens + s.values.battery : s.meterMW)],
     ['Energy so far', tot.mwh >= 10 ? `${n0(tot.mwh)} MWh` : `${tot.mwh.toFixed(2)} MWh`],
     ['Water so far', `${tot.water >= 10 ? n0(tot.water) : tot.water.toFixed(1)} m³`],
-    sim.id === 'inference' ? ['Tokens so far', big(tot.tokens)] : sim.id === 'outage' ? ['Diesel burned', `${n0(dieselL(t))} L`] : ['CO₂ so far', `${(tot.mwh * carbon() / 1000).toFixed(tot.mwh * carbon() / 1000 >= 10 ? 0 : 2)} t`],
+    sim.id === 'inference' ? ['Tokens so far', big(tot.tokens)] : sim.id === 'outage' ? (store.M.backup === 'battery' ? ['From the batteries', `${n0(fromSource(t, 'battery'))} MWh`] : ['Diesel burned', `${n0(fromSource(t, 'gens') * 260)} L`]) : ['CO₂ so far', `${(tot.mwh * carbon() / 1000).toFixed(tot.mwh * carbon() / 1000 >= 10 ? 0 : 2)} t`],
   ];
   $('ck-counters').innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   setLevels(s.levels);
 }
-// diesel: generator MWh × 260 L/MWh (a 2.5 MW unit at full load burns ≈0.26 L/kWh)
-function dieselL(tt) {
+// energy one source has delivered so far, MWh; diesel is that from the generators × 260 L/MWh (a 2.5 MW unit at full
+// load burns ≈0.26 L/kWh)
+function fromSource(tt, key) {
   let mwh = 0; const n = 200;
-  for (let i = 0; i < n; i++) { const a = tt * i / n, b = tt * (i + 1) / n; mwh += sim.sample((a + b) / 2).values.gens * (b - a) / 3600; }
-  return mwh * 260;
+  for (let i = 0; i < n; i++) { const a = tt * i / n, b = tt * (i + 1) / n; mwh += (sim.sample((a + b) / 2).values[key] || 0) * (b - a) / 3600; }
+  return mwh;
 }
 function tick(dt) {
   if (!sim || strip.hidden) return;
@@ -147,7 +148,14 @@ addEventListener('keydown', e => {
 });
 
 // ---------- the page section: all four, with notes and a button to play each in 3D ----------
-const WHERE = { training: { scene: 1, mode: 'power', part: 'bess' }, outage: { scene: 1, mode: 'power', part: 'gensets' }, hotday: { scene: 1, mode: 'heat', part: 'towers' }, inference: { scene: 2, mode: 'power', part: 'racks' } };
+const WHERE_ = { training: { scene: 1, mode: 'power', part: 'bess' }, outage: { scene: 1, mode: 'power', part: 'gensets' }, hotday: { scene: 1, mode: 'heat', part: 'towers' }, inference: { scene: 2, mode: 'power', part: 'racks' } };
+// a campus with battery backup has no generator yard, and one on a closed loop no towers: open on what it has
+const WHERE = new Proxy(WHERE_, { get: (w, id) => {
+  const v = w[id], M = store.M;
+  if (id === 'outage' && M?.backup === 'battery') return { ...v, part: 'bess' };
+  if (id === 'hotday' && M?.closedLoop) return { ...v, part: 'chillers' };
+  return v;
+} });
 function renderSection() {
   const grid = $('clock-grid'); if (!grid) return;
   grid.innerHTML = SIMS.map(({ id }) => {

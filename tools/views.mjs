@@ -16,12 +16,13 @@ const errors = []; p.on('pageerror', e => errors.push(e.message));
 await p.goto(process.env.URL || 'http://127.0.0.1:47400/');
 await p.waitForFunction(() => window.ifx && ifx.state.scene === 0, null, { timeout: 90000 });
 
-const scenarios = (process.env.ONLY ? [process.env.ONLY] : ['gb200-ac-warm', 'gb300-dc-liquid', 'h100-air-1gw', 'rubin-dc-warm-10mw', 'gb200-5gw']).map(k => [k, {
+const scenarios = (process.env.ONLY ? [process.env.ONLY] : ['gb200-ac-warm', 'gb300-dc-liquid', 'h100-air-1gw', 'rubin-dc-warm-10mw', 'gb200-5gw', 'colossus2']).map(k => [k, {
   'gb200-ac-warm': { meterMW: 100, accel: 'gb200', power: 'ac415', cooling: 'warm' },
   'gb300-dc-liquid': { meterMW: 300, accel: 'gb300', power: 'dc800', cooling: 'liquid' },
   'h100-air-1gw': { meterMW: 1000, accel: 'h100', power: 'ac415', cooling: 'air' },
   'rubin-dc-warm-10mw': { meterMW: 10, accel: 'rubin', power: 'dc800', cooling: 'warm' },
   'gb200-5gw': { meterMW: 5000, accel: 'gb200', power: 'ac415', cooling: 'warm' },
+  colossus2: { meterMW: 1100, accel: 'gb300', power: 'ac415', cooling: 'liquid', site: 'colossus2' },   // battery backup, closed loop
 }[k]]);
 
 // everything measured in the page, after the camera has arrived

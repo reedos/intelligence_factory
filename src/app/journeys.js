@@ -38,9 +38,11 @@ export function story(M) {
     { link: at(1, 'mpt'), k: 'Grid & campus', title: 'The first step down',
       text: `The campus has ${L.transformers} main transformers to take it down to 34.5 kV. They are 99.6% efficient, and still turn ${mw(loss('Main power'))} into heat.` },
     { link: at(1, 'bess'), sim: 'training', k: 'Grid & campus', title: 'Standing by',
-      text: `${n0(L.gensets)} diesel generators and ${n0(L.bessMWh)} MWh of batteries wait for the grid to fail. The batteries also soak up training load swings, which can move a campus tens of megawatts in under a second.` },
-    { link: at(1, air || M.cooling.id === 'liquid' ? 'towers' : 'drycoolers', 'heat'), sim: 'hotday', k: 'Heat · grid & campus', title: 'All of it comes back out',
-      text: `Every one of those ${meter} leaves again as heat. ${M.cooling.id === 'warm' ? 'Warm water climbs to dry coolers on the roofs' : 'Chillers and cooling towers carry it away'}; cooling alone takes ${mw(M.coolMW)}. With the conversion losses, this design runs at PUE ${M.pue.toFixed(2)} and uses about ${big(M.meterMW * 24 * M.wue)} m³ of water a day.` },
+      text: M.backup === 'battery'
+        ? `No diesel here: the operator names batteries as the backup, a ${(L.bessMWh / 1000).toFixed(1)} GWh pack it says is planned, which could carry this campus for about ${(L.bessMWh / L.bessMW).toFixed(0)} hours if it can deliver the full load. The same batteries soak up training load swings, which can move a campus tens of megawatts in under a second.`
+        : `${n0(L.gensets)} diesel generators and ${n0(L.bessMWh)} MWh of batteries wait for the grid to fail. The batteries also soak up training load swings, which can move a campus tens of megawatts in under a second.` },
+    { link: at(1, M.closedLoop ? 'chillers' : air || M.cooling.id === 'liquid' ? 'towers' : 'drycoolers', 'heat'), sim: 'hotday', k: 'Heat · grid & campus', title: 'All of it comes back out',
+      text: `Every one of those ${meter} leaves again as heat. ${M.cooling.id === 'warm' ? 'Warm water climbs to dry coolers on the roofs' : M.closedLoop ? 'Air-cooled chillers on a closed loop push it into the air' : 'Chillers and cooling towers carry it away'}; cooling alone takes ${mw(M.coolMW)}. With the conversion losses, this design runs at PUE ${M.pue.toFixed(2)}${M.closedLoop ? ' and, by the operator’s account, evaporates no water: it takes only domestic water.' : ` and uses about ${big(M.meterMW * 24 * M.wue)} m³ of water a day.`}` },
     // 3 · power room and data hall
     dc
       ? { link: at(2, 'sst'), sim: 'outage', k: 'Power room', title: 'Straight to 800 V DC',
@@ -97,7 +99,7 @@ export function watt(M) {
   return [
     { link: at(0, 'home'), k: 'The meter', title: 'One watt', tally: '1.000 W', text: `Take one watt of the ${mw(meter)} this campus draws and follow it. Every step below takes a slice; the number beside the scene shows what is left for the math.` },
     { link: at(1, 'mpt'), k: 'Grid & campus', title: `${pct(grid)} to the yard`, tally: take(grid), text: 'The main transformers and the campus cables and switchgear warm up a little as the watt passes: the cheapest step there is.' },
-    { link: at(1, M.cooling.id === 'warm' ? 'drycoolers' : 'chillers'), k: 'A detour', title: `${pct(cool)} to cooling and the building`, tally: take(cool), text: `Part of every watt never reaches a rack: it runs ${M.cooling.id === 'warm' ? 'dry-cooler fans and pumps' : 'chillers, towers and pumps'}, lights and controls. That slice is most of the gap between PUE ${M.pue.toFixed(2)} and 1.` },
+    { link: at(1, M.cooling.id === 'warm' ? 'drycoolers' : 'chillers'), k: 'A detour', title: `${pct(cool)} to cooling and the building`, tally: take(cool), text: `Part of every watt never reaches a rack: it runs ${M.cooling.id === 'warm' ? 'dry-cooler fans and pumps' : M.closedLoop ? 'air-cooled chillers and pumps' : 'chillers, towers and pumps'}, lights and controls. That slice is most of the gap between PUE ${M.pue.toFixed(2)} and 1.` },
     { link: at(2, dc ? 'sst' : 'ups'), k: 'Power room', title: `${pct(room)} to the power room`, tally: take(room), text: dc ? 'Solid-state transformers make 800 V DC in one conversion, and the DC bus loses a little more on the way to the rows.' : 'Unit substations, the UPS double conversion and the busway each take their share. The UPS is the big one.' },
     { link: at(2, 'spine', 'data'), k: 'Network', title: `${pct(net)} to the fabric`, tally: take(net), text: 'Switches and optical modules outside the racks, the price of letting every GPU reach every other.' },
     { link: at(3, nvl ? 'shelves' : 'psus'), k: 'The rack', title: `${pct(rack)} to rack power`, tally: take(rack), text: nvl ? `${dc ? 'DC-DC shelves step 800 V down to 50 V' : 'Power shelves turn AC into 50 V DC'}, and the copper busbar warms slightly carrying it.` : 'Each server’s own supplies turn AC into 54 V; the cords lose a little on the way.' },
@@ -148,8 +150,8 @@ export function heat(M) {
     { link: at(2, 'riser', 'heat'), k: 'Data hall', title: 'Up and out', tally: `≈${T[2]} °C`, text: `Insulated headers carry it out of the building to the ${warm ? 'roof' : 'chiller plant'}.` },
     warm
       ? { link: at(1, 'drycoolers', 'heat'), k: 'Grid & campus', title: 'Into the air', tally: `${T[4]} °C day`, text: 'Dry coolers push it into outside air with fans alone, as long as the air is cooler than the water. On the hottest afternoons sprays help, and cost water.' }
-      : { link: at(1, 'chillers', 'heat'), k: 'Grid & campus', title: 'Pumped uphill', tally: `≈${T[3]} °C made`, text: 'Chillers spend electricity to move the heat from cold water into warmer tower water, adding their own heat to the pile.' },
-    { link: at(1, 'plume', 'heat'), sim: 'hotday', k: 'The sky', title: 'Gone', tally: `${T[4]} °C outside`, text: `${warm ? 'Warm air rises off the roofs' : 'Warm, wet air rises off the cooling towers'}. The campus is a ${mw(M.meterMW)} heater that happened to write tokens on the way.` },
+      : { link: at(1, 'chillers', 'heat'), k: 'Grid & campus', title: 'Pumped uphill', tally: `≈${T[3]} °C made`, text: M.closedLoop ? 'Air-cooled chillers spend electricity to move the heat from cold water into outside air, adding their own heat to the pile.' : 'Chillers spend electricity to move the heat from cold water into warmer tower water, adding their own heat to the pile.' },
+    { link: at(1, 'plume', 'heat'), sim: 'hotday', k: 'The sky', title: 'Gone', tally: `${T[4]} °C outside`, text: `${warm ? 'Warm air rises off the roofs' : M.closedLoop ? 'Warm air rises off the chillers’ fans' : 'Warm, wet air rises off the cooling towers'}. The campus is a ${mw(M.meterMW)} heater that happened to write tokens on the way.` },
   ];
 }
 

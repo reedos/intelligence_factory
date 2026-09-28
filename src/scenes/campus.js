@@ -5,6 +5,8 @@ import { terrainTexture, clouds, treeMatrices, carBuild, truckBuild, walkerBuild
 
 export function build({ quality, model }) {
   const L = model.layout, warm = model.cooling.id === 'warm';
+  // a real campus's published plant (sites.ts): battery backup instead of a diesel yard, a closed loop instead of towers
+  const batteryYard = model.backup === 'battery', closed = model.closedLoop;
   const nHalls = Math.min(2, model.halls), extra = Math.max(0, model.halls - 2);
   // halls beyond the two drawn in detail stand as plain blocks east of the site, in columns
   const perCol = Math.min(12, Math.max(2, Math.ceil(Math.sqrt(extra / 1.2)))), cols = Math.ceil(extra / perCol);
@@ -290,42 +292,46 @@ export function build({ quality, model }) {
       }
     }
   });
-  const towerRows = warm ? [-275] : [-275, -290];
+  const towerRows = closed ? [] : warm ? [-275] : [-275, -290];
   const plantX = Math.max(hallX0 + 45, Math.min(100, hcx + 20));
   towerRows.forEach(tz => { for (let i = 0; i < 6; i++) { const x = 15 + i * 12; heatFlows.push(flow([[x, 11.5, tz], [x + 2, 35, tz - 3], [x + 6, 65, tz - 9]], 'vapor', { count: warm ? 5 : 7, speed: 6, size: 2.4, k: 1.2, opacity: warm ? 0.4 : 0.55, trail: false })); } });
   if (!warm) {
     // chiller plant between hall A and the towers: warm return in, cold supply back, heat on to the towers
     heatFlows.push(flow([[plantX - 10, 2.2, -215], [plantX - 10, 2.2, -236]], 'warm', { count: 14, speed: 10, size: 0.8, k: 2.4, trailR: 0.3 }));
     heatFlows.push(flow([[plantX + 10, 2.2, -236], [plantX + 10, 2.2, -215]], 'cool', { count: 14, speed: 10, size: 0.8, k: 2.4, trailR: 0.3 }));
-    heatFlows.push(flow([[plantX - 20, 2.2, -254], [plantX - 20, 2.2, -262], [15, 2.2, -262], [15, 9, -275]], 'warm', { count: 18, speed: 14, size: 0.8, k: 2.4, trailR: 0.3 }));
+    if (towerRows.length) heatFlows.push(flow([[plantX - 20, 2.2, -254], [plantX - 20, 2.2, -262], [15, 2.2, -262], [15, 9, -275]], 'warm', { count: 18, speed: 14, size: 0.8, k: 2.4, trailR: 0.3 }));
+    // air-cooled chillers on a closed loop: the heat leaves as warm air off their roof fans, and no water goes with it
+    else for (let i = 0; i < 6; i++) { const x = plantX - 24 + i * 9.5; heatFlows.push(flow([[x, 12.8, -245], [x + 2, 34, -248], [x + 6, 60, -254]], 'air', { count: 5, speed: 7, size: 2.4, k: 2.0, opacity: 0.6, trail: false })); }
   }
   heatFlows.push(flow([[125, 1, -280], [80, 1, -280], [80, 1, -275], [20, 1, -275]], 'cool', { count: 10, speed: 12, size: 0.6, k: 2.2, trailR: 0.2 }));
   unitSub.instance(unitSubMx).children.forEach(m => scene.add(m));
 
-  // ---------- generator yard and fuel ----------
-  const genset = new Builder();
-  genset.slab(13, 0.4, 3.8, MAT.concrete, 0, 0, 0);
-  rslab(genset, 12.2, 2.9, 3, MAT.beige, 0, 0.4, 0, 0, 0.06);
-  for (let x = -5.8; x <= 5.8; x += 0.8) { genset.slab(0.12, 2.8, 0.08, MAT.beige, x, 0.45, 1.53); genset.slab(0.12, 2.8, 0.08, MAT.beige, x, 0.45, -1.53); }
-  genset.slab(3.2, 1.3, 2.8, MAT.steel, 4.3, 3.3, 0);                       // radiator housing
-  for (const dz of [-0.7, 0.7]) genset.cyl(0.62, 0.1, MAT.fan, 4.3, 4.62, dz, 18);
-  genset.cylX(0.45, 2.6, MAT.darkSteel, -2.5, 3.8, 0, 14);                  // silencer
-  genset.cyl(0.26, 2.8, MAT.darkSteel, -1.2, 4.6, 0, 12);                  // stack
-  genset.slab(1.2, 1.8, 1.6, MAT.ansi61, -7.4, 0.4, 0);                    // step-up transformer
-  const gensetMx = [];
-  for (const blockZ of [-205, 20]) for (let c = 0; c < 4; c++) for (let r = 0; r < 5; r++) if (gensetMx.length < Math.min(40, L.gensets)) gensetMx.push(mtx(290 + c * 21, 0.15, blockZ + r * 8));
-  genset.instance(gensetMx).children.forEach(m => scene.add(m));
-  // fuel farm
-  for (let i = 0; i < 6; i++) {
-    const x = 390 + (i % 2) * 14, z = -120 + Math.floor(i / 2) * 18;
-    S.slab(12, 0.4, 16, MAT.concreteDark, x, 0.15, z);
-    for (const dz of [-3.5, 3.5]) S.slab(1.2, 1.4, 5, MAT.concrete, x, 0.5, z + dz);
-    S.cylZ(2.2, 13.5, MAT.white, x, 4.0, z, 24);
+  // ---------- generator yard and fuel (a campus whose operator names batteries as its backup has neither) ----------
+  if (L.gensets) {
+    const genset = new Builder();
+    genset.slab(13, 0.4, 3.8, MAT.concrete, 0, 0, 0);
+    rslab(genset, 12.2, 2.9, 3, MAT.beige, 0, 0.4, 0, 0, 0.06);
+    for (let x = -5.8; x <= 5.8; x += 0.8) { genset.slab(0.12, 2.8, 0.08, MAT.beige, x, 0.45, 1.53); genset.slab(0.12, 2.8, 0.08, MAT.beige, x, 0.45, -1.53); }
+    genset.slab(3.2, 1.3, 2.8, MAT.steel, 4.3, 3.3, 0);                       // radiator housing
+    for (const dz of [-0.7, 0.7]) genset.cyl(0.62, 0.1, MAT.fan, 4.3, 4.62, dz, 18);
+    genset.cylX(0.45, 2.6, MAT.darkSteel, -2.5, 3.8, 0, 14);                  // silencer
+    genset.cyl(0.26, 2.8, MAT.darkSteel, -1.2, 4.6, 0, 12);                  // stack
+    genset.slab(1.2, 1.8, 1.6, MAT.ansi61, -7.4, 0.4, 0);                    // step-up transformer
+    const gensetMx = [];
+    for (const blockZ of [-205, 20]) for (let c = 0; c < 4; c++) for (let r = 0; r < 5; r++) if (gensetMx.length < Math.min(40, L.gensets)) gensetMx.push(mtx(290 + c * 21, 0.15, blockZ + r * 8));
+    genset.instance(gensetMx).children.forEach(m => scene.add(m));
+    // fuel farm
+    for (let i = 0; i < 6; i++) {
+      const x = 390 + (i % 2) * 14, z = -120 + Math.floor(i / 2) * 18;
+      S.slab(12, 0.4, 16, MAT.concreteDark, x, 0.15, z);
+      for (const dz of [-3.5, 3.5]) S.slab(1.2, 1.4, 5, MAT.concrete, x, 0.5, z + dz);
+      S.cylZ(2.2, 13.5, MAT.white, x, 4.0, z, 24);
+    }
+    S.slab(6, 2.4, 3, MAT.steel, 405, 0.15, -145);                             // fuel polishing skid
+    // standby flow: generators to the MV network (dim, slow)
+    flows.push(flow([[285, uY, -170], [262, uY, -170], [262, uY, -112], [225, uY, -112]], 'mv', { count: 10, speed: 12, size: 1.0, k: 0.8, opacity: 0.45, trailK: 0.15, role: 'standby' }));
+    if (gensetMx.length > 20) flows.push(flow([[285, uY, 40], [262, uY, 40], [262, uY, 3], [225, uY, 3]], 'mv', { count: 10, speed: 12, size: 1.0, k: 0.8, opacity: 0.45, trailK: 0.15, role: 'standby' }));
   }
-  S.slab(6, 2.4, 3, MAT.steel, 405, 0.15, -145);                             // fuel polishing skid
-  // standby flow: generators to the MV network (dim, slow)
-  flows.push(flow([[285, uY, -170], [262, uY, -170], [262, uY, -112], [225, uY, -112]], 'mv', { count: 10, speed: 12, size: 1.0, k: 0.8, opacity: 0.45, trailK: 0.15, role: 'standby' }));
-  if (gensetMx.length > 20) flows.push(flow([[285, uY, 40], [262, uY, 40], [262, uY, 3], [225, uY, 3]], 'mv', { count: 10, speed: 12, size: 1.0, k: 0.8, opacity: 0.45, trailK: 0.15, role: 'standby' }));
 
   // ---------- battery storage yard ----------
   const bessBox = new Builder();
@@ -335,7 +341,16 @@ export function build({ quality, model }) {
   for (const x of [-3.2, 3.2]) bessBox.slab(0.4, 1.8, 1.8, MAT.darkSteel, x, 0.6, 0);
   const bessMx = [];
   for (let c = 0; c < 5; c++) for (let r = 0; r < 4; r++) if (bessMx.length < Math.min(20, Math.max(2, Math.ceil(L.bessMWh / 2)))) bessMx.push(mtx(-335 + c * 9, 0.15, 55 + r * 14));
-  bessBox.instance(bessMx).children.forEach(m => scene.add(m));
+  scene.add(bessBox.instance(bessMx));                  // the group itself: adding its meshes one by one skips every other one
+  if (batteryYard) {
+    // battery backup: the yard where the generators would stand is a battery field too, rows of containers with their
+    // MV step-up transformers, drawn at a scale that reads (schematic: a 3.3 GWh pack is several hundred containers)
+    const bigMx = [];
+    for (let c = 0; c < 14; c++) for (let r = 0; r < 9; r++) bigMx.push(mtx(292 + c * 9, 0.15, -206 + r * 13));
+    scene.add(bessBox.instance(bigMx));
+    for (let r = 0; r < 9; r++) { S.slab(4, 2.4, 2.4, MAT.ansi61, 283, 0.15, -206 + r * 13); S.slab(2, 2.2, 2, MAT.xfmr, 287.5, 0.15, -206 + r * 13); }
+    flows.push(flow([[285, uY, -170], [262, uY, -170], [262, uY, -112], [225, uY, -112]], 'mv', { count: 12, speed: 16, size: 1.0, k: 1.0, opacity: 0.6, trailK: 0.2, role: 'standby' }));
+  }
   for (let r = 0; r < 4; r++) { S.slab(4, 2.4, 2.4, MAT.ansi61, -280, 0.15, 55 + r * 14); S.slab(2, 2.2, 2, MAT.xfmr, -275, 0.15, 55 + r * 14); }
   flows.push(flow([[-275, uY, 55], [-275, uY, 20], [-340, uY, 20], [-340, uY, -62]], 'mv', { count: 12, speed: 20, size: 1.0, k: 1.2, opacity: 0.7, trailK: 0.2 }));
 
@@ -464,11 +479,13 @@ export function build({ quality, model }) {
   // a phone skips this heavy, fully-transparent overdraw in favor of the fans and the flow lines alone
   if (!quality.mobile) {
     const plumeEmitters = towerRows.flatMap(z => Array.from({ length: 6 }, (_, i) => ({ p: [15 + i * 12, 13.6, z], dir: [0, 1, 0] })));
+    if (plumeEmitters.length) {
     const towerPlumes = plumes(plumeEmitters, {
       perEmitter: 16, size: 1.4, grow: 4.5, life: 7, rise: 2.6,
       drift: [1.1, 0.4, 0.2], spread: 0.6, color: '#eef1f4', opacity: warm ? 0.28 : 0.4,
     });
     scene.add(towerPlumes.points); plumeUpdates.push(towerPlumes.update);
+    }
   }
 
   // a handful of soft clouds catching the low sun (desktop only: full-screen alpha overdraw adds up on
@@ -502,19 +519,25 @@ export function build({ quality, model }) {
       substation: { pos: [-500, 22, -150], view: { pos: [-360, 120, 60], target: [-480, 5, -150] } },
       mpt: { pos: [-418, 16, -150], view: { pos: [-360, 40, -40], target: [-420, 5, -150] } },
       ehouse: { pos: [-378, 8, -150], view: { pos: [-320, 40, -60], target: [-380, 2, -150] } },
-      gensets: { pos: [320, 10, -190], view: { pos: [440, 90, -60], target: [320, 0, -150] } },
-      fuel: { pos: [397, 9, -100], view: { pos: [480, 50, -40], target: [397, 0, -100] } },
-      bess: { pos: [-316, 6, 75], view: { pos: [-250, 60, 170], target: [-315, 0, 75] } },
+      ...(L.gensets ? {
+        gensets: { pos: [320, 10, -190], view: { pos: [440, 90, -60], target: [320, 0, -150] } },
+        fuel: { pos: [397, 9, -100], view: { pos: [480, 50, -40], target: [397, 0, -100] } },
+      } : {}),
+      bess: batteryYard ? { pos: [350, 6, -150], view: { pos: [480, 120, -10], target: [350, 0, -150] } } : { pos: [-316, 6, 75], view: { pos: [-250, 60, 170], target: [-315, 0, 75] } },
       unitsubs: { pos: [hcx, 5, -115], view: { pos: [hcx + 20, 30, -40], target: [hcx, 0, -110] } },
       hall: { pos: [hcx, 26, hallAz], view: { pos: [hcx + 160, 170, 120], target: [hcx, 10, -120] } },
       ...(warm ? { drycoolers: { pos: [Math.min(60, hcx), 26, -170], view: { pos: [Math.min(60, hcx) + 60, 70, -90], target: [Math.min(60, hcx), 20, -170] } } } : { chillers: { pos: [plantX, 13, -245], view: { pos: [plantX + 70, 70, -160], target: [plantX - 10, 5, -250] } } }),
-      towers: { pos: [45, 13, -275], view: { pos: [110, 60, -200], target: [70, 5, -275] } },
+      ...(towerRows.length ? {
+        towers: { pos: [45, 13, -275], view: { pos: [110, 60, -200], target: [70, 5, -275] } },
+      } : {}),
       fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-60, 60, 330], target: [-120, 0, 200] } },
     },
     dataFlows, heatFlows, layers: { data: dataGroup },
     heatHotspots: {
       ...(warm ? { drycoolers: { pos: [Math.min(60, hcx), 26, -170], view: { pos: [Math.min(60, hcx) + 80, 90, -60], target: [Math.min(60, hcx), 25, -170] } } } : { chillers: { pos: [plantX, 13, -245], view: { pos: [plantX + 70, 70, -160], target: [plantX - 10, 5, -250] } } }),
-      towers: { pos: [45, 13, -275], view: { pos: [110, 60, -200], target: [70, 20, -275] } },
+      ...(towerRows.length ? {
+        towers: { pos: [45, 13, -275], view: { pos: [110, 60, -200], target: [70, 20, -275] } },
+      } : {}),
       plume: { pos: [hcx, 70, -170], view: { pos: [hcx + 220, 160, 80], target: [hcx, 40, -110] } },
       reuse: { pos: [hallX0 - 28, 18, 60], view: { pos: [-160, 80, 180], target: [-40, 10, 60] } },
     },

@@ -1167,17 +1167,20 @@ export const TERMS = [
   }
  },
  {
-  "term": "xAI Colossus 1",
+  "term": "SpaceXAI Colossus 1",
   "aka": [
-   "Colossus"
+   "Colossus",
+   "xAI Colossus 1"
   ],
-  "def": "xAI's first Memphis campus: fully built and operating. About 200,000 GPUs (H100, H200, some GB200), leased in full to Anthropic since 05/06/2026; confirmed grid supply is 150 MW from MLGW/TVA, backed by 35 on-site gas turbines rated 420 MW.",
+  "def": "The first Memphis campus of SpaceXAI (xAI until its July 2026 rebrand, after SpaceX acquired it in February): fully built and operating. About 200,000 GPUs (H100, H200, some GB200), leased in full to Anthropic since 05/06/2026; confirmed grid supply is 150 MW from MLGW/TVA. Trade reports counted 35 on-site gas turbines rated 420 MW; SpaceXAI says its remaining temporary turbines must all be removed by July 2027, and that more than 240 batteries let the site come fully off the grid in emergencies or at peak demand.",
   "layer": "general",
   "sources": [
    "compute-atlas-colossus",
    "wikipedia-colossus",
    "tomshardware-colossus",
-   "dcd-xai-colossus-memphis"
+   "dcd-xai-colossus-memphis",
+   "spacexai-mid-south",
+   "bi-spacexai-rebrand"
   ],
   "link": {
    "scene": 0,
@@ -1186,14 +1189,19 @@ export const TERMS = [
   }
  },
  {
-  "term": "xAI Colossus 2",
-  "def": "xAI's second Memphis campus, about 3 km from Colossus 1: live and still growing, already past its original plan of 1 GW and 350,000 GPUs. By satellite estimate it ran about 946 MW of IT power and 440,000 Nvidia chips as of 09/24/2026; xAI itself reported about 550,000 chips installed by 09/25/2026. By Epoch AI's tracking, it is the most powerful AI data center operating today, by both IT power and compute; Amazon and Anthropic's New Carlisle campus is next, at about 910 MW with more chips but less compute.",
+  "term": "SpaceXAI Colossus 2",
+  "aka": [
+   "xAI Colossus 2"
+  ],
+  "def": "SpaceXAI's second Memphis campus (xAI until July 2026), about 3 km from Colossus 1: live and still growing, already past its original plan of 1 GW and 350,000 GPUs. By satellite estimate it ran about 946 MW of IT power and 440,000 Nvidia chips as of 09/24/2026; the company reported about 550,000 chips installed by 09/25/2026 and says it plans 1M+ GPUs. SpaceXAI describes the campus as grid-connected, with a 3.3 GWh battery pack planned, temporary gas turbines to be removed by July 2027, no diesel mentioned, and closed-loop cooling that takes only domestic water. By Epoch AI's tracking, it is the most powerful AI data center operating today, by both IT power and compute; Amazon and Anthropic's New Carlisle campus is next, at about 910 MW with more chips but less compute.",
   "layer": "general",
   "sources": [
    "epoch-dc-colossus2",
    "epoch-largest-dc",
    "semianalysis-xai-colossus2",
-   "wikipedia-colossus"
+   "wikipedia-colossus",
+   "spacexai-mid-south",
+   "bi-spacexai-rebrand"
   ],
   "link": {
    "scene": 0,

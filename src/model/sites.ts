@@ -22,9 +22,13 @@ export const STATE_CARBON: Record<string, { name: string; abbr: string; lb: numb
 };
 export const US_CARBON_G = 373;   // EPA eGRID 2022 national output rate, 823 lb/MWh
 
+// What a real campus's operator publishes about its own plant, where it differs from the model's generic campus:
+// battery backup instead of diesel generators, a published battery size, a closed cooling loop that evaporates no water.
+export interface Plant { backup?: 'battery'; bessMWh?: number; closedLoop?: boolean }
 export interface Site {
   id: SiteId; name: string; owner: string; place: string; lat: number; lon: number; state: string;
   scenario: Omit<Scenario, 'site'>;
+  plant?: Plant;
   carbonG: number; carbonNote: string;
   facts: [string, string, Basis][];
   unknowns: string[];               // what the preset had to assume
@@ -49,25 +53,28 @@ export const SITES: Record<SiteId, Site> = {
       line: 'Buildings 1–4 of 8 are live, about 421 MW of IT power. Buildings 5–8 are roofed and being fitted out; the full campus is due between Q4 2026 and Q1 2027.' },
   },
   colossus1: {
-    id: 'colossus1', name: 'xAI Colossus 1', owner: 'xAI', place: 'Memphis, TN', lat: 35.05, lon: -90.06, state: '47',
+    id: 'colossus1', name: 'SpaceXAI Colossus 1', owner: 'SpaceXAI (formerly xAI)', place: 'Memphis, TN', lat: 35.05, lon: -90.06, state: '47',
     scenario: { meterMW: 300, accel: 'h100', power: 'ac415', cooling: 'air' },
-    carbonG: 365, carbonNote: 'Tennessee, 804 lb/MWh (EIA 2024). On-site gas turbines supplied part of the power, which this figure does not capture.',
-    facts: [['GPUs, reported', '≈200,000 (H100, H200, some GB200)', 'typical'], ['Phase 2 power', '≈300 MW', 'typical'], ['Grid supply', 'MLGW/TVA, ≈150 MW', 'typical'], ['On-site generation', '35 gas turbines, 420 MW rated', 'typical'], ['Batteries', 'Tesla Megapacks, up to ≈150 MW', 'typical']],
-    unknowns: ['This page models H100 as air-cooled, NVIDIA’s reference design; the sources here do not say how Colossus 1 cools its racks.', 'The H200 and GB200 share of the fleet is not modeled.'],
-    sources: ['compute-atlas-colossus', 'wikipedia-colossus', 'tomshardware-colossus', 'dcd-xai-colossus-memphis'],
+    carbonG: 365, carbonNote: 'Tennessee, 804 lb/MWh (EIA 2024). Temporary gas turbines supplied part of the power, which this figure does not capture; SpaceXAI says all of its remaining temporary turbines must be removed by July 2027.',
+    facts: [['GPUs, reported', '≈200,000 (H100, H200, some GB200)', 'typical'], ['Phase 2 power', '≈300 MW', 'typical'], ['Grid supply', 'MLGW/TVA, ≈150 MW', 'typical'], ['On-site generation, reported', '35 gas turbines, 420 MW rated', 'typical'], ['Batteries, reported', 'Tesla Megapacks, up to ≈150 MW', 'typical'], ['Backup, per SpaceXAI', 'more than 240 batteries, enough to take the site fully off the grid', 'typical'], ['Cooling water, per SpaceXAI', '≈820,000 gal a day, hybrid system', 'typical']],
+    unknowns: ['This page models H100 as air-cooled, NVIDIA’s reference design; the sources here do not say how Colossus 1 cools its racks.', 'The H200 and GB200 share of the fleet is not modeled.', 'SpaceXAI describes batteries, not diesel, as Colossus I’s backup; this preset still draws the model’s generic diesel plant.'],
+    sources: ['compute-atlas-colossus', 'wikipedia-colossus', 'tomshardware-colossus', 'dcd-xai-colossus-memphis', 'spacexai-mid-south', 'bi-spacexai-rebrand'],
     status: { state: 'operating', live: '150 MW from the grid, plus turbines', asOf: '09/23/2026', source: 'compute-atlas-colossus',
       line: 'Fully built, about 200,000 GPUs, and leased in full to Anthropic since 05/06/2026. The confirmed grid supply is still 150 MW; TVA approved 300 MW in 02/2026.' },
   },
   colossus2: {
-    id: 'colossus2', name: 'xAI Colossus 2', owner: 'xAI', place: 'Memphis, TN', lat: 35.02, lon: -90.05, state: '47',
+    id: 'colossus2', name: 'SpaceXAI Colossus 2', owner: 'SpaceXAI (formerly xAI)', place: 'Memphis, TN', lat: 35.02, lon: -90.05, state: '47',
     scenario: { meterMW: 1100, accel: 'gb300', power: 'ac415', cooling: 'liquid' },
-    carbonG: 365, carbonNote: 'Tennessee, 804 lb/MWh (EIA 2024). Gas turbines across the state line in Southaven, MS, are meant to carry much of the load.',
-    facts: [['IT power running, satellite estimate', '≈946 MW', 'est'], ['Chips, satellite count', '≈440,000: 110k GB200, 330k GB300', 'est'], ['Chips, xAI, 09/25/2026', '≈550,000 installed', 'typical'], ['Cooling plant, Aug 2025', '119 air-cooled chillers, ≈200 MW', 'typical'], ['First plan', '≈1 GW, 350,000 GPUs, now passed', 'typical']],
-    unknowns: ['Meter power is estimated from the ≈946 MW IT figure at a PUE near 1.15.', 'Three quarters of the chips are GB300, so GB300 racks are modeled throughout.', 'Liquid-cooled racks on an air-cooled chiller plant is inferred, not confirmed.'],
-    sources: ['epoch-dc-colossus2', 'epoch-largest-dc', 'semianalysis-xai-colossus2', 'wikipedia-colossus'],
+    // SpaceXAI's Mid-South page (checked 09/27/2026): grid-connected, a 3.3 GWh battery pack planned, no diesel
+    // mentioned, and closed-loop cooling that takes only domestic water
+    plant: { backup: 'battery', bessMWh: 3300, closedLoop: true },
+    carbonG: 365, carbonNote: 'Tennessee, 804 lb/MWh (EIA 2024). SpaceXAI says the campus is grid-connected, and that the temporary gas turbines it has run in Tennessee and Mississippi since 08/01/2025, with state authorization, must all be removed by July 2027; it says it is already taking units offline.',
+    facts: [['IT power running, satellite estimate', '≈946 MW', 'est'], ['Chips, satellite count', '≈440,000: 110k GB200, 330k GB300', 'est'], ['Chips, the company, 09/25/2026', '≈550,000 installed', 'typical'], ['GPUs planned, per SpaceXAI', '1M+', 'typical'], ['Grid, per SpaceXAI', 'grid-connected; $55M for two MLGW substations in Memphis, one of them 150 MW (which campus they serve is not said)', 'typical'], ['Battery, per SpaceXAI', '3.3 GWh grid-connected pack, planned', 'typical'], ['Gas turbines, per SpaceXAI', 'temporary since 08/01/2025; all out by July 2027', 'typical'], ['Diesel backup', 'not mentioned by SpaceXAI', 'typical'], ['Cooling, per SpaceXAI', 'closed loop, domestic water only', 'typical'], ['Cooling plant, Aug 2025', '119 air-cooled chillers, ≈200 MW', 'typical'], ['First plan', '≈1 GW, 350,000 GPUs, now passed', 'typical']],
+    unknowns: ['Meter power is estimated from the ≈946 MW IT figure at a PUE near 1.15.', 'Three quarters of the chips are GB300, so GB300 racks are modeled throughout.', 'Backup is modeled as batteries only, as SpaceXAI describes it, with no diesel. The 3.3 GWh pack is planned and its power rating is not published, so the model assumes it can carry the whole campus: about 3 hours at this preset’s ≈1.1 GW, longer on a smaller campus.', 'Cooling is modeled as air-cooled chillers on a closed loop, as SpaceXAI describes Colossus II, so the model counts no cooling water; SpaceXAI says the site takes only domestic water.', 'The layout, equipment counts and routes in 3D are this model’s generic campus sized to these figures, not SpaceXAI’s site plan.'],
+    sources: ['epoch-dc-colossus2', 'epoch-largest-dc', 'semianalysis-xai-colossus2', 'wikipedia-colossus', 'spacexai-mid-south', 'bi-spacexai-rebrand'],
     status: { state: 'partial', live: '≈946 MW IT', asOf: '09/24/2026', source: 'epoch-dc-colossus2',
       rank: 'The most powerful AI data center operating today, by IT power and by compute (Epoch AI, 09/24/2026). Amazon and Anthropic’s New Carlisle campus is next at about 910 MW, with more chips but less compute.',
-      line: 'Live and still growing: about 946 MW of IT power and 440,000 Nvidia chips by satellite count, already past its original 1 GW, 350,000-GPU plan. xAI says about 550,000 chips were installed by 09/25/2026.' },
+      line: 'Live and still growing: about 946 MW of IT power and 440,000 Nvidia chips by satellite count, already past its original 1 GW, 350,000-GPU plan. The company says about 550,000 chips were installed by 09/25/2026.' },
   },
   'fairwater-atl': {
     id: 'fairwater-atl', name: 'Microsoft Fairwater Atlanta', owner: 'Microsoft', place: 'Fayetteville, GA', lat: 33.45, lon: -84.46, state: '13',
@@ -124,7 +131,7 @@ export const SITES: Record<SiteId, Site> = {
 // one pin per place on the map (Colossus 1 and 2 are 3 km apart)
 export const PLACES = [
   { ids: ['abilene'], name: 'Stargate Abilene' },
-  { ids: ['colossus1', 'colossus2'], name: 'xAI Colossus' },
+  { ids: ['colossus1', 'colossus2'], name: 'SpaceXAI Colossus' },
   { ids: ['fairwater-atl'], name: 'Fairwater Atlanta' },
   { ids: ['fairwater-wi'], name: 'Fairwater Wisconsin' },
   { ids: ['hyperion'], name: 'Meta Hyperion' },
