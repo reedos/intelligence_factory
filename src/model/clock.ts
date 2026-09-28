@@ -121,12 +121,17 @@ function training(M: Model): Sim {
     },
     speed: () => 1,
     notes: [
-      { text: 'Production clusters swing in the 0.2–3 Hz band (Microsoft, OpenAI and NVIDIA, 2025). The 2-second step drawn here sits inside it.', basis: 'spec' },
+      { text: 'Production clusters swing in the 0.2–3 Hz band (Microsoft, OpenAI and NVIDIA, 2025). The 2-second step drawn here sits inside it.', basis: 'spec',
+        ev: { refs: [['arxiv-power-stabilization-2508', 'Section III-A, "Frequency-domain spec": "AI workload power traces... show FFT energy concentrated between 0.2–3 Hz" (Microsoft, OpenAI and NVIDIA researchers, submitted Aug. 20, 2025)']] } },
       { text: storage
-          ? `GB300 racks store 65 J per GPU in capacitors that charge on the down-swings and discharge on the up-swings; NVIDIA reports up to a 30% cut in peak grid demand from it. That capacity is small next to a multi-second swing: the checkpoint empties it almost immediately, so the raw swing shows through again until it recharges.`
+          ? `GB300 racks store 65 J per GPU in capacitors that charge on the down-swings and discharge on the up-swings; NVIDIA reports a 30% cut in peak grid demand from it when training the Megatron LLM. That capacity is small next to a multi-second swing: the checkpoint empties it almost immediately, so the raw swing shows through again until it recharges.`
           : 'This generation has no on-rack storage, so every swing reaches the site batteries directly.',
-        basis: storage ? 'spec' : 'est' },
-      { text: `GPUs are ${Math.round(G / M.meterMW * 100)}% of the meter here, so one step moves the campus by about ${swingMW} MW. Site batteries are rated ${Math.round(sitePowerMW)} MW${storage ? `, and the rack storage ${Math.round(rackPowerMW)} MW` : ''}; ${swingMW > sitePowerMW ? 'a full step swing is more than the site batteries can absorb, so the grid still sees part of it' : 'that covers a full step swing, so the grid sees close to the average'}.`, basis: 'est' },
+        basis: storage ? 'spec' : 'reported',
+        ev: storage
+          ? { refs: [['nvidia-gb300-power', 'developer blog: "65 joules/GPU of energy storage"; "the peak power demand seen by the grid is reduced by 30% when training the Megatron LLM"']] }
+          : { refs: [['nvidia-gb300-power', 'developer blog: the rack-level capacitor smoothing it describes is a GB300 feature, not present on earlier NVLink generations']] } },
+      { text: `GPUs are ${Math.round(G / M.meterMW * 100)}% of the meter here, so one step moves the campus by about ${swingMW} MW. Site batteries are rated ${Math.round(sitePowerMW)} MW${storage ? `, and the rack storage ${Math.round(rackPowerMW)} MW` : ''}; ${swingMW > sitePowerMW ? 'a full step swing is more than the site batteries can absorb, so the grid still sees part of it' : 'that covers a full step swing, so the grid sees close to the average'}.`, basis: 'derived',
+        ev: { calc: 'training-swing-share' } },
     ],
   };
 }
@@ -176,9 +181,12 @@ function outage(M: Model): Sim {
     sample,
     speed: t => (t < 45 ? 2 : 60),
     notes: [
-      { text: 'NFPA 110 Type 10 sets the 10-second timing here (Level 1 is a separate classification, for loads whose loss could cost lives); data-center IT is not itself a life-safety load, but many mission-critical campuses design their standby plant to Type 10 timing anyway, as this scenario assumes.', basis: 'spec' },
-      { text: 'UPS batteries are commonly sized for 3–10 minutes, far longer than the 10 s they need here.', basis: 'typical' },
-      { text: `Chiller restart (≈2 min), outage length (15 min) and the 5 minutes of grid stability before transfer back are illustrative.`, basis: 'est' },
+      { text: 'NFPA 110 Type 10 requires standby power to assume its full rated load within 10 seconds of a utility failure; data centers commonly specify this class for their generators, the timing this scenario assumes.', basis: 'spec',
+        ev: { refs: [['nixonpower-nfpa110', 'comparison table: Type 10 = 10 seconds; "data centers generally use Level 1, Type 10 systems"'], ['cummins-nfpa110-ate', 'Cummins "Ask the Experts" sheet on NFPA 110 Type/Level classes']] } },
+      { text: 'UPS battery runtime commonly ranges from 1–2 minutes at hyperscale facilities up to 10–15 minutes in the financial sector, far longer than the 10 s they need here.', basis: 'reported',
+        ev: { refs: [['datacentrereview-ups-sizing', '"hyperscale data centres are being designed with 1-2 minutes of battery runtime... in the financial industry, you will typically see 10-15 minutes of battery runtime"']] } },
+      { text: `Chiller restart (≈2 min), outage length (15 min) and the 5 minutes of grid stability before transfer back are illustrative.`, basis: 'assumed',
+        ev: { assume: 'outage-timeline' } },
     ],
   };
 }
@@ -223,8 +231,10 @@ function hotday(M: Model, o: SimOpts): Sim {
     },
     speed: () => 0.5,
     notes: [
-      { text: `A ${min}–${max} °C day. ${warm ? 'Dry coolers alone cannot hold the loop above about 35 °C, so adiabatic sprays switch on and the campus starts using water.' : 'Chillers lose efficiency as the air warms, so cooling power climbs through the afternoon.'}`, basis: 'typical' },
-      { text: 'No data-center dry-cooler derating curve was found, so the slopes here are estimates.', basis: 'est' },
+      { text: `A ${min}–${max} °C day. ${warm ? 'Dry coolers alone cannot hold the loop above about 35 °C, so adiabatic sprays switch on and the campus starts using water.' : 'Chillers lose efficiency as the air warms, so cooling power climbs through the afternoon.'}`, basis: 'derived',
+        ev: { calc: 'hotday-cooling-response' } },
+      { text: 'No data-center dry-cooler derating curve was found, so the slopes here are estimates.', basis: 'assumed',
+        ev: { assume: 'hotday-slope' } },
     ],
   };
 }
@@ -257,8 +267,10 @@ function inference(M: Model, o: SimOpts, tokPerGpu: number): Sim {
     },
     speed: () => 0.5,
     notes: [
-      { text: 'The shape (overnight trough, morning rise, midday dip, afternoon peak) comes from measurement studies of real LLM services.', basis: 'typical' },
-      { text: `No provider publishes a peak-to-trough ratio; ${r}× is illustrative. Idle GPUs are assumed to draw 30% of full power, and the busiest hour runs at 90%.`, basis: 'est' },
+      { text: 'The shape (overnight trough, morning rise, midday dip, afternoon peak) comes from measurement studies of real LLM services.', basis: 'reported',
+        ev: { refs: [['dynamollm-azure-diurnal', 'paper: "LLM inference workloads, as user-facing applications, exhibit a typical diurnal pattern with peaks during working hours and valleys at night and weekends," from production Azure LLM traces']] } },
+      { text: `No provider publishes a peak-to-trough ratio; ${r}× is illustrative. Idle GPUs are assumed to draw 30% of full power, and the busiest hour runs at 90%.`, basis: 'assumed',
+        ev: { assume: 'inference-daily-shape' } },
     ],
   };
 }

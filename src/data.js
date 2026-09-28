@@ -218,51 +218,108 @@ export function content(M) {
     }),
   ];
   const lineA = M.staircase[0].current;
+  const evAssume = id => ({ assume: id });
+  const evCalc = (id, refs) => (refs ? { calc: id, refs } : { calc: id });
+  const evRefs = refs => ({ refs });
   PARTS.campus = [
     { id: 'line', title: 'Transmission line', kicker: '345 kV AC · 3 phases × 2 circuits',
       body: `Lattice towers carry two three-phase circuits of bundled aluminum conductor, with a shield wire on top to take lightning. At 345 kV the whole ${meter} campus rides on ${lineA.replace(' per phase', '')} per phase, which is why power travels far at high voltage.${M.meterMW > 1500 ? ' A campus this big would take several circuits, or 500 kV.' : ''}`,
-      specs: [['Voltage', '345 kV line-to-line', 'typical'], [`Current, ${meter}`, lineA, 'est'], ['US grid losses, 2018–2022', '≈5% (EIA)', 'spec'], ['Example', 'Stargate Abilene: double 345 kV corridor', 'typical']] },
+      specs: [
+        ['Voltage', '345 kV line-to-line', 'assumed', evAssume('campus-interconnect-voltage')],
+        [`Current, ${meter}`, lineA, 'derived', evCalc('line-current')],
+        ['US grid losses, 2018–2022', '≈5% (EIA)', 'spec', evRefs([['eia-td-losses', 'FAQ answer: "annual electricity transmission and distribution (T&D) losses averaged about 5% of the electricity transmitted and distributed in the United States in 2018 through 2022"']])],
+        ['Example', 'Stargate Abilene: double 345 kV corridor', 'reported', evRefs([['yesenergy-abilene-hyperscale', 'blog post: "The facility is fed by a double 345 kV corridor that goes from Midland to Graham, Texas."']])],
+      ] },
     { id: 'substation', title: 'Campus substation', kicker: 'Utility interconnect',
       body: 'The line dead-ends on steel gantries and lands on a ring of SF₆ circuit breakers and disconnect switches. Instrument transformers measure it, surge arresters clip lightning, and tall masts shield the yard.',
-      specs: [['Breakers', '6 dead-tank SF₆, ring bus', 'est'], ['Yard', '≈200 × 150 m gravel pad', 'est'], ['Build time', '2–4 years with interconnection study', 'typical']] },
+      specs: [
+        ['Breakers', '6 dead-tank SF₆, ring bus', 'assumed', evAssume('substation-layout')],
+        ['Yard', '≈200 × 150 m gravel pad', 'assumed', evAssume('substation-layout')],
+        ['Interconnection study', '1–3 years alone', 'reported', evRefs([['atk-substation-construction', 'blog: "System impact studies, facilities studies, and any required network upgrades can run twelve to thirty-six months depending on the region"']])],
+      ] },
     { id: 'mpt', title: 'Main power transformers', kicker: '345 kV → 34.5 kV',
       body: `Oil-filled transformers, each the weight of a loaded freight car, step the line down to the campus distribution voltage. Radiators and fans shed their heat; concrete fire walls keep one fire from taking the others.${L.transformers > 3 ? ` Three are drawn; this campus needs ${L.transformers}.` : ''}`,
-      specs: [['Rating', `${L.transformers} × ${L.mvaUnit} MVA, N+1`, 'est'], ['Efficiency, >100 MVA units', '99.5–99.7%', 'typical'], [`Loss at ${meter}`, lossTxt('Main power'), 'est'], ['Lead time, 2026', '120–144 weeks', 'typical']] },
+      specs: [
+        ['Rating', `${L.transformers} × ${L.mvaUnit} MVA, N+1`, 'derived', evCalc('campus-transformer-count')],
+        ['Efficiency, 345 kV class', '>99.6% at all loading levels', 'spec', evRefs([['pa-transformer-345kv', 'product page: "High efficiency: exceeding 99.6% at all loading levels"']])],
+        [`Loss at ${meter}`, lossTxt('Main power'), 'derived', evCalc('campus-transformer-loss')],
+        ['Lead time, 2026', '128–144 weeks', 'reported', evRefs([['industrialsage-transformer-leadtimes', 'quoting a Wood Mackenzie Q2 2025 survey: "standard power transformers average 128 weeks for delivery"; generator step-up units "average 144 weeks"']])],
+      ] },
     { id: 'ehouse', title: '34.5 kV switchgear', kicker: 'Campus distribution',
       body: 'Prefabricated switchgear buildings split the transformer output into feeders, each breaker-protected, that run in concrete duct banks under the roads to the data halls.',
-      specs: [['Feeders', `≈${n0(L.feeders)}, each ≈10 MW`, 'est'], ['Voltage', '34.5 kV (some campuses use 13.8 kV)', 'typical'], ['Loss, cables + gear', lossTxt('Campus cables'), 'est']] },
+      specs: [
+        ['Feeders', `≈${n0(L.feeders)}, each ≈10 MW`, 'derived', evCalc('campus-feeder-count')],
+        ['Voltage', '34.5 kV (some campuses use 13.8 kV)', 'reported', evRefs([['mv-distribution-atk', 'blog: "On a large campus, 34.5 kV has become the standard distribution voltage because it carries more power with fewer and smaller feeders than 13.8 kV"']])],
+        ['Loss, cables + gear', lossTxt('Campus cables'), 'derived', evCalc('campus-cable-loss')],
+      ] },
     { id: 'gensets', title: 'Standby generator yard', kicker: 'Diesel, 480 V stepped up to 34.5 kV',
       body: 'Containerized diesel sets, such as Cummins’ QSK78 or Caterpillar’s C175-16 in the 2.5-3 MW class, start within about ten seconds of a grid failure. The UPS batteries carry the load until they take over. They run a few hours a year, mostly for testing.',
-      specs: [['Unit size', '2.5–3 MW class', 'spec'], ['Units here', `≈${n0(L.gensets)}, N+20%`, 'est'], ['Fuel, 2.5 MW at full load', '173 US gal/h (≈0.26 L/kWh)', 'spec'], ['Start to load', '≈10 s', 'typical']] },
+      specs: [
+        ['Unit size', '2.5–3 MW class', 'spec', evRefs([['cummins-dqkan-genset', 'data sheet NAD-5919-EN: DQKAN rated 2500 kW standby'], ['cat-c175-16', 'product page: C175-16 rated 2500–3100 kW standby']])],
+        ['Units here', `≈${n0(L.gensets)}, N+20%`, 'derived', evCalc('campus-genset-count')],
+        ['Fuel, 2.5 MW at full load', '173 US gal/h (≈0.26 L/kWh)', 'spec', evRefs([['cummins-dqkan-genset', 'data sheet fuel-consumption table: 173.1 gal/hr at full (2500 kW) load']])],
+        ['Start to load', '≈10 s', 'spec', evRefs([['cummins-nfpa110-ate', 'reprint of NFPA 110-2016 Table 4.1(b), "Types of EPSSs": Type 10 = "10 sec"'], ['nixonpower-nfpa110', 'comparison table: NFPA 110 Type 10 = 10 seconds; "data centers generally use Level 1, Type 10 systems"']])],
+      ] },
     { id: 'fuel', title: 'Bulk fuel storage', kicker: '48 hours at full load',
       body: 'Horizontal steel tanks hold enough diesel to run the whole campus for two days, with polishing skids that keep stored fuel clean.',
-      specs: [[`Volume, 48 h at ${meter}`, `≈${L.fuelML >= 10 ? n0(L.fuelML) : L.fuelML.toFixed(1)} million L`, 'est'], ['Tanker deliveries to refill', `≈${n0(L.fuelML * 1e6 / 30000)}`, 'est']] },
+      specs: [
+        [`Volume, 48 h at ${meter}`, `≈${L.fuelML >= 10 ? n0(L.fuelML) : L.fuelML.toFixed(1)} million L`, 'derived', evCalc('campus-fuel-volume')],
+        ['Tanker deliveries to refill', `≈${n0(L.fuelML * 1e6 / 30000)}`, 'derived', evCalc('fuel-tankers')],
+      ] },
     { id: 'bess', title: 'Battery energy storage', kicker: 'Smooths GPU load swings',
       body: 'Thousands of GPUs stepping in lockstep during training can swing campus load by tens of megawatts in seconds. Grid-side batteries absorb the swings the utility would otherwise see, and can sell grid services.',
-      specs: [['Size here', `≈${n0(L.bessMW)} MW / ${n0(L.bessMWh)} MWh`, 'est'], ['Training load swings', 'up to ≈100 MW, sub-second', 'typical'], ['Example', 'xAI Colossus: up to ≈150 MW of Megapacks', 'typical']] },
+      specs: [
+        ['Size here', `≈${n0(L.bessMW)} MW / ${n0(L.bessMWh)} MWh`, 'derived', evCalc('campus-bess-size')],
+        ['Training load swings', 'tens to hundreds of MW, seconds', 'reported', evRefs([['arxiv-power-stabilization-2508', 'Section I (Introduction): "these swings can amount to tens or hundreds of megawatts" (Microsoft, OpenAI, NVIDIA)']])],
+        ['Example', 'xAI Colossus: ≈150 MW of Megapacks', 'reported', evRefs([['interestingengineering-xai-megapack', '"150 megawatts of Tesla Megapack batteries have been installed to serve as a stored energy backup"']])],
+      ] },
     { id: 'unitsubs', title: 'Unit substations', kicker: '34.5 kV → 480 V',
       body: dc
         ? 'Pad-mounted transformers along each hall drop the feeders to 480 V for the cooling plant and building loads. The IT load skips them: solid-state transformers inside take 34.5 kV straight to 800 V DC.'
         : 'A line of pad-mounted transformers along each hall drops the feeders to 480 V right outside the electrical rooms, keeping the high-current low-voltage runs short.',
-      specs: [['Count', `≈${n0(dc ? Math.ceil((M.coolMW + M.miscMW) / 2.2) : L.unitSubs)} × 2.5 MVA`, 'est'], ['Efficiency', '≈99%', 'typical']], drill: 2 },
+      specs: [
+        ['Count', `≈${n0(dc ? Math.ceil((M.coolMW + M.miscMW) / 2.2) : L.unitSubs)} × 2.5 MVA`, 'derived', evCalc('campus-unitsub-count')],
+        ['Efficiency, 2500 kVA class', '≈99.5%', 'spec', evRefs([['cfr-10-431-196', 'Table 6 to paragraph (b)(3): 2500 kVA three-phase liquid-immersed distribution transformer, 99.55% required efficiency at 50% load']])],
+      ], drill: 2 },
     { id: 'hall', title: 'Data halls', kicker: `${halls} ${halls > 1 ? 'halls' : 'hall'}, ≈${kfmt(RACKS)} racks, ≈${kfmt(GPUS)} GPUs`,
       body: `The halls hold the IT load, about 45 MW each. Each floor is a slab with no raised floor: ${nvl ? 'racks are too heavy and the cooling is water, not air under the floor' : 'air comes from cooling units in the rows, not up through floor tiles'}.`,
-      specs: [['IT load', `${mwTxt(IT_MW)} at PUE ${M.pue.toFixed(2)}`, 'est'], ['Racks', `≈${n0(RACKS)}`, 'est'], ['Halls', `${halls}`, 'est'], ['Floor load, one rack', nvl ? '≈1.4 t on 0.6 × 1.2 m' : '≈0.6 t, four 130 kg servers plus the rack', 'typical']], drill: 2 },
+      specs: [
+        ['IT load', `${mwTxt(IT_MW)} at PUE ${M.pue.toFixed(2)}`, 'derived', evCalc('it-load-pue')],
+        ['Racks', `≈${n0(RACKS)}`, 'derived', evCalc('campus-rack-count')],
+        ['Halls', `${halls}`, 'derived', evCalc('campus-hall-count')],
+        ['Floor load, one rack', nvl ? '≈1.4 t on 0.6 × 1.1 m' : '≈0.6 t, four 130 kg servers plus the rack',
+          'reported', nvl
+            ? evRefs([['sunbirddcim-gb200-nvl72', 'blog: "The GB200 NVL72 weighs 1.36 metric tons, or 3,000 pounds"; rack "600mm wide by 1,068mm deep"']])
+            : evRefs([['nvidia-dgxh100-user-guide-intro', 'specifications table: "System Weight: 287.6 lbs (130.45 kg) max"']])],
+      ], drill: 2 },
     warm
       ? { id: 'drycoolers', title: 'Dry coolers', kicker: 'Heat out, no water used',
         body: 'Rooftop coils, such as EVAPCO’s Apex or Baltimore Aircoil’s TrilliumSeries dry coolers, reject the heat carried out of the GPUs by warm water with big fans. Water at 30–40 °C is warm enough to dump heat to outside air most of the year without chillers.',
-        specs: [['Heat rejected', `≈${mwTxt(IT_MW * 1.05)}`, 'est'], ['Units, ≈0.8 MW each', `≈${n0(L.dryCoolers)}`, 'est'], ['Water classes', 'ASHRAE W32–W45: 32–45 °C max supply', 'spec'], ['Water use, dry + adiabatic', '≈0.15–0.17 L/kWh', 'typical']] }
+        specs: [
+          ['Heat rejected', `≈${mwTxt(IT_MW * 1.05)}`, 'derived', evCalc('campus-heat-rejected')],
+          ['Units, ≈0.8 MW each', `≈${n0(L.dryCoolers)}`, 'derived', evCalc('campus-drycooler-count')],
+          ['Water classes', 'ASHRAE W32–W45: 32–45 °C max supply', 'spec', evRefs([['ashrae-liquid-cooling-classes', 'blog: classes "W17, W27, W32, NEW class W40, W45" named for their maximum supply temperature in °C'], ['ashrae-tc99-liquid-cooling-wp', 'p.4, "Change to ASHRAE Water Classifications": "the W classes are being renamed with the upper temperature limits incorporated in the name... W17 (previously W1), W27 (W2), W32 (W3), W40 (new), W45 (W4)"']])],
+          ['Water use, dry + adiabatic', '≈0.15–0.17 L/kWh', 'reported', evRefs([['ai-dc-water-arxiv', 'Table 5: WUE for "IT Liquid cooling: dry cooler with adiabatic assist (air-cooled chiller)" = 0.15–0.17 L/kWh, adapted from Lei et al. 2025']])],
+        ] }
       : { id: 'chillers', title: 'Chiller plant', kicker: 'Makes cold water',
         body: `Chillers, such as Schneider Electric’s Uniflair line, run a refrigeration cycle to cool water to ${air ? `about ${WATER.airSupplyC} °C for the air coolers in the halls` : `about ${WATER.liquidSupplyC} °C for the racks’ coolant units`}. Their compressors are the biggest power draw in cooling, which is why this design lands at PUE ${M.pue.toFixed(2)}.`,
-        specs: [['Chillers, ≈4 MW (1,100 ton) each', `≈${n0(L.chillers)}`, 'est'], ['Cooling power', mwTxt(M.coolMW), 'est'], ['Chiller efficiency', 'COP ≈5–7 at design', 'typical']] },
+        specs: [
+          ['Chillers, ≈4 MW (1,100 ton) each', `≈${n0(L.chillers)}`, 'derived', evCalc('campus-chiller-count')],
+          ['Cooling power', mwTxt(M.coolMW), 'derived', evCalc('campus-cooling-power')],
+          ['Chiller efficiency', 'COP ≈5.5–8', 'reported', evRefs([['hvactoolskit-chiller-cop', 'chiller COP reference chart, two size classes combined: "Water-Cooled Centrifugal (<300T): 5.5-6.5" and "Water-Cooled Centrifugal (300+T): 6.0-8.0"']])],
+        ] },
     { id: 'towers', title: warm ? 'Cooling towers & tanks' : 'Cooling towers', kicker: warm ? 'For the hottest days' : 'Where the heat and water go',
       body: warm
         ? 'Evaporative towers trim water temperature on hot afternoons, and the tanks hold treated makeup water and fire water.'
         : 'Towers take the chillers’ heat, and the heat of their compressors, and throw it away by evaporating water. That is where most of a data center’s water goes.',
-      specs: [['Towers', `≈${n0(L.towers)}`, 'est'], ['WUE, on site', `≈${M.wue.toFixed(2)} L/kWh IT`, 'typical'], ['Use', warm ? 'peak days only' : 'all year', 'est']] },
+      specs: [
+        ['Towers', `≈${n0(L.towers)}`, 'derived', evCalc('campus-tower-count')],
+        ['WUE, on site', `≈${M.wue.toFixed(2)} L/kWh IT`, 'assumed', evAssume('wue-by-cooling')],
+        ['Use', warm ? 'peak days only' : 'all year', 'derived', evCalc('campus-tower-use')],
+      ] },
     { id: 'fiber', title: 'Fiber entrances', kicker: 'Two diverse routes',
       body: 'Long-haul fiber enters at two vaults on opposite sides of the site, so one backhoe cannot cut the campus off. Tokens leave the same way the questions arrive.',
-      specs: [['Routes', '2 or more, physically separate', 'typical']] },
+      specs: [['Routes', '2 or more, physically separate', 'reported', evRefs([['trg-diverse-fiber-routes', '"A properly designed facility has dual fiber entrances. Fiber enters from two separate locations, following different physical paths into the building."']])]] },
   ];
   PARTS.hall = [
     { id: 'unitsub', title: 'Unit substation', kicker: dc ? '34.5 kV → 480 V, for cooling' : '34.5 kV → 480 V, 2.5 MVA',
@@ -523,24 +580,32 @@ export function content(M) {
     campus: [
       { id: 'fiber', title: 'Fiber entrances', kicker: 'Two diverse routes',
         body: 'Long-haul fiber enters at vaults on opposite sides of the site, so one backhoe cannot cut the campus off. Questions arrive and tokens leave the same way.',
-        specs: [['Routes', '2 or more, physically separate', 'typical']] },
+        specs: [['Routes', '2 or more, physically separate', 'reported', evRefs([['trg-diverse-fiber-routes', '"A properly designed facility has dual fiber entrances. Fiber enters from two separate locations, following different physical paths into the building."']])]] },
       { id: 'dci', title: 'Line terminal hut', kicker: 'Coherent DWDM',
         body: 'Coherent transceivers here each produce or receive one wavelength, hundreds of gigabits to over a terabit; a multiplexer combines dozens of them onto each fiber pair bound for other campuses, and amplifiers along the route keep the combined signal alive without converting it back to electricity.',
-        specs: [['Per wavelength, Ciena WaveLogic 6', 'up to 1.6 Tb/s', 'spec'], ['400ZR reach, amplified', '80–120 km', 'typical'], ['Module power, 400ZR / 800ZR', '≈15–20 W / ≈23–25 W', 'typical']] },
+        specs: [
+          ['Per wavelength, Ciena WaveLogic 6', 'up to 1.6 Tb/s', 'spec', evRefs([['ciena-wavelogic6', 'press release: "transmission at rates of up to 1.6 Tbps via a single carrier"'], ['lightwaveonline-wavelogic6', 'coverage of the same announcement, same figure']])],
+          ['400ZR reach, amplified', 'up to ≈120 km', 'reported', evRefs([['smartoptics-400zr-dci', 'knowledge-bank post: the 400ZR project focused on "400G Ethernet with amplified point-to-point DWDM links over DCI up to 120 KM"']])],
+          ['Module power, 400ZR / 800ZR', '≈18–20 W / ≈23–25 W', 'reported', evRefs([['ascentoptics-coherent-power-consumption', 'guide: 400ZR modules "typically consume 18 to 20 W"; "one 800G link delivers the same capacity at 23 to 25 watts"']])],
+        ] },
       ...(multiHall ? [
         { id: 'interhall', title: 'Hall-to-hall fiber', kicker: `One fabric, ${halls} buildings`,
           body: 'Thousands of strands in the duct banks join the spines of every hall, so a single training job can span every GPU on the campus.',
-          specs: [['Strands', 'tens of thousands per hall pair', 'est']] },
+          specs: [['Strands', 'tens of thousands per hall pair', 'derived', evCalc('campus-crosshall-fibers')]] },
         { id: 'ductbank', title: 'Duct bank', kicker: 'Fiber between the halls, cut away',
           body: `Between buildings, fiber runs in 4-inch conduits cast in concrete, one high-count ribbon cable per conduit, with a spare row. In this layout half the spine-to-core links cross between halls: about ${kfmt(NET.crossHallFibers)} strands, or roughly ${n0(Math.ceil(NET.crossHallFibers / 6912))} cables of 6,912 fibers each.`,
-          specs: [['Strands crossing', `≈${kfmt(NET.crossHallFibers)}`, 'est'], ['Cable', '6,912-fiber ribbon fits a 2-inch duct', 'spec'], ['Duct-bank layout', 'general telecom practice', 'est']] },
+          specs: [
+            ['Strands crossing', `≈${kfmt(NET.crossHallFibers)}`, 'derived', evCalc('campus-crosshall-fibers')],
+            ['Cable', '6,912-fiber ribbon fits a 2-inch duct', 'spec', evRefs([['prysmian-flexribbon', 'FlexRibbon whitepaper: "6,912 bend-insensitive fibres small enough to fit into a 50.8 mm/2-inch duct"']])],
+            ['Duct-bank layout', 'general telecom practice', 'assumed', evAssume('ductbank-layout')],
+          ] },
       ] : []),
       { id: 'hall', title: 'Data halls', kicker: 'Scale-out fabric inside', drill: 2,
         body: 'Inside, every GPU has its own optical port into a leaf-and-spine fabric.',
-        specs: [['GPUs', `≈${n0(GPUS)}`, 'est']] },
+        specs: [['GPUs', `≈${n0(GPUS)}`, 'derived', evCalc('campus-gpu-count')]] },
       { id: 'longhaul', title: 'Long-haul route', kicker: 'Scale across', drill: 0,
         body: 'The fiber leaving the site runs to other campuses hundreds of kilometers away; the route drawn is illustrative, not a real carrier path.',
-        specs: [['Light in fiber', '≈5 µs per km, one way', 'typical']] },
+        specs: [['Light in fiber', '≈4.9 µs per km, one way', 'derived', evCalc('fiber-light-speed')]] },
     ],
     hall: [
       { id: 'odf', title: 'Fiber distribution frames', kicker: 'Where every link is patched',
@@ -693,21 +758,36 @@ export function content(M) {
       warm
         ? { id: 'drycoolers', title: 'Dry coolers', kicker: 'Heat into air, no water',
           body: 'Warm facility water runs through finned coils on the roofs while big fans pull outside air across them. With water at 30–45 °C, outside air can take the heat most of the year without chillers.',
-          specs: [['Heat rejected', `≈${mwTxt(IT_MW * 1.05)}`, 'est'], ['NVIDIA warm-water spec', '45 °C in, ≈55 °C out', 'typical'], ['Water classes', 'ASHRAE W32–W45', 'spec']] }
+          specs: [
+            ['Heat rejected', `≈${mwTxt(IT_MW * 1.05)}`, 'derived', evCalc('campus-heat-rejected')],
+            ['NVIDIA warm-water spec', '45 °C in, ≈55 °C out', 'spec', evRefs([['nvidia-warm-water-blog', 'NVIDIA blog: "the coolant entering a fully liquid-cooled chip at 45 degrees Celsius exits at roughly 55 degrees"']])],
+            ['Water classes', 'ASHRAE W32–W45', 'spec', evRefs([['ashrae-liquid-cooling-classes', 'blog: classes "W17, W27, W32, NEW class W40, W45" named for their maximum supply temperature in °C'], ['ashrae-tc99-liquid-cooling-wp', 'p.4, "Change to ASHRAE Water Classifications": "the W classes are being renamed with the upper temperature limits incorporated in the name... W17 (previously W1), W27 (W2), W32 (W3), W40 (new), W45 (W4)"']])],
+          ] }
         : { id: 'chillers', title: 'Chiller plant', kicker: 'Pumping heat uphill',
           body: 'Chillers move heat from cold water into warmer tower water, and spend electricity to do it: every megawatt they move adds roughly a sixth more to reject.',
-          specs: [['Cooling power', mwTxt(M.coolMW), 'est'], ['Chillers', `≈${n0(L.chillers)}`, 'est']] },
+          specs: [
+            ['Cooling power', mwTxt(M.coolMW), 'derived', evCalc('campus-cooling-power')],
+            ['Chillers', `≈${n0(L.chillers)}`, 'derived', evCalc('campus-chiller-count')],
+          ] },
       { id: 'towers', title: 'Cooling towers', kicker: warm ? 'Hot days cost water' : 'Where the water goes',
         body: warm
           ? 'Evaporating water carries heat away far better than air, so towers trim the loop on the hottest afternoons. Every kilowatt-hour moved this way costs water.'
           : 'Evaporation carries the heat away all year. Each kilogram of water evaporated takes about 2.4 MJ with it, which adds up to rivers of water at this scale.',
-        specs: [['WUE, this design', `≈${M.wue.toFixed(2)} L/kWh IT`, 'typical'], ['Water per day', `≈${kfmt(waterM3h(M) * 24)} m³`, 'est'], ['At the power plant, typical thermal', '≈1.8 L/kWh (NREL)', 'spec']] },
+        specs: [
+          ['WUE, this design', `≈${M.wue.toFixed(2)} L/kWh IT`, 'assumed', evAssume('wue-by-cooling')],
+          ['Water per day', `≈${kfmt(waterM3h(M) * 24)} m³`, 'derived', evCalc('campus-water-per-day')],
+          ['At the power plant, typical thermal', '≈1.8 L/kWh (NREL)', 'spec', evRefs([['nrel-water-electricity', 'review’s synthesis figure: 0.47 gal (1.8 L) evaporated per kWh of end-use electricity for typical thermoelectric generation']])],
+        ] },
       { id: 'plume', title: `Where ${meter} goes`, kicker: 'All of it, as heat',
         body: `Every watt that came in on the 345 kV line leaves as warm air${warm ? '' : ' and water vapor'} above the roofs. The campus is, physically, a ${meter} heater that happens to make tokens on the way.`,
-        specs: [['Heat out', meter, 'est']] },
+        specs: [['Heat out', meter, 'derived', evCalc('campus-heat-out')]] },
       { id: 'reuse', title: 'Heat reuse', kicker: 'Warm water is still worth something',
         body: 'In cold climates the return water can feed a district heating network, with heat pumps lifting it to 70–75 °C. This campus exports none; these do.',
-        specs: [['Meta Odense, Denmark', '≈165,000 MWh a year, ≈11,000 homes', 'typical'], ['Microsoft + Fortum, Finland', 'up to 180 MW of district heat', 'spec'], ['Stockholm Data Parks', '30+ data centers selling heat', 'spec']] },
+        specs: [
+          ['Meta Odense, Denmark', '≈165,000 MWh a year, ≈11,000 homes', 'reported', evRefs([['munters-odense', 'case study: Meta’s Odense heat reuse provides "up to 165,000 MWh of energy a year" to warm "11,000 homes and businesses"']])],
+          ['Microsoft + Fortum, Finland', 'up to 180 MW of district heat', 'reported', evRefs([['fortum-finland-heat', 'press release: "72 units, producing up to 180 megawatts of district heating"']])],
+          ['Stockholm Data Parks', '30+ data centers selling heat', 'reported', evRefs([['stockholm-data-parks', 'program site'], ['eurelectric-stockholm-data-parks', '"The platform now connects 30+ DCs across 16 providers."']])],
+        ] },
     ],
     hall: [
       air
