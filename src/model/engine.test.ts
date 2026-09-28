@@ -82,7 +82,9 @@ describe('choices move the numbers the right way', () => {
     expect(big.racks / small.racks).toBeLessThan(55);
   });
   it('a small cluster fits in two fabric tiers', () => {
-    const m = run({ meterMW: 10 });
+    // GB200's reference fabric is 400G (radix 64, two-tier limit 64²/2 = 2,048 GPUs), so "small" here means
+    // small enough for that, not the 10 MW that used to fit under the old, wrongly-assumed 800G/radix-144 fabric.
+    const m = run({ meterMW: 2 });
     expect(m.fabric.tiers).toBe(2);
     expect(m.NET.core).toBe(0);
   });
@@ -92,5 +94,95 @@ describe('choices move the numbers the right way', () => {
       const ports = m.NET.switches * m.NET.fabric.radix;
       expect(ports).toBeGreaterThanOrEqual(m.gpus * m.fabric.portsPerGpu);
     }
+  });
+});
+
+describe('the network solves to a feasible topology at every tier transition', () => {
+  // A two-tier fat tree of radix R can carry at most R²/2 GPUs (one non-blocking link per GPU at every tier).
+  // Below that, a two-tier fabric fits; at and above it, the campus needs a third tier — and because a third
+  // tier costs more switch power per GPU, the racks it actually buys must themselves fit back inside R²/2 too
+  // (issue 10: the old code picked a tier count from an estimate, then let the final rack count drift past it).
+  for (const [accel, points] of Object.entries({
+    // [below, at-or-just-above] meterMW, straddling this accelerator's own two-tier boundary
+    h100: [3, 4], gb200: [3, 5], gb300: [24, 27], rubin: [7, 9],
+  }) as [Scenario['accel'], [number, number]][]) {
+    it(`${accel}: never reports two tiers with more GPUs than the fabric's own limit`, () => {
+      for (const meterMW of points) {
+        const m = run({ accel, meterMW });
+        const twoTierMax = m.NET.fabric.radix ** 2 / 2;
+        if (m.fabric.tiers === 2) expect(m.gpus).toBeLessThanOrEqual(twoTierMax);
+        else expect(m.fabric.tiers).toBe(3);
+        // whichever tier was chosen, it must still have enough ports for the GPUs it ended up with
+        expect(m.NET.switches * m.NET.fabric.radix).toBeGreaterThanOrEqual(m.gpus * m.fabric.portsPerGpu);
+      }
+    });
+  }
+  it('reproduces the audit\'s exact GB300-at-27-MW case within its own fabric\'s capacity', () => {
+    // The audit's counterexample: two fixed topology passes landed on 10,656 GB200 GPUs (and the GB300-at-27-MW
+    // equivalent) past the fabric's own two-tier limit (144²/2 = 10,368 for GB300's 800G/radix-144 fabric).
+    const m = run({ accel: 'gb300', meterMW: 27 });
+    const twoTierMax = m.NET.fabric.radix ** 2 / 2;
+    expect(m.fabric.tiers).toBe(3);
+    expect(m.gpus).toBeLessThanOrEqual(twoTierMax);
+  });
+});
+
+describe('GB200 follows NVIDIA\'s reference fabric', () => {
+  it('is 400G, one ConnectX-7 port per GPU, not an assumed 800G upgrade', () => {
+    expect(ACCELERATORS.gb200.nicGbps).toBe(400);
+    const m = run();
+    expect(m.NET.fabric.switchName).toContain('Quantum-2');   // FABRICS[400], not FABRICS[800]'s Quantum-X800
+    expect(m.NET.fabric.radix).toBe(64);
+  });
+  it('GB300 keeps the 800G ConnectX-8 upgrade path as its own default', () => {
+    expect(ACCELERATORS.gb300.nicGbps).toBe(800);
+  });
+});
+
+describe('the bandwidth staircase compares like with like', () => {
+  it('states a direction and scope for every row, and halves NVLink\'s vendor-quoted bidirectional figure', () => {
+    const m = run();
+    const nvlink = m.bandwidth.find(b => b.cls === 'nvl')!, nic = m.bandwidth.find(b => b.cls === 'eth')!;
+    expect(nvlink.dir).toBe('each way');
+    expect(nvlink.gbs).toBeCloseTo(m.accel.nvlink.tbs * 500, 6);   // 900 GB/s each way for GB200's 1.8 TB/s bidirectional
+    expect(nic.dir).toBe('each way');
+    expect(nic.gbs).toBeCloseTo(m.accel.nicGbps / 8, 6);           // a port's line rate is already a per-direction figure
+    expect(nvlink.gbs).toBeGreaterThan(nic.gbs);                   // NVLink still comfortably outruns the NIC, each way
+    for (const b of m.bandwidth) expect(['aggregate', 'each way', 'shared']).toContain(b.dir);
+  });
+});
+
+describe('GPU silicon is a physical sum, not a leftover residual', () => {
+  it('equals the rack-level silicon figure times the whole racks built, with the rounding gap shown separately', () => {
+    const m = run({ meterMW: 10 });   // a size whose rack count doesn't divide the campus power evenly
+    expect(m.gpuSiliconMW).toBeCloseTo(m.rack.gpuSiliconKW * m.racks / 1000, 9);
+    const spare = m.ledger.find(r => r.label.startsWith('Unallocated'));
+    expect(spare).toBeDefined();
+    expect(spare!.mw).toBeGreaterThanOrEqual(0);
+    // conservation still holds with the spare row counted, the same invariant engine.test's first describe checks
+    expect(m.ledger.reduce((a, r) => a + r.mw, 0) + m.gpuSiliconMW).toBeCloseTo(m.meterMW, 9);
+  });
+  it('no longer folds the whole-rack rounding gap into the silicon figure (the audit\'s +2.48% at 10 MW GB200)', () => {
+    const m = run({ meterMW: 10 });
+    const spareMW = m.ledger.find(r => r.label.startsWith('Unallocated'))!.mw;
+    const oldWayGpuSiliconMW = m.gpuSiliconMW + spareMW;   // what the old "meter minus everything else" formula reported
+    expect(m.gpuSiliconMW).toBeLessThan(oldWayGpuSiliconMW);
+    expect(spareMW / m.meterMW).toBeLessThan(0.01);   // a rounding sliver, not a meaningful share of the campus
+  });
+});
+
+describe('one voltage field per rail (issue 18a/18b)', () => {
+  it('H100\'s rail is 54 V and its current is computed at 54 V, not a mismatched 50 V', () => {
+    const m = run({ accel: 'h100' });
+    const rail = m.staircase.find(s => s.label === '54 V')!;
+    expect(rail).toBeDefined();
+    const expectedA = Math.round(m.rack.dcBusKW * 1000 / 54 / 5) * 5;
+    expect(rail.current).toBe(`≈${expectedA} A`);
+  });
+  it('the 2.5 MVA unit substation reads current from apparent power, with no separate power-factor term', () => {
+    const m = run({ accel: 'gb200', power: 'ac415' });
+    const row = m.staircase.find(s => s.where === 'Unit substation out')!;
+    const expectedA = Math.round(2.5e6 / (Math.sqrt(3) * 480) / 100) * 100;
+    expect(row.current).toBe(`≈${expectedA.toLocaleString('en-US')} A`);
   });
 });

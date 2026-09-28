@@ -40,7 +40,7 @@ function renderLedger() {
   $('ledger').innerHTML = rows.join('');
   const size = M.meterMW >= 1000 ? `${+(M.meterMW / 1000).toFixed(2)} GW` : `${Math.round(M.meterMW)} MW`;
   $('ledger-h').textContent = `Where ${size} goes`;
-  $('ledger-lede').textContent = `Start with ${size} at the campus meter. Each row takes off what one stage turns into heat, spends on cooling, or hands to silicon other than the GPU. The highlighted rows belong to the scale you are looking at. The grid already lost about 5% before the meter.${P && k !== 1 ? ' Pinned values (A) are scaled to this campus size.' : ''}`;
+  $('ledger-lede').textContent = `Start with ${size} at the campus meter. Each row takes off what one stage turns into heat, spends on cooling, hands to silicon other than the GPU, or — for the last row before the silicon — is never drawn at all, spare capacity left when the racks round down to a whole number. The highlighted rows belong to the scale you are looking at. The grid already lost about 5% before the meter.${P && k !== 1 ? ' Pinned values (A) are scaled to this campus size.' : ''}`;
   highlightLedger(store.ui.scene);
 }
 function highlightLedger(i) { document.querySelectorAll('.lg-row').forEach(r => r.classList.toggle('here', r.dataset.scene === String(i) && r.classList.contains('minus'))); }
@@ -100,7 +100,7 @@ function renderBandwidth() {
     out += `<text x="${x0 + cw / 2}" y="${H - B + 86}" text-anchor="middle" fill="#6b747c" font-family="Manrope, sans-serif" font-size="11.5">${b.note}</text>`;
     out = out.slice(0, start) + col(b.link, `${b.label}, ${b.where}`, x0 + 4, yy - 30, cw - 8, H - yy + 30 - 30, out.slice(start));
   });
-  out += `<text x="${L}" y="20" fill="#aab2b9" font-family="Manrope, sans-serif" font-size="12.5">Bandwidth per GPU, log scale, with one-way latency under each bar. Each step out is 10–100× slower.</text>`;
+  out += `<text x="${L}" y="20" fill="#aab2b9" font-family="Manrope, sans-serif" font-size="12.5">Bandwidth per GPU, log scale, with one-way latency under each bar. Each row names its own direction and scope — aggregate, each way, or a shared link — so bars aren’t all measured the same way; latency runs on its own scale, not bandwidth’s.</text>`;
   svg.innerHTML = out;
 }
 
@@ -299,22 +299,32 @@ function renderTokens() {
   $('o-wh').textContent = sig(f.whReply, 3); $('o-co2').textContent = sig(f.co2Reply, 3);
   $('o-water').textContent = sig(f.waterReply, 3); $('o-train').textContent = `${sig(f.jTrain / f.j * 100, 1)}%`;
   document.querySelector('.train-ctl').classList.toggle('off', !calc.withTrain);
+  // A benchmark preset names one accelerator; reusing its number on different hardware would be silently wrong,
+  // so it only offers itself when the scenario above actually matches (issue 15).
+  document.querySelectorAll('#presets button[data-accel]').forEach(b => {
+    const matches = b.dataset.accel === M.accel.id;
+    b.disabled = !matches;
+    b.title = matches ? b.dataset.titleOn : `Benchmarked on ${b.dataset.accel.toUpperCase()}; pick that accelerator above to use this preset.`;
+  });
   ['tps', 'util', 'carbon', 'train', 'life'].forEach(id => syncRange($(id)));
   emit('tokens');
 }
 T.tps.set(calc.tokPerGpu); T.train.set(calc.trainGWh); T.life.set(calc.lifeTokens);
-$('tps').addEventListener('input', () => { calc.tokPerGpu = Math.round(T.tps.get()); calc.tpsTouched = true; renderTokens(); });
+$('tps').addEventListener('input', () => { calc.tokPerGpu = Math.round(T.tps.get()); calc.tpsTouched = true; calc.tpsAccel = null; renderTokens(); });
 $('util').addEventListener('input', e => { calc.util = +e.target.value / 100; renderTokens(); });
 $('carbon').addEventListener('input', e => { calc.carbon = +e.target.value; renderTokens(); });
 $('train').addEventListener('input', () => { calc.trainGWh = T.train.get(); renderTokens(); });
 $('life').addEventListener('input', () => { calc.lifeTokens = T.life.get(); renderTokens(); });
 $('with-train').addEventListener('change', e => { calc.withTrain = e.target.checked; renderTokens(); });
-document.querySelectorAll('#presets button').forEach(b => b.addEventListener('click', () => { calc.tokPerGpu = +b.dataset.tps; calc.tpsTouched = true; T.tps.set(calc.tokPerGpu); renderTokens(); }));
+document.querySelectorAll('#presets button').forEach(b => b.addEventListener('click', () => { calc.tokPerGpu = +b.dataset.tps; calc.tpsTouched = true; calc.tpsAccel = b.dataset.accel ?? null; T.tps.set(calc.tokPerGpu); renderTokens(); }));
 document.querySelectorAll('#grid-presets button').forEach(b => b.addEventListener('click', () => setCarbon(+b.dataset.g)));
 export function setCarbon(g) { calc.carbon = g; $('carbon').value = g; renderTokens(); }
 
 // ---------- wiring ----------
 function renderAll() {
+  // A hardware-specific benchmark preset names one accelerator; switching to a different one can't go on quietly
+  // reusing that number, so it falls back to the illustrative, memory-bandwidth-scaled default instead (issue 15).
+  if (calc.tpsAccel && calc.tpsAccel !== store.M.accel.id) { calc.tpsTouched = false; calc.tpsAccel = null; }
   if (!calc.tpsTouched) { calc.tokPerGpu = store.M.tokPerGpuRef; T.tps.set(calc.tokPerGpu); }
   renderLedger(); renderStairs(); renderBandwidth(); renderLinks(); renderLinksMedia(); renderTemps(); renderParallel(); renderBom(); renderTokens();
 }

@@ -48,7 +48,7 @@ const FACTS = {
   gb200: {
     gpu: 'Blackwell', gpus: 'Blackwell GPUs', arch: 'Blackwell', transistors: '208 billion', tBasis: 'spec', process: 'TSMC 4NP', pBasis: 'spec',
     dieCm2: 16, packaging: 'TSMC CoWoS-L', cpu: 'Grace', cpuCores: '72 Arm Neoverse V2 cores', c2c: '900 GB/s', cpuMem: '480 GB LPDDR5X per CPU (17 TB per rack)',
-    nic: 'ConnectX SuperNIC', nicNote: '400G early, 800G with ConnectX-8', mBasis: 'spec',
+    nic: 'ConnectX-7 SuperNIC', nicNote: '400 Gb/s per GPU, NVIDIA’s reference design; ConnectX-8 upgrades to 800 Gb/s', mBasis: 'spec',
   },
   gb300: {
     gpu: 'Blackwell Ultra', gpus: 'Blackwell Ultra GPUs', arch: 'Blackwell Ultra', transistors: '208 billion', tBasis: 'typical', process: 'TSMC 4NP', pBasis: 'spec',
@@ -542,9 +542,12 @@ export function content(M) {
         body: 'New switches put the optical engines on the switch package itself, cutting out the pluggable modules and much of their power. One spine switch here is drawn that way: liquid-cooled, with fiber landing straight on the chassis beside a few external laser modules. Every other switch in the hall still takes pluggables, as most fabrics do today.',
         specs: [['NVIDIA Quantum-X / Spectrum-X Photonics', '4× fewer lasers, 5× power efficiency (Aug. 2026 update; was 3.5×)', 'spec'], ['Broadcom Davisson', '102.4 Tb/s, 3.5 W per 800G port', 'spec']] },
       { id: 'racks', title: nvl ? 'NVL72 racks' : 'DGX H100 racks', kicker: 'Scale-up stays inside', drill: 3,
+        // each way to each way (NVLink's vendor-quoted figure is bidirectional; a NIC's line rate already isn't),
+        // the same basis engine.ts's bandwidth staircase compares on (issue 9) — not NVLink's aggregate over the
+        // NIC's per-direction rate, which would silently double this ratio.
         body: nvl
-          ? `Inside each rack, 72 GPUs talk over copper NVLink, ${Math.round(A.nvlink.tbs * 8000 / A.nicGbps)} times faster than the fabric outside.`
-          : 'Inside each server, 8 GPUs talk over NVLink, 18 times faster than the fabric outside. Between servers, even in the same rack, it is all fabric.',
+          ? `Inside each rack, 72 GPUs talk over copper NVLink, ${Math.round(A.nvlink.tbs * 4000 / A.nicGbps)} times faster each way than the fabric outside.`
+          : `Inside each server, 8 GPUs talk over NVLink, ${Math.round(A.nvlink.tbs * 4000 / A.nicGbps)} times faster each way than the fabric outside. Between servers, even in the same rack, it is all fabric.`,
         specs: [['NVLink per GPU', nvlTB, A.basis], ['Domain', `${A.nvlink.domain} GPUs`, 'spec']] },
     ],
     rack: nvl ? [

@@ -241,10 +241,11 @@
           <div class="ctl-head"><label for="tps">Output tokens per second, per busy GPU</label><output id="tps-v" for="tps">2,000</output></div>
           <input type="range" id="tps" min="0" max="1000" step="1" value="500">
           <div class="presets" id="presets">
-            <button type="button" data-tps="300">Large dense model, fast replies</button>
-            <button type="button" data-tps="2000">Mixed serving</button>
-            <button type="button" data-tps="13000">GB200 decode benchmark</button>
+            <button type="button" data-tps="300" title="Illustrative assumption for a larger, slower-serving dense model — not a specific benchmark.">Large dense model, fast replies</button>
+            <button type="button" data-tps="2000" title="Illustrative mixed-workload assumption — not a specific benchmark.">Mixed serving</button>
+            <button type="button" data-tps="13000" data-accel="gb200" data-title-on="SGLang decoding DeepSeek V3/R1 (671B-parameter MoE), FP8 attention + NVFP4 MoE, 2,000-token input, on GB200 NVL72: 13,386 output tokens/s per GPU, rounded here. Decode only, not the faster prefill rate the same benchmark reports. LMSYS/SGLang benchmark, September 2025.">GB200 decode, DeepSeek R1</button>
           </div>
+          <p class="note">The number above is an illustrative serving assumption, scaled by memory bandwidth for the accelerator chosen above — not a measurement. The DeepSeek preset is a published decode (answer-writing) rate for GB200 specifically, so it’s off on other hardware.</p>
         </div>
         <p class="calc-from" id="calc-from"></p>
         <div class="row2">
