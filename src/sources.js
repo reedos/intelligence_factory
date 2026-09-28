@@ -515,8 +515,6 @@ export const PART_SOURCES = {
   'data:coherent:itla': ['jlt-nano-itla-2023', 'effect-nitla17', 'cisco-800g-zr-datasheet'],
   'data:coherent:icr': ['fibermall-coherent-guide'],
   'data:coherent:lc': ['cisco-800g-zr-datasheet', 'oif-800zr-release'],
-  'power:coherent:cdsp': ['fibermall-800g-zr', 'fibermall-coherent-guide'],
-  'power:coherent:itla': ['jlt-nano-itla-2023', 'effect-nitla17'],
   'data:copper:dac': ['flexoptix-dac-acc-aec', 'nvidia-copper-dac-lacc-overview', 'nvidia-dgx-gb200-user-guide'],
   'data:copper:acc': ['ascentoptics-copper-cables', 'nvidia-copper-dac-lacc-overview', 'viksnewsletter-acc-power'],
   'data:copper:aec': ['ascentoptics-copper-cables', 'flexoptix-dac-acc-aec', 'viksnewsletter-acc-power'],

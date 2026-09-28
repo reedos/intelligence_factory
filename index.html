@@ -79,7 +79,8 @@
         <div class="view" id="view">
           <canvas id="gl" tabindex="0" aria-label="3D scene. Drag to orbit, scroll to zoom."></canvas>
           <div class="pins" id="pins"></div>
-          <div class="hud tl"><span class="ttl" id="hud-title">Scale across</span><span class="sub" id="hud-sub">2,000 km across</span><div class="mode variant" id="optics-variant" role="group" aria-label="Pluggable module" hidden><button type="button" data-variant="dsp" aria-pressed="true" style="--c: var(--eth)"><i></i>DSP module</button><button type="button" data-variant="lpo" aria-pressed="false" style="--c: #8fd3ff"><i></i>LPO, no DSP</button></div></div>
+          <div class="hud tl"><span class="ttl" id="hud-title">Scale across</span><span class="sub" id="hud-sub">2,000 km across</span></div>
+          <div class="hud vl"><div class="mode variant" id="optics-variant" role="group" aria-label="Pluggable module" hidden><button type="button" data-variant="dsp" aria-pressed="true" style="--c: var(--eth)"><i></i>DSP module</button><button type="button" data-variant="lpo" aria-pressed="false" style="--c: #8fd3ff"><i></i>LPO, no DSP</button></div></div>
           <div class="hud bl"><div class="scalebar"><span id="scale-label">100 m</span><i id="scale-bar"></i></div></div>
           <div class="hud br" id="legend"></div>
           <div class="hud tr">
@@ -95,7 +96,7 @@
         <!-- a plain strip below the canvas, not an overlay on it, so it can never land on the HUD -->
         <p class="view-cap"><span class="vc-full">Personal educational project based on cited public sources. Not an official publication of my employer or the companies discussed. Models are schematic; estimates and assumptions are identified. Counts and layouts follow this scenario, not a photograph or one vendor's hardware.</span><span class="vc-short">Personal project from public sources · not an official publication of my employer or the companies discussed</span></p>
         <div class="hud-btns" id="hud-btns">
-          <div class="hud-row"><button type="button" class="btn story-btn" id="story-btn" aria-pressed="false">Tours</button><button type="button" class="btn story-btn" id="layer-play" title="Play every part in this layer, level 1 to 6">Play layer</button><button type="button" class="btn story-btn" id="clock-btn" aria-pressed="false">Clock</button><button type="button" class="btn story-btn" id="share-btn">Share</button></div>
+          <div class="hud-row"><button type="button" class="btn story-btn" id="back-out" hidden>↑ Back out</button><button type="button" class="btn story-btn" id="story-btn" aria-pressed="false">Tours</button><button type="button" class="btn story-btn" id="layer-play" title="Play every part in this layer, level 1 to 6">Play layer</button><button type="button" class="btn story-btn" id="clock-btn" aria-pressed="false">Clock</button><button type="button" class="btn story-btn" id="share-btn">Share</button></div>
           <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>With the view focused or the pointer over it: 1–6 jumps scale · P D H switch layers · ← → steps parts · S tours · Space plays · C clock</p>
         </div>
       </div>

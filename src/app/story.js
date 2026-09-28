@@ -10,7 +10,7 @@
 // Pause (the button, or Space) is the only thing that stops it. One transport at the head of the panel (play,
 // back, forward, speed, where the tour is) is the only playback control on the page.
 import { store, on } from './store.js';
-import { show, go, reduced, onTick, setCinema, setTourPace, getTransitions, setTransitions, pinNumber, partCount, stageActive, destination, drillOf, isInward } from './stage.js';
+import { show, go, reduced, onTick, setCinema, setTourPace, getTransitions, setTransitions, pinNumber, partCount, stageActive, destination, drillOf, isInward, resetVariant } from './stage.js';
 import { story, watt, request, heat, light, layer, everything, CHAIN, OUTWARD } from './journeys.js';
 import { openClock, closeClock, clockNow } from './clock-ui.js';
 import { chip } from '../evidence.js';
@@ -362,6 +362,7 @@ const readerAt = () => ({ scene: destination(), mode: store.ui.mode });
 // fromStart: a button that names a tour starts it over; the Tours button picks up where the reader left off
 export function enter(which = tour, { fromStart = false } = {}) {
   if (!box.hidden && which === tour) return;
+  resetVariant();                                          // finding 17: the tours narrate the DSP module
   entry = readerAt();                                       // finding 9: the view the reader was on when the tour UI opened, before anything below moves the camera
   tour = TOURS[which] ? which : 'story';
   const at = !fromStart && resume?.tour === tour ? resume.i : 0;

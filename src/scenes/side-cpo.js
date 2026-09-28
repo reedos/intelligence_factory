@@ -157,7 +157,7 @@ export function build({ quality, state }) {
   };
   return {
     scene, flows, dataFlows, heatFlows,
-    camera: { pos: [-2.5, 19, 21], target: [-2.5, 1.0, -1.5], near: 0.05, far: 500, min: 2, max: 70 },
+    camera: { pos: [-2.5, 19, 21], target: [-2.5, 1.0, -1.5], near: 0.05, far: 500, min: 2, max: 90, portrait: { pos: [-3, 33, 35], target: [-3, 0.5, -1.5] } },
     hotspots: { asic: hs.asic, engine: hs.engine, els: hs.els },
     dataHotspots: { asic: hs.asic, serdes: hs.serdes, eic: hs.eic, rings: hs.rings, pd: hs.pd, els: hs.els, fiberout: hs.fiberout },
     heatHotspots: { asic: hs.asic, coldplate: hs.coldplate },

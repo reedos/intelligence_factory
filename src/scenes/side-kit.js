@@ -88,35 +88,37 @@ export function dspTex() {
     g.strokeStyle = 'rgba(255,255,255,0.18)'; g.lineWidth = 3; g.strokeRect(4, 4, w - 8, h - 8);
   });
 }
-// the module's silicon photonics chip: transmit above (laser inputs from the top edge, split to eight Mach-Zehnder
-// modulators, out to the right-hand fiber edge), receive below (eight waveguides from the fiber edge to germanium
-// photodiodes at the left, beside the TIA's bond pads)
+// the module's silicon photonics chip. Transmit above: four lasers butt-coupled at the left edge, each split in two
+// for its own pair of lanes, so no waveguide crosses another; eight Mach-Zehnder modulators; the driver's bond pads sit
+// just ahead of each modulator's electrodes. Receive below: eight waveguides from the fiber edge to germanium
+// photodiodes at the left, beside the TIA's bond pads.
+export const MZM = { w: 640, h: 544, row: i => 26 + i * 28, laserY: k => 40 + k * 56, split: 60, mzIn: 250, mzOut: 440, arm: 7, padX: 232, rxRow: i => 296 + i * 30, pdX: 68, rxPadX: 25 };
 export function mzmPicTex() {
-  return canvasTex(640, 544, (g, w, h) => {
+  return canvasTex(MZM.w, MZM.h, (g, w, h) => {
     g.fillStyle = '#4a5468'; g.fillRect(0, 0, w, h);
     g.fillStyle = 'rgba(255,255,255,0.05)'; for (let i = 0; i < 42; i++) g.fillRect(0, i * 13, w, 1);
-    g.lineCap = 'round';
-    for (let k = 0; k < 4; k++) {                                            // four laser inputs from the top edge, each split in two
-      const x = 110 + k * 40, y1 = 26 + k * 2 * 28, y2 = y1 + 28;
-      g.strokeStyle = 'rgba(255,179,71,0.85)'; g.lineWidth = 3;
-      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, y1 - 12); g.lineTo(x + 20, y1); g.lineTo(250, y1); g.moveTo(x, y1 - 12); g.lineTo(x + 20, y2); g.lineTo(250, y2); g.stroke();
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    for (let k = 0; k < 4; k++) {                                            // a laser input, split into its two lanes
+      const y = MZM.laserY(k), a = MZM.row(2 * k), b = MZM.row(2 * k + 1);
+      g.strokeStyle = 'rgba(255,179,71,0.9)'; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(0, y); g.lineTo(MZM.split, y); g.lineTo(MZM.split + 30, a); g.lineTo(MZM.mzIn, a); g.moveTo(MZM.split, y); g.lineTo(MZM.split + 30, b); g.lineTo(MZM.mzIn, b); g.stroke();
     }
     for (let i = 0; i < 8; i++) {
-      const y = 26 + i * 28;
+      const y = MZM.row(i), A = MZM.arm;
       g.strokeStyle = 'rgba(98,230,255,0.95)'; g.lineWidth = 2.5;           // Mach-Zehnder: split, two arms, recombine
-      g.beginPath(); g.moveTo(250, y); g.lineTo(270, y - 7); g.lineTo(420, y - 7); g.lineTo(440, y); g.moveTo(250, y); g.lineTo(270, y + 7); g.lineTo(420, y + 7); g.lineTo(440, y); g.lineTo(w - 14, y); g.stroke();
-      g.fillStyle = 'rgba(201,161,74,0.85)'; g.fillRect(276, y - 13, 138, 3); g.fillRect(276, y + 10, 138, 3);   // electrodes
-      g.fillStyle = 'rgba(201,161,74,0.9)'; g.fillRect(14, y - 6, 22, 12);   // RF pads for the driver's bond wires, left edge
-      g.strokeStyle = 'rgba(201,161,74,0.6)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(36, y); g.lineTo(276, y - 12); g.stroke();
+      g.beginPath(); g.moveTo(MZM.mzIn, y); g.lineTo(MZM.mzIn + 20, y - A); g.lineTo(MZM.mzOut - 20, y - A); g.lineTo(MZM.mzOut, y); g.moveTo(MZM.mzIn, y); g.lineTo(MZM.mzIn + 20, y + A); g.lineTo(MZM.mzOut - 20, y + A); g.lineTo(MZM.mzOut, y); g.lineTo(w - 14, y); g.stroke();
+      g.fillStyle = 'rgba(201,161,74,0.85)'; g.fillRect(MZM.mzIn + 26, y - A - 6, MZM.mzOut - MZM.mzIn - 52, 3); g.fillRect(MZM.mzIn + 26, y + A + 3, MZM.mzOut - MZM.mzIn - 52, 3);   // electrodes
+      g.fillStyle = 'rgba(201,161,74,0.95)'; g.fillRect(MZM.padX - 8, y - 12, 16, 8);                                          // the driver's bond pad
+      g.strokeStyle = 'rgba(201,161,74,0.7)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(MZM.padX + 8, y - 8); g.lineTo(MZM.mzIn + 26, y - A - 5); g.stroke();
     }
-    g.fillStyle = 'rgba(255,255,255,0.4)'; g.fillRect(0, h / 2 - 1, w, 2);  // the divide
+    g.fillStyle = 'rgba(255,255,255,0.4)'; g.fillRect(0, (MZM.row(7) + MZM.rxRow(0)) / 2, w, 2);   // the divide
     for (let i = 0; i < 8; i++) {
-      const y = h / 2 + 24 + i * 30;
-      g.strokeStyle = 'rgba(255,122,217,0.9)'; g.lineWidth = 3; g.beginPath(); g.moveTo(w - 14, y); g.lineTo(84, y); g.stroke();
-      g.fillStyle = 'rgba(255,122,217,0.95)'; g.fillRect(52, y - 9, 32, 18);   // germanium photodiode
-      g.fillStyle = 'rgba(201,161,74,0.9)'; g.fillRect(14, y - 6, 22, 12);     // pads for the TIA's bond wires
+      const y = MZM.rxRow(i);
+      g.strokeStyle = 'rgba(255,122,217,0.9)'; g.lineWidth = 3; g.beginPath(); g.moveTo(w - 14, y); g.lineTo(MZM.pdX + 16, y); g.stroke();
+      g.fillStyle = 'rgba(255,122,217,0.95)'; g.fillRect(MZM.pdX - 16, y - 9, 32, 18);    // germanium photodiode
+      g.fillStyle = 'rgba(201,161,74,0.9)'; g.fillRect(14, y - 6, 22, 12);             // the TIA's bond pad
     }
-    g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(w - 14, 0, 14, h);     // the fiber-coupling edge
+    g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(w - 14, 0, 14, h);             // the fiber-coupling edge
   });
 }
 // a CPO engine's photonic chip, representative (not NVIDIA's floorplan). Transmit: laser light comes in on a bus

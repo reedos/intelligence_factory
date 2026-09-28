@@ -82,7 +82,9 @@ img { max-width: 100%; }
   .hud.br { right: 22px; bottom: 20px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 12px; max-width: 60%; }
   .legend-item { display: inline-flex; align-items: center; gap: 6px; font: 500 11px/1 var(--mono); color: var(--muted); text-shadow: 0 1px 4px #000; white-space: nowrap; }
   .legend-item .sw { width: 14px; height: 3px; border-radius: 2px; background: var(--c); box-shadow: 0 0 8px var(--c); }
-  .mode.variant { pointer-events: auto; justify-self: start; margin-top: 4px; }
+  .hud.vl { left: var(--gutter); top: 100px; pointer-events: auto; }   /* the module's DSP / LPO toggle, outside the title block phones hide */
+  .mode.variant { pointer-events: auto; }
+  #back-out .bo-short { display: none; }
   .mode.variant button { min-height: 34px; padding: 0 12px; font-size: 11px; }
   .hud.tr { right: 22px; top: 22px; display: grid; justify-items: end; gap: 8px; pointer-events: auto; }
   .mode { display: inline-flex; padding: 0; background: rgba(0,0,0,.72); border: 1px solid var(--line-2); gap: 0; backdrop-filter: blur(6px); }
@@ -574,6 +576,9 @@ body.story #story-btn, body.story #layer-play { display: none; }
   .step[aria-current="step"] .meta span:last-child { display: inline; overflow: hidden; text-overflow: ellipsis; }
   .hud.tl { display: none; }
   .hud.tr { top: 10px; right: 10px; }
+  .hud.vl { top: 58px; left: auto; right: 10px; }   /* under the layer toggle, not beside it */
+  #back-out .bo-long { display: none; }
+  #back-out .bo-short { display: inline; }
   .mode button { min-height: 34px; padding: 0 12px; font-size: 11px; gap: 7px; }
   .viewer { height: auto; }
   .view { flex: none; height: 70vh; height: 70svh; min-height: 340px; }
@@ -582,6 +587,7 @@ body.story #story-btn, body.story #layer-play { display: none; }
   /* buttons: a bar under the view, one row, nothing over the scene */
   .hud-btns { position: static; order: 2; display: block; justify-items: normal; border-top: 1px solid var(--line); }
   .hud-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }
+  .hud-row:has(#back-out:not([hidden])) { grid-template-columns: repeat(5, minmax(0, 1fr)); }   /* a side level adds Back */
   .hud-row .btn { min-height: 46px; padding: 0 4px; justify-content: center; border: 0; border-left: 1px solid var(--line); background: var(--ground); backdrop-filter: none; font-size: 11px; }
   .hud-row .btn:first-child { border-left: 0; }
   .hint { display: none; }

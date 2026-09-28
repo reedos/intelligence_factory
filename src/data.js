@@ -1162,12 +1162,12 @@ export function content(M) {
   PARTS.module = [
     { ...edge, specs: [pins, supply, osfpSize] },
     { id: 'dcdc', title: 'Power conversion', kicker: 'Rails for every chip', body: 'The host supplies one voltage. Small converters on the module make the separate rails the DSP, the driver, the TIA and the lasers need.', specs: [lay] },
-    { id: 'dsp', title: 'DSP', kicker: 'A major draw', body: 'The digital signal processor is one of the module’s largest power draws, and the part an LPO module removes. The newest are made on a 3 nm process.', specs: [dspW, marvellW] },
+    { id: 'dsp', title: 'DSP', kicker: 'A major draw', body: 'The digital signal processor is one of the module’s largest power draws, and the part an LPO module removes. The newest are made on a 3 nm process. In the LPO view this chip is gone; its outline marks where it sat.', specs: [dspW, marvellW] },
     { id: 'lasers', title: 'Lasers', kicker: 'Light only', body: 'In a silicon photonics module, separate continuous-wave lasers make steady light, because silicon cannot make light efficiently; the data goes onto it in the modulators. They feed the transmit side only.', specs: [sipDrawn, ['Short-reach DR8', 'directly modulated lasers are also used', 'spec', { refs: [ref('juniper-1p6t-transceiver', '"DMLs are used for single-mode optics such as DR8"')] }]] },
   ];
   PARTS_DATA.module = [
     { ...edge, specs: [lanes8, pins] },
-    { id: 'dsp', title: 'DSP', kicker: 'Cleans up every lane, both ways', body: 'Host lanes arrive with loss and distortion from the board. The DSP retimes and equalizes them and drives clean lanes to the driver; on the way back it recovers the data from the TIA’s signals. The LPO module leaves it out and lets the host’s own SerDes do that work.',
+    { id: 'dsp', title: 'DSP', kicker: 'Cleans up every lane, both ways', body: 'Host lanes arrive with loss and distortion from the board. The DSP retimes and equalizes them and drives clean lanes to the driver; on the way back it recovers the data from the TIA’s signals. The LPO module leaves it out and lets the host’s own SerDes do that work. In the LPO view this chip is gone; its outline marks where it sat.',
       specs: [['What it does', 'retiming, equalization, error correction', 'spec', { refs: [ref('juniper-1p6t-transceiver', '"The CDR is responsible for re-timing incoming data to reduce jitter. The DSP handles functions like equalization, error correction, and other signal processing tasks"')] }], ['Examples', 'Marvell Ara, Broadcom Sian3 (3 nm)', 'spec', { refs: [ref('marvell-ara-1-6t-prnewswire', 'headline and body: Ara, a 3 nm 1.6 Tb/s PAM4 DSP, 8 × 200G electrical and 8 × 200G optical lanes'), ref('broadcom-sian3-200g-lane-dsp', 'body text: Sian3, a 3 nm 200G-per-lane DSP PHY for 800G and 1.6T modules')] }]] },
     { id: 'driver', title: 'Driver', kicker: 'Transmit only', body: 'The driver takes each outgoing lane from the DSP and swings a modulator’s electrodes with it, through bond wires to the photonic chip. It works on transmit only.', specs: [lpoKeeps, lay] },
     { id: 'lasers', title: 'Lasers', kicker: 'Light for the transmit side', body: 'Continuous-wave lasers bonded at the chip’s far edge make steady light for the modulators. Nothing on the receive side needs a laser.', specs: [sipDrawn] },
@@ -1179,7 +1179,7 @@ export function content(M) {
     { id: 'tia', title: 'TIA', kicker: 'Receive only', body: 'The transimpedance amplifier turns each photodiode’s current into a voltage and sends it to the DSP, or straight to the host in an LPO module.', specs: [tiaDoes, lpoKeeps] },
   ];
   PARTS_HEAT.module = [
-    { id: 'dsp', title: 'DSP', kicker: 'A major heat source', body: 'The DSP is a major heat source in a DSP module. A gap pad carries it up into the shell. Without it, an LPO module runs cooler.', specs: [dspW, marvellW] },
+    { id: 'dsp', title: 'DSP', kicker: 'A major heat source', body: 'The DSP is a major heat source in a DSP module. A gap pad carries it up into the shell. Without it, an LPO module runs cooler. In the LPO view this chip is gone; its outline marks where it sat.', specs: [dspW, marvellW] },
     { id: 'shell', title: 'Shell and fins', kicker: 'Cooled by the host’s air', body: 'The module has no fan of its own. Its finned top sits in the air the switch or server moves past the cages.', specs: [osfpSize, lay] },
   ];
   const lossRow = ['Electrical loss, NVIDIA figures', '≈4 dB, from 20–22 dB', 'vendor', { refs: [ref('nvidia-cpo-scaling-blog', 'body text: 22 dB for the pluggable path against approximately 4 dB with co-packaged optics'), ref('lambda-q3450-unboxing', '"Signal loss drops from roughly 20dB to 4dB"')], vs: 'the path to a pluggable module, 20–22 dB' }];
@@ -1218,10 +1218,8 @@ export function content(M) {
     { id: 'lc', title: 'One fiber pair', kicker: '800G on one wavelength', body: 'Where a DR8 module needs sixteen fibers, a coherent module sends everything on one wavelength over one fiber each way, so a DWDM system can stack dozens of them on a single pair across a region.',
       specs: [['Connector', 'LC duplex', 'spec', { refs: [ref('cisco-800g-zr-datasheet', 'specifications: "Connector: LC duplex"')] }], ['Reach, Cisco modules', '120 km amplified (800ZR) · over 1,000 km amplified (ZR+) · 75–80 km unamplified', 'spec', { refs: [ref('cisco-800g-zr-datasheet', 'tables 1 and 2: "Up to 120 km amplified DWDM" (800ZR), "Over 1000 km amplified DWDM" (ZR+), and "Up to 75 km with 800ZR and 80 km with 800G ZR+" unamplified')] }], ['Standard', 'OIF 800ZR, published 10/30/2024', 'spec', { refs: [ref('oif-800zr-release', 'release: OIF-800ZR-01.0 implementation agreement, 10/30/2024')] }]] },
   ];
-  PARTS.coherent = [
-    { id: 'cdsp', title: 'Coherent DSP', kicker: 'A major share of the module’s power', body: 'A coherent module draws more than a DR8 module, and the DSP is a major part of it.', specs: [zrPower, zrPower2, zrLay] },
-    { id: 'itla', title: 'Tunable laser', kicker: 'Under 3 W', body: 'The nano-ITLA’s own draw is a small share of the module’s.', specs: [nanoItla, nitla17] },
-  ];
+  // the coherent module's power figures ride on its data cards (the DSP and the laser); its only door, the line
+  // terminals, is a data-layer card, so a power card here would never be reached by the Every part: power tour
   PARTS_DATA.copper = [
     { id: 'dac', title: 'Passive copper (DAC)', kicker: 'No active signal conditioning', body: 'Twinax pairs run straight from the plug’s card into the cable. Nothing boosts or cleans the signal, so the copper’s own loss limits it to a meter or two at today’s rates, and it draws only a little power, for its ID memory. The NVLink spine inside an NVL72 rack is this kind.', specs: [dacNone, dacW, dacReach, spinePassive, headLay] },
     { id: 'acc', title: 'Active copper (ACC)', kicker: 'One redriver', body: 'A small analog chip boosts and equalizes the signal arriving at the plug, the receive direction, but does not recover its clock. NVIDIA’s version puts one in each end. It buys a little more reach for a couple of watts.', specs: [accChip, accW, headLay] },

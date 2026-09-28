@@ -4,7 +4,7 @@
 // Transmit runs along the far side of the board (z < 0), receive along the near side (z > 0), each its own chain:
 //   TX  host lanes → DSP → driver → bond wires → Mach-Zehnder modulators (lit by the CW lasers) → fiber → connector
 //   RX  connector → fiber → photodiodes → bond wires → TIA → DSP → host lanes
-import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, bondWire, label, lidBox, outline, FLOW, COL, note, unitCol, dspTex, mzmPicTex, finTex, glowMat } from './side-kit.js';
+import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, bondWire, label, lidBox, outline, FLOW, COL, note, unitCol, dspTex, mzmPicTex, MZM, finTex, glowMat } from './side-kit.js';
 
 export function build({ quality, state }) {
   const scene = setup(quality, 9), M = materials();
@@ -45,15 +45,15 @@ export function build({ quality, state }) {
   // ---- the silicon photonics chip ----
   const PICX0 = mx(6.75), PL = 1.6, PICX1 = PICX0 + PL, PICX = PICX0 + PL / 2, PZ = 0.85, picTopY = Y.top + 0.07;
   die(scene, M, PL, 0.07, PZ * 2, mzmPicTex(), PICX, Y.top + 0.035, 0);
-  const cx = px => PICX0 + px / 640 * PL, cz = py => -PZ + py / 544 * PZ * 2;          // canvas pixel → world
-  const txRow = i => cz(26 + i * 28), rxRow = i => cz(272 + 24 + i * 30);
-  // CW lasers bonded at the chip's far edge, feeding the transmit side only
-  const lasers = [0, 1, 2, 3].map(k => cx(110 + k * 40));
-  lasers.forEach(x => { S.box(0.08, 0.1, 0.14, MAT.gold, x, Y.top + 0.05, -PZ - 0.08); N.box(0.05, 0.03, 0.02, glowMat(COL.cw, 1.6), x, Y.top + 0.07, -PZ - 0.005); });
+  const cx = px => PICX0 + px / MZM.w * PL, cz = py => -PZ + py / MZM.h * PZ * 2;      // canvas pixel → world
+  const txRow = i => cz(MZM.row(i)), rxRow = i => cz(MZM.rxRow(i)), armRow = i => cz(MZM.row(i) - MZM.arm);
+  // CW lasers butt-coupled at the chip's left edge, each feeding its own pair of transmit lanes; none on receive
+  const lasers = [0, 1, 2, 3].map(k => cz(MZM.laserY(k))), LZX = PICX0 - 0.08;
+  lasers.forEach(z => { S.box(0.14, 0.1, 0.1, MAT.gold, LZX, Y.top + 0.05, z); N.box(0.02, 0.03, 0.05, glowMat(COL.cw, 1.6), PICX0 - 0.005, Y.top + 0.07, z); });
   // bond wires: driver → modulator pads (transmit), photodiode pads → TIA (receive)
   for (let i = 0; i < 8; i++) {
-    bondWire(N, [DRVX + CW_ / 2 - 0.02, Y.top + 0.06, zDrv - CD / 2 + 0.05 + i * (CD - 0.1) / 7], [cx(25), picTopY, txRow(i)]);
-    bondWire(N, [cx(25), picTopY, rxRow(i)], [DRVX + CW_ / 2 - 0.02, Y.top + 0.06, zTia - CD / 2 + 0.05 + i * (CD - 0.1) / 7]);
+    bondWire(N, [DRVX + CW_ / 2 - 0.02, Y.top + 0.06, zDrv - CD / 2 + 0.05 + i * (CD - 0.1) / 7], [cx(MZM.padX), picTopY, cz(MZM.row(i) - 8)], 0.16);   // over the lasers, to the pad ahead of the electrodes
+    bondWire(N, [cx(MZM.rxPadX), picTopY, rxRow(i)], [DRVX + CW_ / 2 - 0.02, Y.top + 0.06, zTia - CD / 2 + 0.05 + i * (CD - 0.1) / 7]);
   }
   // the fiber attach block at the coupling edge
   const FAUX = PICX1 + 0.15;
@@ -96,21 +96,22 @@ export function build({ quality, state }) {
   for (const i of [0, 2, 5, 7]) {
     const z = hostZ(i, false), lz = lineZ(i, false), zr = hostZ(i, true), lzr = lineZ(i, true);
     // transmit: electrical from the host to the modulator, then light out
-    const a = flow([[MX0 - 0.9, yT, z], [mx(0.62), yT, z], [DSPX - 1.1, yT, z], [DSPX - DH, yT, dspEdgeZ(z)], [DSPX + DH, yD, dspEdgeZ(z)], [DRVX - 0.7, yT, lz], [DRVX - CW_ / 2, yT, lz], [DRVX + CW_ / 2, yC, lz], [cx(25), picTopY + 0.02, txRow(i)]], 'eth', FLOW.elec);
-    const aL = flow([[MX0 - 0.9, yT, z], [mx(0.62), yT, z], [DRVX - 1.4, yT, z], [DRVX - 0.7, yT, lz], [DRVX - CW_ / 2, yT, lz], [DRVX + CW_ / 2, yC, lz], [cx(25), picTopY + 0.02, txRow(i)]], 'eth', FLOW.elec);
-    const b = flow([[cx(250), picTopY + 0.01, txRow(i)], [PICX1, picTopY + 0.01, txRow(i)], ...fiberPath(txRow(i), txEnd(i), 0.12), [MX1 + 0.6, mpoY, pos(...txEnd(i))]], 'tx', FLOW.light);
+    const a = flow([[MX0 - 0.9, yT, z], [mx(0.62), yT, z], [DSPX - 1.1, yT, z], [DSPX - DH, yT, dspEdgeZ(z)], [DSPX + DH, yD, dspEdgeZ(z)], [DRVX - 0.7, yT, lz], [DRVX - CW_ / 2, yT, lz], [DRVX + CW_ / 2, yC, lz], [cx(MZM.padX), picTopY + 0.02, cz(MZM.row(i) - 8)]], 'eth', FLOW.elec);
+    const aL = flow([[MX0 - 0.9, yT, z], [mx(0.62), yT, z], [DRVX - 1.4, yT, z], [DRVX - 0.7, yT, lz], [DRVX - CW_ / 2, yT, lz], [DRVX + CW_ / 2, yC, lz], [cx(MZM.padX), picTopY + 0.02, cz(MZM.row(i) - 8)]], 'eth', FLOW.elec);
+    // modulated light rides one arm of its modulator, then the lane's waveguide to the fiber edge
+    const b = flow([[cx(MZM.mzIn), picTopY + 0.01, txRow(i)], [cx(MZM.mzIn + 20), picTopY + 0.01, armRow(i)], [cx(MZM.mzOut - 20), picTopY + 0.01, armRow(i)], [cx(MZM.mzOut), picTopY + 0.01, txRow(i)], [PICX1, picTopY + 0.01, txRow(i)], ...fiberPath(txRow(i), txEnd(i), 0.12), [MX1 + 0.6, mpoY, pos(...txEnd(i))]], 'tx', FLOW.light);
     // receive: light in to a photodiode, then electrical back to the host
-    const c = flow([[MX1 + 0.6, mpoY, pos(...rxEnd(i))], ...fiberPath(rxRow(i), rxEnd(i), 0.22).reverse(), [PICX1, picTopY + 0.01, rxRow(i)], [cx(70), picTopY + 0.01, rxRow(i)]], 'rx', FLOW.light);
-    const d = flow([[cx(25), picTopY + 0.02, rxRow(i)], [DRVX + CW_ / 2, yC, lzr], [DRVX - CW_ / 2, yT, lzr], [DRVX - 0.7, yT, lzr], [DSPX + DH, yD, dspEdgeZ(zr)], [DSPX - DH, yT, dspEdgeZ(zr)], [DSPX - 1.1, yT, zr], [mx(0.62), yT, zr], [MX0 - 0.9, yT, zr]], 'eth', FLOW.elec);
-    const dL = flow([[cx(25), picTopY + 0.02, rxRow(i)], [DRVX + CW_ / 2, yC, lzr], [DRVX - CW_ / 2, yT, lzr], [DRVX - 0.7, yT, lzr], [DRVX - 1.4, yT, zr], [mx(0.62), yT, zr], [MX0 - 0.9, yT, zr]], 'eth', FLOW.elec);
+    const c = flow([[MX1 + 0.6, mpoY, pos(...rxEnd(i))], ...fiberPath(rxRow(i), rxEnd(i), 0.22).reverse(), [PICX1, picTopY + 0.01, rxRow(i)], [cx(MZM.pdX), picTopY + 0.01, rxRow(i)]], 'rx', FLOW.light);
+    const d = flow([[cx(MZM.rxPadX), picTopY + 0.02, rxRow(i)], [DRVX + CW_ / 2, yC, lzr], [DRVX - CW_ / 2, yT, lzr], [DRVX - 0.7, yT, lzr], [DSPX + DH, yD, dspEdgeZ(zr)], [DSPX - DH, yT, dspEdgeZ(zr)], [DSPX - 1.1, yT, zr], [mx(0.62), yT, zr], [MX0 - 0.9, yT, zr]], 'eth', FLOW.elec);
+    const dL = flow([[cx(MZM.rxPadX), picTopY + 0.02, rxRow(i)], [DRVX + CW_ / 2, yC, lzr], [DRVX - CW_ / 2, yT, lzr], [DRVX - 0.7, yT, lzr], [DRVX - 1.4, yT, zr], [mx(0.62), yT, zr], [MX0 - 0.9, yT, zr]], 'eth', FLOW.elec);
     dataFlows.push(a, b, c, d, aL, dL); dspOnly.add(a).add(d); lpoOnly.add(aL).add(dL);
   }
-  // laser light, no data: from the lasers into the chip's far edge, to the modulators
-  lasers.forEach((x, k) => dataFlows.push(flow([[x, picTopY + 0.01, -PZ - 0.02], [x, picTopY + 0.01, txRow(2 * k) - 0.05], [cx(250), picTopY + 0.01, txRow(2 * k)]], 'cw', FLOW.cw)));
+  // laser light, no data: from each laser into the chip's left edge, split to its two lanes' modulators
+  lasers.forEach((z, k) => { for (const j of [0, 1]) dataFlows.push(flow([[LZX, picTopY + 0.01, z], [cx(MZM.split), picTopY + 0.01, z], [cx(MZM.split + 30), picTopY + 0.01, txRow(2 * k + j)], [cx(MZM.mzIn), picTopY + 0.01, txRow(2 * k + j)]], 'cw', FLOW.cw)); });
   // power: 3.3 V in at the fingers, the converters, then rails to each chip
   for (let i = 0; i < 4; i++) flows.push(flow([[MX0 - 1.1, yT, -0.9 + i * 0.6], [mx(0.3), yT, -0.9 + i * 0.6], [mx(1.5), Y.top + 0.12, i < 2 ? -0.62 : 0.62]], 'v33', FLOW.power));
   const railTo = (x, z, set) => { const f = flow([[mx(2.0), yT, z * 0.4], [x, Y.top + 0.1, z]], 'core', FLOW.power); flows.push(f); if (set) set.add(f); };
-  railTo(DSPX, 0, dspOnly); railTo(DRVX, zDrv); railTo(DRVX, zTia); lasers.forEach(x => railTo(x, -PZ - 0.08));
+  railTo(DSPX, 0, dspOnly); railTo(DRVX, zDrv); railTo(DRVX, zTia); lasers.forEach(z => railTo(LZX, z));
   // heat: the DSP's heat through the pad into the shell, then out through the fins
   for (let i = 0; i < 10; i++) { const x = DSPX + (i % 5 - 2) * 0.16, z = (Math.floor(i / 5) - 0.5) * 0.4; const f = flow([[x, Y.top + 0.16, z], [x, Y.lid, z], [x, Y.lid + 1.2, z]], 'hot', FLOW.heat); heatFlows.push(f); dspOnly.add(f); }
   for (const z of [zDrv, zTia]) heatFlows.push(flow([[DRVX, Y.top + 0.06, z], [DRVX, Y.lid, z * 0.5], [DRVX, Y.lid + 1.0, z * 0.5]], 'hot', FLOW.heat));
@@ -140,16 +141,16 @@ export function build({ quality, state }) {
     dcdc: view([mx(1.6), Y.top + 0.3, -0.62], [mx(0.8), 3.8, 3.6], [mx(1.9), Y.top, 0]),
     dsp: view([DSPX, Y.top + 0.2, 0.3], [DSPX - 0.6, 4.4, 3.8], [DSPX, Y.top, 0]),
     driver: view([DRVX, Y.top + 0.1, zDrv], [DRVX - 0.4, 3.4, 2.6], [DRVX + 0.3, Y.top, -0.3]),
-    lasers: view([lasers[1], Y.top + 0.15, -PZ - 0.08], [lasers[1] - 0.5, 3.0, 1.6], [lasers[1], Y.top, -0.5]),
-    mzm: view([cx(340), picTopY + 0.05, txRow(3)], [PICX - 0.3, 3.2, 2.4], [PICX, Y.top, -0.3]),
+    lasers: view([LZX, Y.top + 0.15, lasers[1]], [LZX - 0.6, 3.0, 1.9], [LZX + 0.3, Y.top, lasers[1]]),
+    mzm: view([cx(340), picTopY + 0.05, armRow(3)], [PICX - 0.3, 3.2, 2.4], [PICX, Y.top, -0.3]),
     mpo: view([MPOX, mpoY + 0.3, 0], [MX1 + 1.8, 3.2, 3.4], [MPOX - 0.5, Y.top, 0]),
-    pd: view([cx(68), picTopY + 0.05, rxRow(4)], [PICX - 0.6, 3.0, 2.8], [PICX0 + 0.3, Y.top, 0.4]),
+    pd: view([cx(MZM.pdX), picTopY + 0.05, rxRow(4)], [PICX - 0.6, 3.0, 2.8], [PICX0 + 0.3, Y.top, 0.4]),
     tia: view([DRVX, Y.top + 0.1, zTia], [DRVX - 0.4, 3.2, 3.0], [DRVX + 0.3, Y.top, 0.3]),
     shell: view([-0.6, Y.lid + 0.7, -0.6], [0, 7.5, 7.5], [0, 2, 0]),
   };
   return {
     scene, flows, dataFlows, heatFlows,
-    camera: { pos: [1.2, 8.6, 10.5], target: [0, 1.3, 0], near: 0.05, far: 300, min: 1.2, max: 40 },
+    camera: { pos: [1.2, 8.6, 10.5], target: [0, 1.3, 0], near: 0.05, far: 300, min: 1.2, max: 40, portrait: { pos: [0.6, 12.5, 16.5], target: [0, 0.9, 0.4] } },
     hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers },
     dataHotspots: { fingers: hs.fingers, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers, mzm: hs.mzm, mpo: hs.mpo, pd: hs.pd, tia: hs.tia },
     heatHotspots: { dsp: hs.dsp, shell: hs.shell },

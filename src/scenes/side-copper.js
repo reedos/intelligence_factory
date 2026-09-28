@@ -61,7 +61,7 @@ export function build({ quality, state }) {
   const hs = Object.fromEntries(heads.map((h, k) => [h.kind, view([h.x, 1.3, zc + 1.4 - k * 1.4], [h.x + 1.6, 5.0, z0 + 2.4], [h.x, 0.9, zc - 0.3])]));   // staggered front to back
   return {
     scene, flows, dataFlows, heatFlows: [],
-    camera: { pos: [0, 12.5, 14], target: [0, 0.9, 0], near: 0.05, far: 300, min: 1.5, max: 45 },
+    camera: { pos: [0, 12.5, 14], target: [0, 0.9, 0], near: 0.05, far: 300, min: 1.5, max: 60, portrait: { pos: [0, 18, 22], target: [0, 0.6, 0.5] } },
     hotspots: { dac: hs.dac, acc: hs.acc, aec: hs.aec },
     dataHotspots: { dac: hs.dac, acc: hs.acc, aec: hs.aec },
     heatHotspots: {},

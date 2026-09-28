@@ -58,6 +58,27 @@ describe('tours', () => {
     expect(left).toBeCloseTo(M.gpuSiliconMW / M.meterMW, 3);
   });
 
+  // Codex's optics review, 09/28: coverage used to be derived from the doors already configured, so a side card with
+  // no door went unnoticed. This inventory is written out by hand: every side-level card an Every part tour must
+  // visit, per layer. The copper cables' door is the NVL72 rack's NVLink spine, so they are expected only there.
+  const SIDE_EXPECTED = (nvl: boolean): Record<string, Record<string, string[]>> => ({
+    power: { module: ['fingers', 'dcdc', 'dsp', 'lasers'], cpo: ['asic', 'engine', 'els'], ...(nvl ? { copper: ['dac', 'acc', 'aec'] } : {}) },
+    data: { module: ['fingers', 'dsp', 'driver', 'lasers', 'mzm', 'mpo', 'pd', 'tia'], cpo: ['asic', 'serdes', 'eic', 'rings', 'pd', 'els', 'fiberout'], coherent: ['cdsp', 'cdm', 'itla', 'icr', 'lc'], ...(nvl ? { copper: ['dac', 'acc', 'aec'] } : {}) },
+    heat: { module: ['dsp', 'shell'], cpo: ['asic', 'coldplate'] },
+  });
+  it.each(scenarios)('the Every part tours visit every intended side card, and every side card is intended: $accel / $power / $cooling at $meterMW MW $site', s => {
+    const M = compute(s), C = content(M), want = SIDE_EXPECTED(M.accel.gpusPerRack === 72);
+    for (const [mode, key] of [['power', 'PARTS'], ['data', 'PARTS_DATA'], ['heat', 'PARTS_HEAT']] as const) {
+      const seen = new Set(layer(M, mode).filter((b: any) => (C.SCENES[b.link.scene] as any).side).map((b: any) => `${C.SCENES[b.link.scene].id}:${b.link.part}`));
+      const intended = Object.entries(want[mode]).flatMap(([sc, ids]) => ids.map(id => `${sc}:${id}`));
+      expect([...seen].sort(), `${mode}: visited`).toEqual(intended.sort());
+      // and nothing on a side level sits outside the inventory (a card no tour could reach)
+      const cards = C.SCENES.filter((sc: any) => sc.side).flatMap((sc: any) => (((C as any)[key][sc.id] || []) as any[]).map(p => `${sc.id}:${p.id}`));
+      const everIntended = new Set(Object.entries(SIDE_EXPECTED(true)[mode]).flatMap(([sc, ids]) => ids.map(id => `${sc}:${id}`)));
+      for (const c of cards) expect(everIntended.has(c), `${mode}: ${c} has no tour`).toBe(true);
+    }
+  });
+
   // Reed, 09/27: tours felt like they jumped to another level and back. A tour now moves one level at a time, one way.
   // a side trip counts as the level it returns to: the camera goes in and comes straight back out there
   const levels = (beats: any[]) => beats.map(b => b.parent ?? b.link.scene);

@@ -31,12 +31,18 @@ import * as sideCopper from '../scenes/side-copper.js';
 const BUILDERS = [across, campus, hall, rack, tray, chip, sideModule, sideCpo, sideCoherent, sideCopper];
 export const MAIN_LEVELS = 6, MODULE_LEVEL = 6;
 export const isSide = i => i >= MAIN_LEVELS;
-let sideFrom = 4, sideVia = null;                          // the level the reader entered the side level from, and the part
+// how the reader entered the side levels: the level, the door part and the layer, restored by Back out. A link opened
+// straight into a side level has none, and Back out goes to the level that holds that diagram instead.
+let sideFrom = 4, sideVia = null, sideMode = null, sideEntered = false;
+const SIDE_PARENT = { 6: 4, 7: 2, 8: 0, 9: 3 };           // module: the tray; CPO: the hall; coherent: Scale across; copper: the rack
 // where a part's go-button leads: a number, or 'out' for the side level's way back
-export const drillOf = p => p?.drill === 'out' ? sideFrom : p?.drill;
+const backTarget = () => sideEntered ? sideFrom : SIDE_PARENT[ui.scene] ?? 4;
+export const drillOf = p => p?.drill === 'out' ? backTarget() : p?.drill;
 // the pluggable module inside the optics, with its DSP or without (LPO); a view of the module only, since the
 // fabric this scenario counts still uses DSP modules
 let lpoOn = false;
+// tours always narrate the DSP module, so entering one puts the view back on it
+export function resetVariant() { if (lpoOn) { lpoOn = false; applyVariant(); } }
 function applyVariant() {
   built[MODULE_LEVEL]?.variant?.setLpo(lpoOn);
   document.querySelectorAll('[data-variant]').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.variant === 'lpo') === lpoOn)));
@@ -591,6 +597,8 @@ function buildPanel(i) {
   $('intro').textContent = { power: s.intro, data: s.dataIntro, heat: s.heatIntro }[ui.mode];
   $('hud-title').textContent = s.side ? s.title : `${s.n}. ${s.title}`;
   $('optics-variant').hidden = i !== MODULE_LEVEL;
+  const back = $('back-out'); back.hidden = !isSide(i);
+  if (isSide(i)) { const t = SCENES()[backTarget()].title; back.innerHTML = `↑ <span class="bo-long">Back to ${t}</span><span class="bo-short">Back</span>`; back.setAttribute('aria-label', `Back to ${t}`); }
   $('hud-sub').textContent = `${voltFor(s).name} · ${s.scale}`;
   const list = $('parts'); list.innerHTML = '';
   $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · ${s.side ? 'inside the links' : `level ${s.n}`} · ${parts.length} parts`;
@@ -628,7 +636,7 @@ export function select(id, fly) {
   $('card-s').innerHTML = p.specs.map(([k, v, b], i) => `<div><dt>${k}</dt><dd>${v}</dd>${basisChip(b, `${key}:${i}`, k)}</div>`).join('');
   const go_ = $('card-go'), to = drillOf(p), inw = isInward(ui.scene, to); go_.hidden = p.drill === undefined;
   if (p.drill !== undefined) go_.textContent = `${inw ? 'Go inside' : 'Back out'}: ${SCENES()[to].title} ${inw ? '→' : '↑'}`;
-  go_.onclick = () => go(drillOf(p), id);
+  go_.onclick = () => (p.drill === 'out' ? backOut() : go(drillOf(p), id));
   if (fly) { const h = hotspotsFor(ui.scene)[id]; if (h?.view) { const f = frame(built[ui.scene], h); flyTo(f.pos, f.target); } }
   emit('select', { scene: ui.scene, mode: ui.mode, id });
 }
@@ -700,7 +708,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   busy = true; goingTo = i;
   const veil = $('veil');
   const same = i === ui.scene;
-  if (isSide(i) && !isSide(ui.scene) && ui.scene >= 0) { sideFrom = ui.scene; sideVia = fromId; }   // whichever level and part the reader came in by
+  if (isSide(i) && !isSide(ui.scene) && ui.scene >= 0) { sideFrom = ui.scene; sideVia = fromId; sideMode = ui.mode; sideEntered = true; }   // whichever level, part and layer the reader came in by
   const from = ui.scene, inward = isInward(from, i), T = TRANSITIONS[transitions] / Math.sqrt(cinema ? tourPace : 1);
   const cut = reduced || transitions === 'instant';
   const travel = from >= 0 && !same && !cut;              // a level transition, rather than the first load or a rebuild
@@ -746,7 +754,9 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   let openAt = null, arrive = null;
   if (!keepCamera) {
     // arrive pushed in, then pull back to the scene's opening view; portrait screens get closer
-    const tgt = V(c.target), end = view.clientWidth / view.clientHeight < 0.9 ? tgt.clone().lerp(V(c.pos), 0.72) : V(c.pos);
+    // portrait screens get closer, unless the level brings its own portrait view (a side level's diagram has to fit whole)
+    const portrait = view.clientWidth / view.clientHeight < 0.9, cp = portrait && c.portrait;
+    const tgt = V(cp ? cp.target : c.target), end = cp ? V(cp.pos) : portrait ? tgt.clone().lerp(V(c.pos), 0.72) : V(c.pos);
     if (travel) {
       // in: from right up against the new level, as if the dive carried on; out: from the part just left
       const outVia = isSide(from) && !isSide(i) && sideVia ? hotspotsFor(i)[sideVia] : null;   // back out at the part the reader went in by
@@ -794,6 +804,15 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   else if (built[ui.scene]?.model !== store.M) go(ui.scene, null, { force: true, keepCamera: true });   // the scenario changed mid-switch
 }
 export const sceneCount = BUILDERS.length;
+// Back out of a side level to the level, layer and door part the reader came in by
+export async function backOut() {
+  if (!isSide(ui.scene)) return;
+  const to = backTarget(), via = sideEntered ? sideVia : null, mode = sideEntered ? sideMode : null;
+  if (mode && mode !== ui.mode) setMode(mode);
+  await go(to, null);
+  if (via && hasPart(to, via)) select(via, true);
+}
+$('back-out')?.addEventListener('click', () => backOut());
 export const isBusy = () => busy;
 // the level the view is on or on its way to: a switch in flight assigns ui.scene only partway through (after the
 // level is built, which can take seconds on a slow device), and a switch queued behind it lands after that
