@@ -1,6 +1,7 @@
 /* ---------- pages beside the visualizer: evidence, method, glossary ---------- */
 body.page .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--line); }
 .page-wrap { padding-top: calc(var(--bar) + 56px); gap: 56px; grid-template-columns: minmax(0, 1fr); }   /* an auto track would grow to the widest card and push the page off a phone */
+.pub-note { margin: 0; padding-top: 18px; border-top: 1px solid var(--line); max-width: 70ch; font-size: 12.5px; line-height: 1.55; color: var(--faint); }
 .page-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; padding-top: 22px; border-top: 2px solid var(--c, var(--accent)); }
 .page-head > * { max-width: 70ch; }
 .page-head .page-t { max-width: 14ch; }

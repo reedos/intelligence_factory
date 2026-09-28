@@ -36,8 +36,9 @@
     <p class="eyebrow">Power · Data · Heat · Six scales</p>
     <h1 id="hero-h">The Intelligence Factory</h1>
     <p class="tagline"><span class="v1">Electricity in.</span> <span class="v2">Intelligence out.</span></p>
-    <p class="lede">Follow the power from the plants on a 2,000 km grid into one AI campus: 345,000 volts at the fence, down through the substation, the halls, a rack and a tray, to 0.8 V at a GPU die, and out as tokens. Switch to the data layer to follow the links back out, or to heat to follow every watt to the sky. Every figure carries a label for what backs it — a published spec, a vendor claim, a third party's report, or this page's own math or assumption.</p>
+    <p class="lede">Follow the power from the plants on a 2,000 km grid into one AI campus: 345,000 volts at the fence, down through the substation, the halls, a rack and a tray, to 0.8 V at a GPU die, and out as tokens. Switch to the data layer to follow the links back out, or to heat to follow every watt to the sky. The figures on each part, chart and tour carry a label for what backs them: a published spec, a vendor claim, a third party's report, or this page's own math or assumption.</p>
     <div class="hero-actions"><a class="btn go" href="#tour-story" id="story-hero-play">▶ Play the overview</a><a class="btn" href="#explore" id="hero-explore">Explore the campus</a><span class="hint-inline">or follow <a href="#tour-watt" data-tour-start="watt">a watt</a>, <a href="#tour-request" data-tour-start="request">a request</a> or <a href="#tour-heat" data-tour-start="heat">the heat</a></span></div>
+    <p class="hero-note">Personal educational project based on cited public sources. Not an official publication of my employer or the companies discussed. Models are schematic; estimates and assumptions are identified.</p>
   </div>
   <p class="hero-cap" id="hero-cap">Illustration, drawn by an image model from this site's campus layout</p>
 </section>
@@ -65,6 +66,7 @@
     <div class="site-card" id="site-card" hidden></div>
     <p class="note" id="sc-note"></p>
     <div class="kpis" id="kpis"></div>
+    <p class="note">These are this model’s estimates for the scenario above, not figures for a real building, even when a real campus is picked. The label beside each number on a part says what backs it.</p>
     <div class="sc-compare"><button type="button" class="btn" id="sc-pin" aria-pressed="false">Pin to compare</button><span id="sc-pinned"></span></div>
   </section>
 
@@ -91,7 +93,7 @@
           <div class="veil" id="veil">Building the region…</div>
         </div>
         <!-- a plain strip below the canvas, not an overlay on it, so it can never land on the HUD -->
-        <p class="view-cap">Illustrative model · schematic geometry · counts follow this scenario, not a photograph or one vendor's hardware.</p>
+        <p class="view-cap"><span class="vc-full">Personal educational project based on cited public sources. Not an official publication of my employer or the companies discussed. Models are schematic; estimates and assumptions are identified. Counts and layouts follow this scenario, not a photograph or one vendor's hardware.</span><span class="vc-short">Personal project from public sources · not an official publication of my employer or the companies discussed</span></p>
         <div class="hud-btns" id="hud-btns">
           <div class="hud-row"><button type="button" class="btn story-btn" id="story-btn" aria-pressed="false">Tours</button><button type="button" class="btn story-btn" id="layer-play" title="Play every part in this layer, level 1 to 6">Play layer</button><button type="button" class="btn story-btn" id="clock-btn" aria-pressed="false">Clock</button><button type="button" class="btn story-btn" id="share-btn">Share</button></div>
           <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>With the view focused or the pointer over it: 1–6 jumps scale · P D H switch layers · ← → steps parts · S tours · Space plays · C clock</p>
@@ -129,6 +131,7 @@
       <p id="ledger-lede">Start with 100 MW at the campus meter. Each row takes off what one stage turns into heat, spends on cooling, or hands to silicon other than the GPU. The highlighted rows belong to the scale you are looking at. The grid already lost about 5% before the meter.</p>
     </div>
     <div class="lg" id="ledger"></div>
+    <p class="note">Every row is this model’s estimate for your scenario. Click a row’s label to see its calculation and the published figures it starts from.</p>
     <div class="lg-key">
       <span style="--k: var(--loss)"><i></i>Conversion loss, becomes heat</span>
       <span style="--k: var(--overhead)"><i></i>Cooling and building</span>
@@ -150,7 +153,7 @@
     <div class="sec-head">
       <p class="eyebrow">2.3 · Time</p>
       <h2 id="clocks-h">Four clocks</h2>
-      <p>A campus is never steady. Training swings it every two seconds, an outage hands it to batteries and diesel in ten, and over a day the weather and the people asking questions move it by the hour. Each chart follows your scenario; play one to watch the flows in 3D react.</p>
+      <p>A campus is never steady. Training swings it every two seconds, an outage hands it to batteries and diesel in ten, and over a day the weather and the people asking questions move it by the hour. Each chart follows your scenario; play one to watch the flows in 3D react. The events and timings are illustrative, and the notes under each chart say which figures are published and which are assumed.</p>
     </div>
     <div class="clock-grid" id="clock-grid"></div>
   </section>
@@ -359,7 +362,8 @@
       <li><a href="https://www.microsoft.com/en-us/microsoft-cloud/blog/2024/12/09/sustainable-by-design-next-generation-datacenters-consume-zero-water-for-cooling/">Microsoft, zero-water cooling design</a></li>
       <li><a href="https://www.fortum.com/en/media/2026/05/fortum-has-started-heat-production-two-large-data-centre-sites-finland">Fortum, data center heat in Finland</a></li>
     </ul>
-    <p>Prototype. Geometry is schematic and not to any vendor's drawing, and the regional map is invented. Board-level converter and regulator efficiencies, NVLink latency and network power per GPU are not published for this hardware, so those figures are estimates.</p>
+    <p>Personal educational project based on cited public sources. Not an official publication of my employer or the companies discussed. Models are schematic; estimates and assumptions are identified.</p>
+    <p>Geometry is schematic and not to any vendor's drawing, and the regional map is invented. Board-level converter and regulator efficiencies, NVLink latency and network power per GPU are not published for this hardware, so those figures are estimates.</p>
   </footer>
 </main>
 
