@@ -652,6 +652,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   }
   if (travel) {
     view.classList.add('diving');
+    veil.innerHTML = jumpLabel(from, i);                   // the next level's name, revealed as the view closes around it
     let portal = inward ? portalOf(from, from + 1) : null;
     if (inward && !portal && fromId) { const h = hotspotsFor(from)[fromId]; if (h) portal = V(h.pos); }
     if (portal) {                                          // dive at the part that holds the next level
@@ -661,13 +662,13 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
       glide(controls.target.clone().add(camera.position.clone().sub(controls.target).multiplyScalar(2.6)), controls.target.clone(), 0.8 * T, easeIn);
       await irisTo(0, 0.8 * T, null);
     }
-    veil.innerHTML = jumpLabel(from, i);
     closedAt = performance.now();
   } else if (from >= 0 && !same && !swap) {
     veil.textContent = ''; veil.classList.remove('off');
     await sleep(cut ? 0 : 420);
   }
-  if (!travel && !swap) veil.textContent = `Building ${SCENES()[i].title.toLowerCase()}…`;
+  // a rebuild in place (a new scenario) never touches the veil: it may be holding a transition's level name
+  if (!travel && !swap && !same) veil.textContent = `Building ${SCENES()[i].title.toLowerCase()}…`;
   if (!same && !travel && !swap) veil.classList.remove('off');
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   const b = getScene(i); getComposer(i);
@@ -678,7 +679,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   camera.near = c.near; camera.far = c.far; camera.updateProjectionMatrix();
   controls.minDistance = c.min; controls.maxDistance = c.max;
   renderer.toneMappingExposure = lookOf(i).exposure;
-  let openAt = null;
+  let openAt = null, arrive = null;
   if (!keepCamera) {
     // arrive pushed in, then pull back to the scene's opening view; portrait screens get closer
     const tgt = V(c.target), end = view.clientWidth / view.clientHeight < 0.9 ? tgt.clone().lerp(V(c.pos), 0.72) : V(c.pos);
@@ -686,8 +687,11 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
       // in: from right up against the new level, as if the dive carried on; out: from the part just left
       const back = inward ? null : portalOf(i, i + 1);
       const aim = back || tgt;
+      tween = null; drift = null;                          // the dive's own move ends here, not under the new level
       camera.position.copy(aim.clone().lerp(end, inward ? 0.08 : 0.06)); controls.target.copy(aim); controls.update();
-      glide(end, tgt, 1.5 * T, easeOut);
+      const at = camera.position.clone();                 // pull back as the view opens, so the arrival is seen
+      // unless a tour or the reader has moved it meanwhile (the controls settle it by a hair each frame, hence the slack)
+      arrive = () => { if (!tween && camera.position.distanceTo(at) < 0.01 * at.distanceTo(controls.target)) glide(end, tgt, 1.5 * T, easeOut); };
       openAt = back;
     } else {
       camera.position.copy(tgt.clone().lerp(end, 0.35)); controls.target.copy(tgt); controls.update();
@@ -700,11 +704,16 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   resize();
   hush(1500);
   if (travel) {
-    // let the level's name read, then open; the switch is done as far as anyone waiting on it is concerned
-    const wait = 450 * T - (performance.now() - closedAt);
+    // Reed, 09/27: the level's name flashed by. It now stays up long enough to read (about 1.4 s at Full, 0.85 s at
+    // Quick, never under 0.8 s even in a fast tour), counted from when it went up, and the view opens only once the new
+    // level has drawn a few frames behind it, so its first frames' stutter stays hidden. The switch itself is done:
+    // anyone waiting on go() carries on meanwhile.
+    const f0 = frameN, readUntil = closedAt + Math.max(800, 1400 * T);
     (async () => {
-      if (wait > 0) await sleep(wait);
+      await until(() => mine !== travelSeq || frameN >= f0 + 3, 3000);
+      if (performance.now() < readUntil) await sleep(readUntil - performance.now());
       if (mine !== travelSeq) return;                      // the reader has already moved on; that transition opens instead
+      arrive?.();
       await irisTo(irisFull(), 0.75 * T, openAt);
       if (mine !== travelSeq) return;
       // hand back to the plain veil without its fade: fully open already, so it must not flash dark on the way
