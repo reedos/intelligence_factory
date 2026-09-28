@@ -229,7 +229,7 @@ export const SOURCES = {
   'cummins-nfpa110-ate': { title: "Ask the Experts: NFPA 110 for Emergency Power Systems", publisher: 'Cummins', url: 'https://www.cummins.com/sites/default/files/2021-04/AtE-NFPA110_EXT_3.25.21.pdf', published: '03/25/2021', dated: 'PowerHour webinar dated March 25, 2021; reprints NFPA 110-2016 Table 4.1(b) and section 4.4 with NFPA’s permission', accessed: '09/27/2026', kind: 'primary' },
 
   // content workstream (audit item 18h, 09/27/2026): copper-in-cube vs OCS-between-cubes on the TPU card
-  'google-ironwood-codesign': { title: 'Inside the Ironwood TPU codesigned AI stack', publisher: 'Google Cloud', url: 'https://cloud.google.com/blog/products/compute/inside-the-ironwood-tpu-codesigned-ai-stack' },
+  'google-ironwood-codesign': { title: 'Inside the Ironwood TPU codesigned AI stack', publisher: 'Google Cloud', url: 'https://cloud.google.com/blog/products/compute/inside-the-ironwood-tpu-codesigned-ai-stack', accessed: '09/27/2026', kind: 'primary', marketing: true },
 
   // ---- traced 09/27/2026: level 1, Scale across, and the real campuses ----
   'epa-egrid2022-summary-tables': { title: 'eGRID Summary Tables 2022', publisher: 'U.S. Environmental Protection Agency', url: 'https://www.epa.gov/system/files/documents/2024-01/egrid2022_summary_tables.pdf', published: '01/30/2024', dated: "PDF footer reads \"Created: 1/30/2024\"", accessed: '09/27/2026', kind: 'primary' },
@@ -284,7 +284,41 @@ export const SOURCES = {
 
 
   // ---- traced 09/27/2026: levels 4 and 5, the rack and the compute tray ----
-
+  // NVIDIA's own DGX/NVL72 hardware docs, current NVIDIA product pages fetched directly today, and the vendor
+  // and trade-press sources that fill the gaps NVIDIA's own pages leave (board-level efficiency, connector
+  // hardware). Replaces two mis-citations the 09/27/2026 source audit found in this scope: 'nvidia-dpu-supernic'
+  // (its DPU product page no longer describes SuperNICs) is no longer cited for SuperNIC bandwidth claims here,
+  // in favor of NVIDIA's own SuperNIC page; 'arxiv-2601-14342' (a VCSEL co-packaged-optics paper) is no longer
+  // cited for the NVLink copper spine, which is unrelated to its subject.
+  'nvidia-dgxh100-user-guide': { title: 'Introduction to NVIDIA DGX H100/H200 Systems', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx/dgxh100-user-guide/introduction-to-dgxh100.html', dated: 'unknown page-specific date; part of the current DGX H100/H200 User Guide', accessed: '09/27/2026', kind: 'primary' },
+  'nvidia-ethernet-supernic': { title: 'Ethernet SuperNICs (ConnectX-8, ConnectX-9)', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/networking/products/ethernet/supernic/', dated: 'unknown page-specific date; current NVIDIA product page', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'nvidia-h100-product-page': { title: 'H100 Tensor Core GPU', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/h100/', dated: 'unknown page-specific date; current NVIDIA product page', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'nvidia-grace-cpu-page': { title: 'Grace CPU', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/grace-cpu/', dated: 'unknown page-specific date; current NVIDIA product page', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'nvidia-gb200-nvl72-llm-blog': { title: 'NVIDIA GB200 NVL72 Delivers Trillion-Parameter LLM Training and Real-Time Inference', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/nvidia-gb200-nvl72-delivers-trillion-parameter-llm-training-and-real-time-inference/', published: '2024', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'semianalysis-gb300-nvl72-specs': { title: 'NVIDIA GB300 NVL72 Specs, Pricing & AI Inference Benchmarks', publisher: 'SemiAnalysis / InferenceX', url: 'https://inferencex.semianalysis.com/chips/gb300-nvl72', accessed: '09/27/2026', kind: 'secondary' },
+  'wccftech-gb300-blackwell-ultra': { title: 'NVIDIA Blackwell Ultra "GB300" GPU, The Fastest AI Chip, Detailed', publisher: 'WCCFTech', url: 'https://wccftech.com/nvidia-blackwell-ultra-gb300-gpu-fastest-ai-chip-dual-reticle-gpu-over-20k-cores-288-gb-hbm3e/', published: '2025', accessed: '09/27/2026', kind: 'secondary' },
+  'ashrae-thermal-guidelines-refcard': { title: '2021 Equipment Thermal Guidelines for Data Processing Environments, ASHRAE TC 9.9 Reference Card', publisher: 'ASHRAE', url: 'https://www.ashrae.org/file%20library/technical%20resources/bookstore/supplemental%20files/therm-gdlns-5th-r-e-refcard.pdf', published: '2021', dated: '© 2021, 2024 ASHRAE, from the Fifth Edition, Revised and Expanded', accessed: '09/27/2026', kind: 'primary' },
+  'navitas-10kw-dcdc-985': { title: 'Navitas Unveils Breakthrough 10 kW DC-DC Platform Delivering 98.5% Efficiency for 800 VDC Next-Gen AI Data Centers', publisher: 'Navitas Semiconductor', url: 'https://navitassemi.com/navitas-unveils-breakthrough-10-kw-dc-dc-platform-delivering-98-5-efficiency-for-800-vdc-next-gen-ai-data-centers/', published: '02/09/2026', dated: 'per corroborating secondary coverage (Semiconductor Today, Yahoo Finance mirror) dated Feb. 9, 2026; WebFetch on the live page returned only its shell today, so this is read through that corroboration, not the page text itself', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'nvidia-bf3-networking-docs': { title: 'Introduction, NVIDIA BlueField-3 Networking Platform User Guide', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/bf3dpu/introduction', dated: 'unknown page-specific date; current NVIDIA docs', accessed: '09/27/2026', kind: 'primary' },
+  'nvidia-bluefield4-blog': { title: 'NVIDIA Launches BlueField-4: The Processor Powering the Operating System of AI Factories', publisher: 'NVIDIA', url: 'https://blogs.nvidia.com/blog/bluefield-4-ai-factory/', published: '2026', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'semianalysis-google-apollo-ocs': { title: "Google's Apollo: The $3 Billion Optical Circuit Switching Game", publisher: 'SemiAnalysis', url: 'https://newsletter.semianalysis.com/p/google-apollo-the-3-billion-game', accessed: '09/27/2026', kind: 'secondary' },
+  'flex-gb200-power-shelf': { title: 'Custom power shelves for NVIDIA GB200 (ORv3, 33 kW, six 5.5 kW PSUs, up to 97.5% peak efficiency)', publisher: 'Flex', url: 'https://flex.com/resources/power-shelves', dated: 'unknown page-specific date; current Flex product page', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'liteon-gtc-2026-prnewswire': { title: 'LITEON Showcases Next-Generation 800 VDC and NVIDIA Vera Rubin Platform Solutions at NVIDIA GTC 2026', publisher: 'LITEON, via PR Newswire', url: 'https://www.prnewswire.com/news-releases/liteon-showcases-next-generation-800-vdc-and-nvidia-vera-rubin-platform-solutions-at-nvidia-gtc-2026-302715737.html', published: '03/17/2026', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'nvidia-hopper-architecture-page': { title: 'Hopper Architecture', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/technologies/hopper-architecture/', dated: 'unknown page-specific date; current NVIDIA product page', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'nvidia-blackwell-architecture-page': { title: 'Blackwell Architecture', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/technologies/blackwell-architecture/', dated: 'unknown page-specific date; current NVIDIA product page', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'wccftech-nvidia-rubin-gpu-architecture': { title: 'NVIDIA Rubin GPU Architecture, Fully Disclosed', publisher: 'WCCFTech', url: 'https://wccftech.com/nvidia-rubin-gpu-architecture/', published: '2026', accessed: '09/27/2026', kind: 'secondary' },
+  'wikipedia-pcie': { title: 'PCI Express', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/PCI_Express', dated: 'live page, PCIe 5.0 link-performance table', accessed: '09/27/2026', kind: 'secondary' },
+  // adversarial pass 09/27/2026: 'servethehome-dgx-gb200' does not state the "2 miles" cable-length figure
+  // (checked directly, incl. the archived 2024 copy); that figure is The Register's, not ServeTheHome's.
+  'theregister-dgx-gb200-nvl72': { title: "A closer look at Nvidia's 120kW DGX GB200 NVL72 rack system", publisher: 'The Register', url: 'https://www.theregister.com/2024/03/21/nvidia_dgx_gb200_nvk72/', published: '03/21/2024', accessed: '09/27/2026', kind: 'secondary' },
+  // adversarial pass 09/27/2026: neither of Google's own Ironwood pages states the ICI link medium is
+  // copper; this SemiAnalysis piece is the source that actually describes DAC copper for interior-cube
+  // chips (with optical transceivers at the cube's face/edge/corner), so the claim is requalified 'reported'.
+  'semianalysis-tpuv7-ironwood': { title: 'TPUv7: Google Takes a Swing at the Merchant Silicon Market', publisher: 'SemiAnalysis', url: 'https://newsletter.semianalysis.com/p/tpuv7-google-takes-a-swing-at-the', accessed: '09/27/2026', kind: 'secondary' },
+  // adversarial pass 09/28/2026: NVIDIA's Grace CPU page states 900 GB/s for Grace-to-Grace only (checked
+  // directly); this Grace Hopper Superchip page is the NVIDIA source that states 900 GB/s for a CPU-to-GPU
+  // pairing (one generation earlier), used to corroborate the GB200/GB300 Grace-to-GPU figure as 'assumed'.
+  'nvidia-grace-hopper-superchip': { title: 'Grace Hopper Superchip', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/grace-hopper-superchip/', dated: 'unknown page-specific date; current NVIDIA product page', accessed: '09/28/2026', kind: 'primary', marketing: true },
 
   // ---- traced 09/27/2026: level 6, the GPU package, and the links ladder ----
 
@@ -343,7 +377,7 @@ export const PART_SOURCES = {
   'power:rack:busbar': ['nvidia-gb200-ocp', 'nvidia-800v-hvdc'],
   'power:rack:compute': ['nvidia-gb200-nvl72'],
   'power:rack:nvswitch': ['nvidia-nvl72-reference-arch'],
-  'power:rack:spine': ['nvidia-gb200-ocp', 'servethehome-dgx-gb200', 'nvidia-dgx-gb200-user-guide', 'viksnewsletter-acc-power', 'arxiv-2601-14342'],
+  'power:rack:spine': ['nvidia-gb200-ocp', 'servethehome-dgx-gb200', 'nvidia-dgx-gb200-user-guide', 'viksnewsletter-acc-power'],
   'power:rack:manifold': [],
   'power:rack:pdu': [],
   'power:rack:servers': ['nvidia-dgx-h100', 'nvidia-h100-datasheet'],
@@ -358,7 +392,7 @@ export const PART_SOURCES = {
   'power:tray:grace': ['nvidia-gb200-nvl72'],
   'power:tray:lpddr': ['nvidia-gb200-nvl72'],
   'power:tray:coldplates': [],
-  'power:tray:nic': ['nvidia-dsx-data-center-architecture', 'nvidia-coreweave-gb200-400g', 'nvidia-connectx8-datasheet', 'nvidia-gb300-nvl72', 'nvidia-dpu-supernic', 'nvidia-bluefield-datasheet'],
+  'power:tray:nic': ['nvidia-dsx-data-center-architecture', 'nvidia-coreweave-gb200-400g', 'nvidia-connectx8-datasheet', 'nvidia-gb300-nvl72', 'nvidia-ethernet-supernic', 'nvidia-bf3-networking-docs'],
   'power:tray:nvconn': ['nvidia-gb200-nvl72'],
   'power:tray:psu': ['fs-com-dgx-h100'],
   'power:tray:cpu': [],
@@ -399,7 +433,7 @@ export const PART_SOURCES = {
 
   'data:rack:tp': ['meta-llama3-herd-parallelism'],
   'data:rack:nvswitch': ['nvidia-nvl72-reference-arch'],
-  'data:rack:spine': ['nvidia-gb200-ocp', 'servethehome-dgx-gb200', 'nvidia-dgx-gb200-user-guide', 'viksnewsletter-acc-power', 'arxiv-2601-14342'],
+  'data:rack:spine': ['nvidia-gb200-ocp', 'servethehome-dgx-gb200', 'nvidia-dgx-gb200-user-guide', 'viksnewsletter-acc-power'],
   'data:rack:optical': ['google-ironwood-tpu', 'google-ironwood-codesign'],
   'data:rack:uplinks': ['nvidia-h100-datasheet'],
   'data:rack:compute': [],
@@ -410,7 +444,7 @@ export const PART_SOURCES = {
   'data:tray:c2c': ['nvidia-gb200-nvl72', 'naddod-gb200-interconnect'],
   'data:tray:cx': ['nvidia-dsx-data-center-architecture', 'nvidia-coreweave-gb200-400g', 'nvidia-connectx8-datasheet', 'fs-com-dgx-h100'],
   'data:tray:osfp': ['nvidia-800g-dr8-datasheet'],
-  'data:tray:dpu': ['nvidia-dgx-gb200-hardware', 'nvidia-bluefield4-datasheet'],
+  'data:tray:dpu': ['nvidia-dgx-gb200-hardware', 'nvidia-bluefield4-datasheet', 'nvidia-dgxh100-user-guide'],
   'data:tray:gpu': [],
   'data:tray:nvswitch': ['nvidia-h100-datasheet'],
   'data:tray:pcie': [],
