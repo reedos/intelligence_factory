@@ -59,7 +59,11 @@ export const CALCS = {
   // ---- level workstreams add theirs below, each in its own block ----
 
   // ---- traced 09/27/2026: level 1, Scale across, and the real campuses ----
-
+  'fiber-speed': { title: 'Signal speed in optical fiber', how: 'Speed = speed of light ÷ silica fiber’s group refractive index (≈1.47) ≈ 2.04×10⁸ m/s, which is ≈4.9 µs per kilometer, one way.', inputs: ['speed of light (c)', 'typical silica-fiber group index ≈1.47'] },
+  'route-1000km-latency': { title: 'Propagation delay over an illustrative 1,000 km route', how: 'One-way delay = 1,000 km × the fiber-speed figure above (≈4.9 µs/km) ≈ 5 ms; round trip doubles it to ≈10 ms. Switching, routing and queueing are not included.', inputs: ['route length (1,000 km, illustrative)', 'fiber signal speed'] },
+  'gpu-count-scenario': { title: 'GPUs at the meter power chosen', how: 'GPU count = this campus’s racks × the GPUs per rack for the chosen accelerator, where rack count follows from the chosen meter power and rack power.', inputs: ['meter MW (scenario choice)', 'rack power and GPUs per rack for the chosen accelerator'] },
+  'it-load-from-pue': { title: 'IT load from meter power and PUE', how: 'IT load = meter power ÷ this design’s modeled power usage effectiveness (PUE); the gap is cooling and electrical overhead.', inputs: ['meter MW (scenario choice)', 'modeled PUE for the chosen cooling design'] },
+  'heat-out-equals-power-in': { title: 'Heat out equals power in', how: 'By energy conservation, essentially all electrical power a campus draws is eventually rejected as heat, so the heat-out figure equals the meter figure.', inputs: ['meter MW (scenario choice)'] },
 
   // ---- traced 09/27/2026: level 2, Grid & campus, and the clock notes ----
 
@@ -87,7 +91,10 @@ export const ASSUMPTIONS = {
   // ---- level workstreams add theirs below, each in its own block ----
 
   // ---- traced 09/27/2026: level 1, Scale across, and the real campuses ----
-
+  'scenario-meter-choice': { title: 'Modeled campus size', value: 'set by the reader', why: 'When no real campus is selected, this page follows whatever meter power the reader sets in the scenario bar; it is not a published figure for a specific campus.' },
+  'campus-interconnection-voltage-range': { title: 'Typical campus interconnection voltage', value: '230–500 kV', why: 'Not one published standard; it spans the real campuses shown on this page, from Stargate Abilene and Project Rainier’s 345 kV interconnections up toward the 500 kV class used for the largest single-site loads.' },
+  'amplifier-spacing': { title: 'Optical amplifier hut spacing', value: '≈80–100 km', why: 'A commonly cited rule of thumb for terrestrial DWDM amplifier spacing; the exact interval depends on the fiber’s loss budget and the specific route, not one publisher’s spec.' },
+  'free-cooling-framing': { title: 'Free cooling depends on climate', value: 'more hours in cool, dry climates', why: 'A qualitative framing, not one published figure: the ASHRAE allowable ranges this page cites elsewhere are what let a site skip mechanical cooling for part of the year, and how many hours varies by site climate.' },
 
   // ---- traced 09/27/2026: level 2, Grid & campus, and the clock notes ----
 
