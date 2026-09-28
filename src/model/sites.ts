@@ -1,6 +1,6 @@
 // Real campuses and state grid carbon, for presets and the map. Sources: research/scenario-sources.md, sections E and F.
 // A preset sets the four scenario choices to the closest match; every choice the owner has not disclosed says so.
-import type { Scenario, Basis } from './engine';
+import type { Scenario, Basis, AccelId } from './engine';
 
 export type SiteId = 'abilene' | 'colossus1' | 'colossus2' | 'fairwater-atl' | 'fairwater-wi' | 'hyperion' | 'rainier' | 'prometheus';
 
@@ -25,10 +25,14 @@ export const US_CARBON_G = 373;   // EPA eGRID 2022 national output rate, 823 lb
 // What a real campus's operator publishes about its own plant, where it differs from the model's generic campus:
 // battery backup instead of diesel generators, a published battery size, a closed cooling loop that evaporates no water.
 export interface Plant { backup?: 'battery'; bessMWh?: number; closedLoop?: boolean }
+// What an operator says a campus runs, by date: each stage's GPUs by accelerator. The model sizes the campus from
+// these counts (racks, then IT load, then meter) instead of from a meter figure; later stages are stated plans.
+export interface FleetStage { label: string; when: string; note: string; parts: { accel: AccelId; gpus: number }[] }
 export interface Site {
   id: SiteId; name: string; owner: string; place: string; lat: number; lon: number; state: string;
   scenario: Omit<Scenario, 'site'>;
   plant?: Plant;
+  fleet?: FleetStage[];
   carbonG: number; carbonNote: string;
   facts: [string, string, Basis][];
   unknowns: string[];               // what the preset had to assume
@@ -56,25 +60,54 @@ export const SITES: Record<SiteId, Site> = {
     id: 'colossus1', name: 'SpaceXAI Colossus 1', owner: 'SpaceXAI (formerly xAI)', place: 'Memphis, TN', lat: 35.05, lon: -90.06, state: '47',
     scenario: { meterMW: 300, accel: 'h100', power: 'ac415', cooling: 'air' },
     carbonG: 365, carbonNote: 'Tennessee, 804 lb/MWh (EIA 2024). Temporary gas turbines supplied part of the power, which this figure does not capture; SpaceXAI says all of its remaining temporary turbines must be removed by July 2027.',
-    facts: [['GPUs, reported', '≈200,000 (H100, H200, some GB200)', 'typical'], ['Phase 2 power', '≈300 MW', 'typical'], ['Grid supply', 'MLGW/TVA, ≈150 MW', 'typical'], ['On-site generation, reported', '35 gas turbines, 420 MW rated', 'typical'], ['Batteries, reported', 'Tesla Megapacks, up to ≈150 MW', 'typical'], ['Backup, per SpaceXAI', 'more than 240 batteries, enough to take the site fully off the grid', 'typical'], ['Cooling water, per SpaceXAI', '≈820,000 gal a day, hybrid system', 'typical']],
-    unknowns: ['This page models H100 as air-cooled, NVIDIA’s reference design; the sources here do not say how Colossus 1 cools its racks.', 'The H200 and GB200 share of the fleet is not modeled.', 'SpaceXAI describes batteries, not diesel, as Colossus I’s backup; this preset still draws the model’s generic diesel plant.'],
-    sources: ['compute-atlas-colossus', 'wikipedia-colossus', 'tomshardware-colossus', 'dcd-xai-colossus-memphis', 'spacexai-mid-south', 'bi-spacexai-rebrand'],
+    facts: [['GPUs, per Elon Musk, 09/25/2026', '230k: 150k H100, 50k H200, 30k GB200', 'typical'], ['GPUs, reported earlier', '≈200,000 (H100, H200, some GB200)', 'typical'], ['Phase 2 power', '≈300 MW', 'typical'], ['Grid supply', 'MLGW/TVA, ≈150 MW', 'typical'], ['On-site generation, reported', '35 gas turbines, 420 MW rated', 'typical'], ['Batteries, reported', 'Tesla Megapacks, up to ≈150 MW', 'typical'], ['Backup, per SpaceXAI', 'more than 240 batteries, enough to take the site fully off the grid', 'typical'], ['Cooling water, per SpaceXAI', '≈820,000 gal a day, hybrid system', 'typical']],
+    unknowns: ['This page models H100 as air-cooled, NVIDIA’s reference design; the sources here do not say how Colossus 1 cools its racks.', 'Elon Musk puts the fleet at 150k H100, 50k H200 and 30k GB200 (09/25/2026). This preset models H100 racks only, sized from the ≈300 MW figure; the H200 and GB200 share is not modeled.', 'SpaceXAI describes batteries, not diesel, as Colossus I’s backup; this preset still draws the model’s generic diesel plant.'],
+    sources: ['compute-atlas-colossus', 'wikipedia-colossus', 'tomshardware-colossus', 'dcd-xai-colossus-memphis', 'spacexai-mid-south', 'bi-spacexai-rebrand', 'elonmusk-x-colossus-2026-09-25'],
     status: { state: 'operating', live: '150 MW from the grid, plus turbines', asOf: '09/23/2026', source: 'compute-atlas-colossus',
       line: 'Fully built, about 200,000 GPUs, and leased in full to Anthropic since 05/06/2026. The confirmed grid supply is still 150 MW; TVA approved 300 MW in 02/2026.' },
   },
   colossus2: {
     id: 'colossus2', name: 'SpaceXAI Colossus 2', owner: 'SpaceXAI (formerly xAI)', place: 'Memphis, TN', lat: 35.02, lon: -90.05, state: '47',
-    scenario: { meterMW: 1100, accel: 'gb300', power: 'ac415', cooling: 'liquid' },
-    // SpaceXAI's Mid-South page (checked 09/27/2026): grid-connected, a 3.3 GWh battery pack planned, no diesel
+    // meterMW is what the model derives for the first stage below; the fleet, not this figure, sizes the campus
+    scenario: { meterMW: 1461, accel: 'gb300', power: 'ac415', cooling: 'liquid', stage: 0 },
+    // SpaceXAI's Mid-South page (checked 09/27/2026): a 3.3 GWh grid-connected battery pack planned, no diesel
     // mentioned, and closed-loop cooling that takes only domestic water
     plant: { backup: 'battery', bessMWh: 3300, closedLoop: true },
-    carbonG: 365, carbonNote: 'Tennessee, 804 lb/MWh (EIA 2024). SpaceXAI says the campus is grid-connected, and that the temporary gas turbines it has run in Tennessee and Mississippi since 08/01/2025, with state authorization, must all be removed by July 2027; it says it is already taking units offline.',
-    facts: [['IT power running, satellite estimate', '≈946 MW', 'est'], ['Chips, satellite count', '≈440,000: 110k GB200, 330k GB300', 'est'], ['Chips, the company, 09/25/2026', '≈550,000 installed', 'typical'], ['GPUs planned, per SpaceXAI', '1M+', 'typical'], ['Grid, per SpaceXAI', 'grid-connected; $55M for two MLGW substations in Memphis, one of them 150 MW (which campus they serve is not said)', 'typical'], ['Battery, per SpaceXAI', '3.3 GWh grid-connected pack, planned', 'typical'], ['Gas turbines, per SpaceXAI', 'temporary since 08/01/2025; all out by July 2027', 'typical'], ['Diesel backup', 'not mentioned by SpaceXAI', 'typical'], ['Cooling, per SpaceXAI', 'closed loop, domestic water only', 'typical'], ['Cooling plant, Aug 2025', '119 air-cooled chillers, ≈200 MW', 'typical'], ['First plan', '≈1 GW, 350,000 GPUs, now passed', 'typical']],
-    unknowns: ['Meter power is estimated from the ≈946 MW IT figure at a PUE near 1.15.', 'Three quarters of the chips are GB300, so GB300 racks are modeled throughout.', 'Backup is modeled as batteries only, as SpaceXAI describes it, with no diesel. The 3.3 GWh pack is planned and its power rating is not published, so the model assumes it can carry the whole campus: about 3 hours at this preset’s ≈1.1 GW, longer on a smaller campus.', 'Cooling is modeled as air-cooled chillers on a closed loop, as SpaceXAI describes Colossus II, so the model counts no cooling water; SpaceXAI says the site takes only domestic water.', 'The layout, equipment counts and routes in 3D are this model’s generic campus sized to these figures, not SpaceXAI’s site plan.'],
-    sources: ['epoch-dc-colossus2', 'epoch-largest-dc', 'semianalysis-xai-colossus2', 'wikipedia-colossus', 'spacexai-mid-south', 'bi-spacexai-rebrand'],
+    // Elon Musk on X, 09/25/2026: "Colossus 2 is 110k GB200 and 440k GB300. Another 220k GB300 will be fully operational
+    // next week and another 220k in November. If we get lucky, yet another 220k GB300 by late December."
+    fleet: [
+      { label: 'Now', when: '09/25/2026', note: '110k GB200 + 440k GB300, per Elon Musk', parts: [{ accel: 'gb200', gpus: 110000 }, { accel: 'gb300', gpus: 440000 }] },
+      { label: '+220k', when: '“next week” after 09/25/2026', note: 'another 220k GB300, planned', parts: [{ accel: 'gb200', gpus: 110000 }, { accel: 'gb300', gpus: 660000 }] },
+      { label: '+440k', when: 'November 2026', note: 'another 220k GB300, planned', parts: [{ accel: 'gb200', gpus: 110000 }, { accel: 'gb300', gpus: 880000 }] },
+      { label: '+660k', when: 'late December 2026, “if we get lucky”', note: 'yet another 220k GB300, contingent', parts: [{ accel: 'gb200', gpus: 110000 }, { accel: 'gb300', gpus: 1100000 }] },
+    ],
+    carbonG: 365, carbonNote: 'Tennessee, 804 lb/MWh (EIA 2024). SpaceXAI says the temporary gas turbines it has run in Tennessee and Mississippi since 08/01/2025, with state authorization, must all be removed by July 2027; it says it is already taking units offline. This figure does not capture them.',
+    facts: [
+      ['GPUs, per Elon Musk, 09/25/2026', '550k: 110k GB200 + 440k GB300', 'typical'],
+      ['Coming, per Elon Musk', '+220k GB300 “next week”, +220k in November, +220k by late December “if we get lucky”', 'typical'],
+      ['Why 110k, per Elon Musk', 'the number of fiber optic cables that can plug into a central switch', 'typical'],
+      ['IT power running, satellite estimate, 09/24/2026', '≈946 MW', 'est'],
+      ['Chips, satellite count, 09/24/2026', '≈440,000: 110k GB200, 330k GB300', 'est'],
+      ['GPUs planned, per SpaceXAI', '1M+', 'typical'],
+      ['Battery, per SpaceXAI', '3.3 GWh, planned (Riley Trettel to the TVA board, 08/20/2026; TVA approved a direct grid hookup that day)', 'typical'],
+      ['Grid, per SpaceXAI', '$55M for two MLGW substations in Memphis, one of them 150 MW (which campus they serve is not said)', 'typical'],
+      ['Gas turbines, per SpaceXAI', 'temporary since 08/01/2025; all out by July 2027', 'typical'],
+      ['Diesel backup', 'not mentioned by SpaceXAI', 'typical'],
+      ['Cooling, per SpaceXAI', 'closed loop, domestic water only', 'typical'],
+      ['Cooling plant, Aug 2025', '119 air-cooled chillers, ≈200 MW', 'typical'],
+    ],
+    unknowns: [
+      'GPU counts come from Elon Musk’s post (09/25/2026). The halls, CDUs, cables, token rates and the whole layout are this model’s, sized from those counts, not SpaceXAI’s.',
+      'Meter power is this model’s estimate from those counts: each accelerator’s own bottom-up rack power, plus the network, at this design’s PUE. It lands above Epoch AI’s ≈946 MW satellite estimate of IT power from a day earlier, which counted 440,000 chips.',
+      'The 3D rack, tray and package show a GB300 NVL72, the chip in four of five GPUs. The 110,000 GB200s are counted in every total at their own rack power, memory and transistor count, not as GB300s.',
+      'Stages after Now are what Elon Musk said is coming, not installed hardware; the last is contingent (“if we get lucky”).',
+      'Backup is modeled as batteries only, as SpaceXAI describes it, with no diesel. The 3.3 GWh pack is planned and its power rating is not published, so the model assumes it can carry the whole campus; its hours at full load shrink as the fleet grows.',
+      'Cooling is modeled as air-cooled chillers on a closed loop, as SpaceXAI describes Colossus II, so the model counts no cooling water; SpaceXAI says the site takes only domestic water.',
+    ],
+    sources: ['elonmusk-x-colossus-2026-09-25', 'elonmusk-x-110k-switch', 'tomshardware-spacexai-660k', 'epoch-dc-colossus2', 'epoch-largest-dc', 'semianalysis-xai-colossus2', 'wikipedia-colossus', 'spacexai-mid-south', 'canarymedia-xai-battery', 'bi-spacexai-rebrand'],
     status: { state: 'partial', live: '≈946 MW IT', asOf: '09/24/2026', source: 'epoch-dc-colossus2',
       rank: 'The most powerful AI data center operating today, by IT power and by compute (Epoch AI, 09/24/2026). Amazon and Anthropic’s New Carlisle campus is next at about 910 MW, with more chips but less compute.',
-      line: 'Live and still growing: about 946 MW of IT power and 440,000 Nvidia chips by satellite count, already past its original 1 GW, 350,000-GPU plan. The company says about 550,000 chips were installed by 09/25/2026.' },
+      line: 'Live and still growing: about 946 MW of IT power and 440,000 Nvidia chips by satellite count on 09/24/2026. A day later Elon Musk put it at 550,000 GPUs, 110k GB200 and 440k GB300, with 660,000 more GB300s planned by the end of the year.' },
   },
   'fairwater-atl': {
     id: 'fairwater-atl', name: 'Microsoft Fairwater Atlanta', owner: 'Microsoft', place: 'Fayetteville, GA', lat: 33.45, lon: -84.46, state: '13',

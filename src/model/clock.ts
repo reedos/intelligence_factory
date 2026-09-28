@@ -33,8 +33,7 @@ const smooth = (x: number) => x * x * (3 - 2 * x);
 
 // GPU share of rack power: the part that swings with the math
 function gpuMW(M: Model) {
-  const r = M.rack;
-  return M.racks * (r.pkgKW + r.vrmLossKW) / 1000 / (M.power.id === 'dc800' ? 0.985 : M.accel.psuEff);
+  return M.gpuRackMW;   // every rack in the fleet, at its own accelerator's power
 }
 
 // ---------- training: seconds ----------

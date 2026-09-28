@@ -268,6 +268,32 @@ air-cooled chillers on a closed loop with no cooling towers and no cooling water
 account of temporary turbines being removed. Colossus 1 keeps the model's generic diesel plant, with a note that
 SpaceXAI describes batteries as its backup.
 
+
+#### Update 09/28/2026: the fleet, per Elon Musk, and the battery, per Trettel
+
+Elon Musk on X, 09/25/2026 03:44 (https://x.com/elonmusk/status/2103329761690865846; x.com refuses unauthenticated
+fetches, so the text was confirmed from the page title in search results, the Elon Musk Archive copy at
+elonmuskarchive.org/posts/2103329761690865846, and Tom's Hardware's quote, Jowi Morales, 09/25/2026):
+"Colossus 1 is 150k H100, 50k H200 and 30k GB200. Colossus 2 is 110k GB200 and 440k GB300. Another 220k GB300 will be
+fully operational next week and another 220k in November. If we get lucky, yet another 220k GB300 by late December."
+A follow-up the same morning (https://x.com/elonmusk/status/2103352821135376584): "The strange multiple of 110k is due
+to the number of fiber optic cables that can be plugged into a central switch." Tom's Hardware adds that SpaceXAI
+expects to remove its unpermitted turbines "as its own 1.2-GW power plant comes online"; that plant is not modeled.
+
+- **What changed in the preset (Reed, 09/28/2026):** Colossus 2 is now sized from these counts, a dated snapshot
+  (110k GB200 + 440k GB300) with the three announced additions as optional stages, instead of an all-GB300 campus at
+  an assumed 1.1 GW. The GB200s keep their own rack power, memory and transistor count.
+- **What the model then derives:** each accelerator's bottom-up rack power (GB200 NVL72 ≈131 kW, GB300 NVL72 ≈148 kW,
+  both inside their published ranges), the network, and this design's PUE give ≈1.21 GW of IT load and ≈1.46 GW at
+  the meter for 550k GPUs. That is ≈2.2 kW of IT load per GPU, close to Epoch AI's satellite estimate the day before
+  (≈946 MW for 440,000 chips, ≈2.15 kW each).
+- **Label:** the post is labeled Typical (an operator's statement in a social post), not Spec; halls, CDUs, cables and
+  token rates stay model estimates.
+- **Battery:** Canary Media (Julian Spector, 09/11/2026) reports that on 08/20/2026 SpaceXAI energy and data center
+  developer Riley Trettel told the TVA board the battery has "3.3 GWh of storage, 'enough to power all of Memphis for
+  two hours'", that it was not yet grid-connected, and that the board approved a direct hookup to the TVA grid later
+  that day. Canary counted 720 Megapack containers in 07/11/2026 imagery (≈2.8 GWh; 720–1,400 MW depending on model).
+
 ### Microsoft Fairwater Atlanta, GA
 
 - **Location:** Fayetteville, Fayette County, GA (1435 Highway 54 West) — city-level coordinates **~33.45°N, 84.46°W**.

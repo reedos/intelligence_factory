@@ -9,6 +9,7 @@ import { BASIS } from '../data.js';
 
 const $ = id => document.getElementById(id);
 const n0 = v => Math.round(v).toLocaleString('en-US');
+const kShort = v => v >= 1e6 ? `${+(v / 1e6).toFixed(2)}M` : `${Math.round(v / 1000)}k`;
 const mwLabel = mw => mw >= 1000 ? `${+(mw / 1000).toFixed(mw >= 10000 ? 0 : 1)} GW` : `${Math.round(mw)} MW`;
 
 // campus size on a log slider, 10 MW to 5 GW
@@ -46,18 +47,32 @@ function pickSite(id) {
 function renderSiteCard() {
   const s = store.scenario, x = s.site && SITES[s.site], box = $('site-card');
   box.hidden = !x; if (!x) return;
-  const drift = ['meterMW', 'accel', 'power', 'cooling'].filter(k => s[k] !== x.scenario[k]);
+  // a campus sized from its fleet derives its meter, so the meter is no drift; leaving the fleet is
+  const staged = x.fleet && store.M.stage != null;
+  const drift = [...(x.fleet ? (staged ? [] : ['stage']) : ['meterMW']), 'accel', 'power', 'cooling'].filter(k => k === 'stage' || s[k] !== x.scenario[k]);
   const st = x.status, src = SOURCES[st.source];
   box.innerHTML = `<div class="site-head"><div><span class="eyebrow">${x.owner} · ${x.place}</span><h3>${x.name}</h3></div>${drift.length ? `<button type="button" class="btn" id="site-reset">Back to the preset</button>` : ''}</div>
     <div class="site-status s-${st.state}"><span class="st-badge">${STATUS_WORD[st.state]}</span><p>${st.line} <span class="st-src">As of ${st.asOf}${src ? `, <a href="${src.url}" target="_blank" rel="noopener">${src.publisher}</a>` : ''}.</span></p>${st.rank ? `<p class="st-rank">★ ${st.rank}</p>` : ''}</div>
+    ${x.fleet ? stageBlock(x) : ''}
     <dl class="site-facts">${x.facts.map(([k, v, b]) => `<div><dt>${k}</dt><dd>${v}</dd><span class="chip ${b}">${BASIS[b].short}</span></div>`).join('')}</dl>
     <div class="site-notes"><p class="sp-k">What this preset assumes${drift.length ? ' (you have since changed it)' : ''}</p><ul>${x.unknowns.map(u => `<li>${u}</li>`).join('')}<li>Grid carbon: ${x.carbonNote}</li></ul></div>
     ${x.sources.length ? `<p class="site-src">Sources: ${x.sources.map(id => SOURCES[id]).filter(Boolean).map(r => `<a href="${r.url}" target="_blank" rel="noopener">${r.publisher}</a>`).join(' · ')}</p>` : ''}`;
   $('site-reset')?.addEventListener('click', () => pickSite(x.id));
+  box.querySelectorAll('[data-stage]').forEach(b => b.addEventListener('click', () => setScenario({ ...x.scenario, site: x.id, stage: +b.dataset.stage })));
+}
+// a campus sized from its operator's GPU counts: which dated stage, what that stage is, and what the model adds to it
+function stageBlock(x) {
+  const i = store.M.stage, st = i != null ? x.fleet[i] : null;
+  const total = f => f.parts.reduce((n, p) => n + p.gpus, 0);
+  const head = st ? `${x.name.replace(/^SpaceXAI /, '')} · ${i === 0 ? `Elon Musk, ${st.when}` : `planned for ${st.when}, per Elon Musk`} · ${kShort(total(st))} GPUs` : 'Sized from the scenario bar, not the operator’s GPU counts';
+  return `<div class="site-stage"><span class="lab">${head}</span>
+    <div class="sc-seg" role="group" aria-label="Fleet stage">${x.fleet.map((f, k) => `<button type="button" data-stage="${k}" aria-pressed="${k === i}">${f.label}<small>${kShort(total(f))}</small></button>`).join('')}</div>
+    <p class="note">${st ? `${st.note}. ` : ''}GPU counts from Elon Musk; the halls, CDUs, cables and tokens are this model, sized from them.</p></div>`;
 }
 $('sc-mw').addEventListener('input', e => { $('sc-mw-v').textContent = mwLabel(mwFrom(+e.target.value)); syncRange(e.target); });
-$('sc-mw').addEventListener('change', e => setScenario({ meterMW: mwFrom(+e.target.value) }));
-document.querySelectorAll('[data-mw]').forEach(b => b.addEventListener('click', () => setScenario({ meterMW: +b.dataset.mw })));
+// picking a size leaves a published fleet: that campus's size comes from its GPU counts, not the slider
+$('sc-mw').addEventListener('change', e => setScenario({ meterMW: mwFrom(+e.target.value), stage: undefined }));
+document.querySelectorAll('[data-mw]').forEach(b => b.addEventListener('click', () => setScenario({ meterMW: +b.dataset.mw, stage: undefined })));
 
 // ---------- summary strip ----------
 // Compact numbers so a figure never wraps: 3 significant digits and a unit prefix.
@@ -75,7 +90,7 @@ function kpis(M) {
     ['PUE', M.pue, v => v.toFixed(2), -1],
     ['Racks', M.racks, v => compact(v), 0],
     ['GPUs', M.gpus, v => compact(v), 0],
-    ['Per rack', M.rack.kw, v => `${Math.round(v)} kW`, 0],
+    [M.mixed ? 'Per rack, average' : 'Per rack', M.mixed ? M.rackAvgKW : M.rack.kw, v => `${Math.round(v)} kW`, 0],
     ['Network, outside racks', M.NET.switchMW + M.NET.opticsMW, power, 0],
     ['Reaches GPU silicon', M.gpuSiliconMW / M.meterMW * 100, v => `${v.toFixed(1)}%`, 1],
     ['Tokens per second', t.rate, v => compact(v), 1],
@@ -106,6 +121,7 @@ function writeUrl() {
   const s = store.scenario, q = new URLSearchParams(location.search);
   q.set('mw', s.meterMW); q.set('accel', s.accel); q.set('power', s.power); q.set('cooling', s.cooling);
   if (s.site) q.set('site', s.site); else q.delete('site');
+  if (s.stage != null) q.set('stage', s.stage); else q.delete('stage');
   try { history.replaceState(null, '', `${location.pathname}?${q}${location.hash}`); } catch { /* sandboxed viewers refuse; the page still works */ }
 }
 function readUrl() {
@@ -115,6 +131,7 @@ function readUrl() {
   if (POWER[q.get('power')]) patch.power = q.get('power');
   if (COOLING[q.get('cooling')]) patch.cooling = q.get('cooling');
   if (SITES[q.get('site')]) { patch.site = q.get('site'); setCarbon(SITES[q.get('site')].carbonG); }
+  if (q.has('stage') && SITES[q.get('site')]?.fleet?.[+q.get('stage')]) patch.stage = +q.get('stage');
   if (Object.keys(patch).length) setScenario(patch);
 }
 
