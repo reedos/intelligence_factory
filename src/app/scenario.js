@@ -6,6 +6,7 @@ import { syncRange, tokenFigures, setCarbon } from './sections.js';
 import { SITES, STATUS_WORD } from '../model/sites.ts';
 import { SOURCES } from '../sources.js';
 import { BASIS } from '../data.js';
+import { chip } from '../evidence.js';
 
 const $ = id => document.getElementById(id);
 const n0 = v => Math.round(v).toLocaleString('en-US');
@@ -51,7 +52,7 @@ function renderSiteCard() {
   const st = x.status, src = SOURCES[st.source];
   box.innerHTML = `<div class="site-head"><div><span class="eyebrow">${x.owner} · ${x.place}</span><h3>${x.name}</h3></div>${drift.length ? `<button type="button" class="btn" id="site-reset">Back to the preset</button>` : ''}</div>
     <div class="site-status s-${st.state}"><span class="st-badge">${STATUS_WORD[st.state]}</span><p>${st.line} <span class="st-src">As of ${st.asOf}${src ? `, <a href="${src.url}" target="_blank" rel="noopener">${src.publisher}</a>` : ''}.</span></p>${st.rank ? `<p class="st-rank">★ ${st.rank}</p>` : ''}</div>
-    <dl class="site-facts">${x.facts.map(([k, v, b]) => `<div><dt>${k}</dt><dd>${v}</dd><span class="chip ${b}">${BASIS[b].short}</span></div>`).join('')}</dl>
+    <dl class="site-facts">${x.facts.map(([k, v, b], i) => `<div><dt>${k}</dt><dd>${v}</dd>${chip(b, `site:${s.site}:${i}`, k)}</div>`).join('')}</dl>
     <div class="site-notes"><p class="sp-k">What this preset assumes${drift.length ? ' (you have since changed it)' : ''}</p><ul>${x.unknowns.map(u => `<li>${u}</li>`).join('')}<li>Grid carbon: ${x.carbonNote}</li></ul></div>
     ${x.sources.length ? `<p class="site-src">Sources: ${x.sources.map(id => SOURCES[id]).filter(Boolean).map(r => `<a href="${r.url}" target="_blank" rel="noopener">${r.publisher}</a>`).join(' · ')}</p>` : ''}`;
   $('site-reset')?.addEventListener('click', () => pickSite(x.id));

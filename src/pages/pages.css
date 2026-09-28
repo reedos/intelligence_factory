@@ -7,7 +7,8 @@ body.page .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--line
 .page-t { margin: 0; font: 600 clamp(44px, 6.4vw, 96px)/.9 var(--display); text-transform: uppercase; letter-spacing: -.01em; text-wrap: balance; }
 .page-head .lede { font-size: 17px; }
 .page-head b { font-weight: 700; }
-.k-spec { color: var(--spec); } .k-typ { color: var(--typical); } .k-est { color: var(--est); }
+.k-spec { color: var(--spec); } .k-typ, .k-typical { color: var(--typical); } .k-est { color: var(--est); }
+.k-vendor { color: var(--vendor); } .k-reported { color: var(--reported); } .k-derived { color: var(--derived); } .k-assumed { color: var(--assumed); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ---------- evidence ---------- */
@@ -24,7 +25,18 @@ body.page .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--line
 .ev-filter button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 12px; font: 600 11px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); border-left: 1px solid var(--line); }
 .ev-filter button:first-child { border-left: 0; }
 .ev-filter button i { width: 8px; height: 8px; border-radius: 50%; background: var(--c, currentColor); opacity: .4; }
-.ev-filter button i.k-spec { background: var(--spec); } .ev-filter button i.k-typ { background: var(--typical); } .ev-filter button i.k-est { background: var(--est); }
+.ev-filter button i.k-spec { background: var(--spec); } .ev-filter button i.k-typ, .ev-filter button i.k-typical { background: var(--typical); } .ev-filter button i.k-est { background: var(--est); }
+.ev-filter button i.k-vendor { background: var(--vendor); } .ev-filter button i.k-reported { background: var(--reported); } .ev-filter button i.k-derived { background: var(--derived); } .ev-filter button i.k-assumed { background: var(--assumed); }
+.ev-back { grid-column: 1 / -1; margin: -2px 0 6px; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.ev-back a { color: var(--ink); }
+.mt-reg { margin: 12px 0 0; display: grid; border-top: 1px solid var(--line); }
+.mt-reg div { display: grid; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); scroll-margin-top: 90px; }
+.mt-reg div:target { background: rgba(230,186,130,.06); }
+.mt-reg dt { color: var(--ink); font-weight: 600; }
+.mt-reg dd { margin: 0; color: var(--muted); }
+.mt-in { display: block; margin-top: 4px; font: 400 11px/1.4 var(--mono); }
+.ev-at { font: 400 11px/1.4 var(--mono); color: var(--muted); }
+.ev-todo { border-left: 2px dashed var(--est); padding-left: 8px; }
 .ev-filter button[aria-pressed="true"] { color: var(--ink); background: var(--surface); }
 .ev-filter button[aria-pressed="true"] i { opacity: 1; box-shadow: 0 0 8px currentColor; }
 .ev-filter button:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }

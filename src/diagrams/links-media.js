@@ -77,6 +77,15 @@ export const COPPER_WALL = [
   { lane: 200, lo: 0.7, hi: 3, floor: 1, alt: 2.5, basis: 'typical', note: 'draft P802.3dj — IEEE’s own objective is ≥1 m; trade estimates spread 1–3 m' },
   { lane: 400, lo: null, hi: null, basis: 'spec', note: 'not yet defined — IEEE’s own scope table lists this reach as TBD' },
 ];
+// The claims the two figures make as a whole, each with its own basis chip under the figure. (The rungs above carry
+// their own.) Evidence is added per claim, as everywhere (src/evidence.js).
+export const FIGURE_CLAIMS = {
+  copperwall: { label: 'Where copper runs out, by lane rate', basis: 'typical' },
+  'cutaway-dsp': { short: 'DSP', label: 'Inside a DSP pluggable module', basis: 'spec' },
+  'cutaway-lpo': { short: 'LPO', label: 'Inside a linear pluggable module', basis: 'spec' },
+  'cutaway-cpo': { short: 'CPO', label: 'Co-packaged optics', basis: 'spec' },
+};
+
 export const OPTICS_CROSSOVER_M = 7; // upper end of the "on the margin" band a 200G-class signal hits (SemiEngineering)
 
 export function copperWallSVG() {

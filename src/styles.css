@@ -17,6 +17,7 @@ img { max-width: 100%; }
     --hv: #b69cff; --mv: #ffb14e; --lv: #ff7f50; --dc: #47cfff; --bus12: #5ce1c6; --core: #e9fbff; --cool: #3f8cff; --warm: #ff5a6e; --fiber: #ffe27a;
     --loss: #ff6f61; --overhead: #6f86a8; --work: #d6c27a; --net: #ff5fd2;
     --spec: #7ee0a1; --typical: #e6c86e; --est: #9aa6b8;
+    --vendor: #f2a66b; --reported: #e6c86e; --derived: #8fc3f0; --assumed: #b7b0cf;
     --display: "Barlow Condensed", "Arial Narrow", sans-serif;
     --sans: "Manrope", "Segoe UI", system-ui, sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
@@ -141,6 +142,7 @@ img { max-width: 100%; }
   .specs .chip { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
   .chip { display: inline-flex; align-items: center; height: 19px; padding: 0 6px; font: 500 9.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; border: 1px solid currentColor; white-space: nowrap; }
   .chip.spec { color: var(--spec); } .chip.typical { color: var(--typical); } .chip.est { color: var(--est); border-style: dashed; }
+  .chip.vendor { color: var(--vendor); } .chip.reported { color: var(--reported); } .chip.derived { color: var(--derived); } .chip.assumed { color: var(--assumed); border-style: dashed; }
   .card-actions { display: flex; gap: 10px; flex-wrap: wrap; padding-top: 4px; }
   .btn { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 20px; border: 1px solid var(--line-2); font: 600 12px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); background: transparent; transition: background .2s, color .2s, border-color .2s; }
   .btn:hover { border-color: var(--ink); }
@@ -312,6 +314,9 @@ button.chip:focus-visible { outline: 1px solid var(--accent); outline-offset: 2p
 .src-pop p { margin: 0; }
 .src-pop .sp-note { color: var(--ink); border-left: 2px solid var(--accent); padding-left: 10px; }
 .src-pop .sp-k { font: 400 10.5px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+.src-pop .sp-claim { color: var(--ink); }
+.src-pop .sp-d { font: 400 11px/1.4 var(--mono); color: var(--muted); }
+.chip-k { font: 400 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
 .src-pop ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .src-pop li { display: grid; gap: 1px; }
 .src-pop a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; }

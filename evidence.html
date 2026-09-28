@@ -32,19 +32,15 @@
 <main class="wrap page-wrap">
   <header class="page-head" style="--c: var(--spec)">
     <p class="eyebrow">Evidence</p>
-    <h1 class="page-t">Where every number comes from</h1>
-    <p class="lede">Each figure on this site carries one of three labels. <b class="k-spec">Spec</b> means a vendor or a standards body states it. <b class="k-typ">Typical</b> means trade press or reference designs agree on it. <b class="k-est">Est.</b> means it is derived here, or the sources conflict. Below is every claim in the 3D cards, grouped by level, with its label and its sources, and then every source the site cites.</p>
+    <h1 class="page-t">Where the numbers come from</h1>
+    <p class="lede">Every figure shown with a label says what kind of statement it is. <b class="k-spec">Spec</b>: the maker or a standards body publishes it. <b class="k-vendor">Vendor</b>: a vendor’s own comparison, attributed to it, with its baseline. <b class="k-reported">Reported</b>: a named third party states it. <b class="k-derived">Calc.</b>: this site’s model calculates it. <b class="k-assumed">Assumed</b>: the model picks a value where no single published figure applies. Below is each labeled figure with what backs it, and then every source, with when it was published and when it was checked.</p>
     <p class="note" id="ev-scenario"></p>
     <dl class="ev-stats" id="ev-stats"></dl>
   </header>
 
   <div class="ev-tools" role="search">
     <label class="ev-search"><span class="sr">Search the claims</span><input type="search" id="ev-q" placeholder="Search: busbar, 800G, PUE, NVIDIA…" autocomplete="off"></label>
-    <div class="ev-filter" role="group" aria-label="Label">
-      <button type="button" data-basis="spec" aria-pressed="true"><i class="k-spec"></i>Spec</button>
-      <button type="button" data-basis="typical" aria-pressed="true"><i class="k-typ"></i>Typical</button>
-      <button type="button" data-basis="est" aria-pressed="true"><i class="k-est"></i>Est.</button>
-    </div>
+    <div class="ev-filter" role="group" aria-label="Label" id="ev-bases"></div>
     <div class="ev-filter" role="group" aria-label="Layer">
       <button type="button" data-layer="power" aria-pressed="true" style="--c: var(--mv)"><i></i>Power</button>
       <button type="button" data-layer="data" aria-pressed="true" style="--c: var(--nvl)"><i></i>Data</button>

@@ -1,10 +1,11 @@
 // Everything below the stage: the ledger, the staircases, the links diagrams and counts, temperatures,
 // how a model is split, the inventory, and the cost-per-token calculator. Each redraws from the model.
 import { VOLT, BASIS } from '../data.js';
+import { chip } from '../evidence.js';
 import { store, on, emit } from './store.js';
 import { goAttr } from './links.js';
 import { calc, tokenFigures } from '../model/tokens.js';
-import { MEDIA_LADDER, copperWallSVG, opticsCutawaySVG } from '../diagrams/links-media.js';
+import { MEDIA_LADDER, FIGURE_CLAIMS, copperWallSVG, opticsCutawaySVG } from '../diagrams/links-media.js';
 export { calc, tokenFigures };
 
 const $ = id => document.getElementById(id);
@@ -31,7 +32,7 @@ function renderLedger() {
   row('mark', 'At the campus meter', '', trunk(rem, 0, null, 'hv'), `${fmt(rem, 1)} MW`, 1, was(remP, rem));
   LEDGER.forEach((l, i) => {
     const pl = P?.ledger[i];
-    row('minus', l.label, `<button type="button" class="chip ${l.basis}" data-src="ledger:${i}" aria-expanded="false" aria-label="${BASIS[l.basis].label}: sources">${BASIS[l.basis].short}</button>`, trunk(rem, l.mw, l.kind, SCENE_VOLT[l.scene]), `−${fmt(l.mw, 1)}`, l.scene, pl ? was(-pl.mw, -l.mw) : '', `data-row="${i}" ${goAttr(l.link, l.label)}`);
+    row('minus', l.label, chip(l.basis, `ledger:${i}`, l.label), trunk(rem, l.mw, l.kind, SCENE_VOLT[l.scene]), `−${fmt(l.mw, 1)}`, l.scene, pl ? was(-pl.mw, -l.mw) : '', `data-row="${i}" ${goAttr(l.link, l.label)}`);
     rem -= l.mw; if (P) remP -= pl.mw;
     const mark = LEDGER_MARKS.find(m => m.after === i);
     if (mark) row('mark', mark.label === 'IT load' ? `IT load, PUE ${M.pue.toFixed(2)}` : mark.label, '', trunk(rem, 0, null, SCENE_VOLT[Math.min(5, (LEDGER[i + 1] || l).scene)]), `${fmt(rem, 1)} MW`, l.scene, was(remP, rem));
@@ -224,7 +225,7 @@ function renderLinksMedia() {
   mediaRendered = true;
   $('media-ladder').innerHTML = MEDIA_LADDER.map(r => `<div class="ml-row" style="--c:${C(r.cls)}">
     <h4>${r.name}</h4>
-    <button type="button" class="chip ${r.basis}" data-src="links:${r.id}" aria-expanded="false" aria-label="${BASIS[r.basis].label}: sources">${BASIS[r.basis].short}</button>
+    ${chip(r.basis, `links:${r.id}`, r.name)}
     <p class="ml-scope">${r.scope}</p>
     <p class="ml-what">${r.what}</p>
     <div class="ml-facts">
@@ -234,9 +235,9 @@ function renderLinksMedia() {
     </div>
   </div>`).join('');
   $('fig-copperwall').innerHTML = copperWallSVG();
-  $('cap-copperwall').innerHTML += ` <button type="button" class="chip typical" data-src="links:copperwall" aria-expanded="false" aria-label="Industry typical: sources">Typical</button>`;
+  $('cap-copperwall').innerHTML += ` ${chip(FIGURE_CLAIMS.copperwall.basis, 'links:copperwall', FIGURE_CLAIMS.copperwall.label)}`;
   $('fig-optics-cutaway').innerHTML = opticsCutawaySVG();
-  $('cap-optics-cutaway').innerHTML += ` <button type="button" class="chip spec" data-src="links:cutaway-dsp" aria-expanded="false" aria-label="Published spec: DSP module sources">Spec · DSP</button> <button type="button" class="chip spec" data-src="links:cutaway-lpo" aria-expanded="false" aria-label="Published spec: LPO sources">Spec · LPO</button> <button type="button" class="chip spec" data-src="links:cutaway-cpo" aria-expanded="false" aria-label="Published spec: CPO sources">Spec · CPO</button>`;
+  $('cap-optics-cutaway').innerHTML += ' ' + ['cutaway-dsp', 'cutaway-lpo', 'cutaway-cpo'].map(k => `<span class="chip-k">${FIGURE_CLAIMS[k].short}</span>${chip(FIGURE_CLAIMS[k].basis, `links:${k}`, FIGURE_CLAIMS[k].label)}`).join(' ');
 }
 
 // ---------- temperatures ----------
@@ -280,7 +281,7 @@ function renderBom() {
   const M = store.M, size = M.meterMW >= 1000 ? `${+(M.meterMW / 1000).toFixed(2)} GW` : `${Math.round(M.meterMW)} MW`;
   $('bom-h').textContent = `What it takes: a ${size} campus, counted`;
   $('bom-lede').textContent = `Sized from the same assumptions as the ledger: ${size} at the meter, PUE ${M.pue.toFixed(2)}, ${Math.round(M.rack.kw)} kW ${M.accel.rackName.replace(/ rack$/, "")} racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale.`;
-  $('bom').innerHTML = store.C.BOM.map((g, gi) => `<div class="bom-col"><h3>${g.group}</h3><dl>${g.rows.map(([k, v, b, link], ri) => `<div data-bom="${gi}-${ri}" ${goAttr(link, k)}><dt>${k}</dt><dd>${v} <button type="button" class="chip ${b}" data-src="bom:${gi}-${ri}" aria-expanded="false" aria-label="${BASIS[b].label}: sources">${BASIS[b].short}</button></dd></div>`).join('')}</dl></div>`).join('');
+  $('bom').innerHTML = store.C.BOM.map((g, gi) => `<div class="bom-col"><h3>${g.group}</h3><dl>${g.rows.map(([k, v, b, link], ri) => `<div data-bom="${gi}-${ri}" ${goAttr(link, k)}><dt>${k}</dt><dd>${v} ${chip(b, `bom:${gi}-${ri}`, k)}</dd></div>`).join('')}</dl></div>`).join('');
 }
 
 // ---------- cost per token ----------

@@ -1,13 +1,9 @@
 // Content model for The Intelligence Factory.
-// Every number carries a basis: 'spec' (vendor or standards body states it), 'typical'
-// (industry-typical figure several sources agree on) or 'est' (derived here, or uncertain).
-// The page shows the basis next to the number. Sources are listed in research/*.md.
-
-export const BASIS = {
-  spec: { label: 'Published spec', short: 'Spec' },
-  typical: { label: 'Industry typical', short: 'Typical' },
-  est: { label: 'Estimate', short: 'Est.' },
-};
+// Every figure carries a basis and its evidence (src/evidence.js): a published spec, a vendor claim or a published
+// report cites its sources, a calculation names how the model makes it, an assumption says why.
+// The page shows the basis beside the figure; the chip opens its evidence.
+import { BASIS } from './evidence.js';
+export { BASIS };
 
 // Voltage classes: one color per class, used by every flow, chip and chart.
 export const VOLT = {

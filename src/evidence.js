@@ -68,12 +68,17 @@ export const ASSUMPTIONS = {
   // ---- level workstreams add theirs below, each in its own block ----
 };
 
+// the basis chip for one claim: a button that opens that claim's evidence (src/app/sources-ui.js)
+const attr = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+export const chip = (basis, key, label = '') => { const b = BASIS[basis] || BASIS.est;
+  return `<button type="button" class="chip ${basis}" data-src="${attr(key)}" aria-expanded="false" aria-label="${attr(`${b.label}${label ? ` for ${String(label).replace(/<[^>]+>/g, '')}` : ''}: what backs it`)}">${b.short}</button>`; };
+
 // what is wrong with one claim's evidence, as sentences (empty when it holds up)
 export function problems(claim, SOURCES) {
   const out = [], { basis, ev } = claim, b = BASIS[basis];
   if (!b) return [`unknown basis ${basis}`];
   if (b.legacy) { if (STRICT) out.push(`still labeled ${basis}`); return out; }
-  if (!ev) return [`no evidence for a ${basis} claim`];
+  if (!ev) return STRICT ? [`no evidence for a ${basis} claim`] : [];   // not yet traced one by one
   if (CITED.has(basis)) {
     if (!ev.refs?.length) out.push('cites no source');
     if (basis === 'vendor' && !ev.vs) out.push('vendor claim without its baseline');

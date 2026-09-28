@@ -6,6 +6,7 @@ import { store, on } from './store.js';
 import { setLevels, onTick, show, reduced, stageActive } from './stage.js';
 import { calc } from './sections.js';
 import { BASIS } from '../data.js';
+import { chip } from '../evidence.js';
 
 const $ = id => document.getElementById(id);
 const n0 = v => Math.round(v).toLocaleString('en-US');
@@ -174,7 +175,7 @@ function renderSection() {
     return `<article class="ck-card"><div class="ck-card-head"><h3>${s.label}</h3><button type="button" class="btn" data-play="${id}">Play in 3D ↗</button></div>
       <div class="ck-legend">${legend}</div>
       <div class="chart-box"><svg viewBox="0 0 640 250" role="img" aria-label="${s.label}: ${s.series.map(x => x.label).join(', ')} over ${s.unit === 'h' ? '24 hours' : 'time'}">${c.svg}</svg></div>
-      <ul class="ck-notes">${s.notes.map(nn => `<li><span class="chip ${nn.basis}">${BASIS[nn.basis].short}</span><span>${nn.text}</span></li>`).join('')}</ul>
+      <ul class="ck-notes">${s.notes.map((nn, i) => `<li>${chip(nn.basis, `clock:${id}:${i}`, nn.text.slice(0, 60))}<span>${nn.text}</span></li>`).join('')}</ul>
       ${id === 'inference' ? `<div class="ctl"><div class="ctl-head"><label for="ck-ratio">Peak-to-trough ratio, illustrative</label><output id="ck-ratio-v">${opts.peakTrough}×</output></div><input type="range" id="ck-ratio" min="12" max="50" step="1" value="${opts.peakTrough * 10}"></div>` : ''}
       ${id === 'hotday' ? `<div class="ctl"><div class="ctl-head"><label for="ck-hot">Hottest hour</label><output id="ck-hot-v">${opts.hotMax} °C</output></div><input type="range" id="ck-hot" min="28" max="46" step="1" value="${opts.hotMax}"></div>` : ''}
     </article>`;
