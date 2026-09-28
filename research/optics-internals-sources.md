@@ -179,3 +179,28 @@ A short synthesis, each line tied to a sourced row above, for whoever writes the
 ---
 
 *Compiled by the research workstream for the "Inside the Optics" level, `optics/dive` branch. Every URL above was fetched or search-verified this pass (09/28/2026); nothing here was filled from memory.*
+
+---
+
+## Corrections, 09/28/2026 (after Codex's review of optics/dive)
+
+- **OSFP contacts (section A).** The 60-pin breakdown above ("16 high-speed ... 16 low-speed/clock") restated
+  a trade page and confused contacts with pairs. The MSA's own text: "16 contacts for 8 differential pairs of
+  high-speed transmit signals, 16 contacts for 8 differential pairs of high-speed receive signals, 4 contacts for
+  low-speed control signals, 4 contacts for power and 20 contacts for ground", and "+3.3V power is delivered to
+  the module via 4 power pins (VCC)... Each power pin allows up to 1.5 Amps". Checked through the fluxlight.com
+  mirror of the MSA text; the rev 5.22 PDF would not extract, so its section/page locator is unconfirmed.
+- **Marvell Ara power (section B).** The PRNewswire release states only "reduce 1.6 Tbps optical module power
+  by over 20%"; it gives no absolute "under 22 W". The site now shows the relative figure. Broadcom's
+  "sub-23W 1.6T transceivers" is a transceiver-level figure.
+- **COUPE 65 nm (package technology).** TrendForce's article does not contain "TSMC's 65nm silicon photonics
+  technology is in volume production"; it carries a forward-looking 2026 plan. IC Online does support the 65 nm
+  EIC on the PIC through SoIC-X; the site now cites IC Online alone, as reported.
+- **Quantum-X interface.** NVIDIA's collaboration blog distinguishes Quantum-X ("a socket-based design for
+  modular connectivity", "a hermetically sealed fiber interface") from Spectrum-X ("a detachable optical
+  connector"). The site's CPO level follows Quantum-X and names Spectrum-X only for comparison.
+- **ELS counts.** "Each ELS contains eight high-quality lasers" and one ELS powers "32 of the Quantum-X switch's
+  576 transmit lanes" are NVIDIA's blog; the 18-module count per Q3450 is Lambda's ("18 removable external
+  light-source modules, each feeding eight MPO ports").
+- **Cooling.** Lambda: "Cooling runs through four UDQ4 liquid cooling connections with dual internal loops." The
+  earlier "one loop for ASIC and optics" reading was wrong.

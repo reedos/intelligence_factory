@@ -1,8 +1,8 @@
 // Side level: inside an 800ZR coherent pluggable (OSFP). World unit = 1 cm.
-// The four blocks every source names: a tunable laser (nano-ITLA, drawn to its published 25.0 x 15.6 x 6.5 mm), a
+// The four blocks every source names: a tunable laser (sized to a nano-ITLA research example, 25.0 x 15.6 x 6.5 mm), a
 // coherent driver modulator (the IQ modulator packaged with its RF driver), an integrated coherent receiver (90-degree
-// hybrid, balanced photodiodes and TIAs in one package) and the coherent DSP. The envelope is to scale; where each
-// block sits is representative (no teardown is public). Transmit on the far side (z < 0), receive on the near side:
+// hybrid, balanced photodiodes and TIAs in one package) and the coherent DSP. The footprint is to scale, the layers are
+// pulled apart; where each block sits is representative (this research pass found no teardown). Transmit on the far side (z < 0), receive on the near side:
 //   TX  host lanes → DSP → traces → CDM (driver → IQ modulator, lit by the laser) → fiber → LC transmit
 //   RX  LC receive → fiber → ICR (mixed with the laser's own light) → TIAs → traces → DSP → host lanes
 import { THREE, MAT, Builder, flow, canvasTex, setup, materials, die, strand, trace, bondWire, label, lidBox, FLOW, COL, note, unitCol, dspTex, glowMat } from './side-kit.js';
@@ -62,7 +62,7 @@ export function build({ quality, state }) {
   S.box(ITL, ITH, ITW, MAT.nickel, ITX, Y.top + ITH / 2, 0);
   const itOut = [ITX + ITL / 2, Y.top + 0.33, 0];
   N.box(0.03, 0.12, 0.3, glowMat(COL.cw, 1.5), itOut[0] + 0.015, itOut[1], 0);
-  // a tap splits the laser's light: most to the modulator, some to the receiver as its local oscillator
+  // a tap splits the laser's light between the transmit carrier and the receiver's local oscillator
   const tap = [itOut[0] + 0.22, Y.top + 0.12, 0];
   S.box(0.18, 0.12, 0.3, M.glass, tap[0], tap[1], 0);
   // the coherent driver modulator: an RF driver strip along the far edge, bonded to the IQ modulator chip beside it
@@ -122,12 +122,12 @@ export function build({ quality, state }) {
   [flows, dataFlows, heatFlows].forEach(a => a.forEach(f => scene.add(f.group)));
 
   label(scene, 'Coherent pluggable · 800ZR, OSFP', [0, -0.35, 2.6], '#e8ecf2', 0.34);
-  label(scene, 'Envelope and tunable laser to scale · where the blocks sit is representative', [0, -0.75, 2.6], note, 0.18);
+  label(scene, 'Footprint to scale · layers pulled apart · laser sized to a published nano-ITLA · the rest representative', [0, -0.75, 2.6], note, 0.18);
   label(scene, '1 module = 800G each way on one wavelength, one fiber pair', [0, -1.05, 2.6], unitCol, 0.18);
   label(scene, 'TX · lanes in', [MX0 - 0.9, 1.75, -0.55], COL.tx, 0.16);
   label(scene, 'RX · lanes out', [MX0 - 0.9, 1.75, 0.55], COL.rx, 0.16);
   label(scene, 'Electrical · copper traces', [DSPX + 1.2, 1.9, -1.45], COL.elec, 0.14);
-  label(scene, 'Tunable laser (nano-ITLA) · 25.0 × 15.6 × 6.5 mm', [ITX, 2.45, 0], COL.cw, 0.15);
+  label(scene, 'Tunable laser · sized to a published nano-ITLA (JLT 2023), 25.0 × 15.6 × 6.5 mm', [ITX, 2.45, 0], COL.cw, 0.15);
   label(scene, 'Driver + IQ modulator (TX)', [CX_, 1.9, -1.45], COL.tx, 0.14);
   label(scene, 'Coherent receiver + TIAs (RX)', [RX_, 1.9, 1.45], COL.rx, 0.14);
   label(scene, 'Light · glass fiber', [LCX - 0.6, 2.05, 0], COL.tx, 0.14);

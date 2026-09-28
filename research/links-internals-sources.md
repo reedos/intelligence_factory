@@ -199,3 +199,27 @@ Every URL above was fetched or search-verified this pass (09/28/2026); nothing h
 from memory. Public sources only — MSA/standards documents, vendor datasheets and technical
 blogs, press releases, conference papers, and trade press. No private, NDA, or leaked material
 was sought or used.*
+
+---
+
+## Corrections, 09/28/2026 (after Codex's review of optics/dive)
+
+- **Nano-ITLA dimensions (section 3d).** "25.0 mm (L) × 15.6 mm (W) × 6.5 mm (H)" and "less than 3 W total power
+  consumption" are in the abstract of a 2023 Journal of Lightwave Technology paper
+  (https://opg.optica.org/jlt/abstract.cfm?uri=jlt-41-16-5405), not in the 2019 Optical Connections News article,
+  which says only "approximately half the size" of the micro-ITLA. EFFECT Photonics' nITLA17 page gives 2.9 W but no
+  dimensions. No commercial datasheet with numeric dimensions was reachable. The site now names the JLT example.
+- **Copper quotations (section 1a).** "a Redriver chip at one end of the cable, typically the receiver (Rx) end" and
+  "The Retimer chip in AEC ... integrates CTLE ..., DFE ..., CDR ..., and FIR drivers" are on AscentOptics, not NADDOD.
+  NADDOD returned HTTP 403 on every fetch, so its "2.5–12 W per end" could not be confirmed and is no longer cited.
+- **AEC power (section 1b).** AscentOptics gives "higher power consumption (2.5–3.5W)" for AEC and "1.2–1.8W" for ACC;
+  it does not give 10–13 W at 800G or 4 W at 400G. The site now shows Vik's "around 20 watts per end" at 200G/lane
+  and AscentOptics' 2.5–3.5 W with its lane rate unstated.
+- **DAC power.** NVIDIA's DAC and LACC overview: "Power consumption is 0.1 Watts per end", and LACCs have "an
+  additional IC in each end".
+- **800ZR power (section 3a).** FiberMall's two pages give "24 to 25 watts" (ZR page) and "20-30W" (guide); the site
+  shows both by name, not a combined ≈24–30 W.
+- **800ZR reach.** Cisco ties both headline reaches to amplified DWDM ("Up to 120 km amplified DWDM", "Over 1000 km
+  amplified DWDM") and gives "Up to 75 km with 800ZR and 80 km with 800G ZR+" unamplified.
+- **Coherent DSP makers.** The "Broadcom is not among them" line rested on trade commentary; the site now names the
+  makers one 2026 survey lists, without a universal exclusion.

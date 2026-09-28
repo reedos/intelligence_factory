@@ -4,6 +4,7 @@
 // or a DSP retimer handling both directions, one in each end (AEC). Transmit pairs on the left half of each card,
 // receive pairs on the right. Plugs and cards are representative (no labeled teardown is public).
 import { THREE, MAT, Builder, flow, setup, materials, strand, trace, label, lidBox, FLOW, COL, note, unitCol } from './side-kit.js';
+import { COPPER_HEADS, copperLane, copperChip, PAIR_HALF } from './side-geometry.js';
 
 export function build({ quality, state }) {
   const scene = setup(quality, 12), M = materials();
@@ -11,17 +12,17 @@ export function build({ quality, state }) {
   const flows = [], dataFlows = [];
   const HL = 6.0, HW = 2.2, z0 = 2.8, zc = z0 - HL / 2, cardY = 0.9, cardTop = 0.94, back = z0 - HL + 1.0;
   const heads = [];
-  [['dac', -4.6], ['acc', 0], ['aec', 4.6]].forEach(([kind, hx]) => {
+  COPPER_HEADS.forEach(([kind, hx]) => {
     S.box(HW, 0.12, HL, MAT.darkSteel, hx, 0, zc);
     S.box(HW - 0.3, 0.08, HL - 1.4, MAT.pcb, hx, cardY, zc + 0.5);
     for (let i = 0; i < 20; i++) N.box(0.045, 0.012, 0.5, MAT.gold, hx - 0.8 + i * 0.084, cardTop + 0.006, z0 - 0.3);
     S.box(0.18, 0.05, 0.18, MAT.pcbBlack, hx + 0.72, cardTop + 0.025, zc + 1.6);                 // the ID memory every plug carries
     // four pairs each way: transmit on the left half, receive on the right
-    const lane = (i, rx) => hx + (rx ? 0.12 : -0.72) + i * 0.18;
-    const chipZ = zc, chip = kind === 'acc' ? { x: hx + 0.39, w: 0.62, d: 0.6 } : kind === 'aec' ? { x: hx, w: 1.35, d: 0.95 } : null;
+    const lane = (i, rx) => copperLane(hx, i, rx);
+    const chipZ = zc, chip = copperChip(kind, hx);
     for (let i = 0; i < 4; i++) for (const rx of [false, true]) {
       const x = lane(i, rx), through = chip && (kind === 'aec' || rx);
-      for (const d of [-0.02, 0.02]) {
+      for (const d of [-PAIR_HALF, PAIR_HALF]) {
         if (through) { trace(N, [x + d, z0 - 0.55], [x + d, chipZ + chip.d / 2], cardTop + 0.002, 0.016); trace(N, [x + d, chipZ - chip.d / 2], [x + d, back], cardTop + 0.002, 0.016); }
         else trace(N, [x + d, z0 - 0.55], [x + d, back], cardTop + 0.002, 0.016);
         // the twinax pair soldered at the back of the card and into the cable

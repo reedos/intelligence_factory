@@ -1,5 +1,6 @@
 // Side level: inside a 1.6T DR8 pluggable module (OSFP), exploded, and its LPO variant. World unit = 1 cm.
-// The envelope is drawn to its published size; the parts inside are representative (no labeled teardown is public).
+// The footprint is drawn to its published size and the layers are pulled apart vertically; the parts inside are
+// representative (this research pass found no suitable public teardown).
 // Transmit runs along the far side of the board (z < 0), receive along the near side (z > 0), each its own chain:
 //   TX  host lanes → DSP → driver → bond wires → Mach-Zehnder modulators (lit by the CW lasers) → fiber → connector
 //   RX  connector → fiber → photodiodes → bond wires → TIA → DSP → host lanes
@@ -118,7 +119,7 @@ export function build({ quality, state }) {
 
   // ======================= what the reader should know at a glance =======================
   label(scene, 'Pluggable module · 1.6T DR8, OSFP', [0, -0.35, 2.6], '#e8ecf2', 0.34);
-  label(scene, 'Envelope to scale, 107.8 × 22.58 × 13.0 mm · parts inside representative', [0, -0.75, 2.6], note, 0.18);
+  label(scene, 'Footprint to scale, 107.8 × 22.58 mm · layers pulled apart vertically · parts inside representative', [0, -0.75, 2.6], note, 0.18);
   label(scene, '1 module = 1.6T each way, over 16 fibers', [0, -1.05, 2.6], unitCol, 0.18);
   label(scene, 'TX · 8 lanes in', [MX0 - 0.9, 1.75, -0.55], COL.tx, 0.16);
   label(scene, 'RX · 8 lanes out', [MX0 - 0.9, 1.75, 0.55], COL.rx, 0.16);

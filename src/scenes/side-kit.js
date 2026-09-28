@@ -119,19 +119,27 @@ export function mzmPicTex() {
     g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(w - 14, 0, 14, h);     // the fiber-coupling edge
   });
 }
-// a CPO engine's photonic chip: micro-ring modulators on the transmit side, photodiodes on the receive side
+// a CPO engine's photonic chip, representative (not NVIDIA's floorplan). Transmit: laser light comes in on a bus
+// along the top edge, a manifold at the left splits it into eight lane waveguides, and each lane passes its own
+// micro-ring, drawn beside the waveguide with a coupling gap, then carries on to its fiber (the ring modulates the
+// light passing it; the output is the same waveguide). Receive: eight waveguides from the fiber edge to photodiodes.
+export const RING = { busY: 24, manX: 24, row: i => 50 + i * 20, ringX: i => 110 + i * 40, ringR: 6, ringGap: 4, rxRow: i => 214 + i * 20, pdX: 77, w: 512, h: 384 };
 export function ringPicTex() {
-  return canvasTex(512, 384, (g, w, h) => {
-    g.fillStyle = '#4a5468'; g.fillRect(0, 0, w, h); g.lineCap = 'round';
-    g.strokeStyle = 'rgba(255,179,71,0.85)'; g.lineWidth = 3; g.beginPath(); g.moveTo(w - 12, 24); g.lineTo(40, 24); g.stroke();   // laser light in, a bus waveguide
+  return canvasTex(RING.w, RING.h, (g, w, h) => {
+    g.fillStyle = '#4a5468'; g.fillRect(0, 0, w, h); g.lineCap = 'round'; g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(255,179,71,0.9)'; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(w - 12, RING.busY); g.lineTo(RING.manX, RING.busY); g.lineTo(RING.manX, RING.row(7)); g.stroke();   // bus and manifold
     for (let i = 0; i < 8; i++) {
-      const y = 44 + i * 18;
-      g.strokeStyle = 'rgba(98,230,255,0.95)'; g.lineWidth = 2.5; g.beginPath(); g.arc(60 + i * 18, 24 + 16, 7, 0, Math.PI * 2); g.stroke();   // a ring beside the bus
-      g.beginPath(); g.moveTo(60 + i * 18, 47); g.lineTo(60 + i * 18, y + 10); g.lineTo(w - 12, y + 10); g.stroke();
+      const y = RING.row(i), rx = RING.ringX(i);
+      g.strokeStyle = 'rgba(255,179,71,0.9)'; g.beginPath(); g.moveTo(RING.manX, y); g.lineTo(rx - 14, y); g.stroke();   // unmodulated, up to the ring
+      g.strokeStyle = 'rgba(98,230,255,0.95)'; g.lineWidth = 3; g.beginPath(); g.moveTo(rx - 14, y); g.lineTo(w - 12, y); g.stroke();   // modulated, past it
+      g.lineWidth = 2.5; g.beginPath(); g.arc(rx, y - RING.ringR - RING.ringGap, RING.ringR, 0, Math.PI * 2); g.stroke();       // the ring, a gap above
+      g.fillStyle = 'rgba(201,161,74,0.9)'; g.fillRect(rx - 3, y - RING.ringR * 2 - RING.ringGap - 7, 6, 5);                   // its bond to the driver above
+      g.strokeStyle = 'rgba(98,230,255,0.95)'; g.lineWidth = 3;
     }
-    g.fillStyle = 'rgba(255,255,255,0.4)'; g.fillRect(0, h / 2 + 8, w, 2);
+    g.fillStyle = 'rgba(255,255,255,0.4)'; g.fillRect(0, (RING.row(7) + RING.rxRow(0)) / 2, w, 2);
     for (let i = 0; i < 8; i++) {
-      const y = h / 2 + 24 + i * 18;
+      const y = RING.rxRow(i);
       g.strokeStyle = 'rgba(255,122,217,0.9)'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(w - 12, y); g.lineTo(90, y); g.stroke();
       g.fillStyle = 'rgba(255,122,217,0.95)'; g.fillRect(64, y - 6, 26, 12);
     }
