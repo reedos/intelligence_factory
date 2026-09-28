@@ -4,7 +4,7 @@
 //   hotday     24 hours: outdoor heat raises cooling power; dry coolers turn to water above ≈35 °C
 //   inference  24 hours: demand follows people awake; idle GPUs still draw power
 // Pure functions of (model, time): the page samples them for charts, counters and the 3D flows.
-import type { Model } from './engine';
+import { waterM3h, WATER, type Model } from './engine';
 
 export type SimId = 'training' | 'outage' | 'hotday' | 'inference';
 export interface SimOpts { peakTrough?: number; hotMax?: number }
@@ -12,7 +12,8 @@ export interface Series { key: string; label: string; unit: string; color: strin
 export interface SimEvent { t: number; label: string }
 export interface Sample {
   t: number;
-  meterMW: number;                 // what the utility meter reads (or the site draws, in an outage)
+  meterMW: number;                 // what the utility meter imports right now (0 while islanded in an outage)
+  siteMW: number;                  // what the site actually draws right now, from every source combined
   values: Record<string, number>;  // one value per series key
   phase: string;                   // a short label for what is happening now
   // how the 3D flows react: 1 is the steady state
@@ -38,7 +39,23 @@ function gpuMW(M: Model) {
 }
 
 // ---------- training: seconds ----------
-function training(M: Model): Sim {
+// A power buffer sits between a demand and a source: it tries to hold the source at `targetMW` by
+// drawing the difference into (or out of) storage, but both the rate and the stored energy saturate at
+// the buffer's declared rating. Past that limit it stops tracking the target and the demand shows
+// straight through — which is the whole point: an "illustrative" smoothing time constant still has to
+// answer to a real capacity, not paper over what it can't actually hold (audit item 8).
+function bufferStep(prevMJ: number, demandMW: number, targetMW: number, powerLimitMW: number, capMJ: number, dt: number) {
+  const want = clamp(targetMW - demandMW, -powerLimitMW, powerLimitMW);   // + charges, - discharges
+  const nextMJ = clamp(prevMJ + want * dt, 0, capMJ);
+  return { mj: nextMJ, sourceMW: demandMW + (nextMJ - prevMJ) / dt };
+}
+
+// GB300 racks store 65 J/GPU in capacitors (NVIDIA's power-smoothing blog); the discharge rate itself
+// isn't published, so 700 W/GPU is this page's own estimate, sized to cycle the full 65 J roughly ten
+// times a second, matching the 0.2-3 Hz band production clusters actually swing in.
+const RACK_CAP_J_PER_GPU = 65, RACK_POWER_W_PER_GPU = 700;
+
+export function trainingStorage(M: Model) {
   const G = gpuMW(M), P = 2.0, comm = 0.3, low = 0.35;               // 0.5 Hz steps, 30% of each spent communicating
   const ckpt: [number, number] = [38, 44];                           // a checkpoint pause
   const storage = M.accel.id === 'gb300' || M.accel.id === 'rubin';  // rack energy storage (GB300 onward)
@@ -54,13 +71,36 @@ function training(M: Model): Sim {
     if (ph < 1 - e) return low;
     return low + span * smooth((ph - (1 - e)) / (2 * e));             // first half of the ramp up
   };
-  // rack storage: a low-pass on what the grid sees (τ ≈ 0.6 s), computed by stepping from the start
-  const tau = 0.6, dt = 0.01, N = Math.ceil(60 / dt) + 1, lp = new Float64Array(N);
-  lp[0] = g(0);
-  for (let i = 1; i < N; i++) lp[i] = lp[i - 1] + (g(i * dt) - lp[i - 1]) * (dt / tau);
-  const lowPass = (t: number) => lp[Math.min(N - 1, Math.max(0, Math.round(t / dt)))];
+  const tau = 0.6, dt = 0.01, N = Math.ceil(60 / dt) + 1;
   let mean = 0; for (let i = 0; i < N; i++) mean += g(i * dt); mean /= N;
-  const at = (x: number) => M.meterMW - G * (1 - x);
+
+  const rackCapMJ = RACK_CAP_J_PER_GPU * M.gpus / 1e6, rackPowerMW = RACK_POWER_W_PER_GPU * M.gpus / 1e6;
+  const siteCapMJ = M.layout.bessMWh * 3600, sitePowerMW = M.layout.bessMW;
+  const target = new Float64Array(N);                                  // the rack buffer's low-pass aim
+  const rackMW = new Float64Array(N), rackSocMJ = new Float64Array(N);
+  const siteMW = new Float64Array(N), siteSocMJ = new Float64Array(N);
+  target[0] = g(0);
+  let rackMJ = rackCapMJ / 2, siteMJ = siteCapMJ / 2;   // start half-charged: illustrative, not a claim about real SOC
+  for (let i = 0; i < N; i++) {
+    const t = i * dt;
+    if (i > 0) target[i] = target[i - 1] + (g(t) - target[i - 1]) * (dt / tau);
+    const demandMW = g(t) * G;
+    if (storage) {
+      const b = bufferStep(rackMJ, demandMW, target[i] * G, rackPowerMW, rackCapMJ, dt);
+      rackMJ = b.mj; rackMW[i] = b.sourceMW;
+    } else rackMW[i] = demandMW;
+    rackSocMJ[i] = rackMJ;
+    const s = bufferStep(siteMJ, rackMW[i], mean * G, sitePowerMW, siteCapMJ, dt);
+    siteMJ = s.mj; siteMW[i] = s.sourceMW; siteSocMJ[i] = siteMJ;
+  }
+  return { G, g, ckpt, low, dt, N, mean, storage, rackCapMJ, rackPowerMW, siteCapMJ, sitePowerMW, target, rackMW, rackSocMJ, siteMW, siteSocMJ };
+}
+
+function training(M: Model): Sim {
+  const { G, g, ckpt, low, dt, N, mean, storage, rackPowerMW, sitePowerMW, rackMW, siteMW } = trainingStorage(M);
+  const idx = (t: number) => Math.min(N - 1, Math.max(0, Math.round(t / dt)));
+  const base = M.meterMW - G;
+  const swingMW = Math.round(G * (1 - low));
   const series: Series[] = [
     { key: 'raw', label: 'Rack load, no smoothing', unit: 'MW', color: '#ff7f50' },
     ...(storage ? [{ key: 'rack', label: 'With rack energy storage', unit: 'MW', color: '#e8ff5a' }] : []),
@@ -70,27 +110,33 @@ function training(M: Model): Sim {
     id: 'training', label: 'Training step', unit: 's', duration: 60, series,
     events: [{ t: ckpt[0], label: 'Checkpoint' }, { t: ckpt[1], label: 'Resume' }],
     sample: t => {
-      const x = g(t), shown = storage ? lowPass(t) : x;
+      const x = g(t), i = idx(t), rMW = base + rackMW[i], sMW = base + siteMW[i];
       return {
-        t, meterMW: at(shown),
-        values: { raw: at(x), ...(storage ? { rack: at(lowPass(t)) } : {}), site: at(mean) },
+        t, meterMW: sMW, siteMW: sMW,
+        values: { raw: base + x * G, ...(storage ? { rack: rMW } : {}), site: sMW },
         phase: t >= ckpt[0] && t < ckpt[1] ? 'Checkpoint: GPUs wait on storage' : x > 0.9 ? 'Compute: every GPU at full power' : x < low + 0.05 ? 'All-reduce: GPUs wait on the network' : 'Ramping',
         levels: { grid: 1, mv: 1, standby: 0, load: 0.25 + 0.95 * x, cool: 1, vapor: 1 },
-        waterM3h: M.meterMW * 1000 * M.wue / 1000, tokensPerS: 0,
+        waterM3h: waterM3h(M), tokensPerS: 0,
       };
     },
     speed: () => 1,
     notes: [
       { text: 'Production clusters swing in the 0.2–3 Hz band (Microsoft, OpenAI and NVIDIA, 2025). The 2-second step drawn here sits inside it.', basis: 'spec' },
-      { text: `${storage ? 'GB300 racks store 65 J per GPU and cut peak grid demand by up to 30%; the smoothing drawn is a 0.6 s low-pass, an estimate. ' : ''}Site batteries can absorb the rest, so the grid sees the average.`, basis: storage ? 'spec' : 'typical' },
-      { text: `GPUs are ${Math.round(G / M.meterMW * 100)}% of the meter here, so one step moves the campus by about ${Math.round(G * (1 - low))} MW.`, basis: 'est' },
+      { text: storage
+          ? `GB300 racks store 65 J per GPU in capacitors that charge on the down-swings and discharge on the up-swings; NVIDIA reports up to a 30% cut in peak grid demand from it. That capacity is small next to a multi-second swing: the checkpoint empties it almost immediately, so the raw swing shows through again until it recharges.`
+          : 'This generation has no on-rack storage, so every swing reaches the site batteries directly.',
+        basis: storage ? 'spec' : 'est' },
+      { text: `GPUs are ${Math.round(G / M.meterMW * 100)}% of the meter here, so one step moves the campus by about ${swingMW} MW. Site batteries are rated ${Math.round(sitePowerMW)} MW${storage ? `, and the rack storage ${Math.round(rackPowerMW)} MW` : ''}; ${swingMW > sitePowerMW ? 'a full step swing is more than the site batteries can absorb, so the grid still sees part of it' : 'that covers a full step swing, so the grid sees close to the average'}.`, basis: 'est' },
     ],
   };
 }
 
 // ---------- outage: seconds, then minutes ----------
 function outage(M: Model): Sim {
-  const fail = 5, gensOn = fail + 10, chillersBack = gensOn + 120, gridBack = fail + 15 * 60, retransfer = gridBack + 5 * 60, end = retransfer + 60;
+  // NFPA 110 Type 10 is the 10-second timing class: the emergency power system must assume its full
+  // rated load within 10 s of a utility failure. The ramp below starts before that mark and finishes
+  // exactly at it, so the prose and the model agree on what "within 10 s" means.
+  const fail = 5, rampStart = fail + 8, gensOn = fail + 10, chillersBack = gensOn + 120, gridBack = fail + 15 * 60, retransfer = gridBack + 5 * 60, end = retransfer + 60;
   const warm = M.cooling.id === 'warm', dc = M.power.id === 'dc800';
   const it = M.meterMW - M.coolMW / 0.99;                             // everything but cooling, at the meter
   const coolFull = M.coolMW / 0.99, coolCritical = coolFull * (warm ? 0.45 : 0.2);   // pumps and fans stay on backup power
@@ -103,16 +149,16 @@ function outage(M: Model): Sim {
   const sample = (t: number): Sample => {
     const load = it + cooling(t);
     const onGrid = t < fail || t >= retransfer;
-    const battery = !onGrid && t < gensOn ? load : 0;
-    const gens = !onGrid && t >= gensOn ? load * clamp((t - gensOn) / 1.5) : 0;   // generators pick up the load over ≈1.5 s
-    const bridge = !onGrid && t >= gensOn && t < gensOn + 1.5 ? load - gens : 0;
+    const battery = !onGrid && t < rampStart ? load : 0;
+    const gens = !onGrid && t >= rampStart ? load * clamp((t - rampStart) / (gensOn - rampStart)) : 0;   // ramps up to full load by gensOn
+    const bridge = !onGrid && t >= rampStart && t < gensOn ? load - gens : 0;
     const phase = onGrid ? (t < fail ? 'Normal: on the grid' : 'Back on the grid') : t < gensOn ? `Batteries carry the load${dc ? ' on the 800 V DC bus' : ' through the UPS'}` : t < chillersBack && !warm ? 'Generators on; chillers restarting' : t < gridBack ? 'Generators carry the campus' : 'Grid back; waiting for it to hold steady';
     return {
-      t, meterMW: onGrid ? load : 0,
+      t, meterMW: onGrid ? load : 0, siteMW: load,
       values: { grid: onGrid ? load : 0, gens, battery: battery + bridge },
       phase,
       levels: { grid: onGrid ? 1 : 0, mv: onGrid || t >= gensOn ? 1 : 0, standby: !onGrid && t >= gensOn ? 1 : 0, load: 1, cool: cooling(t) / coolFull, vapor: warm ? 0.3 : cooling(t) / coolFull },
-      waterM3h: M.meterMW * M.wue * cooling(t) / coolFull, tokensPerS: 0,
+      waterM3h: waterM3h(M, cooling(t) / coolFull), tokensPerS: 0,
     };
   };
   return {
@@ -123,14 +169,14 @@ function outage(M: Model): Sim {
       { key: 'gens', label: 'Diesel generators', unit: 'MW', color: '#ffb14e' },
     ],
     events: [
-      { t: fail, label: 'Grid lost' }, { t: gensOn, label: 'Generators on, 10 s' },
+      { t: fail, label: 'Grid lost' }, { t: gensOn, label: 'Full load, 10 s' },
       ...(warm ? [] : [{ t: chillersBack, label: 'Chillers back' }]),
       { t: gridBack, label: 'Grid back' }, { t: retransfer, label: 'Back on the grid' },
     ],
     sample,
     speed: t => (t < 45 ? 2 : 60),
     notes: [
-      { text: 'NFPA 110 Level 1: generators must carry the full emergency load within 10 seconds of a utility failure.', basis: 'spec' },
+      { text: 'NFPA 110 Type 10 sets the 10-second timing here (Level 1 is a separate classification, for loads whose loss could cost lives); data-center IT is not itself a life-safety load, but many mission-critical campuses design their standby plant to Type 10 timing anyway, as this scenario assumes.', basis: 'spec' },
       { text: 'UPS batteries are commonly sized for 3–10 minutes, far longer than the 10 s they need here.', basis: 'typical' },
       { text: `Chiller restart (≈2 min), outage length (15 min) and the 5 minutes of grid stability before transfer back are illustrative.`, basis: 'est' },
     ],
@@ -146,7 +192,7 @@ const crossings = (f: (h: number) => number, v: number) => {
 function hotday(M: Model, o: SimOpts): Sim {
   const warm = M.cooling.id === 'warm', max = o.hotMax ?? 40, min = max - 16;
   const T = (h: number) => (max + min) / 2 + (max - min) / 2 * Math.cos(2 * Math.PI * (h - 15) / 24);   // coolest near 3 am, hottest at 3 pm
-  const adiabatic = 35;
+  const adiabatic = WATER.warmAdiabaticC;   // shared with data.js's TEMPS card, so both name the same threshold
   const it = M.meterMW - M.coolMW / 0.99;
   const coolAt = (h: number) => {
     const t = T(h);
@@ -154,7 +200,7 @@ function hotday(M: Model, o: SimOpts): Sim {
     return M.coolMW * clamp(1 + 0.025 * (t - 25), 0.7, 1.6) / 0.99;          // chiller efficiency falls ≈2.5% per °C
   };
   const water = (h: number) => {                                          // m³ per hour
-    const t = T(h), base = M.meterMW * M.wue;                             // MW × L/kWh = m³/h
+    const t = T(h), base = waterM3h(M);                                   // IT MW × L/kWh of IT = m³/h
     if (warm) return t >= adiabatic ? base * (4 + 2 * (t - adiabatic) / 5) : base * 0.4;
     return base * clamp(0.8 + 0.4 * (t - 22) / 18, 0.6, 1.4);
   };
@@ -169,9 +215,9 @@ function hotday(M: Model, o: SimOpts): Sim {
     sample: h => {
       const cool = coolAt(h), meter = it + cool, t = T(h);
       return {
-        t: h, meterMW: meter, values: { meter, temp: t, water: water(h) },
+        t: h, meterMW: meter, siteMW: meter, values: { meter, temp: t, water: water(h) },
         phase: `${Math.round(t)} °C outside · PUE ${(meter / M.IT_MW).toFixed(2)}${warm && t >= adiabatic ? ' · evaporating water' : ''}`,
-        levels: { grid: 1, mv: 1, standby: 0, load: 1, cool: cool / (M.coolMW / 0.99), vapor: clamp(water(h) / (M.meterMW * M.wue * 2), 0.05, 2) },
+        levels: { grid: 1, mv: 1, standby: 0, load: 1, cool: cool / (M.coolMW / 0.99), vapor: clamp(water(h) / waterM3h(M, 2), 0.05, 2) },
         waterM3h: water(h), tokensPerS: 0,
       };
     },
@@ -203,10 +249,10 @@ function inference(M: Model, o: SimOpts, tokPerGpu: number): Sim {
       const u = peakU * d(h), gpu = G * (idle + (1 - idle) * u), meter = M.meterMW - G + gpu;
       const tps = M.gpus * tokPerGpu * u;
       return {
-        t: h, meterMW: meter, values: { meter, demand: d(h) * 100, jtok: meter * 1e6 / tps },
+        t: h, meterMW: meter, siteMW: meter, values: { meter, demand: d(h) * 100, jtok: meter * 1e6 / tps },
         phase: `${Math.round(d(h) * 100)}% of peak demand · ${(meter * 1e6 / tps).toFixed(2)} J per token`,
         levels: { grid: 1, mv: 1, standby: 0, load: 0.3 + u, cool: 0.7 + 0.3 * meter / M.meterMW, vapor: 1 },
-        waterM3h: meter * M.wue, tokensPerS: tps,
+        waterM3h: waterM3h(M, meter / M.meterMW), tokensPerS: tps,   // IT power tracked as the same share of nameplate as the meter
       };
     },
     speed: () => 0.5,
@@ -224,13 +270,21 @@ export const SIMS: { id: SimId; label: string }[] = [
   { id: 'training', label: 'Training step' }, { id: 'outage', label: 'Grid outage' }, { id: 'hotday', label: 'Hot day' }, { id: 'inference', label: 'Inference day' },
 ];
 
-// integrate a sim from 0 to t: energy, water and tokens, for the live counters
+// integrate a sim from 0 to t: energy, water and tokens, for the live counters. A midpoint sample per
+// bin is exact for anything smooth or linear in between, but a bin that straddles a real step (the grid
+// failing, the campus transferring back to it) can badly misrepresent it depending on where its one
+// sample happens to land. So the grid always lands exactly on 0, t and every one of the sim's own event
+// times, and only the interior of each resulting segment is subdivided further.
 export function totals(sim: Sim, t: number, n = 400) {
   const scale = sim.unit === 'h' ? 1 : 1 / 3600;            // simulated units → hours
-  let mwh = 0, water = 0, tokens = 0;
-  for (let i = 0; i < n; i++) {
-    const a = t * i / n, b = t * (i + 1) / n, s = sim.sample((a + b) / 2), dh = (b - a) * scale;
-    mwh += s.meterMW * dh; water += s.waterM3h * dh; tokens += s.tokensPerS * dh * 3600;
+  const bp = [...new Set([0, t, ...sim.events.map(e => e.t).filter(et => et > 0 && et < t)])].sort((a, b) => a - b);
+  let mwh = 0, siteMwh = 0, water = 0, tokens = 0;
+  for (let seg = 0; seg < bp.length - 1; seg++) {
+    const a0 = bp[seg], b0 = bp[seg + 1], segN = Math.max(1, Math.round(n * (b0 - a0) / t));
+    for (let i = 0; i < segN; i++) {
+      const a = a0 + (b0 - a0) * i / segN, b = a0 + (b0 - a0) * (i + 1) / segN, s = sim.sample((a + b) / 2), dh = (b - a) * scale;
+      mwh += s.meterMW * dh; siteMwh += s.siteMW * dh; water += s.waterM3h * dh; tokens += s.tokensPerS * dh * 3600;
+    }
   }
-  return { mwh, water, tokens };
+  return { mwh, siteMwh, water, tokens };
 }

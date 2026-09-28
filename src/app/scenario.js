@@ -1,6 +1,6 @@
 // The scenario bar: campus size, accelerator, power path and cooling, plus a summary strip that compares
 // the current scenario with a pinned one. The scenario also lives in the URL query so a link reproduces it.
-import { ACCELERATORS, POWER, COOLING } from '../model/engine.ts';
+import { ACCELERATORS, POWER, COOLING, waterM3h } from '../model/engine.ts';
 import { store, on, setScenario, pin } from './store.js';
 import { syncRange, tokenFigures, setCarbon } from './sections.js';
 import { SITES, STATUS_WORD } from '../model/sites.ts';
@@ -80,7 +80,7 @@ function kpis(M) {
     ['Reaches GPU silicon', M.gpuSiliconMW / M.meterMW * 100, v => `${v.toFixed(1)}%`, 1],
     ['Tokens per second', t.rate, v => compact(v), 1],
     ['Tokens per kWh', 3.6e6 / t.j, v => compact(v), 1],
-    ['Water per day', M.meterMW * 24 * M.wue, v => compact(v, ' m³'), -1],
+    ['Water per day', waterM3h(M) * 24, v => compact(v, ' m³'), -1],
   ];
 }
 function renderKpis() {

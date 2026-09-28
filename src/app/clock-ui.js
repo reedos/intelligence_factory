@@ -89,19 +89,36 @@ function draw() {
   $('ck-time').textContent = clockTxt(sim, t);
   $('ck-phase').textContent = s.phase;
   const cur = $('ck-cursor'); if (cur) { const xx = spark.x(t); cur.setAttribute('x1', xx); cur.setAttribute('x2', xx); }
-  const rows = [
-    [sim.id === 'outage' ? 'Site draw' : 'At the meter', mwTxt(sim.id === 'outage' ? s.values.grid + s.values.gens + s.values.battery : s.meterMW)],
+  // Off-grid, the utility meter reads zero while the site keeps drawing power from batteries and
+  // generators instead, so "energy so far" needs to say which of those two very different things it means.
+  const rows = sim.id === 'outage' ? [
+    ['Site draw', mwTxt(s.siteMW)],
+    ['Site energy so far', tot.siteMwh >= 10 ? `${n0(tot.siteMwh)} MWh` : `${tot.siteMwh.toFixed(2)} MWh`],
+    ['Utility energy so far', tot.mwh >= 10 ? `${n0(tot.mwh)} MWh` : `${tot.mwh.toFixed(2)} MWh`],
+    ['Water so far', `${tot.water >= 10 ? n0(tot.water) : tot.water.toFixed(1)} m³`],
+    ['Diesel burned', `${n0(dieselL(t))} L`],
+  ] : [
+    ['At the meter', mwTxt(s.meterMW)],
     ['Energy so far', tot.mwh >= 10 ? `${n0(tot.mwh)} MWh` : `${tot.mwh.toFixed(2)} MWh`],
     ['Water so far', `${tot.water >= 10 ? n0(tot.water) : tot.water.toFixed(1)} m³`],
-    sim.id === 'inference' ? ['Tokens so far', big(tot.tokens)] : sim.id === 'outage' ? ['Diesel burned', `${n0(dieselL(t))} L`] : ['CO₂ so far', `${(tot.mwh * carbon() / 1000).toFixed(tot.mwh * carbon() / 1000 >= 10 ? 0 : 2)} t`],
+    sim.id === 'inference' ? ['Tokens so far', big(tot.tokens)] : ['CO₂ so far', `${(tot.mwh * carbon() / 1000).toFixed(tot.mwh * carbon() / 1000 >= 10 ? 0 : 2)} t`],
   ];
   $('ck-counters').innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   setLevels(s.levels);
 }
-// diesel: generator MWh × 260 L/MWh (a 2.5 MW unit at full load burns ≈0.26 L/kWh)
+// diesel: generator MWh × 260 L/MWh (a 2.5 MW unit at full load burns ≈0.26 L/kWh). Same event-boundary
+// integration as totals(): generator output really does drop to zero the instant the campus transfers
+// back to the grid, and a bin straddling that instant would otherwise blend it into a smooth taper.
 function dieselL(tt) {
   let mwh = 0; const n = 200;
-  for (let i = 0; i < n; i++) { const a = tt * i / n, b = tt * (i + 1) / n; mwh += sim.sample((a + b) / 2).values.gens * (b - a) / 3600; }
+  const bp = [...new Set([0, tt, ...sim.events.map(e => e.t).filter(et => et > 0 && et < tt)])].sort((a, b) => a - b);
+  for (let seg = 0; seg < bp.length - 1; seg++) {
+    const a0 = bp[seg], b0 = bp[seg + 1], segN = Math.max(1, Math.round(n * (b0 - a0) / tt));
+    for (let i = 0; i < segN; i++) {
+      const a = a0 + (b0 - a0) * i / segN, b = a0 + (b0 - a0) * (i + 1) / segN;
+      mwh += sim.sample((a + b) / 2).values.gens * (b - a) / 3600;
+    }
+  }
   return mwh * 260;
 }
 function tick(dt) {

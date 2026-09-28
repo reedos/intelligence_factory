@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { compute, ACCELERATORS, POWER, COOLING } from './engine';
-import { makeSim, SIMS, totals } from './clock';
+import { compute, ACCELERATORS, POWER, COOLING, WATER } from './engine';
+import { makeSim, SIMS, totals, trainingStorage } from './clock';
+import { content } from '../data.js';
 
 const run = (s = {}) => compute({ meterMW: 100, accel: 'gb200', power: 'ac415', cooling: 'warm', ...s } as any);
 const grid = (sim: any, n = 600) => Array.from({ length: n + 1 }, (_, i) => sim.sample(sim.duration * i / n));
@@ -33,25 +34,96 @@ describe('training', () => {
     const hz = up / 36;
     expect(hz).toBeGreaterThanOrEqual(0.2); expect(hz).toBeLessThanOrEqual(3);
   });
-  it('GB300 rack storage cuts the swing the grid sees; site batteries flatten it', () => {
+  // Superseded: this used to assert the rack storage flattened a training step to near nothing (an
+  // unconstrained 0.6 s low-pass, no capacity check). Reproducing that would need ~350 J/GPU before a
+  // checkpoint and ~759 J/GPU across one, against NVIDIA's stated 65 J/GPU — audit item 8. The tests
+  // below check the honest, capacity-bounded replacement instead.
+  it('rack and site storage never exceed their declared capacity or power rating, and energy reconciles exactly at every step', () => {
+    for (const accel of ['gb200', 'gb300', 'rubin'] as const) {
+      const M = run({ accel }), ts = trainingStorage(M);
+      for (let i = 0; i < ts.N; i++) {
+        expect(ts.rackSocMJ[i], `rack soc at step ${i}`).toBeGreaterThanOrEqual(-1e-9);
+        expect(ts.rackSocMJ[i], `rack soc at step ${i}`).toBeLessThanOrEqual(ts.rackCapMJ + 1e-9);
+        expect(ts.siteSocMJ[i], `site soc at step ${i}`).toBeGreaterThanOrEqual(-1e-9);
+        expect(ts.siteSocMJ[i], `site soc at step ${i}`).toBeLessThanOrEqual(ts.siteCapMJ + 1e-9);
+      }
+      for (let i = 1; i < ts.N; i++) {
+        const demandMW = ts.g(i * ts.dt) * ts.G;
+        const rackPowerMW = ts.rackMW[i] - demandMW;         // + charging, - discharging
+        expect(Math.abs(rackPowerMW), `rack power at step ${i}`).toBeLessThanOrEqual(ts.rackPowerMW + 1e-6);
+        expect((ts.rackSocMJ[i] - ts.rackSocMJ[i - 1]) / ts.dt, `rack energy conservation at step ${i}`).toBeCloseTo(rackPowerMW, 6);
+        const sitePowerMW = ts.siteMW[i] - ts.rackMW[i];
+        expect(Math.abs(sitePowerMW), `site power at step ${i}`).toBeLessThanOrEqual(ts.sitePowerMW + 1e-6);
+        expect((ts.siteSocMJ[i] - ts.siteSocMJ[i - 1]) / ts.dt, `site energy conservation at step ${i}`).toBeCloseTo(sitePowerMW, 6);
+      }
+    }
+  });
+  it('GB300 rack storage is too small to smooth a sustained step swing (its whole 65 J/GPU drains in well under a second); site batteries narrow the steady cycling but not the checkpoint dip', () => {
     const sim = makeSim(run({ accel: 'gb300' }), 'training'), s = grid(sim, 3000).filter(x => x.t > 3 && x.t < 36);
     const range = (k: string) => Math.max(...s.map(x => x.values[k])) - Math.min(...s.map(x => x.values[k]));
-    expect(range('rack')).toBeLessThan(range('raw') * 0.8);
-    expect(range('site')).toBeLessThan(1e-9);
+    expect(range('rack')).toBeGreaterThan(range('raw') * 0.95);     // 65 J/GPU can't touch a multi-cycle swing
+    expect(range('site')).toBeLessThan(range('raw') * 0.2);         // but the site batteries flatten the steady cycling
+    const full = grid(sim, 6000);
+    const fullRange = (k: string) => Math.max(...full.map(x => x.values[k])) - Math.min(...full.map(x => x.values[k]));
+    expect(fullRange('site')).toBeGreaterThan(range('site') * 2);   // the checkpoint dip needs more than the site batteries' rated power
+  });
+});
+
+describe('one set of temperature assumptions, shared by the cards and the clocks', () => {
+  it('the hot-day adiabatic-assist threshold is the same 35 °C data.js\'s TEMPS card shows for warm-water cooling', () => {
+    const M = run({ cooling: 'warm' });
+    const row = (content(M) as any).TEMPS.find((r: any) => r.label === 'Outdoor air, hot day');
+    expect(row.c).toBe(WATER.warmAdiabaticC);
+    // and the sim itself only starts spraying at or above that same point, not some other number
+    const sim = makeSim(M, 'hotday');
+    expect(sim.sample(sim.events[0].t - 0.5).waterM3h).toBeLessThan(sim.sample(sim.events[0].t + 0.5).waterM3h);
+  });
+  it('the chilled-water-supply figure is the same for liquid cooling everywhere it appears', () => {
+    const M = run({ cooling: 'liquid' });
+    const row = (content(M) as any).TEMPS.find((r: any) => r.label === 'Chilled water supply');
+    expect(row.c).toBe(WATER.liquidSupplyC);
   });
 });
 
 describe('outage', () => {
-  it('batteries carry the load until the generators, which take it within 10 s; no gap in supply', () => {
+  it('batteries carry the load until the generators; no gap in supply, and every source sums to siteMW', () => {
     const M = run(), sim = makeSim(M, 'outage'), fail = sim.events[0].t;
     for (const s of grid(sim, 4000)) {
       const supply = s.values.grid + s.values.battery + s.values.gens;
       expect(supply, `supply at ${s.t}`).toBeGreaterThan(M.meterMW * 0.5);   // cooling sheds, IT never drops
+      expect(supply, `siteMW at ${s.t}`).toBeCloseTo(s.siteMW, 6);
     }
     expect(sim.sample(fail + 5).values.battery).toBeGreaterThan(0);
     expect(sim.sample(fail + 5).values.gens).toBe(0);
     expect(sim.sample(fail + 12).values.gens).toBeGreaterThan(sim.sample(fail + 12).values.battery);
-    expect(sim.events.find(e => e.label.startsWith('Generators'))!.t - fail).toBeLessThanOrEqual(10);
+  });
+
+  it('NFPA 110 Type 10: the emergency system assumes its full rated load within 10 s of the failure, and not a moment sooner either', () => {
+    const sim = makeSim(run(), 'outage'), fail = sim.events[0].t;
+    const full = sim.sample(fail + 10);
+    expect(full.values.battery).toBeCloseTo(0, 6);            // no more battery or bridge contribution
+    expect(full.values.gens).toBeCloseTo(full.siteMW, 6);     // generators alone carry the whole load
+    expect(sim.sample(fail + 9.99).values.gens).toBeLessThan(full.values.gens);   // still ramping a moment before
+  });
+
+  it('the utility meter reads zero while islanded, but the site keeps drawing power the whole time', () => {
+    const sim = makeSim(run(), 'outage'), fail = sim.events[0].t;
+    const retransfer = sim.events.find(e => e.label === 'Back on the grid')!.t;
+    const mid = (fail + retransfer) / 2;
+    expect(sim.sample(mid).meterMW).toBe(0);
+    expect(sim.sample(mid).siteMW).toBeGreaterThan(0);
+  });
+
+  it('energy totals separate utility-only from site-wide draw, and integrate exactly across the grid-loss instant', () => {
+    const M = run(), sim = makeSim(M, 'outage'), fail = sim.events[0].t, t = 900;
+    const tot = totals(sim, t, 120);   // the coarse resolution the live UI actually uses
+    // The grid supplied the full load for exactly the first `fail` seconds, then nothing until it returns
+    expect(tot.mwh).toBeCloseTo(M.meterMW * fail / 3600, 6);
+    // Independent fine-grained reference for the site-wide total, bypassing totals()'s own breakpoint logic
+    let refMwh = 0; const N = 20000;
+    for (let i = 0; i < N; i++) { const a = t * i / N, b = t * (i + 1) / N; refMwh += sim.sample((a + b) / 2).siteMW * (b - a) / 3600; }
+    expect(tot.siteMwh).toBeCloseTo(refMwh, 1);
+    expect(tot.siteMwh).toBeGreaterThan(tot.mwh * 5);   // the site never stopped drawing power; the utility mostly did
   });
 });
 
