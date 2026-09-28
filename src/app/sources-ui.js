@@ -1,51 +1,59 @@
-// Source popovers. A basis chip with data-src opens a small panel: what the label means, how an estimate was
-// made when we know, and the sources behind the card or ledger row. Keys:
-//   '<layer>:<sceneId>:<partId>'  a 3D card        'ledger:<row>'  a ledger row        'bom:<group>-<row>'  an inventory row
-import { SOURCES, PART_SOURCES, LEDGER_SOURCES, EST_NOTES } from '../sources.js';
-import { BASIS } from '../data.js';
+// Source popovers. A basis chip with data-src names one claim (src/claims.js); its popover says what the label means
+// and what backs that one figure: each source with where in it the figure is, when it was published and when it was
+// checked; or how the model calculates it; or what the model assumes and why. Claims not yet traced one by one fall
+// back to the sources listed for their whole card, and say so.
+import { SOURCES, PART_SOURCES, LEDGER_SOURCES } from '../sources.js';
+import { BASIS, CALCS, ASSUMPTIONS } from '../evidence.js';
+import { claimByKey } from '../claims.js';
 import { store } from './store.js';
-import { SITES } from '../model/sites.ts';
 
-const MEANING = {
-  spec: 'A vendor or a standards body states this figure.',
-  typical: 'Several independent sources agree on it; no single official figure exists.',
-  est: 'Derived on this page, or the sources disagree. Treat it as a scale, not a spec.',
-};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const pop = document.createElement('div');
 pop.className = 'src-pop'; pop.id = 'src-pop'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'Sources'); pop.hidden = true;
 document.body.appendChild(pop);
 let opener = null;
 
-const partKey = link => `${link.mode}:${store.C.SCENES[link.scene].id}:${link.part}`;
-function resolve(key) {
-  if (key.startsWith('ledger:')) {
-    const row = store.M.ledger[+key.slice(7)];
-    const hit = row && LEDGER_SOURCES.find(([p]) => row.label.startsWith(p));
-    return { title: row?.label, ids: hit ? hit[1] : [], note: row?.link ? EST_NOTES[partKey(row.link)] : null };
+// the method page, keeping the reader's scenario
+const methodLink = (hash, text) => `<a href="method.html${location.search}#${hash}">${text}</a>`;
+const dated = s => [s.published && `published ${esc(s.published)}`, s.accessed && `checked ${esc(s.accessed)}`].filter(Boolean).join(' · ');
+const refItem = ([id, at]) => {
+  const s = SOURCES[id]; if (!s) return '';
+  return `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}</a><span>${esc(s.publisher)}${at ? ` · ${esc(at)}` : ''}</span>${dated(s) ? `<span class="sp-d">${dated(s)}</span>` : ''}</li>`;
+};
+
+// the sources a card or ledger row listed as a whole, before its figures were traced one by one
+function legacyIds(key) {
+  if (key.startsWith('card:')) { const [, mode, scene, part] = key.split(':'); return PART_SOURCES[`${mode}:${scene}:${part}`] || []; }
+  if (key.startsWith('ledger:')) { const r = store.M.ledger[+key.slice(7)]; return (r && LEDGER_SOURCES.find(([p]) => r.label.startsWith(p))?.[1]) || []; }
+  if (key.startsWith('links:')) return PART_SOURCES[key] || [];
+  if (key.startsWith('site:')) { const s = claimByKey(store.M, store.C, key)?.site; return s?.sources || []; }
+  return [];
+}
+
+function body(key) {
+  const c = claimByKey(store.M, store.C, key);
+  const basis = c?.basis && BASIS[c.basis] ? c.basis : 'est', b = BASIS[basis], ev = c?.ev;
+  const head = `<div class="sp-head"><span class="chip ${basis}">${b.short}</span><b>${b.label}</b><button type="button" class="sp-x" aria-label="Close">×</button></div>
+    ${c ? `<p class="sp-claim">${esc(c.label)}${c.value ? `: <b>${esc(c.value)}</b>` : ''}</p>` : ''}<p class="sp-mean">${b.meaning}</p>`;
+  if (ev) {
+    let html = head;
+    if (ev.vs) html += `<p class="sp-note">Compared with: ${esc(ev.vs)}</p>`;
+    if (ev.calc && CALCS[ev.calc]) html += `<p class="sp-k">How it is calculated</p><p class="sp-note">${esc(CALCS[ev.calc].how)} ${methodLink(`calc-${ev.calc}`, 'Method')}</p>`;
+    if (ev.assume && ASSUMPTIONS[ev.assume]) { const a = ASSUMPTIONS[ev.assume]; html += `<p class="sp-k">What the model assumes</p><p class="sp-note">${esc(a.title)}: ${esc(a.value)}. ${esc(a.why)} ${methodLink(`assume-${ev.assume}`, 'Method')}</p>`; }
+    if (ev.refs?.length) html += `<p class="sp-k">${ev.calc ? 'Its published inputs' : 'Sources for this figure'}</p><ul>${ev.refs.map(refItem).join('')}</ul>`;
+    return html;
   }
-  if (key.startsWith('bom:')) {
-    const [g, r] = key.slice(4).split('-').map(Number), row = store.C.BOM[g]?.rows[r];
-    const k = row?.[3] ? partKey(row[3]) : null;
-    return { title: row?.[0], ids: (k && PART_SOURCES[k]) || [], note: 'Counts are this page’s estimates, sized from the scenario; the sources are for the part itself.' };
-  }
-  const site = store.M.scenario.site && SITES[store.M.scenario.site];
-  if (key === 'power:across:home' && site) return { title: site.name, ids: site.sources, note: site.unknowns.join(' ') };
-  return { title: null, ids: PART_SOURCES[key] || [], note: EST_NOTES[key] };
+  const ids = legacyIds(key).filter(id => SOURCES[id]);
+  return head + (ids.length
+    ? `<p class="sp-k">Sources for this ${key.startsWith('card:') ? 'card' : 'row'}, not yet matched to this figure</p><ul>${ids.map(id => refItem([id, ''])).join('')}</ul>`
+    : '<p class="sp-k">Not yet traced to a source, a calculation or an assumption.</p>');
 }
 
 function open(chip) {
-  const basis = [...chip.classList].find(c => BASIS[c]) || 'est';
-  const { title, ids, note } = resolve(chip.dataset.src);
-  const list = ids.map(id => SOURCES[id]).filter(Boolean);
-  pop.innerHTML = `
-    <div class="sp-head"><span class="chip ${basis}">${BASIS[basis].short}</span><b>${BASIS[basis].label}</b><button type="button" class="sp-x" aria-label="Close">×</button></div>
-    <p class="sp-mean">${MEANING[basis]}</p>
-    ${note && basis !== 'spec' ? `<p class="sp-note">${note}</p>` : ''}
-    ${list.length ? `<p class="sp-k">${title ? `Sources for ${title.replace(/</g, '&lt;')}` : 'Sources for this card'}</p><ul>${list.map(s => `<li><a href="${s.url}" target="_blank" rel="noopener">${s.title}</a><span>${s.publisher}</span></li>`).join('')}</ul>`
-      : '<p class="sp-k">No published source backs this one directly; it is this page’s estimate.</p>'}`;
+  pop.innerHTML = body(chip.dataset.src);
   pop.hidden = false;
   // place under the chip, kept on screen
-  const r = chip.getBoundingClientRect(), w = Math.min(360, innerWidth - 24);
+  const r = chip.getBoundingClientRect(), w = Math.min(380, innerWidth - 24);
   pop.style.width = `${w}px`;
   const left = Math.max(12, Math.min(innerWidth - w - 12, r.left + r.width / 2 - w / 2));
   const below = r.bottom + 8, h = pop.offsetHeight;
