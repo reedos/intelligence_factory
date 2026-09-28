@@ -184,15 +184,18 @@ function nextSteps() {
 // a tour's length for the picker: steps, and about how long they take to read through at 1x (dwell, unsped)
 function tourLen(id) {
   const beats = TOURS[id].beats(store.M), ms = beats.reduce((a, b) => a + dwell(b), 0);
-  const own = `${beats.length} step${beats.length === 1 ? '' : 's'} · ≈${fmtMs(ms)}`;
-  if (TOURS[id].group !== 'Every part') return own;
-  // finding 10: Power hands over into Heat then Data, and Heat into Data, once played through - the tab has to
-  // disclose that full scope and its full time before the reader presses play, not just its own slice of it
-  const chain = CHAIN['Every part'], k = chain.indexOf(id), after = chain.slice(k + 1);
-  if (!after.length) return own;
+  return `${beats.length} step${beats.length === 1 ? '' : 's'} · ≈${fmtMs(ms)}`;
+}
+// finding 10: Power hands over into Heat then Data, and Heat into Data, once played through. The tour says so before
+// play, in the note under the picker, with the time of the whole run; a tab only gives its own length, so five of
+// them fit a desktop panel. "This level" and "All" are not in the chain and play on into nothing.
+function chainTxt(id) {
+  const chain = CHAIN[TOURS[id].group] || [], k = chain.indexOf(id);
+  if (TOURS[id].group !== 'Every part' || k < 0 || k === chain.length - 1) return '';
+  const after = chain.slice(k + 1);
   const allMs = chain.slice(k).reduce((a, tid) => a + TOURS[tid].beats(store.M).reduce((a2, b) => a2 + dwell(b), 0), 0);
   const names = after.length > 1 ? `${after.slice(0, -1).map(t => TOURS[t].short).join(', ')} and ${TOURS[after.at(-1)].short}` : TOURS[after[0]].short;
-  return `${own}, then ${names} (≈${fmtMs(allMs)} in all)`;
+  return `When it ends, it plays on into ${names}: ≈${fmtMs(allMs)} in all.`;
 }
 // finding 14: level/layer chapters a reader can jump straight to, each a [beat index, label] pair for one of
 // that tour's level-overview beats (the only beats with .level set)
@@ -217,7 +220,7 @@ function figureHTML(b) {
 }
 function render() {
   list = TOURS[tour].beats(store.M);
-  const tabRow = g => `<div class="tour-tabs" role="tablist" aria-label="${g}">${Object.entries(TOURS).filter(([, t]) => t.group === g).map(([id, t]) => `<button type="button" role="tab" data-tour="${id}" aria-selected="${id === tour}">${t.short}<small>${tourLen(id)}</small></button>`).join('')}</div>`;
+  const tabRow = g => `<div class="tour-tabs" role="tablist" aria-label="${g}">${Object.entries(TOURS).filter(([, t]) => t.group === g).map(([id, t]) => `<button type="button" role="tab" data-tour="${id}" aria-selected="${id === tour}"${chainTxt(id) ? ` title="${chainTxt(id)}"` : ''}>${t.short}<small>${tourLen(id)}</small></button>`).join('')}</div>`;
   // "Every part" is the exhaustive, card-by-card option: a disclosure keeps it from competing with the four
   // narrated tours, open by default only while one of its own tours is the one showing
   const everyPart = `<details class="tour-more"${TOURS[tour].group === 'Every part' ? ' open' : ''}><summary>Every part, in order</summary>${tabRow('Every part')}</details>`;
@@ -233,7 +236,7 @@ function render() {
     + `<button type="button" class="btn icon" id="story-exit" aria-label="Leave the tour">×</button></div>`
     + `<div class="tour-pick"><div class="tour-group"><span class="tour-g">Tours</span>${tabRow('Tours')}</div>${everyPart}</div>`
     + `<div class="tally" id="tally" aria-live="polite"${list.some(b => b.tally) && !perLevel() ? '' : ' hidden'}><span class="eyebrow">${TOURS[tour].label}</span><b id="tally-v"></b></div>`
-    + `${TOUR_NOTES[tour] ? `<p class="tour-note">${TOUR_NOTES[tour]}</p>` : ''}`
+    + `${TOUR_NOTES[tour] || chainTxt(tour) ? `<p class="tour-note">${[TOUR_NOTES[tour], chainTxt(tour)].filter(Boolean).join(' ')}</p>` : ''}`
     + `${chapterPicker}</div>`
     + list.map((b, i) => {
       // the last step of a level playthrough already offers the next level; a second button to the same place is noise

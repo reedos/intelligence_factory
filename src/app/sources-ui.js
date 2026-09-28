@@ -36,16 +36,19 @@ function body(key) {
   return head + '<p class="sp-k">Not traced to a source, a calculation or an assumption.</p>';
 }
 
-function open(chip) {
-  pop.innerHTML = body(chip.dataset.src);
-  pop.hidden = false;
-  // place under the chip, kept on screen
+// under the chip, or above it when there is no room below, kept on screen
+function place(chip) {
   const r = chip.getBoundingClientRect(), w = Math.min(380, innerWidth - 24);
   pop.style.width = `${w}px`;
   const left = Math.max(12, Math.min(innerWidth - w - 12, r.left + r.width / 2 - w / 2));
   const below = r.bottom + 8, h = pop.offsetHeight;
   pop.style.left = `${left}px`;
   pop.style.top = `${below + h > innerHeight - 12 && r.top - h - 8 > 12 ? r.top - h - 8 : below}px`;
+}
+function open(chip) {
+  pop.innerHTML = body(chip.dataset.src);
+  pop.hidden = false;
+  place(chip);
   opener = chip; chip.setAttribute('aria-expanded', 'true');
   pop.querySelector('.sp-x').addEventListener('click', close);
   pop.querySelector('a, .sp-x')?.focus({ preventScroll: true });
@@ -63,6 +66,13 @@ document.addEventListener('click', e => {
   if (!pop.contains(e.target)) close();
 }, true);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
-addEventListener('scroll', close, { passive: true });
+// a scroll moves the popover with its chip, whether the reader scrolled or a tour step scrolled the column on its own;
+// it closes only once the chip is off screen or gone
+function follow() {
+  if (pop.hidden || !opener) return;
+  const r = opener.getBoundingClientRect();
+  if (!opener.isConnected || !r.width || r.bottom < 0 || r.top > innerHeight) close(); else place(opener);
+}
+addEventListener('scroll', follow, { passive: true });
 addEventListener('resize', close);
-document.getElementById('parts')?.closest('.panel-scroll')?.addEventListener('scroll', close, { passive: true });
+document.getElementById('parts')?.closest('.panel-scroll')?.addEventListener('scroll', follow, { passive: true });
