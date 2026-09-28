@@ -94,8 +94,11 @@ addEventListener('scroll', () => closePaceMenu(), { passive: true });   // the p
 // playing on carries through the tours, or through the layers, in CHAIN order; never from one group to the other
 const nextTour = id => { const g = CHAIN[TOURS[id].group] || [], k = g.indexOf(id); return k < 0 ? null : g[k + 1] ?? null; };
 const prevTour = id => { const g = CHAIN[TOURS[id].group] || [], k = g.indexOf(id); return k > 0 ? g[k - 1] : null; };
+// the overview's own next tour, for auto-play (onTick) and for stepping past its last beat (beyond, below): both
+// have to agree that there isn't one, since it offers three siblings instead - never pick one of them for the reader
+const chainNext = id => id === 'story' ? null : nextTour(id);
 // past the last step: the next level of a level playthrough, or the next tour in its group
-const beyond = () => tour === 'here' ? (here.scene < store.C.SCENES.length - 1 ? { level: here.scene + 1 } : null) : (nextTour(tour) ? { tour: nextTour(tour) } : null);
+const beyond = () => tour === 'here' ? (here.scene < store.C.SCENES.length - 1 ? { level: here.scene + 1 } : null) : (chainNext(tour) ? { tour: chainNext(tour) } : null);
 const before = () => tour === 'here' ? (here.scene > 0 ? { level: here.scene - 1 } : null) : (prevTour(tour) ? { tour: prevTour(tour) } : null);
 function crossTo(t, at) {
   if (!t) return false;
@@ -326,7 +329,7 @@ onTick(dt => {
   else {
     // the overview promises "all six levels, once": it stops here and offers every follow-up tour as its own
     // choice (nextSteps, below) instead of picking one and playing on into it; every-part tours still hand over
-    const next = tour === 'story' ? null : nextTour(tour);
+    const next = chainNext(tour);
     if (next) switchTour(next);
     else setPlaying(false);                                // the last step offers what comes next
   }
