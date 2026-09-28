@@ -389,7 +389,7 @@ export function content(M) {
       body: 'Copper plates with fine internal fins sit on each GPU and CPU. Coolant enters cool, picks up over a kilowatt per GPU, and leaves warm.',
       specs: [['Heat per GPU', `≈${(A.gpuW / 1000).toFixed(1)} kW`, A.basis]] },
     { id: 'nic', title: 'NICs, DPU and SSDs', kicker: 'The front of the tray',
-      body: '${X.nic} cards carry scale-out traffic to the spine, a BlueField DPU handles storage and security, and E1.S drives hold local data.',
+      body: `${X.nic} cards carry scale-out traffic to the spine, a BlueField DPU handles storage and security, and E1.S drives hold local data.`,
       specs: [['Scale-out', `${nicTxt} per GPU`, X.mBasis]] },
     { id: 'nvconn', title: 'NVLink connectors', kicker: 'To the spine',
       body: 'High-density connectors at the rear mate with the copper spine when the tray is pushed home.',
