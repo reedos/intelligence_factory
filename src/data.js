@@ -543,24 +543,82 @@ export function content(M) {
       body: 'Eight 400 Gb/s network cards carry scale-out traffic, grouped two to a twin-port optical cage at the back.',
       specs: [['Scale-out', '400 Gb/s per GPU', 'spec', { refs: [ref('nvidia-dgxh100-user-guide', 'Component Descriptions: "4 x OSFP ports for 8 x NVIDIA ConnectX-7 Single Port" cards, "Up to 400Gbps"')] }]] },
   ];
+  // ---------- level 6 evidence: the GPU package, one basis + citation per accelerator per fact ----------
+  // NVIDIA confirms some of these facts identically across generations (die-to-die bandwidth, packaging family);
+  // others it has stated only for some chips, or not yet for Rubin (pre-launch). See research/product-portfolio.md
+  // and the fetches behind this commit for the exact quotes each ref location paraphrases.
+  const EV6 = {
+    h100: {
+      pack: { basis: 'reported', ev: { refs: [['tomshardware-cowos-l-blackwell', 'body text, quoting NVIDIA CEO Jensen Huang: "We will also transition the CoWoS-S capacity to CoWoS-L" — said of Hopper, which "will use CoWoS-S"']] } },
+      process: { basis: 'spec', ev: { refs: [['nvidia-hopper-architecture-indepth', 'body text: "TSMC 4N process customized for NVIDIA"']] } },
+      transistors: { basis: 'spec', ev: { refs: [['nvidia-hopper-architecture-indepth', 'body text: "80 billion transistors"']] } },
+      dieRow: { basis: 'spec', ev: { refs: [['nvidia-hopper-architecture-indepth', 'body text: "a die size of 814 mm2"; also in the A100/H100 comparison table, "GPU Die Size ... 814mm2"']] } },
+      fluxDie: { basis: 'spec', ev: { refs: [['nvidia-hopper-architecture-indepth', 'body text: "a die size of 814 mm2" (= 8.14 cm²)']] } },
+      layers: { basis: 'reported', ev: { refs: [['tomshardware-hynix-hbm3-h100', 'body text: "each stack packs eight 2GB DRAM devices for a total of 16GB per package... the company kicks off production with 8-Hi stacks", shipping "for its H100 compute GPUs"']] } },
+      hbm: { basis: 'spec', ev: { refs: [['nvidia-h100-product-page', 'specifications table: "GPU Memory 80GB", "GPU Memory Bandwidth 3.35TB/s" (SXM5 column)']] } },
+      nvlink: { basis: 'spec', ev: { refs: [['nvidia-hopper-architecture-indepth', 'body text: "900 GB/sec total bandwidth... 18 fourth-generation NVLink links at 25 GB/sec each"'], ['nvidia-h100-product-page', 'specifications table: NVLink 900GB/s']] } },
+      pkgPower: { basis: 'spec', ev: { refs: [['nvidia-hopper-architecture-indepth', 'body text: SXM5 "700 Watts"'], ['nvidia-h100-product-page', 'specifications table: "Up to 700W (configurable)"']] } },
+    },
+    gb200: {
+      pack: { basis: 'reported', ev: { refs: [['tomshardware-cowos-l-blackwell', 'headline and body: NVIDIA "shifts to CoWoS-L packaging for Blackwell GPU production"']] } },
+      process: { basis: 'spec', ev: { refs: [['nvidianews-blackwell-platform-arrival', 'body text: "manufactured using a custom-built 4NP TSMC process"']] } },
+      transistors: { basis: 'spec', ev: { refs: [['nvidianews-blackwell-platform-arrival', 'body text: "Packed with 208 billion transistors"']] } },
+      dieRow: { basis: 'spec', ev: { refs: [['nvidianews-blackwell-platform-arrival', 'body text: "a 10 TB/second chip-to-chip link" joining the two reticle-limit dies']] } },
+      fluxDie: { basis: 'reported', ev: { refs: [['wccftech-nv-hbi', 'body text: "AI Superchip - 208 Billion Transistors (TSMC 4NP, >1600mm2)"']] } },
+      layers: { basis: 'spec', ev: { refs: [['micron-hbm3e-brief', 'specifications table: "8H, 12H HBM3E" at "24GB, 36GB"']] } },
+      hbm: { basis: 'spec', ev: { refs: [['nvidia-gb200-nvl72', 'specifications: "372 GB" HBM3e and "16 TB/s" per Grace Blackwell Superchip (2 GPUs)'], ['micron-hbm3e-brief', 'specifications table: 24 GB at 8-Hi, >1.2 TB/s per stack']] } },
+      nvlink: { basis: 'spec', ev: { refs: [['nvidia-gb200-nvl72', 'product page: "1.8 TB/s of GPU-to-GPU interconnect", fifth-generation NVLink'], ['nvidianews-blackwell-platform-arrival', 'body text: "1.8TB/s bidirectional throughput per GPU"']] } },
+      pkgPower: { basis: 'reported', ev: { refs: [['semianalysis-gb200-nvl72-specs', 'the chip’s specifications table: "1,200 W" per GPU']] } },
+    },
+    gb300: {
+      pack: { basis: 'reported', ev: { refs: [['tomshardware-cowos-l-blackwell', 'headline and body: NVIDIA "shifts to CoWoS-L packaging for Blackwell GPU production" (Blackwell Ultra shares the platform)']] } },
+      process: { basis: 'spec', ev: { refs: [['nvidia-blackwell-ultra-blog', 'body text: "manufactured using TSMC 4NP"']] } },
+      transistors: { basis: 'spec', ev: { refs: [['nvidia-blackwell-ultra-blog', 'body text: "208B transistors–2.6x more than the NVIDIA Hopper GPU"']] } },
+      dieRow: { basis: 'spec', ev: { refs: [['nvidianews-blackwell-platform-arrival', 'body text: "a 10 TB/second chip-to-chip link"; Blackwell Ultra keeps the same die-to-die interconnect']] } },
+      fluxDie: { basis: 'reported', ev: { refs: [['wccftech-nv-hbi', 'body text: ">1600mm2" for the same 208B-transistor die pair Blackwell Ultra also reports']] } },
+      layers: { basis: 'spec', ev: { refs: [['micron-hbm3e-brief', 'specifications table: "8H, 12H HBM3E" at "24GB, 36GB"']] } },
+      hbm: { basis: 'spec', ev: { refs: [['nvidia-blackwell-ultra-blog', 'body text: "288 GB of HBM3e per GPU" and "8 TB/s per GPU"'], ['micron-hbm3e-brief', 'specifications table: 36 GB at 12-Hi']] } },
+      nvlink: { basis: 'spec', ev: { refs: [['nvidia-blackwell-ultra-blog', 'body text: "1.8 TB/s bidirectional (18 links x 100 GB/s)"']] } },
+      pkgPower: { basis: 'spec', ev: { refs: [['nvidia-blackwell-ultra-blog', 'body text: per-GPU TDP "Up to 1,400W"']] } },
+    },
+    rubin: {
+      pack: { basis: 'assumed', ev: { assume: 'rubin-packaging' } },
+      process: { basis: 'reported', ev: { refs: [['wccftech-rubin-gpu-architecture', 'body text: "TSMC’s 3nm (N3P) process node"']] } },
+      transistors: { basis: 'spec', ev: { refs: [['nvidia-rubin-gpu-architecture-blog', 'body text: "336 billion transistors"']] } },
+      dieRow: { basis: 'assumed', ev: { assume: 'rubin-nvhbi-bandwidth' } },
+      fluxDie: { basis: 'assumed', ev: { assume: 'rubin-die-area' } },
+      layers: { basis: 'reported', ev: { refs: [['wccftech-rubin-gpu-architecture', 'body text: "288 GB of capacity across eight 12-Hi stacks"']] } },
+      hbm: { basis: 'spec', ev: { refs: [['nvidia-rubin-gpu-architecture-blog', 'body text: "up to 288 GB of HBM4 memory" and "up to 22 TB/s of peak bandwidth"'], ['wccftech-rubin-gpu-architecture', 'body text: "peak bandwidth of 22 TB/s"']] } },
+      nvlink: { basis: 'spec', ev: { refs: [['nvidia-rubin-gpu-architecture-blog', 'body text: "3,600 GB/s of scale-up bandwidth for all-to-all GPU communication"'], ['nvidia-rubin-platform', 'body text: "Each GPU offers 3.6TB/s of bandwidth" and the NVL72 rack total "260TB/s" (72 × 3.6 TB/s)']] } },
+      pkgPower: { basis: 'assumed', ev: { assume: 'rubin-package-power' } },
+    },
+  }[A.id];
+
   PARTS.chip = [
     { id: 'balls', title: 'Solder balls & substrate', kicker: 'A thousand-plus amps comes up here',
       body: 'Thousands of solder balls carry power and signals from the board into a many-layer organic substrate. Most of the balls are power and ground: at 0.8 V it takes many parallel paths to carry a thousand amps.',
-      specs: [['Core voltage', '≈0.7–0.9 V', 'typical'], ['Core current, P ÷ V', `≈${n0(coreA)} A over several rails`, 'est']] },
+      specs: [['Core voltage', '≈0.7–0.9 V', 'assumed', { assume: 'core-voltage' }], ['Core current, P ÷ V', `≈${n0(coreA)} A over several rails`, 'derived', { calc: 'core-current' }]] },
     { id: 'interposer', title: 'Interposer', kicker: X.packaging.replace('TSMC ', ''),
       body: 'A silicon layer wires the dies and memory together with lines far finer than any circuit board can carry.',
-      specs: [['Packaging', X.packaging, X.pBasis]] },
+      specs: [['Packaging', X.packaging, EV6.pack.basis, EV6.pack.ev]] },
     { id: 'dies', title: A.dies > 1 ? 'Two GPU dies' : 'One GPU die', kicker: `${X.transistors.replace(', as announced', '')} transistors`,
       body: A.dies > 1
         ? 'Two reticle-limit dies act as one GPU, joined by a 10 TB/s die-to-die link. Nearly every watt that reaches them becomes heat within a few nanoseconds of doing arithmetic.'
         : 'One reticle-limit die, about as large as a chip can be made in one exposure. Nearly every watt that reaches it becomes heat within a few nanoseconds of doing arithmetic.',
-      specs: [['Transistors', X.transistors, X.tBasis], ...(A.dies > 1 ? [['Die-to-die link', '10 TB/s NV-HBI', 'spec']] : [['Die area', '814 mm²', 'spec']]), ['Process', X.process, X.pBasis]] },
+      specs: [['Transistors', X.transistors, EV6.transistors.basis, EV6.transistors.ev],
+        ...(A.dies > 1 ? [['Die-to-die link', '10 TB/s NV-HBI', EV6.dieRow.basis, EV6.dieRow.ev]] : [['Die area', '814 mm²', EV6.dieRow.basis, EV6.dieRow.ev]]),
+        ['Process', X.process, EV6.process.basis, EV6.process.ev]] },
     { id: 'hbm', title: `${A.hbm.type} stacks`, kicker: `${stacksTxt}, ${A.hbm.gb} GB`,
       body: `Each stack, from suppliers such as SK hynix, Micron and Samsung, is ${A.hbm.layers} DRAM dies thinned and stacked with through-silicon vias. Moving model weights out of HBM for every token is a large share of inference energy.`,
-      specs: [['Capacity', `${A.hbm.gb} GB${A.id === 'gb200' ? ' (NVIDIA rack total implies ≈186 GB)' : ''}`, X.mBasis], ['Bandwidth', hbmTB, X.mBasis], ['Layers per stack', `${A.hbm.layers}`, A.id === 'rubin' ? 'est' : 'typical'], ['Share of GPU power', '≈8–15%', 'est']] },
+      specs: [['Capacity', `${A.hbm.gb} GB${A.id === 'gb200' ? ' (NVIDIA rack total implies ≈186 GB)' : ''}`, EV6.hbm.basis, EV6.hbm.ev], ['Bandwidth', hbmTB, EV6.hbm.basis, EV6.hbm.ev],
+        ['Layers per stack', `${A.hbm.layers}`, EV6.layers.basis, EV6.layers.ev], ['Share of GPU power', '≈8–15%', 'assumed', { assume: 'hbm-power-share' }]] },
     { id: 'tokens', title: 'Tokens', kicker: 'What leaves',
       body: 'Every token a model writes is a pass through billions of weights. Run the numbers below to see how many a kilowatt-hour buys.',
-      specs: [['Google, median Gemini text prompt', '0.24 Wh, all-in', 'spec'], ['LLaMA-65B on A100, 2023', '≈3–4 J per token', 'spec'], ['GB200 vs H200', '≈8–10× tokens per MW', 'typical']] },
+      specs: [
+        ['Google, median Gemini text prompt', '0.24 Wh, all-in', 'spec', { refs: [['google-inference-impact', 'body text: "the median Gemini Apps text prompt uses 0.24 watt-hours (Wh) of energy"']] }],
+        ['LLaMA-65B on V100, 2023', '≈3–4 J per token', 'spec', { refs: [['samsi-words-to-watts', 'Section IV.C: "with length 512, we see that it takes about 3-4 Joules for a output token" — Figs. 6-7\'s 8/16/32-shard x-axis is the paper\'s V100 config (Table II: 65B needs 8 V100s but only 4 A100s)']] }],
+        ['GB200 vs H200', '≈8× tokens per MW', 'reported', { refs: [['semianalysis-inferencex-inferencemax', 'body text: "single node H200 FP8 vs a GB200 NVL72 FP4 (without Multi Token Prediction)... ~8x improvement in token/s processed per all-in provisioned MW" (DeepSeek R1)']] }],
+      ] },
   ];
 
   // ---------- bill of materials. The 4th element is the part each row counts, the 5th (bomEv) its evidence ----------
@@ -804,19 +862,19 @@ export function content(M) {
     chip: [
       { id: 'hbm', title: A.hbm.type, kicker: `${hbmTB}, millimeters away`,
         body: 'The fastest link in the building is the shortest: thousands of wires through the interposer between each HBM stack and the dies.',
-        specs: [['Bandwidth', hbmTB, X.mBasis]] },
+        specs: [['Bandwidth', hbmTB, EV6.hbm.basis, EV6.hbm.ev]] },
       ...(A.dies > 1 ? [{ id: 'hbi', title: 'NV-HBI', kicker: '10 TB/s die to die',
         body: 'The two dies join across their seam fast enough that software sees one GPU.',
-        specs: [['Bandwidth', '10 TB/s', 'spec']] }] : []),
+        specs: [['Bandwidth', '10 TB/s', EV6.dieRow.basis, EV6.dieRow.ev]] }] : []),
       { id: 'nvphy', title: 'NVLink SerDes', kicker: `${A.nvlink.gen} leaves here`,
         body: `Serializer circuits along the die edge push NVLink out through the package, ${nvlTB} per GPU.`,
-        specs: [['Per GPU', nvlTB, A.basis]] },
+        specs: [['Per GPU', nvlTB, EV6.nvlink.basis, EV6.nvlink.ev]] },
       { id: 'cpo', title: 'Light on the package', kicker: 'What comes next',
         body: 'Today the GPU speaks copper and a module turns it into light. Switches already carry optical engines on the package; bringing them to the GPU would let scale-up reach beyond one rack.',
-        specs: [[A.short, 'electrical I/O only', A.id === 'rubin' ? 'est' : 'spec']] },
+        specs: [[A.short, 'electrical I/O only', 'reported', { refs: [['nvidia-dgx-gb200-user-guide', 'hardware overview: "connected by NVLink through the NVLink passive copper cable cartridge backplane"']] }]] },
       { id: 'tokens', title: 'Tokens', kicker: 'What leaves',
         body: 'After all those links, the output is small: a few bytes per token, sent back out the front-end network to whoever asked.',
-        specs: [['Per token of text', 'a few bytes', 'est']] },
+        specs: [['Per token of text', 'a few bytes', 'assumed', { assume: 'token-byte-size' }]] },
     ],
   };
 
@@ -936,16 +994,19 @@ export function content(M) {
     chip: [
       { id: 'junction', title: A.dies > 1 ? 'The dies' : 'The die', kicker: 'Hottest point in the building',
         body: 'Transistors switching billions of times a second turn nearly every watt into heat right at the surface of the silicon.',
-        specs: [['Package power', `≈${n0(A.gpuW)} W`, A.basis], ['Throttle point', 'near ≈85 °C; NVIDIA publishes none', 'est']] },
+        specs: [['Package power', `≈${n0(A.gpuW)} W`, EV6.pkgPower.basis, EV6.pkgPower.ev], ['Throttle point', 'near ≈85 °C; NVIDIA publishes none', 'assumed', { assume: 'throttle-point' }]] },
       { id: 'flux', title: 'Heat flux', kicker: 'Like a stovetop, but denser',
         body: `About ${n0(A.gpuW * (1 - A.hbmShare))} W through ${A.dies > 1 ? 'two reticle-size dies' : 'one reticle-size die'} averages about ${flux} watts per square centimeter, several times a stove burner. Hot spots on the die run far higher, and those set the ${nvl ? 'cold plate' : 'heat sink'} design.`,
-        specs: [[A.dies > 1 ? 'Die area, two dies' : 'Die area', `≈${X.dieCm2} cm²`, A.id === 'h100' ? 'spec' : 'typical'], ['Average flux', `≈${flux} W/cm²`, 'est'], ['Hot spots, cooling trade press', '500+ W/cm²', 'typical']] },
+        specs: [[A.dies > 1 ? 'Die area, two dies' : 'Die area', `≈${X.dieCm2} cm²`, EV6.fluxDie.basis, EV6.fluxDie.ev], ['Average flux', `≈${flux} W/cm²`, 'derived', { calc: 'heat-flux' }], ['Hot spots, cooling trade press', '500+ W/cm²', 'reported', { refs: [['alliance-chemical-gpu-thermal', 'body text: "At 1,000 W TDP with an active die area of approximately 1.5–2 cm², the resulting heat flux at the cold-plate interface reaches 500–600 W/cm²" (B200)']] }]] },
       { id: 'tim', title: 'Thermal interface and lid', kicker: 'The first hop out',
         body: `A thin thermal interface material carries heat from the ${A.dies > 1 ? 'dies' : 'die'} into the lid, and a second one into the ${nvl ? 'cold plate' : 'heat sink'}. Each layer costs a few degrees.`,
-        specs: [['Layers to coolant', `die, interface, lid, interface, ${nvl ? 'plate' : 'heat sink'}`, 'typical']] },
+        specs: [['Layers to coolant', `die, interface, lid, interface, ${nvl ? 'plate' : 'heat sink'}`, 'assumed', { assume: 'thermal-stack-layers' }]] },
       { id: 'hbm', title: 'HBM stacks', kicker: 'Heat in layers',
         body: `Stacked DRAM traps heat between its ${A.hbm.layers} layers, and DRAM leaks more as it warms, so memory often sets the temperature limit before the GPU does.`,
-        specs: [['Share of package power', '≈8–15%', 'est'], ['HBM3e limit, Micron', '105 °C', 'spec']] },
+        specs: [['Share of package power', '≈8–15%', 'assumed', { assume: 'hbm-power-share' }],
+          A.hbm.type === 'HBM3e'
+            ? ['HBM3e limit, Micron', '105 °C', 'spec', { refs: [['micron-hbm3e-brief', 'specifications table: "Operating Temperature 0°C ≤ TOPER ≤ +105°C"']] }]
+            : [`${A.hbm.type} limit, carried from HBM3e`, '≈105 °C', 'assumed', { assume: 'hbm-thermal-limit-other-gens' }]] },
     ],
   };
 

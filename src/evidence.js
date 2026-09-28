@@ -122,7 +122,7 @@ export const CALCS = {
   'hbm-per-gpu': { title: 'Per-GPU HBM capacity, NVL72', how: 'Per-GPU capacity = NVIDIA’s published rack-wide HBM total ÷ 72 GPUs. This is usable capacity as NVIDIA states it for the rack; the 8-stack, 24 GB/stack nominal figure vendors also cite (192 GB for GB200, 288 GB for GB300) is a few percent higher, likely raw die capacity before ECC/redundancy reservation — the two are not reconciled here.', inputs: ['NVIDIA’s published rack HBM total', 'GPUs per rack (72)'] },
 
   // ---- traced 09/27/2026: level 6, the GPU package, and the links ladder ----
-
+  'copper-wall-chart': { title: 'The copper-wall chart', how: 'Each bar plots the reach figure cited for that PAM4 lane rate in the media ladder above (a ratified IEEE clause, a draft objective, or "not yet defined"); the dashed line marks the ≈7 m band where trade sources put the general copper/optics crossover, any lane rate.', inputs: ['each lane rate’s cited reach', 'the crossover estimate'] },
 
   // ---- traced 09/27/2026: the glossary, the method page and prose claims ----
 
@@ -215,7 +215,15 @@ export const ASSUMPTIONS = {
   'grace-gpu-c2c-bandwidth': { title: 'Grace-to-GPU NVLink-C2C bandwidth, GB200/GB300', value: '900 GB/s', why: 'NVIDIA’s Grace CPU page states 900 GB/s for the Grace-to-Grace link inside the CPU-only Grace Superchip, a different pairing than the Grace-to-GPU link this row describes. NVIDIA’s Grace Hopper Superchip page states the same 900 GB/s for its Grace-to-Hopper (CPU-to-GPU) link, one generation earlier. No GB200/GB300-specific NVIDIA page was found stating the Grace-to-Blackwell figure directly, so this assumes NVLink-C2C bandwidth is unchanged across those three pairings of the same interconnect generation.' },
 
   // ---- traced 09/27/2026: level 6, the GPU package, and the links ladder ----
-
+  'throttle-point': { title: 'GPU throttle temperature', value: '≈85 °C', why: 'NVIDIA does not publish a junction throttle point for these data-center GPUs; ≈85 °C is the commonly used ballpark for silicon of this class, shown only to place the die’s working temperature relative to it.' },
+  'thermal-stack-layers': { title: 'Layers between die and coolant', value: 'die → thermal interface → lid → thermal interface → cold plate or heat sink', why: 'A generic description of the heat path common to data-center GPU packages; the exact materials and layer count are proprietary to each vendor and cooling design.' },
+  'hbm-power-share': { title: 'HBM’s share of GPU package power', value: '≈8–15%', why: 'No chipmaker publishes a per-generation split of package power between the compute die and the HBM stacks; this range is the rough order of magnitude used across component-power discussions of GPUs in this class, and it should move with HBM generation and stack count.' },
+  'token-byte-size': { title: 'Bytes per output token, text', value: 'a few bytes', why: 'A token ID is 2–4 bytes as the model emits it, or a few characters (≈4 bytes in UTF-8) once decoded to text; either way the network payload per token is tiny next to the compute behind it, which is the point the card makes.' },
+  'rubin-packaging': { title: 'Rubin packaging technology', value: 'TSMC CoWoS-L (carried over)', why: 'NVIDIA has not stated Rubin’s packaging technology; this carries forward CoWoS-L, which trade analysis (Tom’s Hardware) reports TSMC uses for Blackwell’s two-die package, pending Rubin’s own teardown.' },
+  'rubin-die-area': { title: 'Rubin die area', value: '≈16 cm² total, two dies (carried over)', why: 'NVIDIA has not published Rubin’s die size. The figure shown carries forward the reticle-limited two-die total trade press reported for Blackwell, pending an independent teardown of Rubin.' },
+  'rubin-nvhbi-bandwidth': { title: 'Rubin NV-HBI die-to-die bandwidth', value: '10 TB/s (carried over)', why: 'NVIDIA confirms Rubin’s two dies are joined by NV-HBI but has not published its bandwidth. The figure shown carries forward Blackwell’s confirmed 10 TB/s, pending Rubin’s own datasheet.' },
+  'rubin-package-power': { title: 'Rubin GPU package power', value: '≈1,800 W', why: 'NVIDIA has not published a per-GPU TDP for Rubin. 1,800 W is the figure shown at NVIDIA’s own early Vera Rubin materials; trade press (Tom’s Hardware) has since reported the shipping figure may run higher, up to 2,300 W, so this is treated as an early, not a final, number.' },
+  'hbm-thermal-limit-other-gens': { title: 'HBM operating-temperature limit, other generations', value: '≈105 °C', why: 'Micron publishes 0–105 °C specifically for HBM3E (GB200/GB300’s memory). H100’s HBM3 and Rubin’s HBM4 do not have a confirmed public limit, so the same figure is carried over as a reasonable proxy for stacked DRAM of this class.' },
 
   // ---- traced 09/27/2026: the glossary, the method page and prose claims ----
 
