@@ -649,12 +649,12 @@ function jumpLabel(from, to) {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------- scene switching ----------
-let busy = false, queued = null;
+let busy = false, queued = null, goingTo = -1;
 export async function go(i, fromId, { force = false, keepCamera = false, fromShow = false } = {}) {
   if (!force && !fromShow) showSeq++;                      // the reader moved: drop any jump still waiting for its scene
   if (busy) { queued = [i, fromId, { force, keepCamera }]; return; }   // the latest request runs when this switch lands
   if ((i === ui.scene && !force) || i < 0 || i >= BUILDERS.length) return;
-  busy = true;
+  busy = true; goingTo = i;
   const veil = $('veil');
   const same = i === ui.scene;
   const from = ui.scene, inward = i > from, T = TRANSITIONS[transitions] / Math.sqrt(cinema ? tourPace : 1);
@@ -747,6 +747,9 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
 }
 export const sceneCount = BUILDERS.length;
 export const isBusy = () => busy;
+// the level the view is on or on its way to: a switch in flight assigns ui.scene only partway through (after the
+// level is built, which can take seconds on a slow device), and a switch queued behind it lands after that
+export const destination = () => queued && queued[0] >= 0 && queued[0] < BUILDERS.length ? queued[0] : busy ? goingTo : ui.scene;
 
 // Jump to a part from anywhere on the page: switch layer, change scene if needed, select it and pulse its pin.
 const until = (f, ms = 30000) => new Promise(r => { const t0 = performance.now(); const tick = () => (f() || performance.now() - t0 > ms ? r() : requestAnimationFrame(tick)); tick(); });

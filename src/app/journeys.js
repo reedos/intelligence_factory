@@ -159,7 +159,7 @@ export function watt(M) {
     { link: nvl ? at(3, 'nvswitch') : at(4, 'nvswitch'), k: 'Scale-up', title: `${pct(nvsw)} to NVLink switches`, tally: take(nvsw), text: 'The NVLink switch chips that let the GPUs share memory draw their share.', specs: slice(nvsw) },
     { link: at(4, nvl ? 'grace' : 'cpu'), k: nvl ? 'Compute tray' : 'The server', title: `${pct(host)} to CPUs, NICs and drives`, tally: take(host), text: 'The host side: CPUs, memory, network cards and drives. They keep the GPUs fed, and none of this slice reaches a GPU die.', specs: slice(host) },
     { link: at(4, 'vrm'), k: 'The last volt', title: `${pct(board)} to converters and regulators`, tally: take(board), text: 'Bus converters and the rings of voltage regulators beside each GPU bring the watt down to under a volt, and lose about a tenth of what passes through.', specs: slice(board) },
-    { link: at(5, 'hbm'), k: 'GPU package', title: `${pct(hbm)} to memory`, tally: take(hbm), text: `${M.accel.hbm.type} stacks beside the dies use their share moving weights in and out.`, specs: slice(hbm) },
+    { link: at(5, 'hbm'), k: 'GPU package', title: `${pct(hbm)} to memory`, tally: take(hbm), text: `${M.accel.hbm.type} stacks beside each GPU’s ${M.accel.dies > 1 ? 'dies' : 'die'} use their share moving weights in and out.`, specs: slice(hbm) },
   ];
   left -= spare;   // rounds down to a whole rack: never drawn at all, so it gets no beat of its own
   beats.push({ link: at(5, 'dies'), k: 'The GPU dies', title: `${w3(left)} W reaches the GPU dies`, tally: `${w3(left)} W left`,
@@ -259,9 +259,10 @@ export const OUTWARD = new Set(['heat']);
 // tour audit finding 4: the data-layer stops whose card is about pluggable or co-packaged optics also get the
 // optics-cutaway disclosure (DSP/LPO/CPO), so a reader who never opens the Links section still sees what is
 // inside one - the CPO card on the hall's switches, the general optics card beside it (it already names DSP and
-// LPO by name), the tray's own OSFP cages (same id on both the NVL72 and DGX H100 tray part lists), and the
-// line-terminal card where campuses meet the WAN. story.js renders the figure; this only marks which stops carry it.
-const OPTICS_FIGURE = new Set(['across:dci', 'hall:cpo', 'hall:optics', 'tray:osfp']);
+// LPO by name), and the tray's own OSFP cages (same id on both the NVL72 and DGX H100 tray part lists). Not the
+// line terminal where campuses meet the WAN: its coherent long-haul optics are not what the cutaway draws. story.js
+// renders the figure; this only marks which stops carry it.
+const OPTICS_FIGURE = new Set(['hall:cpo', 'hall:optics', 'tray:osfp']);
 /** @param {any} M @param {'power'|'data'|'heat'} mode @param {number|null} [only] one level (0-5), or all six */
 export function layer(M, mode, only = null) {
   const C = content(M), [key, introKey, name] = LAYER[mode], out = [];

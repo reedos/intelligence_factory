@@ -10,7 +10,7 @@
 // Pause (the button, or Space) is the only thing that stops it. One transport at the head of the panel (play,
 // back, forward, speed, where the tour is) is the only playback control on the page.
 import { store, on } from './store.js';
-import { show, go, reduced, onTick, setCinema, setTourPace, getTransitions, setTransitions, pinNumber, partCount, stageActive, isBusy } from './stage.js';
+import { show, go, reduced, onTick, setCinema, setTourPace, getTransitions, setTransitions, pinNumber, partCount, stageActive, destination } from './stage.js';
 import { story, watt, request, heat, layer, everything, CHAIN, OUTWARD } from './journeys.js';
 import { openClock, closeClock, clockNow } from './clock-ui.js';
 import { chip } from '../evidence.js';
@@ -56,6 +56,7 @@ panel.appendChild(box);
 let active = -1, seq = 0, observer = null, list = [];
 let playing = false, arrived = false, held = 0;         // held: ms spent on the current beat since the camera arrived
 let heldReal = 0;              // same, but never scaled by pace - what a sim beat's own clock actually experiences (finding 17)
+let simWait = false;           // the beat's reading time is up but its clock has not reached its key event yet (finding 17)
 let popoverOpen = false;       // a chip's source popover (sources-ui.js) is open - see the MutationObserver near the bottom (finding 4)
 let pace = 1, ranClock = false, holdUntil = 0;           // holdUntil: the reader is looking around; wait until then
 const HOLD_MS = 4000;                          // pace: 1× to 8×; ranClock: the tour opened the clock, so it closes it
@@ -294,7 +295,7 @@ function switchTour(id, at) {
 }
 async function activate(i) {
   if (i === active) return;
-  active = i; mark(i); arrived = false; held = 0; heldReal = 0; bar(0);
+  active = i; mark(i); arrived = false; held = 0; heldReal = 0; simWait = false; bar(0);
   const my = ++seq;
   const sim = list[i].sim;                                // a beat about something that moves in time runs its clock
   if (sim) { openClock(sim); ranClock = true; } else if (ranClock) { closeClock(); ranClock = false; }
@@ -351,23 +352,21 @@ function step(d) {
   centerInPanel(box.querySelector(`.beat[data-i="${i}"]`));
 }
 
-// finding 9: wait for any level switch already in flight to land before reading store.ui.scene - stage.js's go()
-// only assigns ui.scene partway through its async dive (after the iris has closed on the new level, mid-function,
-// well before the promise it returns resolves), so a read made while isBusy() is true would name the level being
-// LEFT, not the one the reader just moved to. A capped poll, not a raw await on go()'s own promise: nothing here
-// started that switch, and go() already recurses through any switch queued after it.
-async function awaitSettle(ms = 5000) {
-  const t0 = performance.now();
-  while (isBusy() && performance.now() - t0 < ms) await new Promise(r => requestAnimationFrame(r));
-}
+// finding 9: the level the reader is on, or moving to. stage.js's go() assigns ui.scene only partway through its
+// dive, after the new level is built, so store.ui.scene read mid-switch names the level being LEFT. destination()
+// names the one being entered, including a switch queued behind it. (A wait for the switch to land, capped at 5 s,
+// was here before; the first build of a level can take longer than that on a slow device.)
+const readerAt = () => ({ scene: destination(), mode: store.ui.mode });
 // fromStart: a button that names a tour starts it over; the Tours button picks up where the reader left off
-export async function enter(which = tour, { fromStart = false } = {}) {
+export function enter(which = tour, { fromStart = false } = {}) {
   if (!box.hidden && which === tour) return;
-  if (isBusy()) await awaitSettle();
-  entry = { scene: store.ui.scene, mode: store.ui.mode };   // finding 9: the view the reader was on when the tour UI opened, before anything below moves the camera
+  entry = readerAt();                                       // finding 9: the view the reader was on when the tour UI opened, before anything below moves the camera
   tour = TOURS[which] ? which : 'story';
   const at = !fromStart && resume?.tour === tour ? resume.i : 0;
   resume = null;
+  // the This level tab names the level the reader came from, even before it is picked; a This level walk being
+  // resumed keeps its own level, since the step it resumes at belongs to that level's list
+  if (!(tour === 'here' && at)) Object.assign(here, entry);
   document.body.classList.add('story');
   box.hidden = false; active = -1; setCinema(true);
   render();
@@ -429,7 +428,10 @@ function ctlLabel() {
   // finding 16: This level's own next/previous names the direction, since heat's runs outward while power and
   // data stay inward - "Next level: Compute tray (heat, outward)"
   const dirNote = tour === 'here' ? ` (${MODE_NAME[here.mode]}, ${OUTWARD.has(here.mode) ? 'outward' : 'inward'})` : '';
+  // finding 17: at a fast pace a sim beat's reading time runs out long before its clock gets anywhere; say why it waits
+  const wait = playing && simWait ? ` · waiting on the clock${keyName(b.sim)}` : '';
   t.textContent = held ? 'Carries on when you let go'
+    : wait ? `${where}${wait}`
     : `${where}${last && !playing && nb ? ` · › ${nb.level !== undefined ? `level ${nb.level + 1}` : TOURS[nb.tour].short}` : playing ? '' : ' · paused'}`;
   $('tour-prev').disabled = active === 0 && !pb; $('tour-next').disabled = last && !nb;
   $('tour-next').setAttribute('aria-label', last && nb ? (nb.level !== undefined ? `Next level: ${store.C.SCENES[nb.level].title}${dirNote}` : `Next tour: ${TOURS[nb.tour].label}`) : 'Next step');
@@ -455,6 +457,11 @@ const KEY_EVENT = {
 // a generous backstop only, never the normal path: if a sim's clock ever stalled this keeps a beat from holding
 // the tour forever, at any pace
 const SIM_HOLD_MAX_MS = 60000;
+// the key event's own name on the clock's timeline, when it has one: ": Full load, 10 s"
+function keyName(simId) {
+  const c = clockNow(), t = KEY_EVENT[simId]?.(c.events), e = c.id === simId ? c.events.find(e => e.t === t) : null;
+  return e ? `: ${e.label}` : '';
+}
 function simKeyReached(simId) {
   const c = clockNow();
   if (c.id !== simId) return true;                       // not this beat's clock (or none running): nothing to wait for
@@ -474,7 +481,8 @@ onTick(dt => {
   bar(Math.min(1, held / need));
   if (held < need) return;
   const b = list[active];
-  if (b.sim && !simKeyReached(b.sim) && heldReal < SIM_HOLD_MAX_MS) return;
+  if (b.sim && !simKeyReached(b.sim) && heldReal < SIM_HOLD_MAX_MS) { if (!simWait) { simWait = true; ctlLabel(); } return; }
+  if (simWait) { simWait = false; ctlLabel(); }
   arrived = false;                                        // wait for the next beat's camera before counting again
   if (active < list.length - 1) step(1);
   else {
@@ -535,9 +543,8 @@ $('story-hero-play')?.addEventListener('click', e => { e.preventDefault(); play(
 // Play in the 3D view's buttons: every part of the layer on screen, all six levels
 $('layer-play')?.addEventListener('click', () => play(`all-${store.ui.mode}`));
 // Play 1 to N above the numbered list: every part of this level in this layer, in number order
-$('play-these')?.addEventListener('click', async () => {
-  if (isBusy()) await awaitSettle();   // finding 9: never capture the level a pending transition is leaving
-  here.scene = store.ui.scene; here.mode = store.ui.mode;
+$('play-these')?.addEventListener('click', () => {
+  Object.assign(here, readerAt());   // finding 9: never the level a pending transition is leaving
   if (inStory() && tour === 'here') exit();
   play('here');
 });

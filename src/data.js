@@ -169,7 +169,9 @@ export function content(M) {
     },
     nvl ? {
       id: 'tray', n: 5, title: 'Compute tray', scale: '44 cm wide', unit: 0.1, volt: 'bus12', dataVolt: 'eth', heatVolt: 'cool', heatShort: 'cold plates',
-      heatIntro: 'Coolant enters at the back, runs through a copper plate on each CPU and GPU, and leaves warmer. Fans at the front still push air over the parts water does not touch: NICs, optics, drives.',
+      heatIntro: liq >= 0.99
+        ? 'Coolant enters at the back, runs through a copper plate on each CPU and GPU, and leaves warmer. This model puts the NICs, optics and drives on cold plates too, so no air crosses the tray; the fans at the front are drawn for comparison and stand still.'
+        : 'Coolant enters at the back, runs through a copper plate on each CPU and GPU, and leaves warmer. Fans at the front still push air over the parts water does not touch: NICs, optics, drives.',
       dataIntro: `Each GPU has three ways out: NVLink to the rack spine at the back, NVLink-C2C to its ${X.cpu} CPU, and a SuperNIC whose optical module at the front turns its traffic into light.`,
       intro: 'Each tray clips onto the busbar at about 50 V. Bus converters drop that to 12 V, and rings of voltage regulators around each GPU make the final step to under a volt, right beside the chip.',
     } : {
