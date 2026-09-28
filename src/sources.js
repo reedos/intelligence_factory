@@ -241,6 +241,18 @@ export const SOURCES = {
   'ashrae-tc99-reference-card': { title: 'Equipment Thermal Guidelines for Data Processing Environments, ASHRAE TC 9.9 Reference Card', publisher: 'ASHRAE', url: 'https://xp20.ashrae.org/datacom1_4th/ReferenceCard.pdf', published: '2015', dated: "Table 2.1 is headed \"2015 Thermal Guidelines—SI Version\"", accessed: '09/27/2026', kind: 'primary' },
   'ceie-eaton-9395xr': { title: 'EATON MW 9395XR UPS is designed for intelligent computing', publisher: 'CEIE (distributor reprint of Eaton figures)', url: 'https://snmiss.com/?a=index&aid=16&c=View&m=home', accessed: '09/27/2026', kind: 'secondary', marketing: true },
   'doe-transformer-standards-2024': { title: 'DOE Finalizes Energy Efficiency Standards for Distribution Transformers That Protect Domestic Supply Chains and Jobs, Strengthen Grid Reliability, and Deliver Billions in Energy Savings', publisher: 'U.S. Department of Energy', url: 'https://www.energy.gov/articles/doe-finalizes-energy-efficiency-standards-distribution-transformers-protect-domestic', published: '04/04/2024', accessed: '09/27/2026', kind: 'primary' },
+  // Note (traced 09/27/2026, L3 checker pass): the site's own SST/rack-DC-DC efficiency rows cited
+  // 'navitas-800vdc' (the 10/13/2025 "Navitas Supports 800 VDC..." release) for ">98%" and "98.5% peak" --
+  // opened it directly today and confirmed it states NO numeric efficiency figure at all, only "Higher
+  // efficiency by reducing resistive losses and copper usage". Replaced with the two Navitas releases that
+  // actually carry each figure, found and opened today.
+  'navitas-10kw-dcdc-800v50v': { title: 'Navitas Unveils Breakthrough 10 kW DC-DC Platform Delivering 98.5% Efficiency for 800 VDC Next-Gen AI Data Centers', publisher: 'Navitas Semiconductor, via GlobeNewswire', url: 'https://www.globenewswire.com/news-release/2026/02/09/3234542/0/en/Navitas-Unveils-Breakthrough-10-kW-DC-DC-Platform-Delivering-98-5-Efficiency-for-800-VDC-Next-Gen-AI-Data-Centers.html', published: '02/09/2026', dated: "dateline 'February 09, 2026 08:30 ET'", accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'semiconductor-today-navitas-sst': { title: 'Navitas exhibiting solutions for AI data-center, grid and energy infrastructure, performance computing, and industrial electrification', publisher: 'semiconductor-today.com', url: 'https://www.semiconductor-today.com/news_items/2026/mar/navitas-020326.shtml', published: '03/02/2026', accessed: '09/27/2026', kind: 'secondary', marketing: true },
+  // Note (traced 09/27/2026, L3 checker pass): the racks(data) card's GB200/GB300 "1.8 TB/s NVLink per GPU"
+  // row cited 'nvidia-gb200-nvl72' (the NVL72 product landing page); opened it today and it states only the
+  // aggregate 130 TB/s system figure, not a per-GPU number. NVIDIA's own Blackwell platform launch release
+  // states the per-GPU figure directly.
+  'nvidia-blackwell-platform-arrives': { title: 'NVIDIA Blackwell Platform Arrives to Power a New Era of Computing', publisher: 'NVIDIA', url: 'https://nvidianews.nvidia.com/news/nvidia-blackwell-platform-arrives-to-power-a-new-era-of-computing', published: '03/18/2024', accessed: '09/27/2026', kind: 'primary', marketing: true },
 
 
   // ---- traced 09/27/2026: levels 4 and 5, the rack and the compute tray ----
