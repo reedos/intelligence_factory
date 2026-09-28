@@ -575,7 +575,7 @@ function buildPanel(i) {
   $('optics-variant').hidden = i !== SIDE;
   $('hud-sub').textContent = `${voltFor(s).name} · ${s.scale}`;
   const list = $('parts'); list.innerHTML = '';
-  $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · ${s.side ? 'inside the optics' : `level ${s.n}`} · ${parts.length} parts`;
+  $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · ${s.side ? 'inside the links' : `level ${s.n}`} · ${parts.length} parts`;
   $('play-these').textContent = `▶ Play 1 to ${parts.length}`;
   parts.forEach((p, n) => {
     const li = document.createElement('li'), b = document.createElement('button');
@@ -682,7 +682,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   busy = true; goingTo = i;
   const veil = $('veil');
   const same = i === ui.scene;
-  if (i === SIDE && ui.scene !== SIDE && ui.scene >= 0) { sideFrom = ui.scene === 2 ? 2 : 4; sideVia = fromId; }   // entered from the hall, or a tray's cages
+  if (i === SIDE && ui.scene !== SIDE && ui.scene >= 0) { sideFrom = ui.scene; sideVia = fromId; }   // whichever level and part the reader came in by
   const from = ui.scene, inward = isInward(from, i), T = TRANSITIONS[transitions] / Math.sqrt(cinema ? tourPace : 1);
   const cut = reduced || transitions === 'instant';
   const travel = from >= 0 && !same && !cut;              // a level transition, rather than the first load or a rebuild

@@ -325,7 +325,7 @@ export function layer(M, mode, only = null) {
   });
   return out;
 }
-const SIDE_NAME = { module: 'the pluggable module', cpo: 'the co-packaged switch' };
+const SIDE_NAME = { module: 'the pluggable module', cpo: 'the co-packaged switch', copper: 'the copper cable heads', coherent: 'the coherent module' };
 function sideTrip(C, key, mode, name, half, parent) {
   const side = C.SCENES.findIndex(sc => sc.side), sc = C.SCENES[side], parts = (C[key][sc.id] || []).filter(p => p.half === half);
   return parts.map((p, j) => ({

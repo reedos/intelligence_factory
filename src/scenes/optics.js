@@ -82,7 +82,7 @@ export function build({ quality, state }) {
   scene.background = new THREE.Color(0x080b11);
   scene.add(new THREE.HemisphereLight(0xb5c3e6, 0x111317, 0.8));
   const key = new THREE.DirectionalLight(0xfff0de, 2.0); key.position.set(-6, 14, 5);
-  if (quality.shadows) { key.castShadow = true; key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -20, right: 20, top: 14, bottom: -14, near: 1, far: 50 }); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.01; }
+  if (quality.shadows) { key.castShadow = true; key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -22, right: 22, top: 24, bottom: -24, near: 1, far: 50 }); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.01; }
   scene.add(key);
   const rim = new THREE.DirectionalLight(0x7aa6ff, 1.2); rim.position.set(-8, 5, -9); scene.add(rim);
 
@@ -256,8 +256,118 @@ export function build({ quality, state }) {
   plate.position.set(CX, CY.plate, 0); scene.add(plate);
   const plateEdge = new THREE.LineSegments(new THREE.EdgesGeometry(plate.geometry), new THREE.LineBasicMaterial({ color: 0xd9a070, transparent: true, opacity: 0.6 }));
   plateEdge.position.copy(plate.position); scene.add(plateEdge);
-  // water in and out at the back of the plate, away from the fibers
-  for (const [dx, m] of [[-1.4, MAT.pipeBlue], [1.4, MAT.pipeRed]]) S.add(new THREE.CylinderGeometry(0.28, 0.28, 3.2, 16), m, CX + dx, CY.plate, -SUB / 2 - 1.0, Math.PI / 2, 0, 0);
+  // water in and out straight up from the back of the plate, clear of every fiber and of the row behind
+  const pipeZ = -SUB / 2 + 1.0, pipeTop = CY.plate + 2.6;
+  for (const [dx, m] of [[-1.4, MAT.pipeBlue], [1.4, MAT.pipeRed]]) S.add(new THREE.CylinderGeometry(0.28, 0.28, pipeTop - CY.plate, 16), m, CX + dx, (CY.plate + pipeTop) / 2, pipeZ);
+
+  // ======================= back row: the coherent pluggable and the copper cable heads =======================
+  // Same rules as the front row: each station stands alone (no fiber or cable runs between them), says what is to
+  // scale, and names its like-for-like unit. Layouts inside are representative: no labeled teardown of either is public.
+  const RZ = -13.5;                                        // the back row's centerline
+
+  // ---- 800ZR coherent module, directly behind the DR8 module: the same OSFP envelope, a different job ----
+  const ZY = MY, zx = u => MX0 + u;
+  S.box(LEN, 0.12, MW, MAT.darkSteel, MX0 + LEN / 2, ZY.shell, RZ);
+  S.box(LEN, 0.55, 0.1, MAT.darkSteel, MX0 + LEN / 2, ZY.shell + 0.3, RZ - MW / 2 + 0.05);
+  S.box(LEN - 0.9, 0.1, MW - 0.24, MAT.pcb, MX0 + (LEN - 0.9) / 2 + 0.05, ZY.pcb, RZ);
+  for (let i = 0; i < 30; i++) { const z = RZ - 0.95 + i * 0.066; N.box(0.55, 0.012, 0.045, MAT.gold, zx(0.33), ZY.pcb + 0.056, z); N.box(0.55, 0.012, 0.045, MAT.gold, zx(0.33), ZY.pcb - 0.056, z); }
+  for (let i = 0; i < 4; i++) S.box(0.34, 0.22, 0.34, MAT.inductor, zx(1.35 + (i % 2) * 0.48), ZY.parts + 0.11, RZ + (i < 2 ? -0.5 : 0.5));
+  // the coherent DSP: the largest chip in the module
+  const cdspX = zx(3.9);
+  S.box(1.7, 0.1, 1.7, MAT.pcbBlack, cdspX, ZY.parts + 0.05, RZ);
+  const cdspMat = new THREE.MeshStandardMaterial({ map: dspTexture(), roughness: 0.34, metalness: 0.45, envMapIntensity: 0.5, emissive: 0xff6a1a, emissiveIntensity: 0 });
+  const cdsp = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.06, 1.15), [dieSide, dieSide, cdspMat, dieSide, dieSide, dieSide]); cdsp.position.set(cdspX, ZY.parts + 0.13, RZ); scene.add(cdsp);
+  // the IQ modulator with its driver (transmit) and the coherent receiver (receive), side by side
+  const cdmX = zx(6.7), icrX = zx(6.7);
+  const iqTex = canvasTex(512, 256, (g, w, h) => {
+    g.fillStyle = '#4a5468'; g.fillRect(0, 0, w, h); g.lineCap = 'round';
+    g.strokeStyle = 'rgba(255,179,71,0.8)'; g.lineWidth = 3; g.beginPath(); g.moveTo(10, h / 2); g.lineTo(70, h / 2); g.stroke();
+    // four nested Mach-Zehnders: I and Q for each of two polarizations, recombined toward the fiber
+    for (let k = 0; k < 4; k++) {
+      const y = 36 + k * 56;
+      g.strokeStyle = 'rgba(98,230,255,0.9)'; g.lineWidth = 2.5;
+      g.beginPath(); g.moveTo(70, h / 2); g.lineTo(110, y); g.lineTo(130, y - 9); g.lineTo(330, y - 9); g.lineTo(350, y); g.moveTo(110, y); g.lineTo(130, y + 9); g.lineTo(330, y + 9); g.lineTo(350, y); g.lineTo(420, h / 2); g.stroke();
+      g.fillStyle = 'rgba(201,161,74,0.8)'; g.fillRect(136, y - 15, 188, 3); g.fillRect(136, y + 12, 188, 3);
+    }
+    g.strokeStyle = 'rgba(98,230,255,0.9)'; g.lineWidth = 3; g.beginPath(); g.moveTo(420, h / 2); g.lineTo(w - 10, h / 2); g.stroke();
+  });
+  const icrTex = canvasTex(384, 256, (g, w, h) => {
+    g.fillStyle = '#4a5468'; g.fillRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(255,122,217,0.85)'; g.lineWidth = 3; g.beginPath(); g.moveTo(w - 10, 70); g.lineTo(200, 70); g.stroke();       // signal in
+    g.strokeStyle = 'rgba(255,179,71,0.8)'; g.beginPath(); g.moveTo(w - 10, 190); g.lineTo(200, 190); g.stroke();                          // local oscillator in
+    g.strokeStyle = 'rgba(255,255,255,0.5)'; g.lineWidth = 2; g.strokeRect(120, 40, 80, 176);                                            // 90-degree hybrid
+    for (let k = 0; k < 4; k++) { g.fillStyle = 'rgba(255,122,217,0.9)'; g.fillRect(40, 44 + k * 44, 26, 16); g.fillRect(74, 44 + k * 44, 26, 16); }   // balanced photodiode pairs
+  });
+  const cdm = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.07, 0.8), [dieSide, dieSide, new THREE.MeshStandardMaterial({ map: iqTex, roughness: 0.3, metalness: 0.4 }), dieSide, dieSide, dieSide]);
+  cdm.position.set(cdmX, ZY.parts + 0.035, RZ - 0.5); scene.add(cdm);
+  const icr = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.07, 0.7), [dieSide, dieSide, new THREE.MeshStandardMaterial({ map: icrTex, roughness: 0.3, metalness: 0.4 }), dieSide, dieSide, dieSide]);
+  icr.position.set(icrX, ZY.parts + 0.035, RZ + 0.55); scene.add(icr);
+  S.box(0.5, 0.06, 0.55, MAT.silicon, zx(5.45), ZY.parts + 0.03, RZ - 0.5);        // modulator driver
+  S.box(0.4, 0.06, 0.45, MAT.silicon, zx(5.55), ZY.parts + 0.03, RZ + 0.55);       // TIAs
+  // the tunable laser: a nano-ITLA, drawn to its published size (25.0 × 15.6 × 6.5 mm)
+  const itlaX = zx(8.95), itlaZ = RZ - 0.3;
+  S.box(2.5, 0.65, 1.56, MAT.nickel, itlaX, ZY.parts + 0.325, itlaZ);
+  N.box(0.03, 0.12, 0.3, glowMat(CW, 1.5), itlaX - 1.27, ZY.parts + 0.33, itlaZ);
+  // one fiber pair: an LC duplex connector, transmit and receive
+  const lcX = MX1 - 0.3;
+  for (const [dz, m] of [[-0.3, TX], [0.3, RX]]) { S.box(0.5, 0.36, 0.42, MAT.polymer, lcX, ZY.parts + 0.2, RZ + dz); N.box(0.02, 0.05, 0.05, glowMat(m, 1.4), lcX + 0.26, ZY.parts + 0.2, RZ + dz); }
+  const lidZ = new THREE.Mesh(new THREE.BoxGeometry(LEN, 0.14, MW), lidMat); lidZ.position.set(MX0 + LEN / 2, ZY.lid, RZ); scene.add(lidZ);
+  const lidZEdge = new THREE.LineSegments(new THREE.EdgesGeometry(lidZ.geometry), new THREE.LineBasicMaterial({ color: 0xc9d3dc, transparent: true, opacity: 0.55 })); lidZEdge.position.copy(lidZ.position); scene.add(lidZEdge);
+  // laser light: split, one path to the modulator, one to the receiver as its local oscillator
+  const loSplit = [itlaX - 1.4, ZY.parts + 0.3, RZ];
+  N.strut([itlaX - 1.27, ZY.parts + 0.33, itlaZ], loSplit, 0.01, cwFiber, 5);
+  N.strut(loSplit, [cdmX + 0.75, ZY.parts + 0.08, RZ - 0.5], 0.01, cwFiber, 5);
+  N.strut(loSplit, [icrX + 0.55, ZY.parts + 0.08, RZ + 0.55], 0.01, cwFiber, 5);
+  // the modulated light out, and the received light in
+  N.strut([cdmX - 0.75, ZY.parts + 0.08, RZ - 0.5], [cdmX - 0.95, ZY.parts + 0.3, RZ - 0.95], 0.01, fiberTx, 5);
+  N.strut([cdmX - 0.95, ZY.parts + 0.3, RZ - 0.95], [lcX - 0.25, ZY.parts + 0.2, RZ - 0.3], 0.01, fiberTx, 5);
+  N.strut([lcX - 0.25, ZY.parts + 0.2, RZ + 0.3], [icrX + 0.55, ZY.parts + 0.1, RZ + 0.75], 0.01, fiberRx, 5);
+  // flows
+  const zPts = (...pts) => pts;
+  for (let i = 0; i < 3; i++) {
+    const z = RZ - 0.7 + i * 0.2;
+    dataFlows.push(flow(zPts([zx(-1.0), ZY.pcb + 0.06, z], [zx(0.62), ZY.pcb + 0.06, z], [cdspX - 0.85, ZY.pcb + 0.06, z]), 'eth', { count: 3, speed: 1.6, size: 0.03, k: 2.8, trail: false }));
+    dataFlows.push(flow(zPts([cdspX + 0.85, ZY.pcb + 0.06, z], [zx(5.45), ZY.parts + 0.08, RZ - 0.5], [cdmX - 0.5, ZY.parts + 0.09, RZ - 0.5]), 'eth', { count: 3, speed: 1.6, size: 0.03, k: 2.8, trail: false }));
+    const zr = RZ + 0.3 + i * 0.2;
+    dataFlows.push(flow(zPts([icrX - 0.55, ZY.parts + 0.09, RZ + 0.55], [zx(5.55), ZY.parts + 0.08, RZ + 0.55], [cdspX + 0.85, ZY.pcb + 0.06, zr]), 'eth', { count: 3, speed: 1.6, size: 0.03, k: 2.8, trail: false }));
+    dataFlows.push(flow(zPts([cdspX - 0.85, ZY.pcb + 0.06, zr], [zx(0.62), ZY.pcb + 0.06, zr], [zx(-1.0), ZY.pcb + 0.06, zr]), 'eth', { count: 3, speed: 1.6, size: 0.03, k: 2.8, trail: false }));
+  }
+  dataFlows.push(flow([[itlaX - 1.27, ZY.parts + 0.33, itlaZ], loSplit, [cdmX + 0.75, ZY.parts + 0.08, RZ - 0.5]], 'cw', { count: 3, speed: 1.2, size: 0.03, k: 2.6, trail: false }));
+  dataFlows.push(flow([[itlaX - 1.27, ZY.parts + 0.33, itlaZ], loSplit, [icrX + 0.55, ZY.parts + 0.08, RZ + 0.55]], 'cw', { count: 3, speed: 1.2, size: 0.03, k: 2.6, trail: false }));
+  dataFlows.push(flow([[cdmX - 0.75, ZY.parts + 0.08, RZ - 0.5], [cdmX - 0.95, ZY.parts + 0.3, RZ - 0.95], [lcX - 0.25, ZY.parts + 0.2, RZ - 0.3], [MX1 + 0.5, ZY.parts + 0.2, RZ - 0.3]], 'tx', { count: 4, speed: 1.9, size: 0.035, k: 3.2, trailR: 0.008, trailK: 0.3 }));
+  dataFlows.push(flow([[MX1 + 0.5, ZY.parts + 0.2, RZ + 0.3], [lcX - 0.25, ZY.parts + 0.2, RZ + 0.3], [icrX + 0.55, ZY.parts + 0.1, RZ + 0.75]], 'rx', { count: 4, speed: 1.9, size: 0.035, k: 3.2, trailR: 0.008, trailK: 0.3 }));
+  for (let i = 0; i < 4; i++) flows.push(flow([[zx(-1.2), ZY.pcb + 0.06, RZ - 0.6 + i * 0.4], [zx(0.3), ZY.pcb + 0.06, RZ - 0.6 + i * 0.4], [zx(1.5), ZY.parts + 0.1, RZ - 0.3 + i * 0.2]], 'v33', { count: 3, speed: 1.4, size: 0.035, k: 2.6, trail: false }));
+  for (const [x, z] of [[cdspX, RZ], [itlaX, itlaZ], [zx(5.45), RZ - 0.5]]) flows.push(flow([[zx(2.0), ZY.parts + 0.1, RZ], [x, ZY.parts + 0.16, z]], 'core', { count: 3, speed: 1.5, size: 0.03, k: 2.8, trail: false }));
+  const tagC = textSprite('Coherent pluggable · 800ZR', '#e8ecf2', 0.34); tagC.position.set(MX0 + LEN / 2, 5.2, RZ); scene.add(tagC);
+  const scaleC = textSprite('OSFP envelope and laser to scale · layout representative', '#8a96a8', 0.2); scaleC.position.set(MX0 + LEN / 2, 4.7, RZ); scene.add(scaleC);
+  const unitC = textSprite('1 module = 800G over one fiber pair', '#9ff1ff', 0.2); unitC.position.set(MX0 + LEN / 2, MY.lid + 1.05, RZ); scene.add(unitC);
+
+  // ---- copper cable heads, behind the CPO package: passive, one redriver, a retimer in each end ----
+  const heads = [], HL = 6.0, HW = 2.2;
+  [['dac', CX - 4.6], ['acc', CX], ['aec', CX + 4.6]].forEach(([kind, hx]) => {
+    const z0 = RZ + 2.4, zc = z0 - HL / 2;              // the plug's front (its edge fingers) faces the viewer
+    S.box(HW, 0.12, HL, MAT.darkSteel, hx, 0, zc);
+    S.box(HW - 0.3, 0.08, HL - 1.4, MAT.pcb, hx, 0.9, zc + 0.5);                       // the paddle card
+    for (let i = 0; i < 20; i++) N.box(0.045, 0.012, 0.5, MAT.gold, hx - 0.8 + i * 0.084, 0.95, z0 - 0.3);
+    S.box(0.18, 0.05, 0.18, MAT.pcbBlack, hx + 0.6, 0.97, zc + 1.4);                    // the ID memory every cable carries
+    // twinax pairs soldered at the back of the card, bundled into the cable
+    for (let i = 0; i < 8; i++) { const x = hx - 0.7 + i * 0.2; for (const d of [-0.035, 0.035]) N.strut([x + d, 0.95, z0 - HL + 1.0], [hx + (x - hx) * 0.35 + d, 0.9, z0 - HL - 3.2], 0.016, MAT.copper, 5); }
+    N.cyl(0.52, 3.2, MAT.polymer, hx, 0.9, z0 - HL - 1.7, 16, Math.PI / 2, 0, 0);
+    if (kind === 'acc') S.box(0.6, 0.07, 0.6, MAT.silicon, hx - 0.2, 0.975, zc);          // one redriver
+    if (kind === 'aec') { S.box(0.95, 0.08, 0.95, MAT.silicon, hx - 0.2, 0.98, zc); for (let i = 0; i < 3; i++) S.box(0.22, 0.16, 0.22, MAT.inductor, hx + 0.65, 1.02, zc - 0.6 + i * 0.3); }
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(HW, 0.12, HL), lidMat); lid.position.set(hx, 2.3, zc); scene.add(lid);
+    const le = new THREE.LineSegments(new THREE.EdgesGeometry(lid.geometry), new THREE.LineBasicMaterial({ color: 0xc9d3dc, transparent: true, opacity: 0.5 })); le.position.copy(lid.position); scene.add(le);
+    // electrical lanes in at the fingers and out down the twinax; through the chip where there is one
+    for (let i = 0; i < 3; i++) {
+      const x = hx - 0.6 + i * 0.5, via = kind === 'dac' ? [] : [[hx - 0.2, 1.05, zc]];
+      dataFlows.push(flow([[x, 0.98, z0 + 1.0], [x, 0.98, z0 - 0.3], ...via, [x * 0.35 + hx * 0.65, 0.95, z0 - HL - 3.2]], 'eth', { count: 3, speed: 1.6, size: 0.035, k: 2.8, trail: false }));
+    }
+    if (kind !== 'dac') flows.push(flow([[hx + 0.6, 0.98, z0 + 1.0], [hx + 0.6, 0.98, z0 - 0.3], [hx - 0.2, 1.05, zc]], 'v33', { count: 3, speed: 1.3, size: 0.035, k: 2.6, trail: false }));
+    heads.push({ kind, x: hx, zc, z0 });
+  });
+  const tagD = textSprite('Copper cable heads · DAC, ACC, AEC', '#e8ecf2', 0.34); tagD.position.set(CX, 4.2, RZ - 1); scene.add(tagD);
+  const scaleD = textSprite('Heads representative · one end of each cable', '#8a96a8', 0.2); scaleD.position.set(CX, 3.7, RZ - 1); scene.add(scaleD);
+  const unitD = textSprite('DAC: no chip · ACC: one redriver · AEC: a retimer in each end', '#9ff1ff', 0.2); unitD.position.set(CX, 3.2, RZ - 1); scene.add(unitD);
 
   // the fair comparison: one 1.6T module does the job of one 1.6T engine; this package holds 18 of them
   const EQ = engines[1];
@@ -328,7 +438,7 @@ export function build({ quality, state }) {
   for (let i = 0; i < 6; i++) heatFlows.push(flow([[MX1 + 1.5, MY.lid + 0.4, -0.9 + i * 0.36], [MX0 - 1.5, MY.lid + 0.4, -0.9 + i * 0.36]], 'air', { count: 4, speed: 1.4, size: 0.04, k: 2.4, trail: false }));
   for (let i = 0; i < 30; i++) { const x = CX + (rnd() - 0.5) * 3.4, z = (rnd() - 0.5) * 3.4; heatFlows.push(flow([[x, CY.die + 0.06, z], [x, CY.plate - 0.2, z]], 'hot', { count: 3, speed: 1.1 + rnd() * 0.6, size: 0.045, k: 2.6, trail: false })); }
   engines.forEach(({ x, z }) => heatFlows.push(flow([[x, CY.eng + 0.1, z], [x, CY.plate - 0.2, z]], 'hot', { count: 2, speed: 0.9, size: 0.035, k: 2.4, trail: false })));
-  heatFlows.push(flow([[CX - 1.4, CY.plate, -SUB / 2 - 2.6], [CX - 1.4, CY.plate, 3], [CX + 1.4, CY.plate, 3], [CX + 1.4, CY.plate, -SUB / 2 - 2.6]], 'cool', { count: 10, speed: 1.6, size: 0.06, k: 2.2, trail: false }));
+  heatFlows.push(flow([[CX - 1.4, pipeTop, pipeZ], [CX - 1.4, CY.plate, pipeZ], [CX - 1.4, CY.plate, 3], [CX + 1.4, CY.plate, 3], [CX + 1.4, CY.plate, pipeZ], [CX + 1.4, pipeTop, pipeZ]], 'cool', { count: 10, speed: 1.6, size: 0.06, k: 2.2, trail: false }));
   heatFlows.forEach(f => scene.add(f.group));
 
   // ---------- labels over each half ----------
@@ -358,23 +468,32 @@ export function build({ quality, state }) {
     engine: at(V(engines[1].x, CY.eng + 0.15, engines[1].z), V(engines[1].x + 3, 5, engines[1].z + 3.5), V(engines[1].x, CY.eng, engines[1].z)),
     els: at(V(ELSX, CY.sub + 1.0, 0), V(ELSX + 3.5, 5, 6), V(ELSX - 1, CY.sub, 0)),
     fiberout: at(V(edgeConn[1][0], CY.sub + 0.5, edgeConn[1][1]), V(edgeConn[1][0] + 3.5, 4.5, edgeConn[1][1] + 3), V(edgeConn[1][0] - 0.5, CY.sub, edgeConn[1][1])),
+    ...Object.fromEntries(heads.map(h => [h.kind, at(V(h.x, 1.3, h.zc), V(h.x + 1.8, 5.2, h.z0 + 1.2), V(h.x, 0.9, h.zc - 0.4))])),   // close, from just above the plug's front, clear of the package
+    cdsp: at(V(cdspX, ZY.parts + 0.3, RZ + 0.3), V(cdspX - 0.8, 5, RZ + 4.2), V(cdspX, ZY.parts, RZ)),
+    cdm: at(V(cdmX, ZY.parts + 0.2, RZ - 0.5), V(cdmX - 0.5, 4.5, RZ + 3.8), V(cdmX, ZY.parts, RZ)),
+    icr: at(V(icrX, ZY.parts + 0.2, RZ + 0.55), V(icrX - 0.5, 4.5, RZ + 3.8), V(icrX, ZY.parts, RZ)),
+    itla: at(V(itlaX, ZY.parts + 0.75, itlaZ), V(itlaX - 1.5, 5, RZ + 4), V(itlaX, ZY.parts, RZ)),
+    lc: at(V(lcX, ZY.parts + 0.5, RZ), V(MX1 + 2.5, 3.5, RZ + 4.2), V(lcX - 0.5, ZY.parts, RZ)),
     coldplate: at(V(CX + 2.5, CY.plate + 0.3, 2.5), V(CX + 6, 10, 11), V(CX, 2.4, 0)),
   };
   return {
     scene, flows, dataFlows, heatFlows,
-    camera: { pos: [1.8, 19, 25], target: [1.8, 1.2, 0], near: 0.05, far: 500, min: 2, max: 70 },
+    camera: { pos: [1.8, 27, 19], target: [1.8, 1.0, -6.5], near: 0.05, far: 500, min: 2, max: 80 },
     // from the hall's CPO switch, open on the package; from a tray's cages, on the whole level with the module first
     cameraFrom: {
       osfp: { pos: [-4.2, 10.5, 12.5], target: [-6.8, 1.3, 0], near: 0.05, far: 500, min: 2, max: 60 },
       optics: { pos: [-4.2, 10.5, 12.5], target: [-6.8, 1.3, 0], near: 0.05, far: 500, min: 2, max: 60 },
+      dci: { pos: [MX0 + LEN / 2 + 2, 10, RZ + 12], target: [MX0 + LEN / 2, 1.3, RZ], near: 0.05, far: 500, min: 2, max: 80 },
+      spine: { pos: [CX + 1, 11, RZ + 13], target: [CX, 1.0, RZ - 1], near: 0.05, far: 500, min: 2, max: 80 },
       cpo: { pos: [CX + 1.5, 12.5, 14.5], target: [CX, 1.4, 0], near: 0.05, far: 500, min: 2, max: 60 } },
-    hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: hs.dsp, lasers: hs.lasers, asic: hs.asic, engine: hs.engine, els: hs.els },
-    dataHotspots: { fingers: hs.fingers, dsp: hs.dsp, driver: hs.driver, pic: hs.pic, mpo: hs.mpo, asic: hs.asic, engine: hs.engine, fiberout: hs.fiberout, els: hs.els },
+    hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: hs.dsp, lasers: hs.lasers, asic: hs.asic, engine: hs.engine, els: hs.els, acc: hs.acc, aec: hs.aec, dac: hs.dac },
+    dataHotspots: { fingers: hs.fingers, dsp: hs.dsp, driver: hs.driver, pic: hs.pic, mpo: hs.mpo, asic: hs.asic, engine: hs.engine, fiberout: hs.fiberout, els: hs.els,
+      dac: hs.dac, acc: hs.acc, aec: hs.aec, cdsp: hs.cdsp, cdm: hs.cdm, itla: hs.itla, icr: hs.icr, lc: hs.lc },
     heatHotspots: { dsp: hs.dsp, shell: hs.shell, asic: hs.asic, coldplate: hs.coldplate },
     variant: { get lpo() { return lpo.on; }, setLpo },
     update(t) {
       const heatOn = state.mode === 'heat';
-      for (const m of [dspMat, asicMat]) { m.emissiveIntensity = heatOn ? 0.5 + 0.08 * Math.sin(t * 2) : 0; }
+      for (const m of [dspMat, asicMat, cdspMat]) { m.emissiveIntensity = heatOn ? 0.5 + 0.08 * Math.sin(t * 2) : 0; }
       if (lpo.on) [...dspHops, ...modPower, ...modHeat].forEach(f => (f.group.visible = false));
     },
   };

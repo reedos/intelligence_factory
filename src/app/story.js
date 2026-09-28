@@ -424,7 +424,7 @@ function ctlLabel() {
   // walk plus about how much reading is left (finding 14: "Data · Level 3 · Part 9 of 11 · Stop 112 of 135")
   const b = list[active], n = pinOf(b), lv = b.link.scene + 1, layerName = LAYER_NAME[b.link.mode];
   const part = n ? `Part ${n} of ${partCount(b.link.scene, b.link.mode)}` : 'overview';
-  const trip = b.trip && b.link.scene !== b.parent ? `Side trip · inside the optics · ${part}` : null;
+  const trip = b.trip && b.link.scene !== b.parent ? `Side trip · inside the links · ${part}` : null;
   const where = !perLevel() ? `Step ${active + 1} of ${list.length}`
     : trip && tour !== 'here' ? `${layerName} · ${trip} · Stop ${active + 1} of ${list.length} · ≈${fmtMs(remainingMs(active))} left`
     : tour === 'here' ? `${layerName} · ${part}`

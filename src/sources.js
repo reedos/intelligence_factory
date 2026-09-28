@@ -214,6 +214,18 @@ export const SOURCES = {
   // guess at the date was wrong. It restates "4x fewer lasers... compared to legacy designs" but does not itself
   // state a power-efficiency multiplier; the "5x lower power" figure used on the CPO card comes from StorageReview's
   // 08/15/2026 report instead (see storagereview-nvidia-cpo-production).
+  // ---- inside the links: copper heads and the coherent pluggable (research/links-internals-sources.md, 09/28/2026) ----
+  'flexoptix-dac-acc-aec': { title: 'DAC, ACC, or AEC?', publisher: 'Flexoptix', url: 'https://www.flexoptix.net/en/blog/blog/dac-acc-or-aec', accessed: '09/28/2026', kind: 'secondary', marketing: true },
+  'naddod-aoc-dac-acc-aec': { title: 'Comparing AOC, DAC, ACC, and AEC Cables for AI and Data Center Networks', publisher: 'NADDOD', url: 'https://www.naddod.com/blog/a-complete-overview-of-aoc-dac-acc-and-aec-cables', accessed: '09/28/2026', kind: 'secondary', marketing: true },
+  'ascentoptics-copper-cables': { title: 'Understanding High-Speed Copper Cables: DAC, ACC, and AEC', publisher: 'AscentOptics', url: 'https://ascentoptics.com/blog/understanding-high-speed-copper-cables-dac-acc-and-aec/', accessed: '09/28/2026', kind: 'secondary', marketing: true },
+  'cisco-800g-zr-datasheet': { title: 'QSFP-DD and OSFP 800G ZR/ZR+ Coherent Optics Modules Data Sheet', publisher: 'Cisco', url: 'https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/qsfp-dd-osfp-800g-zr-zr-plus-coherent-optics.html', published: '07/13/2026', accessed: '09/28/2026', kind: 'primary', marketing: false },
+  'oif-800zr-release': { title: 'OIF Releases 800ZR Coherent Interface Implementation Agreement', publisher: 'OIF', url: 'https://www.oiforum.com/oif-releases-800zr-coherent-interface-implementation-agreement-ia-and-key-400zr-ia-updates-addressing-market-demands-for-scalable-interoperable-high-capacity-solutions/', published: '10/30/2024', accessed: '09/28/2026', kind: 'primary', marketing: false },
+  'mapyourtech-800zr': { title: '800ZR and 800ZR+: The Coherent Pluggable Wave', publisher: 'MapYourTech', url: 'https://mapyourtech.com/800zr-and-800zr-the-coherent-pluggable-wave/', accessed: '09/28/2026', kind: 'secondary', marketing: false },
+  'fibermall-800g-zr': { title: '800G ZR & ZR+ Coherent Modules', publisher: 'FiberMall', url: 'https://www.fibermall.com/blog/800g-zr-zr-coherent-guide.htm', accessed: '09/28/2026', kind: 'secondary', marketing: true },
+  'fibermall-coherent-guide': { title: 'Coherent Optical Modules: The Complete Guide (100ZR to 800ZR)', publisher: 'FiberMall', url: 'https://www.fibermall.com/blog/coherent-optical-module-guide.htm', accessed: '09/28/2026', kind: 'secondary', marketing: true },
+  'effect-nitla17': { title: '17 dBm nano ITLA for 400/800G coherent transceivers', publisher: 'EFFECT Photonics', url: 'https://effectphotonics.com/products/nitla17/', accessed: '09/28/2026', kind: 'primary', marketing: true },
+  'opticalconnections-nano-itla': { title: "NeoPhotonics' Nano-ITLA extends ultra-narrow linewidth performance to enable 400G and beyond coherent OSFP and DD-QSFP modules", publisher: 'Optical Connections News', url: 'https://opticalconnectionsnews.com/2019/03/ofc-neophotonics-nano-itla-extends-ultra-narrow-linewidth-performance-to-enable-400g-and-beyond-coherent-osfp-and-dd-qsfp-modules/', published: '03/2019', accessed: '09/28/2026', kind: 'secondary', marketing: false },
+  'cignal-coherent-dsp-2026': { title: 'Tracking the Coherent DSP Supply Chain - 2026', publisher: 'Cignal AI', url: 'https://cignal.ai/2026/04/tracking-the-coherent-dsp-supply-chain-2026/', published: '04/2026', accessed: '09/28/2026', kind: 'secondary', marketing: false },
   // ---- inside the optics (research/optics-internals-sources.md, 09/28/2026) ----
   'juniper-1p6t-transceiver': { title: 'Know Your 1.6T Transceiver', publisher: 'Juniper Networks', url: 'https://www.juniper.net/documentation/us/en/hardware/1.6t-optics-cables-guide/optics-1.6t/topics/concept/1.6t-know-your-transceiver.html', accessed: '09/28/2026', kind: 'primary', marketing: false },
   'ascentoptics-osfp-form-factor': { title: 'OSFP Form Factor: Complete Guide to 400G/800G/1.6T', publisher: 'AscentOptics', url: 'https://ascentoptics.com/blog/osfp-form-factor-guide/', accessed: '09/28/2026', kind: 'secondary', marketing: true },
@@ -469,6 +481,17 @@ export const PART_SOURCES = {
   'data:tray:c2c': ['nvidia-gb200-nvl72', 'naddod-gb200-interconnect'],
   'data:tray:cx': ['nvidia-dsx-data-center-architecture', 'nvidia-coreweave-gb200-400g', 'nvidia-connectx8-datasheet', 'fs-com-dgx-h100'],
   // inside the optics
+  'data:optics:dac': ['flexoptix-dac-acc-aec', 'nvidia-dgx-gb200-user-guide'],
+  'data:optics:acc': ['naddod-aoc-dac-acc-aec', 'nvidia-copper-dac-lacc-overview', 'viksnewsletter-acc-power'],
+  'data:optics:aec': ['naddod-aoc-dac-acc-aec', 'flexoptix-dac-acc-aec'],
+  'power:optics:dac': ['flexoptix-dac-acc-aec'],
+  'power:optics:acc': ['viksnewsletter-acc-power'],
+  'power:optics:aec': ['viksnewsletter-acc-power', 'naddod-aoc-dac-acc-aec', 'ascentoptics-copper-cables'],
+  'data:optics:cdsp': ['cignal-coherent-dsp-2026', 'fibermall-800g-zr', 'fibermall-coherent-guide'],
+  'data:optics:cdm': ['mapyourtech-800zr', 'fibermall-800g-zr', 'fibermall-coherent-guide'],
+  'data:optics:itla': ['effect-nitla17', 'opticalconnections-nano-itla', 'cisco-800g-zr-datasheet'],
+  'data:optics:icr': ['fibermall-coherent-guide'],
+  'data:optics:lc': ['cisco-800g-zr-datasheet', 'oif-800zr-release'],
   'power:optics:fingers': ['ascentoptics-osfp-form-factor'],
   'power:optics:dcdc': [],
   'power:optics:dsp': ['marvell-ara-1-6t-prnewswire', 'broadcom-sian3-200g-lane-dsp'],

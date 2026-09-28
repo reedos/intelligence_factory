@@ -34,7 +34,8 @@ describe('tours', () => {
       const cards = scenes.flatMap((sc: any) => ((C as any)[key][sc.id] || []).flatMap((p: any) => [`${sc.id}:${p.id}`,
         ...(p.trip ? sideCards.filter(q => q.half === p.trip).map(q => `${side.id}:${q.id}`) : [])]));
       // and between them the trips cover every card of the side level, once
-      expect(cards.filter(c => c.startsWith(`${side.id}:`)).sort(), `${mode}: side level`).toEqual(sideCards.map(q => `${side.id}:${q.id}`).sort());
+      const opened = new Set(scenes.flatMap((sc: any) => ((C as any)[key][sc.id] || []).map((p: any) => p.trip).filter(Boolean)));
+      expect(cards.filter(c => c.startsWith(`${side.id}:`)).sort(), `${mode}: side level`).toEqual(sideCards.filter(q => opened.has(q.half)).map(q => `${side.id}:${q.id}`).sort());
       expect(parts.map((b: any) => `${C.SCENES[b.link.scene].id}:${b.link.part}`)).toEqual(cards);
       expect(beats.filter((b: any) => b.level).length).toBe(6);
       for (const b of beats as any[]) for (const t of [b.k, b.title, b.text, b.tally]) expect(t, b.title).not.toMatch(/undefined|NaN/);
