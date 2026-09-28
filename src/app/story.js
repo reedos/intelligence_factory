@@ -10,7 +10,7 @@
 // Pause (the button, or Space) is the only thing that stops it. One transport at the head of the panel (play,
 // back, forward, speed, where the tour is) is the only playback control on the page.
 import { store, on } from './store.js';
-import { show, go, reduced, onTick, setCinema, setTourPace, getTransitions, setTransitions, pinNumber, partCount, stageActive, destination } from './stage.js';
+import { show, go, reduced, onTick, setCinema, setTourPace, getTransitions, setTransitions, pinNumber, partCount, stageActive, destination, drillOf, isInward } from './stage.js';
 import { story, watt, request, heat, layer, everything, CHAIN, OUTWARD } from './journeys.js';
 import { openClock, closeClock, clockNow } from './clock-ui.js';
 import { chip } from '../evidence.js';
@@ -119,7 +119,8 @@ const chainNext = id => id === 'story' ? null : nextTour(id);
 // numerically higher level - heat runs outward, package to plant (6 to 1), like the full Heat tour; power and
 // data stay inward (1 to 6), the way they already read.
 const hereDir = () => OUTWARD.has(here.mode) ? -1 : 1;
-const validLevel = n => n >= 0 && n < store.C.SCENES.length;
+// the levels in a line only: the side level inside the optics has no next or previous level of its own
+const validLevel = n => n >= 0 && n < 6 && here.scene < 6;
 // past the last step: the next level of a level playthrough, or the next tour in its group
 const beyond = () => tour === 'here' ? (validLevel(here.scene + hereDir()) ? { level: here.scene + hereDir() } : null) : (chainNext(tour) ? { tour: chainNext(tour) } : null);
 const before = () => tour === 'here' ? (validLevel(here.scene - hereDir()) ? { level: here.scene - hereDir() } : null) : (prevTour(tour) ? { tour: prevTour(tour) } : null);
@@ -157,8 +158,8 @@ const partOf = l => {
 function goButton(b) {
   if (tour !== 'here') return '';                          // the narrated tours already go in; a way out mid-story is noise
   const p = partOf(b.link); if (!p || p.drill === undefined) return '';
-  const inward = p.drill > b.link.scene, to = store.C.SCENES[p.drill];
-  return `<button type="button" class="btn go beat-go" data-drill="${p.drill}" data-from="${p.id}" data-scene="${b.link.scene}">${inward ? 'Go inside' : 'Back out'}: ${to.title} ${inward ? '→' : '↑'}</button>`;
+  const d = drillOf(p), inward = isInward(b.link.scene, d), to = store.C.SCENES[d];
+  return `<button type="button" class="btn go beat-go" data-drill="${d}" data-from="${p.id}" data-scene="${b.link.scene}">${inward ? 'Go inside' : 'Back out'}: ${to.title} ${inward ? '→' : '↑'}</button>`;
 }
 function nextSteps() {
   const acts = ['<button type="button" class="btn" data-restart>↺ Start over</button>'], S = store.C.SCENES;

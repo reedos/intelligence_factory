@@ -27,7 +27,8 @@ describe('tours', () => {
     const M = compute(s), C = content(M);
     for (const [mode, key] of [['power', 'PARTS'], ['data', 'PARTS_DATA'], ['heat', 'PARTS_HEAT']] as const) {
       const beats = layer(M, mode), parts = beats.filter((b: any) => b.link.part);
-      const scenes = OUTWARD.has(mode) ? [...C.SCENES].reverse() : C.SCENES;
+      // the six levels in a line; the side level inside the optics has its own This level walk, not a place in these
+      const line = C.SCENES.filter((sc: any) => !sc.side), scenes = OUTWARD.has(mode) ? [...line].reverse() : line;
       const cards = scenes.flatMap((sc: any) => ((C as any)[key][sc.id] || []).map((p: any) => `${sc.id}:${p.id}`));
       expect(parts.map((b: any) => `${C.SCENES[b.link.scene].id}:${b.link.part}`)).toEqual(cards);
       expect(beats.filter((b: any) => b.level).length).toBe(6);
@@ -39,7 +40,7 @@ describe('tours', () => {
   // overview, not a part; the part steps follow the list the pins are numbered from, so part step k is pin k.
   it.each(scenarios)('a level playthrough opens on its overview, then runs the parts in pin order: $accel / $power / $cooling at $meterMW MW', s => {
     const M = compute(s), C = content(M);
-    for (let i = 0; i < 6; i++) for (const [mode, key] of [['power', 'PARTS'], ['data', 'PARTS_DATA'], ['heat', 'PARTS_HEAT']] as const) {
+    for (let i = 0; i < C.SCENES.length; i++) for (const [mode, key] of [['power', 'PARTS'], ['data', 'PARTS_DATA'], ['heat', 'PARTS_HEAT']] as const) {
       const [first, ...rest] = layer(M, mode, i) as any[], pins = ((C as any)[key][C.SCENES[i].id] || []).map((p: any) => p.id);
       expect(first.level && first.link.part, `${mode} level ${i + 1}: the opening step`).toBe(null);
       expect(first.k, `${mode} level ${i + 1}`).toMatch(/overview$/);

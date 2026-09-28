@@ -24,6 +24,10 @@ export const VOLT = {
   dci: { css: '#ffd35c', name: 'DWDM fiber', short: 'DWDM' },
   hbi: { css: '#7fe3ff', name: 'Die to die', short: 'NV-HBI' },
   hbm: { css: '#b08cff', name: 'HBM', short: 'HBM' },
+  tx: { css: '#62e6ff', name: 'Light out, transmit', short: 'TX' },
+  rx: { css: '#ff7ad9', name: 'Light in, receive', short: 'RX' },
+  cw: { css: '#ffb347', name: 'Laser light, no data', short: 'laser' },
+  v33: { css: '#8fd3ff', name: '3.3 V DC', short: '3.3 V' },
   // heat classes
   hot: { css: '#ffc34a', name: 'Heat from silicon', short: 'heat' },
   air: { css: '#ff8a4a', name: 'Hot air', short: 'air' },
@@ -187,6 +191,13 @@ export function content(M) {
         ? `The fastest links are the shortest. HBM feeds the dies at ${hbmTB} over millimeters, the two dies talk at 10 TB/s across their seam, and ${A.nvlink.gen} leaves the package edge at ${nvlTB}.`
         : `The fastest links are the shortest. HBM feeds the die at ${hbmTB} over millimeters, and 18 ${A.nvlink.gen} links leave the package edge at ${nvlTB}.`,
       intro: `The last millimeter: over a thousand amps climb through solder balls and the substrate into ${A.dies > 1 ? 'two silicon dies' : 'one silicon die'} and ${A.id === 'h100' ? 'five working HBM stacks' : `${A.hbm.stacks} HBM stacks`}. What leaves is heat, and tokens.`,
+    },
+    // the side level: entered from a module cage on the tray or the CPO switch in the hall, not part of the line
+    {
+      id: 'optics', n: '+', side: true, title: 'Inside the optics', scale: '11 cm long', unit: 0.01, volt: 'v33', dataVolt: 'eth', heatVolt: 'hot', heatShort: 'fins and a plate',
+      intro: 'Two ways to turn electrical lanes into light, side by side at the same scale. On the left, a pluggable module that slides into a cage on the tray or a switch; on the right, a switch package with the optics built around the switch chip itself.',
+      dataIntro: 'Follow one lane each way. On the left, electrical lanes come in at the edge connector, a DSP cleans them up, drivers swing the modulators, and light leaves through the fiber; light coming back hits a photodiode and runs the same chain in reverse. On the right, the switch chip hands its lanes a few millimeters to an optical engine instead, and laser light arrives from separate modules at the front panel.',
+      heatIntro: 'In the module, the DSP is the hottest part: its heat crosses a gap pad into the shell and leaves through the fins in the air the switch or server blows past. The co-packaged switch sits under a cold plate, with the optical engines beside the switch chip in the same water-cooled package.',
     },
   ];
 
@@ -801,10 +812,10 @@ export function content(M) {
       { id: 'runways', title: 'Fiber runways', kicker: 'Yellow means fiber',
         body: 'Overhead yellow trays carry thousands of single-mode strands. A parallel module lights eight lanes through two multi-fiber connectors, so strand counts climb fast.',
         specs: [['Fibers per link', `${NET.fabric.fibersPerLink}`, 'assumed', { assume: 'fibers-per-link' }]] },
-      { id: 'optics', title: 'Optical modules', kicker: 'Several per GPU',
+      { id: 'optics', title: 'Optical modules', kicker: 'Several per GPU', drill: 6,
         body: `Every link is lit at both ends by a pluggable module, from merchant suppliers such as InnoLight and Coherent as well as NVIDIA’s own LinkX line. Here they fill the faces of the leaf switches at the row ends and of the spine switches, with a link light on each and fiber rising to the runway. One per GPU leaves the rack, and every tier above adds more: about ${(NET.modules / GPUS).toFixed(1)} per GPU, ${NET.opticsMW.toFixed(1)} MW for this campus.`,
         specs: [['NVIDIA 800G DR8, 500 m', '17 W max', 'spec', { refs: [['nvidia-800g-dr8-datasheet', '§4.2, Recommended Operating Conditions and Power Supply Requirements: Maximum Power Dissipation, Max 17 W']] }], ['1.6T modules, e.g. InnoLight or Coherent 1.6T-DR8', '≈25–30 W, still ramping', 'assumed', { assume: '1.6t-module-power' }], ['The DSP inside each module', 'e.g. Marvell Ara, Broadcom Sian, Credo Bluebird', 'spec', { refs: [['marvell-ara-1p6t-portfolio', 'Marvell’s own 1.6T optical DSP portfolio announcement'], ['broadcom-sian3-200g-lane-dsp', 'Broadcom’s own Sian3 200G-lane DSP announcement'], ['credo-bluebird-dsp', 'Credo’s own Bluebird 1.6T optical DSP product page']] }], ['Linear-drive (LPO)', 'roughly half the power', 'reported', { refs: [['semtech-200g-lpo-power-blog', '"200G LPO Power, Reach and Loss: Real Numbers" -- Semtech’s own published LPO-vs-DSP power comparison']] }]] },
-      { id: 'cpo', title: 'Co-packaged optics', kicker: 'A comparison, not deployed here',
+      { id: 'cpo', title: 'Co-packaged optics', kicker: 'A comparison, not deployed here', drill: 6,
         body: 'This scenario does not deploy CPO: none of its switches, power or fiber counts change because of this card. One extra switch stands apart at the end of the spine row as a schematic stand-in for the alternative, NVIDIA Spectrum-X/Quantum-X Photonics-style CPO, for comparison only. CPO is a kind of switch, not an add-on: a fabric that adopts it uses CPO switches in place of pluggable ones, which is why this one is set apart rather than drawn in the row. Real CPO switches put the optical engines on (or beside) the switch package itself, shortening the electrical path to the laser and cutting out the pluggable modules, which changes both signal-processing needs and electrical losses; it is not simply "every removed block is saved power." Fewer lasers, from sharing external laser sources across ports, is also not the same claim as fewer traffic fibers: CPO does not by itself reduce how many fibers carry data. Every switch actually counted in this hall still takes pluggables, as most fabrics do today.',
         specs: [['NVIDIA Quantum-X / Spectrum-X Photonics', '5× power efficiency, 4× fewer lasers, not fewer fibers (Aug. 2026 reporting; NVIDIA’s own March 2025 launch claimed 3.5×)', 'vendor', { refs: [['storagereview-nvidia-cpo-production', '"5x lower power consumption" and "4x fewer lasers" vs. conventional pluggable-optics switches, 08/15/2026'], ['nvidia-spectrum-x-cpo', 'launch announcement: "4x fewer lasers to deliver 3.5x more power efficiency... compared with traditional methods", 03/18/2025'], ['nvidia-cpo-industry-collaboration-blog', '08/26/2025 post restates "reducing the total number of lasers in the data center by a factor of four compared to legacy designs" but not a power-efficiency multiplier']], vs: 'conventional switches using pluggable optical transceivers' }], ['Broadcom Davisson', '102.4 Tb/s, ≈3.5 W per 800G port', 'vendor', { refs: [['broadcom-tomahawk6', 'page title: "Broadcom Now Shipping World’s First 102.4 Tbps Switch in Production Volume" -- Davisson is Broadcom’s CPO variant built on this same Tomahawk 6 ASIC (per nextplatform-broadcom-cpo)'], ['nextplatform-broadcom-cpo', '"An 800 Gb/sec port will burn about 3.5 watts, says Broadcom, which is 36.4 percent lower than with the Tomahawk 5 CPO port at the same bandwidth and more than 70 percent lower than pluggable optics at the same bandwidth"']], vs: 'Broadcom’s prior-generation Tomahawk 5 CPO port and pluggable optics, both at 800 Gb/s' }]] },
       { id: 'racks', title: nvl ? 'NVL72 racks' : 'DGX H100 racks', kicker: 'Scale-up stays inside', drill: 3,
@@ -867,7 +878,7 @@ export function content(M) {
       { id: 'cx', title: 'SuperNICs', kicker: 'One per GPU',
         body: 'Each GPU has its own network card for scale-out traffic, so GPUs talk to other racks without going through the CPU.',
         specs: (() => { const n = nicPerGpuEv(); return [['NIC', X.nic, n.basis, n.ev], ['Per GPU', X.nicNote, n.basis, n.ev]]; })() },
-      { id: 'osfp', title: 'Optical modules', kicker: 'Electrons become light',
+      { id: 'osfp', title: 'Optical modules', kicker: 'Electrons become light', drill: 6,
         body: 'Pluggable modules at the front turn the NIC’s electrical signal into light on single-mode fiber.',
         specs: [['NVIDIA 800G DR8', '17 W max', 'spec', { refs: [ref('nvidia-800g-dr8-datasheet', 'Key Features / Recommended Operating Conditions table: "17-Watts max power" for the 500 m single-mode DR8 variant')] }], ['400G module', '8–9 W', 'reported', { refs: [ref('nvidia-linkx-interconnect', 'LinkX 400G module family power figures in this range')] }]] },
       { id: 'dpu', title: 'BlueField DPU', kicker: 'Front-end network',
@@ -891,7 +902,7 @@ export function content(M) {
       { id: 'cx', title: 'ConnectX-7 NICs', kicker: 'One per GPU',
         body: 'Eight single-port 400 Gb/s NICs, one for each GPU, carry scale-out traffic.',
         specs: [['Per GPU', '400 Gb/s', 'spec', { refs: [ref('nvidia-dgxh100-user-guide', 'Component Descriptions: "4 x OSFP ports for 8 x NVIDIA ConnectX-7 Single Port" cards, "Up to 400Gbps"')] }]] },
-      { id: 'osfp', title: 'Twin-port optical cages', kicker: 'Electrons become light',
+      { id: 'osfp', title: 'Twin-port optical cages', kicker: 'Electrons become light', drill: 6,
         body: 'Four cages at the back each hold one 800G twin-port module carrying two 400G links.',
         specs: [['Cages', '4, 2 × 400G each', 'spec', { refs: [ref('nvidia-dgxh100-user-guide', 'Component Descriptions: "4 x OSFP ports for 8 x NVIDIA ConnectX-7 Single Port" cards — 4 physical cages, 2 GPUs’ ports each')] }]] },
       { id: 'dpu', title: 'Storage & management NICs', kicker: 'Front-end network',
@@ -1088,6 +1099,55 @@ export function content(M) {
     { name: 'Loosely synced replicas', where: 'Across campuses', cls: 'dci', scene: 0, link: at(0, 'remote', 'data'),
       what: 'Sites train mostly on their own and sync only every so often, which keeps the slow long-haul links from stalling every step.',
       need: 'Gb/s, every few hundred steps' },
+  ];
+
+  // ---------- the side level: inside the optics (research/optics-internals-sources.md) ----------
+  const lay = ['Layout', 'representative, not one product', 'assumed', { assume: 'optics-module-layout' }];
+  const cpoLay = ['Layout', 'representative; counts are NVIDIA’s', 'assumed', { assume: 'cpo-package-layout' }];
+  const osfpSize = ['OSFP body', '107.8 × 22.58 × 13.0 mm', 'reported', { refs: [ref('ascentoptics-osfp-form-factor', 'form factor dimensions: the integrated-heat-sink body as 22.58 mm wide × 107.8 mm long × 13.0 mm tall, restating the OSFP MSA')] }];
+  const pins = ['Edge connector', '60 pins: 16 high-speed, 4 power, 20 ground, 20 other', 'reported', { refs: [ref('ascentoptics-osfp-form-factor', 'electrical interface: a 60-pin edge connector, allocated as 16 high-speed data, 16 low-speed/clock, 4 control, 4 power and 20 ground pins')] }];
+  const lanes8 = ['Host lanes', '8 × 200G electrical, each way', 'spec', { refs: [ref('juniper-1p6t-transceiver', '"8x200G electrical—The electrical interface between the switch and the transceiver components"')] }];
+  const quantumOSA = ['Per switch chip', '6 subassemblies × 3 engines = 18', 'spec', { refs: [ref('nvidia-cpo-industry-collaboration-blog', 'Quantum-X section: 28.8 Tb/s per switch ASIC through six optical subassemblies of three optical engines each')] }];
+  const perEngine = ['Per engine', '1.6 Tb/s each way, 8 × 200G', 'spec', { refs: [ref('nvidia-cpo-industry-collaboration-blog', 'Quantum-X section: each optical engine carries 1.6 Tb/s transmit and 1.6 Tb/s receive over 8 × 200 Gb/s PAM4 lanes')] }];
+  const fibers18 = ['Fibers per engine', '8 transmit, 8 receive, 2 laser in', 'spec', { refs: [ref('nvidia-cpo-industry-collaboration-blog', 'Quantum-X section: eight transmit, eight receive and two laser-input fibers per optical engine')] }];
+  const els18 = ['Laser modules', '18 per Q3450 switch, 8 lasers each', 'spec', { refs: [ref('nvidia-cpo-industry-collaboration-blog', 'external laser source section: 18 field-replaceable ELS modules per Q3450, each with eight laser diodes'), ref('lambda-q3450-unboxing', '"18 removable external light-source modules, each feeding eight MPO ports"')] }];
+  const q3450W = ['Q3450 switch, NVIDIA figure', '3.95 kW', 'vendor', { refs: [ref('lambda-q3450-unboxing', 'power section: 3.95 kW for the CPO switch against 7.0 kW for a pluggable-optics equivalent')], vs: 'a pluggable-optics equivalent switch at 7.0 kW' }];
+  const portW = ['Per port, NVIDIA figure', 'as low as 9 W', 'vendor', { refs: [ref('nvidia-cpo-scaling-blog', 'body text: 30 W per port with pluggable transceivers, "as low as 9 W" per port with co-packaged optics')], vs: '30 W per port with pluggable transceivers' }];
+  const coupe = ['Engine stack', '65 nm electronic chip bonded on a photonic chip', 'reported', { refs: [ref('ic-online-nvidia-coupe', 'COUPE section: a 65 nm EIC stacked on the PIC with TSMC SoIC-X hybrid bonding'), ref('trendforce-coupe-semicon-2025', '"TSMC\'s 65nm silicon photonics technology is in volume production"')] }];
+  const dspW = ['1.6T module, 3 nm DSP', 'under 22 W (Marvell), under 23 W (Broadcom)', 'vendor', { refs: [ref('marvell-ara-1-6t-prnewswire', 'body text: Ara enables 1.6T modules at less than 22 W'), ref('broadcom-sian3-200g-lane-dsp', 'body text: sub-23 W 1.6T modules on Sian3')], vs: 'their 5 nm predecessors, over 20% higher by both companies’ figures' }];
+  const lqd = ['Cooling', 'liquid, ASIC and optics on one loop', 'reported', { refs: [ref('lambda-q3450-unboxing', 'cooling section: one liquid-cooled architecture for the switch ASIC and the co-packaged optics together; four UDQ4 quick-disconnects')] }];
+  const edge = { id: 'fingers', title: 'Edge connector', kicker: 'Back out to the cage', drill: 'out',
+    body: 'Gold fingers on both faces of the board are the module’s only electrical connection: power in, and the host’s lanes in and out. The cage it plugs into is on the level you came from.', specs: [pins, osfpSize] };
+  PARTS.optics = [
+    { ...edge, specs: [pins, osfpSize] },
+    { id: 'dcdc', title: 'Power conversion', kicker: 'Rails for every chip', body: 'The host supplies one voltage. Small converters on the module make the separate rails the DSP, the drivers and the lasers need.', specs: [lay] },
+    { id: 'dsp', title: 'DSP', kicker: 'The biggest draw', body: 'The digital signal processor is the module’s largest single power draw, and the part an LPO module removes. The newest are made on a 3 nm process.', specs: [dspW] },
+    { id: 'lasers', title: 'Lasers', kicker: 'Light only', body: 'In a silicon photonics module, separate continuous-wave lasers make steady light, because silicon cannot make light efficiently; the data goes onto it in the modulators. Other 1.6T modules use lasers that carry the data themselves.', specs: [['Design drawn', 'silicon photonics, separate lasers', 'assumed', { assume: 'optics-sip-design' }], ['Short-reach DR8', 'directly modulated lasers are also used', 'spec', { refs: [ref('juniper-1p6t-transceiver', '"DMLs are used for single-mode optics such as DR8"')] }]] },
+    { id: 'asic', title: 'Switch ASIC', kicker: 'Most of the package power', body: 'The switch chip does the switching and drives every lane a few millimeters to the optical engines around it. One of these packages is drawn; a Quantum-X Photonics switch holds four.', specs: [q3450W, cpoLay] },
+    { id: 'engine', title: 'Optical engines', kicker: 'Powered from the package', body: 'Each engine is an electronic chip bonded on top of a photonic chip, fed from the package substrate like the switch chip beside it.', specs: [coupe, quantumOSA] },
+    { id: 'els', title: 'External laser sources', kicker: 'Swappable, at the front', body: 'The lasers are kept out of the hot package, in modules at the front panel that can be replaced without opening the switch. Four are drawn feeding this package; the switch’s 18 serve its four packages.', specs: [els18] },
+  ];
+  PARTS_DATA.optics = [
+    { ...edge, specs: [lanes8, pins] },
+    { id: 'dsp', title: 'DSP', kicker: 'Cleans up every lane', body: 'Host lanes arrive from the switch or NIC with loss and distortion from the board. The DSP retimes and equalizes them, then drives clean lanes to the optics; on the way back it recovers the data from the receive side. The LPO module leaves it out and lets the host’s own SerDes do that work.',
+      specs: [['What it does', 'retiming, equalization, error correction', 'spec', { refs: [ref('juniper-1p6t-transceiver', '"The CDR is responsible for re-timing incoming data to reduce jitter. The DSP handles functions like equalization, error correction, and other signal processing tasks"')] }], ['Examples', 'Marvell Ara, Broadcom Sian3 (3 nm)', 'spec', { refs: [ref('marvell-ara-1-6t-prnewswire', 'headline and body: Ara, a 3 nm 1.6 Tb/s PAM4 DSP, 8 × 200G electrical and 8 × 200G optical lanes'), ref('broadcom-sian3-200g-lane-dsp', 'body text: Sian3, a 3 nm 200G-per-lane DSP PHY for 800G and 1.6T modules')] }]] },
+    { id: 'driver', title: 'Drivers and TIAs', kicker: 'Analog, both ways', body: 'Drivers swing the modulators with each lane’s signal on the way out. On the way in, transimpedance amplifiers turn each photodiode’s tiny current into a voltage. In an LPO module these linear parts are all that is left between the host and the light.',
+      specs: [['Receive, per module', '8 photodiodes, 8 TIAs', 'spec', { refs: [ref('juniper-1p6t-transceiver', 'receive section: eight photodetectors and eight TIAs; the TIA "converts and amplifies the electrical current from the photodiode into an electrical voltage level"')] }], ['LPO keeps', 'a linear driver, the TIA, linear equalizers', 'reported', { refs: [ref('flexoptix-lpo-intro', 'what LPO keeps: a CTLE and linear driver on transmit, a photodiode, TIA and linear equalizer on receive, none retiming the signal')] }]] },
+    { id: 'pic', title: 'Silicon photonics chip', kicker: 'Where electrons become light', body: 'Modulators imprint each lane onto the lasers’ light, and waveguides carry it to the fiber edge. Photodiodes on the receive side turn incoming light back into current. Transmit and receive are separate paths on the chip.', specs: [['Design drawn', 'Mach-Zehnder modulators on silicon', 'assumed', { assume: 'optics-sip-design' }], lay] },
+    { id: 'mpo', title: 'Fiber connectors', kicker: 'One fiber per lane, each way', body: 'Two MPO-12 connectors, one per DR4 half: four fibers out and four in on each, with the middle four positions unused. Sixteen fibers carry the module’s eight lanes each way.',
+      specs: [['Connectors', 'dual MPO-12', 'spec', { refs: [ref('juniper-1p6t-transceiver', 'optical interface: DR8 / 2×DR4 modules use dual MPO-12/APC connectors'), ref('nvidia-800g-dr8-datasheet', 'optical interface: two MPO-12/APC connectors on the twin-port DR8 module')] }], ['Fibers lit', '16: 4 out and 4 in per connector', 'spec', { refs: [ref('nvidia-800g-dr8-datasheet', 'optical interface: a twin-port DR8 module on two MPO-12/APC connectors, eight fibers active on each (four transmit, four receive)')] }]] },
+    { id: 'asic', title: 'Switch ASIC', kicker: 'Lanes go millimeters, not centimeters', body: 'The switch chip’s SerDes send each lane a few millimeters to an optical engine instead of across a board to a module at the front panel. That shorter electrical path is where CPO saves its power.',
+      specs: [['Per switch chip', '28.8 Tb/s each way', 'spec', { refs: [ref('nvidia-cpo-industry-collaboration-blog', 'Quantum-X section: 28.8 Tb/s full-duplex per switch ASIC')] }], ['Electrical loss, NVIDIA figure', '≈4 dB, from 20–22 dB', 'vendor', { refs: [ref('nvidia-cpo-scaling-blog', 'body text: 22 dB for the pluggable path against approximately 4 dB with co-packaged optics'), ref('lambda-q3450-unboxing', 'body text: roughly 20 dB to 4 dB')], vs: 'the path to a pluggable module, 20–22 dB' }], portW] },
+    { id: 'engine', title: 'Optical engines', kicker: 'Modulators beside the switch', body: 'Each engine stacks an electronic chip on a photonic chip. Micro-ring modulators put the lanes onto the laser light, and photodiodes read the light that comes back.',
+      specs: [perEngine, ['Modulators', 'micro-rings, 200G PAM4 each', 'spec', { refs: [ref('nvidia-cpo-industry-collaboration-blog', 'body text: micro-ring modulators for 200 Gb/s PAM4 per wavelength')] }], coupe] },
+    { id: 'els', title: 'External laser sources', kicker: 'Light in, no data', body: 'Laser light reaches the engines by fiber from modules at the front panel, two fibers per engine, in the same bundle as its data fibers. It carries no data until an engine’s modulators put some on it.', specs: [els18, fibers18] },
+    { id: 'fiberout', title: 'Fiber out of the package', kicker: 'Detachable at the edge', body: 'Each engine’s fibers run to a connector at the package edge, and from there to the switch’s front panel.', specs: [fibers18, ['Front panel, Q3450', '144 MPO connectors', 'reported', { refs: [ref('lambda-q3450-unboxing', 'front panel: 144 MPO optical connectors for 144 × 800G ports')] }]] },
+  ];
+  PARTS_HEAT.optics = [
+    { id: 'dsp', title: 'DSP', kicker: 'The module’s hot spot', body: 'Most of a DSP module’s heat starts in the DSP. A gap pad carries it up into the shell. Without it, an LPO module runs cooler.', specs: [dspW] },
+    { id: 'shell', title: 'Shell and fins', kicker: 'Cooled by the host’s air', body: 'The module has no fan of its own. Its finned top sits in the air the switch or server moves past the cages.', specs: [osfpSize, lay] },
+    { id: 'asic', title: 'Switch ASIC and engines', kicker: 'One package, one plate', body: 'The switch chip and the optical engines around it share one package, and their heat goes up into one cold plate.', specs: [lqd, q3450W] },
+    { id: 'coldplate', title: 'Cold plate', kicker: 'Water, not air', body: 'Water through the plate carries the package’s heat away. The lasers, at the front panel, stay out of it.', specs: [lqd] },
   ];
 
   // The numbered parts at a level (pins, the list, "Play 1 to N") read as one walk: the way the thing flows, without

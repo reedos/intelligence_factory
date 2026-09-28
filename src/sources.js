@@ -214,6 +214,14 @@ export const SOURCES = {
   // guess at the date was wrong. It restates "4x fewer lasers... compared to legacy designs" but does not itself
   // state a power-efficiency multiplier; the "5x lower power" figure used on the CPO card comes from StorageReview's
   // 08/15/2026 report instead (see storagereview-nvidia-cpo-production).
+  // ---- inside the optics (research/optics-internals-sources.md, 09/28/2026) ----
+  'juniper-1p6t-transceiver': { title: 'Know Your 1.6T Transceiver', publisher: 'Juniper Networks', url: 'https://www.juniper.net/documentation/us/en/hardware/1.6t-optics-cables-guide/optics-1.6t/topics/concept/1.6t-know-your-transceiver.html', accessed: '09/28/2026', kind: 'primary', marketing: false },
+  'ascentoptics-osfp-form-factor': { title: 'OSFP Form Factor: Complete Guide to 400G/800G/1.6T', publisher: 'AscentOptics', url: 'https://ascentoptics.com/blog/osfp-form-factor-guide/', accessed: '09/28/2026', kind: 'secondary', marketing: true },
+  'lambda-q3450-unboxing': { title: "Unbox one of NVIDIA's first co-packaged optics samples with Lambda", publisher: 'Lambda', url: 'https://lambda.ai/blog/unbox-one-of-nvidias-first-co-packaged-optics-samples-with-lambda', published: '06/01/2026', accessed: '09/28/2026', kind: 'secondary', marketing: true },
+  'nvidia-cpo-scaling-blog': { title: 'Scaling AI Factories with Co-Packaged Optics for Better Power Efficiency', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/scaling-ai-factories-with-co-packaged-optics-for-better-power-efficiency/', accessed: '09/28/2026', kind: 'primary', marketing: true },
+  'flexoptix-lpo-intro': { title: 'Introducing Linear Pluggable Optics (LPO)', publisher: 'Flexoptix', url: 'https://www.flexoptix.net/en/blog/blog/introducing-linear-pluggable-optics', accessed: '09/28/2026', kind: 'secondary', marketing: true },
+  'trendforce-coupe-semicon-2025': { title: 'Silicon Photonics in the Spotlight: TSMC Lifts the Curtain on COUPE at SEMICON Taiwan', publisher: 'TrendForce', url: 'https://www.trendforce.com/news/2025/09/09/news-silicon-photonics-in-the-spotlight-tsmc-lifts-the-curtain-on-coupe-at-semicon-taiwan/', published: '09/09/2025', accessed: '09/28/2026', kind: 'secondary', marketing: false },
+  'ic-online-nvidia-coupe': { title: 'NVIDIA Unveils Silicon Photonics Network Switches with TSMC COUPE Packaging Technology', publisher: 'IC Online', url: 'https://www.ic-online.com/blog/post/nvidia-unveils-silicon-photonics-network-switches-with-tsmc-coupe-packaging-technology', accessed: '09/28/2026', kind: 'secondary', marketing: false },
   'nvidia-cpo-industry-collaboration-blog': { title: 'How Industry Collaboration Fosters NVIDIA Co-Packaged Optics', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/how-industry-collaboration-fosters-nvidia-co-packaged-optics/', published: '08/26/2025', accessed: '09/27/2026', kind: 'primary', marketing: true },
 
   // engine workstream, 2026-09-27 audit pass (issues 4, 9, 10, 14, 15, 18a, 18b)
@@ -460,6 +468,27 @@ export const PART_SOURCES = {
   'data:tray:nvconn': ['nvidia-gb200-nvl72'],
   'data:tray:c2c': ['nvidia-gb200-nvl72', 'naddod-gb200-interconnect'],
   'data:tray:cx': ['nvidia-dsx-data-center-architecture', 'nvidia-coreweave-gb200-400g', 'nvidia-connectx8-datasheet', 'fs-com-dgx-h100'],
+  // inside the optics
+  'power:optics:fingers': ['ascentoptics-osfp-form-factor'],
+  'power:optics:dcdc': [],
+  'power:optics:dsp': ['marvell-ara-1-6t-prnewswire', 'broadcom-sian3-200g-lane-dsp'],
+  'power:optics:lasers': ['juniper-1p6t-transceiver'],
+  'power:optics:asic': ['nvidia-cpo-scaling-blog', 'lambda-q3450-unboxing'],
+  'power:optics:engine': ['nvidia-cpo-industry-collaboration-blog', 'trendforce-coupe-semicon-2025', 'ic-online-nvidia-coupe'],
+  'power:optics:els': ['nvidia-cpo-industry-collaboration-blog', 'lambda-q3450-unboxing'],
+  'data:optics:fingers': ['ascentoptics-osfp-form-factor', 'juniper-1p6t-transceiver'],
+  'data:optics:dsp': ['juniper-1p6t-transceiver', 'marvell-ara-1-6t-prnewswire'],
+  'data:optics:driver': ['juniper-1p6t-transceiver', 'flexoptix-lpo-intro'],
+  'data:optics:pic': ['juniper-1p6t-transceiver'],
+  'data:optics:mpo': ['juniper-1p6t-transceiver', 'nvidia-800g-dr8-datasheet'],
+  'data:optics:asic': ['nvidia-cpo-industry-collaboration-blog', 'nvidia-cpo-scaling-blog', 'lambda-q3450-unboxing'],
+  'data:optics:engine': ['nvidia-cpo-industry-collaboration-blog', 'ic-online-nvidia-coupe'],
+  'data:optics:els': ['nvidia-cpo-industry-collaboration-blog', 'lambda-q3450-unboxing'],
+  'data:optics:fiberout': ['nvidia-cpo-industry-collaboration-blog', 'lambda-q3450-unboxing'],
+  'heat:optics:dsp': ['marvell-ara-1-6t-prnewswire'],
+  'heat:optics:shell': ['ascentoptics-osfp-form-factor'],
+  'heat:optics:asic': ['lambda-q3450-unboxing', 'nvidia-cpo-scaling-blog'],
+  'heat:optics:coldplate': ['lambda-q3450-unboxing'],
   'data:tray:osfp': ['nvidia-800g-dr8-datasheet'],
   'data:tray:dpu': ['nvidia-dgx-gb200-hardware', 'nvidia-bluefield4-datasheet', 'nvidia-dgxh100-user-guide'],
   'data:tray:gpu': [],

@@ -20,8 +20,26 @@ import * as rack from '../scenes/rack.js';
 import * as tray from '../scenes/tray.js';
 import * as chip from '../scenes/chip.js';
 import * as across from '../scenes/across.js';
+import * as optics from '../scenes/optics.js';
 
-const BUILDERS = [across, campus, hall, rack, tray, chip];
+// six levels in a line, outermost first, then the side level: inside the optics, entered from a module cage on the
+// tray or the CPO switch in the hall, and left back to whichever of those the reader came from
+const BUILDERS = [across, campus, hall, rack, tray, chip, optics];
+export const MAIN_LEVELS = 6, SIDE = 6;
+let sideFrom = 4, sideVia = null;                          // the level the reader entered the side level from, and the part
+// where a part's go-button leads: a number, or 'out' for the side level's way back
+export const drillOf = p => p?.drill === 'out' ? sideFrom : p?.drill;
+// whether moving from one level to another goes in (the side level counts as inside whatever it was entered from)
+// the pluggable module inside the optics, with its DSP or without (LPO); a view of the module only, since the
+// fabric this scenario counts still uses DSP modules
+let lpoOn = false;
+function applyVariant() {
+  built[SIDE]?.variant?.setLpo(lpoOn);
+  document.querySelectorAll('[data-variant]').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.variant === 'lpo') === lpoOn)));
+}
+document.querySelectorAll('[data-variant]').forEach(b => b.addEventListener('click', () => { lpoOn = b.dataset.variant === 'lpo'; applyVariant(); }));
+export const isInward = (from, to) => to === SIDE ? from !== SIDE : from === SIDE ? false : to > from;
+
 // per scene defaults: bloom, ambient occlusion radius (world units, 0 = off), exposure. A scene can override any of
 // these, and pick its lighting environment and depth of field, by returning `look` from build():
 //   look: { bloom, threshold, ao, exposure, env: 'room' | 'studio' | 'indoor' | 'sky' | 'night', envIntensity, dof: true }
@@ -32,6 +50,7 @@ const LOOK = [
   { bloom: 0.55, threshold: 1.0, ao: 0.06, exposure: 1.0 },
   { bloom: 0.55, threshold: 1.35, ao: 0.12, exposure: 0.95 },
   { bloom: 0.6, threshold: 1.7, ao: 0.15, exposure: 0.95 },
+  { bloom: 0.6, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // inside the optics
 ];
 function legends(M) {
   const dc = M.power.id === 'dc800', nvl = M.accel.gpusPerRack === 72, warm = M.cooling.id === 'warm';
@@ -45,6 +64,7 @@ function legends(M) {
       nvl ? [rackIn, ['dc', '≈50 V DC'], ['cool', 'Supply'], ['warm', 'Return']] : [['lv', '415 V AC'], ['dc', '54 V DC, in the server']],
       nvl ? [['dc', '≈50 V'], ['bus12', '12 V'], ['core', '≈0.8 V'], ['cool', 'Supply'], ['warm', 'Return']] : [['lv', '240 V AC in'], ['dc', '54 V'], ['bus12', '12 V'], ['core', '≈0.8 V']],
       [['core', '≈0.8 V, rising']],
+      [['v33', '3.3 V into the module'], ['core', 'Sub-volt rails'], ['cw', 'Laser light, no data']],
     ],
     data: [
       [['dci', 'DWDM routes']],
@@ -53,6 +73,7 @@ function legends(M) {
       nvl ? [['nvl', 'Scale-up, NVLink copper'], ['eth', 'Scale-out, optical']] : [['nvl', 'NVLink, inside one server'], ['eth', 'Scale-out, optical']],
       nvl ? [['nvl', 'NVLink'], ['c2c', 'NVLink-C2C'], ['eth', 'To the NIC and optics']] : [['nvl', 'NVLink'], ['pcie', 'PCIe'], ['eth', 'To the optics']],
       M.accel.dies > 1 ? [['hbm', 'HBM'], ['hbi', 'Die to die'], ['nvl', 'NVLink out']] : [['hbm', 'HBM'], ['nvl', 'NVLink out']],
+      [['eth', 'Electrical lanes'], ['tx', 'Light out, transmit'], ['rx', 'Light in, receive'], ['cw', 'Laser light, no data']],
     ],
     heat: [
       [['hv', 'Grid, for reference']],
@@ -63,6 +84,7 @@ function legends(M) {
       nvl ? (M.accel.liquidShare < 0.99 ? [['cool', 'Supply'], ['warm', 'Return'], ['air', 'Exhaust air']] : [['cool', 'Supply'], ['warm', 'Return']]) : [['cool', 'Cold air in'], ['air', 'Hot air out']],
       nvl ? [['hot', 'Heat into the plates'], ['cool', 'Supply'], ['warm', 'Return'], ['air', 'Fan air']] : [['hot', 'Heat into the sinks'], ['air', 'Air through the server']],
       [['hot', `Heat out of the ${M.accel.dies > 1 ? 'dies' : 'die'}`], ['air', 'Out of HBM']],
+      [['hot', 'Heat out of the chips'], ['air', 'Air through the fins'], ['cool', 'Water through the plate']],
     ],
   };
 }
@@ -519,6 +541,7 @@ function renderSteps() {
     b.innerHTML = `<span class="top"><span class="n">${s.n}</span><span class="t">${s.title}</span></span><span class="meta"><span class="dot"></span><span>${v.short} · ${s.scale}</span></span>`;
     b.setAttribute('aria-label', `${s.n}. ${s.title}, ${v.name}`);
     if (i === ui.scene) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+    if (i === SIDE) { b.classList.add('side'); b.hidden = ui.scene !== SIDE; }
   });
 }
 
@@ -548,15 +571,16 @@ let pins = [];
 function buildPanel(i) {
   const s = SCENES()[i], parts = partsFor(i);
   $('intro').textContent = { power: s.intro, data: s.dataIntro, heat: s.heatIntro }[ui.mode];
-  $('hud-title').textContent = `${s.n}. ${s.title}`;
+  $('hud-title').textContent = s.side ? s.title : `${s.n}. ${s.title}`;
+  $('optics-variant').hidden = i !== SIDE;
   $('hud-sub').textContent = `${voltFor(s).name} · ${s.scale}`;
   const list = $('parts'); list.innerHTML = '';
-  $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · level ${s.n} · ${parts.length} parts`;
+  $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · ${s.side ? 'inside the optics' : `level ${s.n}`} · ${parts.length} parts`;
   $('play-these').textContent = `▶ Play 1 to ${parts.length}`;
   parts.forEach((p, n) => {
     const li = document.createElement('li'), b = document.createElement('button');
     b.type = 'button'; b.dataset.id = p.id; b.setAttribute('aria-pressed', 'false');
-    b.innerHTML = `<span class="pn">${n + 1}</span><span class="pt">${p.title}</span><span class="pk">${p.drill === undefined ? '' : p.drill > i ? 'inside →' : 'out ↑'}</span>`;
+    b.innerHTML = `<span class="pn">${n + 1}</span><span class="pt">${p.title}</span><span class="pk">${p.drill === undefined ? '' : isInward(i, drillOf(p)) ? 'inside →' : 'out ↑'}</span>`;
     b.addEventListener('click', () => select(p.id, true));
     li.appendChild(b); list.appendChild(li);
   });
@@ -584,9 +608,9 @@ export function select(id, fly) {
   $('card-k').textContent = p.kicker; $('card-t').textContent = p.title; $('card-b').textContent = p.body;
   const key = `card:${ui.mode}:${SCENES()[ui.scene].id}:${id}`;   // each row's chip opens that row's own evidence
   $('card-s').innerHTML = p.specs.map(([k, v, b], i) => `<div><dt>${k}</dt><dd>${v}</dd>${basisChip(b, `${key}:${i}`, k)}</div>`).join('');
-  const go_ = $('card-go'); go_.hidden = p.drill === undefined;
-  if (p.drill !== undefined) go_.textContent = `${p.drill > ui.scene ? 'Go inside' : 'Back out'}: ${SCENES()[p.drill].title} ${p.drill > ui.scene ? '→' : '↑'}`;
-  go_.onclick = () => go(p.drill, id);
+  const go_ = $('card-go'), to = drillOf(p), inw = isInward(ui.scene, to); go_.hidden = p.drill === undefined;
+  if (p.drill !== undefined) go_.textContent = `${inw ? 'Go inside' : 'Back out'}: ${SCENES()[to].title} ${inw ? '→' : '↑'}`;
+  go_.onclick = () => go(drillOf(p), id);
   if (fly) { const h = hotspotsFor(ui.scene)[id]; if (h?.view) { const f = frame(built[ui.scene], h); flyTo(f.pos, f.target); } }
   emit('select', { scene: ui.scene, mode: ui.mode, id });
 }
@@ -644,7 +668,8 @@ function stepIris(dt) {
 }
 function jumpLabel(from, to) {
   const a = SCENES()[from], b = SCENES()[to];
-  return `<div class="jump"><span class="jump-k">${to > from ? 'In' : 'Out'} · level ${b.n} of 6</span><b>${b.title}</b><span class="jump-s">${a.scale} → ${b.scale}</span></div>`;
+  const where = to === SIDE ? `In · inside level ${a.n}` : from === SIDE ? `Out · level ${b.n} of ${MAIN_LEVELS}` : `${to > from ? 'In' : 'Out'} · level ${b.n} of ${MAIN_LEVELS}`;
+  return `<div class="jump"><span class="jump-k">${where}</span><b>${b.title}</b><span class="jump-s">${a.scale} → ${b.scale}</span></div>`;
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -657,7 +682,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   busy = true; goingTo = i;
   const veil = $('veil');
   const same = i === ui.scene;
-  const from = ui.scene, inward = i > from, T = TRANSITIONS[transitions] / Math.sqrt(cinema ? tourPace : 1);
+  const from = ui.scene, inward = isInward(from, i), T = TRANSITIONS[transitions] / Math.sqrt(cinema ? tourPace : 1);
   const cut = reduced || transitions === 'instant';
   const travel = from >= 0 && !same && !cut;              // a level transition, rather than the first load or a rebuild
   const swap = cut && from >= 0 && !same && !!built[i];   // a cut to a level already built: nothing to cover
@@ -671,7 +696,10 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   if (travel) {
     view.classList.add('diving');
     veil.innerHTML = jumpLabel(from, i);                   // the next level's name, revealed as the view closes around it
-    let portal = inward ? portalOf(from, from + 1) : null;
+    if (i === SIDE && from !== SIDE) { sideFrom = from === 2 ? 2 : 4; sideVia = fromId; }   // entered from the hall, or a tray's cages
+    // the side level has more than one way in (the hall's pluggables and its CPO switch): dive at the one picked
+    const via = i === SIDE && fromId ? hotspotsFor(from)[fromId] : null;
+    let portal = via ? V(via.pos) : inward ? portalOf(from, i === SIDE ? SIDE : from + 1) : null;
     if (inward && !portal && fromId) { const h = hotspotsFor(from)[fromId]; if (h) portal = V(h.pos); }
     if (portal) {                                          // dive at the part that holds the next level
       glide(portal.clone().lerp(camera.position, 0.05), portal, 0.95 * T, easeIn2);
@@ -693,7 +721,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   ui.scene = i;
   DETAIL.unit.value = SCENES()[i].unit;                   // surface detail at this scale's real size
   if (mobile) built.forEach((bb, j) => { if (bb && Math.abs(j - i) > 1) { disposeScene(bb); disposeComposer(composers[j]); built[j] = undefined; composers[j] = undefined; } });
-  const c = b.camera;
+  const c = (i === SIDE && b.cameraFrom?.[sideVia]) || b.camera;   // the side level opens on the half you came in for
   camera.near = c.near; camera.far = c.far; camera.updateProjectionMatrix();
   controls.minDistance = c.min; controls.maxDistance = c.max;
   renderer.toneMappingExposure = lookOf(i).exposure;
@@ -703,7 +731,8 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
     const tgt = V(c.target), end = view.clientWidth / view.clientHeight < 0.9 ? tgt.clone().lerp(V(c.pos), 0.72) : V(c.pos);
     if (travel) {
       // in: from right up against the new level, as if the dive carried on; out: from the part just left
-      const back = inward ? null : portalOf(i, i + 1);
+      const outVia = from === SIDE && sideVia ? hotspotsFor(i)[sideVia] : null;   // back out at the part the reader went in by
+      const back = inward ? null : outVia ? V(outVia.pos) : portalOf(i, from === SIDE ? SIDE : i + 1);
       const aim = back || tgt;
       tween = null; drift = null;                          // the dive's own move ends here, not under the new level
       camera.position.copy(aim.clone().lerp(end, inward ? 0.08 : 0.06)); controls.target.copy(aim); controls.update();
@@ -716,6 +745,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
       flyTo(end.toArray(), c.target, from >= 0 && cut ? 0.01 : 1.6);   // the first load still flies in
     }
   }
+  if (i === SIDE) applyVariant();
   buildPanel(i);
   renderSteps();
   applyTier(i);

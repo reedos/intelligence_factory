@@ -266,7 +266,8 @@ const OPTICS_FIGURE = new Set(['hall:cpo', 'hall:optics', 'tray:osfp']);
 /** @param {any} M @param {'power'|'data'|'heat'} mode @param {number|null} [only] one level (0-5), or all six */
 export function layer(M, mode, only = null) {
   const C = content(M), [key, introKey, name] = LAYER[mode], out = [];
-  const levels = C.SCENES.map((sc, i) => [sc, i]).filter(([, i]) => only === null || i === only);
+  // the six levels in a line; the side level inside the optics (index 6) plays only when asked for by name
+  const levels = C.SCENES.map((sc, i) => [sc, i]).filter(([, i]) => only === null ? i < 6 : i === only);
   if (OUTWARD.has(mode)) levels.reverse();
   levels.forEach(([sc, i]) => {
     const parts = C[key][sc.id] || [];

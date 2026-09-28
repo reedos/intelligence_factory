@@ -73,7 +73,10 @@ for (const [label, s] of scenarios) {
       ifx.store.C.SCENES.forEach((sc, i) => [['power', ifx.store.C.PARTS], ['data', ifx.store.C.PARTS_DATA], ['heat', ifx.store.C.PARTS_HEAT]].forEach(([mode, P]) => (P[sc.id] || []).forEach(pt => out.push({ tour: 'explore', i: out.length, link: { scene: i, mode, part: pt.id } }))));
       return out;
     }
-    return ['story', 'watt', 'request', 'heat'].flatMap(t => J[t](M).map((bt, i) => ({ tour: t, i, link: bt.link, sim: bt.sim || null, title: bt.title })));
+    // the tours' stops, then every part of the side level inside the optics, which no tour passes through
+    const side = ifx.store.C.SCENES.findIndex(sc => sc.side), extra = [];
+    if (side >= 0) [['power', ifx.store.C.PARTS], ['data', ifx.store.C.PARTS_DATA], ['heat', ifx.store.C.PARTS_HEAT]].forEach(([mode, P]) => (P[ifx.store.C.SCENES[side].id] || []).forEach(pt => extra.push({ tour: 'optics', i: extra.length, link: { scene: side, mode, part: pt.id } })));
+    return ['story', 'watt', 'request', 'heat'].flatMap(t => J[t](M).map((bt, i) => ({ tour: t, i, link: bt.link, sim: bt.sim || null, title: bt.title }))).concat(extra);
   }, everything);
   if (!everything) await p.evaluate(() => ifx.enterStory('story'));
   for (const st of stops) {
