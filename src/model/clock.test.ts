@@ -80,7 +80,7 @@ describe('one set of temperature assumptions, shared by the cards and the clocks
   });
   it('the chilled-water-supply figure is the same for liquid cooling everywhere it appears', () => {
     const M = run({ cooling: 'liquid' });
-    const row = (content(M) as any).TEMPS.find((r: any) => r.label === 'Chilled water supply');
+    const row = (content(M) as any).TEMPS.find((r: any) => r.label === 'Facility supply');
     expect(row.c).toBe(WATER.liquidSupplyC);
   });
 });

@@ -3,10 +3,12 @@
 //   card:<layer>:<sceneId>:<partId>:<row>   a row on a 3D card        ledger:<i>     a ledger row
 //   bom:<group>-<row>                       an inventory row          links:<id>     a rung of the links ladder
 //   clock:<simId>:<i>                       a note under a clock      site:<id>:<i>  a fact about a real campus
+//   tour:<tourId>:<beat>:<row>              a figure a narrated tour states          temps:<i>  a bar of Hot to cold
 import { makeSim, SIMS } from './model/clock.ts';
 import { SITES } from './model/sites.ts';
 import { MEDIA_LADDER, FIGURE_CLAIMS } from './diagrams/links-media.js';
 import { evOf } from './evidence.js';
+import { story, watt, request, heat } from './app/journeys.js';
 
 const LAYERS = [['power', 'PARTS'], ['data', 'PARTS_DATA'], ['heat', 'PARTS_HEAT']];
 
@@ -25,6 +27,9 @@ export function allClaims(M, C) {
     out.push({ key: `clock:${id}:${i}`, group: 'clock', sim: id, label: n.text, value: '', basis: n.basis, ev: evOf(n) }));
   for (const [id, s] of Object.entries(SITES)) s.facts.forEach((row, i) =>
     out.push({ key: `site:${id}:${i}`, group: 'site', site: s, label: row[0], value: row[1], basis: row[2], ev: evOf(row) }));
+  for (const [id, f] of [['story', story], ['watt', watt], ['request', request], ['heat', heat]]) f(M).forEach(b => (b.specs || []).forEach((row, j) =>
+    out.push({ key: `${b.specKey}:${j}`, group: 'tour', tour: id, beat: b, label: row[0], value: row[1], basis: row[2], ev: evOf(row) })));
+  C.TEMPS.forEach((r, i) => out.push({ key: `temps:${i}`, group: 'temps', label: r.label, value: `≈${r.c} °C`, basis: r.basis, ev: evOf(r) }));
   return out;
 }
 

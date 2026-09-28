@@ -334,7 +334,7 @@ export const TERMS = [
  },
  {
   "term": "NVLink",
-  "def": "NVIDIA's copper scale-up link that ties GPUs into one shared-memory domain. The current generation, NVLink 5, moves 1.8 TB/s per GPU across all 72 GPUs of an NVL72 rack, fast enough that the rack behaves like one giant GPU.",
+  "def": "NVIDIA's copper scale-up link that ties GPUs into one shared-memory domain. The current generation, NVLink 5, moves 1.8 TB/s per GPU, both directions combined, across all 72 GPUs of an NVL72 rack, fast enough that the rack behaves like one giant GPU.",
   "layer": "data",
   "sources": [
    "nvidia-nvl72-reference-arch",
@@ -905,7 +905,17 @@ export const TERMS = [
  },
  {
   "term": "Prefill",
-  "def": "The first phase of answering a prompt: every token of the question passes through the model at once, reading its weights from HBM. A long prompt can take a few hundred milliseconds here, the wait before the first reply word appears.",
+  "def": "The first phase of answering a prompt: the model takes in the prompt's tokens in parallel, often in chunks alongside other requests. Each weight it reads serves many prompt tokens, so prefill is usually limited by compute rather than by memory bandwidth. A long prompt can take a few hundred milliseconds; together with the queue and the network, that sets the time to first token.",
+  "layer": "compute",
+  "link": {
+   "scene": 5,
+   "mode": "power",
+   "part": "dies"
+  }
+ },
+ {
+  "term": "Decode",
+  "def": "The second phase of answering a prompt: each new reply token is written one at a time. For a small batch, every token re-reads the model's weights, so decode speed usually tracks HBM bandwidth more than raw GPU math; serving many users in one batch shares each read and leans more on compute.",
   "layer": "compute",
   "link": {
    "scene": 5,
@@ -914,21 +924,11 @@ export const TERMS = [
   }
  },
  {
-  "term": "Decode",
-  "def": "The second phase of answering a prompt: each new reply token is written one at a time, re-reading the model's weights for every single token. Because it re-reads memory constantly rather than computing in bulk, decode speed tracks HBM bandwidth more than raw GPU math.",
-  "layer": "compute",
-  "link": {
-   "scene": 5,
-   "mode": "data",
-   "part": "tokens"
-  }
- },
- {
   "term": "KV cache",
   "aka": [
    "key-value cache"
   ],
-  "def": "A model's running memory of a conversation, the keys and values computed from every earlier token in the prompt and reply so far. Every new token during decode reads both the model's weights and this cache from HBM, which is a second reason serving speed follows memory bandwidth.",
+  "def": "A model's running memory of a conversation, the keys and values computed from every earlier token in the prompt and reply so far. Every new token during decode reads both the model's weights and this cache from HBM, which is a second reason decode speed usually follows memory bandwidth.",
   "layer": "compute",
   "link": {
    "scene": 5,
@@ -1015,7 +1015,7 @@ export const TERMS = [
   "aka": [
    "coolant distribution unit"
   ],
-  "def": "A cabinet at the end of a row that keeps a rack's own filtered coolant loop separate from the building's facility water, passing heat between the two through a plate heat exchanger without mixing them. Units on this page range 70 kW to 2.3 MW of capacity.",
+  "def": "A cabinet at the end of a row that keeps a rack's own filtered coolant loop separate from the building's facility water, passing heat between the two through a plate heat exchanger without mixing them. In this model the facility water runs about 3 °C below the rack loop on each side. Units on this page range 70 kW to 2.3 MW of capacity.",
   "layer": "heat",
   "sources": [
    "vertiv-coolchip-cdu",
@@ -1362,7 +1362,7 @@ export const TERMS = [
  },
  {
   "term": "Microsoft Fairwater Atlanta",
-  "def": "Microsoft's Fayetteville, Georgia campus: partly operating, partly under construction. 4 of 9 main-campus buildings were live at about 636 MW of IT power as of 09/24/2026; the other five, plus a planned four-building east campus, are under construction toward about 1.5 GW.",
+  "def": "Microsoft's Fayetteville, Georgia campus: partly operating, partly under construction. 4 of 9 main-campus buildings were live at about 636 MW of IT power as of 09/24/2026; the rest of the 13 planned buildings, across the main, east and Fairwater campuses, are under construction toward about 1.5 GW.",
   "layer": "general",
   "sources": [
    "epoch-dc-fairwater-atl",

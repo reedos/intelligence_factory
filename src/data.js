@@ -46,7 +46,7 @@ const statusRows = s => { const loc = s.status.source === 'compute-atlas-colossu
 };
 
 // Facts the text needs per accelerator that the engine does not use for arithmetic.
-const FACTS = {
+export const FACTS = {
   h100: {
     gpu: 'H100', gpus: 'H100 GPUs', arch: 'Hopper', transistors: '80 billion', tBasis: 'spec', process: 'TSMC 4N', pBasis: 'spec',
     dieCm2: 8.14, packaging: 'TSMC CoWoS-S', cpu: 'Xeon', cpuLong: 'Intel Xeon Platinum 8480C', cpuCores: '56 cores each', cpuMem: '2 TB DDR5 per server',
@@ -79,12 +79,17 @@ export const WALK = {
   heat: { hall: ['cdu', 'hotaisle', 'inrow', 'fanwall', 'fwater', 'riser'] },
 };
 
+// average heat flux through the compute dies, W/cm²: the dies' power (the package less its HBM share) over their area
+export const dieFlux = A => Math.round(A.gpuW * (1 - A.hbmShare) / FACTS[A.id].dieCm2 / 5) * 5;
+
 export function content(M) {
   const { accel: A, power: P, cooling: CL, NET, racks: RACKS, gpus: GPUS, IT_MW, layout: L, rack: RK } = M;
   const X = FACTS[A.id];
   const nvl = A.gpusPerRack === 72, dc = P.id === 'dc800', air = CL.id === 'air', warm = CL.id === 'warm';
   // a real campus's published plant (sites.ts): battery backup instead of diesel, a closed loop instead of towers
   const bat = M.backup === 'battery', closed = M.closedLoop, bessH = L.bessMW ? L.bessMWh / L.bessMW : 0;
+  // the operator's own statement of its closed loop, cited wherever the page says the campus evaporates no water
+  const siteCool = closed ? SITES[M.scenario.site].facts.find(r => r[0].startsWith('Cooling')) : null;
   const n0 = v => Math.round(v).toLocaleString('en-US');
   const kfmt = v => v >= 1e6 ? `${(v / 1e6).toFixed(1)} million` : v >= 1e4 ? `${n0(v / 1000)}k` : n0(v);
   const mwTxt = v => v >= 1000 ? `${+(v / 1000).toFixed(2)} GW` : v >= 10 ? `${n0(v)} MW` : `${v.toFixed(1)} MW`;
@@ -99,7 +104,7 @@ export function content(M) {
   const nicTxt = A.nicGbps >= 1000 ? `${A.nicGbps / 1000} Tb/s` : `${A.nicGbps} Gb/s`;
   const nicShort = A.nicGbps >= 1000 ? `${A.nicGbps / 1000}T` : `${A.nicGbps}G`;
   const coreA = Math.round(A.gpuW * (1 - A.hbmShare) / 0.8 / 100) * 100;
-  const flux = Math.round(A.gpuW * (1 - A.hbmShare) / X.dieCm2 / 5) * 5;
+  const flux = dieFlux(A), TT = M.temps;
   const trayKW = nvl ? (RK.dcBusKW - A.scaleupKW - A.busbarKW) / 18 : RK.kw / 4;
   const hbmSpec = `${A.hbm.gb} GB ${A.hbm.type}`;
   const stacksTxt = A.id === 'h100' ? '5 active stacks on 6 sites' : `${A.hbm.stacks} stacks`;
@@ -122,7 +127,7 @@ export function content(M) {
     {
       id: 'campus', n: 2, title: 'Grid & campus', scale: `${extraHalls ? '≈' : ''}${campusKm.toFixed(1)} km across`, unit: 1, volt: 'hv', dataVolt: 'dci', heatVolt: 'air', heatShort: `${meter} out`,
       heatIntro: warm
-        ? `All ${meter} leaves as heat. Warm water climbs to rows of dry coolers on the roofs, which dump it into the air; on the hottest afternoons evaporative towers help, and cost water.`
+        ? `All ${meter} leaves as heat. Warm water climbs to rows of dry coolers on the roofs, which dump it into the air; ${closed ? 'the loop is closed, so, by the operator’s account, no water is evaporated.' : 'on the hottest afternoons evaporative towers help, and cost water.'}`
         : air
           ? `All ${meter} leaves as heat. Chillers make cold water for the cooling units in the halls, and cooling towers throw the chillers' heat away by evaporating water: the most water-hungry way to cool.`
           : closed
@@ -227,10 +232,10 @@ export function content(M) {
   const evRefs = refs => ({ refs });
   PARTS.campus = [
     { id: 'line', title: 'Transmission line', kicker: '345 kV AC · 3 phases × 2 circuits',
-      body: `Lattice towers carry two three-phase circuits of bundled aluminum conductor, with a shield wire on top to take lightning. At 345 kV the whole ${meter} campus rides on ${lineA.replace(' per phase', '')} per phase, which is why power travels far at high voltage.${M.meterMW > 1500 ? ' A campus this big would take several circuits, or 500 kV.' : ''}`,
+      body: `Lattice towers carry two three-phase circuits of bundled aluminum conductor, with a shield wire on top to take lightning. At 345 kV the whole ${meter} campus rides on ${lineA.replace(' per phase', '')} per phase on each circuit, which is why power travels far at high voltage.${M.meterMW > 1500 ? ' A campus this big would take several circuits, or 500 kV.' : ''}`,
       specs: [
         ['Voltage', '345 kV line-to-line', 'assumed', evAssume('campus-interconnect-voltage')],
-        [`Current, ${meter}`, lineA, 'derived', evCalc('line-current')],
+        [`Current, ${meter}`, lineA.replace('per phase', 'per phase, on each circuit'), 'derived', evCalc('line-current')],
         ['US grid losses, 2018–2022', '≈5% (EIA)', 'spec', evRefs([['eia-td-losses', 'FAQ answer: "annual electricity transmission and distribution (T&D) losses averaged about 5% of the electricity transmitted and distributed in the United States in 2018 through 2022"']])],
         ['Example', 'Stargate Abilene: double 345 kV corridor', 'reported', evRefs([['yesenergy-abilene-hyperscale', 'blog post: "The facility is fed by a double 345 kV corridor that goes from Midland to Graham, Texas."']])],
       ] },
@@ -314,7 +319,7 @@ export function content(M) {
           ['Heat rejected', `≈${mwTxt(IT_MW * 1.05)}`, 'derived', evCalc('campus-heat-rejected')],
           ['Units, ≈0.8 MW each', `≈${n0(L.dryCoolers)}`, 'derived', evCalc('campus-drycooler-count')],
           ['Water classes', 'ASHRAE W32–W45: 32–45 °C max supply', 'spec', evRefs([['ashrae-liquid-cooling-classes', 'blog: classes "W17, W27, W32, NEW class W40, W45" named for their maximum supply temperature in °C'], ['ashrae-tc99-liquid-cooling-wp', 'p.4, "Change to ASHRAE Water Classifications": "the W classes are being renamed with the upper temperature limits incorporated in the name... W17 (previously W1), W27 (W2), W32 (W3), W40 (new), W45 (W4)"']])],
-          ['Water use, dry + adiabatic', '≈0.15–0.17 L/kWh', 'reported', evRefs([['ai-dc-water-arxiv', 'Table 5: WUE for "IT Liquid cooling: dry cooler with adiabatic assist (air-cooled chiller)" = 0.15–0.17 L/kWh, adapted from Lei et al. 2025']])],
+          closed ? siteCool : ['Water use, dry + adiabatic', '≈0.15–0.17 L/kWh', 'reported', evRefs([['ai-dc-water-arxiv', 'Table 5: WUE for "IT Liquid cooling: dry cooler with adiabatic assist (air-cooled chiller)" = 0.15–0.17 L/kWh, adapted from Lei et al. 2025']])],
         ] }
       : closed
         ? { id: 'chillers', title: 'Chiller plant', kicker: 'Air-cooled, closed loop',
@@ -326,7 +331,7 @@ export function content(M) {
             ['Cooling water, per SpaceXAI', 'closed loop; domestic water only', 'spec', evRefs([['spacexai-mid-south', 'Water tab, "What Colossus uses today": "Colossus II uses closed-loop cooling and takes only domestic water"']])],
           ] }
         : { id: 'chillers', title: 'Chiller plant', kicker: 'Makes cold water',
-        body: `Chillers, such as Schneider Electric’s Uniflair line, run a refrigeration cycle to cool water to ${air ? `about ${WATER.airSupplyC} °C for the air coolers in the halls` : `about ${WATER.liquidSupplyC} °C for the racks’ coolant units`}. Their compressors are the biggest power draw in cooling, which is why this design lands at PUE ${M.pue.toFixed(2)}.`,
+        body: `Chillers, such as Schneider Electric’s Uniflair line, run a refrigeration cycle to cool water to ${air ? `about ${TT.fwsSupply} °C for the air coolers in the halls` : `about ${TT.fwsSupply} °C for the racks’ coolant units`}. Their compressors are the biggest power draw in cooling, which is why this design lands at PUE ${M.pue.toFixed(2)}.`,
         specs: [
           ['Chillers, ≈4 MW (1,100 ton) each', `≈${n0(L.chillers)}`, 'derived', evCalc('campus-chiller-count')],
           ['Cooling power', mwTxt(M.coolMW), 'derived', evCalc('campus-cooling-power')],
@@ -410,7 +415,7 @@ export function content(M) {
         specs: [['Capacity range', '70 kW – 2.3 MW', 'spec', { refs: [['vertiv-coolchip-cdu', 'CoolChip CDU family: models from CDU 70 (70 kW) to CDU 2300 (2300 kW)'], ['motivair-cdu-brochure', '"COOLING UP TO 2.3MW", MCDU-4U (102 kW) through MCDU-60 (2.3 MW) rated-capacity table']] }], ['Units here, ≈1.25 MW', `≈${n0(L.cdus)}`, 'derived', { calc: 'bom-facility-count', assume: 'cdu-module-mw' }], ['Rule', 'rack loop stays above dew point', 'spec', { refs: [['motivair-cdu-brochure', '"The CDU maintains a secondary loop water temperature above the dew point in the data center to eliminate the possibility of condensation"']] }]] },
     { id: 'fwater', title: air ? 'Chilled water loop' : 'Facility water loop', kicker: 'Supply and return headers',
       body: `Insulated steel headers carry water between the ${air ? 'cooling units' : 'CDUs'} and the ${warm ? 'rooftop dry coolers' : 'chiller plant'}. Blue carries cooler supply, red carries warm return.`,
-      specs: [['Supply', `≈${warm ? WATER.warmSupplyC : air ? WATER.airSupplyC : WATER.liquidSupplyC} °C`, 'assumed', { assume: 'water-supply-temp' }], ['Temperature rise', '≈10 °C across the racks', 'assumed', { assume: 'hall-water-rise-10c' }]] },
+      specs: [['Supply → return', `≈${TT.fwsSupply} → ${TT.fwsReturn} °C`, 'assumed', { assume: 'loop-temps' }], ['Temperature rise', '≈10 °C across the racks', 'assumed', { assume: 'hall-water-rise-10c' }]] },
     { id: 'fanwall', title: 'Fan wall', kicker: 'Air side',
       body: air ? 'A wall of fans and coils handles room air and the heat from lights, people and power gear.' : 'A wall of fans and coils cools the air that carries the remaining heat from power shelves, switches, optics and memory.',
       specs: [['Share of rack heat', `≈${Math.round((1 - liq) * 100)}%`, 'derived', { calc: 'hall-air-heat-share' }]] },
@@ -629,8 +634,8 @@ export function content(M) {
       specs: [['Packaging', X.packaging, EV6.pack.basis, EV6.pack.ev]] },
     { id: 'dies', title: A.dies > 1 ? 'Two GPU dies' : 'One GPU die', kicker: `${X.transistors.replace(', as announced', '')} transistors`,
       body: A.dies > 1
-        ? 'Two reticle-limit dies act as one GPU, joined by a 10 TB/s die-to-die link. Nearly every watt that reaches them becomes heat within a few nanoseconds of doing arithmetic.'
-        : 'One reticle-limit die, about as large as a chip can be made in one exposure. Nearly every watt that reaches it becomes heat within a few nanoseconds of doing arithmetic.',
+        ? 'Two reticle-limit dies act as one GPU, joined by a 10 TB/s die-to-die link. Nearly every watt that reaches them, whether it runs computation, on-chip memory, communication or leakage, ends as heat.'
+        : 'One reticle-limit die, about as large as a chip can be made in one exposure. Nearly every watt that reaches it, whether it runs computation, on-chip memory, communication or leakage, ends as heat.',
       specs: [['Transistors', X.transistors, EV6.transistors.basis, EV6.transistors.ev],
         ...(A.dies > 1 ? [['Die-to-die link', '10 TB/s NV-HBI', EV6.dieRow.basis, EV6.dieRow.ev]] : [['Die area', '814 mm²', EV6.dieRow.basis, EV6.dieRow.ev]]),
         ['Process', X.process, EV6.process.basis, EV6.process.ev]] },
@@ -966,10 +971,10 @@ export function content(M) {
           specs: [['Supply air', '≈18–27 °C (ASHRAE)', 'spec', { refs: [['ashrae-tc99-reference-card', 'Table 2.1, 2015 Thermal Guidelines: Recommended row, classes A1 to A4, 18 to 27 °C']] }], ['Units here', `≈${n0(L.airUnits)}`, 'derived', { calc: 'bom-facility-count', assume: 'inrow-capacity' }]] }
         : { id: 'cdu', title: 'Coolant distribution unit', kicker: 'Where the two loops meet',
           body: 'A plate heat exchanger, in units such as Vertiv’s CoolChip or Motivair’s CDU line, passes heat from the rack loop into facility water without mixing them. The rack side stays above the dew point so nothing condenses.',
-          specs: [['Capacity range', '70 kW – 2.3 MW', 'spec', { refs: [['vertiv-coolchip-cdu', 'CoolChip CDU family: models from CDU 70 (70 kW) to CDU 2300 (2300 kW)'], ['motivair-cdu-brochure', '"COOLING UP TO 2.3MW", MCDU-4U (102 kW) through MCDU-60 (2.3 MW) rated-capacity table']] }], ['Approach, facility to rack loop', 'a few °C', 'assumed', { assume: 'hall-cdu-approach' }]] },
+          specs: [['Capacity range', '70 kW – 2.3 MW', 'spec', { refs: [['vertiv-coolchip-cdu', 'CoolChip CDU family: models from CDU 70 (70 kW) to CDU 2300 (2300 kW)'], ['motivair-cdu-brochure', '"COOLING UP TO 2.3MW", MCDU-4U (102 kW) through MCDU-60 (2.3 MW) rated-capacity table']] }], ['Approach, facility to rack loop', 'a few °C (≈3 °C here)', 'assumed', { assume: 'hall-cdu-approach' }], ['Rack loop, supply → return', `≈${TT.tcsSupply ?? TT.fwsSupply} → ${TT.tcsReturn ?? TT.fwsReturn} °C`, 'assumed', { assume: 'loop-temps' }]] },
       { id: 'fwater', title: air ? 'Chilled water loop' : 'Facility water loop', kicker: 'Supply blue, return red',
         body: `Insulated headers carry warm return water ${warm ? 'up to the roof' : 'to the chiller plant'} and cooler supply water back. The temperature difference sets how much water has to move.`,
-        specs: [['Rise', '≈10 °C', 'assumed', { assume: 'hall-water-rise-10c' }]] },
+        specs: [['Rise', '≈10 °C', 'assumed', { assume: 'hall-water-rise-10c' }], ['Supply → return', `≈${TT.fwsSupply} → ${TT.fwsReturn} °C`, 'assumed', { assume: 'loop-temps' }]] },
       { id: 'hotaisle', title: 'Hot aisle', kicker: air ? 'All the heat, as air' : 'The air-side heat',
         body: 'Rack backs face each other across a sealed aisle, so hot air rises and flows to the coolers instead of warming the room.',
         specs: [['Air share of rack heat', `≈${Math.round((1 - liq) * 100)}%`, 'derived', { calc: 'hall-air-heat-share' }]] },
@@ -985,7 +990,7 @@ export function content(M) {
     rack: nvl ? [
       { id: 'manifold', title: 'Coolant manifolds', kicker: 'Cool in, warm out',
         body: 'Supply comes up one side, fans out to every tray through dripless quick disconnects, and returns warmer down the other.',
-        specs: [['To liquid, this model', `≈${liqKW} kW`, 'derived', { calc: 'rack-liquid-split' }], ['Rise across the rack', '≈10 °C (45 → 55 °C)', 'reported', { refs: [ref('alliance-chemical-gpu-thermal', '"roughly 170–195 liters per minute of coolant at a 10°C inlet-to-outlet rise (about 1.5 LPM per kW)" for a GB200 NVL72 rack')] }], ['Flow rate', 'sources disagree ≈5×', 'assumed', { assume: 'rack-water-temps', refs: [ref('alliance-chemical-gpu-thermal', '"roughly 170–195 liters per minute"; notes "the OEM/CDU specification governs" the built system')] }]] },
+        specs: [['To liquid, this model', `≈${liqKW} kW`, 'derived', { calc: 'rack-liquid-split' }], ['Rise across the rack', '≈10 °C', 'reported', { refs: [ref('alliance-chemical-gpu-thermal', '"roughly 170–195 liters per minute of coolant at a 10°C inlet-to-outlet rise (about 1.5 LPM per kW)" for a GB200 NVL72 rack')] }], ['Supply → return, this design', `≈${TT.tcsSupply} → ${TT.tcsReturn} °C`, warm ? 'spec' : 'assumed', warm ? { refs: [['nvidia-warm-water-blog', 'NVIDIA blog: "the coolant entering a fully liquid-cooled chip at 45 degrees Celsius exits at roughly 55 degrees"']] } : { assume: 'loop-temps' }], ['Flow rate', 'sources disagree ≈5×', 'assumed', { assume: 'rack-water-temps', refs: [ref('alliance-chemical-gpu-thermal', '"roughly 170–195 liters per minute"; notes "the OEM/CDU specification governs" the built system')] }]] },
       ...(liq < 0.99 ? [{ id: 'rearair', title: 'Rear exhaust', kicker: `The last ${Math.round((1 - liq) * 100)}%`,
         body: 'Power shelves, switch trays, optics and drives still shed heat into air, which leaves the back of the rack into the hot aisle.',
         specs: [['To air, this model', `≈${airKW} kW`, 'derived', { calc: 'rack-liquid-split' }]] }] : []),
@@ -1030,7 +1035,7 @@ export function content(M) {
     chip: [
       { id: 'junction', title: A.dies > 1 ? 'The dies' : 'The die', kicker: 'Hottest point in the building',
         body: 'Transistors switching billions of times a second turn nearly every watt into heat right at the surface of the silicon.',
-        specs: [['Package power', `≈${n0(A.gpuW)} W`, EV6.pkgPower.basis, EV6.pkgPower.ev], ['Throttle point', 'near ≈85 °C; NVIDIA publishes none', 'assumed', { assume: 'throttle-point' }]] },
+        specs: [['Package power', `≈${n0(A.gpuW)} W`, EV6.pkgPower.basis, EV6.pkgPower.ev], ['Compute dies, this model', `≈${n0(A.gpuW * (1 - A.hbmShare))} W; the rest is HBM`, 'derived', { calc: 'gpu-die-power' }], ['At full load, this operating point', `≈${TT.die} °C`, 'assumed', { assume: 'loop-temps' }], ['Throttle point', 'near ≈85 °C; NVIDIA publishes none', 'assumed', { assume: 'throttle-point' }]] },
       { id: 'flux', title: 'Heat flux', kicker: 'Like a stovetop, but denser',
         body: `About ${n0(A.gpuW * (1 - A.hbmShare))} W through ${A.dies > 1 ? 'two reticle-size dies' : 'one reticle-size die'} averages about ${flux} watts per square centimeter, several times a stove burner. Hot spots on the die run far higher, and those set the ${nvl ? 'cold plate' : 'heat sink'} design.`,
         specs: [[A.dies > 1 ? 'Die area, two dies' : 'Die area', `≈${X.dieCm2} cm²`, EV6.fluxDie.basis, EV6.fluxDie.ev], ['Average flux', `≈${flux} W/cm²`, 'derived', { calc: 'heat-flux' }], ['Hot spots, cooling trade press', '500+ W/cm²', 'reported', { refs: [['alliance-chemical-gpu-thermal', 'body text: "At 1,000 W TDP with an active die area of approximately 1.5–2 cm², the resulting heat flux at the cold-plate interface reaches 500–600 W/cm²" (B200)']] }]] },
@@ -1046,27 +1051,23 @@ export function content(M) {
     ],
   };
 
-  // Temperature at each hop, hottest first. Values are representative, not a vendor spec.
-  const outside = at(1, warm ? 'drycoolers' : 'chillers', 'heat');
-  const TEMPS = warm ? [
-    { label: 'GPU die', c: 70, note: 'throttles near ≈85 °C; not published', basis: 'est', link: at(5, 'junction', 'heat') },
-    { label: 'Coolant leaving the rack', c: 55, note: '≈10 °C rise across the rack', basis: 'typical', link: at(3, 'manifold', 'heat') },
-    { label: 'Facility water to the roof', c: 52, note: 'a few degrees lost in the CDU', basis: 'est', link: at(2, 'fwater', 'heat') },
-    { label: 'Coolant entering the rack', c: WATER.warmSupplyC, note: 'NVIDIA warm-water spec', basis: 'typical', link: at(2, 'cdu', 'heat') },
-    { label: 'Outdoor air, hot day', c: WATER.warmAdiabaticC, note: 'the point where dry coolers alone stop keeping up, so sprays help', basis: 'est', link: outside },
-  ] : air ? [
-    { label: 'GPU die', c: 80, note: 'air runs the silicon hotter', basis: 'est', link: at(5, 'junction', 'heat') },
-    { label: 'Hot aisle', c: 40, note: '≈15–20 °C rise through the servers', basis: 'typical', link: at(2, 'hotaisle', 'heat') },
-    { label: 'Outdoor air, hot day', c: 35, note: `too warm to cool ${WATER.airSupplyC} °C water without chillers`, basis: 'est', link: outside },
-    { label: 'Cold aisle', c: 22, note: 'ASHRAE 18–27 °C', basis: 'spec', link: at(3, 'front', 'heat') },
-    { label: 'Chilled water supply', c: WATER.airSupplyC, note: 'made by chillers, all year', basis: 'typical', link: at(2, 'fwater', 'heat') },
+  // Temperature at each hop, hottest first, from the engine's one operating point per cooling design (M.temps): the
+  // numbers the heat tour and the cards use. Each names its loop, and whether it is the supply or the return.
+  const outside = at(1, warm ? 'drycoolers' : 'chillers', 'heat'), lt = { assume: 'loop-temps' };
+  const TEMPS = (air ? [
+    { label: 'GPU die', c: TT.die, note: 'throttles near ≈85 °C', basis: 'assumed', ev: lt, link: at(5, 'junction', 'heat') },
+    { label: 'Hot aisle', c: TT.hotAisle, note: `≈${TT.hotAisle - TT.coldAisle} °C rise, front to back`, basis: 'assumed', ev: lt, link: at(2, 'hotaisle', 'heat') },
+    { label: 'Outdoor air, hot day', c: TT.ambient, note: 'too warm to make cold water', basis: 'assumed', ev: lt, link: outside },
+    { label: 'Cold aisle', c: TT.coldAisle, note: 'ASHRAE: 18–27 °C', basis: 'spec', ev: { refs: [['ashrae-tc99-reference-card', 'Table 2.1, 2015 Thermal Guidelines: Recommended row, classes A1 to A4, 18 to 27 °C']] }, link: at(3, 'front', 'heat') },
+    { label: 'Chilled water supply', c: TT.fwsSupply, note: 'made by chillers', basis: 'assumed', ev: lt, link: at(2, 'fwater', 'heat') },
   ] : [
-    { label: 'GPU die', c: 65, note: 'throttles near ≈85 °C; not published', basis: 'est', link: at(5, 'junction', 'heat') },
-    { label: 'Coolant leaving the rack', c: 40, note: '≈10 °C rise across the rack', basis: 'typical', link: at(3, 'manifold', 'heat') },
-    { label: 'Outdoor air, hot day', c: 35, note: 'too warm for the loop without chillers', basis: 'est', link: outside },
-    { label: 'Coolant entering the rack', c: WATER.liquidSupplyC + 4, note: 'a few degrees above chilled water', basis: 'est', link: at(2, 'cdu', 'heat') },
-    { label: 'Chilled water supply', c: WATER.liquidSupplyC, note: 'made by chillers', basis: 'est', link: at(2, 'fwater', 'heat') },
-  ];
+    { label: 'GPU die', c: TT.die, note: 'throttles near ≈85 °C', basis: 'assumed', ev: lt, link: at(5, 'junction', 'heat') },
+    { label: 'Rack loop return', c: TT.tcsReturn, note: 'leaving the racks', basis: warm ? 'spec' : 'assumed', ev: warm ? { refs: [['nvidia-warm-water-blog', 'NVIDIA blog: "the coolant entering a fully liquid-cooled chip at 45 degrees Celsius exits at roughly 55 degrees"']] } : lt, link: at(3, 'manifold', 'heat') },
+    { label: 'Facility return', c: TT.fwsReturn, note: warm ? 'up to the roof' : 'to the chillers', basis: 'assumed', ev: lt, link: at(2, 'fwater', 'heat') },
+    { label: 'Rack loop supply', c: TT.tcsSupply, note: warm ? 'NVIDIA warm-water spec' : 'out of the CDU', basis: warm ? 'spec' : 'assumed', ev: warm ? { refs: [['nvidia-warm-water-blog', 'NVIDIA blog: "the coolant entering a fully liquid-cooled chip at 45 degrees Celsius"']] } : lt, link: at(2, 'cdu', 'heat') },
+    { label: 'Facility supply', c: TT.fwsSupply, note: warm ? 'from the dry coolers' : 'made by chillers', basis: 'assumed', ev: lt, link: at(2, 'fwater', 'heat') },
+    { label: 'Outdoor air, hot day', c: TT.ambient, note: warm ? (closed ? 'a hot design afternoon' : 'above it, sprays help') : 'warmer than the loop', basis: 'assumed', ev: lt, link: outside },
+  ]).sort((a, b) => b.c - a.c);
 
   // How a model is split, from the chattiest traffic to the quietest.
   const PARALLEL = [

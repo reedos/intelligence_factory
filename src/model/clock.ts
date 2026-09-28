@@ -237,19 +237,19 @@ function hotday(M: Model, o: SimOpts): Sim {
       { key: 'temp', label: 'Outdoor air', unit: '°C', color: '#ff5a6e', axis: 'right', area: true },
       { key: 'water', label: 'Water on site', unit: 'm³/h', color: '#3f8cff', axis: 'right' },
     ],
-    events: warm ? crossings(T, adiabatic).map((t, i) => ({ t, label: i ? 'Dry again' : `Above ${adiabatic} °C: water sprays on` })) : [{ t: 15, label: 'Hottest hour' }],
+    events: warm && M.wue ? crossings(T, adiabatic).map((t, i) => ({ t, label: i ? 'Dry again' : `Above ${adiabatic} °C: water sprays on` })) : [{ t: 15, label: 'Hottest hour' }],
     sample: h => {
       const cool = coolAt(h), meter = it + cool, t = T(h);
       return {
         t: h, meterMW: meter, siteMW: meter, values: { meter, temp: t, water: water(h) },
-        phase: `${Math.round(t)} °C outside · PUE ${(meter / M.IT_MW).toFixed(2)}${warm && t >= adiabatic ? ' · evaporating water' : ''}`,
+        phase: `${Math.round(t)} °C outside · PUE ${(meter / M.IT_MW).toFixed(2)}${warm && M.wue && t >= adiabatic ? ' · evaporating water' : ''}`,
         levels: { grid: 1, mv: 1, standby: 0, load: 1, cool: cool / (M.coolMW / 0.99), vapor: M.wue ? clamp(water(h) / waterM3h(M, 2), 0.05, 2) : 0 },
         waterM3h: water(h), tokensPerS: 0,
       };
     },
     speed: () => 0.5,
     notes: [
-      { text: `A ${min}–${max} °C day. ${warm ? 'Dry coolers alone cannot hold the loop above about 35 °C, so adiabatic sprays switch on and the campus starts using water.' : 'Chillers lose efficiency as the air warms, so cooling power climbs through the afternoon.'}`, basis: 'derived',
+      { text: `A ${min}–${max} °C day. ${warm ? (M.wue ? 'Dry coolers alone cannot hold the loop above about 35 °C, so adiabatic sprays switch on and the campus starts using water.' : 'The dry coolers work harder as the air warms. This campus’s loop is closed, so no sprays switch on and no water is counted.') : 'Chillers lose efficiency as the air warms, so cooling power climbs through the afternoon.'}`, basis: 'derived',
         ev: { calc: 'hotday-cooling-response' } },
       { text: 'No data-center dry-cooler derating curve was found, so the slopes here are estimates.', basis: 'assumed',
         ev: { assume: 'hotday-slope' } },

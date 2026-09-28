@@ -122,6 +122,32 @@ export const WATER = {
   liquidSupplyC: 20,     // this design's chiller-made supply for direct-to-chip liquid cooling, non-warm (est)
   airSupplyC: 12,        // this design's chiller-made supply for in-row air cooling (typical)
 };
+// One operating point for every temperature the page names, per cooling design, so the heat tour, the cards and the
+// Hot to cold chart read the same numbers (ASSUMPTIONS 'loop-temps'). Liquid designs have two water loops that meet
+// at the CDU: the rack loop through the cold plates, and the facility loop to the roof or the chillers. Air designs
+// have one chilled-water loop between the in-row coils and the chillers. Supply runs toward the heat, return away.
+export const LOOP = {
+  rackRiseC: 10,         // coolant rise across a rack, and across the facility loop at the same heat (reported ≈10 °C, NVL72)
+  cduApproachC: 3,       // the CDU's plate exchanger: facility water sits this far below the rack loop on each side
+  dieOverCoolantC: 20,   // die above the coolant leaving its cold plate, at full load
+  lidDropC: 8,           // die to lid, through the first interface
+  coldAisleC: 22,        // supply air at the rack fronts, inside ASHRAE's recommended 18-27 °C
+  airRiseC: 18,          // front to back through an air-cooled server (15-20 °C, 'air-rack-rise')
+  airDieC: 80,           // an air-cooled H100 die at full load
+  condenserC: 35,        // condenser water leaving the chillers for the cooling towers
+};
+export interface Temps { die: number; lid: number; tcsSupply?: number; tcsReturn?: number; fwsSupply: number; fwsReturn: number; coldAisle?: number; hotAisle?: number; ambient: number; condenser?: number }
+export function loopTemps(coolingId: CoolingId): Temps {
+  const ambient = WATER.warmAdiabaticC;                                  // the hot afternoon the plant is designed for
+  if (coolingId === 'air') {
+    const hotAisle = LOOP.coldAisleC + LOOP.airRiseC;
+    return { die: LOOP.airDieC, lid: LOOP.airDieC - LOOP.lidDropC, coldAisle: LOOP.coldAisleC, hotAisle, fwsSupply: WATER.airSupplyC, fwsReturn: WATER.airSupplyC + LOOP.rackRiseC, ambient, condenser: LOOP.condenserC };
+  }
+  const warm = coolingId === 'warm';
+  const tcsSupply = warm ? WATER.warmSupplyC : WATER.liquidSupplyC + LOOP.cduApproachC, tcsReturn = tcsSupply + LOOP.rackRiseC;
+  const die = tcsReturn + LOOP.dieOverCoolantC;
+  return { die, lid: die - LOOP.lidDropC, tcsSupply, tcsReturn, fwsSupply: tcsSupply - LOOP.cduApproachC, fwsReturn: tcsReturn - LOOP.cduApproachC, ambient, ...(warm ? {} : { condenser: LOOP.condenserC }) };
+}
 
 // ---------- scale-out fabric by NIC speed ----------
 // One port per GPU into a non-blocking fat tree. Switch-side modules are counted per port.
@@ -324,6 +350,7 @@ export function compute(s: Scenario) {
     accel, power, cooling,
     meterMW, IT_MW, pue, wue: closedLoop ? 0 : cooling.wue, coolMW, miscMW,
     backup: batteryBackup ? 'battery' as const : 'diesel' as const, closedLoop,
+    temps: loopTemps(cooling.id),
     rack: { kw: rackKW, dcBusKW, convKW: rackConvKW, pkgKW, hbmKW, gpuSiliconKW, vrmLossKW, ibcLossKW, cpuKW, gpus: accel.gpusPerRack },
     racks, gpus, cpus: racks * accel.cpusPerRack,
     fabric: fab, NET,
