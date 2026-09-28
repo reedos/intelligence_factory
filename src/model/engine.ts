@@ -216,30 +216,30 @@ export function compute(s: Scenario) {
   const sideIn = (coolMW + miscMW) / sidePath;
   const hgx = accel.id === 'h100';
   const ledger: LedgerRow[] = [
-    { label: 'Main power transformers', mw: meterMW * (1 - EFF.mpt), kind: 'loss', scene: 1, basis: 'typical', link: L(1, 'mpt') },
-    { label: 'Campus cables & switchgear', mw: meterMW * EFF.mpt * (1 - EFF.campus), kind: 'loss', scene: 1, basis: 'est', link: L(1, 'ehouse') },
+    { label: 'Main power transformers', mw: meterMW * (1 - EFF.mpt), kind: 'loss', scene: 1, basis: 'derived', ev: { calc: 'ledger-stage-loss', assume: 'mpt-eff-99.6' }, link: L(1, 'mpt') },
+    { label: 'Campus cables & switchgear', mw: meterMW * EFF.mpt * (1 - EFF.campus), kind: 'loss', scene: 1, basis: 'derived', ev: { calc: 'ledger-stage-loss', assume: 'campus-cable-eff-99.7' }, link: L(1, 'ehouse') },
     ...(power.id === 'dc800' ? [
-      { label: 'Unit substations, cooling side', mw: sideIn * (1 - EFF.unitSub), kind: 'loss', scene: 2, basis: 'typical', link: L(2, 'unitsub') } as LedgerRow,
-      { label: 'Solid-state transformers, MV → 800 V DC', mw: itIn * (1 - EFF.sst), kind: 'loss', scene: 2, basis: 'est', link: L(2, 'sst') } as LedgerRow,
-      { label: '800 V DC bus & batteries', mw: itIn * EFF.sst * (1 - EFF.dcBus * EFF.dcBattery), kind: 'loss', scene: 2, basis: 'est', link: L(2, 'busway') } as LedgerRow,
+      { label: 'Unit substations, cooling side', mw: sideIn * (1 - EFF.unitSub), kind: 'loss', scene: 2, basis: 'derived', ev: { calc: 'ledger-stage-loss', assume: 'unitsub-cooling-side-eff-99', refs: [['doe-transformer-standards-2024', "DOE's own summary of the 04/04/2024 final rule updating distribution-transformer efficiency standards -- supersedes the 2013 rule this site cited before"]] }, link: L(2, 'unitsub') } as LedgerRow,
+      { label: 'Solid-state transformers, MV → 800 V DC', mw: itIn * (1 - EFF.sst), kind: 'loss', scene: 2, basis: 'derived', ev: { calc: 'ledger-stage-loss', assume: 'sst-eff-98', refs: [['navitas-800vdc', "headline: Navitas's own 800 V DC power stage for NVIDIA's next-generation AI-factory platforms, '>98%' efficiency claim"]] }, link: L(2, 'sst') } as LedgerRow,
+      { label: '800 V DC bus & batteries', mw: itIn * EFF.sst * (1 - EFF.dcBus * EFF.dcBattery), kind: 'loss', scene: 2, basis: 'derived', ev: { calc: 'ledger-stage-loss', assume: 'dcbus-battery-eff' }, link: L(2, 'busway') } as LedgerRow,
     ] : [
-      { label: 'Unit substations', mw: (itIn + sideIn) * (1 - EFF.unitSub), kind: 'loss', scene: 2, basis: 'typical', link: L(2, 'unitsub') } as LedgerRow,
-      { label: 'UPS, double conversion', mw: itIn * EFF.unitSub * (1 - EFF.ups), kind: 'loss', scene: 2, basis: 'typical', link: L(2, 'ups') } as LedgerRow,
-      { label: 'Busway & whips', mw: itIn * EFF.unitSub * EFF.ups * (1 - EFF.busway), kind: 'loss', scene: 2, basis: 'est', link: L(2, 'busway') } as LedgerRow,
+      { label: 'Unit substations', mw: (itIn + sideIn) * (1 - EFF.unitSub), kind: 'loss', scene: 2, basis: 'derived', ev: { calc: 'ledger-stage-loss', assume: 'unitsub-cooling-side-eff-99', refs: [['doe-transformer-standards-2024', "DOE's own summary of the 04/04/2024 final rule updating distribution-transformer efficiency standards -- supersedes the 2013 rule this site cited before"]] }, link: L(2, 'unitsub') } as LedgerRow,
+      { label: 'UPS, double conversion', mw: itIn * EFF.unitSub * (1 - EFF.ups), kind: 'loss', scene: 2, basis: 'derived', ev: { calc: 'ledger-conv-loss', assume: 'ups-eff-96.5', refs: [['ceie-eaton-9395xr', "distributor summary of Eaton's tested figures: \"dual conversion in online mode is as high as 97.5%\", eco/AC-direct mode \"can be improved to 99%\""]] }, link: L(2, 'ups') } as LedgerRow,
+      { label: 'Busway & whips', mw: itIn * EFF.unitSub * EFF.ups * (1 - EFF.busway), kind: 'loss', scene: 2, basis: 'derived', ev: { calc: 'ledger-stage-loss', assume: 'busway-eff-99.5' }, link: L(2, 'busway') } as LedgerRow,
     ]),
-    { label: `Cooling: ${cooling.short.toLowerCase()}, ${cooling.sub}`, mw: coolMW, kind: 'overhead', scene: 2, basis: cooling.basis, link: L(1, cooling.id === 'warm' ? 'drycoolers' : 'chillers') },
-    { label: 'Lighting, controls, offices', mw: miscMW, kind: 'overhead', scene: 2, basis: 'est' },
-    { label: `Scale-out switches, ${fab.tiers} tiers`, mw: switchMW, kind: 'net', scene: 2, basis: 'est', link: L(2, 'spine', 'data') },
-    { label: 'Optical transceivers', mw: opticsMW, kind: 'net', scene: 2, basis: 'est', link: L(2, 'optics', 'data') },
-    { label: power.id === 'dc800' ? 'In-rack DC-DC, 800 → 50 V' : (hgx ? 'Server power supplies, AC → DC' : 'Rack power shelves, AC → DC'), mw: rackConvKW * R, kind: 'loss', scene: 3, basis: power.id === 'dc800' ? 'est' : 'typical', link: L(3, hgx ? 'psus' : 'shelves') },
-    { label: hgx ? 'Server power cabling' : 'Busbar', mw: accel.busbarKW * R, kind: 'loss', scene: 3, basis: 'est', link: L(3, hgx ? 'cabling' : 'busbar') },
-    { label: hgx ? 'NVSwitch chips (scale-up)' : 'NVLink switch trays (scale-up)', mw: accel.scaleupKW * R, kind: 'net', scene: 3, basis: 'est', link: hgx ? L(4, 'nvswitch') : L(3, 'nvswitch') },
-    { label: accel.cpuName, mw: cpuKW * R, kind: 'work', scene: 4, basis: 'est', link: L(4, hgx ? 'cpu' : 'grace') },
-    { label: hgx ? 'NICs & DPUs' : 'SuperNICs & DPUs', mw: accel.nicKW * R, kind: 'net', scene: 4, basis: 'est', link: L(4, 'nic') },
-    { label: 'SSDs, fans, management', mw: accel.otherKW * R, kind: 'work', scene: 4, basis: 'est', ...(hgx ? { link: L(4, 'fans', 'heat') } : {}) },
-    { label: hgx ? 'Bus converters, 54 → 12 V' : 'Bus converters, 50 → 12 V', mw: ibcLossKW * R, kind: 'loss', scene: 4, basis: 'est', link: L(4, 'ibc') },
-    { label: 'Voltage regulators, 12 → 0.8 V', mw: vrmLossKW * R, kind: 'loss', scene: 4, basis: 'est', link: L(4, 'vrm') },
-    { label: `${accel.hbm.type} memory`, mw: hbmKW * R, kind: 'work', scene: 5, basis: 'est', link: L(5, 'hbm') },
+    { label: `Cooling: ${cooling.short.toLowerCase()}, ${cooling.sub}`, mw: coolMW, kind: 'overhead', scene: 2, basis: 'derived', ev: { calc: 'ledger-overhead-frac', assume: 'cooling-overhead-frac', refs: [['google-pue', 'Efficiency page: Google’s own fleet-wide PUE, anchoring the low end of the warm-water/liquid band']] }, link: L(1, cooling.id === 'warm' ? 'drycoolers' : 'chillers') },
+    { label: 'Lighting, controls, offices', mw: miscMW, kind: 'overhead', scene: 2, basis: 'derived', ev: { calc: 'ledger-overhead-frac', assume: 'cooling-overhead-frac' } },
+    { label: `Scale-out switches, ${fab.tiers} tiers`, mw: switchMW, kind: 'net', scene: 2, basis: 'derived', ev: { calc: 'ledger-fabric-power' }, link: L(2, 'spine', 'data') },
+    { label: 'Optical transceivers', mw: opticsMW, kind: 'net', scene: 2, basis: 'derived', ev: { calc: 'ledger-fabric-power', refs: [['nvidia-800g-dr8-datasheet', 'section 4.2, Recommended Operating Conditions and Power Supply Requirements: Maximum Power Dissipation, Max 17 W (the 400G-class per-module figure the fabric model scales from)']] }, link: L(2, 'optics', 'data') },
+    { label: power.id === 'dc800' ? 'In-rack DC-DC, 800 → 50 V' : (hgx ? 'Server power supplies, AC → DC' : 'Rack power shelves, AC → DC'), mw: rackConvKW * R, kind: 'loss', scene: 3, basis: 'derived', ev: power.id === 'dc800' ? { calc: 'ledger-conv-loss', assume: 'rack-dcdc-eff-98.5', refs: [['navitas-800vdc', "Navitas's own peak-efficiency claim for its 800 V DC rack power stage"]] } : { calc: 'ledger-conv-loss', refs: [['nvidia-h100-datasheet', 'system power figures behind the ≈96% AC→54 V PSU efficiency assumed for the DGX H100 case'], ['nvidia-gb200-ocp', 'OCP contribution post describing the GB200 ORv3 power-shelf conversion this figure covers']] }, link: L(3, hgx ? 'psus' : 'shelves') },
+    { label: hgx ? 'Server power cabling' : 'Busbar', mw: accel.busbarKW * R, kind: 'loss', scene: 3, basis: 'derived', ev: { calc: 'ledger-rack-share' }, link: L(3, hgx ? 'cabling' : 'busbar') },
+    { label: hgx ? 'NVSwitch chips (scale-up)' : 'NVLink switch trays (scale-up)', mw: accel.scaleupKW * R, kind: 'net', scene: 3, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power' }, link: hgx ? L(4, 'nvswitch') : L(3, 'nvswitch') },
+    { label: accel.cpuName, mw: cpuKW * R, kind: 'work', scene: 4, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power' }, link: L(4, hgx ? 'cpu' : 'grace') },
+    { label: hgx ? 'NICs & DPUs' : 'SuperNICs & DPUs', mw: accel.nicKW * R, kind: 'net', scene: 4, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power', refs: [['nvidia-coreweave-gb200-400g', "\"NVIDIA Quantum-2 InfiniBand networking that delivers 400Gb/s bandwidth per GPU\" -- the per-GPU NIC rate this row's per-rack figure is built from"]] }, link: L(4, 'nic') },
+    { label: 'SSDs, fans, management', mw: accel.otherKW * R, kind: 'work', scene: 4, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power' }, ...(hgx ? { link: L(4, 'fans', 'heat') } : {}) },
+    { label: hgx ? 'Bus converters, 54 → 12 V' : 'Bus converters, 50 → 12 V', mw: ibcLossKW * R, kind: 'loss', scene: 4, basis: 'derived', ev: { calc: 'ledger-conv-loss', refs: [['semianalysis-blackwell-power-delivery', 'board-level power-delivery survey behind the assumed ≈97–98% intermediate-bus-converter efficiency (no vendor publishes an absolute IBC efficiency at a stated voltage/current point)']] }, link: L(4, 'ibc') },
+    { label: 'Voltage regulators, 12 → 0.8 V', mw: vrmLossKW * R, kind: 'loss', scene: 4, basis: 'derived', ev: { calc: 'ledger-conv-loss', refs: [['semianalysis-blackwell-power-delivery', 'board-level power-delivery survey behind the assumed VRM efficiency at ≈0.8 V core voltage (no vendor publishes an absolute figure at a stated current)']] }, link: L(4, 'vrm') },
+    { label: `${accel.hbm.type} memory`, mw: hbmKW * R, kind: 'work', scene: 5, basis: 'derived', ev: { calc: 'ledger-rack-share', refs: [['arxiv-gpu-power-visibility', 'states HBM power commonly estimated at ≈8–15% of total GPU TDP -- the hbmShare input this row scales from']] }, link: L(5, 'hbm') },
   ];
   // GPU silicon from the actual, physical component sum (one rack's own share, times the whole racks the site
   // built) — not "whatever the ledger hasn't claimed yet". Building a whole number of racks always leaves a
@@ -248,7 +248,7 @@ export function compute(s: Scenario) {
   const gpuSiliconMW = gpuSiliconKW * R;
   const ledgerSum = ledger.reduce((a, r) => a + r.mw, 0);
   const spareMW = meterMW - ledgerSum - gpuSiliconMW;
-  ledger.push({ label: 'Unallocated: rounds down to a whole rack', mw: spareMW, kind: 'overhead', scene: 2, basis: 'est' });
+  ledger.push({ label: 'Unallocated: rounds down to a whole rack', mw: spareMW, kind: 'overhead', scene: 2, basis: 'derived', ev: { calc: 'ledger-remainder' } });
   const marks = [
     { after: 1, label: '34.5 kV feeders' },     // both power paths have three facility rows, so the marks line up
     { after: 6, label: 'IT load' },

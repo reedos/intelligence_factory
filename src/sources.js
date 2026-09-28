@@ -51,7 +51,7 @@ export const SOURCES = {
   'marvell-colorz-800': { title: "Marvell launches the first 800G ZR/ZR+ modules for data center interconnects", publisher: "Marvell, via PR Newswire", url: "https://www.prnewswire.com/news-releases/marvell-launches-industrys-first-800g-zrzr-modules-for-data-center-interconnects-301907609.html", published: '08/23/2023', dated: "08/23/2023, 09:00 ET", accessed: '09/27/2026', kind: 'primary', marketing: true },
   'ciena-wavelogic6-nano': { title: "WaveLogic 6 Nano: 800G pluggables and 1.6T Coherent-Lite", publisher: "Ciena", url: "https://www.ciena.com/insights/infobriefs/wavelogic-6-nano-1-6t-coherent-lite-pluggable-transceiver", published: '04/12/2026', dated: "unknown specific date; Wayback snapshot used is timestamped 04/12/2026", accessed: '09/27/2026', via: 'Wayback Machine copy', kind: 'primary', marketing: true },
   'broadcom-tomahawk6': { title: "Broadcom now shipping the first 102.4 Tb/s switch in production volume", publisher: "Broadcom", url: "https://www.broadcom.com/company/news/product-releases/64031", published: '03/12/2026', accessed: '09/27/2026', kind: 'primary', marketing: true },
-  'marvell-teralynx10': { title: "Marvell Teralynx 10 51.2T Ethernet switch enters volume production for AI cloud deployments", publisher: "Marvell", url: "https://www.marvell.com/company/newsroom/marvell-teralynx-10-51-2t-ethernet-switch-enters-volume-production-for-global-ai-cloud-deployments.html", unchecked: "blocked: 403 Forbidden on WebFetch and direct curl with browser UA; Wayback Machine unreachable from this environment. Unverified.", kind: 'secondary', marketing: true },
+  'marvell-teralynx10': { title: "Marvell Teralynx 10 51.2T Ethernet Switch Enters Volume Production for Global AI Cloud Deployments", publisher: "Marvell, via PR Newswire", url: "https://www.prnewswire.com/news-releases/marvell-teralynx-10-51-2t-ethernet-switch-enters-volume-production-for-global-ai-cloud-deployments-302206399.html", published: '07/25/2024', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'compute-atlas-colossus': { title: 'xAI Colossus, Memphis, TN (checked 09/23/2026)', publisher: 'Compute Atlas', url: 'https://www.compute-atlas.com/facilities/xai-colossus-memphis-tn', published: '09/10/2026', accessed: '09/27/2026', kind: 'secondary' },
   'ieee-spectrum-hyperion': { title: '5GW Data Center Buildout Requires Novel Engineering', publisher: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/5gw-data-center', published: '03/24/2026', accessed: '09/27/2026', kind: 'secondary' },
   'dcd-xai-colossus-memphis': { title: "Fury from campaigners as Elon Musk's xAI gets 150MW for Colossus supercomputer in Memphis", publisher: 'Data Center Dynamics', url: 'https://www.datacenterdynamics.com/en/news/xai-colossus-memphis-power-tva/', published: '11/08/2024', accessed: '09/27/2026', kind: 'secondary' },
@@ -205,16 +205,23 @@ export const SOURCES = {
 
   // ---- optics review pass (2026-09-27, finding 18g): NVIDIA's own account of the external-laser-source
   // module count, reconciling the "one laser per eight links" figure the audit found unsourced ----
-  'nvidia-cpo-industry-collaboration-blog': { title: 'How Industry Collaboration Fosters NVIDIA Co-Packaged Optics', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/how-industry-collaboration-fosters-nvidia-co-packaged-optics/' },
+  // Note (traced 09/27/2026, L3 pass): this post is dated 08/26/2025, not "Aug. 2026" -- the audit's working
+  // guess at the date was wrong. It restates "4x fewer lasers... compared to legacy designs" but does not itself
+  // state a power-efficiency multiplier; the "5x lower power" figure used on the CPO card comes from StorageReview's
+  // 08/15/2026 report instead (see storagereview-nvidia-cpo-production).
+  'nvidia-cpo-industry-collaboration-blog': { title: 'How Industry Collaboration Fosters NVIDIA Co-Packaged Optics', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/how-industry-collaboration-fosters-nvidia-co-packaged-optics/', published: '08/26/2025', accessed: '09/27/2026', kind: 'primary', marketing: true },
 
   // engine workstream, 2026-09-27 audit pass (issues 4, 9, 10, 14, 15, 18a, 18b)
   'nvidia-dsx-data-center-architecture': { title: 'DSX architecture: data center reference architecture (GB200/GB300 compute tray network interfaces)', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dsx/ncp/software-reference-guide/data-center-architecture' },
-  'nvidia-coreweave-gb200-400g': { title: 'NVIDIA GB200 NVL72 on CoreWeave: Quantum-2 InfiniBand at 400 Gb/s per GPU', publisher: 'NVIDIA', url: 'https://blogs.nvidia.com/blog/blackwell-coreweave-gb200-nvl72-instances-cloud/' },
+  'nvidia-coreweave-gb200-400g': { title: 'NVIDIA GB200 NVL72 on CoreWeave: Quantum-2 InfiniBand at 400 Gb/s per GPU', publisher: 'NVIDIA', url: 'https://blogs.nvidia.com/blog/blackwell-coreweave-gb200-nvl72-instances-cloud/', published: '02/04/2025', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'ocp-hgx-baseboard-spec': { title: 'HGX Form Factor Specification (54.0 V nominal baseboard power rail)', publisher: 'Open Compute Project', url: 'https://www.opencompute.org/documents/open-compute-specification-hgx-baseboard-contribution-r1-v0-1-pdf' },
   // the exact 13,386/26,156 tok/s figures are LMSYS/SGLang's own GB200 deployment benchmark, not a SemiAnalysis
   // InferenceMAX result (a later LMSYS post links this one but only restates the numbers rounded)
   'lmsys-sglang-gb200-part2': { title: 'Deploying DeepSeek on GB200 NVL72 with PD and Large Scale EP (Part II): 3.8x Prefill, 4.8x Decode Throughput', publisher: 'LMSYS Org', url: 'https://www.lmsys.org/blog/2025-09-25-gb200-part-2/' },
-  'nvidia-quantum2-qm9700-specs': { title: 'Quantum-2 QM9700 specifications (64 × 400G NDR)', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/networking/display/qm97x0pub/specifications' },
+  // traced 09/27/2026 (L3): docs.nvidia.com/networking/display/qm97x0pub/specifications 302-redirects to this URL;
+  // confirms 32 OSFP cages / 25.6 Tbps total for QM9700/QM9701/QM9790 (i.e. 64 logical 400G ports), not an explicit
+  // "64-port" line item
+  'nvidia-quantum2-qm9700-specs': { title: 'QM97xx Switch Specifications (32 OSFP, 25.6 Tbps)', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/qm97x0hw/specifications', dated: 'redirect target of docs.nvidia.com/networking/display/qm97x0pub/specifications', accessed: '09/27/2026', kind: 'primary' },
 
   // energy workstream (2026-09-27 audit review): the primary sources behind the IT-energy WUE
   // denominator fix and the NFPA 110 Type/Level wording fix
@@ -231,6 +238,9 @@ export const SOURCES = {
 
 
   // ---- traced 09/27/2026: level 3, the data hall, the ledger and the inventory ----
+  'ashrae-tc99-reference-card': { title: 'Equipment Thermal Guidelines for Data Processing Environments, ASHRAE TC 9.9 Reference Card', publisher: 'ASHRAE', url: 'https://xp20.ashrae.org/datacom1_4th/ReferenceCard.pdf', published: '2015', dated: "Table 2.1 is headed \"2015 Thermal Guidelines—SI Version\"", accessed: '09/27/2026', kind: 'primary' },
+  'ceie-eaton-9395xr': { title: 'EATON MW 9395XR UPS is designed for intelligent computing', publisher: 'CEIE (distributor reprint of Eaton figures)', url: 'https://snmiss.com/?a=index&aid=16&c=View&m=home', accessed: '09/27/2026', kind: 'secondary', marketing: true },
+  'doe-transformer-standards-2024': { title: 'DOE Finalizes Energy Efficiency Standards for Distribution Transformers That Protect Domestic Supply Chains and Jobs, Strengthen Grid Reliability, and Deliver Billions in Energy Savings', publisher: 'U.S. Department of Energy', url: 'https://www.energy.gov/articles/doe-finalizes-energy-efficiency-standards-distribution-transformers-protect-domestic', published: '04/04/2024', accessed: '09/27/2026', kind: 'primary' },
 
 
   // ---- traced 09/27/2026: levels 4 and 5, the rack and the compute tray ----
