@@ -69,13 +69,18 @@ const ui = store.ui;
 const SCENES = () => store.C.SCENES;
 const PARTS_BY = () => ({ power: store.C.PARTS, data: store.C.PARTS_DATA, heat: store.C.PARTS_HEAT });
 // a scene variant may not draw every part (an air-cooled hall has no CDUs), so list only parts the scene placed
-const partsFor = i => {
-  const list = PARTS_BY()[ui.mode][SCENES()[i].id] || [];
+const partsFor = (i, mode = ui.mode) => {
+  const list = PARTS_BY()[mode][SCENES()[i].id] || [];
   if (!built[i]) return list;
-  const hs = hotspotsFor(i);
+  const hs = hotspotsFor(i, mode);
   return list.filter(p => hs[p.id]);
 };
-const hotspotsFor = i => (built[i] && { power: built[i].hotspots, data: built[i].dataHotspots, heat: built[i].heatHotspots }[ui.mode]) || {};
+const hotspotsFor = (i, mode = ui.mode) => (built[i] && { power: built[i].hotspots, data: built[i].dataHotspots, heat: built[i].heatHotspots }[mode]) || {};
+// The number on a part's pin: its place among the parts its level draws in that layer. Tours number their steps with
+// it too, so the number beside a step is always the one on the part in the view. (tools/parts.mjs checks every listed
+// part has a pin, so a level not built yet numbers the same as it will once it is.)
+export const pinNumber = (scene, id, mode = ui.mode) => { const k = partsFor(scene, mode).findIndex(p => p.id === id); return k < 0 ? null : k + 1; };
+export const partCount = (scene, mode = ui.mode) => partsFor(scene, mode).length;
 const voltFor = s => ui.mode === 'heat' ? { ...VOLT[s.heatVolt], short: s.heatShort, name: VOLT[s.heatVolt].name } : VOLT[ui.mode === 'data' ? s.dataVolt : s.volt];
 const flowsFor = b => (ui.mode === 'data' ? b.dataFlows : ui.mode === 'heat' ? b.heatFlows : b.flows) || [];
 export const mobile = matchMedia('(max-width: 760px), (pointer: coarse)').matches;

@@ -8,7 +8,7 @@
 // Pause (the button, or Space) is the only thing that stops it. One transport at the head of the panel (play,
 // back, forward, speed, where the tour is) is the only playback control on the page.
 import { store, on } from './store.js';
-import { show, go, reduced, onTick, setCinema, setTourPace, getTransitions, setTransitions } from './stage.js';
+import { show, go, reduced, onTick, setCinema, setTourPace, getTransitions, setTransitions, pinNumber, partCount } from './stage.js';
 import { story, watt, request, heat, layer, everything, CHAIN } from './journeys.js';
 import { openClock, closeClock } from './clock-ui.js';
 
@@ -108,6 +108,9 @@ const narrow = matchMedia('(max-width: 1100px)');
 // A step on a part that holds another level (the campus on the map, the halls, a rack, a tray, the GPU) gets a button
 // named for where it goes. The last step of every tour offers the next move: the next level of a level playthrough,
 // the next tour, or exploring from here. Nothing ends in a sentence that says "go in" with nowhere to click.
+// the pin a step shows, numbered as the view numbers it; the level's overview is no part and has none
+const pinOf = b => (b?.link?.part ? pinNumber(b.link.scene, b.link.part, b.link.mode) : null);
+const perLevel = () => TOURS[tour].group === 'Every part';
 const partOf = l => {
   if (!l?.part) return null;
   const C = store.C, P = { power: C.PARTS, data: C.PARTS_DATA, heat: C.PARTS_HEAT }[l.mode] || {};
@@ -139,12 +142,13 @@ function render() {
     + `<span class="tour-t" id="tour-t" aria-live="polite"></span>`
     + `<button type="button" class="btn icon" id="story-exit" aria-label="Leave the tour">×</button></div>`
     + `<div class="tour-pick">${tabs('Tours')}${tabs('Every part')}</div>`
-    + `<div class="tally" id="tally" aria-live="polite"${list.some(b => b.tally) && tour !== 'here' ? '' : ' hidden'}><span class="eyebrow">${TOURS[tour].label}</span><b id="tally-v"></b></div></div>`
+    + `<div class="tally" id="tally" aria-live="polite"${list.some(b => b.tally) && !perLevel() ? '' : ' hidden'}><span class="eyebrow">${TOURS[tour].label}</span><b id="tally-v"></b></div></div>`
     + list.map((b, i) => {
       // the last step of a level playthrough already offers the next level; a second button to the same place is noise
       const last = i === list.length - 1, into = partOf(b.link)?.drill, dup = last && tour === 'here' && into === here.scene + 1;
       const acts = (dup ? '' : goButton(b)) + (last ? nextSteps() : '');
-      return `<article class="beat${b.level ? ' level' : ''}" data-i="${i}"><span class="k">${String(i + 1).padStart(2, '0')} · ${b.k}</span><h3>${b.title}</h3><p>${b.text}</p>${b.specs ? `<dl class="beat-specs">${b.specs.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>` : ''}${acts ? `<div class="beat-acts">${acts}</div>` : ''}<span class="beat-bar" aria-hidden="true"><i></i></span></article>`; }).join('');
+      const n = pinOf(b);
+      return `<article class="beat${b.level ? ' level' : ''}" data-i="${i}"><span class="k">${n ? `<span class="bpin" role="img" aria-label="Pin ${n}" title="Pin ${n} in the view">${n}</span>` : ''}${b.k}</span><h3>${b.title}</h3><p>${b.text}</p>${b.specs ? `<dl class="beat-specs">${b.specs.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>` : ''}${acts ? `<div class="beat-acts">${acts}</div>` : ''}<span class="beat-bar" aria-hidden="true"><i></i></span></article>`; }).join('');
   $('story-exit').addEventListener('click', exit);
   $('tour-play').addEventListener('click', () => setPlaying(!playing));
   $('tour-prev').addEventListener('click', () => step(-1));
@@ -279,8 +283,12 @@ function ctlLabel() {
   const held = playing && performance.now() < holdUntil;
   heldShown = held;
   const last = active === list.length - 1, nb = beyond(), pb = before();
+  // a level playthrough counts parts as the pins do, and says so; a story counts steps, and says that
+  const b = list[active], n = pinOf(b), lv = b.link.scene + 1;
+  const where = !perLevel() ? `Step ${active + 1} of ${list.length}`
+    : n ? `${tour === 'here' ? 'Part' : `Level ${lv} · part`} ${n} of ${partCount(b.link.scene, b.link.mode)}` : `Level ${lv} overview`;
   t.textContent = held ? 'Carries on when you let go'
-    : `${active + 1} of ${list.length}${last && !playing && nb ? ` · › ${nb.level !== undefined ? `level ${nb.level + 1}` : TOURS[nb.tour].short}` : playing ? '' : ' · paused'}`;
+    : `${where}${last && !playing && nb ? ` · › ${nb.level !== undefined ? `level ${nb.level + 1}` : TOURS[nb.tour].short}` : playing ? '' : ' · paused'}`;
   $('tour-prev').disabled = active === 0 && !pb; $('tour-next').disabled = last && !nb;
   $('tour-next').setAttribute('aria-label', last && nb ? (nb.level !== undefined ? `Next level: ${store.C.SCENES[nb.level].title}` : `Next tour: ${TOURS[nb.tour].label}`) : 'Next step');
   $('tour-prev').setAttribute('aria-label', active === 0 && pb ? (pb.level !== undefined ? `Previous level: ${store.C.SCENES[pb.level].title}` : `Previous tour: ${TOURS[pb.tour].label}`) : 'Previous step');

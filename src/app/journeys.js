@@ -154,7 +154,8 @@ export function heat(M) {
 }
 
 // ---------- every part in a layer, one level at a time ----------
-// Each level opens on its establishing shot with the layer's intro, then stops at every part with its card.
+// Each level opens on its establishing shot with the layer's intro (the overview: no part, so no number), then stops at
+// every part with its card, in list order, so the part steps run 1 to N like the pins.
 // Power runs level 1 to 6, the way it flows; heat runs 6 to 1, from the die out to the sky; data runs 1 to 6.
 // Parts a scene variant does not draw (an air-cooled hall has no CDU) are skipped by the player at run time.
 const LAYER = { power: ['PARTS', 'intro', 'Power'], data: ['PARTS_DATA', 'dataIntro', 'Data'], heat: ['PARTS_HEAT', 'heatIntro', 'Heat'] };
@@ -166,7 +167,7 @@ export function layer(M, mode, only = null) {
   if (OUTWARD.has(mode)) levels.reverse();
   levels.forEach(([sc, i]) => {
     const parts = C[key][sc.id] || [];
-    out.push({ link: { scene: i, mode, part: null }, k: `${name} · level ${i + 1} of 6`, title: sc.title, text: sc[introKey], tally: `Level ${i + 1} of 6`, level: true });
+    out.push({ link: { scene: i, mode, part: null }, k: `${name} · level ${i + 1} of 6 · overview`, title: sc.title, text: sc[introKey], tally: `Level ${i + 1} of 6`, level: true });
     parts.forEach((p, j) => out.push({
       link: { scene: i, mode, part: p.id }, k: `Level ${i + 1} · ${sc.title}`, title: p.title, text: p.body,
       specs: p.specs.slice(0, 3), tally: `Level ${i + 1} · ${j + 1} of ${parts.length}`,

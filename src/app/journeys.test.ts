@@ -35,6 +35,17 @@ describe('tours', () => {
     }
     expect(everything(M).length).toBe(['power', 'data', 'heat'].reduce((a, m) => a + layer(M, m as any).length, 0));
   });
+  // Reed, 09/27: a level's step numbers ran one ahead of the pins on the model. The opening step is the level's
+  // overview, not a part; the part steps follow the list the pins are numbered from, so part step k is pin k.
+  it.each(scenarios)('a level playthrough opens on its overview, then runs the parts in pin order: $accel / $power / $cooling at $meterMW MW', s => {
+    const M = compute(s), C = content(M);
+    for (let i = 0; i < 6; i++) for (const [mode, key] of [['power', 'PARTS'], ['data', 'PARTS_DATA'], ['heat', 'PARTS_HEAT']] as const) {
+      const [first, ...rest] = layer(M, mode, i) as any[], pins = ((C as any)[key][C.SCENES[i].id] || []).map((p: any) => p.id);
+      expect(first.level && first.link.part, `${mode} level ${i + 1}: the opening step`).toBe(null);
+      expect(first.k, `${mode} level ${i + 1}`).toMatch(/overview$/);
+      expect(rest.map(b => b.link.part), `${mode} level ${i + 1}: part steps`).toEqual(pins);
+    }
+  });
   it.each(scenarios)('the watt accounts for every ledger row: $accel / $power / $cooling at $meterMW MW', s => {
     const M = compute(s), beats = watt(M);
     const left = parseFloat(beats[beats.length - 1].tally!);
