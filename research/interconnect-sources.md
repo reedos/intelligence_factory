@@ -36,9 +36,10 @@ Notes: "NVL144" is used for both a die count and, later, a different Kyber rack;
 | Item | Value | Basis | Source |
 |---|---|---|---|
 | GB300 NVL72 per-GPU scale-out | 800 Gb/s, ConnectX-8 | Published spec | [NVIDIA GB300 NVL72](https://www.nvidia.com/en-us/data-center/gb300-nvl72/) |
-| GB200 NVL72 per-GPU scale-out | initially 400 Gb/s ConnectX-7; 800G variants through 2025 | Industry typical | SemiAnalysis; NVIDIA's GB200 page does not name the NIC |
+| GB200 NVL72 per-GPU scale-out, NVIDIA's reference design | 400 Gb/s, one ConnectX-7 port per GPU (four 400G CX7 per compute tray, one per GPU); ConnectX-8 800G is a documented upgrade, not the shipping default | Published spec | [NVIDIA DSX data center architecture reference](https://docs.nvidia.com/dsx/ncp/software-reference-guide/data-center-architecture) (compute-tray NIC table); [NVIDIA, GB200 NVL72 on CoreWeave](https://blogs.nvidia.com/blog/blackwell-coreweave-gb200-nvl72-instances-cloud/) ("Quantum-2 InfiniBand networking that delivers 400Gb/s bandwidth per GPU") |
 | ConnectX-8 host link | PCIe Gen6, 48 lanes with built-in switch | Published spec | [ServeTheHome](https://www.servethehome.com/nvidia-connectx-8-supernic-pcie-gen6-800g-nic-detailed/) |
 | Scale-out ports per NVL72 rack | 72 OSFP, one per GPU | Industry typical | SemiAnalysis, Optical Boogeyman |
+| Quantum-2 QM9700 | 64 × 400G NDR, 51.2 Tb/s aggregate | Published spec | [NVIDIA Quantum-2 QM9700 specifications](https://docs.nvidia.com/networking/display/qm97x0pub/specifications) |
 | Quantum-X800 Q3400 | 144 × 800G, 115.2 Tb/s, 2.9 kW typical (7 kW max, active cables) | Published spec | [NVIDIA XDR switch specs](https://networking-docs.nvidia.com/xdrswitcheshw/specifications) |
 | Quantum-X800 Q3200 | 72 × 800G, 57.6 Tb/s, 862 W typical | Published spec | same |
 | Spectrum SN5600 | 64 × 800G, 51.2 Tb/s, 940 W typical | Published spec (power) / Typical (ports) | [NVIDIA SN5000 specs](https://networking-docs.nvidia.com/sn5000hw/specifications) |

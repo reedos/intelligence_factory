@@ -1,5 +1,8 @@
 // Token arithmetic for the calculator, the story and the journeys. calc holds the reader's settings.
-export const calc = { tokPerGpu: 2000, tpsTouched: false, util: 0.6, carbon: 370, trainGWh: 50, lifeTokens: 1e15, withTrain: true };
+// tpsAccel names the accelerator a hardware-specific benchmark preset (e.g. "GB200 decode, DeepSeek R1") was set
+// for; sections.js clears tpsTouched when the scenario's accelerator no longer matches, so switching hardware
+// can't go on silently reusing a benchmark number that named a different chip (issue 15).
+export const calc = { tokPerGpu: 2000, tpsTouched: false, tpsAccel: null, util: 0.6, carbon: 370, trainGWh: 50, lifeTokens: 1e15, withTrain: true };
 export function tokenFigures(M, c = calc) {
   const tps = c.tpsTouched ? c.tokPerGpu : M.tokPerGpuRef;   // each accelerator gets its own default until the reader sets one
   const rate = M.gpus * tps * c.util;

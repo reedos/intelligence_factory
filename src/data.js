@@ -48,7 +48,7 @@ const FACTS = {
   gb200: {
     gpu: 'Blackwell', gpus: 'Blackwell GPUs', arch: 'Blackwell', transistors: '208 billion', tBasis: 'spec', process: 'TSMC 4NP', pBasis: 'spec',
     dieCm2: 16, packaging: 'TSMC CoWoS-L', cpu: 'Grace', cpuCores: '72 Arm Neoverse V2 cores', c2c: '900 GB/s', cpuMem: '480 GB LPDDR5X per CPU (17 TB per rack)',
-    nic: 'ConnectX SuperNIC', nicNote: '400G early, 800G with ConnectX-8', mBasis: 'spec',
+    nic: 'ConnectX-7 SuperNIC', nicNote: '400 Gb/s per GPU, NVIDIA’s reference design; ConnectX-8 upgrades to 800 Gb/s', mBasis: 'spec',
   },
   gb300: {
     gpu: 'Blackwell Ultra', gpus: 'Blackwell Ultra GPUs', arch: 'Blackwell Ultra', transistors: '208 billion', tBasis: 'typical', process: 'TSMC 4NP', pBasis: 'spec',

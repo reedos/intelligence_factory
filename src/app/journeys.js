@@ -70,7 +70,7 @@ export function story(M) {
     ]),
     // 6 · the package, and what comes out of it
     { link: at(5, 'dies'), k: 'GPU package', title: `${pct(M.gpuSiliconMW, M.meterMW)} reaches the silicon`,
-      text: `Of ${meter} at the meter, ${mw(M.gpuSiliconMW)} ends up in the GPU dies themselves. The rest went to conversion, cooling, memory, CPUs and the network. Both shares end up as heat.` },
+      text: `Of ${meter} at the meter, ${mw(M.gpuSiliconMW)} ends up in the GPU dies themselves. Almost all the rest became heat in conversion, cooling, memory, CPUs and the network; a sliver was never drawn at all, spare capacity from rounding down to a whole rack.` },
     { link: at(5, 'hbm', 'data'), k: 'Data · GPU package', title: 'Memory sets the pace',
       text: `${A.hbm.type} feeds each GPU at ${A.hbm.tbs} TB/s. Writing a reply means reading the model's weights for every token, so serving speed follows memory bandwidth more than raw math.` },
     { link: at(5, 'tokens'), sim: 'inference', k: 'Tokens', title: `${big(t.rate)} tokens a second`,
@@ -94,7 +94,7 @@ export function watt(M) {
   const host = share([M.accel.cpuName, 'SuperNICs', 'NICs', 'SSDs']);
   const board = share(['Bus converters', 'Voltage regulators']);
   const hbm = share([M.accel.hbm.type]);
-  return [
+  const beats = [
     { link: at(0, 'home'), k: 'The meter', title: 'One watt', tally: '1.000 W', text: `Take one watt of the ${mw(meter)} this campus draws and follow it. Every step below takes a slice; the number beside the scene shows what is left for the math.` },
     { link: at(1, 'mpt'), k: 'Grid & campus', title: `${pct(grid)} to the yard`, tally: take(grid), text: 'The main transformers and the campus cables and switchgear warm up a little as the watt passes: the cheapest step there is.' },
     { link: at(1, M.cooling.id === 'warm' ? 'drycoolers' : 'chillers'), k: 'A detour', title: `${pct(cool)} to cooling and the building`, tally: take(cool), text: `Part of every watt never reaches a rack: it runs ${M.cooling.id === 'warm' ? 'dry-cooler fans and pumps' : 'chillers, towers and pumps'}, lights and controls. That slice is most of the gap between PUE ${M.pue.toFixed(2)} and 1.` },
@@ -105,8 +105,10 @@ export function watt(M) {
     { link: at(4, nvl ? 'grace' : 'cpu'), k: nvl ? 'Compute tray' : 'The server', title: `${pct(host)} to CPUs, NICs and drives`, tally: take(host), text: 'The host side: CPUs, memory, network cards and drives. Necessary, but not the model math.' },
     { link: at(4, 'vrm'), k: 'The last volt', title: `${pct(board)} to converters and regulators`, tally: take(board), text: 'Bus converters and the rings of voltage regulators beside each GPU bring the watt down to under a volt, and lose about a tenth of what passes through.' },
     { link: at(5, 'hbm'), k: 'GPU package', title: `${pct(hbm)} to memory`, tally: take(hbm), text: `${M.accel.hbm.type} stacks beside the dies use their share moving weights in and out.` },
-    { link: at(5, 'dies'), k: 'The silicon', title: `${w3(left)} W does the math`, tally: `${w3(left)} W left`, text: `About ${Math.round(left * 100)}% of the watt reaches the transistors that do the arithmetic. It becomes heat there too, a few nanoseconds after it becomes a token.` },
   ];
+  left -= share(['Unallocated']);   // rounds down to a whole rack: never drawn at all, so it gets no beat of its own
+  beats.push({ link: at(5, 'dies'), k: 'The silicon', title: `${w3(left)} W does the math`, tally: `${w3(left)} W left`, text: `About ${Math.round(left * 100)}% of the watt reaches the transistors that do the arithmetic. It becomes heat there too, a few nanoseconds after it becomes a token.` });
+  return beats;
 }
 
 // ---------- a request ----------
