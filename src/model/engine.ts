@@ -108,6 +108,16 @@ export const COOLING: Record<CoolingId, Cooling> = {
 };
 const MISC_FRAC = 0.017;   // lighting, controls, offices, as a share of IT
 
+// ---------- water temperatures ----------
+// One design point per cooling choice, shared by the cards (data.js) and the hot-day/outage clocks
+// (clock.ts), so a reader never sees two different numbers for the same assumption.
+export const WATER = {
+  warmSupplyC: 45,       // NVIDIA's warm-water MGX rack spec: coolant entering the rack (typical)
+  warmAdiabaticC: 35,    // outdoor air at or above this needs adiabatic-spray assist to hold the warm-water loop (est)
+  liquidSupplyC: 20,     // this design's chiller-made supply for direct-to-chip liquid cooling, non-warm (est)
+  airSupplyC: 12,        // this design's chiller-made supply for in-row air cooling (typical)
+};
+
 // ---------- scale-out fabric by NIC speed ----------
 // One port per GPU into a non-blocking fat tree. Switch-side modules are counted per port.
 const FABRICS = {
@@ -313,3 +323,11 @@ export function compute(s: Scenario) {
   };
 }
 export type Model = ReturnType<typeof compute>;
+
+// Water Usage Effectiveness (The Green Grid, WP#35) is liters of on-site water per kWh of IT
+// equipment energy, not facility/meter energy — the two differ by a factor of PUE. `frac` lets a
+// caller show only the water a partly-throttled cooling plant is actually using right now (an
+// outage running the chillers at reduced capacity, say), as a share of the full-IT-load rate.
+export function waterM3h(M: Model, frac = 1) {
+  return M.IT_MW * M.wue * frac;
+}

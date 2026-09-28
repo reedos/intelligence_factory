@@ -7,6 +7,7 @@
 // one it has left (journeys.test.ts holds them to it), so the camera never jumps out and back in.
 // Beats: { link, k, title, text, tally, sim }. A sim runs that clock while the beat is on.
 import { tokenFigures } from '../model/tokens.js';
+import { waterM3h } from '../model/engine.ts';
 import { content } from '../data.js';
 
 const at = (scene, part, mode = 'power') => ({ scene, mode, part });
@@ -40,7 +41,7 @@ export function story(M) {
     { link: at(1, 'bess'), sim: 'training', k: 'Grid & campus', title: 'Standing by',
       text: `${n0(L.gensets)} diesel generators and ${n0(L.bessMWh)} MWh of batteries wait for the grid to fail. The batteries also soak up training load swings, which can move a campus tens of megawatts in under a second.` },
     { link: at(1, air || M.cooling.id === 'liquid' ? 'towers' : 'drycoolers', 'heat'), sim: 'hotday', k: 'Heat · grid & campus', title: 'All of it comes back out',
-      text: `Every one of those ${meter} leaves again as heat. ${M.cooling.id === 'warm' ? 'Warm water climbs to dry coolers on the roofs' : 'Chillers and cooling towers carry it away'}; cooling alone takes ${mw(M.coolMW)}. With the conversion losses, this design runs at PUE ${M.pue.toFixed(2)} and uses about ${big(M.meterMW * 24 * M.wue)} m³ of water a day.` },
+      text: `Every one of those ${meter} leaves again as heat. ${M.cooling.id === 'warm' ? 'Warm water climbs to dry coolers on the roofs' : 'Chillers and cooling towers carry it away'}; cooling alone takes ${mw(M.coolMW)}. With the conversion losses, this design runs at PUE ${M.pue.toFixed(2)} and uses about ${big(waterM3h(M) * 24)} m³ of water a day (WUE is measured per kWh of IT energy, not meter energy).` },
     // 3 · power room and data hall
     dc
       ? { link: at(2, 'sst'), sim: 'outage', k: 'Power room', title: 'Straight to 800 V DC',
@@ -126,7 +127,7 @@ export function request(M) {
     { link: at(4, 'dpu', 'data'), k: nvl ? 'Compute tray' : 'The server', title: 'The front-end network', tally: add(0.2), text: `The request itself arrives on a separate network, run by DPUs on each ${nvl ? 'tray' : 'server'} and kept apart from the GPU fabric.` },
     { link: at(5, 'hbm', 'data'), k: 'GPU package', title: 'Reading the prompt', tally: add(200), text: `Prefill: all your prompt's tokens go through the model at once, reading the weights from ${M.accel.hbm.type}. For a long prompt this takes a few hundred milliseconds, the time to the first word.` },
     { link: at(5, 'tokens'), sim: 'inference', k: 'Tokens', title: `${replyTok} tokens, one at a time`, tally: add(decodeS * 1000), text: `Decode: each new token reads the weights again. At ${streamTps} tokens a second for your stream (illustrative), a ${replyTok}-token answer takes about ${decodeS.toFixed(1)} s. It costs about ${whReply < 1 ? whReply.toFixed(2) : whReply.toFixed(1)} Wh at this campus, cooling and training share included.` },
-    { link: at(5, 'tokens', 'data'), k: 'Out', title: 'The answer streams back', tally: add(25), text: `Words leave as they are written, a few bytes each, back out the way the question came in. In all: about ${(ms / 1000).toFixed(1)} s and ${whReply < 1 ? whReply.toFixed(2) : whReply.toFixed(1)} Wh, about ${(whReply / 1000 * M.wue * 1000).toFixed(1)} mL of water on site.` },
+    { link: at(5, 'tokens', 'data'), k: 'Out', title: 'The answer streams back', tally: add(25), text: `Words leave as they are written, a few bytes each, back out the way the question came in. In all: about ${(ms / 1000).toFixed(1)} s and ${whReply < 1 ? whReply.toFixed(2) : whReply.toFixed(1)} Wh, about ${t.waterReply.toFixed(1)} mL of water on site (WUE's own boundary, IT energy).` },
   ];
 }
 

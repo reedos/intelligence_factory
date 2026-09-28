@@ -154,6 +154,15 @@ number exists).
 
 ### 7. Water: WUE, Microsoft's zero-water claim, indirect water in electricity generation
 
+- **WUE's denominator is IT equipment energy, not facility/meter energy.** The Green Grid's
+  founding definition is WUE = Annual Water Usage ÷ IT Equipment Energy (L/kWh), the same
+  denominator PUE and CUE use, chosen deliberately so the xUE family of metrics stays linked.
+  Dividing by facility (meter) energy instead overstates water use by a factor of PUE (a design
+  at PUE 1.16 overstates by ~16%). `engine.ts`'s `waterM3h(M, frac)` helper and every consumer of
+  it (`clock.ts`, `tokens.js`, `journeys.js`, `data.js`, `scenario.js`) use `M.IT_MW`, not
+  `M.meterMW`, for exactly this reason — see audit item 7.
+  - **Basis:** Published spec (The Green Grid is the standards body that defines WUE).
+  - **Source:** [The Green Grid, White Paper #35, "Water Usage Effectiveness (WUE): A Green Grid Data Center Sustainability Metric"](https://www.thegreengrid.org/system/files/store/WUE_v1.pdf) (2011): "Like PUE and CUE, the WUE metric uses the familiar value of IT Equipment Energy as its denominator."
 - **WUE ranges (liquid cooling with dry coolers vs. evaporative towers):** Dry-cooler /
   adiabatic-assist liquid cooling reported at **0.15–0.17 L/kWh**; LBNL's 2024 US Data Center
   Energy Usage Report projects fleet-average WUE reaching **0.45–0.48 L/kWh** in some future

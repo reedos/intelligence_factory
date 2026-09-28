@@ -1,7 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { compute, DEFAULT_SCENARIO, ACCELERATORS, type Scenario } from './engine';
+import { compute, DEFAULT_SCENARIO, ACCELERATORS, waterM3h, type Scenario } from './engine';
 
 const run = (s: Partial<Scenario> = {}) => compute({ ...DEFAULT_SCENARIO, ...s });
+
+describe('WUE is measured against IT energy, not meter energy', () => {
+  it('the default 100 MW scenario: 86.3506 MW IT × 0.16 L/kWh × 24 h = 331.6 m³/day, not the 384 a meter-based figure would give', () => {
+    const m = run();
+    expect(m.IT_MW).toBeCloseTo(86.3506, 3);
+    expect(waterM3h(m) * 24).toBeCloseTo(331.6, 0);
+    expect(m.meterMW * 24 * m.wue).toBeCloseTo(384, 0);   // the wrong, meter-based number, kept here so the two never drift into agreement by accident
+  });
+  it('scales with IT power, not meter power, so a fixed meter size with more overhead uses less water here', () => {
+    const air = run({ accel: 'h100', cooling: 'air' }), warm = run({ accel: 'gb200', cooling: 'warm' });
+    expect(waterM3h(air)).toBeCloseTo(air.IT_MW * air.wue, 9);
+    expect(waterM3h(warm)).toBeCloseTo(warm.IT_MW * warm.wue, 9);
+  });
+  it('a coolFrac argument scales the rate linearly, for a partly-throttled cooling plant', () => {
+    const m = run();
+    expect(waterM3h(m, 0.5)).toBeCloseTo(waterM3h(m) / 2, 9);
+    expect(waterM3h(m, 0)).toBe(0);
+  });
+});
 
 describe('energy is conserved', () => {
   for (const accel of Object.keys(ACCELERATORS) as Scenario['accel'][]) {

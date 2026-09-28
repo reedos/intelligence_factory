@@ -294,7 +294,7 @@ function renderTokens() {
   $('tps-v').textContent = fmt(calc.tokPerGpu);
   $('util-v').textContent = `${Math.round(calc.util * 100)}%`; $('carbon-v').textContent = `${fmt(calc.carbon)} g`;
   $('train-v').textContent = `${sig(calc.trainGWh)} GWh`; $('life-v').textContent = big(calc.lifeTokens);
-  $('calc-from').innerHTML = `PUE <b>${M.pue.toFixed(2)}</b> · water <b>${M.wue.toFixed(2)} L/kWh</b> · <b>${n0(M.gpus)}</b> ${M.accel.short} GPUs, from the scenario above`;
+  $('calc-from').innerHTML = `PUE <b>${M.pue.toFixed(2)}</b> · WUE <b>${M.wue.toFixed(2)} L/kWh IT</b> · <b>${n0(M.gpus)}</b> ${M.accel.short} GPUs, from the scenario above`;
   $('o-j').textContent = sig(f.j); $('o-kwh').textContent = big(3.6e6 / f.j);
   $('o-wh').textContent = sig(f.whReply, 3); $('o-co2').textContent = sig(f.co2Reply, 3);
   $('o-water').textContent = sig(f.waterReply, 3); $('o-train').textContent = `${sig(f.jTrain / f.j * 100, 1)}%`;

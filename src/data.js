@@ -35,6 +35,7 @@ export const VOLT = {
 };
 
 import { SITES, PLACES, placeKey, STATE_CARBON, DEFAULT_PLACE, US_CARBON_G, STATUS_WORD } from './model/sites.ts';
+import { waterM3h, WATER } from './model/engine.ts';
 // a real campus's status as spec rows: its state and live figure, and a ranking where one is claimed
 const statusRows = s => [[`Status, ${s.status.asOf}`, `${STATUS_WORD[s.status.state]} · ${s.status.live}`, 'est'], ...(s.status.rank ? [['Ranking, Epoch AI', 'Most powerful operating today', 'est']] : [])];
 
@@ -235,13 +236,13 @@ export function content(M) {
         body: 'Rooftop coils, such as EVAPCO’s Apex or Baltimore Aircoil’s TrilliumSeries dry coolers, reject the heat carried out of the GPUs by warm water with big fans. Water at 30–40 °C is warm enough to dump heat to outside air most of the year without chillers.',
         specs: [['Heat rejected', `≈${mwTxt(IT_MW * 1.05)}`, 'est'], ['Units, ≈0.8 MW each', `≈${n0(L.dryCoolers)}`, 'est'], ['Water classes', 'ASHRAE W32–W45: 32–45 °C max supply', 'spec'], ['Water use, dry + adiabatic', '≈0.15–0.17 L/kWh', 'typical']] }
       : { id: 'chillers', title: 'Chiller plant', kicker: 'Makes cold water',
-        body: `Chillers, such as Schneider Electric’s Uniflair line, run a refrigeration cycle to cool water to ${air ? 'about 12 °C for the air coolers in the halls' : 'about 20 °C for the racks’ coolant units'}. Their compressors are the biggest power draw in cooling, which is why this design lands at PUE ${M.pue.toFixed(2)}.`,
+        body: `Chillers, such as Schneider Electric’s Uniflair line, run a refrigeration cycle to cool water to ${air ? `about ${WATER.airSupplyC} °C for the air coolers in the halls` : `about ${WATER.liquidSupplyC} °C for the racks’ coolant units`}. Their compressors are the biggest power draw in cooling, which is why this design lands at PUE ${M.pue.toFixed(2)}.`,
         specs: [['Chillers, ≈4 MW (1,100 ton) each', `≈${n0(L.chillers)}`, 'est'], ['Cooling power', mwTxt(M.coolMW), 'est'], ['Chiller efficiency', 'COP ≈5–7 at design', 'typical']] },
     { id: 'towers', title: warm ? 'Cooling towers & tanks' : 'Cooling towers', kicker: warm ? 'For the hottest days' : 'Where the heat and water go',
       body: warm
         ? 'Evaporative towers trim water temperature on hot afternoons, and the tanks hold treated makeup water and fire water.'
         : 'Towers take the chillers’ heat, and the heat of their compressors, and throw it away by evaporating water. That is where most of a data center’s water goes.',
-      specs: [['Towers', `≈${n0(L.towers)}`, 'est'], ['Water, on site', `≈${M.wue.toFixed(2)} L/kWh`, 'typical'], ['Use', warm ? 'peak days only' : 'all year', 'est']] },
+      specs: [['Towers', `≈${n0(L.towers)}`, 'est'], ['WUE, on site', `≈${M.wue.toFixed(2)} L/kWh IT`, 'typical'], ['Use', warm ? 'peak days only' : 'all year', 'est']] },
     { id: 'fiber', title: 'Fiber entrances', kicker: 'Two diverse routes',
       body: 'Long-haul fiber enters at two vaults on opposite sides of the site, so one backhoe cannot cut the campus off. Tokens leave the same way the questions arrive.',
       specs: [['Routes', '2 or more, physically separate', 'typical']] },
@@ -296,7 +297,7 @@ export function content(M) {
         specs: [['Capacity range', '70 kW – 2.5 MW', 'spec'], ['Units here, ≈1.25 MW', `≈${n0(L.cdus)}`, 'est'], ['Rule', 'rack loop stays above dew point', 'spec']] },
     { id: 'fwater', title: air ? 'Chilled water loop' : 'Facility water loop', kicker: 'Supply and return headers',
       body: `Insulated steel headers carry water between the ${air ? 'cooling units' : 'CDUs'} and the ${warm ? 'rooftop dry coolers' : 'chiller plant'}. Blue carries cooler supply, red carries warm return.`,
-      specs: [['Supply', warm ? '≈40–45 °C' : air ? '≈12 °C' : '≈20–30 °C', 'typical'], ['Temperature rise', '≈10 °C across the racks', 'est']] },
+      specs: [['Supply', `≈${warm ? WATER.warmSupplyC : air ? WATER.airSupplyC : WATER.liquidSupplyC} °C`, 'typical'], ['Temperature rise', '≈10 °C across the racks', 'est']] },
     { id: 'fanwall', title: 'Fan wall', kicker: 'Air side',
       body: air ? 'A wall of fans and coils handles room air and the heat from lights, people and power gear.' : 'A wall of fans and coils cools the air that carries the remaining heat from power shelves, switches, optics and memory.',
       specs: [['Share of rack heat', `≈${Math.round((1 - liq) * 100)}%`, 'est']] },
@@ -669,7 +670,7 @@ export function content(M) {
         body: warm
           ? 'Evaporating water carries heat away far better than air, so towers trim the loop on the hottest afternoons. Every kilowatt-hour moved this way costs water.'
           : 'Evaporation carries the heat away all year. Each kilogram of water evaporated takes about 2.4 MJ with it, which adds up to rivers of water at this scale.',
-        specs: [['On site, this design', `≈${M.wue.toFixed(2)} L/kWh`, 'typical'], ['Water per day', `≈${kfmt(M.meterMW * 24 * M.wue)} m³`, 'est'], ['At the power plant, typical thermal', '≈1.8 L/kWh (NREL)', 'spec']] },
+        specs: [['WUE, this design', `≈${M.wue.toFixed(2)} L/kWh IT`, 'typical'], ['Water per day', `≈${kfmt(waterM3h(M) * 24)} m³`, 'est'], ['At the power plant, typical thermal', '≈1.8 L/kWh (NREL)', 'spec']] },
       { id: 'plume', title: `Where ${meter} goes`, kicker: 'All of it, as heat',
         body: `Every watt that came in on the 345 kV line leaves as warm air${warm ? '' : ' and water vapor'} above the roofs. The campus is, physically, a ${meter} heater that happens to make tokens on the way.`,
         specs: [['Heat out', meter, 'est']] },
@@ -765,20 +766,20 @@ export function content(M) {
     { label: 'GPU die', c: 70, note: 'throttles near ≈85 °C; not published', basis: 'est', link: at(5, 'junction', 'heat') },
     { label: 'Coolant leaving the rack', c: 55, note: '≈10 °C rise across the rack', basis: 'typical', link: at(3, 'manifold', 'heat') },
     { label: 'Facility water to the roof', c: 52, note: 'a few degrees lost in the CDU', basis: 'est', link: at(2, 'fwater', 'heat') },
-    { label: 'Coolant entering the rack', c: 45, note: 'NVIDIA warm-water spec', basis: 'typical', link: at(2, 'cdu', 'heat') },
-    { label: 'Outdoor air, hot day', c: 35, note: 'still cold enough for dry coolers', basis: 'est', link: outside },
+    { label: 'Coolant entering the rack', c: WATER.warmSupplyC, note: 'NVIDIA warm-water spec', basis: 'typical', link: at(2, 'cdu', 'heat') },
+    { label: 'Outdoor air, hot day', c: WATER.warmAdiabaticC, note: 'the point where dry coolers alone stop keeping up, so sprays help', basis: 'est', link: outside },
   ] : air ? [
     { label: 'GPU die', c: 80, note: 'air runs the silicon hotter', basis: 'est', link: at(5, 'junction', 'heat') },
     { label: 'Hot aisle', c: 40, note: '≈15–20 °C rise through the servers', basis: 'typical', link: at(2, 'hotaisle', 'heat') },
-    { label: 'Outdoor air, hot day', c: 35, note: 'too warm to cool 12 °C water without chillers', basis: 'est', link: outside },
+    { label: 'Outdoor air, hot day', c: 35, note: `too warm to cool ${WATER.airSupplyC} °C water without chillers`, basis: 'est', link: outside },
     { label: 'Cold aisle', c: 22, note: 'ASHRAE 18–27 °C', basis: 'spec', link: at(3, 'front', 'heat') },
-    { label: 'Chilled water supply', c: 12, note: 'made by chillers, all year', basis: 'typical', link: at(2, 'fwater', 'heat') },
+    { label: 'Chilled water supply', c: WATER.airSupplyC, note: 'made by chillers, all year', basis: 'typical', link: at(2, 'fwater', 'heat') },
   ] : [
     { label: 'GPU die', c: 65, note: 'throttles near ≈85 °C; not published', basis: 'est', link: at(5, 'junction', 'heat') },
     { label: 'Coolant leaving the rack', c: 40, note: '≈10 °C rise across the rack', basis: 'typical', link: at(3, 'manifold', 'heat') },
     { label: 'Outdoor air, hot day', c: 35, note: 'too warm for the loop without chillers', basis: 'est', link: outside },
-    { label: 'Coolant entering the rack', c: 30, note: 'a few degrees above chilled water', basis: 'est', link: at(2, 'cdu', 'heat') },
-    { label: 'Chilled water supply', c: 25, note: 'made by chillers', basis: 'est', link: at(2, 'fwater', 'heat') },
+    { label: 'Coolant entering the rack', c: WATER.liquidSupplyC + 4, note: 'a few degrees above chilled water', basis: 'est', link: at(2, 'cdu', 'heat') },
+    { label: 'Chilled water supply', c: WATER.liquidSupplyC, note: 'made by chillers', basis: 'est', link: at(2, 'fwater', 'heat') },
   ];
 
   // How a model is split, from the chattiest traffic to the quietest.

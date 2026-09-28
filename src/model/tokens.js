@@ -9,5 +9,7 @@ export function tokenFigures(M, c = calc) {
   const jOps = M.meterMW * 1e6 / rate;
   const jTrain = c.withTrain ? c.trainGWh * 3.6e12 / c.lifeTokens : 0;
   const j = jOps + jTrain, whReply = j * 500 / 3600;
-  return { rate, j, jTrain, whReply, co2Reply: whReply / 1000 * c.carbon, waterReply: whReply / 1000 * M.wue * 1000 };
+  // co2Reply follows facility (meter) electricity, the grid's own boundary; waterReply follows WUE's
+  // own boundary, IT energy, so it divides out the PUE that whReply (a meter-energy figure) carries.
+  return { rate, j, jTrain, whReply, co2Reply: whReply / 1000 * c.carbon, waterReply: whReply / M.pue * M.wue };
 }
