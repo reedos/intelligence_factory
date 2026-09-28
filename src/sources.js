@@ -258,6 +258,17 @@ export const SOURCES = {
   'nvidia-blackwell-architecture-page': { title: 'Blackwell Architecture', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/technologies/blackwell-architecture/', dated: 'unknown page-specific date; current NVIDIA product page', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'wccftech-nvidia-rubin-gpu-architecture': { title: 'NVIDIA Rubin GPU Architecture, Fully Disclosed', publisher: 'WCCFTech', url: 'https://wccftech.com/nvidia-rubin-gpu-architecture/', published: '2026', accessed: '09/27/2026', kind: 'secondary' },
   'wikipedia-pcie': { title: 'PCI Express', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/PCI_Express', dated: 'live page, PCIe 5.0 link-performance table', accessed: '09/27/2026', kind: 'secondary' },
+  // adversarial pass 09/27/2026: 'servethehome-dgx-gb200' does not state the "2 miles" cable-length figure
+  // (checked directly, incl. the archived 2024 copy); that figure is The Register's, not ServeTheHome's.
+  'theregister-dgx-gb200-nvl72': { title: "A closer look at Nvidia's 120kW DGX GB200 NVL72 rack system", publisher: 'The Register', url: 'https://www.theregister.com/2024/03/21/nvidia_dgx_gb200_nvk72/', published: '03/21/2024', accessed: '09/27/2026', kind: 'secondary' },
+  // adversarial pass 09/27/2026: neither of Google's own Ironwood pages states the ICI link medium is
+  // copper; this SemiAnalysis piece is the source that actually describes DAC copper for interior-cube
+  // chips (with optical transceivers at the cube's face/edge/corner), so the claim is requalified 'reported'.
+  'semianalysis-tpuv7-ironwood': { title: 'TPUv7: Google Takes a Swing at the Merchant Silicon Market', publisher: 'SemiAnalysis', url: 'https://newsletter.semianalysis.com/p/tpuv7-google-takes-a-swing-at-the', accessed: '09/27/2026', kind: 'secondary' },
+  // adversarial pass 09/28/2026: NVIDIA's Grace CPU page states 900 GB/s for Grace-to-Grace only (checked
+  // directly); this Grace Hopper Superchip page is the NVIDIA source that states 900 GB/s for a CPU-to-GPU
+  // pairing (one generation earlier), used to corroborate the GB200/GB300 Grace-to-GPU figure as 'assumed'.
+  'nvidia-grace-hopper-superchip': { title: 'Grace Hopper Superchip', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/grace-hopper-superchip/', dated: 'unknown page-specific date; current NVIDIA product page', accessed: '09/28/2026', kind: 'primary', marketing: true },
 
   // ---- traced 09/27/2026: level 6, the GPU package, and the links ladder ----
 
@@ -383,7 +394,7 @@ export const PART_SOURCES = {
   'data:tray:c2c': ['nvidia-gb200-nvl72', 'naddod-gb200-interconnect'],
   'data:tray:cx': ['nvidia-dsx-data-center-architecture', 'nvidia-coreweave-gb200-400g', 'nvidia-connectx8-datasheet', 'fs-com-dgx-h100'],
   'data:tray:osfp': ['nvidia-800g-dr8-datasheet'],
-  'data:tray:dpu': ['nvidia-dgx-gb200-hardware', 'nvidia-bluefield4-datasheet'],
+  'data:tray:dpu': ['nvidia-dgx-gb200-hardware', 'nvidia-bluefield4-datasheet', 'nvidia-dgxh100-user-guide'],
   'data:tray:gpu': [],
   'data:tray:nvswitch': ['nvidia-h100-datasheet'],
   'data:tray:pcie': [],
