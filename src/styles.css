@@ -667,7 +667,21 @@ body.scrolled .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--
 .ml-facts div { display: grid; gap: 3px; }
 .ml-facts dt { margin: 0; font: 500 10.5px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
 .ml-facts dd { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink); }
-#fig-optics-cutaway svg { min-width: 1200px; }
+/* the optics cutaway: three independent SVGs (DSP/LPO/CPO) that stack in one column instead of the old rule
+   below forcing one wide row to a 1200px minimum (audit item 19 — that hid CPO off-screen at laptop widths).
+   Stays one column at every width: the page's own content tops out well under 1400px, so three columns would
+   only ever give each module ~400px — not enough headroom over the ~460px a legible diagram needs. One column
+   gives every module the full content width, plenty at laptop and desktop; only the phone case (~360px
+   available) needs its own small scroll, per module, so CPO is never hidden behind the others. */
+#fig-optics-cutaway { overflow-x: visible; }
+#fig-optics-cutaway .oc-grid { display: grid; gap: 22px; grid-template-columns: minmax(0, 1fr); }
+#fig-optics-cutaway .oc-module { border: 1px solid var(--line); background: var(--surface); padding: 6px; overflow-x: auto; }
+#fig-optics-cutaway .oc-module svg { min-width: 460px; }
+#fig-optics-cutaway .oc-legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 16px 0 0; padding: 0; list-style: none; font: 500 11.5px/1 var(--mono); color: var(--muted); }
+#fig-optics-cutaway .oc-legend span { display: inline-flex; align-items: center; gap: 7px; }
+#fig-optics-cutaway .oc-sw { width: 18px; height: 2px; background: var(--c); display: inline-block; }
+#fig-optics-cutaway .oc-sw.oc-dash { background: none; height: 0; border-top: 2px dashed var(--c); }
+#fig-optics-cutaway .oc-note { margin: 10px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; max-width: 78ch; }
 @media (max-width: 640px) {
   .ml-row { grid-template-columns: minmax(0, 1fr); }
   .ml-row .chip { grid-column: 1; justify-self: start; margin-top: 8px; }

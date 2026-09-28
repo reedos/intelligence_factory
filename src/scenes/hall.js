@@ -77,8 +77,9 @@ export function build({ quality, model }) {
 
   // ---------- network faceplates: pluggable OSFP modules, or one CPO switch with on-chassis MPO + ELS ----------
   // Sources: research/interconnect-sources.md section 2 (Scale-out): DSP pluggables ~17 W (800G DR8) to ~25-30 W
-  // (1.6T); LPO saves ~40-50%; NVIDIA Quantum-X/Spectrum-X Photonics (CPO) is 3.5x power efficiency and 4x fewer
-  // lasers via external laser sources; Broadcom Davisson (Tomahawk 6 CPO) is 3.5 W per 800G port of optics.
+  // (1.6T); LPO saves ~40-50%; NVIDIA Quantum-X/Spectrum-X Photonics (CPO) is 4x fewer lasers via external laser
+  // sources and, as of its August 2026 update, 5x power efficiency (up from an initial 3.5x); Broadcom Davisson
+  // (Tomahawk 6 CPO) is 3.5 W per 800G port of optics.
   const moduleMetal = new THREE.MeshStandardMaterial({ color: 0xcfd3d8, roughness: 0.28, metalness: 0.85 });
   const pullTabMat = new THREE.MeshStandardMaterial({ color: 0x101215, roughness: 0.55, metalness: 0.1 });
   const mpoBody = new THREE.MeshStandardMaterial({ color: 0x2fb6c9, roughness: 0.4, metalness: 0.3 });

@@ -7,11 +7,14 @@ const TXT = (x, y, s, { a = 'middle', size = 12, fill = 'currentColor', w = 500,
 
 // ---------- (a) the media ladder ----------
 // Each row's basis chip opens 'links:<id>' in sources.js (PART_SOURCES). 'cls' picks the layer color:
-// copper rungs use --nvl (matches the rest of the page's scale-up color), optics use --eth, coherent uses --dci.
+// copper rungs use --nvl (matches the rest of the page's scale-up color), direct-detect optics use --eth,
+// coherent (which really is a separate scale-across function, not just "optics but longer") uses --dci.
 export const MEDIA_LADDER = [
   { id: 'dac', cls: 'nvl', name: 'DAC — direct-attach copper', scope: 'scale-up, in the rack',
     what: 'A passive twinax cable: two copper conductors and a connector at each end, nothing active inside.',
-    reach: '2–5 m at 25–100 Gb/s per lane (ratified clauses); under 1 m at 200 Gb/s per lane, per IEEE’s own draft objective — trade estimates spread 1–3 m',
+    // IEEE's own P802.3dj objective is a floor ("reach of up to at least 1.0 m"), not a ceiling — keep this
+    // consistent with the copper-wall chart's own note on the same 200 Gb/s/lane row, below.
+    reach: '2–5 m at 25–100 Gb/s per lane (ratified clauses); at 200 Gb/s per lane, IEEE’s own P802.3dj objective is a floor of at least 1 m — trade estimates for what a design actually achieves spread from under 1 m to about 3 m',
     power: '0 W added — passive',
     where: 'NVLink spine inside a rack; GPU-to-switch links; tray and board backplanes',
     basis: 'typical' },
@@ -28,29 +31,42 @@ export const MEDIA_LADDER = [
     where: 'Server/NIC-to-leaf and switch-to-switch links; also cross-rack scale-up in practice (AWS Trainium2/3, reportedly xAI Colossus)',
     basis: 'typical' },
   { id: 'lpo', cls: 'eth', name: 'LPO — linear pluggable optics', scope: 'leaf to spine',
-    what: 'The module keeps the laser and photodetectors but drops the DSP; the host chip’s own SerDes drives the line directly.',
+    what: 'The module keeps the laser and photodetectors but drops the DSP; the host chip’s own SerDes drives and reads the line directly, doing the equalization the DSP used to.',
     reach: '500 m standard; ≈2 km in a DR variant',
-    power: '≈10 W target per 800G-class port at 200 Gb/s per lane, against 23–25 W for a fully retimed module at the same lane rate',
+    // Semtech states its own ≈10 W LPO target and ≈23–25 W fully-retimed baseline together, both at
+    // 200 Gb/s/lane signaling — but Semtech ties that 23–25 W figure specifically to a complete 1.6T DR8
+    // module elsewhere in the same piece, and never states the port capacity behind its 10 W LPO number.
+    // So this is a same-generation, same-lane-rate comparison, not a confirmed same-capacity one — don't
+    // paper over that by mechanically relabeling the LPO figure "1.6T" either.
+    power: '≈10 W target per port at 200 Gb/s per lane (Semtech; the exact port capacity isn’t stated) — Semtech’s own retimed baseline at that lane rate is a complete 1.6T DR8 module at 23–25 W, not an 800G one',
     where: 'Leaf-to-spine fabric links; early commercial deployment as of 2026',
     basis: 'spec' },
   { id: 'dsp', cls: 'eth', name: 'DSP pluggable optics', scope: 'leaf to spine, hall to hall',
     what: 'Today’s default: a full DSP retimer regenerates the signal at each end, alongside a laser and photodetectors. The DSP comes from chipmakers such as Marvell (Ara), Broadcom (Sian) and Credo (Bluebird).',
     reach: '500 m (DR8) to 2 km (FR4/FR8)',
-    power: '12 W max (400G QSFP-DD); ≈15 W (800G 2×FR4); sub-13 W (800G) and sub-23 W (1.6T) on the newest 3 nm DSPs',
+    power: '12 W max (400G QSFP-DD, today’s 100 Gb/s/lane generation); ≈15 W (800G 2×FR4, same generation); on the newest 3 nm, 200 Gb/s/lane DSPs: sub-13 W (800G) and sub-23 W (1.6T) — a different chip generation, not a lower price for the same part',
     where: 'Today’s default fabric backbone and campus-length links',
     basis: 'spec' },
-  { id: 'cpo', cls: 'eth', name: 'CPO — co-packaged optics', scope: 'built into the switch, leaf and spine',
-    what: 'The optical engines move onto the switch ASIC’s own package, removing the pluggable module and its connector.',
-    reach: 'Same reach class as the pluggables it replaces; this is a switch-side packaging change, without its own separate reach spec',
-    power: '≈5.5 W per 800G port (Broadcom Bailly, 2025); ≈3.5 W per 800G port (Broadcom Tomahawk 6 “Davisson,” newest)',
-    where: 'Leaf and spine switch packages; NVIDIA Quantum-X/Spectrum-X Photonics, Broadcom Tomahawk 5/6',
-    basis: 'spec' },
+  { id: 'lr4', cls: 'eth', name: 'LR4 — direct-detect campus optics', scope: 'building to building, still direct detect',
+    what: 'The same DSP-retimed, on/off (direct-detect) family as the leaf-spine backbone above, just tuned for reach instead of density: four CWDM wavelengths on one fiber pair. Not a coherent receiver, and not multiplexed with anything else on that fiber.',
+    reach: '10 km, single-mode — sized to absorb a campus’s routing and conduit slack, no optical amplification needed',
+    power: 'Same DSP-pluggable class as the backbone above (roughly 12–15 W in today’s generation) — a longer-reach optic, not a separate power class',
+    where: 'Building-to-building campus links short enough that neither amplification nor coherent detection is needed',
+    basis: 'typical' },
   { id: 'coherent', cls: 'dci', name: 'Coherent (400ZR/800ZR-class)', scope: 'campus to campus',
-    what: 'Puts many wavelengths of light on one fiber pair and amplifies them optically for the run between buildings. Pluggables such as Marvell’s COLORZ 800 and Ciena’s WaveLogic 6 Nano carry 800 Gb/s per wavelength.',
-    reach: '10 km (LR4) for campus-only links; 80–120 km amplified for longer routes',
-    power: '≈15–20 W at 400ZR; ≈23–30 W at 800ZR',
+    what: 'A coherent transceiver — a pluggable like Marvell’s COLORZ 800 or Ciena’s WaveLogic 6 Nano, or a transponder in a line-terminal shelf — encodes each wavelength in amplitude, phase and polarization together, carrying far more bits per symbol than direct-detect optics. A separate mux/demux combines many such wavelengths onto one fiber pair; separate optical amplifiers, not the transceiver, extend the run. None of that is what LR4 above does, and coherent detection isn’t what makes multiplexing possible — direct-detect wavelengths can be muxed too.',
+    reach: '≈40 km unamplified at 400ZR’s standard 11 dB loss budget, extending toward ≈75 km in longer-reach variants (both per OIF); 80–120 km per amplified span for longer routes — repeating amplifiers every ≈80 km extends reach, but noise accumulates with every span, so it is not unlimited',
+    // interconnect-sources.md:68 splits 800ZR (≈23-25 W) from the longer-reach 800ZR+ variant (≈26-30 W);
+    // blending them into one "23-30 W at 800ZR" figure would misstate plain 800ZR's own power draw
+    power: '≈15–20 W at 400ZR; ≈23–25 W at 800ZR (≈26–30 W in longer-reach 800ZR+ variants)',
     where: 'Scale-across: building-to-building and site-to-site links',
     basis: 'typical' },
+  { id: 'cpo', cls: 'eth', name: 'CPO — co-packaged optics', scope: 'built into the switch, leaf and spine',
+    what: 'The optical engines move onto or next to the switch ASIC’s own package, shortening the electrical channel and removing the pluggable module and its connector — it does not by itself mean fewer traffic fibers.',
+    reach: 'Same reach class as the pluggables it replaces; this is a switch-side packaging change, without its own separate reach spec',
+    power: '≈5.5 W per 800G port, optics plus external laser (Broadcom Bailly, 2025); ≈3.5 W per 800G port (Broadcom Tomahawk 6 “Davisson,” newest) — both exclude the switch ASIC’s own host-side SerDes power',
+    where: 'Leaf and spine switch packages; NVIDIA Quantum-X/Spectrum-X Photonics, Broadcom Tomahawk 5/6',
+    basis: 'spec' },
 ];
 
 // ---------- (b) the copper wall: passive reach vs. lane rate ----------
@@ -114,60 +130,160 @@ export function copperWallSVG() {
 }
 
 // ---------- (c) cutaway module diagrams: DSP pluggable, LPO, CPO ----------
-// A pluggable module, left to right: host connector -> DSP/retimer -> driver+laser (modulator) -> photodiode+TIA
-// -> fiber out. CPO removes the pluggable and the connector: the switch ASIC's SerDes feeds an on-package
-// optical engine directly, fed in turn by a laser source moved off the package (a dashed link, not a solid one,
-// marks that the laser sits somewhere else).
-const BOX_W = 520, BOX_GAP = 60, BOX_L = 40;
-function moduleCutaway(col, { title, sub, dsp, cpo, wattNote }) {
-  const x0 = BOX_L + col * (BOX_W + BOX_GAP), w = BOX_W, cx = x0 + w / 2;
-  const y0 = 56, bh = 170;
-  const blocks = cpo
-    ? [
-        { key: 'asic', label: 'Switch ASIC\nSerDes' },
-        { key: 'engine', label: 'Optical\nengine', hl: true, note: wattNote },
-        { key: 'laser', label: 'External\nlaser source', dashedBox: true, dashedIn: true, note: 'off the package' },
-      ]
-    : [
-        { key: 'host', label: 'Host\nconnector' },
-        { key: 'dsp', label: 'DSP /\nretimer', strike: !dsp, note: dsp === 'chip' ? wattNote : null },
-        { key: 'drv', label: 'Driver' },
-        { key: 'mod', label: 'Modulator\n+ CW laser', hl: true },
-        { key: 'pd', label: 'Photodiode\n+ TIA' },
-      ];
-  const n = blocks.length, bw = (w - 24) / n - 8;
-  let out = `<rect x="${x0}" y="${y0}" width="${w}" height="${bh}" rx="6" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>`;
-  out += TXT(cx, y0 - 34, title, { size: 16, w: 700 });
-  out += TXT(cx, y0 - 16, sub, { size: 11, fill: 'var(--muted)', mono: true });
-  let px = x0 + 12;
-  const midY = y0 + 70;
-  blocks.forEach((b, i) => {
-    const bx = px, by = midY - 35, bcx = bx + bw / 2;
-    const fill = b.hl ? 'var(--eth)' : 'var(--ink)';
-    const op = b.strike ? 0.08 : b.hl ? 0.16 : 0.06;
-    out += `<rect x="${bx}" y="${by}" width="${bw}" height="70" rx="4" fill="${fill}" fill-opacity="${op}" stroke="${b.hl ? 'var(--eth)' : 'var(--line-2)'}" stroke-opacity="${b.strike ? 0.35 : 0.9}" stroke-dasharray="${b.dashedBox ? '4 3' : '0'}"/>`;
-    const lines = b.label.split('\n');
-    const ly0 = by + 35 - (lines.length - 1) * 8;
-    lines.forEach((ln, li) => out += TXT(bcx, ly0 + li * 16, ln, { size: 11.5, w: 600, fill: b.strike ? 'var(--muted)' : 'var(--ink)', op: b.strike ? 0.55 : 1 }));
-    if (b.strike) out += `<line x1="${bx + 4}" x2="${bx + bw - 4}" y1="${by + 8}" y2="${by + 62}" stroke="var(--muted)" stroke-width="2"/>`;
-    if (b.note) out += TXT(bcx, by + 86, b.note, { size: 10, fill: 'var(--eth)', mono: true });
-    if (i < n - 1) out += `<line x1="${bx + bw}" x2="${bx + bw + 8}" y1="${midY}" y2="${midY}" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="${blocks[i + 1].dashedIn ? '3 3' : '0'}"/>`;
-    px += bw + 8;
-  });
-  // fiber stub out the right edge (skipped for CPO: the last block is the external laser feed, not a fiber exit)
-  if (!cpo) {
-    out += `<line x1="${x0 + w}" x2="${x0 + w + 18}" y1="${midY}" y2="${midY}" stroke="var(--fiber)" stroke-width="3"/>`;
-    out += `<circle cx="${x0 + w + 20}" cy="${midY}" r="3.5" fill="var(--fiber)"/>`;
-  }
+// Three separate SVGs (one per module), each self-contained, so a narrow viewport can stack them instead of
+// forcing one wide row (that was audit item 19 — see styles.css). Each pluggable module (DSP, LPO) is drawn as
+// two directed lanes sharing one package boundary: TX runs host -> [DSP] -> driver -> modulator+laser -> fiber
+// out; RX runs fiber in -> photodiode+TIA -> [DSP] -> host. Electrical segments are muted-colored, optical
+// segments (from the modulator, or into the photodiode) are fiber-colored, so the medium changes with the
+// color, not just the block label. CPO has no discrete module: the ASIC's SerDes and the optical engine share
+// one package (dashed, since "co-packaged" means on/next to the ASIC, not always one sealed enclosure), traffic
+// fibers leave the engine directly, and the external laser source (ELS) feeds it as a separate, clearly dashed
+// side branch — never inline with the traffic fibers, so it can't be mistaken for their destination.
+const BW = 108, BH = 58, GAP = 16, ROW_GAP = 78, PAD_L = 96, PAD_R = 54;
+const TITLE_Y = 24, SUB_Y = 44, ROW1_Y = 116; // title, subtitle and first row all stack top-down, no side-by-side text to collide
+
+function arrowDefs(id) {
+  // one marker per direction/color combination this module's rows use; SVGs are independent documents so each
+  // needs its own <defs>, but the ids are stable strings, cheap to repeat.
+  return `<defs>
+    <marker id="${id}-ae" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--muted)"/></marker>
+    <marker id="${id}-ao" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="var(--fiber)"/></marker>
+  </defs>`;
+}
+
+// a single labeled block; 'hl' marks the optical-conversion block (modulator or photodiode). A block a
+// variant removes (LPO's DSP) is simply left out of that row's block list, not drawn struck-through in
+// place — the row is shorter than the DSP row, and the title/subtitle/caption already say what's missing.
+function block(x, y, label, { hl = false } = {}) {
+  const fill = hl ? 'var(--eth)' : 'var(--ink)';
+  const op = hl ? 0.16 : 0.07;
+  let out = `<rect x="${x}" y="${y}" width="${BW}" height="${BH}" rx="4" fill="${fill}" fill-opacity="${op}" stroke="${hl ? 'var(--eth)' : 'var(--line-2)'}" stroke-opacity="0.9"/>`;
+  const lines = label.split('\n'), cx = x + BW / 2, ly0 = y + BH / 2 - (lines.length - 1) * 8 + 4;
+  lines.forEach((ln, i) => out += TXT(cx, ly0 + i * 16, ln, { size: 11.5, w: 600 }));
   return out;
 }
 
+// a connecting arrow between two block edges (or a stub to/from the faceplate); 'rev' points it right-to-left
+function wire(markerId, x1, x2, y, { optical = false, rev = false } = {}) {
+  const [xa, xb] = rev ? [x2, x1] : [x1, x2];
+  const marker = optical ? `${markerId}-ao` : `${markerId}-ae`;
+  const color = optical ? 'var(--fiber)' : 'var(--muted)';
+  return `<line x1="${xa}" x2="${xb}" y1="${y}" y2="${y}" stroke="${color}" stroke-width="2" marker-end="url(#${marker})"/>`;
+}
+
+// one directed lane (TX or RX): a row of blocks plus a stub at each end, spanning from x0 to x0+rowW regardless
+// of how many blocks it holds, so the TX and RX rows of one module still meet the same host and faceplate
+// edges. Every inter-block wire inside the module is electrical; only the two end stubs cross the electrical/
+// optical boundary — into the fiber stub always, out of the host stub never (that boundary sits at the
+// modulator or the photodiode, which is always this row's last or first block, never in between).
+function lane(markerId, x0, rowW, y, blocks, { rev = false } = {}) {
+  const n = blocks.length, gap = n > 1 ? (rowW - n * BW) / (n - 1) : 0;
+  let out = '', xs = [];
+  for (let i = 0; i < n; i++) { xs.push(x0 + i * (BW + gap)); out += block(xs[i], y - BH / 2, blocks[i].label, blocks[i]); }
+  for (let i = 0; i < n - 1; i++) out += wire(markerId, xs[i] + BW, xs[i + 1], y, { rev, optical: false });
+  // stubs: the host-board edge (electrical, always) and the faceplate fiber (optical, always)
+  const hostX = x0 - 14, fiberX = x0 + rowW + 14;
+  out += wire(markerId, hostX, xs[0], y, { rev, optical: false });
+  out += wire(markerId, xs[n - 1] + BW, fiberX, y, { rev, optical: true });
+  return out;
+}
+
+function pluggableSVG(kind) {
+  // kind: 'dsp' (today's default, fully retimed) or 'lpo' (linear, no DSP)
+  const hasDSP = kind === 'dsp';
+  const txBlocks = hasDSP
+    ? [{ label: 'Host\nconnector' }, { label: 'DSP\n(TX)' }, { label: 'Driver' }, { label: 'Modulator\n+ CW laser', hl: true }]
+    : [{ label: 'Host\nconnector' }, { label: 'Driver' }, { label: 'Modulator\n+ CW laser', hl: true }];
+  const rxBlocks = hasDSP
+    ? [{ label: 'Host\nconnector' }, { label: 'DSP\n(RX)' }, { label: 'Photodiode\n+ TIA', hl: true }]
+    : [{ label: 'Host\nconnector' }, { label: 'Photodiode\n+ TIA', hl: true }];
+  const rowW = txBlocks.length * BW + (txBlocks.length - 1) * GAP;
+  const W = PAD_L + rowW + PAD_R;
+  const x0 = PAD_L, yTX = ROW1_Y, yRX = yTX + ROW_GAP;
+  const boxTop = yTX - BH / 2 - 30, boxBottom = yRX + BH / 2 + 26, capY = boxBottom + 26;
+  const H = capY + 14;
+  const id = `oc-${kind}`;
+  let out = arrowDefs(id);
+  // module package boundary — both rows and both edge connectors are one physical device
+  out += `<rect x="${x0 - 30}" y="${boxTop}" width="${rowW + 60}" height="${boxBottom - boxTop}" rx="6" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5"/>`;
+  out += TXT(x0 - 30 + rowW + 60 - 10, boxBottom - 10, 'module package boundary', { a: 'end', size: 10, fill: 'var(--faint)', mono: true });
+  out += TXT(x0 - 14, yTX - BH / 2 - 10, 'TX', { a: 'start', size: 11, w: 700, fill: 'var(--fiber)', mono: true });
+  out += lane(id, x0, rowW, yTX, txBlocks, { rev: false });
+  out += TXT(x0 - 14, yRX - BH / 2 - 10, 'RX', { a: 'start', size: 11, w: 700, fill: 'var(--fiber)', mono: true });
+  out += lane(id, x0, rowW, yRX, rxBlocks, { rev: true });
+  out += TXT(x0 - 30, TITLE_Y, hasDSP ? 'DSP pluggable (today’s default)' : 'LPO — no DSP', { a: 'start', size: 16, w: 700 });
+  out += TXT(x0 - 30, SUB_Y, hasDSP ? '≈15 W typical, complete 800G 2×FR4 module' : '≈10 W target, 200 Gb/s/lane (Semtech), capacity unstated', { a: 'start', size: 11.5, fill: 'var(--muted)', mono: true });
+  out += TXT(W / 2, capY, hasDSP
+    ? 'Electrical (muted) in, optical (gold) out — same path in reverse on RX.'
+    : 'No DSP: the host’s SerDes drives and reads the line directly.',
+    { size: 11, fill: 'var(--muted)' });
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${hasDSP ? 'A DSP-retimed pluggable module' : 'A linear pluggable optics (LPO) module'}: separate transmit and receive lanes, host connector to fiber, electrical and optical segments in different colors">${out}</svg>`;
+}
+
+function cpoSVG() {
+  const asicW = BW + 20, engineW = BW + 26, gap = 64, tail = 172; // tail: room for the "TX/RX traffic fiber" labels past the engine
+  const x0 = PAD_L, xAsic = x0, xEngine = xAsic + asicW + gap;
+  const W = PAD_L + asicW + gap + engineW + tail;
+  const yMid = 150, bh = BH + 10;
+  const boxTop = yMid - bh / 2 - 30, boxRight = xEngine + engineW + 26, boxBottom = boxTop + bh + 60;
+  // elsY sits far enough below the ASIC/engine row that the "CW light in" annotation (which lives in the gap
+  // between them) doesn't crowd the "switch package boundary" label above it — the two used to land on almost
+  // the same row and read as one run-on line
+  const elsY = yMid + bh / 2 + 94, elsW = 168, elsX = xEngine + engineW / 2 - elsW / 2;
+  const capY = elsY + 24 + 26;
+  const H = capY + 14;
+  const id = 'oc-cpo';
+  let out = arrowDefs(id);
+  // switch package boundary — dashed: CPO means the optical engine sits on or immediately next to the ASIC
+  // package, not necessarily inside one sealed enclosure, so the boundary itself is drawn less certain
+  out += `<rect x="${xAsic - 26}" y="${boxTop}" width="${boxRight - (xAsic - 26)}" height="${boxBottom - boxTop}" rx="6" fill="var(--surface)" stroke="var(--line-2)" stroke-width="1.5" stroke-dasharray="6 4"/>`;
+  out += TXT(xAsic - 16, boxBottom - 10, 'switch package (on/adjacent to the ASIC)', { a: 'start', size: 10, fill: 'var(--faint)', mono: true });
+  out += `<rect x="${xAsic}" y="${yMid - bh / 2}" width="${asicW}" height="${bh}" rx="4" fill="var(--ink)" fill-opacity="0.07" stroke="var(--line-2)"/>`;
+  out += TXT(xAsic + asicW / 2, yMid - 3, 'Switch ASIC', { size: 12, w: 600 });
+  out += TXT(xAsic + asicW / 2, yMid + 13, 'SerDes', { size: 12, w: 600 });
+  out += `<rect x="${xEngine}" y="${yMid - bh / 2}" width="${engineW}" height="${bh}" rx="4" fill="var(--eth)" fill-opacity="0.16" stroke="var(--eth)"/>`;
+  out += TXT(xEngine + engineW / 2, yMid - 3, 'Optical', { size: 12, w: 600 });
+  out += TXT(xEngine + engineW / 2, yMid + 13, 'engine', { size: 12, w: 600 });
+  // ASIC <-> engine: short, on-package, electrical both ways
+  out += `<line x1="${xAsic + asicW}" x2="${xEngine}" y1="${yMid}" y2="${yMid}" stroke="var(--muted)" stroke-width="2" marker-end="url(#${id}-ae)" marker-start="url(#${id}-ae)"/>`;
+  // traffic fibers: TX out (upper) leaves the engine; RX in (lower) arrives at the engine — both cross the
+  // package boundary and exit to the network, never touching the laser feed below
+  const txY = yMid - 20, rxY = yMid + 20, fiberX = xEngine + engineW + 60;
+  out += wire(id, xEngine + engineW, fiberX, txY, { optical: true });
+  out += TXT(xEngine + engineW + 8, txY - 8, 'TX · traffic fiber out', { a: 'start', size: 10, fill: 'var(--fiber)', mono: true });
+  out += wire(id, xEngine + engineW, fiberX, rxY, { optical: true, rev: true });
+  out += TXT(xEngine + engineW + 8, rxY + 18, 'RX · traffic fiber in', { a: 'start', size: 10, fill: 'var(--fiber)', mono: true });
+  // external laser source: below the engine, dashed box (off the package), dashed feed (a side branch, not
+  // the data path) so it can't be read as a third fiber headed the same place as TX/RX
+  out += `<rect x="${elsX}" y="${elsY - 24}" width="${elsW}" height="48" rx="4" fill="var(--ink)" fill-opacity="0.05" stroke="var(--line-2)" stroke-dasharray="4 3"/>`;
+  out += TXT(elsX + elsW / 2, elsY - 4, 'External laser', { size: 11.5, w: 600 });
+  out += TXT(elsX + elsW / 2, elsY + 13, 'source (ELS)', { size: 11.5, w: 600 });
+  out += `<line x1="${xEngine + engineW / 2}" x2="${xEngine + engineW / 2}" y1="${elsY - 24}" y2="${yMid + bh / 2}" stroke="var(--muted)" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#${id}-ae)"/>`;
+  // sits just above the ELS box, clear of the "switch package boundary" label near the top of this same gap
+  out += TXT(xEngine + engineW / 2 + 12, elsY - 42, 'CW light in — a side feed, not data', { a: 'start', size: 10, fill: 'var(--muted)', mono: true });
+  out += TXT(x0 - 30, TITLE_Y, 'CPO — built into the switch', { a: 'start', size: 16, w: 700 });
+  out += TXT(x0 - 30, SUB_Y, '≈3.5–5.5 W per 800G port — optics + laser, no host SerDes', { a: 'start', size: 11.5, fill: 'var(--muted)', mono: true });
+  out += TXT(W / 2, capY, 'The laser is a side feed only — traffic runs TX/RX straight through the engine.', { size: 11, fill: 'var(--muted)' });
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Co-packaged optics: the switch ASIC's SerDes and an optical engine share one package, traffic fibers run TX and RX directly out of the engine, and an external laser source feeds the engine as a separate side branch, not a third fiber">${out}</svg>`;
+}
+
 export function opticsCutawaySVG() {
-  const W = BOX_L + 3 * BOX_W + 2 * BOX_GAP + BOX_L, H = 300;
-  let out = '';
-  out += moduleCutaway(0, { title: 'DSP pluggable (today’s default)', sub: '≈15 W (800G 2×FR4) · sub-23 W (1.6T, newest DSP)', dsp: 'chip', cpo: false, wattNote: '≈12–14 W, DSP chip alone' });
-  out += moduleCutaway(1, { title: 'LPO — no DSP', sub: '≈10 W target per 800G port — host SerDes drives the line', dsp: false, cpo: false, wattNote: null });
-  out += moduleCutaway(2, { title: 'CPO — built into the switch', sub: '≈3.5–5.5 W per 800G port — optics only, no pluggable', dsp: false, cpo: true, wattNote: '≈3.5–5.5 W / 800G port' });
-  out += TXT(W / 2, H - 14, 'Same three jobs — connector, retimer, optics — with each approach removing one: LPO drops the DSP, CPO drops the pluggable and its connector, and moves the laser off the package.', { size: 12.5, fill: 'var(--muted)' });
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cutaway diagrams of an 800G DSP pluggable optical module, a linear pluggable optics (LPO) module with the DSP removed, and co-packaged optics (CPO) with the optical engines built into the switch package and the laser moved to an external source">${out}</svg>`;
+  const modules = [
+    ['dsp', pluggableSVG('dsp')],
+    ['lpo', pluggableSVG('lpo')],
+    ['cpo', cpoSVG()],
+  ];
+  const cards = modules.map(([k, svg]) => `<div class="oc-module" data-module="${k}">${svg}</div>`).join('');
+  const legend = `<div class="oc-legend">
+    <span><i class="oc-sw" style="--c:var(--muted)"></i>Electrical</span>
+    <span><i class="oc-sw" style="--c:var(--fiber)"></i>Optical (fiber)</span>
+    <span><i class="oc-sw oc-dash" style="--c:var(--muted)"></i>Laser feed, not traffic</span>
+    <span><i class="oc-sw oc-dash" style="--c:var(--line-2)"></i>Package boundary</span>
+  </div>`;
+  // A 1.6T-generation comparison belongs beside these, not folded into the 800G figures above: Broadcom and
+  // Marvell's newest 3 nm, 200 Gb/s/lane DSPs bring a complete 1.6T module to sub-23 W and the bare DSP chip
+  // alone (not the module) to ≈12–14 W — a different generation and a different accounting boundary from the
+  // 800G figures on the three cards, not a smaller version of the same number.
+  const note = `<p class="oc-note">A separate, newer generation: on the latest 3 nm, 200 Gb/s-per-lane DSPs, a complete 1.6T retimed module runs sub-23 W (Broadcom, Marvell), and the bare DSP chip by itself — not the assembled module — draws ≈12–14 W. Both are 1.6T-generation figures; don’t read them onto the 800G cards above.</p>`;
+  return `<div class="oc-grid">${cards}</div>${legend}${note}`;
 }

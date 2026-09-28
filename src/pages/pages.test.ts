@@ -32,6 +32,28 @@ describe('glossary', () => {
   });
 });
 
+describe('optics review 2026-09-27 (item 1 + 18g consistency)', () => {
+  // the item-1 fix updated the CPO glossary entry to NVIDIA's August 2026 "5x" power-efficiency update; the
+  // hall-scene CPO card quotes the same NVIDIA claim independently and must not be left on the superseded 3.5x
+  // figure, or a reader opening the card sees a different number than the one in the glossary for the same claim
+  it('the hall CPO card and the CPO glossary entry lead with the same current power-efficiency figure', () => {
+    const [accel] = Object.keys(ACCELERATORS), [power] = Object.keys(POWER), [cooling] = Object.keys(COOLING);
+    const C = content(compute({ meterMW: 100, accel, power, cooling } as any)) as any;
+    const cpoCard = C.PARTS_DATA.hall.find((p: any) => p.id === 'cpo');
+    const cpoSpec = cpoCard.specs.find((s: any) => /Quantum-X/.test(s[0]))[1];
+    const cpoTerm = (TERMS as any[]).find(t => t.term === 'CPO')!;
+    expect(cpoSpec).toMatch(/5×/);
+    expect(cpoTerm.def).toMatch(/5x/);
+  });
+  // item 18g: the audit found this ratio stated without a source; it turned out to be sourceable (NVIDIA's own
+  // developer blog gives both halves), so it should be restored with a source, not left out
+  it('the External laser source entry states the reconciled module-level ratio, sourced to NVIDIA', () => {
+    const els = (TERMS as any[]).find(t => t.term === 'External laser source')!;
+    expect(els.def).toMatch(/one laser for every eight links/);
+    expect(els.sources).toContain('nvidia-cpo-industry-collaboration-blog');
+  });
+});
+
 describe('method', () => {
   it('sections carry no scripts, inline styles or handlers', () => {
     for (const s of SECTIONS as any[]) expect(s.html, s.id).not.toMatch(/<script|<iframe|\son\w+\s*=|style\s*=|javascript:/i);
