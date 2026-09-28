@@ -476,7 +476,7 @@ export const TERMS = [
   "aka": [
    "digital signal processor"
   ],
-  "def": "The signal-processing chip inside a fully-retimed pluggable module that regenerates the electrical signal before it drives the laser. Removing it, as linear optics do, or moving it onto the switch package, as co-packaged optics do, is how the industry has been cutting optical module power.",
+  "def": "The signal-processing chip inside a fully-retimed pluggable module that regenerates the electrical signal on transmit and recovers it on receive, before it reaches the laser or after it leaves the photodiode. Linear optics (LPO) cut module power by removing this chip and letting the host chip's own SerDes drive and read the line directly. Co-packaged optics (CPO) takes a different path: it moves the optical engine itself onto or next to the switch ASIC's package, shortening the electrical run between SerDes and modulator — it is not simply this same chip relocated, and some CPO designs still retime.",
   "layer": "data",
   "link": {
    "scene": 2,
@@ -489,7 +489,7 @@ export const TERMS = [
   "aka": [
    "linear pluggable optics"
   ],
-  "def": "A pluggable module with no DSP, driving its laser straight off the host chip's own electrical signal instead of regenerating it first. This page notes it runs at roughly half the power of a fully-retimed module, at some cost to reach and design margin.",
+  "def": "A pluggable module with no DSP: the host chip's own SerDes drives the modulator and reads the photodiode directly, doing the equalization work the DSP used to do instead of regenerating the signal first. This page notes it runs at roughly half the power of a fully-retimed module, at some cost to reach and design margin.",
   "layer": "data",
   "link": {
    "scene": 2,
@@ -502,11 +502,12 @@ export const TERMS = [
   "aka": [
    "co-packaged optics"
   ],
-  "def": "Optical engines built onto a switch chip's own package instead of living in separate pluggable modules at the faceplate. NVIDIA's Quantum-X and Spectrum-X Photonics claim 3.5x power efficiency and four times fewer lasers; Broadcom's Davisson reaches 102.4 Tb/s at 3.5 W per 800G port.",
+  "def": "Optical engines built onto or next to a switch ASIC's own package, shortening the electrical channel between SerDes and modulator, instead of living in separate pluggable modules at the faceplate — a packaging change, not a claim about how many traffic fibers still leave the switch. NVIDIA's Quantum-X and Spectrum-X Photonics claim four times fewer lasers and, as of its August 2026 update, 5x lower power (up from an initial 3.5x); Broadcom's Davisson reaches 102.4 Tb/s at 3.5 W per 800G port.",
   "layer": "data",
   "sources": [
    "nvidia-spectrum-x-cpo",
-   "broadcom-davisson-cpo"
+   "broadcom-davisson-cpo",
+   "storagereview-nvidia-cpo-production"
   ],
   "link": {
    "scene": 2,
@@ -516,10 +517,14 @@ export const TERMS = [
  },
  {
   "term": "External laser source",
-  "def": "In a co-packaged optics design, one laser shared across several data links rather than a laser built into every pluggable module. NVIDIA's Quantum-X Photonics shares a single external laser across eight links, which is most of where its \"fewer lasers\" claim comes from.",
+  "aka": [
+   "ELS"
+  ],
+  "def": "In a co-packaged optics design, a laser built as its own field-replaceable module instead of one tiny laser inside every optical engine. NVIDIA's Quantum-X Photonics supplies all 144 of a chassis's 800G channels from 18 such modules at the front panel; consolidating into fewer, larger, swappable units is most of where NVIDIA's \"fewer lasers\" claim comes from. NVIDIA's own public materials don't state a single links-per-laser ratio precisely enough to give one here, so this page doesn't repeat one.",
   "layer": "data",
   "sources": [
-   "nvidia-spectrum-x-cpo"
+   "nvidia-spectrum-x-cpo",
+   "ieee-spectrum-cpo-nvidia"
   ],
   "link": {
    "scene": 2,
@@ -620,10 +625,11 @@ export const TERMS = [
  },
  {
   "term": "Coherent optics",
-  "def": "Optical transmission that encodes data in a light wave's amplitude and phase, not just on and off, so one wavelength can carry many bits per symbol. It is what makes DWDM long-haul links possible, and what a 400ZR or 800ZR module implements.",
+  "def": "Optical transmission that encodes data in a light wave's amplitude, phase and polarization together, not just on and off, so one wavelength carries far more bits per symbol than direct-detect optics like LR4. A coherent transceiver — a pluggable (400ZR/800ZR-class) or a transponder in a line-terminal shelf — produces and receives one such wavelength; a separate mux/demux combines many wavelengths onto one fiber pair, and separate optical amplifiers extend the run. Coherent detection isn't what makes DWDM possible — direct-detect wavelengths can be multiplexed too — it's what lets each wavelength on a long run carry the most data.",
   "layer": "data",
   "sources": [
-   "ciena-wavelogic6"
+   "ciena-wavelogic6",
+   "oif-400zr-ia"
   ],
   "link": {
    "scene": 0,
@@ -633,10 +639,11 @@ export const TERMS = [
  },
  {
   "term": "400ZR / 800ZR",
-  "def": "Standardized coherent pluggable formats for metro and data-center-interconnect links, running 400 Gb/s or 800 Gb/s per wavelength. 400ZR reaches 80-120 km amplified at about 15-20 W per module; 800ZR draws about 23-25 W.",
+  "def": "Standardized coherent pluggable formats for metro and data-center-interconnect links, running 400 Gb/s or 800 Gb/s per wavelength. 400ZR reaches about 40 km unamplified (OIF's own 11 dB loss budget) or 80-120 km amplified, at about 15-20 W per module; 800ZR draws about 23-30 W.",
   "layer": "data",
   "sources": [
-   "ciena-wavelogic6"
+   "ciena-wavelogic6",
+   "oif-400zr-ia"
   ],
   "link": {
    "scene": 1,

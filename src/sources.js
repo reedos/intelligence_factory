@@ -196,6 +196,12 @@ export const SOURCES = {
   'lcom-lr4-10km': { title: 'LR4 Optics Solutions: 10km Long-Haul Data Center Links', publisher: 'L-Com', url: 'https://www.l-p.com/blog/use-cases-solutions/lr4-optics-solutions-10km-long-haul-data-center-links.htm' },
   'nvidia-dgx-gb200-user-guide': { title: 'DGX GB200 User Guide, hardware overview', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx/dgxgb200-user-guide/hardware.html' },
   'arxiv-2601-14342': { title: 'Shoreline bandwidth density and interconnect scaling (arXiv 2601.14342, Kohli & Teissier)', publisher: 'arXiv', url: 'https://arxiv.org/abs/2601.14342' },
+
+  // ---- optics workstream (2026-09-27 audit pass, findings 1/3/5/18c/18g): OIF's own 400ZR reach figures,
+  // separating direct-detect campus optics (LR4) from coherent DCI, and the NVIDIA CPO laser-module count ----
+  'oif-400zr-ia': { title: 'Implementation Agreement 400ZR (OIF-400ZR-02.0)', publisher: 'Optical Internetworking Forum (OIF)', url: 'https://www.oiforum.com/wp-content/uploads/OIF-400ZR-02.0.pdf' },
+  'edgeoptic-400g-coherent-guide': { title: '400G Coherent Optics Guide: ZR, ZR+ & MZR Comparison', publisher: 'EDGE Optical Solutions', url: 'https://edgeoptic.com/kb_article/deep-dive-400g-coherent-optics-guide' },
+  'ieee-spectrum-cpo-nvidia': { title: 'Nvidia Unveils Game-Changing Optical Network Switch', publisher: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/co-packaged-optics' },
 };
 
 // PART_SOURCES: which sources back the specs on each card. Key = '<layer>:<sceneId>:<partId>',
@@ -365,8 +371,9 @@ export const PART_SOURCES = {
   'links:aec': ['nvidia-linkx-interconnect', 'credo-zeroflap-aec', 'infraeo-9m-aec-release', 'viksnewsletter-acc-power', 'marvell-aec-prnewswire', 'ieee-8023dj-electrical-adhoc', 'marvell-alaska-a-aec', 'credo-hiwire-800g-aec', 'astera-taurus-scm'],
   'links:lpo': ['lpo-msa-lightwave', 'semtech-200g-lpo-power-blog', 'semtech-lpo-ai-basics-blog', 'ascentoptics-800g-lpo-guide'],
   'links:dsp': ['cisco-400g-qsfpdd-datasheet', 'semianalysis-cpo-newsletter', 'broadcom-sian3-200g-lane-dsp', 'marvell-ara-1-6t-prnewswire', 'marvell-ara-1p6t-portfolio', 'credo-bluebird-dsp'],
+  'links:lr4': ['cisco-400g-qsfpdd-datasheet', 'lcom-lr4-10km'],
   'links:cpo': ['nvidia-spectrum-x-cpo', 'broadcom-davisson-cpo', 'nextplatform-broadcom-cpo', 'micasnetworks-51-2t-release', 'storagereview-nvidia-cpo-production', 'broadcom-davisson-servethehome'],
-  'links:coherent': ['ciena-wavelogic6', 'lcom-lr4-10km', 'marvell-colorz-800', 'ciena-wavelogic6-nano'],
+  'links:coherent': ['ciena-wavelogic6', 'oif-400zr-ia', 'edgeoptic-400g-coherent-guide', 'marvell-colorz-800', 'ciena-wavelogic6-nano'],
   'links:copperwall': ['ieee-25gbe-wiki', 'ieee-100gbe-wiki', 'ieee-8023dj-electrical-adhoc', 'ethernet-alliance-400g-lane', 'photonics-explained-copper-wall', 'link-pp-8023dj-glossary', 'photoncap-copper-wall', 'wingvc-marvell-copper-wall', 'semiengineering-copper-grip-slipping'],
   'links:cutaway-dsp': ['cisco-400g-qsfpdd-datasheet', 'semianalysis-cpo-newsletter', 'broadcom-sian3-200g-lane-dsp'],
   'links:cutaway-lpo': ['semtech-200g-lpo-power-blog', 'ascentoptics-800g-lpo-guide'],

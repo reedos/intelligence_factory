@@ -16,7 +16,9 @@ describe('links media ladder', () => {
       for (const id of ids) expect(SRC[id], `source '${id}' for links:${r.id} is missing from SOURCES`).toBeDefined();
     }
   });
-  it('every row is one of the seven strings, no duplicate ids', () => {
+  // was "the seven strings" before the audit split LR4 out of the coherent row into its own direct-detect
+  // rung (item 5) — the count changed, the no-duplicate-ids invariant this test actually checks did not
+  it('every row has a unique id', () => {
     const ids = MEDIA_LADDER.map(r => r.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -25,6 +27,54 @@ describe('links media ladder', () => {
 describe('copper wall chart data', () => {
   it('every disagreement range has a low no higher than its high', () => {
     for (const d of COPPER_WALL) if (d.lo != null) expect(d.lo, `lane ${d.lane}`).toBeLessThanOrEqual(d.hi);
+  });
+});
+
+describe('audit 2026-09-27 — optics workstream invariants', () => {
+  // item 5: LR4 is direct-detect campus optics, not a coherent (400ZR/800ZR-class) rung
+  it('LR4 has its own direct-detect rung, and the coherent row no longer names it', () => {
+    const lr4 = MEDIA_LADDER.find(r => r.id === 'lr4');
+    expect(lr4, 'a direct-detect LR4 rung').toBeDefined();
+    expect(lr4!.cls).not.toBe('dci');
+    const coherent = MEDIA_LADDER.find(r => r.id === 'coherent')!;
+    expect(coherent.reach).not.toMatch(/LR4/);
+    expect(coherent.what).toMatch(/mux|multiplex/i); // transceiver, mux and amplifier roles must read as separate
+  });
+  // item 18c: links-media.js used to say "under 1 m" here and "≥1 m" in the copper-wall data for the same
+  // IEEE P802.3dj objective at 200 Gb/s/lane — the objective is a floor ("at least 1.0 m"), not a ceiling
+  it('the 200 Gb/s/lane copper objective reads as a floor everywhere it appears', () => {
+    const dac = MEDIA_LADDER.find(r => r.id === 'dac')!;
+    expect(dac.reach).toMatch(/at least 1/);
+    const row200 = COPPER_WALL.find(d => d.lane === 200)!;
+    expect(row200.note).toMatch(/≥1/);
+  });
+  // item 3: an LPO-vs-retimed power comparison must not silently swap in a different generation's capacity
+  it('the LPO row ties its 23–25 W comparison to a named 1.6T module, not an unlabeled "same lane rate"', () => {
+    const lpo = MEDIA_LADDER.find(r => r.id === 'lpo')!;
+    expect(lpo.power).toMatch(/1\.6T/);
+  });
+});
+
+describe('optics cutaway diagrams (audit item 1: directed TX/RX, item 19: three independent SVGs)', () => {
+  it('renders one independent SVG per module, not one wide merged diagram', () => {
+    const html = opticsCutawaySVG();
+    expect((html.match(/<svg/g) || []).length).toBe(3);
+    expect(html).toContain('oc-grid'); // a CSS grid that can stack modules, not a fixed-width row
+  });
+  it('the DSP and LPO modules each draw a TX lane and a separate RX lane', () => {
+    const html = opticsCutawaySVG();
+    for (const label of ['DSP pluggable', 'LPO']) {
+      expect(html, label).toMatch(/>TX</);
+      expect(html, label).toMatch(/>RX</);
+    }
+  });
+  it('CPO keeps its external-laser feed out of the traffic-fiber path', () => {
+    const html = opticsCutawaySVG();
+    expect(html).toMatch(/traffic fiber out/);
+    expect(html).toMatch(/traffic fiber in/);
+    expect(html).toMatch(/side feed, not data/);
+    // the laser feed line must be dashed (visually distinct from the solid traffic-fiber wires)
+    expect(html).toMatch(/External laser[\s\S]{0,400}stroke-dasharray/);
   });
 });
 
