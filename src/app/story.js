@@ -203,9 +203,12 @@ const chapterOf = i => { for (let k = i; k >= 0; k--) if (list[k]?.level) return
 function specsHTML(b) {
   if (!b.specs?.length) return '';
   const row = (r, j) => `<div><dt>${r[0]}</dt><dd>${r[1]}</dd>${b.specKey ? chip(r[2], `${b.specKey}:${j}`, r[0]) : ''}</div>`;
-  const rest = b.specs.slice(3);
-  const more = rest.length ? `<details class="beat-more"><summary>All ${b.specs.length} specifications and sources</summary><dl class="beat-specs">${rest.map((r, j) => row(r, j + 3)).join('')}</dl></details>` : '';
-  return `<dl class="beat-specs">${b.specs.slice(0, 3).map((r, j) => row(r, j)).join('')}</dl>${more}`;
+  // on a phone the beat sits under the view, so a card with many rows can run long; a narrow screen previews at
+  // most one, everything else - however many rows - behind the same disclosure (lead review, tour-content merge)
+  const previewN = narrow.matches ? 1 : 3;
+  const rest = b.specs.slice(previewN);
+  const more = rest.length ? `<details class="beat-more"><summary>All ${b.specs.length} specifications and sources</summary><dl class="beat-specs">${rest.map((r, j) => row(r, j + previewN)).join('')}</dl></details>` : '';
+  return `<dl class="beat-specs">${b.specs.slice(0, previewN).map((r, j) => row(r, j)).join('')}</dl>${more}`;
 }
 function figureHTML(b) {
   if (b.figure !== 'optics-cutaway') return '';
@@ -318,7 +321,12 @@ let steering = 0;                                         // until then the colu
 function centerInPanel(el, smooth = true) {
   if (!el) return;
   const r = el.getBoundingClientRect(), pr = panel.getBoundingClientRect(), dy = r.top - pr.top - (pr.height - r.height) / 2;
-  steering = performance.now() + 250 + Math.min(1500, Math.abs(dy) * 0.6);
+  // found while verifying findings 15-17 (rapid manual "Next" clicks on desktop): a cinematic camera move
+  // (stage.js's flyTo, cinema mode) can run up to ~3.4 s, longer than this window used to allow for, so the
+  // IntersectionObserver below could fire mid-flight and re-activate() whatever beat the still-settling scroll
+  // happened to be passing - a stale jump, not a step the reader or click() asked for. Matching that ceiling
+  // here, not just the scroll distance, is what actually silences it for the whole move.
+  steering = performance.now() + 600 + Math.min(3200, Math.abs(dy) * 0.6);
   panel.scrollBy({ top: dy, behavior: smooth && !reduced ? 'smooth' : 'auto' });
 }
 panel.addEventListener('scrollend', () => { steering = Math.min(steering, performance.now() + 60); });
@@ -491,8 +499,15 @@ if (srcPop) new MutationObserver(() => {
 }).observe(srcPop, { attributes: true, attributeFilter: ['hidden'] });
 
 $('story-btn')?.addEventListener('click', () => (inStory() ? exit() : enter()));
+// finding 4, found while wiring the source popover's hold: document.body itself carries a data-mode attribute
+// (stage.js's setMode, for CSS), so the old bare [data-mode] here matched body on *any* outside click - not just
+// the layer-switch buttons it meant to catch. That never showed up before there was anything to click outside
+// #story that wasn't already one of the other listed selectors; a chip's popover close button (#src-pop is
+// appended to body, not into #story) is exactly that, and was exiting the tour on every close. button[data-mode]
+// keeps the layer switch (its only real target - see index.html's <button data-mode="power/data/heat">) and
+// excludes body. Same footnote as #story below: match what only the real target can be, not what body also is.
 document.addEventListener('click', e => {
-  if (inStory() && e.target.closest?.('.step, .pin, [data-mode], [data-go]') && !e.target.closest('#story')) exit({ remember: true });   // #story: body.story matches '.story'
+  if (inStory() && e.target.closest?.('.step, .pin, button[data-mode], [data-go]') && !e.target.closest('#story')) exit({ remember: true });   // #story: body.story matches '.story'
 }, true);
 addEventListener('keydown', e => {
   if (e.target.matches?.('input, textarea, select') || e.target.closest?.('.pace-menu')) return;   // a menu keeps its own keys
@@ -505,7 +520,7 @@ addEventListener('keydown', e => {
   else if (['ArrowUp', 'ArrowLeft', 'PageUp'].includes(e.key)) { step(-1); e.preventDefault(); e.stopImmediatePropagation(); }
   else if (e.key === 'Escape') exit();
 }, true);
-narrow.addEventListener('change', () => { if (inStory()) observe(); });
+narrow.addEventListener('change', () => { if (inStory()) render(); });   // re-render: crossing the breakpoint changes the spec preview count too (specsHTML); render() also calls observe()
 on('scenario', () => { if (inStory()) render(); });
 on('tokens', () => { if (inStory()) render(); });
 // #tour-watt and the like start a tour on load; the older #story, #watt and #request still do. (#heat, #power and
