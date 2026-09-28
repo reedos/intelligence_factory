@@ -76,7 +76,7 @@ export function build({ quality, model }) {
   const tips = latticeTower(tower, 46, 9);
   const towerXs = [-640, -990, -1340, -1690, -2040, -2390, -2740];
   const towerZ = -150;
-  tower.instance(towerXs.map(x => mtx(x, 0, towerZ, Math.PI / 2))).children.forEach(m => scene.add(m));
+  scene.add(tower.instance(towerXs.map(x => mtx(x, 0, towerZ, Math.PI / 2))));
   // conductors: tower tips rotated 90° (arms along z)
   const tipAt = (x, i) => [x + tips[i][2], tips[i][1], towerZ - tips[i][0]];
   const spans = [];
@@ -228,7 +228,9 @@ export function build({ quality, model }) {
   coolerUnit.slab(11.6, 0.3, 2.3, MAT.darkSteel, 0, 0, 0);
   for (const dz of [-0.95, 0.95]) coolerUnit.box(11.6, 1.8, 0.12, MAT.steel, 0, 1.2, dz, 0, dz > 0 ? 0.35 : -0.35); // V coils
   coolerUnit.slab(11.6, 0.2, 2.4, MAT.galv, 0, 2.1, 0);
-  for (let i = 0; i < 6; i++) { coolerUnit.cyl(0.9, 0.35, MAT.galv, -4.9 + i * 1.96, 2.45, 0, 20); coolerUnit.cyl(0.8, 0.36, MAT.fan, -4.9 + i * 1.96, 2.46, 0, 20); }
+  // the fan cap sat only 0.01 above the housing ring's own flat top, which the reparenting bug had
+  // hidden (the fan mesh never rendered at all); raised clear of it now that both actually draw
+  for (let i = 0; i < 6; i++) { coolerUnit.cyl(0.9, 0.35, MAT.galv, -4.9 + i * 1.96, 2.45, 0, 20); coolerUnit.cyl(0.8, 0.36, MAT.fan, -4.9 + i * 1.96, 2.52, 0, 20); }
   for (const x of [-5.6, 5.6]) for (const z of [-1, 1]) coolerUnit.slab(0.15, 0.4, 0.15, MAT.galv, x, -0.4, z);
 
   const coolerMx = [];
@@ -274,7 +276,7 @@ export function build({ quality, model }) {
     N.strut([hallX1 + 8, 0.2, cz - 12.9], [hallX1 + 8, 1, cz - 12.9], 0.035, MAT.galv, 6);
     N.strut([hallX1 + 8, 0.2, cz - 11.1], [hallX1 + 8, 1, cz - 11.1], 0.035, MAT.galv, 6);
   });
-  coolerUnit.instance(coolerMx, { cast: true }).children.forEach(m => scene.add(m));
+  scene.add(coolerUnit.instance(coolerMx, { cast: true }));
   // the coolers' fans turn: six per unit, just above each fan ring
   const fanItems = [], fp = new THREE.Vector3();
   coolerMx.forEach(mx => { for (let i = 0; i < 6; i++) { fp.set(-4.9 + i * 1.96, 2.67, 0).applyMatrix4(mx); fanItems.push({ p: fp.toArray(), axis: 'y', r: 0.74 }); } });
@@ -300,7 +302,7 @@ export function build({ quality, model }) {
     heatFlows.push(flow([[plantX - 20, 2.2, -254], [plantX - 20, 2.2, -262], [15, 2.2, -262], [15, 9, -275]], 'warm', { count: 18, speed: 14, size: 0.8, k: 2.4, trailR: 0.3 }));
   }
   heatFlows.push(flow([[125, 1, -280], [80, 1, -280], [80, 1, -275], [20, 1, -275]], 'cool', { count: 10, speed: 12, size: 0.6, k: 2.2, trailR: 0.2 }));
-  unitSub.instance(unitSubMx).children.forEach(m => scene.add(m));
+  scene.add(unitSub.instance(unitSubMx));
 
   // ---------- generator yard and fuel ----------
   const genset = new Builder();
@@ -314,7 +316,7 @@ export function build({ quality, model }) {
   genset.slab(1.2, 1.8, 1.6, MAT.ansi61, -7.4, 0.4, 0);                    // step-up transformer
   const gensetMx = [];
   for (const blockZ of [-205, 20]) for (let c = 0; c < 4; c++) for (let r = 0; r < 5; r++) if (gensetMx.length < Math.min(40, L.gensets)) gensetMx.push(mtx(290 + c * 21, 0.15, blockZ + r * 8));
-  genset.instance(gensetMx).children.forEach(m => scene.add(m));
+  scene.add(genset.instance(gensetMx));
   // fuel farm
   for (let i = 0; i < 6; i++) {
     const x = 390 + (i % 2) * 14, z = -120 + Math.floor(i / 2) * 18;
@@ -335,7 +337,7 @@ export function build({ quality, model }) {
   for (const x of [-3.2, 3.2]) bessBox.slab(0.4, 1.8, 1.8, MAT.darkSteel, x, 0.6, 0);
   const bessMx = [];
   for (let c = 0; c < 5; c++) for (let r = 0; r < 4; r++) if (bessMx.length < Math.min(20, Math.max(2, Math.ceil(L.bessMWh / 2)))) bessMx.push(mtx(-335 + c * 9, 0.15, 55 + r * 14));
-  bessBox.instance(bessMx).children.forEach(m => scene.add(m));
+  scene.add(bessBox.instance(bessMx));
   for (let r = 0; r < 4; r++) { S.slab(4, 2.4, 2.4, MAT.ansi61, -280, 0.15, 55 + r * 14); S.slab(2, 2.2, 2, MAT.xfmr, -275, 0.15, 55 + r * 14); }
   flows.push(flow([[-275, uY, 55], [-275, uY, 20], [-340, uY, 20], [-340, uY, -62]], 'mv', { count: 12, speed: 20, size: 1.0, k: 1.2, opacity: 0.7, trailK: 0.2 }));
 
@@ -417,7 +419,7 @@ export function build({ quality, model }) {
   const car = new Builder(); carBuild(car);
   const carMx = [];
   for (let x = -74; x <= 74; x += 3.2) for (const z of [155, 185]) if (rnd() < 0.62) { const m = mtx(x + 1.6, 0.27, z, Math.PI / 2); carMx.push(m); }
-  car.instance(carMx).children.forEach(m => scene.add(m));
+  scene.add(car.instance(carMx));
   S.slab(8, 3.6, 5, MAT.beige, -96, 0.15, 232); S.slab(10, 0.4, 7, MAT.roof, -96, 3.75, 232);
   N.slab(0.3, 1.1, 10, MAT.orange, -110, 0.15, 226);
   // swing gate at the south entry, where the access road meets the perimeter fence: two posts,
@@ -443,7 +445,7 @@ export function build({ quality, model }) {
     exclude: (x, z) => x < -600 && Math.abs(z - towerZ) < 45,
   });
   for (let i = 0; i < 80; i++) { const x = -620 + rnd() * 1100, z = 262 + rnd() * 90; treeMx.push(mtx(x, 0, z, rnd() * 6, 0.6 + rnd() * 0.6)); }
-  tree.instance(treeMx, { cast: true }).children.forEach(m => scene.add(m));
+  scene.add(tree.instance(treeMx, { cast: true }));
 
   // ---------- activity: cars and a truck loop the site roads, a few people walk, clouds drift ----------
   const carPaths = [

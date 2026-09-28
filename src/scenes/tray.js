@@ -371,11 +371,16 @@ function buildNVL({ quality, model }) {
   for (let i = 0; i < 6; i++) { S.box(0.38, 0.36, 0.3, MAT.fan, -1.9 + i * 0.76 + 0.19, 0.2, ZF - 1.95); N.cylZ(0.15, 0.02, MAT.darkSteel, -1.9 + i * 0.76 + 0.19, 0.2, ZF - 1.79, 16); trayFans.push({ p: [-1.9 + i * 0.76 + 0.19, 0.2, ZF - 1.76], axis: 'z', r: 0.14 }); }
   const nvlFans = spinners(trayFans, MAT.darkSteel, { speed: 9 }); scene.add(nvlFans.mesh);
 
+  // optical module cages behind the bezel, each with its own small heat sink; built here, before
+  // S/N.build() below, so the cages, pull tabs and fins are part of the merged geometry
+  const nicX = [0.2, 0.7, 1.2, 1.7];
+  nicX.forEach(x => { S.box(0.2, 0.14, 0.5, MAT.galv, x, 0.24, ZF - 0.28); N.box(0.16, 0.04, 0.04, MAT.polymer, x, 0.24, ZF + 0.03); if (heavy) cageFins(N, x, 0.33, ZF - 0.28, 0.18, 0.42, 3); statusLeds.push({ p: [x, 0.24, ZF - 0.02], color: '#5cf29a', rate: 0 }); });
+
   scene.add(S.build()); scene.add(N.build({ cast: false }));
   flows.forEach(f => scene.add(f.group));
 
   // ---------- data: NVLink out the back, C2C to the CPU, NIC and optics out the front ----------
-  const nvX = [-1.9, -1.15, 1.15, 1.9], nicX = [0.2, 0.7, 1.2, 1.7], yD = floorY + 0.14;
+  const nvX = [-1.9, -1.15, 1.15, 1.9], yD = floorY + 0.14;
   gpus.forEach(([gx, gz], i) => {
     dataFlows.push(flow([[gx, yD, gz - 0.3], [gx + (nvX[i] - gx) * 0.5, yD, ZB + 0.9], [nvX[i], 0.16, ZB + 0.36]], 'nvl', { count: 10, speed: 0.9, size: 0.03, k: 2.4, trailR: 0.01 }));
     dataFlows.push(flow([[gx + 0.3, yD, gz + 0.3], [nicX[i], yD + 0.08, ZF - 1.7], [nicX[i], floorY + 0.24, ZF - 1.0], [nicX[i], 0.24, ZF]], 'eth', { count: 10, speed: 0.9, size: 0.03, k: 2.3, trailR: 0.01 }));
@@ -385,8 +390,6 @@ function buildNVL({ quality, model }) {
     dataFlows.push(flow([[cx + 0.1, yD, 0.55], [cx + 0.1, yD, cz - 0.3]], 'c2c', { count: 5, speed: 0.6, size: 0.028, k: 2.2, trailR: 0.01 }));
   });
   dataFlows.push(flow([[-0.35, floorY + 0.3, ZF - 1.4], [-0.35, 0.24, ZF]], 'eth', { count: 5, speed: 0.6, size: 0.028, k: 1.6, trailR: 0.01 }));
-  // optical module cages behind the bezel, each with its own small heat sink
-  nicX.forEach(x => { S.box(0.2, 0.14, 0.5, MAT.galv, x, 0.24, ZF - 0.28); N.box(0.16, 0.04, 0.04, MAT.polymer, x, 0.24, ZF + 0.03); if (heavy) cageFins(N, x, 0.33, ZF - 0.28, 0.18, 0.42, 3); statusLeds.push({ p: [x, 0.24, ZF - 0.02], color: '#5cf29a', rate: 0 }); });
   dataFlows.forEach(f => scene.add(f.group));
   // air over the parts water does not reach, front to back
   for (let i = 0; i < 6; i++) { const x = -1.9 + i * 0.76 + 0.19; heatFlows.push(flow([[x, 0.3, ZF - 1.75], [x, 0.3, ZF - 3.2], [x * 0.9, 0.34, ZB + 1.5]], 'air', { count: 6, speed: 0.9, size: 0.04, k: 2.0, opacity: 0.8, trail: false })); }
