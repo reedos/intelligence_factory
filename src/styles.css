@@ -413,9 +413,9 @@ body.clocking .hud-btns #clock-btn, .story-btn[aria-pressed="true"] { background
 .tour-tabs button small { display: block; font: 400 9.5px/1.3 var(--mono); letter-spacing: .02em; color: var(--faint); text-transform: none; white-space: normal; }
 .tour-tabs button[aria-selected="true"] { background: var(--ink); color: #000; }
 .tour-tabs button[aria-selected="true"] small { color: #3a4048; }
-/* the full-screen tour player has one row for the tabs: their lengths would wrap it and push the last tab off screen,
-   and the counter already says where the tour is */
-@media (max-width: 1100px) { body.story .tour-tabs button small { display: none; } }
+/* tour audit finding 10: the length (and, for a chaining Every-part tab, what it hands off into) has to be
+   visible on a phone too, or a reader can't see the full scope before pressing play - finding 15 makes the row
+   it sits in scroll sideways with a visible affordance instead of hiding this to keep the row from wrapping */
 .tour-tabs button:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
 /* "Every part" is the exhaustive option: a closed disclosure, not a tab row the same size as the four tours */
 .tour-more { display: grid; gap: 6px; }
@@ -429,6 +429,12 @@ body.clocking .hud-btns #clock-btn, .story-btn[aria-pressed="true"] { background
 .tally b { font: 600 32px/1 var(--display); color: var(--accent); font-variant-numeric: tabular-nums; }
 .hint-inline a { color: var(--ink); text-underline-offset: 3px; text-decoration-color: var(--line-2); }
 .hint-inline a:hover { text-decoration-color: var(--accent); }
+/* tour audit finding 4: a tour's own note (e.g. the request's illustrative-timeline caveat), under the eyebrow */
+.tour-note { flex-basis: 100%; margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+/* tour audit finding 14: chapter jumps for the every-part walks */
+.chapters { display: inline-flex; align-items: center; gap: 8px; font: 500 11px/1 var(--sans); color: var(--muted); }
+.chapters select { background: var(--surface); color: var(--ink); border: 1px solid var(--line-2); padding: 6px 10px; font: 500 12px/1 var(--sans); max-width: 100%; }
+.chapters select:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
 
 /* ---------- share ---------- */
 .toast { position: absolute; z-index: 6; left: 50%; top: 22px; transform: translateX(-50%); max-width: min(560px, calc(100% - 32px)); padding: 12px 16px; background: var(--surface); border: 1px solid var(--accent); font-size: 13px; color: var(--ink); box-shadow: 0 12px 40px rgba(0,0,0,.6); }
@@ -447,9 +453,29 @@ body.playing .beat.on .beat-bar { visibility: visible; }
 .beat.level h3 { font-size: clamp(34px, 3.2vw, 46px); }
 .beat.level .k { color: var(--ink); }
 .beat-specs { margin: 4px 0 0; display: grid; gap: 0; max-width: 44ch; }
-.beat-specs div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 7px 0; border-top: 1px solid var(--line); }
+.beat-specs div { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: 6px 10px; padding: 7px 0; border-top: 1px solid var(--line); }
 .beat-specs dt { font: 400 10.5px/1.35 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .beat-specs dd { margin: 0; font: 500 13px/1.35 var(--mono); text-align: right; }
+.beat-specs .chip { align-self: center; }
+/* tour audit finding 4: "All N specifications and sources" (row disclosure) and the optics-cutaway figure both
+   use this - a beat's own second-level disclosure, distinct from the "Every part, in order" picker's .tour-more */
+.beat-more { margin-top: 8px; max-width: 44ch; }
+.beat-more summary { cursor: pointer; list-style: none; font: 400 10.5px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.beat-more summary::-webkit-details-marker { display: none; }
+.beat-more summary::before { content: '▸ '; }
+.beat-more[open] summary::before { content: '▾ '; }
+.beat-more summary:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.beat-more .beat-specs { margin-top: 8px; max-width: none; }
+.beat-more:has(.beat-figure) { max-width: none; }
+/* the diagram is built for the wide Links section (min-width: 460px there); inside a beat it has to shrink to
+   fit a narrow column and a phone screen instead */
+.beat-figure { margin-top: 10px; max-width: 52ch; }
+.beat-figure .oc-grid { display: grid; gap: 14px; }
+.beat-figure .oc-module { overflow-x: visible; padding: 6px; }
+.beat-figure .oc-module svg { min-width: 0; max-width: 100%; height: auto; display: block; }
+.beat-figure .oc-legend { font-size: 10.5px; gap: 4px 12px; margin-top: 8px; }
+.beat-figure .oc-note { font-size: 11.5px; }
+.beat-fig-cap { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 8px 0 0; }
 
 /* ---------- illustrative-model caption ---------- */
 /* a plain flow strip, not an absolutely-positioned overlay, so it can never share a pixel with the HUD;
@@ -495,6 +521,8 @@ body.story #story-btn, body.story #layer-play { display: none; }
   body.story .transport { order: 0; flex: none; padding: 8px var(--gutter); border-bottom: 1px solid var(--line); }
   body.story .tally { order: 1; flex: none; padding: 10px var(--gutter) 0; }
   body.story .tally b { font-size: 24px; }
+  body.story .tour-note { order: 1; flex: none; padding: 4px var(--gutter) 0; }
+  body.story .chapters { order: 1; flex: none; padding: 6px var(--gutter) 0; }
   body.story .beat { display: none; }
   body.story .beat.on { order: 2; display: grid; flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; align-content: start; gap: 8px; padding: 12px var(--gutter) 14px; border: 0; opacity: 1; }
   body.story .beat.on h3 { font-size: 26px; }
@@ -502,8 +530,13 @@ body.story #story-btn, body.story #layer-play { display: none; }
   body.story .beat.on p { font-size: 15px; line-height: 1.55; max-width: none; }
   body.story .beat-specs { max-width: none; }
   body.story .beat-end { display: none; }
-  body.story .tour-pick { order: 3; flex: none; flex-wrap: nowrap; gap: 12px; overflow-x: auto; padding: 8px var(--gutter); border-top: 1px solid var(--line); scrollbar-width: none; }
-  body.story .tour-pick::-webkit-scrollbar { display: none; }
+  /* tour audit finding 15: the row still scrolls sideways (five Every-part choices don't fit at 390 px alongside
+     the four Tours), but now with a visible scrollbar as the overflow affordance instead of a hidden one, and
+     story.js scrolls the active tab into view itself so a reader never has to swipe blind to find it */
+  body.story .tour-pick { order: 3; flex: none; flex-wrap: nowrap; gap: 12px; overflow-x: auto; padding: 8px var(--gutter) 12px; border-top: 1px solid var(--line); scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+  body.story .tour-pick::-webkit-scrollbar { height: 5px; }
+  body.story .tour-pick::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 3px; }
+  body.story .tour-pick::-webkit-scrollbar-track { background: transparent; }
   body.story .tour-group { display: flex; align-items: center; gap: 8px; flex: none; }
   body.story .tour-more { display: flex; align-items: center; gap: 8px; flex: none; }
   .panel-scroll { display: flex; flex-direction: column; }

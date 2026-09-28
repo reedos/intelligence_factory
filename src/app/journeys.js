@@ -165,6 +165,12 @@ export function heat(M) {
 // Parts a scene variant does not draw (an air-cooled hall has no CDU) are skipped by the player at run time.
 const LAYER = { power: ['PARTS', 'intro', 'Power'], data: ['PARTS_DATA', 'dataIntro', 'Data'], heat: ['PARTS_HEAT', 'heatIntro', 'Heat'] };
 export const OUTWARD = new Set(['heat']);
+// tour audit finding 4: the data-layer stops whose card is about pluggable or co-packaged optics also get the
+// optics-cutaway disclosure (DSP/LPO/CPO), so a reader who never opens the Links section still sees what is
+// inside one - the CPO card on the hall's switches, the general optics card beside it (it already names DSP and
+// LPO by name), the tray's own OSFP cages (same id on both the NVL72 and DGX H100 tray part lists), and the
+// line-terminal card where campuses meet the WAN. story.js renders the figure; this only marks which stops carry it.
+const OPTICS_FIGURE = new Set(['across:dci', 'hall:cpo', 'hall:optics', 'tray:osfp']);
 /** @param {any} M @param {'power'|'data'|'heat'} mode @param {number|null} [only] one level (0-5), or all six */
 export function layer(M, mode, only = null) {
   const C = content(M), [key, introKey, name] = LAYER[mode], out = [];
@@ -172,10 +178,17 @@ export function layer(M, mode, only = null) {
   if (OUTWARD.has(mode)) levels.reverse();
   levels.forEach(([sc, i]) => {
     const parts = C[key][sc.id] || [];
-    out.push({ link: { scene: i, mode, part: null }, k: `${name} · level ${i + 1} of 6 · overview`, title: sc.title, text: sc[introKey], tally: `Level ${i + 1} of 6`, level: true });
+    // the layer name goes in every kicker, not just the level number, so a reader mid-walk through "All" can
+    // always tell which of the three layers a beat belongs to (tour audit finding 14)
+    out.push({ link: { scene: i, mode, part: null }, k: `${name} · Level ${i + 1} of 6 · overview`, title: sc.title, text: sc[introKey], tally: `Level ${i + 1} of 6`, level: true });
     parts.forEach((p, j) => out.push({
-      link: { scene: i, mode, part: p.id }, k: `Level ${i + 1} · ${sc.title}`, title: p.title, text: p.body,
-      specs: p.specs.slice(0, 3), tally: `Level ${i + 1} · ${j + 1} of ${parts.length}`,
+      link: { scene: i, mode, part: p.id }, k: `${name} · Level ${i + 1} · ${sc.title}`, title: p.title, text: p.body,
+      // the full row set, not a 3-row slice: story.js shows the first three and puts the rest behind a working
+      // disclosure, each with its own chip: specKey matches the key src/claims.js already builds for the same
+      // card's 3D-view rows (card:<layer>:<scene>:<part>:<row>), so a tour's chip and the card's chip open the
+      // same popover (tour audit finding 4)
+      specs: p.specs, specKey: `card:${mode}:${sc.id}:${p.id}`, tally: `Level ${i + 1} · ${j + 1} of ${parts.length}`,
+      ...(mode === 'data' && OPTICS_FIGURE.has(`${sc.id}:${p.id}`) ? { figure: 'optics-cutaway' } : {}),
     }));
   });
   return out;
