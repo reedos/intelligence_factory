@@ -48,7 +48,7 @@ export function story(M) {
   const card = (mode, scene, part, label) => cardRow(C, mode, scene, part, label);
   const t = tokenFigures(M), meter = mw(M.meterMW);
   const lineA = M.staircase[0].current.replace(' per phase', '');
-  const rackV = dc ? 800 : 415, rackA = M.meterMW * 1e6 / (dc ? 800 : Math.sqrt(3) * 415);
+  const rackV = dc ? 800 : 415, rackA = M.meterMW * 1e6 / (dc ? 800 : Math.sqrt(3) * 415 * 0.95);   // pf 0.95, as engine.ts's kA()
   const net = M.NET.switchMW + M.NET.opticsMW, racksMW = M.racks * M.rack.kw / 1000, spare = loss('Unallocated');
   const dci = M.bandwidth[M.bandwidth.length - 1];
   const where = nvl ? 'trays' : 'servers';

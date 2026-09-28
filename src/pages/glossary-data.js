@@ -928,7 +928,7 @@ export const TERMS = [
   "aka": [
    "key-value cache"
   ],
-  "def": "A model's running memory of a conversation, the keys and values computed from every earlier token in the prompt and reply so far. Every new token during decode reads both the model's weights and this cache from HBM, which is a second reason serving speed follows memory bandwidth.",
+  "def": "A model's running memory of a conversation, the keys and values computed from every earlier token in the prompt and reply so far. Every new token during decode reads both the model's weights and this cache from HBM, which is a second reason decode speed usually follows memory bandwidth.",
   "layer": "compute",
   "link": {
    "scene": 5,

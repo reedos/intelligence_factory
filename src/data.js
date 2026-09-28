@@ -232,7 +232,7 @@ export function content(M) {
   const evRefs = refs => ({ refs });
   PARTS.campus = [
     { id: 'line', title: 'Transmission line', kicker: '345 kV AC · 3 phases × 2 circuits',
-      body: `Lattice towers carry two three-phase circuits of bundled aluminum conductor, with a shield wire on top to take lightning. At 345 kV the whole ${meter} campus rides on ${lineA.replace(' per phase', '')} per phase, which is why power travels far at high voltage.${M.meterMW > 1500 ? ' A campus this big would take several circuits, or 500 kV.' : ''}`,
+      body: `Lattice towers carry two three-phase circuits of bundled aluminum conductor, with a shield wire on top to take lightning. At 345 kV the whole ${meter} campus rides on ${lineA.replace(' per phase', '')} per phase on each circuit, which is why power travels far at high voltage.${M.meterMW > 1500 ? ' A campus this big would take several circuits, or 500 kV.' : ''}`,
       specs: [
         ['Voltage', '345 kV line-to-line', 'assumed', evAssume('campus-interconnect-voltage')],
         [`Current, ${meter}`, lineA.replace('per phase', 'per phase, on each circuit'), 'derived', evCalc('line-current')],
@@ -634,8 +634,8 @@ export function content(M) {
       specs: [['Packaging', X.packaging, EV6.pack.basis, EV6.pack.ev]] },
     { id: 'dies', title: A.dies > 1 ? 'Two GPU dies' : 'One GPU die', kicker: `${X.transistors.replace(', as announced', '')} transistors`,
       body: A.dies > 1
-        ? 'Two reticle-limit dies act as one GPU, joined by a 10 TB/s die-to-die link. Nearly every watt that reaches them becomes heat within a few nanoseconds of doing arithmetic.'
-        : 'One reticle-limit die, about as large as a chip can be made in one exposure. Nearly every watt that reaches it becomes heat within a few nanoseconds of doing arithmetic.',
+        ? 'Two reticle-limit dies act as one GPU, joined by a 10 TB/s die-to-die link. Nearly every watt that reaches them, whether it runs computation, on-chip memory, communication or leakage, ends as heat.'
+        : 'One reticle-limit die, about as large as a chip can be made in one exposure. Nearly every watt that reaches it, whether it runs computation, on-chip memory, communication or leakage, ends as heat.',
       specs: [['Transistors', X.transistors, EV6.transistors.basis, EV6.transistors.ev],
         ...(A.dies > 1 ? [['Die-to-die link', '10 TB/s NV-HBI', EV6.dieRow.basis, EV6.dieRow.ev]] : [['Die area', '814 mm²', EV6.dieRow.basis, EV6.dieRow.ev]]),
         ['Process', X.process, EV6.process.basis, EV6.process.ev]] },

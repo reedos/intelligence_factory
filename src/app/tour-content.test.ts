@@ -14,6 +14,8 @@ const scenarios: any[] = [];
 for (const accel of Object.keys(ACCELERATORS)) for (const power of Object.keys(POWER)) for (const cooling of Object.keys(COOLING))
   scenarios.push({ meterMW: 100, accel, power, cooling });
 for (const [id, s] of Object.entries(SITES)) scenarios.push({ ...s.scenario, site: id });
+const specOfPart = (C: any, mode: string, scene: number, part: string) =>
+  ({ power: C.PARTS, data: C.PARTS_DATA, heat: C.PARTS_HEAT } as any)[mode][C.SCENES[scene].id].find((p: any) => p.id === part);
 const num = (s: string) => [...s.matchAll(/(-?\d+(?:\.\d+)?)\s*°C/g)].map(m => +m[1]);
 const specOf = (C: any, mode: string, scene: number, part: string, label: string) =>
   ({ power: C.PARTS, data: C.PARTS_DATA, heat: C.PARTS_HEAT } as any)[mode][C.SCENES[scene].id].find((p: any) => p.id === part)?.specs.find((r: any) => r[0].startsWith(label));
@@ -59,6 +61,8 @@ describe('the GPU dies, not the package and not "the math"', () => {
     for (const b of [...w, ...story(M)] as any[]) for (const t of [b.title, b.tally ?? '', b.text])
       expect(t, b.title).not.toMatch(/does the math|for the math|model math|any math|transistors that do the arithmetic|becomes a token/);
     expect(last.text).toContain('does not estimate how much of it is useful arithmetic');
+    // and the card that stop lands on says the same (it once said the watt becomes heat "of doing arithmetic")
+    expect(specOfPart(content(M), 'power', 5, 'dies').body).not.toMatch(/arithmetic/);
     // and the watt still lands on the ledger's own GPU-die figure
     expect(+last.tally.split(' ')[0]).toBeCloseTo(M.gpuSiliconMW / M.meterMW, 3);
   });
