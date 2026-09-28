@@ -201,7 +201,9 @@ export const SOURCES = {
   'nvidia-dsx-data-center-architecture': { title: 'DSX architecture: data center reference architecture (GB200/GB300 compute tray network interfaces)', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dsx/ncp/software-reference-guide/data-center-architecture' },
   'nvidia-coreweave-gb200-400g': { title: 'NVIDIA GB200 NVL72 on CoreWeave: Quantum-2 InfiniBand at 400 Gb/s per GPU', publisher: 'NVIDIA', url: 'https://blogs.nvidia.com/blog/blackwell-coreweave-gb200-nvl72-instances-cloud/' },
   'ocp-hgx-baseboard-spec': { title: 'HGX Form Factor Specification (54.0 V nominal baseboard power rail)', publisher: 'Open Compute Project', url: 'https://www.opencompute.org/documents/open-compute-specification-hgx-baseboard-contribution-r1-v0-1-pdf' },
-  'lmsys-sglang-gb200-inferencemax': { title: 'SGLang and NVIDIA Accelerating SemiAnalysis InferenceMAX and GB200 Together', publisher: 'LMSYS Org', url: 'https://www.lmsys.org/blog/2025-10-14-sa-inference-max/' },
+  // the exact 13,386/26,156 tok/s figures are LMSYS/SGLang's own GB200 deployment benchmark, not a SemiAnalysis
+  // InferenceMAX result (a later LMSYS post links this one but only restates the numbers rounded)
+  'lmsys-sglang-gb200-part2': { title: 'Deploying DeepSeek on GB200 NVL72 with PD and Large Scale EP (Part II): 3.8x Prefill, 4.8x Decode Throughput', publisher: 'LMSYS Org', url: 'https://www.lmsys.org/blog/2025-09-25-gb200-part-2/' },
   'nvidia-quantum2-qm9700-specs': { title: 'Quantum-2 QM9700 specifications (64 × 400G NDR)', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/networking/display/qm97x0pub/specifications' },
 };
 
