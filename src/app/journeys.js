@@ -180,6 +180,9 @@ export function layer(M, mode, only = null) {
 }
 // in, out, in: each layer starts on the level the one before it ended on
 export const everything = M => ['power', 'heat', 'data'].flatMap(m => layer(M, m));
-// A tour that ends while playing hands on to the next in its group. Each starts where the last one ended, or one
-// level away, except the request, which has to start at a phone again.
+// This order still bounds a manual step (the chevrons, arrow keys, the "Next" suggestion) to one level or one
+// tour away, so the camera never jumps. Reed, 09/27: it used to also hand playback on to the next tour with no
+// stop, story -> heat -> watt -> request, which broke the overview's own promise of "once" - story.js now stops
+// there and offers the three as separate choices. Every-part tours still hand over while playing: that walk is
+// meant to be exhaustive and continuous, not a menu of choices.
 export const CHAIN = { Tours: ['story', 'heat', 'watt', 'request'], 'Every part': ['all-power', 'all-heat', 'all-data'] };

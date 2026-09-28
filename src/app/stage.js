@@ -85,6 +85,11 @@ const voltFor = s => ui.mode === 'heat' ? { ...VOLT[s.heatVolt], short: s.heatSh
 const flowsFor = b => (ui.mode === 'data' ? b.dataFlows : ui.mode === 'heat' ? b.heatFlows : b.flows) || [];
 export const mobile = matchMedia('(max-width: 760px), (pointer: coarse)').matches;
 export const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// the 3D view/stage region (nav, viewer and the parts panel, which holds the tour too): single-character
+// shortcuts anywhere on the page only fire while this has focus or the pointer, so they never hijack a key
+// meant for something else on the page - a form, a screen reader command, dictation (WCAG 2.1.4)
+const stageRegion = document.querySelector('.stage');
+export const stageActive = () => !!stageRegion && (stageRegion.contains(document.activeElement) || stageRegion.matches(':hover'));
 // what a scene may spend: shadows, the floor mirror (renders the scene twice) and depth of field are desktop only
 const quality = { shadows: !mobile, mobile, reflections: !mobile, dof: !mobile };
 const lookOf = i => ({ envIntensity: 0.35, env: 'room', dof: true, ...LOOK[i], ...(built[i]?.look || {}) });
@@ -860,6 +865,7 @@ function loop(ts) {
 
 addEventListener('keydown', e => {
   if (e.target.matches('input, textarea, select') || e.target.closest?.('.pace-menu')) return;
+  if (!stageActive()) return;                              // scoped to the stage: see stageActive above
   if (e.key >= '1' && e.key <= '6') go(+e.key - 1);
   else if ('pdhPDH'.includes(e.key) && e.key.length === 1) setMode({ p: 'power', d: 'data', h: 'heat' }[e.key.toLowerCase()]);
   else if (e.key === 'ArrowRight') { cycle(1); e.preventDefault(); }

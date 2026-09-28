@@ -3,12 +3,14 @@
 // time under the view, so the view gets every pixel the text does not need.
 // Every number comes from the current scenario, so the story retells itself when a setting changes.
 // Play steps through on its own: each beat holds long enough to read once the camera has arrived, then the next
-// one comes in; after the story come the watt, the request and the heat. Looking around (a drag, wheel or touch)
-// only holds the tour: it carries on a few seconds after the reader lets go, from whichever beat is showing.
+// one comes in. The overview stops at its own last step and offers the watt, the request and the heat as three
+// separate choices, rather than picking one and playing on into it; the every-part tours do hand over, since
+// they are meant to run through as one long walk. Looking around (a drag, wheel or touch) only holds the tour:
+// it carries on a few seconds after the reader lets go, from whichever beat is showing.
 // Pause (the button, or Space) is the only thing that stops it. One transport at the head of the panel (play,
 // back, forward, speed, where the tour is) is the only playback control on the page.
 import { store, on } from './store.js';
-import { show, go, reduced, onTick, setCinema, setTourPace, getTransitions, setTransitions, pinNumber, partCount } from './stage.js';
+import { show, go, reduced, onTick, setCinema, setTourPace, getTransitions, setTransitions, pinNumber, partCount, stageActive } from './stage.js';
 import { story, watt, request, heat, layer, everything, CHAIN } from './journeys.js';
 import { openClock, closeClock } from './clock-ui.js';
 
@@ -92,8 +94,11 @@ addEventListener('scroll', () => closePaceMenu(), { passive: true });   // the p
 // playing on carries through the tours, or through the layers, in CHAIN order; never from one group to the other
 const nextTour = id => { const g = CHAIN[TOURS[id].group] || [], k = g.indexOf(id); return k < 0 ? null : g[k + 1] ?? null; };
 const prevTour = id => { const g = CHAIN[TOURS[id].group] || [], k = g.indexOf(id); return k > 0 ? g[k - 1] : null; };
+// the overview's own next tour, for auto-play (onTick) and for stepping past its last beat (beyond, below): both
+// have to agree that there isn't one, since it offers three siblings instead - never pick one of them for the reader
+const chainNext = id => id === 'story' ? null : nextTour(id);
 // past the last step: the next level of a level playthrough, or the next tour in its group
-const beyond = () => tour === 'here' ? (here.scene < store.C.SCENES.length - 1 ? { level: here.scene + 1 } : null) : (nextTour(tour) ? { tour: nextTour(tour) } : null);
+const beyond = () => tour === 'here' ? (here.scene < store.C.SCENES.length - 1 ? { level: here.scene + 1 } : null) : (chainNext(tour) ? { tour: chainNext(tour) } : null);
 const before = () => tour === 'here' ? (here.scene > 0 ? { level: here.scene - 1 } : null) : (prevTour(tour) ? { tour: prevTour(tour) } : null);
 function crossTo(t, at) {
   if (!t) return false;
@@ -125,14 +130,28 @@ function goButton(b) {
 function nextSteps() {
   const acts = ['<button type="button" class="btn" data-restart>↺ Start over</button>'], S = store.C.SCENES;
   if (tour === 'here' && here.scene < S.length - 1) acts.push(`<button type="button" class="btn go" data-next-level="${here.scene + 1}">Play level ${here.scene + 2}: ${S[here.scene + 1].title} →</button>`);
-  const nt = nextTour(tour);
-  if (nt) acts.push(`<button type="button" class="btn${acts.some(a => a.includes('btn go')) ? '' : ' go'}" data-next-tour="${nt}">Next: ${TOURS[nt].label} →</button>`);
+  const go1 = () => acts.some(a => a.includes('btn go')) ? '' : ' go';   // only the first suggestion is accented
+  if (tour === 'story') {
+    // the overview's own three follow-ups are siblings, not a sequence: offer all three, not just the first
+    CHAIN.Tours.slice(1).forEach(id => acts.push(`<button type="button" class="btn${go1()}" data-next-tour="${id}">${TOURS[id].label} →</button>`));
+  } else {
+    const nt = nextTour(tour);
+    if (nt) acts.push(`<button type="button" class="btn${go1()}" data-next-tour="${nt}">Next: ${TOURS[nt].label} →</button>`);
+  }
   acts.push('<button type="button" class="btn" data-explore>Explore on your own</button>');
   return acts.join('');
 }
+// a tour's length for the picker: steps, and about how long they take to read through at 1x (dwell, unsped)
+function tourLen(id) {
+  const beats = TOURS[id].beats(store.M), ms = beats.reduce((a, b) => a + dwell(b), 0);
+  return `${beats.length} step${beats.length === 1 ? '' : 's'} · ≈${ms < 60000 ? `${Math.round(ms / 1000)} s` : `${Math.round(ms / 60000)} min`}`;
+}
 function render() {
   list = TOURS[tour].beats(store.M);
-  const tabs = g => `<div class="tour-group"><span class="tour-g">${g}</span><div class="tour-tabs" role="tablist" aria-label="${g}">${Object.entries(TOURS).filter(([, t]) => t.group === g).map(([id, t]) => `<button type="button" role="tab" data-tour="${id}" aria-selected="${id === tour}">${t.short}</button>`).join('')}</div></div>`;
+  const tabRow = g => `<div class="tour-tabs" role="tablist" aria-label="${g}">${Object.entries(TOURS).filter(([, t]) => t.group === g).map(([id, t]) => `<button type="button" role="tab" data-tour="${id}" aria-selected="${id === tour}">${t.short}<small>${tourLen(id)}</small></button>`).join('')}</div>`;
+  // "Every part" is the exhaustive, card-by-card option: a disclosure keeps it from competing with the four
+  // narrated tours, open by default only while one of its own tours is the one showing
+  const everyPart = `<details class="tour-more"${TOURS[tour].group === 'Every part' ? ' open' : ''}><summary>Every part, in order</summary>${tabRow('Every part')}</details>`;
   box.innerHTML = `<div class="story-head">`
     + `<div class="transport" role="group" aria-label="Tour playback">`
     + `<button type="button" class="btn play" id="tour-play" aria-pressed="${playing}" aria-label="${playing ? 'Pause' : 'Play'}">${playing ? '❚❚' : '▶'}</button>`
@@ -141,7 +160,7 @@ function render() {
     + `<button type="button" class="btn pace" id="tour-pace" aria-haspopup="menu" aria-expanded="false"></button>`
     + `<span class="tour-t" id="tour-t" aria-live="polite"></span>`
     + `<button type="button" class="btn icon" id="story-exit" aria-label="Leave the tour">×</button></div>`
-    + `<div class="tour-pick">${tabs('Tours')}${tabs('Every part')}</div>`
+    + `<div class="tour-pick"><div class="tour-group"><span class="tour-g">Tours</span>${tabRow('Tours')}</div>${everyPart}</div>`
     + `<div class="tally" id="tally" aria-live="polite"${list.some(b => b.tally) && !perLevel() ? '' : ' hidden'}><span class="eyebrow">${TOURS[tour].label}</span><b id="tally-v"></b></div></div>`
     + list.map((b, i) => {
       // the last step of a level playthrough already offers the next level; a second button to the same place is noise
@@ -308,7 +327,9 @@ onTick(dt => {
   arrived = false;                                        // wait for the next beat's camera before counting again
   if (active < list.length - 1) step(1);
   else {
-    const next = nextTour(tour);
+    // the overview promises "all six levels, once": it stops here and offers every follow-up tour as its own
+    // choice (nextSteps, below) instead of picking one and playing on into it; every-part tours still hand over
+    const next = chainNext(tour);
     if (next) switchTour(next);
     else setPlaying(false);                                // the last step offers what comes next
   }
@@ -325,6 +346,7 @@ document.addEventListener('click', e => {
 }, true);
 addEventListener('keydown', e => {
   if (e.target.matches?.('input, textarea, select') || e.target.closest?.('.pace-menu')) return;   // a menu keeps its own keys
+  if (!stageActive()) return;                              // scoped to the stage/tour: see stage.js's stageActive
   if (e.key === 's' || e.key === 'S') { inStory() ? exit() : enter(); return; }
   if (!inStory()) return;
   if (e.key.length === 1 && '123456pdhPDH'.includes(e.key)) { exit({ remember: true }); return; }   // the stage takes the key from here

@@ -401,10 +401,22 @@ body.clocking .hud-btns #clock-btn, .story-btn[aria-pressed="true"] { background
 /* ---------- journeys ---------- */
 .story-head { flex-wrap: wrap; row-gap: 12px; }
 .tour-tabs { display: flex; border: 1px solid var(--line-2); }
-.tour-tabs button { all: unset; cursor: pointer; padding: 8px 10px; font: 600 11px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-left: 1px solid var(--line); white-space: nowrap; }
+/* flex:1 1 0 + min-width:0 let four tabs share a fixed-width panel instead of forcing it wider once each
+   carries a length line; the length line wraps (unlike the one-word label above it) so it can shrink that far */
+.tour-tabs button { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 3px; flex: 1 1 0; min-width: 0; padding: 8px 8px; font: 600 11px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-left: 1px solid var(--line); white-space: nowrap; }
 .tour-tabs button:first-child { border-left: 0; }
+.tour-tabs button small { display: block; font: 400 9.5px/1.3 var(--mono); letter-spacing: .02em; color: var(--faint); text-transform: none; white-space: normal; }
 .tour-tabs button[aria-selected="true"] { background: var(--ink); color: #000; }
+.tour-tabs button[aria-selected="true"] small { color: #3a4048; }
 .tour-tabs button:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+/* "Every part" is the exhaustive option: a closed disclosure, not a tab row the same size as the four tours */
+.tour-more { display: grid; gap: 6px; }
+.tour-more summary { cursor: pointer; list-style: none; font: 400 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.tour-more summary::-webkit-details-marker { display: none; }
+.tour-more summary::before { content: '▸'; display: inline-block; margin-right: 6px; }
+.tour-more[open] summary::before { content: '▾'; }
+.tour-more summary:hover { color: var(--ink); }
+.tour-more summary:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
 .tally { flex-basis: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .tally b { font: 600 32px/1 var(--display); color: var(--accent); font-variant-numeric: tabular-nums; }
 .hint-inline a { color: var(--ink); text-underline-offset: 3px; text-decoration-color: var(--line-2); }
@@ -485,6 +497,7 @@ body.story #story-btn, body.story #layer-play { display: none; }
   body.story .tour-pick { order: 3; flex: none; flex-wrap: nowrap; gap: 12px; overflow-x: auto; padding: 8px var(--gutter); border-top: 1px solid var(--line); scrollbar-width: none; }
   body.story .tour-pick::-webkit-scrollbar { display: none; }
   body.story .tour-group { display: flex; align-items: center; gap: 8px; flex: none; }
+  body.story .tour-more { display: flex; align-items: center; gap: 8px; flex: none; }
   .panel-scroll { display: flex; flex-direction: column; }
   .card { order: -1; }                                   /* the part tapped reads right under the view */
 }
