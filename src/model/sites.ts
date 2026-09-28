@@ -121,7 +121,7 @@ export const SITES: Record<SiteId, Site> = {
     unknowns: ['Meter power is estimated from the ≈636 MW IT figure at a PUE near 1.15.', 'The GB200/GB300 split is not disclosed; GB300 is assumed.', 'Closed-loop liquid is modeled as warm water with dry coolers.'],
     sources: ['epoch-dc-fairwater-atl', 'microsoft-infinite-scale', 'dcd-fairwater-atlanta', 'datacenterfrontier-fairwater', 'measuredai-fairwater-atlanta-data-center'],
     status: { state: 'partial', live: '≈636 MW IT', asOf: '09/24/2026', source: 'epoch-dc-fairwater-atl',
-      line: '4 of 9 main-campus buildings are live, about 636 MW of IT power. The other five, and a 4-building east campus, are under construction toward about 1.5 GW.' },
+      line: '4 of 9 main-campus buildings are live, about 636 MW of IT power. The rest of the 13 planned buildings, across the main, east and Fairwater campuses, are under construction toward about 1.5 GW.' },
   },
   'fairwater-wi': {
     id: 'fairwater-wi', name: 'Microsoft Fairwater Wisconsin', owner: 'Microsoft', place: 'Mount Pleasant, WI', lat: 42.71, lon: -87.88, state: '55',

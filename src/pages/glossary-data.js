@@ -1362,7 +1362,7 @@ export const TERMS = [
  },
  {
   "term": "Microsoft Fairwater Atlanta",
-  "def": "Microsoft's Fayetteville, Georgia campus: partly operating, partly under construction. 4 of 9 main-campus buildings were live at about 636 MW of IT power as of 09/24/2026; the other five, plus a planned four-building east campus, are under construction toward about 1.5 GW.",
+  "def": "Microsoft's Fayetteville, Georgia campus: partly operating, partly under construction. 4 of 9 main-campus buildings were live at about 636 MW of IT power as of 09/24/2026; the rest of the 13 planned buildings, across the main, east and Fairwater campuses, are under construction toward about 1.5 GW.",
   "layer": "general",
   "sources": [
    "epoch-dc-fairwater-atl",

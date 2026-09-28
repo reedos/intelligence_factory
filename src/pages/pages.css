@@ -100,6 +100,8 @@ body.page .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--line
 .gl-aka { font-size: 12.5px; color: var(--muted); }
 .gl-term .ev-mode { margin-left: auto; }
 .gl-term p { margin: 0; font-size: 14.5px; line-height: 1.65; color: #cfd5da; }
+.gl-cites { margin: 0 0 10px; padding-left: 18px; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.gl-cites a { color: var(--ink); text-underline-offset: 3px; text-decoration-color: var(--line-2); }
 .gl-term footer { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; padding-top: 8px; border-top: 1px solid var(--line); }
 .gl-term footer .ev-go { order: 2; margin-left: auto; }
 @media (max-width: 760px) {

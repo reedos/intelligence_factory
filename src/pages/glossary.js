@@ -1,4 +1,5 @@
-// The Glossary page: A to Z, each term in plain words, with a link into the 3D view and its sources.
+// The Glossary page: A to Z, each term in plain words, with a link into the 3D view and its sources, and for a term that
+// states a figure, where in each source it is (the entry's cites).
 import { TERMS } from './glossary-data.js';
 import { SOURCES } from '../sources.js';
 import '../app/site.js';
@@ -26,6 +27,7 @@ function render() {
     <article class="gl-term" id="${anchor(t)}" style="--c: var(${COLOR[t.layer]})">
       <header><h3>${esc(t.term)}</h3>${t.aka?.length ? `<span class="gl-aka">also ${t.aka.map(esc).join(', ')}</span>` : ''}<span class="ev-mode">${t.layer}</span></header>
       <p>${esc(t.def)}</p>
+      ${t.cites?.length ? `<ul class="gl-cites">${t.cites.filter(([id]) => SOURCES[id]).map(([id, at]) => `<li><a href="${esc(SOURCES[id].url)}" target="_blank" rel="noopener">${esc(SOURCES[id].publisher)}</a>: ${esc(at)}</li>`).join('')}</ul>` : ''}
       ${t.link || t.sources?.length ? `<footer>${t.link ? `<a class="ev-go" href="index.html?view=${t.link.scene}.${t.link.mode}.${t.link.part}#explore">See it in 3D ↗</a>` : ''}${t.sources?.length ? `<span class="ev-src">${srcLinks(t.sources)}</span>` : ''}</footer>` : ''}
     </article>`).join('')}</div></section>`).join('') || '<p class="ev-none">Nothing matches. Clear the search or turn a layer back on.</p>';
   $('gl-count').textContent = `${shown.length} of ${terms.length} terms`;
