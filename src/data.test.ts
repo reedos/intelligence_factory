@@ -23,6 +23,8 @@ describe('content for every scenario', () => {
     const text = strings({ SCENES: C.SCENES, PARTS: C.PARTS, PARTS_DATA: C.PARTS_DATA, PARTS_HEAT: C.PARTS_HEAT, BOM: C.BOM, TEMPS: C.TEMPS, PARALLEL: C.PARALLEL });
     for (const t of text) {
       expect(t, t).not.toMatch(/undefined|NaN|Infinity|\[object/);
+      // a single-quoted template string leaves '${...}' literal on the page (audit item 18d); catch any of those.
+      expect(t, t).not.toMatch(/\$\{/);
     }
     for (const group of [C.PARTS, C.PARTS_DATA, C.PARTS_HEAT]) for (const [scene, parts] of Object.entries(group as Record<string, any[]>)) {
       const ids = parts.map(p => p.id);
@@ -62,6 +64,45 @@ describe('content for every scenario', () => {
       expect(l, `${what} has no link`).toBeTruthy();
       const sceneId = C.SCENES[l.scene].id;
       expect((layer[l.mode][sceneId] || []).map(p => p.id), `${what} → ${l.mode}:${sceneId}:${l.part}`).toContain(l.part);
+    }
+  });
+});
+
+// Audit fixes, 09/27/2026 (content workstream, items 5/11/12/18h): wording regressions to catch if the old,
+// misleading phrasing ever creeps back in. compute() varies per accelerator, but this text is fixed prose,
+// so one representative nvl scenario (the default) and one non-nvl scenario (H100) cover both card branches.
+describe('audit fixes: card wording stays corrected', () => {
+  const nvl = content(compute({ meterMW: 100, accel: 'gb200', power: 'ac415', cooling: 'warm' })) as any;
+  const h100 = content(compute({ meterMW: 100, accel: 'h100', power: 'ac415', cooling: 'air' })) as any;
+  const part = (C: any, group: string, scene: string, id: string) => C[group][scene].find((p: any) => p.id === id);
+
+  it('item 5: line terminals separate the transceiver, the mux and the amplified span', () => {
+    for (const [scene, id] of [['across', 'dci'], ['campus', 'dci']] as const) {
+      const p = part(nvl, 'PARTS_DATA', scene, id);
+      expect(p.body, `${scene}:${id}`).toMatch(/multiplex/i);
+      expect(p.body, `${scene}:${id}`).not.toMatch(/transponders put|optics put/i); // the old, conflated phrasing
+    }
+  });
+
+  it('item 12: the fiber route card states propagation direction and calls the route illustrative', () => {
+    const p = part(nvl, 'PARTS_DATA', 'across', 'route');
+    expect(p.kicker).toMatch(/one way/i);
+    expect(p.body).toMatch(/illustrative/i);
+    expect(p.body).toMatch(/round trip/i);
+  });
+
+  it('item 11: the CPO card reads as a labeled comparison, not deployed hardware', () => {
+    const p = part(nvl, 'PARTS_DATA', 'hall', 'cpo');
+    expect(p.body).toMatch(/not deploy|comparison|schematic stand-in/i);
+    expect(p.body).not.toMatch(/New switches put the optical engines/); // the old, unqualified framing
+  });
+
+  it('item 18h: the TPU card names copper inside a cube and OCS between cubes, not "light instead"', () => {
+    for (const C of [nvl, h100]) {
+      const p = part(C, 'PARTS_DATA', 'rack', 'optical');
+      expect(p.body).toMatch(/copper/i);
+      expect(p.body).toMatch(/optical circuit switch|OCS/);
+      expect(p.body).not.toMatch(/scales up with light instead/i); // the old phrasing that hid the copper
     }
   });
 });

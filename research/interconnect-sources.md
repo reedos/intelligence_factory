@@ -28,8 +28,9 @@ press or reference designs agree), **Estimate** (derived or uncertain).
 | Google TPU v5p pod | 8,960 chips; ICI 1.2 TB/s bidir per chip | Published spec | [Google Cloud docs](https://docs.cloud.google.com/tpu/docs/v5p) |
 | Google Ironwood pod | 9,216 chips; ICI 9.6 Tb/s (≈1.2 TB/s) | Published spec | [Google blog](https://blog.google/products/google-cloud/ironwood-google-tpu-things-to-know/) |
 | Palomar OCS | 136 ports, ≈108 W vs ≈3 kW electrical switch | Industry typical | [SemiAnalysis, Apollo](https://newsletter.semianalysis.com/p/google-apollo-the-3-billion-game); [arXiv 2208.10041](https://arxiv.org/abs/2208.10041) |
+| TPU cube composition | Every generation checked (v4, v5p, Ironwood) is built from 64-chip cubes (a 4×4×4 mesh); within a cube, ICI links are direct-attached copper. Optical circuit switches (OCS) connect whole cubes to each other, not chips within one. Ironwood: 144 cubes make a 9,216-chip superpod (a "pod" is smaller, 256 chips); the OCS layer can reconfigure around a failed cube or link. | Published spec | [Google Cloud, "Inside the Ironwood TPU codesigned AI stack"](https://cloud.google.com/blog/products/compute/inside-the-ironwood-tpu-codesigned-ai-stack) |
 
-Notes: "NVL144" is used for both a die count and, later, a different Kyber rack; define it every time. NVLink 7 for Rubin Ultra is trade-press only.
+Notes: "NVL144" is used for both a die count and, later, a different Kyber rack; define it every time. NVLink 7 for Rubin Ultra is trade-press only. The card on the page says "copper inside, light between" for the TPU comparison — do not let it read as "TPU pods are optical," which the Ironwood codesign blog contradicts directly.
 
 ## 2. Scale-out
 

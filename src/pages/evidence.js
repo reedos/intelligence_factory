@@ -28,7 +28,9 @@ Object.values(PART_SOURCES).forEach(ids => ids.forEach(cite));
 LEDGER_SOURCES.forEach(([, ids]) => ids.forEach(cite));
 Object.values(SITES).forEach(s => s.sources.forEach(cite));
 
-$('ev-scenario').textContent = `Figures are shown for the default campus: ${Math.round(M.meterMW)} MW at the meter, ${M.accel.rackName} racks, 415 V AC to the rack, warm-water cooling. Change the campus on the main page and every number there follows; the sources stay the same.`;
+// This page always computes from one fixed reference scenario, not from whatever campus the reader last set
+// on the visualizer (that scenario lives in the main page's URL, which this page does not read); say so plainly.
+$('ev-scenario').textContent = `Figures below are fixed to one reference scenario, not whichever campus you set on the visualizer: ${Math.round(M.meterMW)} MW at the meter, ${M.accel.rackName} racks, 415 V AC to the rack, warm-water cooling. Change the campus on the main page and its own numbers follow; the claims and sources on this page always describe this one scenario.`;
 const count = b => claims.filter(c => c.b === b).length;
 $('ev-stats').innerHTML = [['Claims in the 3D cards', claims.length], ['Spec', count('spec')], ['Typical', count('typical')], ['Est.', count('est')], ['Sources', Object.keys(SOURCES).length]]
   .map(([k, v]) => `<div><dt>${k}</dt><dd>${v.toLocaleString('en-US')}</dd></div>`).join('');

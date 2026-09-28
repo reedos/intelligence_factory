@@ -220,6 +220,9 @@ export const SOURCES = {
   // denominator fix and the NFPA 110 Type/Level wording fix
   'green-grid-wue-wp35': { title: 'Water Usage Effectiveness (WUE): A Green Grid Data Center Sustainability Metric (White Paper #35)', publisher: 'The Green Grid', url: 'https://www.thegreengrid.org/system/files/store/WUE_v1.pdf' },
   'cummins-nfpa110-ate': { title: "Ask the Experts: NFPA 110 for Emergency Power Systems", publisher: 'Cummins', url: 'https://www.cummins.com/sites/default/files/2021-04/AtE-NFPA110_EXT_3.25.21.pdf' },
+
+  // content workstream (audit item 18h, 09/27/2026): copper-in-cube vs OCS-between-cubes on the TPU card
+  'google-ironwood-codesign': { title: 'Inside the Ironwood TPU codesigned AI stack', publisher: 'Google Cloud', url: 'https://cloud.google.com/blog/products/compute/inside-the-ironwood-tpu-codesigned-ai-stack' },
 };
 
 // PART_SOURCES: which sources back the specs on each card. Key = '<layer>:<sceneId>:<partId>',
@@ -328,7 +331,7 @@ export const PART_SOURCES = {
   'data:rack:tp': ['meta-llama3-herd-parallelism'],
   'data:rack:nvswitch': ['nvidia-nvl72-reference-arch'],
   'data:rack:spine': ['nvidia-gb200-ocp', 'servethehome-dgx-gb200', 'nvidia-dgx-gb200-user-guide', 'viksnewsletter-acc-power', 'arxiv-2601-14342'],
-  'data:rack:optical': ['google-ironwood-tpu'],
+  'data:rack:optical': ['google-ironwood-tpu', 'google-ironwood-codesign'],
   'data:rack:uplinks': ['nvidia-h100-datasheet'],
   'data:rack:compute': [],
   'data:rack:mgmt': [],
