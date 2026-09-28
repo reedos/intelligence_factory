@@ -51,7 +51,7 @@ export function story(M) {
         text: `UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs ${mw(loss('UPS'))}, more than any other step before the rack.` },
     { link: at(2, 'racks'), k: 'Data hall', title: `${n0(M.racks)} racks`,
       text: M.mixed
-        ? `The IT load, ${mw(M.IT_MW)}, lands on ${n0(M.racks)} racks in ${M.halls} halls: ${M.fleet.map(m => `${n0(m.racks)} ${m.accel.rackName} racks of about ${Math.round(m.rackKW)} kW`).join(' and ')}. That is ${n0(M.gpus)} GPUs.`
+        ? `The IT load, ${mw(M.IT_MW)}, lands on ${n0(M.racks)} racks in ${M.halls} halls: ${M.fleet.map(m => `${n0(m.racksShown)} ${m.accel.rackName} racks of about ${Math.round(m.rackKW)} kW`).join(' and ')}. That is ${n0(M.gpus)} GPUs.`
         : `The IT load, ${mw(M.IT_MW)}, lands on ${n0(M.racks)} ${nvl ? A.rackName : 'DGX H100'} racks of about ${Math.round(M.rack.kw)} kW each, in ${M.halls} ${M.halls > 1 ? 'halls' : 'hall'}. That is ${n0(M.gpus)} GPUs.` },
     { link: at(2, 'spine', 'data'), k: 'Data · the hall', title: `${n0(M.NET.switches)} switches`,
       text: `Every GPU gets its own optical port into a ${M.NET.tiers}-tier fabric. Switches and optics outside the racks draw ${mw(net)}, and there are about ${big(M.NET.fibers)} strands of fiber.` },

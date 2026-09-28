@@ -15,7 +15,8 @@ const scenarios = [
   { accel: 'gb300', power: 'dc800', cooling: 'liquid', meterMW: 10 },
   { accel: 'rubin', power: 'dc800', cooling: 'warm', meterMW: 5000 },
   { accel: 'gb200', power: 'ac415', cooling: 'warm', meterMW: 100 },
-  { accel: 'gb300', power: 'ac415', cooling: 'liquid', meterMW: 1100, site: 'colossus2' },   // battery backup, closed loop
+  { accel: 'gb300', power: 'ac415', cooling: 'liquid', meterMW: 1461, site: 'colossus2', stage: 0 },   // Elon Musk's 550k: GB200 + GB300 racks, battery backup, closed loop
+  { accel: 'gb300', power: 'ac415', cooling: 'liquid', meterMW: 3253, site: 'colossus2', stage: 3 },   // the contingent 1.21M stage, the largest campus a preset builds
 ];
 for (const s of scenarios) {
   await p.evaluate(s => window.ifx.setScenario(s), s);

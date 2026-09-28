@@ -40,7 +40,9 @@ function gpuMW(M: Model) {
 function training(M: Model): Sim {
   const G = gpuMW(M), P = 2.0, comm = 0.3, low = 0.35;               // 0.5 Hz steps, 30% of each spent communicating
   const ckpt: [number, number] = [38, 44];                           // a checkpoint pause
-  const storage = M.accel.id === 'gb300' || M.accel.id === 'rubin';  // rack energy storage (GB300 onward)
+  // rack energy storage is a GB300-onward feature: in a mixed fleet only those racks' share is smoothed
+  const Gs = M.fleet.filter(m => m.accel.id === 'gb300' || m.accel.id === 'rubin').reduce((a, m) => a + m.gpuMW, 0);
+  const storage = Gs > 0, partial = storage && Gs < G - 1e-9;
   const g = (t: number) => {
     if (t >= ckpt[0] && t < ckpt[1]) {                                // ramp down into the checkpoint, back up after
       const into = clamp((t - ckpt[0]) / 0.4), out = clamp((ckpt[1] - t) / 0.4);
@@ -60,6 +62,7 @@ function training(M: Model): Sim {
   const lowPass = (t: number) => lp[Math.min(N - 1, Math.max(0, Math.round(t / dt)))];
   let mean = 0; for (let i = 0; i < N; i++) mean += g(i * dt); mean /= N;
   const at = (x: number) => M.meterMW - G * (1 - x);
+  const smoothed = (t: number, x: number) => M.meterMW - Gs * (1 - lowPass(t)) - (G - Gs) * (1 - x);   // the storage racks smoothed, the rest raw
   const series: Series[] = [
     { key: 'raw', label: 'Rack load, no smoothing', unit: 'MW', color: '#ff7f50' },
     ...(storage ? [{ key: 'rack', label: 'With rack energy storage', unit: 'MW', color: '#e8ff5a' }] : []),
@@ -69,10 +72,10 @@ function training(M: Model): Sim {
     id: 'training', label: 'Training step', unit: 's', duration: 60, series,
     events: [{ t: ckpt[0], label: 'Checkpoint' }, { t: ckpt[1], label: 'Resume' }],
     sample: t => {
-      const x = g(t), shown = storage ? lowPass(t) : x;
+      const x = g(t), rack = storage ? smoothed(t, x) : at(x);
       return {
-        t, meterMW: at(shown),
-        values: { raw: at(x), ...(storage ? { rack: at(lowPass(t)) } : {}), site: at(mean) },
+        t, meterMW: rack,
+        values: { raw: at(x), ...(storage ? { rack } : {}), site: at(mean) },
         phase: t >= ckpt[0] && t < ckpt[1] ? 'Checkpoint: GPUs wait on storage' : x > 0.9 ? 'Compute: every GPU at full power' : x < low + 0.05 ? 'All-reduce: GPUs wait on the network' : 'Ramping',
         levels: { grid: 1, mv: 1, standby: 0, load: 0.25 + 0.95 * x, cool: 1, vapor: 1 },
         waterM3h: M.meterMW * 1000 * M.wue / 1000, tokensPerS: 0,
@@ -81,7 +84,7 @@ function training(M: Model): Sim {
     speed: () => 1,
     notes: [
       { text: 'Production clusters swing in the 0.2–3 Hz band (Microsoft, OpenAI and NVIDIA, 2025). The 2-second step drawn here sits inside it.', basis: 'spec' },
-      { text: `${storage ? 'GB300 racks store 65 J per GPU and cut peak grid demand by up to 30%; the smoothing drawn is a 0.6 s low-pass, an estimate. ' : ''}Site batteries can absorb the rest, so the grid sees the average.`, basis: storage ? 'spec' : 'typical' },
+      { text: `${storage ? `GB300 racks store 65 J per GPU and cut peak grid demand by up to 30%; the smoothing drawn is a 0.6 s low-pass, an estimate.${partial ? ` Only the GB300 racks have it: the rest of this fleet, ${Math.round((G - Gs) / G * 100)}% of the GPU load, swings unsmoothed.` : ''} ` : ''}Site batteries can absorb the rest, so the grid sees the average.`, basis: storage ? 'spec' : 'typical' },
       { text: `GPUs are ${Math.round(G / M.meterMW * 100)}% of the meter here, so one step moves the campus by about ${Math.round(G * (1 - low))} MW.`, basis: 'est' },
     ],
   };

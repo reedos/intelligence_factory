@@ -279,7 +279,7 @@ function renderParallel() {
 function renderBom() {
   const M = store.M, size = M.meterMW >= 1000 ? `${+(M.meterMW / 1000).toFixed(2)} GW` : `${Math.round(M.meterMW)} MW`;
   $('bom-h').textContent = `What it takes: a ${size} campus, counted`;
-  $('bom-lede').textContent = `Sized from the same assumptions as the ledger: ${size} at the meter, PUE ${M.pue.toFixed(2)}, ${Math.round(M.rack.kw)} kW ${M.accel.rackName.replace(/ rack$/, "")} racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale.`;
+  $('bom-lede').textContent = `Sized from the same assumptions as the ledger: ${size} at the meter, PUE ${M.pue.toFixed(2)}, ${M.mixed ? M.fleet.map(m => `${Math.round(m.rackKW)} kW ${m.accel.rackName.replace(/ rack$/, '')}`).join(' and ') : `${Math.round(M.rack.kw)} kW ${M.accel.rackName.replace(/ rack$/, '')}`} racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale.`;
   $('bom').innerHTML = store.C.BOM.map((g, gi) => `<div class="bom-col"><h3>${g.group}</h3><dl>${g.rows.map(([k, v, b, link], ri) => `<div data-bom="${gi}-${ri}" ${goAttr(link, k)}><dt>${k}</dt><dd>${v} <button type="button" class="chip ${b}" data-src="bom:${gi}-${ri}" aria-expanded="false" aria-label="${BASIS[b].label}: sources">${BASIS[b].short}</button></dd></div>`).join('')}</dl></div>`).join('');
 }
 

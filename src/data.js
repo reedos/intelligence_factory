@@ -295,9 +295,9 @@ export function content(M) {
       specs: dc
         ? [['Rack voltage', '800 V DC', 'est'], ['Per rack', M.staircase.find(s => s.v === 800)?.current ?? '', 'est'], ['Copper, NVIDIA claim', '−45%', 'spec']]
         : [['Rack voltage', '415 V three-phase (OCP ORv3)', 'spec'], ['Per rack', `${M.staircase.find(s => s.v === 415)?.current ?? ''} at ${rackKW} kW`, 'est'], ['Why busway', 'tap-offs move without rewiring', 'typical']] },
-    { id: 'racks', title: mixed ? 'NVL72 racks' : nvl ? `${A.short} NVL72 racks` : 'DGX H100 racks', kicker: mixed ? FL.map(m => `≈${n0(m.racks)} ${m.accel.short}`).join(', ') : `${rackKW} kW each`,
+    { id: 'racks', title: mixed ? 'NVL72 racks' : nvl ? `${A.short} NVL72 racks` : 'DGX H100 racks', kicker: mixed ? FL.map(m => `≈${n0(m.racksShown)} ${m.accel.short}`).join(', ') : `${rackKW} kW each`,
       body: nvl
-        ? `Each rack draws what a whole row of racks drew ten years ago. About ${Math.round(liq * 100)}% of its heat leaves in water${liq < 1 ? ', the rest in air' : ''}.${mixed ? ` This campus runs ${FL.map(m => `≈${n0(m.racks)} ${m.accel.rackName}`).join(' and ')} racks; the levels below show a ${A.rackName}.` : ''}`
+        ? `Each rack draws what a whole row of racks drew ten years ago. About ${Math.round(liq * 100)}% of its heat leaves in water${liq < 1 ? ', the rest in air' : ''}.${mixed ? ` This campus runs ${FL.map(m => `≈${n0(m.racksShown)} ${m.accel.rackName}`).join(' and ')} racks; the levels below show a ${A.rackName}.` : ''}`
         : 'Four air-cooled servers per rack, eight GPUs each. More would overheat: NVIDIA caps air-cooled DGX H100 at four per rack.',
       specs: nvl
         ? [...(mixed ? FL.map(m => [`${m.accel.short} rack, this model`, `≈${Math.round(m.rackKW)} kW`, 'est']) : [['Power, this model', `≈${rackKW} kW`, 'est']]), ['Published range', `${A.publishedRackKW[0]}–${A.publishedRackKW[1]} kW`, A.basis], ['GPUs', `72 ${X.arch}`, 'spec'], ['Liquid / air', `${liqKW} kW / ${airKW} kW`, 'est']]
@@ -469,7 +469,7 @@ export function content(M) {
       ['Busway runs', `≈${n0(RACKS / 10)}`, 'est', Lk(2, 'busway')],
     ] },
     { group: 'Racks', rows: nvl ? [
-      ...FL.map(m => [`${m.accel.rackName} racks`, `≈${n0(m.racks)}`, 'est', Lk(2, 'racks')]),
+      ...FL.map(m => [`${m.accel.rackName} racks`, `≈${n0(m.racksShown)}`, 'est', Lk(2, 'racks')]),
       [dc ? 'DC-DC shelves' : 'Power shelves', `≈${n0(RACKS * 6)}`, 'est', Lk(3, 'shelves')],
       ...(dc ? [] : [['Rectifiers', `≈${n0(RACKS * 36)}`, 'est', Lk(3, 'shelves')]]),
       ['NVLink copper connections', `≈${kfmt(NET.nvlinkPairs)}`, 'est', Lk(3, 'spine')],

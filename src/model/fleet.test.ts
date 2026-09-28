@@ -39,6 +39,22 @@ describe('Colossus 2 from Elon Musk’s 09/25/2026 counts', () => {
     expect(rows).toContain('GB200 NVL72 racks'); expect(rows).toContain('GB300 NVL72 racks');
     expect(rows.some((r: string) => /\(GB200\)/.test(r)) && rows.some((r: string) => /\(GB300\)/.test(r))).toBe(true);
   });
+  it('the rack counts the page shows for each kind add up to the campus total at every stage', () => {
+    for (let i = 0; i < 4; i++) { const M = at(i); expect(M.fleet.reduce((n: number, m: any) => n + m.racksShown, 0)).toBe(M.racks); }
+  });
+  it('only the GB300 racks carry rack energy storage in the training clock', async () => {
+    const { makeSim } = await import('./clock');
+    const M = at(0), sim = makeSim(M, 'training') as any, Gs = M.fleet.find((m: any) => m.accel.id === 'gb300').gpuMW;
+    expect(Gs).toBeLessThan(M.gpuRackMW);
+    // the smoothing lifts the GB300 share by exactly the low-pass gap an all-GB300 campus shows at the same instant, and
+    // the GB200 share not at all (the old clock smoothed the whole fleet's GPU power)
+    const ref = compute({ meterMW: 500, accel: 'gb300', power: 'ac415', cooling: 'liquid' }) as any, refSim = makeSim(ref, 'training') as any;
+    for (const t of [10.3, 10.9, 25.1, 39.2, 44.6]) {
+      const a = sim.sample(t).values, b = refSim.sample(t).values, gap = (b.rack - b.raw) / ref.gpuRackMW;
+      expect(a.rack - a.raw).toBeCloseTo(Gs * gap, 6);
+    }
+    expect(sim.notes.map((n: any) => n.text).join(' ')).toMatch(/Only the GB300 racks have it/);
+  });
   it('energy is conserved for a mixed fleet exactly as for a generic one', () => {
     for (let i = 0; i < 4; i++) {
       const M = at(i), silicon = M.fleet.reduce((a: number, m: any) => a + m.racks * m.accel.gpuW * m.accel.gpusPerRack * (1 - m.accel.hbmShare) / 1e6, 0);

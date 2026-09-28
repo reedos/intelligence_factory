@@ -148,7 +148,7 @@ export function compute(s: Scenario) {
   const cooling = COOLING[accel.coolingOptions.includes(s.cooling) ? s.cooling : accel.coolingOptions[accel.coolingOptions.length - 1]];
   const site = s.site ? SITES[s.site as SiteId] : undefined, plant = site?.plant;
   const stages = site?.fleet;
-  const stage = stages && s.stage != null && stages[s.stage] && accel.id === site!.scenario.accel ? s.stage : null;
+  const stage = stages && s.stage != null && stages[s.stage]?.parts.some(p => p.gpus > 0) && accel.id === site!.scenario.accel ? s.stage : null;
 
   // ----- one rack of the accelerator the scenario names, the one the 3D levels draw -----
   const rack = rackOf(accel, power);
@@ -176,7 +176,7 @@ export function compute(s: Scenario) {
     // the operator's own GPU counts; a partly filled last rack still counts toward power as the share it holds
     fleet = stages![stage].parts.map(p => {
       const a = ACCELERATORS[p.accel];
-      return { accel: a, gpus: p.gpus, racks: p.gpus / a.gpusPerRack, rack: rackOf(a, power) };
+      return { accel: a, gpus: p.gpus, racks: p.gpus / a.gpusPerRack, rack: rackOf(a, a.dc800 ? power : POWER.ac415) };
     });
     const G = fleet.reduce((n, m) => n + m.gpus, 0);
     fab = fabricFor(G);
@@ -264,6 +264,9 @@ export function compute(s: Scenario) {
     { after: 14, label: 'GPU modules' },
   ];
   const pue = meterMW / IT_MW;
+  // whole racks per kind for display, apportioned so they add up to the campus total
+  const shown = fleet.map(m => Math.floor(m.racks)), rest = racks - shown.reduce((a, b) => a + b, 0);
+  fleet.map((m, k) => [m.racks - Math.floor(m.racks), k]).sort((a, b) => b[0] - a[0]).slice(0, Math.max(0, rest)).forEach(([, k]) => { shown[k]++; });
 
   // ----- staircases -----
   const kA = (w: number, v: number) => w / (Math.sqrt(3) * v * 0.95);   // three-phase current at pf 0.95
@@ -324,7 +327,9 @@ export function compute(s: Scenario) {
     rack,                                          // one rack of the drawn accelerator
     racks, gpus, cpus: Math.round(perRack(m => m.accel.cpusPerRack)),
     // what the campus runs: one member for a generic scenario, the operator's own mix for a real campus's stage
-    fleet: fleet.map(m => ({ accel: m.accel, gpus: m.gpus, racks: m.racks, rackKW: m.rack.kw })), mixed: fleet.length > 1, stage,
+    fleet: fleet.map((m, k) => ({ accel: m.accel, gpus: m.gpus, racks: m.racks, racksShown: shown[k], rackKW: m.rack.kw,
+      gpuMW: m.racks * (m.rack.pkgKW + m.rack.vrmLossKW) / (power.id === 'dc800' && m.accel.dc800 ? EFF.rackDcDc : m.accel.psuEff) / 1000 })),
+    mixed: fleet.length > 1, stage,
     rackAvgKW: perRack(m => m.rack.kw) / perRack(() => 1),
     gpuRackMW: R(m => (m.rack.pkgKW + m.rack.vrmLossKW) / (power.id === 'dc800' ? EFF.rackDcDc : m.accel.psuEff)),   // the part of rack power that swings with the GPUs
     hbmStacks: fleet.reduce((n, m) => n + m.gpus * (m.accel.id === 'h100' ? 5 : m.accel.hbm.stacks), 0),
