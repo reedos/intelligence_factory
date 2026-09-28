@@ -43,7 +43,8 @@ function backing(c) {
 const row = c => `<div class="ev-claim"><dt>${esc(c.label)}</dt><dd>${esc(c.value)}</dd><span class="chip ${c.basis}">${BASIS[c.basis]?.short || c.basis}</span>${backing(c)}</div>`;
 const view = (i, mode, id) => `index.html?view=${i}.${mode}.${id}#explore`;
 const GROUPS = [['ledger', '2.1', 'The ledger', `where ${Math.round(M.meterMW)} MW goes`], ['bom', '2.2', 'The inventory', 'counts sized from the scenario'],
-  ['links', '3.2', 'Links', 'copper and optics'], ['clock', '4', 'The clock', 'notes under the simulations'], ['site', '1', 'Real campuses', 'facts behind the presets']];
+  ['links', '3.2', 'Links', 'copper and optics'], ['clock', '4', 'The clock', 'notes under the simulations'], ['temps', '4.1', 'Hot to cold', 'one operating point per cooling design'], ['site', '1', 'Real campuses', 'facts behind the presets'],
+  ['tour', '▸', 'The tours', 'the figures each narrated stop states']];
 
 function render() {
   const q = $('ev-q').value.trim().toLowerCase();

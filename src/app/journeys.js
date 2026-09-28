@@ -1,14 +1,17 @@
 // Guided journeys: one thing followed end to end, with a running tally beside the 3D view.
 //   story    the overview: all six levels once, grid to token, stopping at each level's highlights in every layer
-//   watt     one watt from the meter to the silicon; the tally is what is left
-//   request  one question from a phone to an answer; the tally is elapsed time and energy
-//   heat     one GPU's heat from the die to the sky; the tally is temperature
+//   watt     one watt from the meter to the GPU dies; the tally is what is left
+//   request  one question from a phone to an answer; the tally is elapsed time
+//   heat     one GPU's heat from the die to the sky; the tally is where the heat is and how warm
 // Every tour moves through the levels one way, one level at a time: it never skips a level and never goes back to
 // one it has left (journeys.test.ts holds them to it), so the camera never jumps out and back in.
-// Beats: { link, k, title, text, tally, sim }. A sim runs that clock while the beat is on.
-import { tokenFigures } from '../model/tokens.js';
+// Beats: { link, k, title, text, tally, sim, specs, specKey, figure }. A sim runs that clock while the beat is on.
+// specs are the figures a beat states, each with its basis and evidence the way a card row carries them, and a card's
+// own row wherever the card already backs the figure, so entering a tour never strips a number of its qualification.
+// specKey names them as claims (claims.js): row j of a narrated tour's beat i is `tour:<id>:<i>:<j>`.
+import { tokenFigures, calc } from '../model/tokens.js';
 import { waterM3h } from '../model/engine.ts';
-import { content } from '../data.js';
+import { content, dieFlux, FACTS } from '../data.js';
 
 const at = (scene, part, mode = 'power') => ({ scene, mode, part });
 const w3 = v => v.toFixed(3);
@@ -17,77 +20,120 @@ const mw = v => v >= 1000 ? `${+(v / 1000).toFixed(2)} GW` : v >= 10 ? `${Math.r
 const n0 = v => Math.round(v).toLocaleString('en-US');
 const big = v => v >= 1e9 ? `${+(v / 1e9).toFixed(1)} billion` : v >= 1e6 ? `${+(v / 1e6).toFixed(1)} million` : n0(v);
 const pct = (a, b) => `${Math.round(a / b * 100)}%`;
+const wh = v => v < 1 ? v.toFixed(2) : v.toFixed(1);
+const ml = v => v >= 1 ? v.toFixed(1) : v > 0 ? `${+v.toPrecision(2)}` : '0';   // a request's water is often well under a milliliter
+
+// a card's own row, evidence and all, for a figure the card already backs; null when this scenario's card lacks it
+function cardRow(C, mode, scene, part, label) {
+  const P = { power: C.PARTS, data: C.PARTS_DATA, heat: C.PARTS_HEAT }[mode][C.SCENES[scene].id] || [];
+  return P.find(p => p.id === part)?.specs.find(r => r[0].startsWith(label)) || null;
+}
+const rows = (...r) => r.filter(Boolean);
+const keyed = (id, beats) => beats.map((b, i) => ({ ...b, specKey: `tour:${id}:${i}` }));
+
+// said once at the head of a tour, where its numbers need a caveat no single beat carries
+export const TOUR_NOTES = {
+  request: 'An illustrative timeline: the timings are round numbers, the same for every GPU choice, not a benchmark of the selected hardware. The energy and water come from this campus’s scenario.',
+  heat: 'Temperatures are one illustrative operating point for each cooling design, the same the cards and the Hot to cold chart use. Real plants move with load, flow and weather.',
+};
 
 // ---------- the overview: grid to token, one pass down, level by level ----------
 export function story(M) {
-  const A = M.accel, L = M.layout, nvl = A.gpusPerRack === 72, dc = M.power.id === 'dc800', air = M.cooling.id === 'air';
+  const C = content(M), A = M.accel, L = M.layout, nvl = A.gpusPerRack === 72, dc = M.power.id === 'dc800', air = M.cooling.id === 'air';
   const loss = p => M.ledger.filter(r => r.label.startsWith(p)).reduce((a, r) => a + r.mw, 0);
+  const ledgerRow = p => { const r = M.ledger.find(x => x.label.startsWith(p)); return r ? [r.label, mw(r.mw), r.basis, r.ev] : null; };
+  const card = (mode, scene, part, label) => cardRow(C, mode, scene, part, label);
   const t = tokenFigures(M), meter = mw(M.meterMW);
   const lineA = M.staircase[0].current.replace(' per phase', '');
-  const coreA = M.staircase[M.staircase.length - 1].current;
-  const net = M.NET.switchMW + M.NET.opticsMW;
+  const rackV = dc ? 800 : 415, rackA = M.meterMW * 1e6 / (dc ? 800 : Math.sqrt(3) * 415);
+  const net = M.NET.switchMW + M.NET.opticsMW, racksMW = M.racks * M.rack.kw / 1000, spare = loss('Unallocated');
   const dci = M.bandwidth[M.bandwidth.length - 1];
-  return [
+  const where = nvl ? 'trays' : 'servers';
+  const homes = +(M.meterMW * 1000 / 1.2).toPrecision(2);   // for scale only: two figures is all the 1.2 kW average supports
+  return keyed('story', [
     // 1 · scale across
     { link: at(0, 'home'), k: 'Scale across', title: `${meter}, one grid customer`,
-      text: `This campus draws ${meter} at its meter, about as much as ${n0(M.meterMW * 1000 / 1.2)} American homes. The grid lost about 5% delivering it. Every number below follows from that one choice and the three others in the scenario bar.` },
+      text: `This campus draws ${meter} at its meter, about as much as ${n0(homes)} American homes. The grid lost about 5% delivering it. Every number below follows from that one choice and the three others in the scenario bar.`,
+      specs: rows(['Meter power', meter, 'assumed', { assume: 'scenario-meter-choice' }], ['American homes, same power', `≈${n0(homes)}`, 'derived', { calc: 'homes-equivalent' }], card('power', 1, 'line', 'US grid losses')) },
     { link: at(0, 'route', 'data'), k: 'Data · scale across', title: 'Even light takes time',
-      text: `Campuses hundreds of kilometers apart can train one model together. Light is the fastest thing there is, but in glass it travels at about two thirds of its speed in a vacuum, so crossing 1,000 km still takes ${dci.latency.replace('one way', 'each way')}. A training step can't wait on that every time, so sites sync rarely: the long links carry the least, and the fast ones are further in.` },
+      text: `Campuses hundreds of kilometers apart can train one model together. In glass, light travels at about two thirds of its speed in a vacuum, so crossing 1,000 km still takes ${dci.latency.replace('one way', 'each way')}. That makes synchronizing often expensive, and some methods, such as DiLoCo, synchronize much less often. In this model the long links carry the least traffic per GPU, and the fast ones are further in.`,
+      specs: rows(card('data', 0, 'route', '1,000 km'), card('data', 0, 'remote', 'DeepMind Decoupled DiLoCo')) },
     // 2 · grid and campus
     { link: at(1, 'line'), k: 'Grid & campus', title: '345,000 volts',
-      text: `The power arrives at 345 kV so the current stays small: ${lineA} per phase for the whole campus. At the rack, the same power would need tens of thousands of amps.` },
+      text: `The power arrives at 345 kV so the current stays small: ${lineA} per phase on each of the line’s two circuits. At ${dc ? '800 V DC' : '415 V'}, the voltage a rack takes, the same power would need about ${n0(Math.round(rackA / 1000) * 1000)} amps.`,
+      specs: rows(card('power', 1, 'line', 'Voltage'), card('power', 1, 'line', 'Current'), [`Same power at ${rackV} V`, `≈${n0(Math.round(rackA / 1000) * 1000)} A`, 'derived', { calc: 'current-at-rack-voltage' }]) },
     { link: at(1, 'mpt'), k: 'Grid & campus', title: 'The first step down',
-      text: `The campus has ${L.transformers} main transformers to take it down to 34.5 kV. They are 99.6% efficient, and still turn ${mw(loss('Main power'))} into heat.` },
+      text: `The campus has ${L.transformers} main transformers to take it down to 34.5 kV. They are 99.6% efficient, and still turn ${mw(loss('Main power'))} into heat.`,
+      specs: rows(card('power', 1, 'mpt', 'Rating'), card('power', 1, 'mpt', 'Efficiency'), card('power', 1, 'mpt', 'Loss at')) },
     { link: at(1, 'bess'), sim: 'training', k: 'Grid & campus', title: 'Standing by',
       text: M.backup === 'battery'
-        ? `No diesel here: the operator mentions no generators, only a ${(L.bessMWh / 1000).toFixed(1)} GWh grid-connected battery pack it says is planned. If that pack can deliver the full load, it could carry this campus for about ${(L.bessMWh / L.bessMW).toFixed(0)} hours. The same batteries soak up training load swings, which can move a campus tens of megawatts in under a second.`
-        : `${n0(L.gensets)} diesel generators and ${n0(L.bessMWh)} MWh of batteries wait for the grid to fail. The batteries also soak up training load swings, which can move a campus tens of megawatts in under a second.` },
+        ? `No diesel here: the operator mentions no generators, only a ${(L.bessMWh / 1000).toFixed(1)} GWh grid-connected battery pack it says is planned. If that pack can deliver the full load, it could carry this campus for about ${(L.bessMWh / L.bessMW).toFixed(0)} hours. The model has the same batteries soak up training load swings, which can move a campus by tens of megawatts within seconds.`
+        : `${n0(L.gensets)} diesel generators and ${n0(L.bessMWh)} MWh of batteries wait for the grid to fail. The batteries also soak up training load swings, which can move a campus by tens of megawatts within seconds.`,
+      specs: M.backup === 'battery'
+        ? rows(card('power', 1, 'bess', 'Energy, per SpaceXAI'), card('power', 1, 'bess', 'Power, assumed'), card('power', 1, 'bess', 'At full load'), card('power', 1, 'bess', 'Diesel generators'))
+        : rows(card('power', 1, 'gensets', 'Units here'), card('power', 1, 'bess', 'Size here'), card('power', 1, 'bess', 'Training load swings')) },
     { link: at(1, M.closedLoop ? 'chillers' : air || M.cooling.id === 'liquid' ? 'towers' : 'drycoolers', 'heat'), sim: 'hotday', k: 'Heat · grid & campus', title: 'All of it comes back out',
-      text: `Every one of those ${meter} leaves again as heat. ${M.cooling.id === 'warm' ? 'Warm water climbs to dry coolers on the roofs' : M.closedLoop ? 'Air-cooled chillers on a closed loop push it into the air' : 'Chillers and cooling towers carry it away'}; cooling alone takes ${mw(M.coolMW)}. With the conversion losses, this design runs at PUE ${M.pue.toFixed(2)}${M.closedLoop ? ' and, by the operator’s account, cools on a closed loop that takes only domestic water, so the model counts no cooling water.' : ` and uses about ${big(waterM3h(M) * 24)} m³ of water a day (WUE is measured per kWh of IT energy, not meter energy).`}` },
+      text: `Every one of those ${meter} leaves again as heat. ${M.cooling.id === 'warm' ? 'Warm water climbs to dry coolers on the roofs' : M.closedLoop ? 'Air-cooled chillers on a closed loop push it into the air' : 'Chillers and cooling towers carry it away'}; cooling alone takes ${mw(M.coolMW)}. With the conversion losses, this design runs at PUE ${M.pue.toFixed(2)}${M.closedLoop ? ' and, by the operator’s account, cools on a closed loop that takes only domestic water, so the model counts no cooling water.' : ` and uses about ${big(waterM3h(M) * 24)} m³ of water a day (WUE is measured per kWh of IT energy, not meter energy).`}`,
+      specs: rows(['Cooling power', mw(M.coolMW), 'derived', { calc: 'campus-cooling-power' }], ['PUE, this design', M.pue.toFixed(2), 'derived', { calc: 'it-load-pue' }],
+        M.closedLoop ? card('power', 1, 'chillers', 'Cooling water, per SpaceXAI') : ['Water on site, a day', `≈${big(waterM3h(M) * 24)} m³`, 'derived', { calc: 'campus-water-per-day', assume: 'wue-by-cooling' }]) },
     // 3 · power room and data hall
     dc
       ? { link: at(2, 'sst'), sim: 'outage', k: 'Power room', title: 'Straight to 800 V DC',
-        text: `Solid-state transformers turn 34.5 kV AC into 800 V DC in one step, losing ${mw(loss('Solid-state'))}. No UPS, no rack rectifiers: batteries sit right on the DC bus.` }
+        text: `Solid-state transformers turn 34.5 kV AC into 800 V DC in one step, losing ${mw(loss('Solid-state'))}. No UPS, no rack rectifiers: batteries sit right on the DC bus.`,
+        specs: rows(card('power', 2, 'sst', 'Efficiency'), card('power', 2, 'sst', 'Loss')) }
       : { link: at(2, 'ups'), sim: 'outage', k: 'Power room', title: 'Clean power, at a price',
-        text: `UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs ${mw(loss('UPS'))}, more than any other step before the rack.` },
+        text: `UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs ${mw(loss('UPS'))}, more than any other step before the rack.`,
+        specs: rows(card('power', 2, 'ups', 'Efficiency'), card('power', 2, 'ups', 'Loss at')) },
     { link: at(2, 'racks'), k: 'Data hall', title: `${n0(M.racks)} racks`,
-      text: `The IT load, ${mw(M.IT_MW)}, lands on ${n0(M.racks)} ${nvl ? A.rackName : 'DGX H100'} racks of about ${Math.round(M.rack.kw)} kW each, in ${M.halls} ${M.halls > 1 ? 'halls' : 'hall'}. That is ${n0(M.gpus)} GPUs.` },
-    { link: at(2, 'spine', 'data'), k: 'Data · the hall', title: `${n0(M.NET.switches)} switches`,
-      text: `Every GPU gets its own optical port into a ${M.NET.tiers}-tier fabric. Switches and optics outside the racks draw ${mw(net)}, and there are about ${big(M.NET.fibers)} strands of fiber.` },
+      text: `Of the ${mw(M.IT_MW)} of IT load, ${mw(racksMW)} runs ${n0(M.racks)} ${nvl ? A.rackName : 'DGX H100'} racks of about ${Math.round(M.rack.kw)} kW each, in ${M.halls} ${M.halls > 1 ? 'halls' : 'hall'}: ${n0(M.gpus)} GPUs. The network switches, and the optical modules at both ends of each scale-out link, take ${mw(net)}${spare >= 0.05 ? `, and ${mw(spare)} is spare capacity, short of one more rack` : ''}.`,
+      specs: rows(['IT load', mw(M.IT_MW), 'derived', { calc: 'it-load-pue' }], ['Compute racks', `${n0(M.racks)} × ≈${Math.round(M.rack.kw)} kW = ${mw(racksMW)}`, 'derived', { calc: 'campus-rack-count' }],
+        ['Network, switches and optics', mw(net), 'derived', { calc: 'ledger-fabric-power' }], ['GPUs', n0(M.gpus), 'derived', { calc: 'campus-gpu-count' }]) },
+    { link: at(2, 'spine', 'data'), k: 'Data · the hall', title: `${n0(M.NET.switches)} switches`, figure: 'optics-cutaway',
+      text: `Every GPU gets its own optical port into a ${M.NET.tiers}-tier fabric. The switches, and the optical modules at both ends of each link, including the ones plugged into the ${where}, draw ${mw(net)}, and there are about ${big(M.NET.fibers)} strands of fiber.`,
+      specs: rows(ledgerRow('Scale-out switches'), ledgerRow('Optical transceivers'), card('data', 2, 'odf', 'Fabric strands')) },
     // 4 · the rack
     ...(nvl ? [
       { link: at(3, 'shelves'), k: 'The rack', title: dc ? '800 V down to 50' : 'AC becomes DC',
-        text: `${dc ? 'DC-DC shelves' : 'Power shelves'} make about 50 V for a copper busbar down the back of the rack, carrying ${M.staircase.find(s => s.v === 50)?.current ?? ''}. That is why it is a bar, not a cable.` },
+        text: `${dc ? 'DC-DC shelves' : 'Power shelves'} make about 50 V for a copper busbar down the back of the rack, carrying ${M.staircase.find(s => s.v === 50)?.current ?? ''}. That is why it is a bar, not a cable.`,
+        specs: rows(card('power', 3, 'shelves', 'Efficiency'), ['Busbar current', M.staircase.find(s => s.v === 50)?.current ?? '', 'derived', { calc: 'busbar-current' }]) },
       { link: at(3, 'nvswitch', 'data'), k: 'Data · the rack', title: '72 GPUs, one machine',
-        text: `${A.nvlink.gen} ties all 72 GPUs together through switch trays in the middle of the rack, ${A.nvlink.tbs} TB/s per GPU, in copper. The chattiest work, splitting each layer, stays here.` },
+        text: `${A.nvlink.gen} ties all 72 GPUs together through switch trays in the middle of the rack: ${A.nvlink.tbs} TB/s per GPU, both directions combined, in copper. The chattiest work, splitting each layer, stays here.`,
+        specs: rows(card('data', 3, 'nvswitch', 'Per GPU'), card('data', 3, 'nvswitch', 'Trays')) },
     ] : [
       { link: at(3, 'psus'), k: 'The rack', title: 'Every server its own supplies',
-        text: `Power strips hand 240 V to each server, and six supplies inside each one make 54 V. Air cools it all: the reference design allows only four servers, about ${Math.round(M.rack.kw)} kW, per rack.` },
+        text: `Power strips hand 240 V to each server, and six supplies inside each one make 54 V. Air cools it all: the reference design allows only four servers, about ${Math.round(M.rack.kw)} kW, per rack.`,
+        specs: rows(card('power', 3, 'psus', 'Per server'), card('power', 3, 'psus', 'Efficiency'), ['Rack power, this model', `≈${Math.round(M.rack.kw)} kW`, 'derived', { calc: 'hall-rack-power' }]) },
     ]),
     // 5 · the tray or server
     { link: at(4, 'vrm'), k: nvl ? 'Compute tray' : 'The server', title: 'The last volt',
-      text: `Voltage regulators ring each GPU and make the final step to about 0.8 V: ${coreA} into one chip. They lose ${mw(loss('Voltage regulators'))} across the campus doing it.` },
+      text: `Voltage regulators ring each GPU and make the final step to about 0.8 V: ${M.staircase[M.staircase.length - 1].current} into one chip. They lose ${mw(loss('Voltage regulators'))} across the campus doing it.`,
+      specs: rows(card('power', 4, 'vrm', 'Core current'), card('power', 4, 'vrm', 'Efficiency'), card('power', 4, 'vrm', 'Loss, campus-wide')) },
     ...(nvl ? [] : [
       { link: at(4, 'nvswitch', 'data'), k: 'Data · the server', title: 'Eight GPUs, one machine',
-        text: 'NVLink ties eight GPUs together on one board through four NVSwitch chips, 900 GB/s each. The domain ends at the server; everything else is network.' },
+        text: 'NVLink ties eight GPUs together on one board through four NVSwitch chips: 900 GB/s per GPU, both directions combined. The domain ends at the server; everything else is network.',
+        specs: rows(card('data', 4, 'nvswitch', 'Per GPU'), card('data', 4, 'nvswitch', 'Switch chips')) },
     ]),
     // 6 · the package, and what comes out of it
-    { link: at(5, 'dies'), k: 'GPU package', title: `${pct(M.gpuSiliconMW, M.meterMW)} reaches the silicon`,
-      text: `Of ${meter} at the meter, ${mw(M.gpuSiliconMW)} ends up in the GPU dies themselves. Almost all the rest became heat in conversion, cooling, memory, CPUs and the network; a sliver was never drawn at all, spare capacity from rounding down to a whole rack.` },
-    { link: at(5, 'hbm', 'data'), k: 'Data · GPU package', title: 'Memory sets the pace',
-      text: `${A.hbm.type} feeds each GPU at ${A.hbm.tbs} TB/s. Writing a reply means reading the model's weights for every token, so serving speed follows memory bandwidth more than raw math.` },
+    { link: at(5, 'dies'), k: 'GPU package', title: `${pct(M.gpuSiliconMW, M.meterMW)} reaches the GPU dies`,
+      text: `Of ${meter} at the meter, ${mw(M.gpuSiliconMW)} reaches the GPU dies themselves, where it runs the computation, on-chip memory, communication, control and leakage. Almost all the rest became heat on the way, in conversion, cooling, memory, CPUs and the network; a sliver was never drawn at all, spare capacity from rounding down to a whole rack.`,
+      specs: rows(['GPU dies, whole campus', mw(M.gpuSiliconMW), 'derived', { calc: 'gpu-die-power' }], ['Share of the meter', pct(M.gpuSiliconMW, M.meterMW), 'derived', { calc: 'gpu-die-power' }]) },
+    { link: at(5, 'hbm', 'data'), k: 'Data · GPU package', title: 'Memory paces the decode',
+      text: `${A.hbm.type} feeds each GPU at ${A.hbm.tbs} TB/s. When a reply is written one token at a time for a small batch, every token reads the model’s weights again, so that step is usually limited by memory bandwidth more than by raw math. Prefill, and large batches, lean more on compute.`,
+      specs: rows(card('data', 5, 'hbm', 'Bandwidth')) },
     { link: at(5, 'tokens'), sim: 'inference', k: 'Tokens', title: `${big(t.rate)} tokens a second`,
-      text: `At the utilization set below, the campus writes about ${big(t.rate)} tokens a second, ${big(3.6e6 / t.j)} per kilowatt-hour including its share of training. Change the scenario and the tour retells itself.` },
-  ];
+      text: `At the utilization set below, the campus writes about ${big(t.rate)} tokens a second, ${big(3.6e6 / t.j)} per kilowatt-hour at the meter${calc.withTrain ? ', including its share of training' : ', for serving alone: the training share is switched off below'}. Change the scenario and the tour retells itself.`,
+      specs: rows(['Tokens a second, campus', big(t.rate), 'derived', { calc: 'token-rate', assume: 'tokens-per-gpu-default' }], ['Tokens per kWh at the meter', big(3.6e6 / t.j), 'derived', { calc: 'energy-per-token' }]) },
+  ]);
 }
 
 // ---------- a watt ----------
 export function watt(M) {
-  const rows = M.ledger, meter = M.meterMW, nvl = M.accel.gpusPerRack === 72, dc = M.power.id === 'dc800';
-  const share = pre => rows.filter(r => pre.some(p => r.label.startsWith(p))).reduce((a, r) => a + r.mw, 0) / meter;
+  const rows_ = M.ledger, meter = M.meterMW, nvl = M.accel.gpusPerRack === 72, dc = M.power.id === 'dc800';
+  const share = pre => rows_.filter(r => pre.some(p => r.label.startsWith(p))).reduce((a, r) => a + r.mw, 0) / meter;
   let left = 1;
   const take = f => { left -= f; return `${w3(left)} W left`; };
   const pct = f => `${w3(f)} W`;   // watts, not mW: the display font is uppercase and would turn mW into MW
+  const slice = f => [['This step, per watt at the meter', `${w3(f)} W`, 'derived', { calc: 'watt-slices' }]];
   const grid = share(['Main power', 'Campus cables']);
   const room = share(dc ? ['Unit substations', 'Solid-state', '800 V DC'] : ['Unit substations', 'UPS', 'Busway']);
   const cool = share(['Cooling', 'Lighting']);
@@ -97,65 +143,107 @@ export function watt(M) {
   const host = share([M.accel.cpuName, 'SuperNICs', 'NICs', 'SSDs']);
   const board = share(['Bus converters', 'Voltage regulators']);
   const hbm = share([M.accel.hbm.type]);
+  const spare = share(['Unallocated']);
   const beats = [
-    { link: at(0, 'home'), k: 'The meter', title: 'One watt', tally: '1.000 W', text: `Take one watt of the ${mw(meter)} this campus draws and follow it. Every step below takes a slice; the number beside the scene shows what is left for the math.` },
-    { link: at(1, 'mpt'), k: 'Grid & campus', title: `${pct(grid)} to the yard`, tally: take(grid), text: 'The main transformers and the campus cables and switchgear warm up a little as the watt passes: the cheapest step there is.' },
-    { link: at(1, M.cooling.id === 'warm' ? 'drycoolers' : 'chillers'), k: 'A detour', title: `${pct(cool)} to cooling and the building`, tally: take(cool), text: `Part of every watt never reaches a rack: it runs ${M.cooling.id === 'warm' ? 'dry-cooler fans and pumps' : M.closedLoop ? 'air-cooled chillers and pumps' : 'chillers, towers and pumps'}, lights and controls. That slice is most of the gap between PUE ${M.pue.toFixed(2)} and 1.` },
-    { link: at(2, dc ? 'sst' : 'ups'), k: 'Power room', title: `${pct(room)} to the power room`, tally: take(room), text: dc ? 'Solid-state transformers make 800 V DC in one conversion, and the DC bus loses a little more on the way to the rows.' : 'Unit substations, the UPS double conversion and the busway each take their share. The UPS is the big one.' },
-    { link: at(2, 'spine', 'data'), k: 'Network', title: `${pct(net)} to the fabric`, tally: take(net), text: 'Switches and optical modules outside the racks, the price of letting every GPU reach every other.' },
-    { link: at(3, nvl ? 'shelves' : 'psus'), k: 'The rack', title: `${pct(rack)} to rack power`, tally: take(rack), text: nvl ? `${dc ? 'DC-DC shelves step 800 V down to 50 V' : 'Power shelves turn AC into 50 V DC'}, and the copper busbar warms slightly carrying it.` : 'Each server’s own supplies turn AC into 54 V; the cords lose a little on the way.' },
-    { link: nvl ? at(3, 'nvswitch') : at(4, 'nvswitch'), k: 'Scale-up', title: `${pct(nvsw)} to NVLink switches`, tally: take(nvsw), text: 'The switch chips that let the GPUs share memory draw their share before any math happens.' },
-    { link: at(4, nvl ? 'grace' : 'cpu'), k: nvl ? 'Compute tray' : 'The server', title: `${pct(host)} to CPUs, NICs and drives`, tally: take(host), text: 'The host side: CPUs, memory, network cards and drives. Necessary, but not the model math.' },
-    { link: at(4, 'vrm'), k: 'The last volt', title: `${pct(board)} to converters and regulators`, tally: take(board), text: 'Bus converters and the rings of voltage regulators beside each GPU bring the watt down to under a volt, and lose about a tenth of what passes through.' },
-    { link: at(5, 'hbm'), k: 'GPU package', title: `${pct(hbm)} to memory`, tally: take(hbm), text: `${M.accel.hbm.type} stacks beside the dies use their share moving weights in and out.` },
+    { link: at(0, 'home'), k: 'The meter', title: 'One watt', tally: '1.000 W', text: `Take one watt of the ${mw(meter)} this campus draws and follow it. Every step below takes a slice; the number beside the scene shows what is left on its way to the GPU dies.`,
+      specs: [['Meter power', mw(meter), 'assumed', { assume: 'scenario-meter-choice' }]] },
+    { link: at(1, 'mpt'), k: 'Grid & campus', title: `${pct(grid)} to the yard`, tally: take(grid), text: 'The main transformers and the campus cables and switchgear warm up a little as the watt passes: the cheapest step there is.', specs: slice(grid) },
+    { link: at(1, M.cooling.id === 'warm' ? 'drycoolers' : 'chillers'), k: 'A detour', title: `${pct(cool)} to cooling and the building`, tally: take(cool), text: `Part of every watt never reaches a rack: it runs ${M.cooling.id === 'warm' ? 'dry-cooler fans and pumps' : M.closedLoop ? 'air-cooled chillers and pumps' : 'chillers, towers and pumps'}, lights and controls. That slice is most of the gap between PUE ${M.pue.toFixed(2)} and 1.`,
+      specs: [...slice(cool), ['PUE, this design', M.pue.toFixed(2), 'derived', { calc: 'it-load-pue' }]] },
+    { link: at(2, dc ? 'sst' : 'ups'), k: 'Power room', title: `${pct(room)} to the power room`, tally: take(room), text: dc ? 'Solid-state transformers make 800 V DC in one conversion, and the DC bus loses a little more on the way to the rows.' : 'Unit substations, the UPS double conversion and the busway each take their share. The UPS is the big one.', specs: slice(room) },
+    { link: at(2, 'spine', 'data'), k: 'Network', title: `${pct(net)} to the fabric`, tally: take(net), text: `Switches, and the optical modules at both ends of every scale-out link, including the ones plugged into the ${nvl ? 'trays' : 'servers'}: the price of letting every GPU reach every other.`, specs: slice(net) },
+    { link: at(3, nvl ? 'shelves' : 'psus'), k: 'The rack', title: `${pct(rack)} to rack power`, tally: take(rack), text: nvl ? `${dc ? 'DC-DC shelves step 800 V down to 50 V' : 'Power shelves turn AC into 50 V DC'}, and the copper busbar warms slightly carrying it.` : 'Each server’s own supplies turn AC into 54 V; the cords lose a little on the way.', specs: slice(rack) },
+    { link: nvl ? at(3, 'nvswitch') : at(4, 'nvswitch'), k: 'Scale-up', title: `${pct(nvsw)} to NVLink switches`, tally: take(nvsw), text: 'The NVLink switch chips that let the GPUs share memory draw their share.', specs: slice(nvsw) },
+    { link: at(4, nvl ? 'grace' : 'cpu'), k: nvl ? 'Compute tray' : 'The server', title: `${pct(host)} to CPUs, NICs and drives`, tally: take(host), text: 'The host side: CPUs, memory, network cards and drives. They keep the GPUs fed, and none of this slice reaches a GPU die.', specs: slice(host) },
+    { link: at(4, 'vrm'), k: 'The last volt', title: `${pct(board)} to converters and regulators`, tally: take(board), text: 'Bus converters and the rings of voltage regulators beside each GPU bring the watt down to under a volt, and lose about a tenth of what passes through.', specs: slice(board) },
+    { link: at(5, 'hbm'), k: 'GPU package', title: `${pct(hbm)} to memory`, tally: take(hbm), text: `${M.accel.hbm.type} stacks beside the dies use their share moving weights in and out.`, specs: slice(hbm) },
   ];
-  left -= share(['Unallocated']);   // rounds down to a whole rack: never drawn at all, so it gets no beat of its own
-  beats.push({ link: at(5, 'dies'), k: 'The silicon', title: `${w3(left)} W does the math`, tally: `${w3(left)} W left`, text: `About ${Math.round(left * 100)}% of the watt reaches the transistors that do the arithmetic. It becomes heat there too, a few nanoseconds after it becomes a token.` });
-  return beats;
+  left -= spare;   // rounds down to a whole rack: never drawn at all, so it gets no beat of its own
+  beats.push({ link: at(5, 'dies'), k: 'The GPU dies', title: `${w3(left)} W reaches the GPU dies`, tally: `${w3(left)} W left`,
+    text: `About ${Math.round(left * 100)}% of the watt reaches the GPU dies. There it powers the computation, on-chip memory, communication, control and leakage, and almost all of it ends as heat. This model does not estimate how much of it is useful arithmetic.${spare >= 0.0005 ? ` The ${w3(spare)} W the tour skipped is spare capacity, short of a whole rack, and was never drawn at all.` : ''}`,
+    specs: [['Reaches the GPU dies, per watt', `${w3(left)} W`, 'derived', { calc: 'gpu-die-power' }]] });
+  return keyed('watt', beats);
 }
 
 // ---------- a request ----------
+// The camera goes inward one level at a time, which is not quite the order a request happens in: the stop at the rack
+// is a look at where the request will run, not a step in time, so it adds none.
 export function request(M) {
-  const t = tokenFigures(M), nvl = M.accel.gpusPerRack === 72;
+  const C = content(M), t = tokenFigures(M), nvl = M.accel.gpusPerRack === 72;
+  const card = (mode, scene, part, label) => cardRow(C, mode, scene, part, label);
   const replyTok = 500, streamTps = 60;               // an interactive reply and a per-user stream rate (illustrative)
-  const decodeS = replyTok / streamTps, whReply = t.j * replyTok / 3600;
+  const T = { net: 25, vault: 1, queue: 50, frontEnd: 0.2, prefill: 200 };   // ms, illustrative (ASSUMPTIONS 'request-timeline')
+  const decodeS = replyTok / streamTps, whReply = t.j * replyTok / 3600, whIT = whReply / M.pue;
+  const ttft = T.net + T.vault + T.queue + T.frontEnd + T.prefill + T.net;   // until the first word is back on the phone
   let ms = 0;
   const add = v => { ms += v; return ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.round(ms)} ms`; };
-  return [
-    { link: at(0, 'route', 'data'), k: 'Scale across', title: 'A question leaves a phone', tally: add(25), text: 'Your prompt crosses the internet to the nearest region: tens of milliseconds, most of it light in fiber at about 5 µs per kilometer. The ≈25 ms here is illustrative.' },
-    { link: at(1, 'fiber', 'data'), k: 'Grid & campus', title: 'In through the fiber vault', tally: add(1), text: 'It enters through one of the two diverse fiber routes, the same way the answer will leave.' },
-    { link: at(2, 'dp', 'data'), k: 'Data hall', title: 'Waiting for a seat', tally: add(50), text: 'The hall holds many copies of the model, each on its own GPUs. A scheduler batches your request with others onto one of them; under load the wait can be longer than every network hop combined. 50 ms here is illustrative.' },
-    { link: at(3, 'tp', 'data'), k: 'Scale-up', title: 'Every layer, a conversation', tally: add(0), text: `Your copy of the model is split across ${nvl ? 'the GPUs of a rack' : 'the 8 GPUs of a server'}. Inside every layer they swap partial results over NVLink, in well under a microsecond each time, hundreds of times per token.` },
-    { link: at(4, 'dpu', 'data'), k: nvl ? 'Compute tray' : 'The server', title: 'The front-end network', tally: add(0.2), text: `The request itself arrives on a separate network, run by DPUs on each ${nvl ? 'tray' : 'server'} and kept apart from the GPU fabric.` },
-    { link: at(5, 'hbm', 'data'), k: 'GPU package', title: 'Reading the prompt', tally: add(200), text: `Prefill: all your prompt's tokens go through the model at once, reading the weights from ${M.accel.hbm.type}. For a long prompt this takes a few hundred milliseconds, the time to the first word.` },
-    { link: at(5, 'tokens'), sim: 'inference', k: 'Tokens', title: `${replyTok} tokens, one at a time`, tally: add(decodeS * 1000), text: `Decode: each new token reads the weights again. At ${streamTps} tokens a second for your stream (illustrative), a ${replyTok}-token answer takes about ${decodeS.toFixed(1)} s. It costs about ${whReply < 1 ? whReply.toFixed(2) : whReply.toFixed(1)} Wh at this campus, cooling and training share included.` },
-    { link: at(5, 'tokens', 'data'), k: 'Out', title: 'The answer streams back', tally: add(25), text: `Words leave as they are written, a few bytes each, back out the way the question came in. In all: about ${(ms / 1000).toFixed(1)} s and ${whReply < 1 ? whReply.toFixed(2) : whReply.toFixed(1)} Wh, about ${t.waterReply.toFixed(1)} mL of water on site (WUE's own boundary, IT energy).` },
-  ];
+  const timeline = ['Timing', 'illustrative, the same for every GPU', 'assumed', { assume: 'request-timeline' }];
+  const energy = ['Energy per reply, at the meter', `≈${wh(whReply)} Wh${calc.withTrain ? ', training share included' : ', serving only'}`, 'derived', { calc: 'reply-energy' }];
+  return keyed('request', [
+    { link: at(0, 'route', 'data'), k: 'Scale across', title: 'A question leaves a phone', tally: add(T.net), text: `Your prompt crosses the internet to the nearest region: tens of milliseconds, much of it light in fiber at about 5 µs per kilometer. The ≈${T.net} ms here is illustrative.`,
+      specs: rows(timeline, card('data', 0, 'route', 'Speed in fiber')) },
+    { link: at(1, 'fiber', 'data'), k: 'Grid & campus', title: 'In through the fiber vault', tally: add(T.vault), text: 'It enters through one of the two diverse fiber routes, the same way the answer will leave.',
+      specs: rows(card('data', 1, 'fiber', 'Routes')) },
+    { link: at(2, 'racks', 'data'), k: 'Data hall', title: 'Waiting for a seat', tally: add(T.queue), text: `The hall holds many copies of the model. In this tour a serving copy lives on ${nvl ? 'one rack’s 72 GPUs' : 'one 8-GPU server'}; the training layout on the pipeline and data-parallel cards is different. A scheduler batches your request with others onto one copy, and under load that wait can be longer than every network hop combined. The ${T.queue} ms here is illustrative.`,
+      specs: rows(['A serving copy, this tour', nvl ? 'one rack, 72 GPUs' : 'one server, 8 GPUs', 'assumed', { assume: 'serving-replica' }], timeline) },
+    { link: at(3, 'tp', 'data'), k: 'Scale-up · where it will run', title: 'Every layer, a conversation', tally: add(0), text: `Your copy of the model is split across ${nvl ? 'the GPUs of this rack' : 'the 8 GPUs of a server'}. During prefill and decoding they will exchange partial results over NVLink inside every layer, many times per token. How long each exchange takes depends on message size, the number of GPUs and the software, so this stop adds no time.`,
+      specs: rows(card('data', 3, 'tp', 'Traffic'), card('data', 2, 'racks', 'NVLink per GPU')) },
+    { link: at(4, 'dpu', 'data'), k: nvl ? 'Compute tray' : 'The server', title: 'The front-end network', tally: add(T.frontEnd), text: `The request itself arrives on a separate network, kept apart from the GPU fabric, through the ${nvl ? 'DPU on each tray' : 'front-end network cards on each server'}.`,
+      specs: rows(card('data', 4, 'dpu', ''), timeline) },
+    { link: at(5, 'dies'), k: 'GPU package', title: 'Reading the prompt', tally: add(T.prefill), text: `Prefill: the model takes in your prompt’s tokens in parallel, often in chunks alongside other requests. Each weight it reads serves many prompt tokens, so prefill is usually limited by compute rather than memory. Here it takes ${T.prefill} ms (illustrative). With the trip in, the queue and the trip back, the first word reaches you about ${Math.round(ttft)} ms after you pressed send: that whole wait, not prefill alone, is the time to first token.`,
+      specs: rows(['Prefill, this example', `${T.prefill} ms`, 'assumed', { assume: 'request-timeline' }], ['Time to first token, this example', `≈${Math.round(ttft)} ms`, 'derived', { calc: 'request-ttft' }]) },
+    { link: at(5, 'hbm', 'data'), sim: 'inference', k: 'GPU package', title: `${replyTok} tokens, one at a time`, tally: add(decodeS * 1000), text: `Decode: each new token needs the model’s weights read again from ${M.accel.hbm.type}, shared across the batch of users served together, so this step is usually limited by memory bandwidth. At ${streamTps} tokens a second for your stream (illustrative), a ${replyTok}-token answer takes about ${decodeS.toFixed(1)} s. It costs about ${wh(whReply)} Wh at this campus’s meter, cooling included${calc.withTrain ? ', and a share of training' : ''}.`,
+      specs: rows(['Stream rate and reply length', `${streamTps} tokens/s, ${replyTok} tokens`, 'assumed', { assume: 'request-timeline' }], energy, card('data', 5, 'hbm', 'Bandwidth')) },
+    { link: at(5, 'tokens', 'data'), k: 'Out', title: 'The answer streams back', tally: add(T.net), text: `Words leave as they are written, a few bytes each, back out the way the question came in. In all: about ${(ms / 1000).toFixed(1)} s, and about ${wh(whReply)} Wh at the meter, of which about ${wh(whIT)} Wh reached the IT equipment. ${M.closedLoop ? 'The operator reports closed-loop cooling that takes only domestic water, so the model counts no cooling water.' : `At this design’s WUE of ${M.wue.toFixed(2)} L per kWh of IT energy, that is about ${ml(t.waterReply)} mL of water on site.`}`,
+      specs: rows(energy, ['IT energy per reply', `≈${wh(whIT)} Wh`, 'derived', { calc: 'reply-energy' }],
+        M.closedLoop ? card('power', 1, 'chillers', 'Cooling water, per SpaceXAI') : ['Water on site, per reply', `≈${ml(t.waterReply)} mL`, 'derived', { calc: 'reply-water', assume: 'wue-by-cooling' }]) },
+  ]);
 }
 
 // ---------- the heat ----------
+// Every temperature comes from the engine's one operating point per cooling design (M.temps), the same the cards and
+// the Hot to cold chart read, and each says which loop and which side of it: supply runs to the heat, return away.
 export function heat(M) {
-  const nvl = M.accel.gpusPerRack === 72, warm = M.cooling.id === 'warm', air = M.cooling.id === 'air';
-  const T = (nvl ? (warm ? [70, 55, 52, 45, 35] : [65, 40, 38, 30, 35]) : [80, 40, 40, 12, 35]);
-  const W = Math.round(M.accel.gpuW);
-  return [
-    { link: at(5, 'junction', 'heat'), k: 'The die', title: `${W} W in a few square centimeters`, tally: `≈${T[0]} °C`, text: `Every watt the GPU takes becomes heat in the silicon, ${Math.round(M.accel.gpuW * (1 - M.accel.hbmShare) / (M.accel.dies > 1 ? 16 : 8.14))} W per square centimeter on average.` },
-    { link: at(5, 'tim', 'heat'), k: 'The first hop', title: 'Through the lid', tally: `≈${T[0] - 8} °C`, text: 'Thermal interface material carries it into the lid, then into the metal above. Each layer costs a few degrees.' },
+  const C = content(M), A = M.accel, T = M.temps, nvl = A.gpusPerRack === 72, warm = M.cooling.id === 'warm', air = M.cooling.id === 'air';
+  const card = (mode, scene, part, label) => cardRow(C, mode, scene, part, label);
+  const loop = (label, v) => [label, v, 'assumed', { assume: 'loop-temps' }];
+  const pkgW = Math.round(A.gpuW), dieW = Math.round(A.gpuW * (1 - A.hbmShare)), dies = A.dies > 1 ? 'dies' : 'die';
+  const liqKW = Math.round(M.rack.kw * (air ? 0 : A.liquidShare));
+  return keyed('heat', [
+    { link: at(5, 'junction', 'heat'), k: 'The die', title: `≈${n0(dieW)} W in a few square centimeters`, tally: `≈${T.die} °C die`,
+      text: `The package draws ${n0(pkgW)} W: about ${n0(dieW)} W in the compute ${dies} and ${n0(pkgW - dieW)} W in the ${A.hbm.type} stacks beside ${A.dies > 1 ? 'them' : 'it'}. The ${A.dies > 1 ? 'dies’' : 'die’s'} share becomes heat in about ${FACTS[A.id].dieCm2} cm² of silicon, about ${dieFlux(A)} W per square centimeter on average.`,
+      specs: rows(card('heat', 5, 'junction', 'Package power'), ['Compute dies, this model', `≈${n0(dieW)} W`, 'derived', { calc: 'gpu-die-power' }], card('heat', 5, 'flux', 'Die area'), card('heat', 5, 'flux', 'Average flux'), loop('Die, this operating point', `≈${T.die} °C`)) },
+    { link: at(5, 'tim', 'heat'), k: 'The first hop', title: 'Through the lid', tally: `≈${T.lid} °C lid`, text: 'Thermal interface material carries it into the lid, then into the metal above. Each layer costs a few degrees.',
+      specs: rows(card('heat', 5, 'tim', 'Layers'), loop('Lid, this operating point', `≈${T.lid} °C`)) },
     nvl
-      ? { link: at(4, 'coldplates', 'heat'), k: 'Compute tray', title: 'Into water', tally: `≈${T[1]} °C coolant`, text: 'A copper cold plate with fine fins hands the heat to coolant, which leaves the tray a few degrees warmer for every chip it passes.' }
-      : { link: at(4, 'heatsinks', 'heat'), k: 'The server', title: 'Into air', tally: `≈${T[1]} °C air`, text: 'A tall heat sink spreads it through fins, and the server fans sweep it out the back.' },
+      ? { link: at(4, 'coldplates', 'heat'), k: 'Compute tray', title: 'Into water', tally: `≈${T.tcsReturn} °C coolant out`, text: `A copper cold plate with fine fins hands the heat to the rack loop’s coolant, which enters the tray at about ${T.tcsSupply} °C and leaves a few degrees warmer for every chip it passes.`,
+        specs: rows(card('heat', 4, 'coldplates', 'Heat per GPU'), warm ? card('heat', 1, 'drycoolers', 'NVIDIA warm-water spec') : loop('Rack loop, supply → return', `${T.tcsSupply} → ${T.tcsReturn} °C`)) }
+      : { link: at(4, 'heatsinks', 'heat'), k: 'The server', title: 'Into air', tally: `≈${T.hotAisle} °C air out`, text: `A tall heat sink spreads it through fins, and the server fans sweep it out the back: air comes in at about ${T.coldAisle} °C and leaves near ${T.hotAisle} °C.`,
+        specs: rows(card('heat', 4, 'heatsinks', 'Heat per GPU'), loop('Air in → out, this operating point', `${T.coldAisle} → ${T.hotAisle} °C`)) },
     nvl
-      ? { link: at(3, 'manifold', 'heat'), k: 'The rack', title: 'Down the manifold', tally: `≈${T[1]} °C`, text: `The rack's return manifold gathers about ${Math.round(M.rack.kw * (air ? 0 : M.accel.liquidShare))} kW of heat from every tray.` }
-      : { link: at(3, 'rearair', 'heat'), k: 'The rack', title: 'Into the hot aisle', tally: `≈${T[1]} °C`, text: `All ${Math.round(M.rack.kw)} kW of the rack leaves as hot air into a sealed aisle.` },
+      ? { link: at(3, 'manifold', 'heat'), k: 'The rack', title: 'Down the manifold', tally: `≈${T.tcsReturn} °C rack return`, text: `The rack’s return manifold gathers about ${liqKW} kW of heat from every tray, in coolant at about ${T.tcsReturn} °C.`,
+        specs: rows(card('heat', 3, 'manifold', 'To liquid'), card('heat', 3, 'manifold', 'Rise across the rack'), card('heat', 3, 'manifold', 'Supply → return')) }
+      : { link: at(3, 'rearair', 'heat'), k: 'The rack', title: 'Into the hot aisle', tally: `≈${T.hotAisle} °C air`, text: `All ${Math.round(M.rack.kw)} kW of the rack leaves as hot air into a sealed aisle.`,
+        specs: rows(card('heat', 3, 'rearair', 'Heat to air'), card('heat', 3, 'rearair', 'Rise')) },
     air
-      ? { link: at(2, 'inrow', 'heat'), k: 'Data hall', title: 'Air to water', tally: `≈${T[3]} °C water in`, text: 'In-row cooling units pull the hot air through coils of chilled water and send it back cold.' }
-      : { link: at(2, 'cdu', 'heat'), k: 'Data hall', title: 'Loop to loop', tally: `≈${T[2]} °C facility water`, text: 'A coolant distribution unit passes the heat from the rack loop into facility water through a plate heat exchanger, without mixing them.' },
-    { link: at(2, 'riser', 'heat'), k: 'Data hall', title: 'Up and out', tally: `≈${T[2]} °C`, text: `Insulated headers carry it out of the building to the ${warm ? 'roof' : 'chiller plant'}.` },
+      ? { link: at(2, 'inrow', 'heat'), k: 'Data hall', title: 'Air to water', tally: `≈${T.fwsSupply} °C water in`, text: `In-row cooling units pull the hot air through coils of chilled water, which comes in at about ${T.fwsSupply} °C and leaves at about ${T.fwsReturn} °C, and send the air back to the rack fronts at about ${T.coldAisle} °C.`,
+        specs: rows(card('heat', 2, 'inrow', 'Supply air'), loop('Chilled water, supply → return', `${T.fwsSupply} → ${T.fwsReturn} °C`)) }
+      : { link: at(2, 'cdu', 'heat'), k: 'Data hall', title: 'Loop to loop', tally: `≈${T.fwsReturn} °C facility return`, text: `A coolant distribution unit passes the heat from the rack loop into facility water through a plate heat exchanger, without mixing them. Facility water comes in at about ${T.fwsSupply} °C and leaves at about ${T.fwsReturn} °C, a few degrees below the rack loop on each side.`,
+        specs: rows(card('heat', 2, 'cdu', 'Approach'), loop('Facility water, supply → return', `${T.fwsSupply} → ${T.fwsReturn} °C`)) },
+    { link: at(2, 'riser', 'heat'), k: 'Data hall', title: 'Up and out', tally: `≈${T.fwsReturn} °C return`, text: `Insulated headers carry the warm return water, about ${T.fwsReturn} °C, out of the building to the ${warm ? 'roof' : 'chiller plant'}.`,
+      specs: rows(card('heat', 2, 'riser', 'Carries'), loop(air ? 'Chilled water return' : 'Facility water return', `≈${T.fwsReturn} °C`)) },
     warm
-      ? { link: at(1, 'drycoolers', 'heat'), k: 'Grid & campus', title: 'Into the air', tally: `${T[4]} °C day`, text: 'Dry coolers push it into outside air with fans alone, as long as the air is cooler than the water. On the hottest afternoons sprays help, and cost water.' }
-      : { link: at(1, 'chillers', 'heat'), k: 'Grid & campus', title: 'Pumped uphill', tally: `≈${T[3]} °C made`, text: M.closedLoop ? 'Air-cooled chillers spend electricity to move the heat from cold water into outside air, adding their own heat to the pile.' : 'Chillers spend electricity to move the heat from cold water into warmer tower water, adding their own heat to the pile.' },
-    { link: at(1, 'plume', 'heat'), sim: 'hotday', k: 'The sky', title: 'Gone', tally: `${T[4]} °C outside`, text: `${warm ? 'Warm air rises off the roofs' : M.closedLoop ? 'Warm air rises off the chillers’ fans' : 'Warm, wet air rises off the cooling towers'}. The campus is a ${mw(M.meterMW)} heater that happened to write tokens on the way.` },
-  ];
+      ? { link: at(1, 'drycoolers', 'heat'), k: 'Grid & campus', title: 'Into the air', tally: `≈${T.fwsSupply} °C supply back`, text: `Dry coolers push the heat into outside air with fans alone and send the water back at about ${T.fwsSupply} °C, as long as the air stays below about ${T.ambient} °C. On hotter afternoons sprays help, and cost water.`,
+        specs: rows(card('heat', 1, 'drycoolers', 'Heat rejected'), loop('Facility water supply, back to the hall', `≈${T.fwsSupply} °C`), loop('Sprays needed above', `≈${T.ambient} °C outside`)) }
+      : { link: at(1, 'chillers', 'heat'), k: 'Grid & campus', title: 'Pumped uphill', tally: `≈${T.fwsSupply} °C supply made`,
+        text: M.closedLoop
+          ? `Air-cooled chillers spend electricity to make cold water at about ${T.fwsSupply} °C again, pushing the heat into outside air through their condenser coils and adding their own heat to the pile.`
+          : `Chillers spend electricity to make cold water at about ${T.fwsSupply} °C again, moving the heat into condenser water at about ${T.condenser} °C, which the cooling towers cool by evaporating some of it. The chillers add their own heat to the pile.`,
+        specs: rows(card('heat', 1, 'chillers', 'Cooling power'), loop(air ? 'Chilled water made' : 'Facility water made', `≈${T.fwsSupply} °C`), M.closedLoop ? null : loop('Condenser water to the towers', `≈${T.condenser} °C`)) },
+    { link: at(1, 'plume', 'heat'), sim: 'hotday', k: 'The sky', title: 'Gone', tally: `${mw(M.meterMW)} of heat`,
+      text: `${warm ? 'Warm air rises off the roofs' : M.closedLoop ? 'Warm air rises off the chillers’ fans' : 'Warm, wet air rises off the cooling towers'}. At the design point the campus is a ${mw(M.meterMW)} heater that happened to write tokens on the way. The clock below runs one hot day, from a cool night to a hot afternoon: as the air warms, cooling works harder and the draw climbs.`,
+      specs: rows(card('heat', 1, 'plume', 'Heat out')) },
+  ]);
 }
 
 // ---------- every part in a layer, one level at a time ----------

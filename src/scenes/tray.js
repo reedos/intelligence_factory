@@ -369,7 +369,9 @@ function buildNVL({ quality, model }) {
   if (heavy) for (const ncx of [nicCardX[0], nicCardX[3]]) bundle(N, [ncx, floorY + 0.34, ZF - 1.35], [ncx * 0.55, 0.24, ZF - 0.35], { n: 3, r: 0.012, spread: 0.03, sag: 0.06, mats: [MAT.black, MAT.darkSteel], seed: ncx + 5 });
   const trayFans = [];
   for (let i = 0; i < 6; i++) { S.box(0.38, 0.36, 0.3, MAT.fan, -1.9 + i * 0.76 + 0.19, 0.2, ZF - 1.95); N.cylZ(0.15, 0.02, MAT.darkSteel, -1.9 + i * 0.76 + 0.19, 0.2, ZF - 1.79, 16); trayFans.push({ p: [-1.9 + i * 0.76 + 0.19, 0.2, ZF - 1.76], axis: 'z', r: 0.14 }); }
-  const nvlFans = spinners(trayFans, MAT.darkSteel, { speed: 9 }); scene.add(nvlFans.mesh);
+  // an all-liquid tray (Rubin, by this model) keeps its fans drawn for comparison, still, with no air stream past them
+  const allLiquid = model.accel.liquidShare >= 0.99;
+  const nvlFans = spinners(trayFans, MAT.darkSteel, { speed: allLiquid ? 0 : 9 }); scene.add(nvlFans.mesh);
 
   // optical module cages behind the bezel, each with its own small heat sink; built here, before
   // S/N.build() below, so the cages, pull tabs and fins are part of the merged geometry
@@ -392,7 +394,7 @@ function buildNVL({ quality, model }) {
   dataFlows.push(flow([[-0.35, floorY + 0.3, ZF - 1.4], [-0.35, 0.24, ZF]], 'eth', { count: 5, speed: 0.6, size: 0.028, k: 1.6, trailR: 0.01 }));
   dataFlows.forEach(f => scene.add(f.group));
   // air over the parts water does not reach, front to back
-  for (let i = 0; i < 6; i++) { const x = -1.9 + i * 0.76 + 0.19; heatFlows.push(flow([[x, 0.3, ZF - 1.75], [x, 0.3, ZF - 3.2], [x * 0.9, 0.34, ZB + 1.5]], 'air', { count: 6, speed: 0.9, size: 0.04, k: 2.0, opacity: 0.8, trail: false })); }
+  if (!allLiquid) for (let i = 0; i < 6; i++) { const x = -1.9 + i * 0.76 + 0.19; heatFlows.push(flow([[x, 0.3, ZF - 1.75], [x, 0.3, ZF - 3.2], [x * 0.9, 0.34, ZB + 1.5]], 'air', { count: 6, speed: 0.9, size: 0.04, k: 2.0, opacity: 0.8, trail: false })); }
   heatFlows.forEach(f => scene.add(f.group));
 
   // status LEDs on the NICs, DPU, drives and converters; a faint warm-air shimmer over the bus converters

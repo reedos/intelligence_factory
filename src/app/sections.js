@@ -262,8 +262,11 @@ function renderTemps() {
     out = out.slice(0, start) + col(t.link, t.label, x0 + 8, yy - 30, cw - 16, H - yy + 30 - 40, out.slice(start));
     if (i < n - 1) { const d = t.c - TEMPS[i + 1].c; out += `<text x="${x0 + cw}" y="${(y(t.c) + y(TEMPS[i + 1].c)) / 2 + 4}" text-anchor="middle" fill="#6b747c" font-family="IBM Plex Mono, monospace" font-size="11.5">−${d}</text>`; }
   });
-  out += `<text x="${L}" y="20" fill="#aab2b9" font-family="Manrope, sans-serif" font-size="12.5">Representative temperatures under load. The small numbers are the drop across each hop, the price of moving heat one step further.</text>`;
+  out += `<text x="${L}" y="20" fill="#aab2b9" font-family="Manrope, sans-serif" font-size="12.5">Temperatures under load at one operating point, hottest first. The small numbers are the gap to the next bar.</text>`;
   svg.innerHTML = out;
+  // what each bar is: the rack loop and the facility loop meet at the CDU, supply runs toward the heat and return away
+  $('cap-temps').innerHTML = `<b style="color:var(--warm)">One operating point.</b> ${store.M.cooling.id === 'air' ? 'One chilled-water loop runs between the in-row coils and the chillers.' : 'Two water loops meet at the CDU: the rack loop through the cold plates, and the facility loop to the ' + (store.M.cooling.id === 'warm' ? 'roof' : 'chillers') + '.'} The heat tour and the cards use these same numbers; real plants move with load, flow and weather. `
+    + TEMPS.map((t, i) => `<span style="white-space:nowrap"><span class="chip-k">${t.label}</span>${chip(t.basis, `temps:${i}`, t.label)}</span>`).join('<span aria-hidden="true"> · </span>');
 }
 
 // ---------- how a model is split ----------

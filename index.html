@@ -214,7 +214,7 @@
 
   <header class="chapter" id="heat" style="--c: var(--warm)">
     <p class="ch-k"><span>04</span>Heat</p>
-    <p class="ch-s">Every watt ends as heat. The path from a die at 70 °C to the outside air, and what it costs in power and water.</p>
+    <p class="ch-s">Every watt ends as heat. The path from a GPU die to the outside air, and what it costs in power and water.</p>
   </header>
   <section class="stairs" aria-labelledby="temps-h">
     <div class="sec-head">
@@ -222,7 +222,10 @@
       <h2 id="temps-h">Hot to cold</h2>
       <p>Every watt ends as heat, and heat only flows downhill. Each hop from die to outdoor air costs a few degrees, which is why warmer water is the trick: NVIDIA's newest spec feeds racks at 45 °C, so even a 35 °C afternoon can take the heat through dry coolers, without chillers.</p>
     </div>
-    <div class="chart-box"><svg id="temps" viewBox="0 0 1000 340" role="img" aria-label="Temperature at each hop from GPU die to outdoor air"></svg></div>
+    <figure class="fig">
+      <div class="chart-box"><svg id="temps" viewBox="0 0 1000 340" role="img" aria-label="Temperature at each hop from GPU die to outdoor air"></svg></div>
+      <figcaption id="cap-temps"></figcaption>
+    </figure>
   </section>
 
   <header class="chapter" id="tokens" style="--c: var(--core)">
