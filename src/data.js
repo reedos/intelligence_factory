@@ -321,63 +321,76 @@ export function content(M) {
       body: 'Long-haul fiber enters at two vaults on opposite sides of the site, so one backhoe cannot cut the campus off. Tokens leave the same way the questions arrive.',
       specs: [['Routes', '2 or more, physically separate', 'reported', evRefs([['trg-diverse-fiber-routes', '"A properly designed facility has dual fiber entrances. Fiber enters from two separate locations, following different physical paths into the building."']])]] },
   ];
+  // evidence shared by more than one hall card: the NIC line rate a GPU gets, and the accelerator's published
+  // rack-power range, both drawn from a shipping datasheet for h100/gb200/gb300 and carried as pre-launch
+  // assumptions for rubin (see ASSUMPTIONS 'rubin-prelaunch-specs' / 'rubin-prelaunch-power')
+  const nicSpecEv = A.id === 'rubin' ? { assume: 'rubin-prelaunch-specs' }
+    : { refs: [[A.id === 'h100' ? 'nvidia-dgx-h100' : A.id === 'gb200' ? 'nvidia-coreweave-gb200-400g' : 'nvidia-connectx8-datasheet',
+        A.id === 'h100' ? 'product page: eight ConnectX-7 400 Gb/s network adapters, one per GPU'
+        : A.id === 'gb200' ? '"NVIDIA Quantum-2 InfiniBand networking that delivers 400Gb/s bandwidth per GPU"'
+        : 'ConnectX-8 SuperNIC datasheet: 800 Gb/s port speed']] };
+  const nicSpecBasis = A.id === 'rubin' ? 'assumed' : 'spec';
+  const rackPublishedEv = A.id === 'rubin' ? { assume: 'rubin-prelaunch-power' }
+    : A.id === 'gb200' ? { refs: [['servethehome-dgx-gb200', 'confirms the 120 kW figure ("the 120kW flagship system stacked in a single rack"); this site’s 132 kW upper figure is a commonly repeated peak/TDP figure not independently re-confirmed in this pass']] }
+    : { refs: [['servethehome-dgx-gb200', 'establishes the GB200-generation 120 kW flagship figure this GB300 range is reported relative to'], ['nvidia-gb300-power', 'NVIDIA’s own GB300 NVL72 power-smoothing post, describing the same rack platform this range covers']] };
+  const rackPublishedBasis = A.id === 'rubin' ? 'assumed' : 'reported';
   PARTS.hall = [
     { id: 'unitsub', title: 'Unit substation', kicker: dc ? '34.5 kV → 480 V, for cooling' : '34.5 kV → 480 V, 2.5 MVA',
       body: dc
         ? 'Outside the wall, a pad-mounted transformer still makes 480 V for pumps, fans and lights. The racks no longer need it.'
         : 'Outside the wall, a pad-mounted transformer takes one campus feeder and makes 480 V three-phase. Its secondary runs a few meters through the wall into the switchgear.',
-      specs: [['Rating', '2.5 MVA', 'typical'], ['Secondary current', '≈3,000 A at full load', 'est'], ['Efficiency', '≈99%', 'typical']] },
+      specs: [['Rating', '2.5 MVA', 'assumed', { assume: 'unitsub-mva' }], ['Secondary current', '≈3,000 A at full load', 'derived', { calc: 'hall-unitsub-current' }], ['Efficiency', '≈99%', 'assumed', { assume: 'unitsub-cooling-side-eff-99', refs: [['doe-transformer-standards-2024', "DOE's 04/04/2024 final rule updating distribution-transformer efficiency standards, which supersedes the 2013 rule"]] }]] },
     { id: 'swgr', title: dc ? 'Medium-voltage switchgear' : '480 V switchgear', kicker: 'Breakers and transfer',
       body: dc
         ? 'Breakers protect each 34.5 kV feed into the solid-state transformers and switch between utility and generator power when the grid drops.'
         : 'A lineup of drawout breakers protects every outgoing circuit and switches the room between utility and generator when the grid drops.',
-      specs: [['Transfer', 'automatic, utility ↔ generator', 'typical']] },
+      specs: [['Transfer', 'automatic, utility ↔ generator', 'assumed', { assume: 'hall-standard-practice' }]] },
     dc
       ? { id: 'sst', title: 'Solid-state transformers', kicker: '34.5 kV AC → 800 V DC',
         body: 'Power electronics switching at high frequency replace the 60 Hz transformer, the UPS and the rack rectifiers with one conversion. NVIDIA and partners such as Navitas, Delta and Infineon/SolarEdge target these for 2027 racks; the efficiency here is a vendor claim.',
-        specs: [['Efficiency, Navitas claim', '>98%', 'est'], ['Modules here, ≈2.5 MW', `≈${n0(L.sstModules)}`, 'est'], ['Loss', lossTxt('Solid-state'), 'est']] }
+        specs: [['Efficiency, Navitas claim', '>98%', 'vendor', { refs: [['semiconductor-today-navitas-sst', '"exceeding 98% conversion from medium-voltage grids (13.8kVAC to 34.5kVAC) to 800VDC or 1500VDC" -- Navitas’s own claim for its SiCPAK SST power modules (the previously-cited navitas-800vdc release states no efficiency percentage at all)']], vs: 'a conventional 60 Hz transformer + UPS + rack-rectifier stack (three conversions, replaced by one)' }], ['Modules here, ≈2.5 MW', `≈${n0(L.sstModules)}`, 'derived', { calc: 'bom-facility-count', assume: 'sst-module-mw' }], ['Loss', lossTxt('Solid-state'), 'derived', { calc: 'ledger-stage-loss', assume: 'sst-eff-98' }]] }
       : { id: 'ups', title: 'UPS modules', kicker: 'Double conversion',
         body: 'The UPS turns AC into DC and back to clean AC, with batteries on the DC link. It rides through the seconds between a grid failure and the generators taking load.',
-        specs: [['Module', '1.25–1.5 MW', 'typical'], ['Modules here', `≈${n0(L.upsModules)}`, 'est'], ['Efficiency, Eaton 9395XR', 'up to 97.5% online, 99% eco', 'spec'], [`Loss at ${meter}`, lossTxt('UPS'), 'est']] },
+        specs: [['Module', '1.25–1.5 MW', 'assumed', { assume: 'ups-module-mw' }], ['Modules here', `≈${n0(L.upsModules)}`, 'derived', { calc: 'bom-facility-count', assume: 'ups-module-mw' }], ['Efficiency, Eaton 9395XR', 'up to 97.5% online, 99% eco', 'reported', { refs: [['ceie-eaton-9395xr', '"tested efficiency of Eaton 9395XR UPS dual conversion in online mode is as high as 97.5%"; eco/AC-direct mode "can be improved to 99%" (Eaton’s own product page could not be opened this pass -- see its unchecked note)']] }], [`Loss at ${meter}`, lossTxt('UPS'), 'derived', { calc: 'ledger-conv-loss', assume: 'ups-eff-96.5' }]] },
     { id: 'batt', title: dc ? 'DC battery cabinets' : 'Battery cabinets', kicker: 'Lithium-ion, ≈5 minutes',
       body: dc
         ? 'Batteries sit right on the 800 V DC bus, with no inverter between them and the racks, so there is no UPS conversion loss at all.'
         : 'Racks of lithium-ion modules on the UPS DC link. Five minutes is plenty: the generators are carrying the load within a minute.',
-      specs: [['Runtime', 'set by string count, often ≈5 min', 'est'], ['Chemistry', 'Li-ion (LFP or NMC)', 'typical']] },
+      specs: [['Runtime', 'set by string count, often ≈5 min', 'assumed', { assume: 'hall-batt-runtime' }], ['Chemistry', 'Li-ion (LFP or NMC)', 'assumed', { assume: 'hall-standard-practice' }]] },
     { id: 'busway', title: dc ? '800 V DC busway' : 'Overhead busway', kicker: dc ? '800 V DC to every rack' : '415 V to every rack',
       body: dc
         ? `Two conductors instead of three phases, and about a fifth of the current of 415 V AC at the same power. NVIDIA says 800 V DC cuts copper in the rack path by 45%.`
         : 'A transformer steps 480 V to 415 V, the voltage OCP rack power shelves take. Copper bars in an aluminum housing then run over each row, and plug-in tap-off boxes drop a short cable into each rack, so moving a rack means moving a plug.',
       specs: dc
-        ? [['Rack voltage', '800 V DC', 'est'], ['Per rack', M.staircase.find(s => s.v === 800)?.current ?? '', 'est'], ['Copper, NVIDIA claim', '−45%', 'spec']]
-        : [['Rack voltage', '415 V three-phase (OCP ORv3)', 'spec'], ['Per rack', `${M.staircase.find(s => s.v === 415)?.current ?? ''} at ${rackKW} kW`, 'est'], ['Why busway', 'tap-offs move without rewiring', 'typical']] },
+        ? [['Rack voltage', '800 V DC', 'spec', { refs: [['nvidia-800v-hvdc', "NVIDIA's own architecture post names 800 V as the DC bus voltage for its next-generation AI-factory power design"]] }], ['Per rack', M.staircase.find(s => s.v === 800)?.current ?? '', 'derived', { calc: 'hall-busway-current' }], ['Copper, NVIDIA claim', '−45%', 'vendor', { refs: [['nvidia-800v-hvdc', '"With lower current, thinner conductors can handle the same load, reducing copper requirements by 45%."']], vs: '415 V AC busway distribution at the same delivered power' }]]
+        : [['Rack voltage', '415 V three-phase', 'reported', { refs: [['lv-distribution-busway', '"415V (and its 400V European twin) is the de facto rack standard for liquid-density AI rows", vs. 208V three-phase in legacy air-cooled halls (the page does not separately discuss 480 V upstream distribution)']] }], ['Per rack', `${M.staircase.find(s => s.v === 415)?.current ?? ''} at ${rackKW} kW`, 'derived', { calc: 'hall-busway-current', assume: 'power-factor' }], ['Why busway', 'tap-offs move without rewiring', 'assumed', { assume: 'hall-standard-practice' }]] },
     { id: 'racks', title: nvl ? `${A.short} NVL72 racks` : 'DGX H100 racks', kicker: `${rackKW} kW each`,
       body: nvl
         ? `Each rack draws what a whole row of racks drew ten years ago. About ${Math.round(liq * 100)}% of its heat leaves in water${liq < 1 ? ', the rest in air' : ''}.`
         : 'Four air-cooled servers per rack, eight GPUs each. More would overheat: NVIDIA caps air-cooled DGX H100 at four per rack.',
       specs: nvl
-        ? [['Power, this model', `≈${rackKW} kW`, 'est'], ['Published range', `${A.publishedRackKW[0]}–${A.publishedRackKW[1]} kW`, A.basis], ['GPUs', `72 ${X.arch}`, 'spec'], ['Liquid / air', `${liqKW} kW / ${airKW} kW`, 'est']]
-        : [['Power, this model', `≈${rackKW} kW`, 'est'], ['Published', '≈41 kW for 4 systems', 'spec'], ['GPUs', '32 H100', 'spec']],
+        ? [['Power, this model', `≈${rackKW} kW`, 'derived', { calc: 'hall-rack-power' }], ['Published range', `${A.publishedRackKW[0]}–${A.publishedRackKW[1]} kW`, rackPublishedBasis, rackPublishedEv], ['GPUs', `72 ${X.arch}`, 'spec', { refs: [['nvidia-gb200-nvl72', 'product page: the NVL72 platform name and specifications describe a 72-GPU rack']] }], ['Liquid / air', `${liqKW} kW / ${airKW} kW`, 'derived', { calc: 'hall-liquid-air-split' }]]
+        : [['Power, this model', `≈${rackKW} kW`, 'derived', { calc: 'hall-rack-power' }], ['Published', '≈41 kW for 4 systems', 'spec', { refs: [['nvidia-dgx-h100', 'product page: per-server maximum power draw, ×4 servers per rack']] }], ['GPUs', '32 H100', 'spec', { refs: [['nvidia-dgx-h100', 'product page: 8 GPUs per DGX H100 server × 4 servers per rack']] }]],
       drill: 3 },
     { id: 'containment', title: 'Hot aisle containment', kicker: air ? 'Keeps hot and cold air apart' : 'For the heat water misses',
       body: 'Glass roofs and doors close the aisle between rack backs, so the warm air goes straight back to the coolers instead of mixing into the room.',
-      specs: [['Air share of heat', `≈${Math.round((1 - liq) * 100)}%`, 'est']] },
+      specs: [['Air share of heat', `≈${Math.round((1 - liq) * 100)}%`, 'derived', { calc: 'hall-air-heat-share' }]] },
     air
       ? { id: 'inrow', title: 'In-row cooling units', kicker: 'Chilled water, cold air',
         body: 'Cabinets the size of a rack sit in each row. Fans pull hot-aisle air through chilled-water coils and blow it out cold into the room at the rack fronts.',
-        specs: [['Capacity', '≈60–100 kW each', 'typical'], ['Units here', `≈${n0(L.airUnits)}`, 'est'], ['Supply air', '≈18–27 °C (ASHRAE)', 'spec']] }
+        specs: [['Capacity', '≈60–100 kW each', 'assumed', { assume: 'inrow-capacity' }], ['Units here', `≈${n0(L.airUnits)}`, 'derived', { calc: 'bom-facility-count', assume: 'inrow-capacity' }], ['Supply air', '≈18–27 °C (ASHRAE)', 'spec', { refs: [['ashrae-tc99-reference-card', 'Table 2.1, 2015 Thermal Guidelines: Recommended row, classes A1 to A4, 18 to 27 °C']] }]] }
       : { id: 'cdu', title: 'Coolant distribution unit', kicker: 'Two loops, one heat exchanger',
         body: 'The CDU keeps the rack loop, filtered water with glycol running through cold plates, separate from facility water. Units such as Vertiv’s CoolChip or Motivair’s CDU line pack the pumps, plate heat exchanger and controls into one cabinet at the row end.',
-        specs: [['Capacity range', '70 kW – 2.5 MW', 'spec'], ['Units here, ≈1.25 MW', `≈${n0(L.cdus)}`, 'est'], ['Rule', 'rack loop stays above dew point', 'spec']] },
+        specs: [['Capacity range', '70 kW – 2.3 MW', 'spec', { refs: [['vertiv-coolchip-cdu', 'CoolChip CDU family: models from CDU 70 (70 kW) to CDU 2300 (2300 kW)'], ['motivair-cdu-brochure', '"COOLING UP TO 2.3MW", MCDU-4U (102 kW) through MCDU-60 (2.3 MW) rated-capacity table']] }], ['Units here, ≈1.25 MW', `≈${n0(L.cdus)}`, 'derived', { calc: 'bom-facility-count', assume: 'cdu-module-mw' }], ['Rule', 'rack loop stays above dew point', 'spec', { refs: [['motivair-cdu-brochure', '"The CDU maintains a secondary loop water temperature above the dew point in the data center to eliminate the possibility of condensation"']] }]] },
     { id: 'fwater', title: air ? 'Chilled water loop' : 'Facility water loop', kicker: 'Supply and return headers',
       body: `Insulated steel headers carry water between the ${air ? 'cooling units' : 'CDUs'} and the ${warm ? 'rooftop dry coolers' : 'chiller plant'}. Blue carries cooler supply, red carries warm return.`,
-      specs: [['Supply', `≈${warm ? WATER.warmSupplyC : air ? WATER.airSupplyC : WATER.liquidSupplyC} °C`, 'typical'], ['Temperature rise', '≈10 °C across the racks', 'est']] },
+      specs: [['Supply', `≈${warm ? WATER.warmSupplyC : air ? WATER.airSupplyC : WATER.liquidSupplyC} °C`, 'assumed', { assume: 'water-supply-temp' }], ['Temperature rise', '≈10 °C across the racks', 'assumed', { assume: 'hall-water-rise-10c' }]] },
     { id: 'fanwall', title: 'Fan wall', kicker: 'Air side',
       body: air ? 'A wall of fans and coils handles room air and the heat from lights, people and power gear.' : 'A wall of fans and coils cools the air that carries the remaining heat from power shelves, switches, optics and memory.',
-      specs: [['Share of rack heat', `≈${Math.round((1 - liq) * 100)}%`, 'est']] },
+      specs: [['Share of rack heat', `≈${Math.round((1 - liq) * 100)}%`, 'derived', { calc: 'hall-air-heat-share' }]] },
     { id: 'network', title: 'Network spine', kicker: 'Where tokens leave',
       body: 'Spine switches tie every rack to every other and to the fiber out of the building. Dense yellow trays carry thousands of fibers overhead.',
-      specs: [['Per GPU', `${nicTxt} scale-out`, 'est']] },
+      specs: [['Per GPU', `${nicTxt} scale-out`, nicSpecBasis, nicSpecEv]] },
   ];
   PARTS.rack = nvl ? [
     { id: 'feed', title: 'Rack feed', kicker: dc ? '800 V DC in' : '415 V AC in',
@@ -499,48 +512,53 @@ export function content(M) {
       specs: [['Google, median Gemini text prompt', '0.24 Wh, all-in', 'spec'], ['LLaMA-65B on A100, 2023', '≈3–4 J per token', 'spec'], ['GB200 vs H200', '≈8–10× tokens per MW', 'typical']] },
   ];
 
-  // ---------- bill of materials. The 4th element is the part each row counts ----------
+  // ---------- bill of materials. The 4th element is the part each row counts, the 5th (bomEv) its evidence ----------
   const Lk = at;
+  const bomFacility = { calc: 'bom-facility-count' };
+  const bomRack = { calc: 'bom-rack-count' };
+  const bomSilicon = { calc: 'bom-silicon-count' };
+  const bomNetwork = { calc: 'bom-network-count' };
+  const fabricRefs = [['nvidia-quantum2-qm9700-specs', 'QM97xx specifications: 32 OSFP cages, 25.6 Tbps (64 logical 400G ports) -- the 400G-tier radix the fabric model encodes'], ['nvidia-xdr-switch-specs', 'Quantum-X800 XDR specifications -- the 800G-tier radix the fabric model encodes']];
   const BOM = [
     { group: 'Grid & campus', rows: [
-      [`Main power transformers, ${L.mvaUnit} MVA`, n0(L.transformers), 'est', Lk(1, 'mpt')],
-      ['34.5 kV feeders', `≈${n0(L.feeders)}`, 'est', Lk(1, 'ehouse')],
-      ['Diesel generators, 3 MW', `≈${n0(L.gensets)}`, 'est', Lk(1, 'gensets')],
-      ['Diesel on site, 48 h', `≈${L.fuelML >= 10 ? n0(L.fuelML) : L.fuelML.toFixed(1)} million L`, 'est', Lk(1, 'fuel')],
-      ['Battery storage', `≈${n0(L.bessMW)} MW / ${n0(L.bessMWh)} MWh`, 'est', Lk(1, 'bess')],
-      ...(warm ? [['Rooftop dry coolers', `≈${n0(L.dryCoolers)}`, 'est', Lk(1, 'drycoolers')]] : [['Chillers, 4 MW', `≈${n0(L.chillers)}`, 'est', Lk(1, 'chillers')]]),
-      ['Cooling towers', `≈${n0(L.towers)}`, 'est', Lk(1, 'towers')],
+      [`Main power transformers, ${L.mvaUnit} MVA`, n0(L.transformers), 'derived', Lk(1, 'mpt'), bomFacility],
+      ['34.5 kV feeders', `≈${n0(L.feeders)}`, 'derived', Lk(1, 'ehouse'), bomFacility],
+      ['Diesel generators, 3 MW', `≈${n0(L.gensets)}`, 'derived', Lk(1, 'gensets'), { calc: 'bom-facility-count', refs: [['cummins-dqkan-genset', 'DQKAN generator-set data sheet: 2500 kW (2.5 MW) standby rating for one commercial unit in this class -- this site’s own model rounds to an illustrative 3 MW genset unit for its count, not this specific product’s rating']] }],
+      ['Diesel on site, 48 h', `≈${L.fuelML >= 10 ? n0(L.fuelML) : L.fuelML.toFixed(1)} million L`, 'derived', Lk(1, 'fuel'), { calc: 'fuel-tankers', assume: 'fuel-truckload' }],
+      ['Battery storage', `≈${n0(L.bessMW)} MW / ${n0(L.bessMWh)} MWh`, 'derived', Lk(1, 'bess'), bomFacility],
+      ...(warm ? [['Rooftop dry coolers', `≈${n0(L.dryCoolers)}`, 'derived', Lk(1, 'drycoolers'), bomFacility]] : [['Chillers, 4 MW', `≈${n0(L.chillers)}`, 'derived', Lk(1, 'chillers'), bomFacility]]),
+      ['Cooling towers', `≈${n0(L.towers)}`, 'derived', Lk(1, 'towers'), bomFacility],
     ] },
     { group: 'Buildings', rows: [
-      ['Data halls', n0(halls), 'est', Lk(1, 'hall')],
-      ['Unit substations, 2.5 MVA', `≈${n0(dc ? Math.ceil((M.coolMW + M.miscMW) / 2.2) : L.unitSubs)}`, 'est', Lk(2, 'unitsub')],
-      dc ? ['Solid-state transformers, 2.5 MW', `≈${n0(L.sstModules)}`, 'est', Lk(2, 'sst')] : ['UPS modules, 1.25 MW', `≈${n0(L.upsModules)}`, 'est', Lk(2, 'ups')],
-      air ? ['In-row cooling units', `≈${n0(L.airUnits)}`, 'est', Lk(2, 'inrow')] : ['Coolant distribution units', `≈${n0(L.cdus)}`, 'est', Lk(2, 'cdu')],
-      ['Busway runs', `≈${n0(RACKS / 10)}`, 'est', Lk(2, 'busway')],
+      ['Data halls', n0(halls), 'derived', Lk(1, 'hall'), bomFacility],
+      ['Unit substations, 2.5 MVA', `≈${n0(dc ? Math.ceil((M.coolMW + M.miscMW) / 2.2) : L.unitSubs)}`, 'derived', Lk(2, 'unitsub'), { calc: 'bom-facility-count', assume: 'unitsub-mva' }],
+      dc ? ['Solid-state transformers, 2.5 MW', `≈${n0(L.sstModules)}`, 'derived', Lk(2, 'sst'), bomFacility] : ['UPS modules, 1.25 MW', `≈${n0(L.upsModules)}`, 'derived', Lk(2, 'ups'), { calc: 'bom-facility-count', assume: 'ups-module-mw' }],
+      air ? ['In-row cooling units', `≈${n0(L.airUnits)}`, 'derived', Lk(2, 'inrow'), bomFacility] : ['Coolant distribution units', `≈${n0(L.cdus)}`, 'derived', Lk(2, 'cdu'), { calc: 'bom-facility-count', refs: [['vertiv-coolchip-cdu', 'CoolChip CDU family page: models from CDU 70 (70 kW) to CDU 2300 (2300 kW)'], ['motivair-cdu-brochure', 'brochure: "COOLING UP TO 2.3MW", MCDU-4U (102 kW) through MCDU-60 (2.3 MW) rated-capacity table']] }],
+      ['Busway runs', `≈${n0(RACKS / 10)}`, 'derived', Lk(2, 'busway'), bomRack],
     ] },
     { group: 'Racks', rows: nvl ? [
-      [`${A.rackName} racks`, `≈${n0(RACKS)}`, 'est', Lk(2, 'racks')],
-      [dc ? 'DC-DC shelves' : 'Power shelves', `≈${n0(RACKS * 6)}`, 'est', Lk(3, 'shelves')],
-      ...(dc ? [] : [['Rectifiers', `≈${n0(RACKS * 36)}`, 'est', Lk(3, 'shelves')]]),
-      ['NVLink copper connections', `≈${kfmt(NET.nvlinkPairs)}`, 'est', Lk(3, 'spine')],
+      [`${A.rackName} racks`, `≈${n0(RACKS)}`, 'derived', Lk(2, 'racks'), { calc: 'bom-racks-from-power' }],
+      [dc ? 'DC-DC shelves' : 'Power shelves', `≈${n0(RACKS * 6)}`, 'derived', Lk(3, 'shelves'), bomRack],
+      ...(dc ? [] : [['Rectifiers', `≈${n0(RACKS * 36)}`, 'derived', Lk(3, 'shelves'), bomRack]]),
+      ['NVLink copper connections', `≈${kfmt(NET.nvlinkPairs)}`, 'derived', Lk(3, 'spine'), bomRack],
     ] : [
-      ['DGX H100 racks', `≈${n0(RACKS)}`, 'est', Lk(2, 'racks')],
-      ['DGX H100 servers', `≈${n0(RACKS * 4)}`, 'est', Lk(3, 'servers')],
-      ['Server power supplies', `≈${n0(RACKS * 24)}`, 'est', Lk(4, 'psu')],
+      ['DGX H100 racks', `≈${n0(RACKS)}`, 'derived', Lk(2, 'racks'), { calc: 'bom-racks-from-power' }],
+      ['DGX H100 servers', `≈${n0(RACKS * 4)}`, 'derived', Lk(3, 'servers'), bomRack],
+      ['Server power supplies', `≈${n0(RACKS * 24)}`, 'derived', Lk(4, 'psu'), bomRack],
     ] },
     { group: 'Silicon', rows: [
-      [X.gpus, `≈${n0(GPUS)}`, 'est', Lk(4, 'gpu')],
-      [`${X.cpu} CPUs`, `≈${n0(M.cpus)}`, 'est', Lk(4, nvl ? 'grace' : 'cpu')],
-      [`${A.hbm.type} stacks`, `≈${kfmt(GPUS * (A.id === 'h100' ? 5 : A.hbm.stacks))}`, 'est', Lk(5, 'hbm')],
-      ['VRM phases', `≈${kfmt(GPUS * 24)}`, 'est', Lk(4, 'vrm')],
-      ['Transistors in GPUs', `≈${(GPUS * parseFloat(X.transistors.replace('≈', '')) * 1e9 / 1e15).toFixed(1)} quadrillion`, 'est', Lk(5, 'dies')],
+      [X.gpus, `≈${n0(GPUS)}`, 'derived', Lk(4, 'gpu'), bomSilicon],
+      [`${X.cpu} CPUs`, `≈${n0(M.cpus)}`, 'derived', Lk(4, nvl ? 'grace' : 'cpu'), bomSilicon],
+      [`${A.hbm.type} stacks`, `≈${kfmt(GPUS * (A.id === 'h100' ? 5 : A.hbm.stacks))}`, 'derived', Lk(5, 'hbm'), bomSilicon],
+      ['VRM phases', `≈${kfmt(GPUS * 24)}`, 'derived', Lk(4, 'vrm'), bomSilicon],
+      ['Transistors in GPUs', `≈${(GPUS * parseFloat(X.transistors.replace('≈', '')) * 1e9 / 1e15).toFixed(1)} quadrillion`, 'derived', Lk(5, 'dies'), bomSilicon],
     ] },
     { group: 'Network', rows: [
-      [nvl ? 'NVLink switch chips' : 'NVSwitch chips', `≈${n0(NET.nvswitchChips)}`, 'est', nvl ? Lk(3, 'nvswitch', 'data') : Lk(4, 'nvswitch', 'data')],
-      [nvl ? 'SuperNICs' : 'ConnectX-7 NICs', `≈${n0(GPUS)}`, 'est', Lk(4, 'cx', 'data')],
-      [`Leaf / spine / core switches, ${NET.fabric.radix}-port`, `≈${n0(NET.switches)}`, 'est', Lk(2, 'spine', 'data')],
-      ['Optical modules', `≈${kfmt(NET.modules)}`, 'est', Lk(2, 'optics', 'data')],
-      ['Fiber strands in the fabric', `≈${kfmt(NET.fibers)}`, 'est', Lk(2, 'runways', 'data')],
+      [nvl ? 'NVLink switch chips' : 'NVSwitch chips', `≈${n0(NET.nvswitchChips)}`, 'derived', nvl ? Lk(3, 'nvswitch', 'data') : Lk(4, 'nvswitch', 'data'), bomRack],
+      [nvl ? 'SuperNICs' : 'ConnectX-7 NICs', `≈${n0(GPUS)}`, 'derived', Lk(4, 'cx', 'data'), bomSilicon],
+      [`Leaf / spine / core switches, ${NET.fabric.radix}-port`, `≈${n0(NET.switches)}`, 'derived', Lk(2, 'spine', 'data'), { calc: 'bom-network-count', refs: fabricRefs }],
+      ['Optical modules', `≈${kfmt(NET.modules)}`, 'derived', Lk(2, 'optics', 'data'), { calc: 'bom-network-count', refs: [['nvidia-800g-dr8-datasheet', 'section 4.2: Maximum Power Dissipation, Max 17 W -- the per-module figure the fabric’s optics-power model scales from']] }],
+      ['Fiber strands in the fabric', `≈${kfmt(NET.fibers)}`, 'derived', Lk(2, 'runways', 'data'), bomNetwork],
     ] },
   ];
 
@@ -610,34 +628,34 @@ export function content(M) {
     hall: [
       { id: 'odf', title: 'Fiber distribution frames', kicker: 'Where every link is patched',
         body: 'Fabric links do not run switch to switch in one piece. Trunk cables land on patch frames, and short jumpers make the actual connections, so a link can be moved without pulling cable through the ceiling.',
-        specs: [['Fabric strands, whole campus', `≈${kfmt(NET.fibers)}`, 'est'], ['Housing density, Corning EDGE8', '144 fibers per 1U, 576 per 4U', 'spec'], ['4U housings for this campus', `≈${n0(NET.fibers / 576)}`, 'est']] },
+        specs: [['Fabric strands, whole campus', `≈${kfmt(NET.fibers)}`, 'derived', { calc: 'bom-network-count' }], ['Housing density, Corning EDGE8', '144 fibers per 1U', 'spec', { refs: [['corning-edge8', 'EDGE8-01U-SP product page: "Number of Modules: 18", "Fiber Capacity: 144" (18 modules × 8 fibers)']] }], ['4U housings for this campus', `≈${n0(NET.fibers / 576)}`, 'derived', { calc: 'hall-fiber-housings' }]] },
       ...(multiHall ? [{ id: 'crosshall', title: 'To the other halls', kicker: 'Through the floor', drill: 1,
         body: 'Cables for the links that cross buildings drop through a floor sleeve into the duct bank outside.',
-        specs: [['Strands', `≈${kfmt(NET.crossHallFibers)}`, 'est']] }] : []),
+        specs: [['Strands', `≈${kfmt(NET.crossHallFibers)}`, 'derived', { calc: 'hall-crosshall-strands' }]] }] : []),
       { id: 'pp', title: 'Pipeline stages', kicker: `One replica, four racks`,
         body: `The tinted rack tops show one way to lay a model out: its layers split into four stages, one rack each, passing activations down the line like an assembly line. 4 racks × ${A.gpusPerRack} GPUs = one copy of the model.`,
-        specs: [['Traffic', 'point to point, per micro-batch', 'spec'], ['Llama 3 405B', 'pipeline parallel 16', 'spec'], ['Layout drawn here', 'illustrative', 'est']] },
+        specs: [['Traffic', 'point to point, per micro-batch', 'reported', { refs: [['meta-llama3-herd-parallelism', '§3.3.2, Parallelism for Model Scaling: activations pass point-to-point between pipeline stages']] }], ['Llama 3 405B', 'pipeline parallel 16', 'spec', { refs: [['meta-llama3-herd-parallelism', '§3.3.2, Table 4: 4D parallelism for 405B pretraining, TP=8, CP=16, PP=16, DP=8 on up to 16K H100 GPUs']] }], ['Layout drawn here', 'illustrative', 'assumed', { assume: 'hall-illustrative-layout' }]] },
       { id: 'dp', title: 'Data-parallel replicas', kicker: 'Many copies, one model',
         body: 'Every group of four racks holds another full copy. Each copy trains on different data, and all of them average their gradients across the fabric once per step.',
-        specs: [['Traffic', 'large all-reduce, once per step', 'spec'], ['Llama 3 405B', 'TP 8 × CP 16 × PP 16 × DP 8 = 16,384 GPUs', 'spec'], ['DeepSeek-V3', 'no tensor parallel; EP 64, PP 16, ZeRO-1 DP', 'spec']] },
+        specs: [['Traffic', 'large all-reduce, once per step', 'reported', { refs: [['meta-llama3-herd-parallelism', '§3.3.2, Parallelism for Model Scaling: data-parallel replicas synchronize gradients by all-reduce once per training step']] }], ['Llama 3 405B', 'TP 8 × CP 16 × PP 16 × DP 8 = 16,384 GPUs', 'spec', { refs: [['meta-llama3-herd-parallelism', '§3.3.2, Table 4: "Llama 3 405B is trained on up to 16K H100 GPUs" with TP=8, CP=16, PP=16, DP=8']] }], ['DeepSeek-V3', 'no tensor parallel; EP 64, PP 16, ZeRO-1 DP', 'spec', { refs: [['deepseek-v3-technical-report', '§3.2, Training Framework: "train DeepSeek-V3 without using costly Tensor Parallelism (TP)"; "applies 16-way Pipeline Parallelism (PP), 64-way Expert Parallelism (EP) spanning 8 nodes, and ZeRO-1 Data Parallelism (DP)"']] }]] },
       { id: 'uplinks', title: 'Rack uplinks', kicker: 'Where scale-out starts',
         body: `Each rack sends one optical link per GPU up into the fiber runway overhead: ${A.gpusPerRack} ports per rack before the first switch, ${nicShort} each.`,
-        specs: [['Per GPU', nicTxt, X.mBasis], ['Ports per rack', `${A.gpusPerRack}`, 'typical']] },
+        specs: [['Per GPU', nicTxt, nicSpecBasis, nicSpecEv], ['Ports per rack', `${A.gpusPerRack}`, 'spec', { refs: [[nvl ? 'nvidia-gb200-nvl72' : 'nvidia-dgx-h100', nvl ? 'NVL72 platform page: 72 GPUs per rack' : 'product page: 4 servers × 8 GPUs per rack']] }]] },
       { id: 'leaf', title: 'Leaf switches', kicker: 'Rail-optimized',
         body: `Network racks at the row ends hold leaf switches, ${A.nicGbps === 400 ? 'such as NVIDIA’s Quantum-2 QM9700 (InfiniBand)' : A.nicGbps === 800 ? 'such as NVIDIA’s Quantum-X800 Q3400 (InfiniBand) or Spectrum-X SN5600 (Ethernet)' : 'from NVIDIA’s Spectrum-6 generation, announced with Rubin'}. In a rail-optimized layout, GPU number n in every rack plugs into the same leaf, so most traffic crosses only one switch.`,
-        specs: [['Leaf switches, campus', `≈${n0(NET.leaf)}`, 'est'], ['Hops, same rail', '1', 'typical'], ['Switch hop, InfiniBand', 'under ≈100 ns; NVIDIA publishes none', 'typical']] },
+        specs: [['Leaf switches, campus', `≈${n0(NET.leaf)}`, 'derived', { calc: 'bom-network-count' }], ['Hops, same rail', '1', 'assumed', { assume: 'rail-optimized-1hop' }], ['Switch hop, InfiniBand', 'under ≈100 ns; NVIDIA publishes none', 'assumed', { assume: 'ib-switch-hop-latency' }]] },
       { id: 'spine', title: 'Spine switches', kicker: 'Any GPU to any GPU',
         body: `The spine connects every leaf to every other. Two tiers of ${NET.fabric.radix}-port switches reach about ${kfmt(NET.fabric.radix ** 2 / 2)} GPUs; this campus uses ${NET.tiers}${NET.planes > 1 ? `, in ${NET.planes} parallel planes` : ''}.`,
-        specs: [['Switch', NET.fabric.switchName, A.nicGbps === 1600 ? 'est' : 'spec'], ['Merchant switch chips, same role', 'Broadcom Tomahawk 6 (102.4 Tb/s), Marvell Teralynx 10 (51.2 Tb/s)', 'spec'], ['Spine + core switches', `≈${n0(NET.spine + NET.core)}`, 'est']] },
+        specs: [['Switch', NET.fabric.switchName, A.nicGbps === 1600 ? 'assumed' : 'spec', A.nicGbps === 1600 ? { assume: 'rubin-prelaunch-specs' } : A.nicGbps === 400 ? { refs: [['nvidia-quantum2-qm9700-specs', 'QM97xx specifications: 32 OSFP cages, 25.6 Tbps total (64 logical 400G NDR ports)']] } : { refs: [['nvidia-xdr-switch-specs', 'Q32xx/Q34xx XDR 800Gb/s InfiniBand switch systems specifications']] }], ['Merchant switch chips, same role', 'Broadcom Tomahawk 6 (102.4 Tb/s), Marvell Teralynx 10 (51.2 Tb/s)', 'spec', { refs: [['broadcom-tomahawk6', 'page title: "Broadcom Now Shipping World’s First 102.4 Tbps Switch in Production Volume"'], ['marvell-teralynx10', 'press release: "a low power, programmable 51.2 Tbps Ethernet device"']] }], ['Spine + core switches', `≈${n0(NET.spine + NET.core)}`, 'derived', { calc: 'bom-network-count' }]] },
       { id: 'runways', title: 'Fiber runways', kicker: 'Yellow means fiber',
         body: 'Overhead yellow trays carry thousands of single-mode strands. A parallel module lights eight lanes through two multi-fiber connectors, so strand counts climb fast.',
-        specs: [['Fibers per link', `${NET.fabric.fibersPerLink}`, 'typical']] },
+        specs: [['Fibers per link', `${NET.fabric.fibersPerLink}`, 'assumed', { assume: 'fibers-per-link' }]] },
       { id: 'optics', title: 'Optical modules', kicker: 'Several per GPU',
         body: `Every link is lit at both ends by a pluggable module, from merchant suppliers such as InnoLight and Coherent as well as NVIDIA’s own LinkX line. Here they fill the faces of the leaf switches at the row ends and of the spine switches, with a link light on each and fiber rising to the runway. One per GPU leaves the rack, and every tier above adds more: about ${(NET.modules / GPUS).toFixed(1)} per GPU, ${NET.opticsMW.toFixed(1)} MW for this campus.`,
-        specs: [['NVIDIA 800G DR8, 500 m', '17 W max', 'spec'], ['1.6T modules, e.g. InnoLight or Coherent 1.6T-DR8', '≈25–30 W, still ramping', 'est'], ['The DSP inside each module', 'e.g. Marvell Ara, Broadcom Sian, Credo Bluebird', 'spec'], ['Linear-drive (LPO)', 'roughly half the power', 'typical']] },
+        specs: [['NVIDIA 800G DR8, 500 m', '17 W max', 'spec', { refs: [['nvidia-800g-dr8-datasheet', '§4.2, Recommended Operating Conditions and Power Supply Requirements: Maximum Power Dissipation, Max 17 W']] }], ['1.6T modules, e.g. InnoLight or Coherent 1.6T-DR8', '≈25–30 W, still ramping', 'assumed', { assume: '1.6t-module-power' }], ['The DSP inside each module', 'e.g. Marvell Ara, Broadcom Sian, Credo Bluebird', 'spec', { refs: [['marvell-ara-1p6t-portfolio', 'Marvell’s own 1.6T optical DSP portfolio announcement'], ['broadcom-sian3-200g-lane-dsp', 'Broadcom’s own Sian3 200G-lane DSP announcement'], ['credo-bluebird-dsp', 'Credo’s own Bluebird 1.6T optical DSP product page']] }], ['Linear-drive (LPO)', 'roughly half the power', 'reported', { refs: [['semtech-200g-lpo-power-blog', '"200G LPO Power, Reach and Loss: Real Numbers" -- Semtech’s own published LPO-vs-DSP power comparison']] }]] },
       { id: 'cpo', title: 'Co-packaged optics', kicker: 'A comparison, not deployed here',
         body: 'This scenario does not deploy CPO: none of its switches, power or fiber counts change because of this card. One spine switch is drawn instead as a schematic stand-in for an alternative architecture, NVIDIA Spectrum-X/Quantum-X Photonics-style CPO, for comparison only. Real CPO switches put the optical engines on (or beside) the switch package itself, shortening the electrical path to the laser and cutting out the pluggable modules, which changes both signal-processing needs and electrical losses; it is not simply "every removed block is saved power." Fewer lasers, from sharing external laser sources across ports, is also not the same claim as fewer traffic fibers: CPO does not by itself reduce how many fibers carry data. Every switch actually counted in this hall still takes pluggables, as most fabrics do today.',
-        specs: [['NVIDIA Quantum-X / Spectrum-X Photonics', '5× power efficiency, 4× fewer lasers, not fewer fibers (Aug. 2026 update; was 3.5×)', 'spec'], ['Broadcom Davisson', '102.4 Tb/s, 3.5 W per 800G port', 'spec']] },
+        specs: [['NVIDIA Quantum-X / Spectrum-X Photonics', '5× power efficiency, 4× fewer lasers, not fewer fibers (Aug. 2026 reporting; NVIDIA’s own March 2025 launch claimed 3.5×)', 'vendor', { refs: [['storagereview-nvidia-cpo-production', '"5x lower power consumption" and "4x fewer lasers" vs. conventional pluggable-optics switches, 08/15/2026'], ['nvidia-spectrum-x-cpo', 'launch announcement: "4x fewer lasers to deliver 3.5x more power efficiency... compared with traditional methods", 03/18/2025'], ['nvidia-cpo-industry-collaboration-blog', '08/26/2025 post restates "reducing the total number of lasers in the data center by a factor of four compared to legacy designs" but not a power-efficiency multiplier']], vs: 'conventional switches using pluggable optical transceivers' }], ['Broadcom Davisson', '102.4 Tb/s, ≈3.5 W per 800G port', 'vendor', { refs: [['broadcom-tomahawk6', 'page title: "Broadcom Now Shipping World’s First 102.4 Tbps Switch in Production Volume" -- Davisson is Broadcom’s CPO variant built on this same Tomahawk 6 ASIC (per nextplatform-broadcom-cpo)'], ['nextplatform-broadcom-cpo', '"An 800 Gb/sec port will burn about 3.5 watts, says Broadcom, which is 36.4 percent lower than with the Tomahawk 5 CPO port at the same bandwidth and more than 70 percent lower than pluggable optics at the same bandwidth"']], vs: 'Broadcom’s prior-generation Tomahawk 5 CPO port and pluggable optics, both at 800 Gb/s' }]] },
       { id: 'racks', title: nvl ? 'NVL72 racks' : 'DGX H100 racks', kicker: 'Scale-up stays inside', drill: 3,
         // each way to each way (NVLink's vendor-quoted figure is bidirectional; a NIC's line rate already isn't),
         // the same basis engine.ts's bandwidth staircase compares on (issue 9) — not NVLink's aggregate over the
@@ -645,7 +663,7 @@ export function content(M) {
         body: nvl
           ? `Inside each rack, 72 GPUs talk over copper NVLink, ${Math.round(A.nvlink.tbs * 4000 / A.nicGbps)} times faster each way than the fabric outside.`
           : `Inside each server, 8 GPUs talk over NVLink, ${Math.round(A.nvlink.tbs * 4000 / A.nicGbps)} times faster each way than the fabric outside. Between servers, even in the same rack, it is all fabric.`,
-        specs: [['NVLink per GPU', nvlTB, A.basis], ['Domain', `${A.nvlink.domain} GPUs`, 'spec']] },
+        specs: [['NVLink per GPU', nvlTB, A.id === 'rubin' ? 'assumed' : 'spec', A.id === 'rubin' ? { assume: 'rubin-prelaunch-specs' } : { refs: [[A.id === 'h100' ? 'nvidia-h100-datasheet' : 'nvidia-blackwell-platform-arrives', A.id === 'h100' ? 'H100 datasheet: 900 GB/s NVLink bandwidth per GPU' : 'Blackwell platform launch release: "the latest iteration of NVIDIA NVLink delivers groundbreaking 1.8TB/s bidirectional throughput per GPU" (the NVL72 product page itself states only the 130 TB/s system aggregate, not a per-GPU figure)']] }], ['Domain', `${A.nvlink.domain} GPUs`, 'spec', { refs: [[nvl ? 'nvidia-gb200-nvl72' : 'nvidia-dgx-h100', nvl ? 'NVL72 platform page: all 72 GPUs in one NVLink domain' : 'product page: 8 GPUs share one NVLink domain per DGX H100 baseboard']] }]] },
     ],
     rack: nvl ? [
       { id: 'tp', title: 'Tensor + expert parallel', kicker: 'The chattiest work lives here',
@@ -793,22 +811,24 @@ export function content(M) {
       air
         ? { id: 'inrow', title: 'In-row cooling units', kicker: 'Hot air in, cold air out',
           body: 'Fans pull hot-aisle air through chilled-water coils and push it out cold at the rack fronts. The water carries the heat to the chiller plant.',
-          specs: [['Supply air', '≈18–27 °C (ASHRAE)', 'spec'], ['Units here', `≈${n0(L.airUnits)}`, 'est']] }
+          specs: [['Supply air', '≈18–27 °C (ASHRAE)', 'spec', { refs: [['ashrae-tc99-reference-card', 'Table 2.1, 2015 Thermal Guidelines: Recommended row, classes A1 to A4, 18 to 27 °C']] }], ['Units here', `≈${n0(L.airUnits)}`, 'derived', { calc: 'bom-facility-count', assume: 'inrow-capacity' }]] }
         : { id: 'cdu', title: 'Coolant distribution unit', kicker: 'Where the two loops meet',
           body: 'A plate heat exchanger, in units such as Vertiv’s CoolChip or Motivair’s CDU line, passes heat from the rack loop into facility water without mixing them. The rack side stays above the dew point so nothing condenses.',
-          specs: [['Capacity range', '70 kW – 2.5 MW', 'spec'], ['Approach, facility to rack loop', 'a few °C', 'est']] },
+          specs: [['Capacity range', '70 kW – 2.3 MW', 'spec', { refs: [['vertiv-coolchip-cdu', 'CoolChip CDU family: models from CDU 70 (70 kW) to CDU 2300 (2300 kW)'], ['motivair-cdu-brochure', '"COOLING UP TO 2.3MW", MCDU-4U (102 kW) through MCDU-60 (2.3 MW) rated-capacity table']] }], ['Approach, facility to rack loop', 'a few °C', 'assumed', { assume: 'hall-cdu-approach' }]] },
       { id: 'fwater', title: air ? 'Chilled water loop' : 'Facility water loop', kicker: 'Supply blue, return red',
         body: `Insulated headers carry warm return water ${warm ? 'up to the roof' : 'to the chiller plant'} and cooler supply water back. The temperature difference sets how much water has to move.`,
-        specs: [['Rise', '≈10 °C', 'est']] },
+        specs: [['Rise', '≈10 °C', 'assumed', { assume: 'hall-water-rise-10c' }]] },
       { id: 'hotaisle', title: 'Hot aisle', kicker: air ? 'All the heat, as air' : 'The air-side heat',
         body: 'Rack backs face each other across a sealed aisle, so hot air rises and flows to the coolers instead of warming the room.',
-        specs: [['Air share of rack heat', `≈${Math.round((1 - liq) * 100)}%`, 'est']] },
+        specs: [['Air share of rack heat', `≈${Math.round((1 - liq) * 100)}%`, 'derived', { calc: 'hall-air-heat-share' }]] },
       { id: 'fanwall', title: 'Fan wall', kicker: 'Air back to cool',
         body: 'Fans pull hot-aisle air through water coils and blow it back into the room cool, closing the air loop.',
-        specs: [['Moves', air ? 'room loads and overflow' : `the ≈${Math.round((1 - liq) * 100)}% air share`, 'est']] },
+        specs: [air
+          ? ['Moves', 'room loads and overflow', 'assumed', { assume: 'hall-standard-practice' }]
+          : ['Moves', `the ≈${Math.round((1 - liq) * 100)}% air share`, 'derived', { calc: 'hall-air-heat-share' }]] },
       { id: 'riser', title: warm ? 'Risers to the roof' : 'Risers to the plant', kicker: 'Heat leaves the building',
         body: `The headers turn up and out to the ${warm ? 'dry coolers' : 'chillers'}.`,
-        specs: [['Carries', 'nearly all of the hall’s heat', 'est']], drill: 1 },
+        specs: [['Carries', 'nearly all of the hall’s heat', 'assumed', { assume: 'hall-standard-practice' }]], drill: 1 },
     ],
     rack: nvl ? [
       { id: 'manifold', title: 'Coolant manifolds', kicker: 'Cool in, warm out',
