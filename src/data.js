@@ -277,7 +277,7 @@ export function content(M) {
         specs: [
           ['Heat rejected', `≈${mwTxt(IT_MW * 1.05)}`, 'derived', evCalc('campus-heat-rejected')],
           ['Units, ≈0.8 MW each', `≈${n0(L.dryCoolers)}`, 'derived', evCalc('campus-drycooler-count')],
-          ['Water classes', 'ASHRAE W32–W45: 32–45 °C max supply', 'spec', evRefs([['ashrae-liquid-cooling-classes', 'blog: classes "W17, W27, W32, NEW class W40, W45" named for their maximum supply temperature in °C'], ['ashrae-tc99-liquid-cooling-wp', "ASHRAE TC 9.9's own white paper defining the W-class table"]])],
+          ['Water classes', 'ASHRAE W32–W45: 32–45 °C max supply', 'spec', evRefs([['ashrae-liquid-cooling-classes', 'blog: classes "W17, W27, W32, NEW class W40, W45" named for their maximum supply temperature in °C'], ['ashrae-tc99-liquid-cooling-wp', 'p.4, "Change to ASHRAE Water Classifications": "the W classes are being renamed with the upper temperature limits incorporated in the name... W17 (previously W1), W27 (W2), W32 (W3), W40 (new), W45 (W4)"']])],
           ['Water use, dry + adiabatic', '≈0.15–0.17 L/kWh', 'reported', evRefs([['ai-dc-water-arxiv', 'Table 5: WUE for "IT Liquid cooling: dry cooler with adiabatic assist (air-cooled chiller)" = 0.15–0.17 L/kWh, adapted from Lei et al. 2025']])],
         ] }
       : { id: 'chillers', title: 'Chiller plant', kicker: 'Makes cold water',
@@ -726,7 +726,7 @@ export function content(M) {
           specs: [
             ['Heat rejected', `≈${mwTxt(IT_MW * 1.05)}`, 'derived', evCalc('campus-heat-rejected')],
             ['NVIDIA warm-water spec', '45 °C in, ≈55 °C out', 'spec', evRefs([['nvidia-warm-water-blog', 'NVIDIA blog: "the coolant entering a fully liquid-cooled chip at 45 degrees Celsius exits at roughly 55 degrees"']])],
-            ['Water classes', 'ASHRAE W32–W45', 'spec', evRefs([['ashrae-liquid-cooling-classes', 'blog: classes "W17, W27, W32, NEW class W40, W45" named for their maximum supply temperature in °C'], ['ashrae-tc99-liquid-cooling-wp', "ASHRAE TC 9.9's own white paper defining the W-class table"]])],
+            ['Water classes', 'ASHRAE W32–W45', 'spec', evRefs([['ashrae-liquid-cooling-classes', 'blog: classes "W17, W27, W32, NEW class W40, W45" named for their maximum supply temperature in °C'], ['ashrae-tc99-liquid-cooling-wp', 'p.4, "Change to ASHRAE Water Classifications": "the W classes are being renamed with the upper temperature limits incorporated in the name... W17 (previously W1), W27 (W2), W32 (W3), W40 (new), W45 (W4)"']])],
           ] }
         : { id: 'chillers', title: 'Chiller plant', kicker: 'Pumping heat uphill',
           body: 'Chillers move heat from cold water into warmer tower water, and spend electricity to do it: every megawatt they move adds roughly a sixth more to reject.',
