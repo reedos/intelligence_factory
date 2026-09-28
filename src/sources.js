@@ -55,6 +55,8 @@ export const SOURCES = {
   'compute-atlas-colossus': { title: 'xAI Colossus, Memphis, TN (checked 09/23/2026)', publisher: 'Compute Atlas', url: 'https://www.compute-atlas.com/facilities/xai-colossus-memphis-tn', published: '09/10/2026', accessed: '09/27/2026', kind: 'secondary' },
   'ieee-spectrum-hyperion': { title: '5GW Data Center Buildout Requires Novel Engineering', publisher: 'IEEE Spectrum', url: 'https://spectrum.ieee.org/5gw-data-center', published: '03/24/2026', accessed: '09/27/2026', kind: 'secondary' },
   'dcd-xai-colossus-memphis': { title: "Fury from campaigners as Elon Musk's xAI gets 150MW for Colossus supercomputer in Memphis", publisher: 'Data Center Dynamics', url: 'https://www.datacenterdynamics.com/en/news/xai-colossus-memphis-power-tva/', published: '11/08/2024', accessed: '09/27/2026', kind: 'secondary' },
+  'spacexai-mid-south': { title: 'Mid-South: Colossus I and II, Memphis, TN / Southaven, MS', publisher: 'SpaceXAI (SpaceX)', url: 'https://www.spacex.com/Mid-South', published: 'undated', dated: 'undated page; its figures are "based on data collected from 2024 through 2026"', accessed: '09/27/2026', kind: 'primary', marketing: true },
+  'bi-spacexai-rebrand': { title: 'xAI makes its rebrand to SpaceXAI complete with a new logo', publisher: 'Business Insider, via Yahoo Finance', url: 'https://finance.yahoo.com/technology/ai/articles/xai-makes-rebrand-spacexai-complete-215010760.html', published: '07/06/2026', accessed: '09/27/2026', kind: 'secondary' },
   'semianalysis-xai-colossus2': { title: "xAI's Colossus 2 — First Gigawatt Datacenter", publisher: 'SemiAnalysis', url: 'https://newsletter.semianalysis.com/p/xais-colossus-2-first-gigawatt-datacenter', published: '09/16/2025', accessed: '09/27/2026', kind: 'secondary' },
   'pa-transformer-345kv': { title: '345 kV Power Transformer Projects', publisher: 'PA Transformer', url: 'https://www.patransformer.com/power-transformer-projects/power-transformer-345-kv/', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'transformer-lead-times': { title: 'HV Transformer Lead Times 2026: EU vs US', publisher: 'GridReadiness', url: 'https://www.gridreadiness.com/blog/power-transformer-lead-times-ai-data-center-2026.html', published: '06/2026', accessed: '09/27/2026', kind: 'secondary', marketing: true },
@@ -233,7 +235,6 @@ export const SOURCES = {
 
   // ---- traced 09/27/2026: level 1, Scale across, and the real campuses ----
   'epa-egrid2022-summary-tables': { title: 'eGRID Summary Tables 2022', publisher: 'U.S. Environmental Protection Agency', url: 'https://www.epa.gov/system/files/documents/2024-01/egrid2022_summary_tables.pdf', published: '01/30/2024', dated: "PDF footer reads \"Created: 1/30/2024\"", accessed: '09/27/2026', kind: 'primary' },
-  'interestingengineering-xai-megapack': { title: 'xAI installs Tesla Megapack batteries at supercomputer site', publisher: 'Interesting Engineering', url: 'https://interestingengineering.com/energy/xai-to-use-tesla-megapack-batteries-to-power-worlds-largest-ai-supercomputer', accessed: '09/27/2026', kind: 'secondary' },
   'networkworld-hollow-core-fiber': { title: "Microsoft's hollow core fiber delivers the lowest signal loss ever", publisher: 'Network World', url: 'https://www.networkworld.com/article/4049666/microsofts-hollow-core-fiber-delivers-the-lowest-signal-loss-ever.html', accessed: '09/27/2026', kind: 'secondary' },
   'convergedigest-telstra-ciena-1100km': { title: 'Telstra Extends 1.6 Tbps Wavelength to 1,100 km With Ciena', publisher: 'Converge Digest', url: 'https://convergedigest.com/telstra-ciena-1-6tbps-1100km-wavelogic-6/', published: '09/08/2026', dated: '09/08/2026', accessed: '09/27/2026', kind: 'secondary' },
   'wikipedia-hyperion-dc': { title: 'Hyperion (data center)', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Hyperion_(data_center)', accessed: '09/27/2026', kind: 'secondary' },
@@ -347,7 +348,7 @@ export const PART_SOURCES = {
   // ---- power ----
   'power:across:carbon': ['eia-state-texas', 'eia-state-tennessee', 'eia-state-georgia', 'eia-state-wisconsin', 'eia-state-louisiana', 'eia-state-washington', 'eia-co2-per-kwh'],
   'power:across:site-abilene': ['epoch-dc-abilene', 'epoch-stargate-abilene'],
-  'power:across:site-colossus1': ['compute-atlas-colossus', 'epoch-dc-colossus2', 'epoch-largest-dc', 'wikipedia-colossus', 'tomshardware-colossus', 'semianalysis-xai-colossus2'],
+  'power:across:site-colossus1': ['compute-atlas-colossus', 'epoch-dc-colossus2', 'epoch-largest-dc', 'wikipedia-colossus', 'tomshardware-colossus', 'semianalysis-xai-colossus2', 'spacexai-mid-south', 'bi-spacexai-rebrand'],
   'power:across:site-fairwater-atl': ['epoch-dc-fairwater-atl', 'microsoft-infinite-scale', 'dcd-fairwater-atlanta', 'datacenterfrontier-fairwater'],
   'power:across:site-fairwater-wi': ['epoch-dc-fairwater-wi', 'dcd-fairwater-wisconsin', 'techtimes-fairwater-wisconsin'],
   'power:across:site-rainier': ['epoch-dc-new-carlisle', 'eia-state-indiana', 'measuredai-new-carlisle', 'compute-atlas-rainier', 'blackridge-rainier'],
@@ -363,11 +364,11 @@ export const PART_SOURCES = {
   'power:campus:ehouse': ['mv-distribution-atk'],
   'power:campus:gensets': ['cummins-dqkan-genset', 'cummins-qsk78', 'cat-c175-16'],
   'power:campus:fuel': ['cummins-dqkan-genset'],
-  'power:campus:bess': ['nvidia-bess-blog', 'dcd-xai-colossus-memphis'],
+  'power:campus:bess': ['nvidia-bess-blog', 'dcd-xai-colossus-memphis', 'spacexai-mid-south'],
   'power:campus:unitsubs': ['doe-transformer-efficiency'],
   'power:campus:hall': [],
   'power:campus:drycoolers': ['ashrae-liquid-cooling-classes', 'introl-wue', 'evapco-apex', 'bac-data-centers'],
-  'power:campus:chillers': ['schneider-uniflair'],
+  'power:campus:chillers': ['schneider-uniflair', 'spacexai-mid-south'],
   'power:campus:towers': ['introl-wue', 'nrel-water-electricity', 'green-grid-wue-wp35'],
   'power:campus:fiber': ['zayo-route-diversity'],
 
@@ -473,7 +474,7 @@ export const PART_SOURCES = {
   'heat:across:home': [],
 
   'heat:campus:drycoolers': ['ashrae-liquid-cooling-classes', 'alliance-chemical-gpu-thermal'],
-  'heat:campus:chillers': [],
+  'heat:campus:chillers': ['spacexai-mid-south'],
   'heat:campus:towers': ['introl-wue', 'nrel-water-electricity', 'green-grid-wue-wp35'],
   'heat:campus:plume': [],
   'heat:campus:reuse': ['fortum-finland-heat', 'munters-odense', 'stockholm-data-parks'],

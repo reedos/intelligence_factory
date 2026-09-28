@@ -11,6 +11,7 @@ import { chip } from '../evidence.js';
 const $ = id => document.getElementById(id);
 const n0 = v => Math.round(v).toLocaleString('en-US');
 const mwTxt = v => v >= 1000 ? `${(v / 1000).toFixed(2)} GW` : v >= 100 ? `${n0(v)} MW` : `${v.toFixed(1)} MW`;
+const mwhTxt = v => v >= 10 ? `${n0(v)} MWh` : `${v.toFixed(2)} MWh`;
 const big = v => v >= 1e12 ? `${+(v / 1e12).toFixed(1)} T` : v >= 1e9 ? `${+(v / 1e9).toFixed(1)} B` : v >= 1e6 ? `${+(v / 1e6).toFixed(1)} M` : v >= 1e4 ? `${n0(v / 1000)}k` : n0(v);
 const opts = { peakTrough: 2.5, hotMax: 40 };
 const simFor = id => makeSim(store.M, id, opts, calc.tpsTouched ? calc.tokPerGpu : store.M.tokPerGpuRef);
@@ -97,7 +98,9 @@ function draw() {
     ['Site energy so far', tot.siteMwh >= 10 ? `${n0(tot.siteMwh)} MWh` : `${tot.siteMwh.toFixed(2)} MWh`],
     ['Utility energy so far', tot.mwh >= 10 ? `${n0(tot.mwh)} MWh` : `${tot.mwh.toFixed(2)} MWh`],
     ['Water so far', `${tot.water >= 10 ? n0(tot.water) : tot.water.toFixed(1)} m³`],
-    ['Diesel burned', `${n0(dieselL(t))} L`],
+    store.M.backup === 'battery'
+      ? ['From the site batteries', mwhTxt(fromSource(t, 'battery'))]
+      : ['Diesel burned', `${n0(fromSource(t, 'gens') * 260)} L`],
   ] : [
     ['At the meter', mwTxt(s.meterMW)],
     ['Energy so far', tot.mwh >= 10 ? `${n0(tot.mwh)} MWh` : `${tot.mwh.toFixed(2)} MWh`],
@@ -107,20 +110,21 @@ function draw() {
   $('ck-counters').innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
   setLevels(s.levels);
 }
-// diesel: generator MWh × 260 L/MWh (a 2.5 MW unit at full load burns ≈0.26 L/kWh). Same event-boundary
-// integration as totals(): generator output really does drop to zero the instant the campus transfers
-// back to the grid, and a bin straddling that instant would otherwise blend it into a smooth taper.
-function dieselL(tt) {
+// energy one source has delivered so far, MWh; diesel is the generators' share × 260 L/MWh (a 2.5 MW unit at full
+// load burns ≈0.26 L/kWh). Same event-boundary integration as totals(): generator output really does drop to zero
+// the instant the campus transfers back to the grid, and a bin straddling that instant would otherwise blend it
+// into a smooth taper.
+function fromSource(tt, key) {
   let mwh = 0; const n = 200;
   const bp = [...new Set([0, tt, ...sim.events.map(e => e.t).filter(et => et > 0 && et < tt)])].sort((a, b) => a - b);
   for (let seg = 0; seg < bp.length - 1; seg++) {
     const a0 = bp[seg], b0 = bp[seg + 1], segN = Math.max(1, Math.round(n * (b0 - a0) / tt));
     for (let i = 0; i < segN; i++) {
       const a = a0 + (b0 - a0) * i / segN, b = a0 + (b0 - a0) * (i + 1) / segN;
-      mwh += sim.sample((a + b) / 2).values.gens * (b - a) / 3600;
+      mwh += (sim.sample((a + b) / 2).values[key] || 0) * (b - a) / 3600;
     }
   }
-  return mwh * 260;
+  return mwh;
 }
 function tick(dt) {
   if (!sim || strip.hidden) return;
@@ -166,7 +170,14 @@ addEventListener('keydown', e => {
 });
 
 // ---------- the page section: all four, with notes and a button to play each in 3D ----------
-const WHERE = { training: { scene: 1, mode: 'power', part: 'bess' }, outage: { scene: 1, mode: 'power', part: 'gensets' }, hotday: { scene: 1, mode: 'heat', part: 'towers' }, inference: { scene: 2, mode: 'power', part: 'racks' } };
+const WHERE_ = { training: { scene: 1, mode: 'power', part: 'bess' }, outage: { scene: 1, mode: 'power', part: 'gensets' }, hotday: { scene: 1, mode: 'heat', part: 'towers' }, inference: { scene: 2, mode: 'power', part: 'racks' } };
+// a campus with battery backup has no generator yard, and one on a closed loop no towers: open on what it has
+const WHERE = new Proxy(WHERE_, { get: (w, id) => {
+  const v = w[id], M = store.M;
+  if (id === 'outage' && M?.backup === 'battery') return { ...v, part: 'bess' };
+  if (id === 'hotday' && M?.closedLoop) return { ...v, part: 'chillers' };
+  return v;
+} });
 function renderSection() {
   const grid = $('clock-grid'); if (!grid) return;
   grid.innerHTML = SIMS.map(({ id }) => {

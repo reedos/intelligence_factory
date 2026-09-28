@@ -132,16 +132,18 @@ export const TERMS = [
   "aka": [
    "battery energy storage system"
   ],
-  "def": "Grid-side batteries, sized on this page at roughly a fifth of the campus's meter MW and twice that in MWh, that absorb the megawatt swings a synchronized fleet of GPUs can put on the grid in under a second. xAI's Colossus campuses are reported to use large Tesla Megapack installations for exactly this, though public reporting on their total rated power is inconsistent — from a couple hundred megawatts at the first Memphis site to gigawatt-scale estimates at the newer, much larger Colossus 2.",
+  "def": "Grid-side batteries, sized on this page at roughly a fifth of the campus's meter MW and twice that in MWh (on the Colossus 2 preset, SpaceXAI's planned 3.3 GWh pack instead, assumed to carry the whole campus), that absorb the megawatt swings a synchronized fleet of GPUs can put on the grid in under a second. SpaceXAI's (formerly xAI's) Colossus campuses are reported to use large Tesla Megapack installations for exactly this, though public reporting on their total rated power is inconsistent — from a couple hundred megawatts at the first Memphis site to gigawatt-scale estimates at the newer, much larger Colossus 2.",
   "layer": "power",
   "sources": [
    "nvidia-bess-blog",
    "dcd-xai-colossus-memphis",
-   "canarymedia-xai-battery"
+   "canarymedia-xai-battery",
+   "spacexai-mid-south"
   ],
   "cites": [
    ["dcd-xai-colossus-memphis", "reports TVA/MLGW granting xAI 150 MW of grid power plus 'discounted Tesla Megapack battery storage to improve stability of the Memphis power grid,' without a Megapack power rating"],
-   ["canarymedia-xai-battery", "09/11/2026: counts 720 Tesla Megapack containers at Colossus 2 by satellite imagery and reports estimates 'between 720 megawatts and 1,400 MW' depending on model, and a Memphis utility CEO's figure of '2,000 MW of batteries behind the meter' — the article itself calls the exact size 'unclear'"]
+   ["canarymedia-xai-battery", "09/11/2026: counts 720 Tesla Megapack containers at Colossus 2 by satellite imagery and reports estimates 'between 720 megawatts and 1,400 MW' depending on model, and a Memphis utility CEO's figure of '2,000 MW of batteries behind the meter' — the article itself calls the exact size 'unclear'"],
+   ["spacexai-mid-south", "Colossus II tab, Power: 'America's largest grid-connected battery pack will provide 3.3 gigawatt hours' (planned; no power rating given)"]
   ],
   "link": {
    "scene": 1,
@@ -1304,21 +1306,26 @@ export const TERMS = [
   }
  },
  {
-  "term": "xAI Colossus 1",
+  "term": "SpaceXAI Colossus 1",
   "aka": [
-   "Colossus"
+   "Colossus",
+   "xAI Colossus 1"
   ],
-  "def": "xAI's first Memphis campus: fully built and operating. About 200,000 GPUs (H100, H200, some GB200), leased in full to Anthropic since 05/06/2026; confirmed grid supply is 150 MW from MLGW/TVA, backed by 35 on-site gas turbines rated 420 MW.",
+  "def": "The first Memphis campus of SpaceXAI (xAI until its July 2026 rebrand, after SpaceX acquired it in February): fully built and operating. About 200,000 GPUs (H100, H200, some GB200), leased in full to Anthropic since 05/06/2026; confirmed grid supply is 150 MW from MLGW/TVA. Trade reports counted about 35 on-site gas turbines, about 422 MW in all; SpaceXAI says its remaining temporary turbines must all be removed by July 2027, and that more than 240 batteries let the site come fully off the grid in emergencies or at peak demand.",
   "layer": "general",
   "sources": [
    "compute-atlas-colossus",
    "wikipedia-colossus",
    "tomshardware-colossus",
-   "dcd-xai-colossus-memphis"
+   "dcd-xai-colossus-memphis",
+   "spacexai-mid-south",
+   "bi-spacexai-rebrand"
   ],
   "cites": [
    ["compute-atlas-colossus", "'About 35 on-site natural-gas turbines (a combined 422 MW per SELC and aerial imagery) supplement a 150 MW grid substation and Tesla Megapack storage'; ~100,000 H100 GPUs Phase 1, later expanded with H200s"],
-   ["dcd-xai-colossus-memphis", "reports TVA/MLGW's board approving 'an additional 150MW of power' for Colossus"]
+   ["dcd-xai-colossus-memphis", "reports TVA/MLGW's board approving 'an additional 150MW of power' for Colossus"],
+   ["spacexai-mid-south", "Power tab: 'more than 240 batteries so Colossus I can come completely offline during emergencies or peak demand'; Air tab: 'all remaining temporary turbines must be removed by July 2027'"],
+   ["bi-spacexai-rebrand", "reports xAI's rebrand to SpaceXAI, 07/06/2026"]
   ],
   "link": {
    "scene": 0,
@@ -1327,18 +1334,25 @@ export const TERMS = [
   }
  },
  {
-  "term": "xAI Colossus 2",
-  "def": "xAI's second Memphis campus, about 3 km from Colossus 1: live and still growing, already past its original plan of 1 GW and 350,000 GPUs. By satellite estimate it ran about 946 MW of IT power and 440,000 Nvidia chips as of 09/24/2026; xAI itself reported about 550,000 chips installed by 09/25/2026. By Epoch AI's tracking, it is the most powerful AI data center operating today, by both IT power and compute; Amazon and Anthropic's New Carlisle campus is next, at about 910 MW with more chips but less compute.",
+  "term": "SpaceXAI Colossus 2",
+  "aka": [
+   "xAI Colossus 2"
+  ],
+  "def": "SpaceXAI's second Memphis campus (xAI until July 2026), about 3 km from Colossus 1: live and still growing, and called the \"First Gigawatt Datacenter\" by SemiAnalysis in 09/2025. By satellite estimate it ran about 946 MW of IT power and 440,000 Nvidia chips as of 09/24/2026; the company reported about 550,000 chips installed by 09/25/2026 and says it plans 1M+ GPUs. SpaceXAI lists a planned 3.3 GWh grid-connected battery pack for it, says its temporary gas turbines must be removed by July 2027, mentions no diesel generators, and says it uses closed-loop cooling that takes only domestic water. By Epoch AI's tracking, it is the most powerful AI data center operating today, by both IT power and compute; Amazon and Anthropic's New Carlisle campus is next, at about 910 MW with more chips but less compute.",
   "layer": "general",
   "sources": [
    "epoch-dc-colossus2",
    "epoch-largest-dc",
    "semianalysis-xai-colossus2",
-   "wikipedia-colossus"
+   "wikipedia-colossus",
+   "spacexai-mid-south",
+   "bi-spacexai-rebrand"
   ],
   "cites": [
    ["epoch-dc-colossus2", "directory entry, updated 09/24/2026: '1,112k H100-eq AI compute, supported by 946 MW of IT power,' with '110k' B200 and '330k' B300 chips (≈440k total)"],
-   ["epoch-largest-dc", "'Colossus 2 is the largest tracked AI data center at about 946 MW of current IT power, followed by Anthropic-Amazon New Carlisle at about 910 MW'"]
+   ["epoch-largest-dc", "'Colossus 2 is the largest tracked AI data center at about 946 MW of current IT power, followed by Anthropic-Amazon New Carlisle at about 910 MW'"],
+   ["semianalysis-xai-colossus2", "headline: 'xAI's Colossus 2 — First Gigawatt Datacenter In The World'"],
+   ["spacexai-mid-south", "Colossus II tab: 'GPUs planned 1M+'; 'America's largest grid-connected battery pack will provide 3.3 gigawatt hours'. Water tab: 'Colossus II uses closed-loop cooling and takes only domestic water'. Air tab: 'all remaining temporary turbines must be removed by July 2027'. No tab mentions diesel generators (checked 09/27/2026)"]
   ],
   "link": {
    "scene": 0,

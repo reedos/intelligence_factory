@@ -29,7 +29,7 @@ function renderControls() {
   seg($('sc-accel'), Object.values(ACCELERATORS).map(a => [a.id, a.short, a.year]), s.accel, () => false, id => setScenario({ accel: id }));
   seg($('sc-power'), Object.values(POWER).map(p => [p.id, p.short]), s.power, id => id === 'dc800' && !A.dc800, id => setScenario({ power: id }));
   seg($('sc-cooling'), Object.values(COOLING).map(c => [c.id, c.short, c.sub]), s.cooling, id => !A.coolingOptions.includes(id), id => setScenario({ cooling: id }));
-  seg($('sc-site'), [['', 'None', 'generic'], ...Object.values(SITES).map(x => [x.id, x.name.replace(/^(Microsoft|Meta|xAI) /, ''), `${x.status.rank ? '★ ' : ''}${STATUS_WORD[x.status.state].toLowerCase()}`])], s.site || '', () => false, id => pickSite(id));
+  seg($('sc-site'), [['', 'None', 'generic'], ...Object.values(SITES).map(x => [x.id, x.name.replace(/^(Microsoft|Meta|SpaceXAI) /, ''), `${x.status.rank ? '★ ' : ''}${STATUS_WORD[x.status.state].toLowerCase()}`])], s.site || '', () => false, id => pickSite(id));
   renderSiteCard();
   const note = [];
   if (!A.dc800) note.push(`${A.short} servers take AC power supplies, so 800 V DC is off.`);

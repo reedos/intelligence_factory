@@ -2,6 +2,8 @@
 // PUE, rack count, network size, the power ledger, the voltage and bandwidth staircases, and inventory counts.
 // Nothing here touches the DOM or Three.js, so it is tested directly (engine.test.ts).
 
+import { SITES, type SiteId } from './sites';
+
 // what kind of statement a figure is, and what backs it (src/evidence.js); 'typical' and 'est' are the labels
 // figures carried before they were traced one by one
 export type Basis = 'spec' | 'vendor' | 'reported' | 'derived' | 'assumed' | 'typical' | 'est';
@@ -291,7 +293,12 @@ export function compute(s: Scenario) {
   ];
 
   // ----- layout counts for the campus scene -----
-  // Unit sizes are typical catalog sizes; counts are this model's estimates.
+  // Unit sizes are typical catalog sizes; counts are this model's estimates. A real campus whose operator publishes its
+  // own plant (sites.ts `plant`) replaces the generic one: battery backup instead of diesel, a published battery size
+  // (its power rating, never published, is assumed to carry the whole campus), a closed cooling loop with no towers.
+  const site = s.site ? SITES[s.site as SiteId] : undefined, plant = site?.plant;
+  // the closed loop is the operator's own cooling design: it holds only while the reader keeps that design
+  const batteryBackup = plant?.backup === 'battery', closedLoop = !!plant?.closedLoop && cooling.id === site?.scenario.cooling;
   const mvaUnit = meterMW > 400 ? 300 : 75;                // big campuses buy bigger main transformers
   const liquidMW = IT_MW * (cooling.id === 'air' ? 0 : accel.liquidShare);
   const layout = {
@@ -299,9 +306,9 @@ export function compute(s: Scenario) {
     mvaUnit,
     transformers: Math.ceil(meterMW / mvaUnit) + 1,         // N+1
     feeders: Math.max(2, Math.ceil(meterMW / 10)),
-    gensets: Math.ceil(meterMW / 3 * 1.2),                   // 3 MW class, N+20%
-    fuelML: meterMW * 48 * 0.26 / 1000,                      // 48 h at 0.26 L/kWh, million liters
-    bessMW: Math.round(meterMW * 0.2), bessMWh: Math.round(meterMW * 0.4),
+    gensets: batteryBackup ? 0 : Math.ceil(meterMW / 3 * 1.2),         // 3 MW class, N+20%
+    fuelML: batteryBackup ? 0 : meterMW * 48 * 0.26 / 1000,            // 48 h at 0.26 L/kWh, million liters
+    bessMW: batteryBackup ? Math.round(meterMW) : Math.round(meterMW * 0.2), bessMWh: plant?.bessMWh ?? Math.round(meterMW * 0.4),
     unitSubs: Math.ceil(meterMW * 0.97 / 2.2),               // 2.5 MVA units at ≈2.2 MW
     upsModules: power.id === 'dc800' ? 0 : Math.ceil(itIn / 1.25),
     sstModules: power.id === 'dc800' ? Math.ceil(itIn / 2.5) : 0,
@@ -309,13 +316,14 @@ export function compute(s: Scenario) {
     airUnits: Math.ceil((IT_MW - liquidMW) / (cooling.id === 'air' ? 0.1 : 0.4)),   // in-row coolers, or fan-wall sections
     dryCoolers: cooling.id === 'warm' ? Math.ceil(IT_MW * 1.1 / 0.8) : 0,
     chillers: cooling.id === 'warm' ? 0 : Math.ceil(IT_MW * 1.1 / 4),              // 4 MW (≈1,100 ton) chillers
-    towers: cooling.id === 'warm' ? Math.ceil(IT_MW / 16) : Math.ceil(IT_MW * 1.3 / 6),
+    towers: closedLoop ? 0 : cooling.id === 'warm' ? Math.ceil(IT_MW / 16) : Math.ceil(IT_MW * 1.3 / 6),
   };
 
   return {
     scenario: { meterMW, accel: accel.id, power: power.id, cooling: cooling.id, ...(s.site ? { site: s.site } : {}) } as Scenario,
     accel, power, cooling,
-    meterMW, IT_MW, pue, wue: cooling.wue, coolMW, miscMW,
+    meterMW, IT_MW, pue, wue: closedLoop ? 0 : cooling.wue, coolMW, miscMW,
+    backup: batteryBackup ? 'battery' as const : 'diesel' as const, closedLoop,
     rack: { kw: rackKW, dcBusKW, convKW: rackConvKW, pkgKW, hbmKW, gpuSiliconKW, vrmLossKW, ibcLossKW, cpuKW, gpus: accel.gpusPerRack },
     racks, gpus, cpus: racks * accel.cpusPerRack,
     fabric: fab, NET,

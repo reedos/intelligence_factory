@@ -151,9 +151,17 @@ function outage(M: Model): Sim {
     if (warm) return coolFull;                                        // dry-cooler fans restart with the generators
     return coolCritical + (coolFull - coolCritical) * smooth(clamp((t - gensOn - 30) / (chillersBack - gensOn - 30)));
   };
+  const bat = M.backup === 'battery';                                   // batteries only: they carry the whole outage
   const sample = (t: number): Sample => {
     const load = it + cooling(t);
     const onGrid = t < fail || t >= retransfer;
+    if (bat) return {
+      t, meterMW: onGrid ? load : 0, siteMW: load,
+      values: { grid: onGrid ? load : 0, gens: 0, battery: onGrid ? 0 : load },
+      phase: onGrid ? (t < fail ? 'Normal: on the grid' : 'Back on the grid') : `Batteries carry the campus: ${Math.round((t - fail) / 60)} of ≈${Math.round(M.layout.bessMWh / load * 60)} minutes at this load`,
+      levels: { grid: onGrid ? 1 : 0, mv: 1, standby: onGrid ? 0 : 1, load: 1, cool: cooling(t) / coolFull, vapor: warm ? 0.3 : cooling(t) / coolFull },
+      waterM3h: waterM3h(M, cooling(t) / coolFull), tokensPerS: 0,
+    };
     const battery = !onGrid && t < rampStart ? load : 0;
     const gens = !onGrid && t >= rampStart ? load * clamp((t - rampStart) / (gensOn - rampStart)) : 0;   // ramps up to full load by gensOn
     const bridge = !onGrid && t >= rampStart && t < gensOn ? load - gens : 0;
@@ -168,19 +176,29 @@ function outage(M: Model): Sim {
   };
   return {
     id: 'outage', label: 'Grid outage', unit: 's', duration: end,
-    series: [
+    series: bat ? [
+      { key: 'grid', label: 'From the grid', unit: 'MW', color: '#b69cff' },
+      { key: 'battery', label: 'Site batteries', unit: 'MW', color: '#47cfff' },
+    ] : [
       { key: 'grid', label: 'From the grid', unit: 'MW', color: '#b69cff' },
       { key: 'battery', label: dc ? 'DC-bus batteries' : 'UPS batteries', unit: 'MW', color: '#47cfff' },
       { key: 'gens', label: 'Diesel generators', unit: 'MW', color: '#ffb14e' },
     ],
-    events: [
+    events: bat ? [{ t: fail, label: 'Grid lost' }, { t: gridBack, label: 'Grid back' }, { t: retransfer, label: 'Back on the grid' }] : [
       { t: fail, label: 'Grid lost' }, { t: gensOn, label: 'Full load, 10 s' },
       ...(warm ? [] : [{ t: chillersBack, label: 'Chillers back' }]),
       { t: gridBack, label: 'Grid back' }, { t: retransfer, label: 'Back on the grid' },
     ],
     sample,
     speed: t => (t < 45 ? 2 : 60),
-    notes: [
+    notes: bat ? [
+      { text: 'SpaceXAI’s page lists a 3.3 GWh grid-connected battery pack for this campus (planned) and mentions no diesel generators.', basis: 'spec',
+        ev: { refs: [['spacexai-mid-south', 'Colossus II tab, Power: "America’s largest grid-connected battery pack will provide 3.3 gigawatt hours"; no tab mentions diesel generators (checked 09/27/2026)']] } },
+      { text: `The model makes that pack the backup. Its power rating is not published, so the model assumes it can carry the whole campus: a 15-minute outage uses about ${Math.round(it / 4 / M.layout.bessMWh * 100)}% of it.`, basis: 'assumed',
+        ev: { assume: 'site-battery-carries-campus' } },
+      { text: 'Outage length (15 min) and the 5 minutes of grid stability before transfer back are illustrative.', basis: 'assumed',
+        ev: { assume: 'outage-timeline' } },
+    ] : [
       { text: 'NFPA 110 Type 10 requires standby power to assume its full rated load within 10 seconds of a utility failure; data centers commonly specify this class for their generators, the timing this scenario assumes.', basis: 'spec',
         ev: { refs: [['nixonpower-nfpa110', 'comparison table: Type 10 = 10 seconds; "data centers generally use Level 1, Type 10 systems"'], ['cummins-nfpa110-ate', 'Cummins "Ask the Experts" sheet on NFPA 110 Type/Level classes']] } },
       { text: 'UPS battery runtime commonly ranges from 1–2 minutes at hyperscale facilities up to 10–15 minutes in the financial sector, far longer than the 10 s they need here.', basis: 'reported',
@@ -225,7 +243,7 @@ function hotday(M: Model, o: SimOpts): Sim {
       return {
         t: h, meterMW: meter, siteMW: meter, values: { meter, temp: t, water: water(h) },
         phase: `${Math.round(t)} °C outside · PUE ${(meter / M.IT_MW).toFixed(2)}${warm && t >= adiabatic ? ' · evaporating water' : ''}`,
-        levels: { grid: 1, mv: 1, standby: 0, load: 1, cool: cool / (M.coolMW / 0.99), vapor: clamp(water(h) / waterM3h(M, 2), 0.05, 2) },
+        levels: { grid: 1, mv: 1, standby: 0, load: 1, cool: cool / (M.coolMW / 0.99), vapor: M.wue ? clamp(water(h) / waterM3h(M, 2), 0.05, 2) : 0 },
         waterM3h: water(h), tokensPerS: 0,
       };
     },

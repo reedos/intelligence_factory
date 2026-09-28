@@ -236,6 +236,39 @@ Given the above, figures below are **per package (72 in a rack)** unless stated 
 - **Grid/on-site generation:** MLGW/TVA grid supply (a $24M new substation adds 150 MW of grid capacity) plus **35 on-site gas turbines rated at 420 MW** at Colossus 1, and separate gas-turbine generation at the Southaven, MS site for Colossus 2; Tesla Megapack battery fleet (reported up to 168 units / ~150 MW) for bridging/backup. A system-impact study also flagged **$1.7M of required upgrades to an existing 161 kV transmission line**.
   - Basis: Industry typical throughout (all figures are trade press / integrator blog reporting; xAI has not published these numbers itself). Source: [Wikipedia, "Colossus (data center)"](https://en.wikipedia.org/wiki/Colossus_(data_center)); [Introl, "xAI's Memphis Colossus"](https://introl.com/blog/xai-memphis-colossus-100000-gpu-supercomputer-infrastructure); [SemiAnalysis, "xAI's Colossus 2 – First Gigawatt Datacenter"](https://newsletter.semianalysis.com/p/xais-colossus-2-first-gigawatt-datacenter); [Tom's Hardware, "Musk's Colossus is fully operational with 200,000 GPUs"](https://www.tomshardware.com/tech-industry/artificial-intelligence/musks-colossus-is-fully-operational-with-200-000-gpus-backed-by-tesla-batteries-phase-2-to-consume-300-mw-enough-to-power-300-000-homes); [Data Center Dynamics, "xAI gets 150MW for Colossus"](https://www.datacenterdynamics.com/en/news/xai-colossus-memphis-power-tva/); [Global Energy Monitor, "Colossus 1 power station"](https://www.gem.wiki/Colossus_1_power_station).
 
+#### Update 09/27/2026: the operator's own page, and its name
+
+xAI is now **SpaceXAI**: SpaceX acquired xAI in February 2026 and the company completed its rebrand in July 2026
+(Business Insider via Yahoo Finance, "xAI makes its rebrand to SpaceXAI complete with a new logo," 07/06/2026,
+https://finance.yahoo.com/technology/ai/articles/xai-makes-rebrand-spacexai-complete-215010760.html). The presets now
+use that name.
+
+SpaceXAI's **Mid-South** page, https://www.spacex.com/Mid-South, was checked on 09/27/2026 in a browser (it renders
+with JavaScript; several figures sit behind its Colossus II, Water, Power and Air tabs). It is the operator's own
+description of its sites, so the site labels each figure as SpaceXAI's claim. What it says:
+
+- **Colossus II:** "GPUs planned 1M+"; "America's largest grid-connected battery pack will provide 3.3 gigawatt hours,
+  enough to power Memphis for two hours" (planned, not stated as built). Colossus II "uses closed-loop cooling and
+  takes only domestic water."
+- **Grid:** $55M for two MLGW substations in Memphis, $35M of it for a 150 MW substation and $20M for a second (the
+  page does not say which campus they serve); TVA bills large computing loads under their own rate class.
+- **Backup:** "more than 240 batteries so Colossus I can come completely offline during emergencies or peak demand,"
+  under a TVA contract. The page never mentions diesel generators.
+- **Turbines** (Air tab): "After temporary turbines started on August 1, 2025, …"; "All remaining temporary units run in
+  Tennessee and Mississippi with state authorization." Under
+  an agreed order with the Mississippi Department of Environmental Quality all must be removed by July 2027, and
+  SpaceXAI says it is already taking units offline.
+- **Water:** Colossus I's hybrid system uses about 820,000 gallons a day; a $360M recycling plant is designed for up to
+  10 million gallons of wastewater a day (about 3.64 billion gallons a year kept in the Memphis Aquifer).
+- **Scale:** Colossus I and II together, "over two gigawatts of compute" and more than 2.5 million square feet.
+
+What the model does with it: the Colossus 2 preset models battery backup with no diesel, the 3.3 GWh pack (its power
+rating is not published, so the model assumes it can carry the whole campus, about 3 hours at full load), and
+air-cooled chillers on a closed loop with no cooling towers and no cooling water counted. The earlier reporting above
+("power is substantially self-generated via gas turbines across the state line") is superseded by the operator's own
+account of temporary turbines being removed. Colossus 1 keeps the model's generic diesel plant, with a note that
+SpaceXAI describes batteries as its backup.
+
 ### Microsoft Fairwater Atlanta, GA
 
 - **Location:** Fayetteville, Fayette County, GA (1435 Highway 54 West) — city-level coordinates **~33.45°N, 84.46°W**.

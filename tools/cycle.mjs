@@ -15,6 +15,7 @@ const scenarios = [
   { accel: 'gb300', power: 'dc800', cooling: 'liquid', meterMW: 10 },
   { accel: 'rubin', power: 'dc800', cooling: 'warm', meterMW: 5000 },
   { accel: 'gb200', power: 'ac415', cooling: 'warm', meterMW: 100 },
+  { accel: 'gb300', power: 'ac415', cooling: 'liquid', meterMW: 1100, site: 'colossus2' },   // battery backup, closed loop
 ];
 for (const s of scenarios) {
   await p.evaluate(s => window.ifx.setScenario(s), s);
