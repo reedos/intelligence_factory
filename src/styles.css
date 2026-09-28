@@ -431,6 +431,12 @@ body.playing .beat.on .beat-bar { visibility: visible; }
 .beat-specs dt { font: 400 10.5px/1.35 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .beat-specs dd { margin: 0; font: 500 13px/1.35 var(--mono); text-align: right; }
 
+/* ---------- illustrative-model caption ---------- */
+/* a plain flow strip, not an absolutely-positioned overlay, so it can never share a pixel with the HUD;
+   it just takes its own thin band below the canvas, on every scale and every layer */
+.view-cap { margin: 0; padding: 6px var(--gutter); font: 500 10.5px/1.35 var(--mono); letter-spacing: .02em; color: var(--faint); background: var(--ground); border-top: 1px solid var(--line); text-align: center; }
+@media (max-width: 760px) { .view-cap { padding: 6px 12px; font-size: 10px; } }
+
 /* ---------- view buttons ---------- */
 /* over the view's top right on wide screens, under the layer switch; a bar under the view on phones */
 .hud-btns { position: absolute; z-index: 3; top: 70px; right: 22px; display: grid; justify-items: end; gap: 8px; pointer-events: none; }

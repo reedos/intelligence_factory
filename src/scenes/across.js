@@ -256,7 +256,7 @@ export function build({ quality, model }) {
     const L = polyLen(pts); for (let d = 0; d < L; d += 30) towerPts.push(pointAt(pts, d));
   });
   const tb = new Builder(); tb.cyl(0.6, 6, MAT.galv, 0, 3, 0, 5); tb.box(4, 0.4, 0.4, MAT.galv, 0, 6, 0);
-  tb.instance(towerPts.map((p, i) => mtx(p[0], 0, p[2], i * 1.3))).children.forEach(m => power.add(m));
+  power.add(tb.instance(towerPts.map((p, i) => mtx(p[0], 0, p[2], i * 1.3))));
 
   // ---------- data layer: DWDM routes to the two nearest other campuses ----------
   const near = others.map(p => ({ p, km: greatCircleKm(here, p.site) })).sort((a, b) => a.km - b.km).slice(0, 2);
@@ -273,16 +273,20 @@ export function build({ quality, model }) {
     }
     for (let d = 80; d < L - 20; d += 80) huts.push(pointAt(pts, d));
     const mid = pointAt(pts, L / 2);
-    const lab = labelSprite(`${Math.round(L).toLocaleString('en-US')} km · ${(L * 0.0049).toFixed(1)} ms`);
+    // the route itself is invented, so round the distance and read the label as an estimate, not a
+    // surveyed span; ms is one-way propagation only (no equipment, routing or queuing), at the same
+    // ≈4.9 µs/km assumption used elsewhere, computed from the rounded km so the two numbers agree
+    const kmR = Math.round(L / 10) * 10;
+    const lab = labelSprite(`≈ ${kmR.toLocaleString('en-US')} km · ≈ ${(kmR * 0.0049).toFixed(1)} ms one way`);
     lab.position.set(mid[0], 40, mid[2]); data.add(lab);
     if (!longest || L > longest.L) longest = { L, mid, B };
   });
   const hut = new Builder(); hut.slab(6, 3, 4, MAT.beige, 0, 0, 0); hut.slab(6.4, 0.4, 4.4, MAT.roof, 0, 3, 0); hut.cyl(0.3, 8, MAT.galv, 3.5, 4, 0, 6);
-  hut.instance(huts.map(p => mtx(p[0], 0, p[2], Math.atan2(p[0], p[2])))).children.forEach(m => data.add(m));
+  data.add(hut.instance(huts.map(p => mtx(p[0], 0, p[2], Math.atan2(p[0], p[2])))));
   const hutGlow = new THREE.InstancedMesh(new THREE.SphereGeometry(2.2, 10, 8), glowMat('#ffd35c', 2.2), huts.length);
   huts.forEach((p, i) => hutGlow.setMatrixAt(i, mtx(p[0], 5, p[2]))); data.add(hutGlow);
   const lt = new Builder(); lt.slab(8, 4, 6, MAT.white, 0, 0, 0); lt.slab(8.4, 0.4, 6.4, glowMat('#ffd35c', 0.9), 0, 4, 0);
-  lt.instance([H, ...near.map(({ p }) => world(p.site.lon, p.site.lat))].map(([x, z]) => mtx(x + 20, 0, z - 16))).children.forEach(m => data.add(m));
+  data.add(lt.instance([H, ...near.map(({ p }) => world(p.site.lon, p.site.lat))].map(([x, z]) => mtx(x + 20, 0, z - 16))));
 
   const [hx, hz] = H, h0 = huts[3] || huts[0] || [hx, 3, hz], R0 = near[0] ? world(near[0].p.site.lon, near[0].p.site.lat) : [hx + 300, hz];
   const view = (x, z, d = 200) => ({ pos: [x + d * 0.3, d * 0.9, z + d * 1.1], target: [x, 0, z] });
