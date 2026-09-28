@@ -12,6 +12,7 @@
 import { tokenFigures, calc } from '../model/tokens.js';
 import { waterM3h } from '../model/engine.ts';
 import { content, dieFlux, FACTS } from '../data.js';
+import { SITES } from '../model/sites.ts';
 
 const at = (scene, part, mode = 'power') => ({ scene, mode, part });
 const w3 = v => v.toFixed(3);
@@ -29,6 +30,8 @@ function cardRow(C, mode, scene, part, label) {
   return P.find(p => p.id === part)?.specs.find(r => r[0].startsWith(label)) || null;
 }
 const rows = (...r) => r.filter(Boolean);
+// the operator's own statement of its closed cooling loop, from its campus's facts
+const siteCool = M => (M.scenario.site ? SITES[M.scenario.site].facts.find(r => r[0].startsWith('Cooling')) : null) || null;
 const keyed = (id, beats) => beats.map((b, i) => ({ ...b, specKey: `tour:${id}:${i}` }));
 
 // said once at the head of a tour, where its numbers need a caveat no single beat carries
@@ -72,10 +75,10 @@ export function story(M) {
       specs: M.backup === 'battery'
         ? rows(card('power', 1, 'bess', 'Energy, per SpaceXAI'), card('power', 1, 'bess', 'Power, assumed'), card('power', 1, 'bess', 'At full load'), card('power', 1, 'bess', 'Diesel generators'))
         : rows(card('power', 1, 'gensets', 'Units here'), card('power', 1, 'bess', 'Size here'), card('power', 1, 'bess', 'Training load swings')) },
-    { link: at(1, M.closedLoop ? 'chillers' : air || M.cooling.id === 'liquid' ? 'towers' : 'drycoolers', 'heat'), sim: 'hotday', k: 'Heat · grid & campus', title: 'All of it comes back out',
-      text: `Every one of those ${meter} leaves again as heat. ${M.cooling.id === 'warm' ? 'Warm water climbs to dry coolers on the roofs' : M.closedLoop ? 'Air-cooled chillers on a closed loop push it into the air' : 'Chillers and cooling towers carry it away'}; cooling alone takes ${mw(M.coolMW)}. With the conversion losses, this design runs at PUE ${M.pue.toFixed(2)}${M.closedLoop ? ' and, by the operator’s account, cools on a closed loop that takes only domestic water, so the model counts no cooling water.' : ` and uses about ${big(waterM3h(M) * 24)} m³ of water a day (WUE is measured per kWh of IT energy, not meter energy).`}`,
+    { link: at(1, M.cooling.id === 'warm' ? 'drycoolers' : M.closedLoop ? 'chillers' : 'towers', 'heat'), sim: 'hotday', k: 'Heat · grid & campus', title: 'All of it comes back out',
+      text: `Every one of those ${meter} leaves again as heat. ${M.cooling.id === 'warm' ? 'Warm water climbs to dry coolers on the roofs' : M.closedLoop ? 'Air-cooled chillers on a closed loop push it into the air' : 'Chillers and cooling towers carry it away'}; cooling alone takes ${mw(M.coolMW)}. With the conversion losses, this design runs at PUE ${M.pue.toFixed(2)}${M.closedLoop ? ' and, by the operator’s account, cools on a closed loop, so the model counts no cooling water.' : ` and uses about ${big(waterM3h(M) * 24)} m³ of water a day (WUE is measured per kWh of IT energy, not meter energy).`}`,
       specs: rows(['Cooling power', mw(M.coolMW), 'derived', { calc: 'campus-cooling-power' }], ['PUE, this design', M.pue.toFixed(2), 'derived', { calc: 'it-load-pue' }],
-        M.closedLoop ? card('power', 1, 'chillers', 'Cooling water, per SpaceXAI') : ['Water on site, a day', `≈${big(waterM3h(M) * 24)} m³`, 'derived', { calc: 'campus-water-per-day', assume: 'wue-by-cooling' }]) },
+        M.closedLoop ? siteCool(M) : ['Water on site, a day', `≈${big(waterM3h(M) * 24)} m³`, 'derived', { calc: 'campus-water-per-day', assume: 'wue-by-cooling' }]) },
     // 3 · power room and data hall
     dc
       ? { link: at(2, 'sst'), sim: 'outage', k: 'Power room', title: 'Straight to 800 V DC',
@@ -194,9 +197,9 @@ export function request(M) {
       specs: rows(['Prefill, this example', `${T.prefill} ms`, 'assumed', { assume: 'request-timeline' }], ['Time to first token, this example', `≈${Math.round(ttft)} ms`, 'derived', { calc: 'request-ttft' }]) },
     { link: at(5, 'hbm', 'data'), sim: 'inference', k: 'GPU package', title: `${replyTok} tokens, one at a time`, tally: add(decodeS * 1000), text: `Decode: each new token needs the model’s weights read again from ${M.accel.hbm.type}, shared across the batch of users served together, so this step is usually limited by memory bandwidth. At ${streamTps} tokens a second for your stream (illustrative), a ${replyTok}-token answer takes about ${decodeS.toFixed(1)} s. It costs about ${wh(whReply)} Wh at this campus’s meter, cooling included${calc.withTrain ? ', and a share of training' : ''}.`,
       specs: rows(['Stream rate and reply length', `${streamTps} tokens/s, ${replyTok} tokens`, 'assumed', { assume: 'request-timeline' }], energy, card('data', 5, 'hbm', 'Bandwidth')) },
-    { link: at(5, 'tokens', 'data'), k: 'Out', title: 'The answer streams back', tally: add(T.net), text: `Words leave as they are written, a few bytes each, back out the way the question came in. In all: about ${(ms / 1000).toFixed(1)} s, and about ${wh(whReply)} Wh at the meter, of which about ${wh(whIT)} Wh reached the IT equipment. ${M.closedLoop ? 'The operator reports closed-loop cooling that takes only domestic water, so the model counts no cooling water.' : `At this design’s WUE of ${M.wue.toFixed(2)} L per kWh of IT energy, that is about ${ml(t.waterReply)} mL of water on site.`}`,
+    { link: at(5, 'tokens', 'data'), k: 'Out', title: 'The answer streams back', tally: add(T.net), text: `Words leave as they are written, a few bytes each, back out the way the question came in. In all: about ${(ms / 1000).toFixed(1)} s, and about ${wh(whReply)} Wh at the meter, of which about ${wh(whIT)} Wh reached the IT equipment. ${M.closedLoop ? 'The operator reports a closed cooling loop, so the model counts no cooling water.' : `At this design’s WUE of ${M.wue.toFixed(2)} L per kWh of IT energy, that is about ${ml(t.waterReply)} mL of water on site.`}`,
       specs: rows(energy, ['IT energy per reply', `≈${wh(whIT)} Wh`, 'derived', { calc: 'reply-energy' }],
-        M.closedLoop ? card('power', 1, 'chillers', 'Cooling water, per SpaceXAI') : ['Water on site, per reply', `≈${ml(t.waterReply)} mL`, 'derived', { calc: 'reply-water', assume: 'wue-by-cooling' }]) },
+        M.closedLoop ? siteCool(M) : ['Water on site, per reply', `≈${ml(t.waterReply)} mL`, 'derived', { calc: 'reply-water', assume: 'wue-by-cooling' }]) },
   ]);
 }
 
@@ -233,8 +236,8 @@ export function heat(M) {
     { link: at(2, 'riser', 'heat'), k: 'Data hall', title: 'Up and out', tally: `≈${T.fwsReturn} °C return`, text: `Insulated headers carry the warm return water, about ${T.fwsReturn} °C, out of the building to the ${warm ? 'roof' : 'chiller plant'}.`,
       specs: rows(card('heat', 2, 'riser', 'Carries'), loop(air ? 'Chilled water return' : 'Facility water return', `≈${T.fwsReturn} °C`)) },
     warm
-      ? { link: at(1, 'drycoolers', 'heat'), k: 'Grid & campus', title: 'Into the air', tally: `≈${T.fwsSupply} °C supply back`, text: `Dry coolers push the heat into outside air with fans alone and send the water back at about ${T.fwsSupply} °C, as long as the air stays below about ${T.ambient} °C. On hotter afternoons sprays help, and cost water.`,
-        specs: rows(card('heat', 1, 'drycoolers', 'Heat rejected'), loop('Facility water supply, back to the hall', `≈${T.fwsSupply} °C`), loop('Sprays needed above', `≈${T.ambient} °C outside`)) }
+      ? { link: at(1, 'drycoolers', 'heat'), k: 'Grid & campus', title: 'Into the air', tally: `≈${T.fwsSupply} °C supply back`, text: `Dry coolers push the heat into outside air with fans alone and send the water back at about ${T.fwsSupply} °C, as long as the air stays below about ${T.ambient} °C. ${M.closedLoop ? 'The loop is closed, so, by the operator’s account, no water is evaporated.' : 'On hotter afternoons sprays help, and cost water.'}`,
+        specs: rows(card('heat', 1, 'drycoolers', 'Heat rejected'), loop('Facility water supply, back to the hall', `≈${T.fwsSupply} °C`), M.closedLoop ? siteCool(M) : loop('Sprays needed above', `≈${T.ambient} °C outside`)) }
       : { link: at(1, 'chillers', 'heat'), k: 'Grid & campus', title: 'Pumped uphill', tally: `≈${T.fwsSupply} °C supply made`,
         text: M.closedLoop
           ? `Air-cooled chillers spend electricity to make cold water at about ${T.fwsSupply} °C again, pushing the heat into outside air through their condenser coils and adding their own heat to the pile.`

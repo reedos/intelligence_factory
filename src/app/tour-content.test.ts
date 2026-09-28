@@ -116,3 +116,16 @@ describe('every figure a narrated tour states carries its evidence', () => {
     }
   });
 });
+
+describe('a closed loop counts no water, whichever plant rejects the heat', () => {
+  it.each(['colossus2', 'fairwater-atl'])('%s', id => {
+    const M = compute({ ...(SITES as any)[id].scenario, site: id }) as any, C = content(M) as any;
+    expect(M.closedLoop).toBe(true); expect(M.wue).toBe(0); expect(M.layout.towers).toBe(0);
+    const words = [...story(M), ...request(M), ...heat(M)].map((b: any) => b.text).join(' ') + C.SCENES[1].heatIntro;
+    expect(words).not.toMatch(/sprays help|cost water|m³ of water a day|mL of water/);
+    expect(words).toMatch(/closed loop|loop is closed/);
+    // the text cites the operator's own cooling statement, not another operator's
+    const own = (SITES as any)[id].facts.find((r: any) => r[0].startsWith('Cooling'));
+    for (const b of [...story(M), ...request(M), ...heat(M)] as any[]) for (const r of b.specs) if (/Cooling/.test(r[0]) && r[2] === 'spec') expect(r).toEqual(own);
+  });
+});

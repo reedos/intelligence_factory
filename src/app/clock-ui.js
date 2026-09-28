@@ -175,7 +175,7 @@ const WHERE_ = { training: { scene: 1, mode: 'power', part: 'bess' }, outage: { 
 const WHERE = new Proxy(WHERE_, { get: (w, id) => {
   const v = w[id], M = store.M;
   if (id === 'outage' && M?.backup === 'battery') return { ...v, part: 'bess' };
-  if (id === 'hotday' && M?.closedLoop) return { ...v, part: 'chillers' };
+  if (id === 'hotday' && M?.closedLoop) return { ...v, part: M.cooling.id === 'warm' ? 'drycoolers' : 'chillers' };
   return v;
 } });
 function renderSection() {

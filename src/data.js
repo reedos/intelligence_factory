@@ -88,6 +88,8 @@ export function content(M) {
   const nvl = A.gpusPerRack === 72, dc = P.id === 'dc800', air = CL.id === 'air', warm = CL.id === 'warm';
   // a real campus's published plant (sites.ts): battery backup instead of diesel, a closed loop instead of towers
   const bat = M.backup === 'battery', closed = M.closedLoop, bessH = L.bessMW ? L.bessMWh / L.bessMW : 0;
+  // the operator's own statement of its closed loop, cited wherever the page says the campus evaporates no water
+  const siteCool = closed ? SITES[M.scenario.site].facts.find(r => r[0].startsWith('Cooling')) : null;
   const n0 = v => Math.round(v).toLocaleString('en-US');
   const kfmt = v => v >= 1e6 ? `${(v / 1e6).toFixed(1)} million` : v >= 1e4 ? `${n0(v / 1000)}k` : n0(v);
   const mwTxt = v => v >= 1000 ? `${+(v / 1000).toFixed(2)} GW` : v >= 10 ? `${n0(v)} MW` : `${v.toFixed(1)} MW`;
@@ -125,7 +127,7 @@ export function content(M) {
     {
       id: 'campus', n: 2, title: 'Grid & campus', scale: `${extraHalls ? '≈' : ''}${campusKm.toFixed(1)} km across`, unit: 1, volt: 'hv', dataVolt: 'dci', heatVolt: 'air', heatShort: `${meter} out`,
       heatIntro: warm
-        ? `All ${meter} leaves as heat. Warm water climbs to rows of dry coolers on the roofs, which dump it into the air; on the hottest afternoons evaporative towers help, and cost water.`
+        ? `All ${meter} leaves as heat. Warm water climbs to rows of dry coolers on the roofs, which dump it into the air; ${closed ? 'the loop is closed, so, by the operator’s account, no water is evaporated.' : 'on the hottest afternoons evaporative towers help, and cost water.'}`
         : air
           ? `All ${meter} leaves as heat. Chillers make cold water for the cooling units in the halls, and cooling towers throw the chillers' heat away by evaporating water: the most water-hungry way to cool.`
           : closed
@@ -317,7 +319,7 @@ export function content(M) {
           ['Heat rejected', `≈${mwTxt(IT_MW * 1.05)}`, 'derived', evCalc('campus-heat-rejected')],
           ['Units, ≈0.8 MW each', `≈${n0(L.dryCoolers)}`, 'derived', evCalc('campus-drycooler-count')],
           ['Water classes', 'ASHRAE W32–W45: 32–45 °C max supply', 'spec', evRefs([['ashrae-liquid-cooling-classes', 'blog: classes "W17, W27, W32, NEW class W40, W45" named for their maximum supply temperature in °C'], ['ashrae-tc99-liquid-cooling-wp', 'p.4, "Change to ASHRAE Water Classifications": "the W classes are being renamed with the upper temperature limits incorporated in the name... W17 (previously W1), W27 (W2), W32 (W3), W40 (new), W45 (W4)"']])],
-          ['Water use, dry + adiabatic', '≈0.15–0.17 L/kWh', 'reported', evRefs([['ai-dc-water-arxiv', 'Table 5: WUE for "IT Liquid cooling: dry cooler with adiabatic assist (air-cooled chiller)" = 0.15–0.17 L/kWh, adapted from Lei et al. 2025']])],
+          closed ? siteCool : ['Water use, dry + adiabatic', '≈0.15–0.17 L/kWh', 'reported', evRefs([['ai-dc-water-arxiv', 'Table 5: WUE for "IT Liquid cooling: dry cooler with adiabatic assist (air-cooled chiller)" = 0.15–0.17 L/kWh, adapted from Lei et al. 2025']])],
         ] }
       : closed
         ? { id: 'chillers', title: 'Chiller plant', kicker: 'Air-cooled, closed loop',
@@ -1064,7 +1066,7 @@ export function content(M) {
     { label: 'Facility return', c: TT.fwsReturn, note: warm ? 'up to the roof' : 'to the chillers', basis: 'assumed', ev: lt, link: at(2, 'fwater', 'heat') },
     { label: 'Rack loop supply', c: TT.tcsSupply, note: warm ? 'NVIDIA warm-water spec' : 'out of the CDU', basis: warm ? 'spec' : 'assumed', ev: warm ? { refs: [['nvidia-warm-water-blog', 'NVIDIA blog: "the coolant entering a fully liquid-cooled chip at 45 degrees Celsius"']] } : lt, link: at(2, 'cdu', 'heat') },
     { label: 'Facility supply', c: TT.fwsSupply, note: warm ? 'from the dry coolers' : 'made by chillers', basis: 'assumed', ev: lt, link: at(2, 'fwater', 'heat') },
-    { label: 'Outdoor air, hot day', c: TT.ambient, note: warm ? 'above it, sprays help' : 'warmer than the loop', basis: 'assumed', ev: lt, link: outside },
+    { label: 'Outdoor air, hot day', c: TT.ambient, note: warm ? (closed ? 'a hot design afternoon' : 'above it, sprays help') : 'warmer than the loop', basis: 'assumed', ev: lt, link: outside },
   ]).sort((a, b) => b.c - a.c);
 
   // How a model is split, from the chattiest traffic to the quietest.

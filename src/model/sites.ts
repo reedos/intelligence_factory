@@ -110,6 +110,8 @@ export const SITES: Record<SiteId, Site> = {
   'fairwater-atl': {
     id: 'fairwater-atl', name: 'Microsoft Fairwater Atlanta', owner: 'Microsoft', place: 'Fayetteville, GA', lat: 33.45, lon: -84.46, state: '13',
     scenario: { meterMW: 740, accel: 'gb300', power: 'ac415', cooling: 'warm' },
+    // Microsoft's own post: a closed loop that reuses the liquid "with no evaporation" (see the Cooling fact)
+    plant: { closedLoop: true },
     carbonG: 305, carbonNote: 'Georgia, 672 lb/MWh (EIA 2024).',
     facts: [
       ['IT power running, satellite estimate', '≈636 MW, 4 of 9 Main Campus buildings', 'reported', { refs: [['epoch-dc-fairwater-atl', 'directory entry: "CURRENT IT POWER" 636MW; body text on buildings 1–4 live'], ['measuredai-fairwater-atlanta-data-center', 'body text: "The QTS Fayetteville Main Campus comprises nine data center buildings — four operational, five under construction"']] }],
@@ -118,7 +120,7 @@ export const SITES: Record<SiteId, Site> = {
       ['Cooling', 'closed-loop liquid, no evaporation', 'spec', { refs: [['microsoft-infinite-scale', 'body text: a "closed-loop approach that reuses the liquid continuously after the initial fill with no evaporation"'], ['measuredai-fairwater-atlanta-data-center', 'body text: "The cooling loop is filled once and recirculated for the life of the building"']] }],
       ['Backup power', 'no on-site generation, UPS or dual-corded distribution (grid-only design)', 'spec', { refs: [['microsoft-infinite-scale', 'body text: Microsoft can "forgo traditional resiliency approaches for the GPU fleet (such as on-site generation, UPS systems and dual-corded distribution)"'], ['measuredai-fairwater-atlanta-data-center', 'body text: "The Fairwater template strips on-site power generation, UPS systems, and dual-corded distribution out of the buildings’ electrical topology entirely"']] }],
     ],
-    unknowns: ['Meter power is estimated from the ≈636 MW IT figure at a PUE near 1.15.', 'The GB200/GB300 split is not disclosed; GB300 is assumed.', 'Closed-loop liquid is modeled as warm water with dry coolers.'],
+    unknowns: ['Meter power is estimated from the ≈636 MW IT figure at a PUE near 1.15.', 'The GB200/GB300 split is not disclosed; GB300 is assumed.', 'Closed-loop liquid is modeled as warm water with dry coolers on a closed loop, as Microsoft describes it, so the model counts no cooling water and no hot-day sprays; how the plant rides out the hottest afternoons is not stated in the sources here.', 'Microsoft says the design forgoes on-site generation, UPS systems and dual-corded distribution for the GPU fleet. This preset still runs the model’s generic power chain, with its UPS losses, generators and batteries, so those figures are the generic model’s, not Microsoft’s.'],
     sources: ['epoch-dc-fairwater-atl', 'microsoft-infinite-scale', 'dcd-fairwater-atlanta', 'datacenterfrontier-fairwater', 'measuredai-fairwater-atlanta-data-center'],
     status: { state: 'partial', live: '≈636 MW IT', asOf: '09/24/2026', source: 'epoch-dc-fairwater-atl',
       line: '4 of 9 main-campus buildings are live, about 636 MW of IT power. The rest of the 13 planned buildings, across the main, east and Fairwater campuses, are under construction toward about 1.5 GW.' },
@@ -133,7 +135,7 @@ export const SITES: Record<SiteId, Site> = {
       ['Cooling', 'closed-loop liquid, filled once', 'spec', { refs: [['microsoft-made-in-wisconsin', 'body text: "a state-of-the-art closed-loop liquid cooling system, filled during construction and recirculated continuously"']] }],
       ['Opened', '06/23/2026', 'reported', { refs: [['microsoft-wisconsin-construction-complete', 'headline/dateline: construction completed, announced Tuesday, June 23, 2026']] }],
     ],
-    unknowns: ['Later investment rose to $7.3B; no updated power figure was found.', 'On-site generation is not disclosed.', 'Epoch’s tracker shows building 1 at ≈369 MW live against a much larger ≈2,263 MW projected total; no single published figure gives a stable "design capacity" for the site, so this page states the live figure rather than a round ≈450 MW.'],
+    unknowns: ['Later investment rose to $7.3B; no updated power figure was found.', 'On-site generation is not disclosed.', 'Microsoft describes a closed-loop liquid system filled once; the sources here do not say whether heat rejection evaporates any water, so the model’s warm-water design still counts hot-day spray water.', 'Epoch’s tracker shows building 1 at ≈369 MW live against a much larger ≈2,263 MW projected total; no single published figure gives a stable "design capacity" for the site, so this page states the live figure rather than a round ≈450 MW.'],
     sources: ['epoch-dc-fairwater-wi', 'dcd-fairwater-wisconsin', 'techtimes-fairwater-wisconsin', 'microsoft-ai-wan', 'microsoft-made-in-wisconsin', 'microsoft-wisconsin-construction-complete'],
     status: { state: 'partial', live: '≈369 MW IT', asOf: '09/24/2026', source: 'epoch-dc-fairwater-wi',
       line: 'Building 1 has run since 04/16/2026, about 369 MW of IT power. Building 2 is under construction, due in 2028.' },

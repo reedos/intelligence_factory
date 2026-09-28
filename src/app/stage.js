@@ -56,7 +56,7 @@ function legends(M) {
     ],
     heat: [
       [['hv', 'Grid, for reference']],
-      warm ? [['warm', 'Warm water up'], ['air', 'Warm air out'], ['vapor', 'Evaporation'], ['cool', 'Makeup water']]
+      warm ? (M.closedLoop ? [['warm', 'Warm water up'], ['air', 'Warm air out']] : [['warm', 'Warm water up'], ['air', 'Warm air out'], ['vapor', 'Evaporation'], ['cool', 'Makeup water']])
         : M.closedLoop ? [['warm', 'Return water'], ['cool', 'Chilled supply'], ['air', 'Warm air off the chillers']]   // a closed loop evaporates nothing
         : [['warm', 'Return water'], ['cool', 'Chilled supply'], ['vapor', 'Evaporation']],
       [['cool', 'Supply water'], ['warm', 'Return water'], ['air', 'Hot air']],
