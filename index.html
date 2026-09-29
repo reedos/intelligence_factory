@@ -3,7 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex">  <!-- until the phone check; remove to let search engines in -->
+<meta name="robots" content="noindex">
+<script>
+  // Links from before the 3D view moved to its own page (a shared ?view= part, a clock, #explore, a #tour-... start)
+  // go straight to the visualizer, keeping the part, scenario and tour they point at.
+  (function () {
+    var q = new URLSearchParams(location.search), h = location.hash;
+    if (q.has('view') || q.has('clock') || /^#(explore|viewer|tour-)/.test(h))
+      location.replace('visualizer.html' + location.search + (/^#tour-/.test(h) ? h : ''));
+  })();
+</script>  <!-- until the phone check; remove to let search engines in -->
 <title>The Intelligence Factory</title>
 <meta name="description" content="Zoom from a 2,000 km grid into one AI campus and down to a GPU die at 0.8 V: power, data and heat at six scales, every figure labeled by where it comes from.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
