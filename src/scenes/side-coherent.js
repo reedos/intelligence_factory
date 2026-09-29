@@ -1,7 +1,8 @@
 // Side level: inside an 800ZR coherent pluggable (OSFP). World unit = 1 cm.
-// The four blocks every source names: a tunable laser (sized to a nano-ITLA research example, 25.0 x 15.6 x 6.5 mm), a
+// One representative packaging option: a tunable laser (sized to a nano-ITLA research example, 25.0 x 15.6 x 6.5 mm), a
 // coherent driver modulator (the IQ modulator packaged with its RF driver), an integrated coherent receiver (90-degree
-// hybrid, balanced photodiodes and TIAs in one package) and the coherent DSP. The footprint is to scale, the layers are
+// hybrid, balanced photodiodes and TIAs in one package) and the coherent DSP. These are not universal package boundaries:
+// other designs use discrete driver and TIA packages or combine a shared TX/RX PIC with driver/TIA electronics in one optical subassembly; exact die placement varies. The footprint is to scale, the layers are
 // pulled apart; where each block sits is representative (this research pass found no teardown). Transmit on the far side (z < 0), receive on the near side:
 //   TX  host lanes → DSP → traces → CDM (driver → IQ modulator, lit by the laser) → fiber → LC transmit
 //   RX  LC receive → fiber → ICR (mixed with the laser's own light) → TIAs → traces → DSP → host lanes
@@ -58,15 +59,24 @@ function icrTex() {
   });
 }
 
-export function build({ quality, state }) {
+export function build({ quality, state, authoredHardware = false }) {
   const scene = setup(quality, 9), M = materials();
   const S = new Builder(), N = new Builder();
   const flows = [], dataFlows = [], heatFlows = [];
   const LEN = 10.78, MW = 2.258, MX0 = -LEN / 2, MX1 = LEN / 2, mx = u => MX0 + u;
   const Y = { shell: 0, pcb: 1.3, top: 1.35, lid: 3.4 };
+  const shellEdge = new THREE.MeshStandardMaterial({ color: 0x81909e, metalness: 0.8, roughness: 0.3 });
+  const laminate = new THREE.MeshStandardMaterial({ color: 0x465a3f, roughness: 0.7, metalness: 0.05 });
+  const engraving = new THREE.MeshStandardMaterial({ color: 0x25313d, roughness: 0.55, metalness: 0.4, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  const lidDetail = new THREE.MeshStandardMaterial({ color: 0xa3b1bf, metalness: 0.7, roughness: 0.4, transparent: true, opacity: 0.22, depthWrite: false });
+  if (!authoredHardware) {
   S.box(LEN, 0.12, MW, MAT.darkSteel, 0, Y.shell, 0);
   S.box(LEN, 0.55, 0.1, MAT.darkSteel, 0, Y.shell + 0.3, -MW / 2 + 0.05);
+  S.box(LEN, 0.55, 0.1, MAT.darkSteel, 0, Y.shell + 0.3, MW / 2 - 0.05);
+  for (const z of [-MW / 2 + 0.05, MW / 2 - 0.05]) N.box(LEN - 0.12, 0.035, 0.055, shellEdge, 0, Y.shell + 0.57, z);
+  }
   S.box(LEN - 0.9, 0.1, MW - 0.24, MAT.pcb, (MX0 + MX1 - 0.9) / 2 + 0.05, Y.pcb, 0);
+  for (const z of [-(MW - 0.24) / 2, (MW - 0.24) / 2]) N.box(LEN - 0.92, 0.025, 0.008, laminate, -0.4, Y.pcb, z);
   for (let i = 0; i < 30; i++) { const z = -0.95 + i * 0.066; N.box(0.55, 0.012, 0.045, MAT.gold, mx(0.33), Y.top + 0.006, z); N.box(0.55, 0.012, 0.045, MAT.gold, mx(0.33), Y.pcb - 0.056, z); }
   for (let i = 0; i < 4; i++) S.box(0.34, 0.22, 0.34, MAT.inductor, mx(1.35 + (i % 2) * 0.48), Y.top + 0.11, i < 2 ? -0.62 : 0.62);
   // the coherent DSP
@@ -75,7 +85,16 @@ export function build({ quality, state }) {
   const dspTop = die(scene, M, 1.15, 0.06, 1.15, dspTex(), DSPX, Y.top + 0.13, 0);
   // the tunable laser, to its published size
   const ITX = mx(6.35), ITL = 2.5, ITW = 1.56, ITH = 0.65;
-  S.box(ITL, ITH, ITW, MAT.nickel, ITX, Y.top + ITH / 2, 0);
+  if (!authoredHardware) {
+  S.box(ITL, ITH - 0.07, ITW, MAT.nickel, ITX, Y.top + (ITH - 0.07) / 2, 0);
+  S.box(ITL - 0.02, 0.014, ITW - 0.02, MAT.darkSteel, ITX, Y.top + ITH - 0.063, 0);
+  S.box(ITL, 0.056, ITW, MAT.nickel, ITX, Y.top + ITH - 0.028, 0);
+  // Flush seam and recessed fasteners remain within the published laser envelope.
+  for (const x of [ITX - ITL / 2 + 0.14, ITX + ITL / 2 - 0.14]) for (const z of [-ITW / 2 + 0.14, ITW / 2 - 0.14]) {
+    N.cyl(0.046, 0.008, engraving, x, Y.top + ITH - 0.004, z, 10);
+    N.box(0.054, 0.003, 0.013, shellEdge, x, Y.top + ITH - 0.0015, z);
+  }
+  }
   const itOut = [ITX + ITL / 2, Y.top + 0.33, 0];
   N.box(0.03, 0.12, 0.3, glowMat(COL.cw, 1.5), itOut[0] + 0.015, itOut[1], 0);
   // a tap splits the laser's light between the transmit carrier and the receiver's local oscillator
@@ -83,14 +102,14 @@ export function build({ quality, state }) {
   S.box(0.18, 0.12, 0.3, M.glass, tap[0], tap[1], 0);
   // the coherent driver modulator: an RF driver strip along the far edge, bonded to the IQ modulator chip beside it
   const CX0 = mx(7.75), CL = 1.75, CX_ = CX0 + CL / 2, cdmZ = -0.52;
-  S.box(CL + 0.1, 0.05, 0.82, MAT.pcbBlack, CX_, Y.top + 0.025, cdmZ);
+  if (!authoredHardware) S.box(CL + 0.1, 0.05, 0.82, MAT.pcbBlack, CX_, Y.top + 0.025, cdmZ);
   die(scene, M, CL, 0.06, 0.48, iqTex(), CX_, Y.top + 0.08, cdmZ + 0.1);
   const drvTop = die(scene, M, CL * 0.7, 0.06, 0.16, null, CX_, Y.top + 0.08, cdmZ - 0.27); drvTop.color = new THREE.Color(0x3e4a66);
   for (let k = 0; k < 4; k++) { const x = CX0 + (200 + k * 60 + 17) / 640 * CL; bondWire(N, [x, Y.top + 0.11, cdmZ - 0.22], [x, Y.top + 0.11, cdmZ - 0.12], 0.06); }
   const cdmIn = [CX0, Y.top + 0.1, cdmZ + 0.1], cdmOut = [CX0 + CL, Y.top + 0.1, cdmZ + 0.1];
   // the coherent receiver: hybrid and photodiodes, with the TIAs along the near edge
   const RX0 = mx(7.75), RL = 1.5, RX_ = RX0 + RL / 2, icrZ = 0.52;
-  S.box(RL + 0.1, 0.05, 0.82, MAT.pcbBlack, RX_, Y.top + 0.025, icrZ);
+  if (!authoredHardware) S.box(RL + 0.1, 0.05, 0.82, MAT.pcbBlack, RX_, Y.top + 0.025, icrZ);
   die(scene, M, RL, 0.06, 0.46, icrTex(), RX_, Y.top + 0.08, icrZ - 0.1);
   const tiaTop = die(scene, M, RL * 0.75, 0.06, 0.16, null, RX_, Y.top + 0.08, icrZ + 0.27); tiaTop.color = new THREE.Color(0x5a3e62);
   for (let k = 0; k < 4; k++) { const x = RX0 + (110 + k * 90 + 20) / 512 * RL; bondWire(N, [x, Y.top + 0.11, icrZ + 0.12], [x, Y.top + 0.11, icrZ + 0.2], 0.06); }
@@ -103,6 +122,11 @@ export function build({ quality, state }) {
   strand(N, [cdmOut, [(cdmOut[0] + lcTx[0]) / 2, Y.top + 0.18, -0.35], lcTx], M.fiberTx, 0.012);
   strand(N, [lcRx, [(icrSig[0] + lcRx[0]) / 2, Y.top + 0.18, 0.3], icrSig], M.fiberRx, 0.012);
   for (const [dz, c] of [[-0.3, COL.tx], [0.3, COL.rx]]) { S.box(0.5, 0.36, 0.42, MAT.polymer, LCX, Y.top + 0.2, dz); N.box(0.02, 0.05, 0.05, glowMat(c, 1.4), LCX + 0.26, Y.top + 0.2, dz); }
+  for (const dz of [-0.3, 0.3]) {
+    // Connector shell lips frame the existing optical port; no additional port.
+    for (const dy of [-0.155, 0.155]) N.box(0.035, 0.035, 0.4, shellEdge, LCX + 0.245, Y.top + 0.2 + dy, dz);
+    for (const side of [-0.185, 0.185]) N.box(0.035, 0.28, 0.025, shellEdge, LCX + 0.245, Y.top + 0.2, dz + side);
+  }
   // copper traces: host side to the DSP, then along the board's edges past the laser to the CDM's driver (transmit)
   // and back from the ICR's TIAs (receive)
   const pair = pts => { for (const d of [-0.02, 0.02]) for (let k = 0; k < pts.length - 1; k++) trace(N, [pts[k][0], pts[k][1] + d], [pts[k + 1][0], pts[k + 1][1] + d], Y.top + 0.002, 0.016); };
@@ -115,14 +139,19 @@ export function build({ quality, state }) {
   }
   const pad = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.12, 1.3), new THREE.MeshStandardMaterial({ color: 0xd87aa0, roughness: 0.8, transparent: true, opacity: 0.85 }));
   pad.position.set(DSPX, 2.35, 0); scene.add(pad);
+  if (!authoredHardware) {
   lidBox(scene, M, LEN, MW, [0, Y.lid, 0]);
+  // A restrained translucent fin silhouette keeps the interior readable in the
+  // exploded teaching view; it is representative, not a thermal design claim.
+  for (let i = 0; i < 13; i++) N.box(LEN * 0.67, 0.23, 0.025, lidDetail, -1.25, Y.lid + 0.185, -0.9 + i * 0.15);
+  }
   scene.add(S.build()); scene.add(N.build({ cast: false }));
 
   // ======================= flows =======================
   const yT = Y.top + 0.01;
   for (let i = 0; i < 4; i += 1) {
     const zt = -0.86 + i * 0.1, zr = 0.56 + i * 0.1, et = -0.95 + i * 0.045, er = 0.81 + i * 0.045;
-    if (i % 2 === 0) {
+    {
       dataFlows.push(flow([[MX0 - 0.9, yT, zt], [mx(0.62), yT, zt], [DSPX - 1.2, yT, zt], [DSPX - DH, yT, zt * 0.8], [DSPX + DH, Y.top + 0.18, -0.55 + i * 0.1], [ITX - ITL / 2 - 0.2, yT, et], [CX0 + 0.2, yT, et], [CX0 + 0.3 + i * 0.3, Y.top + 0.1, cdmZ - 0.33], [CX0 + 0.3 + i * 0.3, Y.top + 0.12, cdmZ + 0.05]], 'eth', FLOW.elec));
       dataFlows.push(flow([[RX0 + 0.3 + i * 0.28, Y.top + 0.12, icrZ + 0.05], [RX0 + 0.3 + i * 0.28, Y.top + 0.1, icrZ + 0.33], [RX0 + 0.2, yT, er], [ITX - ITL / 2 - 0.2, yT, er], [DSPX + DH, Y.top + 0.18, 0.25 + i * 0.1], [DSPX - DH, yT, zr * 0.8], [DSPX - 1.2, yT, zr], [mx(0.62), yT, zr], [MX0 - 0.9, yT, zr]], 'eth', FLOW.elec));
     }
@@ -132,9 +161,22 @@ export function build({ quality, state }) {
   dataFlows.push(flow([cdmIn, cdmOut, [(cdmOut[0] + lcTx[0]) / 2, Y.top + 0.18, -0.35], lcTx, [MX1 + 0.7, Y.top + 0.2, -0.3]], 'tx', FLOW.light));
   dataFlows.push(flow([[MX1 + 0.7, Y.top + 0.2, 0.3], lcRx, [(icrSig[0] + lcRx[0]) / 2, Y.top + 0.18, 0.3], icrSig, [RX_, Y.top + 0.12, icrZ - 0.1]], 'rx', FLOW.light));
   for (let i = 0; i < 4; i++) flows.push(flow([[MX0 - 1.1, yT, -0.9 + i * 0.6], [mx(0.3), yT, -0.9 + i * 0.6], [mx(1.5), Y.top + 0.12, i < 2 ? -0.62 : 0.62]], 'v33', FLOW.power));
-  for (const [x, z] of [[DSPX, 0], [ITX, 0], [CX_, cdmZ], [RX_, icrZ]]) flows.push(flow([[mx(2.0), yT, z * 0.4], [x, Y.top + 0.12, z]], 'core', FLOW.power));
+  for (const [x, z] of [[DSPX, 0], [ITX, 0], [CX_, cdmZ], [RX_, icrZ]]) {
+    const start = [mx(2.0), yT, z * 0.4], end = [x, Y.top + 0.12, z];
+    // A functional DC distribution path, not a fabricated PCB trace. Route the
+    // optical-package feeds outside the metal laser case so energy cannot look
+    // as if it passes through the laser to reach unrelated circuits.
+    const edge = Math.sign(z) * .97;
+    const pts = z === 0 ? [start, end] : [start, [ITX - ITL / 2 - .22, yT, edge],
+      [ITX + ITL / 2 + .2, yT, edge], [x, yT, edge], end];
+    flows.push(flow(pts, 'core', FLOW.power));
+  }
   for (let i = 0; i < 10; i++) { const x = DSPX + (i % 5 - 2) * 0.18, z = (Math.floor(i / 5) - 0.5) * 0.45; heatFlows.push(flow([[x, Y.top + 0.16, z], [x, Y.lid, z], [x, Y.lid + 1.2, z]], 'hot', FLOW.heat)); }
   for (let i = 0; i < 4; i++) heatFlows.push(flow([[ITX - 0.9 + i * 0.6, Y.top + ITH, 0], [ITX - 0.9 + i * 0.6, Y.lid, 0], [ITX - 0.9 + i * 0.6, Y.lid + 1.0, 0]], 'hot', FLOW.heat));
+  // Driver/modulator and receiver/TIA packages also dissipate power. These
+  // qualitative paths complete the active-package picture; counts are not watts.
+  for (const [x,z] of [[CX_,cdmZ],[RX_,icrZ]]) for (const dx of [-.18,.18])
+    heatFlows.push(flow([[x+dx,Y.top+.16,z],[x+dx,Y.lid,z],[x+dx,Y.lid+1,z]], 'hot', FLOW.heat));
   [flows, dataFlows, heatFlows].forEach(a => a.forEach(f => scene.add(f.group)));
 
   label(scene, 'Coherent pluggable · 800ZR, OSFP', [0, -0.35, 2.6], '#e8ecf2', 0.34);
@@ -144,8 +186,8 @@ export function build({ quality, state }) {
   label(scene, 'RX · lanes out', [MX0 - 0.9, 1.75, 0.55], COL.rx, 0.16);
   label(scene, 'Electrical · copper traces', [DSPX + 1.2, 1.9, -1.45], COL.elec, 0.14);
   label(scene, 'Tunable laser · sized to a published nano-ITLA (JLT 2023), 25.0 × 15.6 × 6.5 mm', [ITX, 2.45, 0], COL.cw, 0.15);
-  label(scene, 'Driver + IQ modulator (TX)', [CX_, 1.9, -1.45], COL.tx, 0.14);
-  label(scene, 'Coherent receiver + TIAs (RX)', [RX_, 1.9, 1.45], COL.rx, 0.14);
+  label(scene, 'Driver + IQ modulator (TX) · one packaging example', [CX_, 1.9, -1.45], COL.tx, 0.14);
+  label(scene, 'Coherent receiver + TIAs (RX) · one packaging example', [RX_, 1.9, 1.45], COL.rx, 0.14);
   label(scene, 'Light · glass fiber', [LCX - 0.6, 2.05, 0], COL.tx, 0.14);
 
   const view = (p, v, t) => ({ pos: p, view: { pos: v, target: t } });
@@ -158,10 +200,10 @@ export function build({ quality, state }) {
   };
   return {
     scene, flows, dataFlows, heatFlows,
-    camera: { pos: [1.2, 8.6, 10.5], target: [0, 1.3, 0], near: 0.05, far: 300, min: 1.2, max: 40, portrait: { pos: [0.6, 12.5, 16.5], target: [0, 0.9, 0.4] } },
-    hotspots: {},
+    camera: { pos: [1.2, 10.5, 14.5], target: [0, 1.3, 0], near: 0.05, far: 300, min: 1.2, max: 40, portrait: { pos: [0.6, 12.5, 16.5], target: [0, 0.9, 0.4] } },
+    hotspots: { cdsp: hs.cdsp, itla: hs.itla, cdm: hs.cdm, icr: hs.icr },
     dataHotspots: { cdsp: hs.cdsp, cdm: hs.cdm, itla: hs.itla, icr: hs.icr, lc: hs.lc },
-    heatHotspots: {},
+    heatHotspots: { cdsp: hs.cdsp, itla: hs.itla, cdm: hs.cdm, icr: hs.icr },
     update(t) { dspTop.emissiveIntensity = state.mode === 'heat' ? 0.5 + 0.08 * Math.sin(t * 2) : 0; },
   };
 }

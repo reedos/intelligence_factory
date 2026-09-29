@@ -95,7 +95,7 @@ export function story(M) {
       specs: rows(['IT load', mw(M.IT_MW), 'derived', { calc: 'it-load-pue' }], ...(M.mixed ? M.fleet.map(m => [`${m.accel.rackName} racks`, `${n0(m.racksShown)} × ≈${Math.round(m.rackKW)} kW`, 'derived', { calc: 'campus-rack-count' }]) : [['Compute racks', `${n0(M.racks)} × ≈${Math.round(M.rack.kw)} kW = ${mw(racksMW)}`, 'derived', { calc: 'campus-rack-count' }]]),
         ['Network, switches and optics', mw(net), 'derived', { calc: 'ledger-fabric-power' }], ['GPUs', n0(M.gpus), 'derived', { calc: 'campus-gpu-count' }]) },
     { link: at(2, 'spine', 'data'), k: 'Data · the hall', title: `${n0(M.NET.switches)} switches`, figure: 'optics-cutaway',
-      text: `Every GPU gets its own optical port into ${M.mixed ? `its accelerator’s own fabric (${M.NET.fabrics.map(f => `${f.accel} at ${f.nicGbps >= 1000 ? f.nicGbps / 1000 + ' Tb/s' : f.nicGbps + 'G'}, ${f.tiers} tiers`).join('; ')})` : `a ${M.NET.tiers}-tier fabric`}. The switches, and the optical modules at both ends of each link, including the ones plugged into the ${where}, draw ${mw(net)}, and there are about ${big(M.NET.fibers)} strands of fiber.`,
+      text: `Every GPU gets scale-out optical connections into ${M.mixed ? `its accelerator’s own fabric (${M.NET.fabrics.map(f => `${f.accel} at ${f.nicGbps >= 1000 ? f.nicGbps / 1000 + ' Tb/s' : f.nicGbps + 'G'}, ${f.tiers} tiers`).join('; ')})` : `a ${M.NET.tiers}-tier fabric`}. The switches, and the optical modules at both ends of each link, including the ones plugged into the ${where}, draw ${mw(net)}, and there are about ${big(M.NET.fibers)} strands of fiber.`,
       specs: rows(ledgerRow('Scale-out switches'), ledgerRow('Optical transceivers'), card('data', 2, 'odf', 'Fabric strands')) },
     // 4 · the rack
     ...(nvl ? [
@@ -114,7 +114,7 @@ export function story(M) {
     // a side trip from the tray's module cages: where the scale-out traffic becomes light, then back
     { link: at(4, 'osfp', 'data'), k: nvl ? 'Data · compute tray' : 'Data · the server', title: 'Out as light',
       text: `Every GPU’s traffic to other racks leaves ${nvl ? 'the tray' : 'the server'} through pluggable optical modules at its edge. Step inside one.`,
-      specs: rows(card('data', 4, 'osfp', 'NVIDIA'), card('data', 4, 'osfp', 'Cages')) },
+      specs: rows(...['A 400G', 'At the SuperNIC', 'Cages', 'Module'].map(l => card('data', 4, 'osfp', l))) },   // whichever this generation's card carries
     { link: at(6, 'mzm', 'data'), parent: 4, trip: 'module', k: 'Side trip · inside the module', title: 'Where electrons become light',
       text: 'On the transmit side, modulators put each electrical lane onto laser light, and waveguides carry it to its fiber. The receive side runs the other way, through photodiodes. Then back out to the tray.',
       specs: rows(card('data', 6, 'mzm', 'Kind')) },
@@ -224,7 +224,7 @@ export function light(M) {
   return keyed('light', [
     { link: at(4, 'osfp', 'data'), k: nvl ? 'Compute tray' : 'The server', title: 'One lane, leaving the tray',
       text: `Follow one electrical lane from the NIC to the fiber: first through a pluggable module in ${nvl ? 'the tray’s' : 'the server’s'} cage, then the same job done inside a switch package.`,
-      specs: rows(card('data', 4, 'osfp', 'NVIDIA'), card('data', 4, 'osfp', 'Cages')) },
+      specs: rows(...['A 400G', 'At the SuperNIC', 'Cages', 'Module'].map(l => card('data', 4, 'osfp', l))) },   // whichever this generation's card carries
     inside('module', 'fingers', 'In at the edge', 'The lane arrives on the edge connector’s gold fingers, one of eight transmit lanes. Eight more leave on other fingers: the receive side.', card('data', 6, 'fingers', 'Host lanes')),
     inside('module', 'dsp', 'Cleaned up', d('module', 'dsp').body, card('data', 6, 'dsp', 'What it does')),
     inside('module', 'driver', 'The driver', d('module', 'driver').body, card('data', 6, 'driver', 'LPO keeps')),
@@ -309,6 +309,21 @@ export function layer(M, mode, only = null) {
     // the layer name goes in every kicker, not just the level number, so a reader mid-walk through "All" can
     // always tell which of the three layers a beat belongs to (tour audit finding 14)
     out.push({ link: { scene: i, mode, part: null }, k: `${name} · Level ${i + 1} of 6 · overview`, title: sc.title, text: sc[introKey], tally: `Level ${i + 1} of 6`, level: true });
+    // The line-terminal optic is locally powered/cooled at each campus. This
+    // explicit side comparison does not turn the long-haul light path into an
+    // intercampus power or heat connection. Resume this parent level afterward.
+    if (only === null && i === 0 && mode !== 'data') {
+      const comparison = sideTrip(C, key, mode, name, 'coherent', i);
+      if (comparison.length) comparison[0].text = `Inside a campus line terminal: a coherent module consumes local electrical power and rejects heat locally. This side trip does not carry power or heat between campuses. ${comparison[0].text}`;
+      out.push(...comparison);
+    }
+    // A comparison trip, not an assertion that NVL72's passive spine contains
+    // active cable chips. Return to this rack's first heat card afterward.
+    if (only === null && mode === 'heat' && sc.id === 'rack' && M.accel.gpusPerRack === 72) {
+      const comparison = sideTrip(C, key, mode, name, 'copper', i);
+      comparison[0].text = `This rack's NVLink spine uses passive copper. For comparison, active cable plugs generate heat in their signal-conditioning chips. ${comparison[0].text}`;
+      out.push(...comparison);
+    }
     parts.forEach((p, j) => out.push({
       link: { scene: i, mode, part: p.id }, k: `${name} · Level ${i + 1} · ${sc.title}`, title: p.title, text: p.body,
       // the full row set, not a 3-row slice: story.js shows the first three and puts the rest behind a working

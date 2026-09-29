@@ -24,11 +24,41 @@ import * as sideModule from '../scenes/side-module.js';
 import * as sideCpo from '../scenes/side-cpo.js';
 import * as sideCoherent from '../scenes/side-coherent.js';
 import * as sideCopper from '../scenes/side-copper.js';
+import { applyVisualDirection } from '../scenes/visual-direction.js';
+import { applyComputeArtDirection } from '../scenes/compute-art-direction.js';
+import { cameraPresetFor } from './camera-presets.js';
+import { overlapsRect, pinLabelBox } from './pin-layout.js';
 
 // six levels in a line, outermost first, then the side levels inside the links, each its own diagram: the module, the
 // CPO package, the coherent module, the copper cables. Each is entered from the part that holds it and left back to
 // the level the reader came from.
-const BUILDERS = [across, campus, hall, rack, tray, chip, sideModule, sideCpo, sideCoherent, sideCopper];
+// Isolated visual prototype: both variants keep the same stage, UI, tours, and quality settings.
+// This local build defaults to authored models. module=native retains the original
+// comparison implementation; authored assets load only when a level is entered.
+let moduleBuilder = sideModule, cpoBuilder = sideCpo, coherentBuilder = sideCoherent, copperBuilder = sideCopper;
+let rackBuilder = rack, trayBuilder = tray, chipBuilder = chip;
+const assetLoaders = new Map();
+if (!['native', 'original'].includes(new URLSearchParams(location.search).get('module'))) {
+  moduleBuilder = await import('../scenes/side-module-blender.js');
+  cpoBuilder = await import('../scenes/side-cpo-blender.js');
+  const links = await import('../scenes/side-links-blender.js');
+  const compute = await import('../scenes/compute-blender.js');
+  rackBuilder = compute.rackBuilder; trayBuilder = compute.trayBuilder; chipBuilder = compute.chipBuilder;
+  // Download authored geometry when its level is entered, rather than making
+  // a phone fetch the complete ten-level asset library before the first frame.
+  assetLoaders.set(0, () => across.preload());
+  assetLoaders.set(1, () => campus.preload());
+  assetLoaders.set(2, () => hall.preload());
+  assetLoaders.set(3, options => rackBuilder.preload(options));
+  assetLoaders.set(4, options => trayBuilder.preload(options));
+  assetLoaders.set(5, options => chipBuilder.preload(options));
+  assetLoaders.set(6, () => moduleBuilder.preload());
+  assetLoaders.set(7, () => cpoBuilder.preload());
+  assetLoaders.set(8, () => links.preloadLinks());
+  assetLoaders.set(9, () => links.preloadLinks());
+  coherentBuilder = links.coherentBuilder; copperBuilder = links.copperBuilder;
+}
+const BUILDERS = [across, campus, hall, rackBuilder, trayBuilder, chipBuilder, moduleBuilder, cpoBuilder, coherentBuilder, copperBuilder];
 export const MAIN_LEVELS = 6, MODULE_LEVEL = 6;
 export const isSide = i => i >= MAIN_LEVELS;
 // how the reader entered the side levels: the level, the door part and the layer, restored by Back out. A link opened
@@ -46,6 +76,10 @@ export function resetVariant() { if (lpoOn) { lpoOn = false; applyVariant(); } }
 function applyVariant() {
   built[MODULE_LEVEL]?.variant?.setLpo(lpoOn);
   document.querySelectorAll('[data-variant]').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.variant === 'lpo') === lpoOn)));
+  if (ui.scene === MODULE_LEVEL && built[MODULE_LEVEL]) {
+    buildPanel(MODULE_LEVEL);
+    if (ui.selected) select(ui.selected, false);
+  }
 }
 document.querySelectorAll('[data-variant]').forEach(b => b.addEventListener('click', () => { lpoOn = b.dataset.variant === 'lpo'; applyVariant(); }));
 // whether moving from one level to another goes in: a side level counts as inside whatever it was entered from, and
@@ -122,7 +156,7 @@ const partsFor = (i, mode = ui.mode) => {
   const list = PARTS_BY()[mode][SCENES()[i].id] || [];
   if (!built[i]) return list;
   const hs = hotspotsFor(i, mode);
-  return list.filter(p => hs[p.id]);
+  return list.filter(p => hs[p.id]).map(p => built[i].variant?.partCopy?.(p, mode) || p);
 };
 const hotspotsFor = (i, mode = ui.mode) => (built[i] && { power: built[i].hotspots, data: built[i].dataHotspots, heat: built[i].heatHotspots }[mode]) || {};
 // The number on a part's pin: its place among the parts its level draws in that layer. Tours number their steps with
@@ -170,6 +204,13 @@ const TIERS = [
   { mirror: false, ao: false, dof: false, msaa: 0, liveShadows: false, ratio: 0.75 },
 ];
 const params = new URLSearchParams(location.search);
+const compareProbe = params.has('module');
+if (compareProbe) renderer.info.autoReset = false;
+const frameListeners = new Set();
+export const observeFrame = fn => {
+  frameListeners.add(fn); renderer.info.autoReset = false;
+  return () => { frameListeners.delete(fn); renderer.info.autoReset = !compareProbe && !frameListeners.size; };
+};
 const glx = renderer.getContext();
 const gpuName = (() => { try { const e = glx.getExtension('WEBGL_debug_renderer_info'); return (e && glx.getParameter(e.UNMASKED_RENDERER_WEBGL)) || glx.getParameter(glx.RENDERER) || ''; } catch { return ''; } })();
 // integrated and software GPUs start with the mirror off; the GPU timers put it back where there is room
@@ -225,12 +266,18 @@ function envFor(kind) { return envs[kind] ||= pmrem.fromScene(envScene(kind), 0.
 export const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 1000);
 export const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true; controls.dampingFactor = 0.08; controls.maxPolarAngle = Math.PI * 0.49;
-controls.addEventListener('start', () => { tween = null; drift = null; emit('user-camera'); });
+controls.addEventListener('start', () => {
+  tween = null; drift = null;
+  if (built[ui.scene]?.inspection) { built[ui.scene].inspection.currentView = 'custom'; emit('campus-presentation'); }
+  emit('user-camera');
+});
 
 export const built = [], composers = [];
 function getScene(i) {
   if (!built[i]) {
-    const b = BUILDERS[i].build({ quality, state: ui, model: store.M });
+    const b = BUILDERS[i].build({ quality: { ...quality, reduced }, state: ui, model: store.M });
+    applyComputeArtDirection({ built: b, level: i, quality, matched: params.get('finish') === 'matched' });
+    applyVisualDirection({ built: b, level: i, matched: params.get('finish') === 'matched' });
     built[i] = b;
     const L = lookOf(i);
     b.scene.environment = envFor(L.env); b.scene.environmentIntensity = L.envIntensity; b.model = store.M;
@@ -274,12 +321,20 @@ function getComposer(i) {
     }
     // depth of field for tour close-ups (desktop): off until a tour frames a part, then focused on it every frame
     if (quality.dof && L.dof) { const dof = new BokehPass(b.scene, camera, { focus: 1, aperture: 0, maxblur: 0.006 }); dof.enabled = false; c.addPass(dof); dofs[i] = dof; }
-    c.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), L.bloom, 0.42, L.threshold));
+    c.flowBloom = new UnrealBloomPass(new THREE.Vector2(1, 1), L.bloom * .7, 0.28, L.threshold);
+    c.addPass(c.flowBloom);
     c.addPass(new OutputPass());
-    const fin = new ShaderPass(FINISH); c.addPass(fin); finishes[i] = fin;
+    const fin = new ShaderPass(FINISH);
+    fin.uniforms.uGrain.value = L.grain ?? 0.035;
+    fin.uniforms.uVignette.value = L.vignette ?? 0.32;
+    c.addPass(fin); finishes[i] = fin;
     composers[i] = c;
     sizeComposer(c);
   }
+  // Layer-specific bloom keeps dense heat/signal fields crisp without dimming
+  // the same hardware's other layers. Reapply when returning to a cached scene.
+  const L = lookOf(i);
+  composers[i].flowBloom.strength = (L.bloomByMode?.[ui.mode] ?? L.bloom) * .7;
   return composers[i];
 }
 function disposeScene(b) {
@@ -288,7 +343,8 @@ function disposeScene(b) {
     o.shadow?.dispose();                                  // a shadow-casting light owns a render target of its own
     o.geometry?.dispose();
     const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
-    mats.forEach(m => { Object.values(m).forEach(v => v?.isTexture && v.dispose()); m.dispose(); });
+    const owned = new Set([...mats, o.customDepthMaterial, o.customDistanceMaterial].filter(Boolean));
+    owned.forEach(m => { Object.values(m).forEach(v => v?.isTexture && v.dispose()); m.dispose(); });
   });
 }
 // EffectComposer.dispose frees only its own two targets; bloom and AO passes hold render targets of their own
@@ -306,6 +362,7 @@ function applyTier(i) {
   if (aos[i]) aos[i].enabled = t.ao;
   if (c) for (const rt of [c.renderTarget1, c.renderTarget2]) { const n = mobile ? 0 : t.msaa; if (rt.samples !== n) { rt.samples = n; rt.dispose(); } }
   if (i !== ui.scene) return false;
+  emit('render-quality');
   renderer.shadowMap.autoUpdate = t.liveShadows; renderer.shadowMap.needsUpdate = true;   // a frozen map still draws once
   const r = Math.min(maxRatio, t.ratio);
   if (r === ratio) return false;
@@ -386,6 +443,12 @@ function resize() {
   hush(1000);                                             // a new size is a new workload; judge it once it settles
   renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.fov = w / h < 0.9 ? 48 : 35; camera.updateProjectionMatrix();
+  const inspection = built[ui.scene]?.inspection;
+  const named = inspection?.views?.[inspection.currentView];
+  if (named && !tween && !cinema) {
+    const preset = cameraPresetFor(named, w, h);
+    camera.position.fromArray(preset.pos); controls.target.fromArray(preset.target);
+  }
   composers.forEach(c => c && sizeComposer(c));
   // resizing clears the canvas; draw straight away so a strip opening below the view never flashes it black
   if (ui.scene >= 0 && built[ui.scene] && composers[ui.scene]) { controls.update(); composers[ui.scene].render(); updatePins(); }
@@ -461,13 +524,42 @@ export function frame(b, h) {
 // ---------- depth of field: focus on the part a tour is showing ----------
 // Blur grows with distance from the focal plane; scaling the aperture by 1/focus makes it look the same at every scale.
 const _fp = new THREE.Vector3();
+let campusSoftFocus = true;
 function focusDof() {
   const d = dofs[ui.scene]; if (!d) return;
-  const h = cinema && ui.selected && hotspotsFor(ui.scene)[ui.selected];
-  d.enabled = !!h && tierOf(ui.scene).dof;
-  if (!h) return;
-  const focus = camera.position.distanceTo(_fp.set(...h.pos));
-  d.uniforms.focus.value = focus; d.uniforms.aperture.value = 0.0045 / focus; d.uniforms.maxblur.value = 0.006;
+  const campus = !!built[ui.scene]?.cinematography;
+  const h = (cinema || campus) && ui.selected && hotspotsFor(ui.scene)[ui.selected];
+  const soft = campus && campusSoftFocus;
+  d.enabled = (campus ? soft : !!h) && tierOf(ui.scene).dof;
+  if (!d.enabled) return;
+  const focus = Math.max(0.01, camera.position.distanceTo(h ? _fp.set(...h.pos) : controls.target));
+  d.uniforms.focus.value = focus;
+  d.uniforms.aperture.value = (campus && !h ? 0.0035 : 0.0045) / focus;
+  d.uniforms.maxblur.value = campus && !h ? 0.004 : 0.006;
+}
+
+export const campusFocusInfo = () => ({ enabled: campusSoftFocus, available: !!dofs[1] && tierOf(1).dof });
+export function setCampusFocus(enabled) { campusSoftFocus = !!enabled; emit('campus-presentation'); }
+function cameraPreset(c) {
+  return cameraPresetFor(c, view.clientWidth, view.clientHeight);
+}
+const overviewCamera = b => ({ ...b.camera, ...(b.cameraByMode?.[ui.mode] || {}) });
+export function setCampusView(name) {
+  const c = built[ui.scene]?.cinematography?.views[name]; if (!c) return;
+  emit('user-camera');
+  deselect();
+  const opening = cameraPreset(c);
+  flyTo(opening.pos, opening.target, reduced ? 0.01 : 1.8);
+  emit('campus-presentation', { view: name });
+}
+export function setInspectionView(name) {
+  const c = built[ui.scene]?.inspection?.views?.[name]; if (!c) return;
+  emit('user-camera'); deselect();
+  built[ui.scene]?.inspection?.setView?.(name);
+  built[ui.scene].inspection.currentView = name;
+  emit('campus-presentation', { view: name });
+  const opening = cameraPreset(c);
+  flyTo(opening.pos, opening.target, reduced ? .01 : 1.5);
 }
 
 // ---------- camera moves ----------
@@ -583,11 +675,19 @@ export function setMode(m) {
   ui.mode = m;
   document.querySelectorAll('[data-mode]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.mode === m)));
   document.body.dataset.mode = m;
-  built.forEach(b => b && applyMode(b));
+  built.forEach((b, i) => {
+    if (!b) return;
+    applyMode(b);
+    if (composers[i]) getComposer(i);
+  });
   renderSteps();
   const was = ui.selected;
   if (ui.scene >= 0 && built[ui.scene]) buildPanel(ui.scene);
   if (was && ui.scene >= 0 && hasPart(ui.scene, was, m)) select(was, false);   // the same part, told in the new layer
+  else if (built[ui.scene]?.cameraByMode) {
+    const opening = cameraPreset(overviewCamera(built[ui.scene]));
+    flyTo(opening.pos, opening.target, 1.1);
+  }
   emit('mode', m);
 }
 document.querySelectorAll('[data-mode]').forEach(x => x.addEventListener('click', () => setMode(x.dataset.mode)));
@@ -596,7 +696,10 @@ const pinsEl = $('pins');
 let pins = [];
 function buildPanel(i) {
   const s = SCENES()[i], parts = partsFor(i);
-  $('intro').textContent = { power: s.intro, data: s.dataIntro, heat: s.heatIntro }[ui.mode];
+  $('intro').textContent = built[i]?.variant?.intro?.(ui.mode) || { power: s.intro, data: s.dataIntro, heat: s.heatIntro }[ui.mode];
+  if (i === MODULE_LEVEL && moduleBuilder !== sideModule && ui.mode === 'data') {
+    $('intro').textContent = $('intro').textContent.replace('Transmit runs along the far side, receive along the near side, each its own chain.', 'Transmit and receive follow separate labeled paths. Internal component placement is representative.');
+  }
   $('hud-title').textContent = s.side ? s.title : `${s.n}. ${s.title}`;
   $('optics-variant').hidden = i !== MODULE_LEVEL;
   const back = $('back-out'); back.hidden = !isSide(i);
@@ -605,6 +708,7 @@ function buildPanel(i) {
   const list = $('parts'); list.innerHTML = '';
   $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · ${s.side ? 'inside the links' : `level ${s.n}`} · ${parts.length} parts`;
   $('play-these').textContent = `▶ Play 1 to ${parts.length}`;
+  $('play-these').hidden = !parts.length;
   parts.forEach((p, n) => {
     const li = document.createElement('li'), b = document.createElement('button');
     b.type = 'button'; b.dataset.id = p.id; b.setAttribute('aria-pressed', 'false');
@@ -638,6 +742,14 @@ function revealInPane(els) {
 }
 export function select(id, fly) {
   const parts = partsFor(ui.scene), p = parts.find(q => q.id === id); if (!p) return;
+  if (built[ui.scene]?.inspection) built[ui.scene].inspection.currentView = '';
+  if (ui.mode !== 'heat') built[ui.scene]?.inspection?.setCovers?.(false);
+  const presentation = built[ui.scene]?.presentation;
+  if (presentation && (presentation.amount !== 1 || presentation.explode !== 1)) {
+    presentation.setExplode(1, { immediate: true });
+    renderer.shadowMap.needsUpdate = true;
+    emit('module-presentation');
+  }
   ui.selected = id;
   document.querySelectorAll('#parts button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === id)));
   pins.forEach(pn => pn.el.classList.toggle('on', pn.id === id));
@@ -656,6 +768,18 @@ export function deselect() {
   ui.selected = null; $('card').hidden = true;
   pins.forEach(p => p.el.classList.remove('on'));
   document.querySelectorAll('#parts button').forEach(b => b.setAttribute('aria-pressed', 'false'));
+}
+export function setModuleExplode(value, { frame: reframe = true } = {}) {
+  const b = built[ui.scene]; if (!b?.presentation) return;
+  deselect();
+  b.presentation.setExplode(value, { immediate: reduced });
+  renderer.shadowMap.needsUpdate = true;
+  if (reframe) {
+    const c = value < 0.5 ? b.presentation.assembledCamera : b.camera;
+    const opening = cameraPreset(c);
+    flyTo(opening.pos, opening.target, reduced ? 0.01 : 1.4);
+  }
+  emit('module-presentation');
 }
 $('card-next').addEventListener('click', () => cycle(1));
 export function cycle(d) {
@@ -757,11 +881,28 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   if (!travel && !swap && !same) veil.textContent = `Building ${SCENES()[i].title.toLowerCase()}…`;
   if (!same && !travel && !swap) veil.classList.remove('off');
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  try {
+    let requestedModel;
+    do {
+      requestedModel = store.M;
+      await assetLoaders.get(i)?.({ model: requestedModel, quality });
+    } while (requestedModel !== store.M);
+  } catch (error) {
+    busy = false; goingTo = -1;
+    view.classList.remove('diving'); veil.classList.remove('iris');
+    veil.textContent = 'This model could not load. Select the level again to retry.';
+    veil.classList.remove('off');
+    console.error('Model asset load failed', error);
+    if (queued) { const q = queued; queued = null; go(...q); }
+    return;
+  }
   const b = getScene(i); getComposer(i);
   ui.scene = i;
+  b.inspection?.setView?.('diagram');
+  if (b.inspection) b.inspection.currentView = 'diagram';
   DETAIL.unit.value = SCENES()[i].unit;                   // surface detail at this scale's real size
   if (mobile) built.forEach((bb, j) => { if (bb && Math.abs(j - i) > 1) { disposeScene(bb); disposeComposer(composers[j]); built[j] = undefined; composers[j] = undefined; } });
-  const c = (isSide(i) && b.cameraFrom?.[sideVia]) || b.camera;   // the side level opens on the half you came in for
+  const c = (isSide(i) && b.cameraFrom?.[sideVia]) || overviewCamera(b);   // the side level opens on the half you came in for
   camera.near = c.near; camera.far = c.far; camera.updateProjectionMatrix();
   controls.minDistance = c.min; controls.maxDistance = c.max;
   renderer.toneMappingExposure = lookOf(i).exposure;
@@ -769,7 +910,8 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   if (!keepCamera) {
     // arrive pushed in, then pull back to the scene's opening view; portrait screens get closer
     // portrait screens get closer, unless the level brings its own portrait view (a side level's diagram has to fit whole)
-    const portrait = view.clientWidth / view.clientHeight < 0.9, cp = portrait && c.portrait;
+    const portrait = view.clientWidth / view.clientHeight < .9 || (b.cinematography && view.clientWidth < 600);
+    const preset = cameraPreset(c), cp = preset !== c ? preset : null;
     const tgt = V(cp ? cp.target : c.target), end = cp ? V(cp.pos) : portrait ? tgt.clone().lerp(V(c.pos), 0.72) : V(c.pos);
     if (travel) {
       // in: from right up against the new level, as if the dive carried on; out: from the part just left
@@ -784,7 +926,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
       openAt = back;
     } else {
       camera.position.copy(tgt.clone().lerp(end, 0.35)); controls.target.copy(tgt); controls.update();
-      flyTo(end.toArray(), c.target, from >= 0 && cut ? 0.01 : 1.6);   // the first load still flies in
+      flyTo(end.toArray(), tgt.toArray(), from >= 0 && cut ? 0.01 : 1.6);   // the first load still flies in
     }
   }
   if (i === MODULE_LEVEL) applyVariant();
@@ -843,7 +985,17 @@ export async function show({ scene, mode, part }, { scroll = true, still = () =>
   if (!live()) return;                                   // a newer jump, or the reader, took over while this scene was building
   if (mode && mode !== ui.mode) setMode(mode);
   if (part) { select(part, true); beacon(part); }
-  else { deselect(); const c = built[scene].camera; flyTo(c.pos, c.target, 1.6); }   // the establishing shot
+  else {
+    deselect();
+    built[scene].inspection?.setView?.('diagram');
+    if (built[scene].inspection) built[scene].inspection.currentView = 'diagram';
+    built[scene].presentation?.setExplode(1, { immediate: true });
+    renderer.shadowMap.needsUpdate = true;
+    emit('module-presentation');
+    emit('campus-presentation');
+    const opening = cameraPreset(overviewCamera(built[scene]));
+    flyTo(opening.pos, opening.target, 1.6);
+  }
 }
 function beacon(id) {
   const pin = pins.find(p => p.id === id); if (!pin) return;
@@ -877,17 +1029,45 @@ function updateScale() {
 const pv = new THREE.Vector3();
 function updatePins() {
   const w = view.clientWidth, h = view.clientHeight, placed = [];
-  for (const p of pins) {
+  const vr = view.getBoundingClientRect(), reserved = [];
+  for (const el of document.querySelectorAll('#view .hud, #hud-btns')) {
+    if (el.hidden || getComputedStyle(el).display === 'none') continue;
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height || r.bottom <= vr.top || r.top >= vr.bottom) continue;
+    reserved.push({ left: r.left - vr.left, right: r.right - vr.left, top: r.top - vr.top, bottom: r.bottom - vr.top });
+  }
+  const presentation = built[ui.scene]?.presentation || built[ui.scene]?.cinematography;
+  const compact = presentation?.compactPins || isSide(ui.scene);
+  const ordered = [...pins].sort((a, b) => Number(b.id === ui.selected) - Number(a.id === ui.selected));
+  const pinPoints = ordered.map(p => {
+    pv.copy(p.pos).project(camera);
+    return { id: p.id, x: (pv.x + 1) / 2 * w, y: (1 - pv.y) / 2 * h, z: pv.z };
+  });
+  for (const p of ordered) {
     pv.copy(p.pos).project(camera);
     const x = (pv.x + 1) / 2 * w, y = (1 - pv.y) / 2 * h;
-    const off = pv.z > 1 || x < 6 || x > w - 6 || y < 6 || y > h - 6;
+    // Nearby optical elements share a small footprint. Keep their buttons from
+    // intercepting each other; every part remains selectable in the inspector.
+    const overlaps = compact && p.id !== ui.selected && placed.some(q => Math.hypot(q[0] - x, q[1] - y) < 28);
+    const markerBlocked = reserved.some(r => overlapsRect({ left: x - 13, right: x + 13, top: y - 13, bottom: y + 13 }, r, 4));
+    const off = presentation?.hidePins || overlaps || (markerBlocked && p.id !== ui.selected) || pv.z > 1 || x < 6 || x > w - 6 || y < 6 || y > h - 6;
     p.el.classList.toggle('off', off);
     if (off) continue;
     p.el.style.transform = `translate(${(x - 11).toFixed(1)}px, ${(y - 11).toFixed(1)}px)`;
-    p.el.classList.toggle('flip', x > w - ((p.lw ||= p.el.querySelector('.lbl').offsetWidth) || 120) - 40);   // label goes left near the right edge
-    const crowded = placed.some(q => Math.abs(q[0] - x) < 130 && Math.abs(q[1] - y) < 20);
-    p.el.classList.toggle('hide-lbl', crowded && p.id !== ui.selected);
-    placed.push([x, y]);
+    p.el.querySelector('.num').style.visibility = markerBlocked ? 'hidden' : '';
+    const lbl = p.el.querySelector('.lbl'), labelWidth = (p.lw ||= lbl.offsetWidth) || 120;
+    const labelBox = pinLabelBox(x, y, labelWidth, w, h, reserved, p.id === ui.selected);
+    p.el.classList.remove('flip');
+    const left = labelBox?.left ?? x + 18, right = labelBox?.right ?? left + labelWidth;
+    Object.assign(lbl.style, { position: 'absolute', right: 'auto', left: `${left - x + 11}px`, top: `${(labelBox?.top ?? y - 9) - y + 11}px` });
+    // Also reserve future numbered buttons: a later circle must not obscure an
+    // earlier label merely because it was visited later in the part list.
+    const crowded = placed.some(q => Math.abs(q[1] - y) < 24 && left < q[3] + 12 && right > q[2] - 12)
+      || pinPoints.some(q => q.id !== p.id && q.z <= 1 && Math.abs(q.y - y) < 24 && q.x + 13 > left && q.x - 13 < right);
+    const hideLabel = !labelBox || (crowded && p.id !== ui.selected);
+    p.el.classList.toggle('hide-lbl', hideLabel); lbl.style.visibility = hideLabel ? 'hidden' : '';
+    if (p.id === ui.selected && labelBox) reserved.push(labelBox);
+    placed.push([x, y, hideLabel ? x - 11 : Math.min(x - 11, left), hideLabel ? x + 11 : Math.max(x + 11, right)]);
   }
 }
 
@@ -941,18 +1121,27 @@ function loop(ts) {
   if (!visible || document.hidden || ui.scene < 0 || !built[ui.scene]) return;
   t += reduced ? dt * 0.35 : dt;
   const b = built[ui.scene];
+  const frameStarted = performance.now();
   applyLevels(b);
-  for (const f of flowsFor(b)) f.update(t);
-  b.update(t, dt);
+  const projection = { position: camera.position,
+    worldPerPixelAtUnit: 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.max(1, view.clientHeight) };
+  for (const f of flowsFor(b)) f.update(t, projection);
+  if (b.update(t, dt) === true) renderer.shadowMap.needsUpdate = true;
   stepTween(dt);
   controls.update();
   fitDepthRange(b.camera);
   if (finishes[ui.scene]) finishes[ui.scene].uniforms.uTime.value = t;
   focusDof();
+  if (compareProbe || frameListeners.size) renderer.info.reset();
   gpuBegin(); const d0 = performance.now(); composers[ui.scene].render(); gov.drawMs = performance.now() - d0; gpuEnd();
   if (!tween) govern(raw);                                // judge speed on steady frames, never mid-move
   updatePins();
   if (frameN++ % 6 === 0) updateScale();
+  if (frameListeners.size) {
+    const r = renderer.info.render;
+    const sample = { dt: raw * 1000, cpuMs: performance.now() - frameStarted, submitMs: gov.drawMs, calls: r.calls, triangles: r.triangles };
+    frameListeners.forEach(fn => fn(sample));
+  }
 }
 
 addEventListener('keydown', e => {

@@ -55,7 +55,7 @@ export function bondWire(B, a, b, h = 0.12) {
   const m1 = [a[0] + (b[0] - a[0]) * 0.25, Math.max(a[1], b[1]) + h, a[2] + (b[2] - a[2]) * 0.25], m2 = [a[0] + (b[0] - a[0]) * 0.75, Math.max(a[1], b[1]) + h * 0.8, a[2] + (b[2] - a[2]) * 0.75];
   strand(B, [a, m1, m2, b], MAT.gold, 0.0045, 4);
 }
-export function label(scene, text, pos, color = '#e8ecf2', h = 0.3) { const s = textSprite(text, color, h); s.position.set(...pos); scene.add(s); return s; }
+export function label(scene, text, pos, color = '#e8ecf2', h = 0.3) { const s = textSprite(text, color, h); s.userData.caption = { text, color, height: h }; s.position.set(...pos); scene.add(s); return s; }
 export function outline(scene, geo, pos, color = 0x62e6ff, opacity = 0.9, rotY = 0) {
   const e = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color, transparent: true, opacity })); e.position.set(...pos); e.rotation.y = rotY; scene.add(e); return e;
 }

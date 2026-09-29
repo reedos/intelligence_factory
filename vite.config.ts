@@ -1,8 +1,10 @@
 import { defineConfig } from 'vitest/config';
+import { buildIdentityPlugin } from './tools/build-identity.mjs';
 
 // Relative base so the same build runs at reedos.github.io/intelligence_factory/ and as a claude.ai artifact.
 export default defineConfig({
   base: './',
+  plugins: [buildIdentityPlugin()],
   // its own dependency cache: agent worktrees link node_modules to this checkout, and a shared node_modules/.vite
   // lets their dev servers invalidate this one's optimized deps ("504 Outdated Optimize Dep")
   cacheDir: '.vite',

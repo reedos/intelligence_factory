@@ -32,6 +32,19 @@ describe('tours', () => {
       const P = (C as any)[key] as Record<string, any[]>;
       // each door card is followed by the side trip through every part of the side level it opens
       const cards = scenes.flatMap((sc: any) => (P[sc.id] || []).flatMap((p: any) => [`${sc.id}:${p.id}`, ...(p.trip ? (P[p.trip] || []).map(q => `${p.trip}:${q.id}`) : [])]));
+      if (mode !== 'data') {
+        cards.splice(cards.findIndex((id: string) => id.startsWith('across:')), 0,
+          'coherent:cdsp', 'coherent:itla', 'coherent:cdm', 'coherent:icr');
+        const trip = parts.filter((b: any) => b.trip === 'coherent');
+        expect(trip).toHaveLength(4);expect(trip.every((b:any)=>b.parent===0)).toBe(true);
+        expect(trip[0].text).toContain('does not carry power or heat between campuses');
+        expect(parts[parts.indexOf(trip.at(-1)!)+1].link.scene).toBe(0);
+      }
+      if (mode === 'heat' && M.accel.gpusPerRack === 72) {
+        cards.splice(cards.findIndex((id: string) => id.startsWith('rack:')), 0, 'copper:acc', 'copper:aec');
+        const comparison = parts.find((b: any) => b.trip === 'copper');
+        expect(comparison?.text).toContain("This rack's NVLink spine uses passive copper. For comparison");
+      }
       expect(parts.map((b: any) => `${C.SCENES[b.link.scene].id}:${b.link.part}`)).toEqual(cards);
       // and a side level a door opens is covered once, whole
       const opened = new Set(scenes.flatMap((sc: any) => (P[sc.id] || []).map((p: any) => p.trip).filter(Boolean)));
@@ -62,9 +75,9 @@ describe('tours', () => {
   // no door went unnoticed. This inventory is written out by hand: every side-level card an Every part tour must
   // visit, per layer. The copper cables' door is the NVL72 rack's NVLink spine, so they are expected only there.
   const SIDE_EXPECTED = (nvl: boolean): Record<string, Record<string, string[]>> => ({
-    power: { module: ['fingers', 'dcdc', 'dsp', 'lasers'], cpo: ['asic', 'engine', 'els'], ...(nvl ? { copper: ['dac', 'acc', 'aec'] } : {}) },
+    power: { module: ['fingers', 'dcdc', 'dsp', 'lasers'], cpo: ['asic', 'engine', 'els'], coherent: ['cdsp', 'itla', 'cdm', 'icr'], ...(nvl ? { copper: ['dac', 'acc', 'aec'] } : {}) },
     data: { module: ['fingers', 'dsp', 'driver', 'lasers', 'mzm', 'mpo', 'pd', 'tia'], cpo: ['asic', 'serdes', 'eic', 'rings', 'pd', 'els', 'fiberout'], coherent: ['cdsp', 'cdm', 'itla', 'icr', 'lc'], ...(nvl ? { copper: ['dac', 'acc', 'aec'] } : {}) },
-    heat: { module: ['dsp', 'shell'], cpo: ['asic', 'coldplate'] },
+    heat: { module: ['dsp', 'shell'], cpo: ['asic', 'coldplate'], coherent: ['cdsp', 'itla', 'cdm', 'icr'], ...(nvl ? { copper: ['acc', 'aec'] } : {}) },
   });
   it.each(scenarios)('the Every part tours visit every intended side card, and every side card is intended: $accel / $power / $cooling at $meterMW MW $site', s => {
     const M = compute(s), C = content(M), want = SIDE_EXPECTED(M.accel.gpusPerRack === 72);

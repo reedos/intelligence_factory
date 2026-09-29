@@ -1,0 +1,90 @@
+{
+  "updated": "9/29/2026, 2:02:51 AM",
+  "fleet": {
+    "status": "White Model 3 / Model Y · revised Blender models",
+    "detail": "Both production cars are white, with slimmer Model 3 headlights, the current Model Y lightbar, revised glazing and roof rails, and Model Y crossover cladding. These are simplified public-photo-inspired models. This image is rendered in Blender Cycles; the interactive campus uses Three.js/WebGL.",
+    "image": "models/campus-tesla-white-review.png"
+  },
+  "scenes": [
+    {
+      "level": 0,
+      "name": "Scale across",
+      "status": "Redesigned · available for visual review",
+      "audit": "passed",
+      "detail": "Brighter depth-tested regional power and fiber motion on existing routes.",
+      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+    },
+    {
+      "level": 1,
+      "name": "Campus",
+      "status": "Redesigned · available for visual review",
+      "audit": "passed",
+      "detail": "All expanded halls have conceptual service connections; tighter framing emphasizes the occupied campus.",
+      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+    },
+    {
+      "level": 2,
+      "name": "Data hall",
+      "status": "Redesigned · available for visual review",
+      "audit": "passed",
+      "detail": "More visible rack power and optical motion; overhead lights and reflective floor retained.",
+      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+    },
+    {
+      "level": 3,
+      "name": "Rack",
+      "status": "Redesigned · available for visual review",
+      "audit": "passed",
+      "detail": "Stronger bus and link motion with refined narrow exhaust streaks.",
+      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+    },
+    {
+      "level": 4,
+      "name": "Compute tray",
+      "status": "Redesigned · available for visual review",
+      "audit": "passed",
+      "detail": "Brighter connected power, data and coolant streams on the existing audited routes.",
+      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+    },
+    {
+      "level": 5,
+      "name": "GPU package",
+      "status": "Redesigned · available for visual review",
+      "audit": "passed",
+      "detail": "Clearer memory, die-to-die and power motion; thermal glow balanced against package detail.",
+      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+    },
+    {
+      "level": 6,
+      "name": "Pluggable",
+      "status": "Redesigned · available for visual review",
+      "audit": "passed",
+      "detail": "Cover aligned directly above the body; overlays follow assembly and DSP/LPO changes.",
+      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+    },
+    {
+      "level": 7,
+      "name": "CPO",
+      "status": "Redesigned · available for visual review",
+      "audit": "passed",
+      "detail": "All 18 engines receive animated CW, TX and RX paths; Power inspection exposes buried supply routes.",
+      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+    },
+    {
+      "level": 8,
+      "name": "Coherent optics",
+      "status": "Redesigned · available for visual review",
+      "audit": "passed",
+      "detail": "Rebuilt photo-informed lid, aligned cover and denser electrical motion; discrete packaging alternatives remain explicit.",
+      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+    },
+    {
+      "level": 9,
+      "name": "Copper links",
+      "status": "Redesigned · available for visual review",
+      "audit": "passed",
+      "detail": "Rebuilt flat metal shells, latches, release loops and sectioned boots; all 24 directional paths animated.",
+      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+    }
+  ]
+}

@@ -1,6 +1,8 @@
+import { hasCampusVehicles, campusVehicleBuilder } from './campus-blender-vehicles.js';
 // Companion helpers for the campus scene (src/scenes/campus.js), split out only because that file
 // was getting long. Nothing here is scene-specific: a surrounding-terrain texture, a few cloud
 // sprites, a clustered-tree layout, and the vehicle/person assemblies driven by fx.movers.
+import { hasCampusCatalog, campusCatalogBuilder } from './campus-blender-catalog.js';
 import { THREE, MAT, canvasTex, person } from '../kit.js';
 import { rbox } from '../fx.js';
 
@@ -10,8 +12,8 @@ import { rbox } from '../fx.js';
 export function terrainTexture() {
   return canvasTex(1024, 1024, (g, w, h) => {
     const fields = [
-      ['#3a4d2b', '#4b6339'], ['#54522c', '#69682f'], ['#3e5933', '#517142'],
-      ['#5b5230', '#6d6238'], ['#455b2d', '#527239'], ['#57592f', '#6a6b3d'],
+      ['#30463f', '#344a42'], ['#34483f', '#384c43'], ['#32473e', '#364b42'],
+      ['#34473e', '#384b42'], ['#32483f', '#364c43'], ['#344940', '#384d44'],
     ];
     const cols = 4, rows = 4, cw = w / cols, ch = h / rows;
     let s = 5; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
@@ -19,7 +21,7 @@ export function terrainTexture() {
       const [base, row] = fields[(r * cols + c + Math.floor(rnd() * 2)) % fields.length];
       const x0 = c * cw, y0 = r * ch;
       g.fillStyle = base; g.fillRect(x0, y0, cw, ch);
-      g.strokeStyle = row; g.lineWidth = Math.max(2, cw * 0.018);
+      g.strokeStyle = row; g.lineWidth = 0.8; g.globalAlpha = 0.25;
       const horiz = (r + c) % 2 === 0, step = (horiz ? ch : cw) / 9;
       for (let i = 1; i < 9; i++) {
         g.beginPath();
@@ -27,15 +29,19 @@ export function terrainTexture() {
         else { g.moveTo(x0 + i * step, y0 + 4); g.lineTo(x0 + i * step, y0 + ch - 4); }
         g.stroke();
       }
-      g.globalAlpha = 0.12;
-      for (let i = 0; i < 40; i++) { g.fillStyle = rnd() < 0.5 ? '#000' : '#fff'; const rr = 3 + rnd() * 8; g.beginPath(); g.arc(x0 + rnd() * cw, y0 + rnd() * ch, rr, 0, Math.PI * 2); g.fill(); }
+      g.globalAlpha = 0.035;
+      for (let i = 0; i < 400; i++) { g.fillStyle = rnd() < 0.5 ? '#000' : '#fff'; const rr = 0.5 + rnd() * 2; g.beginPath(); g.arc(x0 + rnd() * cw, y0 + rnd() * ch, rr, 0, Math.PI * 2); g.fill(); }
       g.globalAlpha = 1;
     }
-    // dirt tracks: soft tan bands corner to corner, so they join into a lattice once tiled
-    g.strokeStyle = '#8a7256'; g.lineCap = 'round';
-    g.lineWidth = w * 0.016; g.beginPath(); g.moveTo(0, h * 0.14); g.lineTo(w, h * 0.86); g.stroke();
-    g.lineWidth = w * 0.011; g.beginPath(); g.moveTo(w * 0.62, 0); g.lineTo(w * 0.12, h); g.stroke();
-  }, { repeat: [46, 46] });
+    // Broad, soft changes in vegetation break up the grid at low aerial angles.
+    for (let i = 0; i < 180; i++) {
+      const x = rnd() * w, y = rnd() * h, r = 35 + rnd() * 160;
+      const gradient = g.createRadialGradient(x, y, 0, x, y, r);
+      gradient.addColorStop(0, i % 2 ? 'rgba(17,39,32,0.18)' : 'rgba(88,106,76,0.10)');
+      gradient.addColorStop(1, 'rgba(30,55,39,0)');
+      g.fillStyle = gradient; g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+  }, { repeat: [6, 6] });
 }
 
 // ---------- clouds: a few big soft sprites high overhead ----------
@@ -96,14 +102,17 @@ export function treeMatrices(rnd, { cx = -70, cz = -40, clusters = 9, perCluster
 
 // ---------- moving vehicles and walking people, drawn at the origin facing +x for fx.movers ----------
 export function carBuild(B) {
+  if(hasCampusVehicles())return campusVehicleBuilder('MODEL_3',B);
+  if(hasCampusCatalog()) { campusCatalogBuilder('CAR',B); return; }
   B.slab(4.4, 0.8, 1.8, MAT.steel, 0, 0.25, 0);
   B.slab(2.4, 0.6, 1.6, MAT.glass, -0.2, 1.05, 0);
   for (const dz of [-0.95, 0.95]) { B.cylZ(0.34, 0.22, MAT.darkSteel, 1.35, 0.34, dz, 10); B.cylZ(0.34, 0.22, MAT.darkSteel, -1.35, 0.34, dz, 10); }
 }
 export function truckBuild(B) {
+  if(hasCampusCatalog()) { campusCatalogBuilder('TRUCK',B); return; }
   rbox(B, 2.5, 2.5, 2.4, MAT.white, -3.7, 1.5, 0, { r: 0.12 });     // cab
   B.slab(0.15, 1.3, 2.1, MAT.glass, -2.5, 2.05, 0);                  // windshield
   rbox(B, 7.6, 3, 2.5, MAT.darkSteel, 2, 1.8, 0, { r: 0.05 });       // box trailer
   for (const x of [-3.7, -1.2, 1.4, 4.6]) for (const z of [-1.25, 1.25]) B.cylZ(0.46, 0.3, MAT.darkSteel, x, 0.46, z, 10);
 }
-export function walkerBuild(B) { person(B, 0, 0, 0, 0); }
+export function walkerBuild(B) { if(hasCampusCatalog())return campusCatalogBuilder('WALKER',B); person(B, 0, 0, 0, 0); }

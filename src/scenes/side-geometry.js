@@ -6,7 +6,9 @@ export const SUBS = [[1, -1.75], [1, 1.75], [3, -1.75], [3, 1.75], [0, 0], [2, 0
 // exact unit vectors per side (never cos/sin of multiples of pi/2, whose tiny remainders once sent 15 of 18
 // connectors off the package edge): out points away from the ASIC, tan runs along the side
 export const OUT = [[1, 0], [0, 1], [-1, 0], [0, -1]], TAN = OUT.map(([x, z]) => [-z, x]);
-export const ASIC_HALF = 1.9, TAP_MAX = 1.7, ELS_LANES = 32;
+// Representative 24 mm square face, not a measured vendor die. Keep the drawn
+// monolithic die within a conventional lithography field; taps follow its edge.
+export const ASIC_HALF = 1.2, TAP_MAX = 1.0, ELS_LANES = 32;
 // where an engine's traffic reaches the ASIC's SerDes edge: along the facing edge, never past its corner
 export const asicTap = e => { const t = Math.max(-TAP_MAX, Math.min(TAP_MAX, e.t * 0.6)); return [OUT[e.side][0] * ASIC_HALF + TAN[e.side][0] * t, OUT[e.side][1] * ASIC_HALF + TAN[e.side][1] * t]; };
 // where its connector sits: on the package edge, in line with the engine; data and laser fibers both use it

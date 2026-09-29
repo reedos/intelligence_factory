@@ -81,7 +81,8 @@ for (const layer of ['power', 'data', 'heat']) for (const scene of [0, 5]) await
   await p.click('.tour-more summary');
   const before = await p.evaluate(() => window.scrollY);
   await p.click('[data-tour="all-data"]');           // the last Every-part tab: off screen in the row before it scrolls in
-  await sleep(1500);                                   // the centering scroll is smooth, and this jump is a long one
+  // the centering scroll is smooth and this jump is long (slow under the software renderer): wait until it settles
+  for (let last = -1, i = 0; i < 40; i++) { await sleep(250); const sl = await p.evaluate(() => document.querySelector('.tour-pick').scrollLeft); if (sl > 0 && sl === last) break; last = sl; }
   const m = await p.evaluate(() => {
     const btn = document.querySelector('.tour-tabs [aria-selected="true"]'), row = document.querySelector('.tour-pick');
     const br = btn.getBoundingClientRect(), rr = row.getBoundingClientRect();

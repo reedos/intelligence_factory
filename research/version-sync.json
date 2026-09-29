@@ -1,0 +1,6 @@
+{
+  "integratedMain": "9d6ce44867112d1ebc4de631f57a1a878d10995d",
+  "reviewedOn": "9/29/2026",
+  "report": "research/version-sync-2026-09-29.md",
+  "scope": "All 14 paths changed since e5301e1 reviewed and adapted into the Blender preview; historical worktrees and public deployments are not overwritten."
+}

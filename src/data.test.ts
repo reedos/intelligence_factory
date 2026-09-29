@@ -119,3 +119,26 @@ describe('walk order', () => {
     }
   });
 });
+
+// Regression checks for the generation and packaging errors found during the 9/29/2026 visual review.
+describe('reviewed hardware distinctions', () => {
+  it('Rubin exposes its liquid manifold and physical network links, not tray fans or a single 1.6T optic', () => {
+    const C = content(compute({ meterMW: 100, accel: 'rubin', power: 'ac415', cooling: 'warm' }));
+    expect(C.PARTS_HEAT.tray.some(p => p.id === 'manifold')).toBe(true);
+    expect(C.PARTS_HEAT.tray.some(p => p.id === 'fans')).toBe(false);
+    expect(C.PARTS_DATA.tray.find(p => p.id === 'cx')?.kicker).toContain('Eight');
+    expect(C.PARTS_DATA.tray.find(p => p.id === 'osfp')?.specs.flat().join(' ')).toContain('8 × 800 Gb/s');
+    expect(C.PARTS_DATA.rack.find(p => p.id === 'nvswitch')?.specs.flat().join(' ')).toContain('4 switch chips each (36)');
+  });
+  it('coherent packaging explicitly permits discrete driver and TIA chips in each presentation', () => {
+    const C = content(compute({ meterMW: 100, accel: 'gb200', power: 'ac415', cooling: 'warm' }));
+    const scene = C.SCENES.find(s => s.id === 'coherent');
+    expect(scene?.intro).toContain('discrete');
+    expect(scene?.dataIntro).toContain('separate');
+    for (const id of ['cdm', 'icr']) {
+      const body = (C.PARTS_DATA as any).coherent.find((p: any) => p.id === id)?.body;
+      expect(body).toContain('discrete driver and TIA');
+      expect(body).not.toMatch(/common design/);
+    }
+  });
+});

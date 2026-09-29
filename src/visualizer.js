@@ -14,6 +14,7 @@ import { openClock, closeClock } from './app/clock-ui.js';
 import { enter as enterStory, exit as exitStory } from './app/story.js';
 import './app/scenario.js';
 import './app/site.js';
+import './app/campus-presentation.js';
 import { setGo } from './app/links.js';
 
 stage.start();
@@ -27,6 +28,9 @@ window.ifx = {
   renderer: stage.getRenderer, renderScale: stage.renderScale, quality: stage.qualityInfo, forceTier: stage.forceTier, setTransitions: stage.setTransitions,
   show: stage.show, THREE, journeys, openClock, closeClock, enterStory, exitStory,
 };
+if (new URLSearchParams(location.search).has('module')) import('./app/blender-test.js');
+if (new URLSearchParams(location.search).get('module') !== 'native') import('./app/module-presentation.js');
+if (new URLSearchParams(location.search).get('devicecheck') === '1') import('./app/device-check.js');
 
 // the side pane's two tabs: the parts of the level on screen, and the scenario that sizes everything
 const tabs = [...document.querySelectorAll('[data-pane]')], sc = document.getElementById('pane-scenario');
@@ -39,8 +43,28 @@ function showPane(which) {
 tabs.forEach(b => b.addEventListener('click', () => { showPane(b.dataset.pane); if (b.dataset.pane === 'scenario') setSheet(true); }));
 // phones: the side pane is a sheet the reader can pull up (the view shrinks to a strip) or push back down
 const sheetBtn = document.getElementById('sheet-toggle');
-function setSheet(open) { document.body.classList.toggle('sheet-open', open); sheetBtn.setAttribute('aria-expanded', String(open)); sheetBtn.setAttribute('aria-label', open ? 'Shrink the panel' : 'Expand the panel'); }
-sheetBtn.addEventListener('click', () => setSheet(!document.body.classList.contains('sheet-open')));
+function setSheet(open) { document.body.style.removeProperty('--inspector-size'); document.body.classList.toggle('sheet-open', open); sheetBtn.setAttribute('aria-expanded', String(open)); sheetBtn.setAttribute('aria-label', open ? 'Shrink the panel' : 'Expand the panel'); }
+let sheetDrag = null, dragged = false;
+sheetBtn.addEventListener('pointerdown', e => {
+  if (!matchMedia('(max-width: 1100px)').matches) return;
+  sheetDrag = { y: e.clientY, height: document.querySelector('.panel').getBoundingClientRect().height };
+  dragged = false; sheetBtn.setPointerCapture(e.pointerId);
+});
+sheetBtn.addEventListener('pointermove', e => {
+  if (!sheetDrag) return;
+  const delta = sheetDrag.y - e.clientY;
+  if (Math.abs(delta) > 5) dragged = true;
+  if (!dragged) return;
+  const height = Math.max(82, Math.min(innerHeight * .62, sheetDrag.height + delta));
+  document.body.style.setProperty('--inspector-size', `${height}px`);
+  const open = height > innerHeight * .35;
+  document.body.classList.toggle('sheet-open', open);
+  sheetBtn.setAttribute('aria-expanded', String(open));
+  sheetBtn.setAttribute('aria-label', open ? 'Shrink the panel' : 'Expand the panel');
+});
+sheetBtn.addEventListener('pointerup', () => { sheetDrag = null; });
+sheetBtn.addEventListener('pointercancel', () => { sheetDrag = null; dragged = false; });
+sheetBtn.addEventListener('click', () => { if (!dragged) setSheet(!document.body.classList.contains('sheet-open')); dragged = false; });
 const sum = document.getElementById('pane-sum');
 const summarize = () => { const M = store.M; if (M && sum) sum.textContent = `${M.accel.short ?? M.accel.id} · ${Math.round(M.meterMW).toLocaleString('en-US')} MW · ${M.cooling.short ?? M.cooling.id}`; };
 import('./app/store.js').then(({ on }) => { on('scenario', summarize); summarize(); });

@@ -114,40 +114,74 @@ function renderLinkText() {
   const size = M.meterMW >= 1000 ? `${+(M.meterMW / 1000).toFixed(2)} GW` : `${Math.round(M.meterMW)} MW`;
   const speed = A.nicGbps >= 1000 ? `${A.nicGbps / 1000}T` : `${A.nicGbps}G`;
   $('links-lede').textContent = `Three networks, three physical media. Copper ties ${nvl ? '72 GPUs into one machine inside a rack' : '8 GPUs into one machine inside each server'}; single-mode fiber and pluggable optics tie ${nvl ? 'racks' : 'servers'} into a campus fabric; coherent optics on leased fiber tie campuses together. Counts are for this ${size} campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials.`;
-  $('cap-scaleup').innerHTML = `<b style="color:var(--nvl)">Scale-up.</b> ` + (nvl
+  $('cap-scaleup').innerHTML = `<b style="color:var(--nvl)">Scale-up.</b> ` + (A.id==='rubin'
+    ? 'Vera Rubin NVL72 uses nine switch trays with four NVLink 6 chips each: 36 switch chips for a 72-GPU fabric. Lines sample GPU-to-fabric relationships; they do not specify physical ASIC ports or lane wiring.'
+    : nvl
     ? `Inside one ${A.rackName} rack every GPU connects straight to all 18 NVLink switch chips, so any GPU reaches any other through exactly one switch. One GPU's 18 links are highlighted.`
     : 'Inside one DGX H100 every GPU spreads its 18 NVLink links over four NVSwitch chips on the baseboard. The domain ends at the server: the other 24 GPUs in the same rack are reached over the network.');
-  $('cap-scaleout').innerHTML = `<b style="color:var(--eth)">Scale-out.</b> One ${speed} optical port per GPU climbs through ${M.NET.tiers === 2 ? 'two' : 'three'} tiers of ${F.radix}-port switches${M.NET.planes > 1 ? `, in ${M.NET.planes} parallel fabrics at this size` : ''}. Non-blocking means the same number of links at every tier, so each tier adds about one more link per GPU and two more optical modules per link.`;
+  $('cap-scaleout').innerHTML = `<b style="color:var(--eth)">Scale-out.</b> ${A.id==='rubin'?'Each GPU has two 800G ConnectX-9 NICs (1.6T aggregate). The reference tray has eight NICs for four GPUs. These physical 800G links climb':`One ${speed} optical port per GPU climbs`} through ${M.NET.tiers === 2 ? 'two' : 'three'} tiers of ${F.radix}-port switches${M.NET.planes > 1 ? `, in ${M.NET.planes} parallel fabrics at this size` : ''}. Non-blocking means the same number of links at every tier, so each tier adds about one more link per NIC. Module counts also account for shared twin-port switch modules.`;
 }
-function renderLinks() {
-  renderLinkText();
-  const M = store.M, A = M.accel, NET = M.NET, F = NET.fabric, GPUS = M.gpus, RACKS = M.racks;
-  const speed = A.nicGbps >= 1000 ? `${A.nicGbps / 1000}T` : `${A.nicGbps}G`;
-  const nvl72 = A.id !== 'h100';
-  // 1. Scale-up
-  {
-    const W = 1000, nG = nvl72 ? 72 : 8, nS = nvl72 ? 18 : 4;
-    const gx = i => nvl72 ? 40 + i * (920 / 71) : 180 + i * (640 / 7), sx = j => nvl72 ? 70 + j * (860 / 17) : 320 + j * (360 / 3), gy = 46, sy = 214;
+export function scaleUpDiagram(A) {
+  const nvl72=A.id!=='h100',rubin=A.id==='rubin';
+    const W = 1000, nG = nvl72 ? 72 : 8, nS = nvl72 ? A.nvlink.switchChipsPerRack : 4;
+    const gx = i => nvl72 ? 40 + i * (920 / 71) : 180 + i * (640 / 7), sx = j => nvl72 ? 70 + j * (860 / (nS - 1)) : 320 + j * (360 / 3), gy = 46, sy = 214;
     let lines = '', hi = '';
     const hiG = nvl72 ? 20 : 2;
-    for (let i = 0; i < nG; i++) for (let j = 0; j < nS; j++) {
+    if(rubin){
+      lines='<rect x="50" y="176" width="900" height="58" rx="8" fill="#101a27" stroke="#48677a"/>';
+      for(let i=0;i<nG;i++)if(i%6===0||i===hiG){const line=`<line x1="${gx(i)}" y1="${gy+6}" x2="${gx(i)}" y2="176" stroke="${C('nvl')}" stroke-dasharray="5 4" stroke-opacity="${i===hiG?1:.4}"/>`;if(i===hiG)hi+=line;else lines+=line;}
+    } else for (let i = 0; i < nG; i++) for (let j = 0; j < nS; j++) {
       const l = `<line x1="${gx(i)}" y1="${gy + 6}" x2="${sx(j)}" y2="${sy - 12}"`;
       if (i === hiG) hi += `${l} stroke="${C('nvl')}" stroke-width="1.6"/>`; else lines += `${l} stroke="currentColor" stroke-opacity="${nvl72 ? 0.05 : 0.25}"/>`;
     }
     let dots = '';
     for (let i = 0; i < nG; i++) dots += `<circle cx="${gx(i)}" cy="${gy}" r="${nvl72 ? 5 : 9}" fill="${i === hiG ? C('nvl') : '#6f7a8c'}"/>`;
-    for (let j = 0; j < nS; j++) dots += `<rect x="${sx(j) - 16}" y="${sy - 12}" width="32" height="20" rx="3" fill="#1b2230" stroke="${C('nvl')}" stroke-opacity="0.7"/>`;
-    const top = nvl72 ? `18 NVLink links from every GPU, one to each switch chip` : '18 NVLink links per GPU, spread over 4 NVSwitch chips';
-    const bottom = nvl72 ? '18 NVLink switch chips, 2 per switch tray × 9 trays, 72 ports each' : '4 NVSwitch chips on the HGX board: the domain ends at the server';
-    const foot = nvl72 ? '72 × 18 = 1,296 links · 4 copper pairs each = 5,184 connections · no optics, no hops outside the rack' : '8 GPUs × 18 links · beyond these 8, every byte goes out through the network';
-    $('fig-scaleup').innerHTML = `<svg viewBox="0 0 ${W} 280" role="img" aria-label="Scale-up: ${nG} GPUs, each linked to all ${nS} NVLink switch chips">
+    for (let j = 0; j < nS; j++) dots += `<rect x="${sx(j) - (rubin?7:16)}" y="${sy - 12}" width="${rubin?14:32}" height="20" rx="3" fill="#1b2230" stroke="${C('nvl')}" stroke-opacity="0.7"/>`;
+    const top = rubin ? `${A.nvlink.linksPerGpu} logical links; ${A.nvlink.tbs} TB/s aggregate per GPU` : nvl72 ? `18 NVLink links from every GPU, one to each switch chip` : '18 NVLink links per GPU, spread over 4 NVSwitch chips';
+    const bottom = rubin ? '36 NVLink 6 switch chips, 4 per switch tray × 9 trays' : nvl72 ? '18 NVLink switch chips, 2 per switch tray × 9 trays, 72 ports each' : '4 NVSwitch chips on the HGX board: the domain ends at the server';
+    const foot = rubin ? 'Sampled GPU-to-fabric relationships; ASIC port and lane mapping omitted' : nvl72 ? '72 × 18 = 1,296 links · 4 copper pairs each = 5,184 connections · no optics, no hops outside the rack' : '8 GPUs × 18 links · beyond these 8, every byte goes out through the network';
+    return `<svg viewBox="0 0 ${W} 280" role="img" aria-label="${rubin?`Scale-up: 72 GPUs and a shared 36-chip fabric; sampled relationships, not port wiring`:`Scale-up: ${nG} GPUs connected through ${nS} NVLink switch chips`}">
       ${lines}${hi}${dots}
       ${TXT(40, 22, `${nG} GPUs`, { a: 'start', size: 13, w: 700 })}${TXT(960, 22, top, { a: 'end', size: 12, op: 0.7 })}
       ${TXT(gx(hiG), 22, 'one GPU', { fill: C('nvl'), size: 12, w: 600 })}
       ${TXT(500, 250, bottom, { size: 13, w: 700 })}
       ${TXT(500, 270, foot, { size: 12, op: 0.7, mono: true })}
     </svg>`;
-  }
+}
+export function linkCensusRows(M) {
+  const A=M.accel,NET=M.NET,F=NET.fabric,GPUS=M.gpus,RACKS=M.racks,nvl72=A.id!=='h100';
+  const speed=A.nicGbps>=1000?`${A.nicGbps/1000}T`:`${A.nicGbps}G`;
+
+  const fl = F.fibersPerLink, d = NET.dci, hallGpus = GPUS / Math.max(1, M.halls);
+  const rubin=A.id==='rubin',dpus = (nvl72?18:4)*A.dpusPerTray;
+  const at = (scene, part) => ({ scene, mode: 'data', part });
+  const cards = rubin ? [
+    ['GPU package','nvl',[['NVLink links (maximum)',`${A.nvlink.linksPerGpu}`],['NVLink bandwidth',`${A.nvlink.tbs} TB/s aggregate`],['Lane wiring','Not specified here'],['CPU link','NVLink-C2C'],['Scale-out bandwidth',`${speed} per GPU`],['HBM stacks (assumed)',`${A.hbm.stacks}`]],at(5,'nvphy')],
+    ['Compute tray','nvl',[['GPUs','4'],['Scale-out optical ports','8 × 800G'],['ConnectX-9 SuperNICs','8'],['BlueField-4 DPUs','1'],['Scale-out fibers (modeled)',`${8*fl}; DPU fibers not counted`]],at(4,'cx')],
+    [`${A.rackName} rack`,'nvl',[['GPUs','72'],['NVLink switch trays','9'],['NVLink switch chips',`${A.nvlink.switchChipsPerRack}`],['Chips per switch tray','4'],['Scale-out optical ports','144 × 800G'],['ConnectX-9 SuperNICs','144'],['BlueField-4 DPUs',`${dpus}`],['NVLink wire count','Not specified here']],at(3,'spine')],
+  ] : nvl72 ? [
+    ['GPU package', 'nvl', [['NVLink links', '18'], ['Copper pairs out', '72'], ['CPU link', '1 × NVLink-C2C'], ['Scale-out port', `1 × ${speed}`], ['HBM stacks', `${A.hbm.stacks}`]], at(5, 'nvphy')],
+    ['Compute tray', 'nvl', [['GPUs', '4'], ['NVLink links', '72'], ['Scale-out optical ports', '4'], ['BlueField-3 DPUs, up to 2 × 400G', `${A.dpusPerTray}`], ['Fibers out the front', `≈${n0(4 * fl + A.dpusPerTray * 8)}–${n0(4 * fl + A.dpusPerTray * 2 * 8)}`]], at(4, 'cx')],
+    [`${A.rackName} rack`, 'nvl', [['NVLink links', '1,296'], ['Copper connections', '5,184'], ['NVLink cable cartridges', '4'], ['NVLink switch chips', `${A.nvlink.switchChipsPerRack}`], ['Scale-out ports', '72'], ['BlueField-3 DPUs, up to 2 × 400G', `${dpus}`], ['Management switches', '2'], ['Fibers leaving the rack', `≈${n0(72 * fl + dpus * 8)}–${n0(72 * fl + dpus * 2 * 8)}`]], at(3, 'spine')],
+  ] : [
+    ['GPU package', 'nvl', [['NVLink links', '18'], ['NVLink domain', '8 GPUs, inside the server'], ['Scale-out port', `1 × ${speed}`], ['HBM stacks', `${A.hbm.stacks} active of 6`]], at(5, 'nvphy')],
+    ['DGX H100 server', 'nvl', [['GPUs', '8'], ['NVSwitch chips', '4'], ['ConnectX-7 ports', '8 × 400G'], ['Front-end dual-port ConnectX-7 cards', '2'], ['Fibers (2 modeled front links)', `≈${n0(8 * fl + 2 * 8)}`]], at(4, 'nvswitch')],
+    ['Rack of 4 servers', 'nvl', [['GPUs', '32'], ['NVLink domains', '4 separate'], ['Scale-out ports', '32'], ['Front-end dual-port ConnectX-7 cards','8'], ['Fibers (8 modeled front links)', `≈${n0(32 * fl + 8 * 8)}`]], at(3, 'uplinks')],
+  ];
+  cards.push(
+    [`One data hall of ${M.halls}`, 'eth', [['Racks', `≈${n0(RACKS / M.halls)}`], ['GPU-to-leaf links', `≈${kilo(hallGpus*A.nicsPerGpu)}`], ['Leaf + spine switches', `≈${n0((NET.leaf + NET.spine) / M.halls)}`], ['Optical modules', `≈${kilo(NET.modules / M.halls)}`], ['Fiber strands', `≈${kilo(NET.fibers / M.halls)}`], ['Patch housings, 576 fibers per 4U', `≈${n0(NET.fibers / M.halls / 576)}`]], at(2, 'leaf')],
+    ['The campus fabric', 'eth', [['Fabric switches', n0(NET.switches)], ['Tiers', `${NET.tiers}${NET.planes > 1 ? ` · ${NET.planes} parallel fabrics` : ''}`], ['Optical links', kilo(NET.links)], ['Optical modules', `${kilo(NET.modules)} · ${(NET.modules / GPUS).toFixed(1)} per GPU`], ['Fiber strands', `≈${kilo(NET.fibers)}`], [rubin?'NVLink wire count':'NVLink copper connections', rubin?'Not specified here':`≈${kilo(NET.nvlinkPairs)}`], ['Network power outside the racks', `${(NET.switchMW + NET.opticsMW).toFixed(1)} MW`]], at(2, 'spine')],
+    ['Campus to campus', 'dci', [['Diverse routes', `${d.routes}`], ['Lit fiber pairs per route', `${d.litPairs} of ${d.cableStrands / 2}`], ['Wavelengths per pair', `${d.lambdas} × ${d.gbps}G`], ['Coherent modules, each end', n0(d.modulesPerEnd)], ['Router line cards, 36 × 800G', `≈${Math.ceil(d.modulesPerEnd / d.portsPerLinecard)}`], ['Capacity', `≈${n0(d.tbpsPerRoute * d.routes)} Tb/s`], ['Amplifier huts per route', `${d.huts}`]], at(1, 'dci')],
+  );
+  return cards;
+}
+function renderLinks() {
+  renderLinkText();
+  const M = store.M, A = M.accel, NET = M.NET, F = NET.fabric, GPUS = M.gpus, RACKS = M.racks;
+  const speed = `${A.nicPortGbps}G`, endpoints=GPUS*A.nicsPerGpu;
+  const nvl72 = A.id !== 'h100';
+  // 1. Scale-up
+  $('fig-scaleup').innerHTML=scaleUpDiagram(A);
   // 2. Scale-out
   {
     const W = 1000, H = 400, three = NET.tiers === 3;
@@ -169,14 +203,14 @@ function renderLinks() {
     const side = (y, t, s) => TXT(770, y - 2, t, { a: 'start', size: 13, w: 700 }) + TXT(770, y + 15, s, { a: 'start', size: 11.5, op: 0.7, mono: true });
     const edge = (y, t) => TXT(770, y, t, { a: 'start', size: 11.5, fill: C('eth'), mono: true });
     const half = F.radix / 2;
-    $('fig-scaleout').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Scale-out fabric of ${NET.tiers} tiers, one ${speed} link per GPU at each tier">
+    $('fig-scaleout').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Modeled scale-out fabric of ${NET.tiers} tiers, ${A.nicsPerGpu} × ${speed} links per GPU at each tier">
       ${edges}${nodes}
-      ${three ? side(ys.core, `Core · ${n0(NET.core)} switches`, `${F.radix} × ${speed} down`) + edge((ys.core + ys.spine) / 2 + 4, `↕ ${n0(GPUS)} links`) : ''}
+      ${three ? side(ys.core, `Core · ${n0(NET.core)} switches`, `${F.radix} × ${speed} down`) + edge((ys.core + ys.spine) / 2 + 4, `↕ ${n0(endpoints)} links`) : ''}
       ${side(ys.spine, `Spine · ${n0(NET.spine)} switches`, three ? `${half} down, ${half} up` : `${F.radix} × ${speed} down`)}
-      ${edge((ys.spine + ys.leaf) / 2 + 4, `↕ ${n0(GPUS)} links`)}
+      ${edge((ys.spine + ys.leaf) / 2 + 4, `↕ ${n0(endpoints)} links`)}
       ${side(ys.leaf, `Leaf · ${n0(NET.leaf)} switches`, `${half} down, ${half} up`)}
-      ${edge((ys.leaf + ys.rack) / 2 + 4, `↕ ${n0(GPUS)} links, 1 × ${speed} per GPU`)}
-      ${side(ys.rack, `${n0(RACKS)} racks · ${n0(GPUS)} GPUs`, `${A.gpusPerRack} optical ports each`)}
+      ${edge((ys.leaf + ys.rack) / 2 + 4, `↕ ${n0(endpoints)} links, ${A.nicsPerGpu} × ${speed} per GPU`)}
+      ${side(ys.rack, `${n0(RACKS)} racks · ${n0(GPUS)} GPUs`, `${A.gpusPerRack*A.nicsPerGpu} optical ports each`)}
       ${TXT(410, 388, three ? `Drawn: 8 racks in 2 pods.${NET.planes > 1 ? ` At this size the campus needs ${NET.planes} parallel fabrics.` : ' Every leaf reaches every spine in its pod; every spine reaches every core.'}` : 'Drawn: 8 racks. Small enough for two tiers: every leaf reaches every spine.', { size: 11.5, op: 0.6 })}
     </svg>`;
   }
@@ -200,24 +234,7 @@ function renderLinks() {
       + note(560, 'Each route', `${d.litPairs} lit pairs of a ${d.cableStrands}-strand cable`) + note(800, 'This campus', `${d.routes} routes · ≈${n0(d.tbpsPerRoute * d.routes)} Tb/s`);
     $('fig-across').innerHTML = `<svg viewBox="0 0 ${W} 210" role="img" aria-label="Scale across: routers with coherent optics, multiplexed onto fiber pairs, amplified every 80 km to the remote campus">${out}</svg>`;
   }
-  // 4. The census
-  const fl = F.fibersPerLink, d = NET.dci, hallGpus = GPUS / Math.max(1, M.halls);
-  const dpus = nvl72 ? 36 : 8;
-  const at = (scene, part) => ({ scene, mode: 'data', part });
-  const cards = nvl72 ? [
-    ['GPU package', 'nvl', [['NVLink links', '18'], ['Copper pairs out', '72'], ['CPU link', '1 × NVLink-C2C'], ['Scale-out port', `1 × ${speed}`], ['HBM stacks', `${A.hbm.stacks}`]], at(5, 'nvphy')],
-    ['Compute tray', 'nvl', [['GPUs', '4'], ['NVLink links', '72'], ['Scale-out optical ports', '4'], ['BlueField-3 DPUs, 2 × 400G', '2'], ['Fibers out the front', `≈${n0(4 * fl + 2 * 8)}–${n0(4 * fl + 4 * 8)}`]], at(4, 'cx')],
-    [`${A.rackName} rack`, 'nvl', [['NVLink links', '1,296'], ['Copper connections', '5,184'], ['NVLink cable cartridges', '4'], ['NVLink switch chips', '18'], ['Scale-out ports', '72'], ['BlueField-3 DPUs, 2 × 400G', `${dpus}`], ['Management switches', '2'], ['Fibers leaving the rack', `≈${n0(72 * fl + 36 * 8)}–${n0(72 * fl + 72 * 8)}`]], at(3, 'spine')],
-  ] : [
-    ['GPU package', 'nvl', [['NVLink links', '18'], ['NVLink domain', '8 GPUs, inside the server'], ['Scale-out port', `1 × ${speed}`], ['HBM stacks', `${A.hbm.stacks} active of 6`]], at(5, 'nvphy')],
-    ['DGX H100 server', 'nvl', [['GPUs', '8'], ['NVSwitch chips', '4'], ['ConnectX-7 ports', '8 × 400G'], ['BlueField-3 DPUs', '2'], ['Fibers out', `≈${n0(8 * fl + 2 * 8)}`]], at(4, 'nvswitch')],
-    ['Rack of 4 servers', 'nvl', [['GPUs', '32'], ['NVLink domains', '4 separate'], ['Scale-out ports', '32'], ['Fibers leaving the rack', `≈${n0(32 * fl + 8 * 8)}`]], at(3, 'uplinks')],
-  ];
-  cards.push(
-    [`One data hall of ${M.halls}`, 'eth', [['Racks', `≈${n0(RACKS / M.halls)}`], ['GPU-to-leaf links', `≈${kilo(hallGpus)}`], ['Leaf + spine switches', `≈${n0((NET.leaf + NET.spine) / M.halls)}`], ['Optical modules', `≈${kilo(NET.modules / M.halls)}`], ['Fiber strands', `≈${kilo(NET.fibers / M.halls)}`], ['Patch housings, 576 fibers per 4U', `≈${n0(NET.fibers / M.halls / 576)}`]], at(2, 'leaf')],
-    ['The campus fabric', 'eth', [['Fabric switches', n0(NET.switches)], ['Tiers', `${NET.tiers}${NET.planes > 1 ? ` · ${NET.planes} parallel fabrics` : ''}`], ['Optical links', kilo(NET.links)], ['Optical modules', `${kilo(NET.modules)} · ${(NET.modules / GPUS).toFixed(1)} per GPU`], ['Fiber strands', `≈${kilo(NET.fibers)}`], ['NVLink copper connections', `≈${kilo(NET.nvlinkPairs)}`], ['Network power outside the racks', `${(NET.switchMW + NET.opticsMW).toFixed(1)} MW`]], at(2, 'spine')],
-    ['Campus to campus', 'dci', [['Diverse routes', `${d.routes}`], ['Lit fiber pairs per route', `${d.litPairs} of ${d.cableStrands / 2}`], ['Wavelengths per pair', `${d.lambdas} × ${d.gbps}G`], ['Coherent modules, each end', n0(d.modulesPerEnd)], ['Router line cards, 36 × 800G', `≈${Math.ceil(d.modulesPerEnd / d.portsPerLinecard)}`], ['Capacity', `≈${n0(d.tbpsPerRoute * d.routes)} Tb/s`], ['Amplifier huts per route', `${d.huts}`]], at(1, 'dci')],
-  );
+  const cards=linkCensusRows(M);
   $('census').innerHTML = cards.map(([t, cls, rows, link]) => `<div class="cz" style="--c:${C(cls)}"><h3 ${goAttr(link, t)}>${t}${link ? ' <span aria-hidden="true">↗</span>' : ''}</h3><dl>${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl></div>`).join('');
 }
 

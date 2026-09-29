@@ -89,7 +89,7 @@ export const SITES: Record<SiteId, Site> = {
   colossus2: {
     id: 'colossus2', name: 'SpaceXAI Colossus 2', owner: 'SpaceXAI (formerly xAI)', place: 'Memphis, TN', lat: 35.02, lon: -90.05, state: '47',
     // meterMW is what the model derives for the first stage below; the fleet, not this figure, sizes the campus
-    scenario: { meterMW: 1451, accel: 'gb300', power: 'ac415', cooling: 'liquid', stage: 0 },
+    scenario: { meterMW: 1460, accel: 'gb300', power: 'ac415', cooling: 'liquid', stage: 0 },
     // SpaceXAI's Mid-South page (checked 09/27/2026): a 3.3 GWh grid-connected battery pack planned, no diesel
     // mentioned, and closed-loop cooling that takes only domestic water
     plant: { backup: 'battery', bessMWh: 3300, closedLoop: true },

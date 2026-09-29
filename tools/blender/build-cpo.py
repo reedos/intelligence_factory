@@ -1,0 +1,296 @@
+"""Representative CPO mechanics, aligned to the existing cm-scale technical diagram.
+Run: blender --background --python tools/blender/build-cpo.py
+Reference: NVIDIA's public Quantum-X Photonics package imagery, not a production CAD model.
+All static hardware is authored here. Runtime JS retains only animated signals,
+labels, selection guides, and the reviewed path/anchor contract.
+"""
+import bpy, math, json, pathlib
+from mathutils import Matrix, Vector
+
+HERE = pathlib.Path(__file__).resolve().parent
+ROOT = HERE.parent.parent
+LAYOUT = json.loads((HERE / 'link-layout.json').read_text())
+assert LAYOUT['units'] == 'cm' and len(LAYOUT['engines']) == 18
+CM = .01
+S = bpy.context.scene
+for o in list(bpy.data.objects): bpy.data.objects.remove(o, do_unlink=True)
+S.unit_settings.system = 'METRIC'
+S.unit_settings.scale_length = 1
+
+def material(name, color, metal=0, rough=.4, alpha=1):
+    m = bpy.data.materials.new(name); m.use_nodes = True
+    m.diffuse_color = (*color, alpha)
+    p = m.node_tree.nodes.get('Principled BSDF')
+    p.inputs['Base Color'].default_value = (*color, 1)
+    p.inputs['Metallic'].default_value = metal
+    p.inputs['Roughness'].default_value = rough
+    p.inputs['Alpha'].default_value = alpha
+    if alpha < 1: m.surface_render_method = 'DITHERED'
+    return m
+
+nickel = material('Satin nickel retainers', (.5,.57,.62), .82,.29)
+edge = material('Polished screw heads', (.68,.73,.76), .9,.22)
+dark = material('Anodized recess', (.025,.038,.048), .65,.37)
+pcb = material('Midnight laminate', (.018,.061,.054), .12,.49)
+laminate = material('Exposed laminate edge', (.09,.14,.105), .1,.7)
+black = material('Connector molding', (.026,.037,.043), .06,.49)
+silk = material('Silkscreen', (.5,.66,.63), .05,.58)
+copper = material('Cold plate brushed nickel', (.43,.49,.53), .86,.28)
+ceramic = material('Package ceramic', (.055,.076,.09), .3,.38)
+ghost = material('Cutaway cold plate', (.45,.5,.55), .35,.35,.055)
+silicon = material('Polished silicon', (.025,.045,.075), .78,.20)
+asic = material('Switch ASIC silicon', (.025,.045,.075), .78,.20)
+asic.node_tree.nodes.get('Principled BSDF').inputs['Emission Color'].default_value=(1,.15,.015,1)
+asic.node_tree.nodes.get('Principled BSDF').inputs['Emission Strength'].default_value=0
+eic = material('Electronic die passivation', (.035,.055,.085), .5,.3)
+pic = material('Photonic die passivation', (.07,.10,.15), .55,.28)
+gold = material('Gold bond pads', (.67,.43,.15), .8,.28)
+traceCu = material('Electrical copper', (.55,.29,.10), .82,.3)
+glass = material('Glass ferrule', (.55,.76,.86), 0,.12,.32)
+fiberTx = material('Transmit glass', (.37,.80,.90), 0,.2)
+fiberRx = material('Receive glass', (.82,.37,.66), 0,.2)
+fiberCw = material('Laser glass', (.90,.55,.20), 0,.2)
+for m in [fiberTx,fiberRx,fiberCw]:
+    p=m.node_tree.nodes.get('Principled BSDF')
+    p.inputs['Emission Color'].default_value=m.diffuse_color
+    p.inputs['Emission Strength'].default_value=.18
+driver = material('Driver schematic regions', (.05,.19,.24), .45,.32)
+tia = material('TIA schematic regions', (.20,.07,.15), .45,.32)
+blue = material('Supply coolant pipe', (.025,.20,.36), .38,.28)
+red = material('Return coolant pipe', (.38,.07,.035), .38,.28)
+
+def group(name):
+    o = bpy.data.objects.new(name, None); S.collection.objects.link(o); return o
+
+groups = {name: group(name) for name in ['CPO_BOARD','CPO_PACKAGE','CPO_RETAINERS','CPO_INTERFACES','CPO_ELS','CPO_COLDPLATE','CPO_DETAIL','CPO_DIES','CPO_CONDUCTORS','CPO_FIBERS']}
+
+def world(p): return (p[0]*CM, -p[2]*CM, p[1]*CM)
+
+def box(name, p, d, mat, role, bevel=.02, angle=0):
+    # Work in native scene coordinates then convert to Blender Z-up meters.
+    verts = []
+    for z in [-1,1]:
+        for y in [-1,1]:
+            for x in [-1,1]:
+                u,v = x*d[0]/2, z*d[2]/2
+                xx,zz = u*math.cos(angle)-v*math.sin(angle), u*math.sin(angle)+v*math.cos(angle)
+                verts.append(world((p[0]+xx,p[1]+y*d[1]/2,p[2]+zz)))
+    faces = [(0,4,6,2),(1,3,7,5),(0,1,5,4),(2,6,7,3),(0,2,3,1),(4,5,7,6)]
+    mesh = bpy.data.meshes.new(name); mesh.from_pydata(verts,[],faces); mesh.update()
+    o=bpy.data.objects.new(name,mesh); S.collection.objects.link(o); o.parent=groups[role]; mesh.materials.append(mat)
+    if bevel:
+        mod=o.modifiers.new('Manufactured edge radius','BEVEL'); mod.width=bevel*CM; mod.segments=3
+        mod=o.modifiers.new('Weighted normals','WEIGHTED_NORMAL'); mod.keep_sharp=True
+    return o
+
+def screw(x,y,z,role,r=.08):
+    bpy.ops.mesh.primitive_cylinder_add(vertices=16,radius=r*CM,depth=.025*CM,location=world((x,y,z)))
+    o=bpy.context.object; o.name='Captive fastener'; o.parent=groups[role]; o.data.materials.append(edge)
+    box('Fastener recess',(x,y+.014,z),(r*1.2,.005,r*.22),dark,role,.002)
+
+def cylinder(name, p, radius, height, mat, role, segments=24):
+    bpy.ops.mesh.primitive_cylinder_add(vertices=segments,radius=radius*CM,depth=height*CM,location=world(p))
+    o=bpy.context.object; o.name=name; o.parent=groups[role]; o.data.materials.append(mat)
+    b=o.modifiers.new('Turned edge radius','BEVEL'); b.width=.015*CM; b.segments=3
+    o.modifiers.new('Weighted normals','WEIGHTED_NORMAL')
+    return o
+
+# Board and lower stiffener remain underneath the existing package substrate.
+box('Motherboard',(0,0,0),(13.6,.14,13.6),pcb,'CPO_BOARD',.06)
+for y in [-.054,-.012,.035]:
+    for z in [-6.795,6.795]: box('Laminate edge',(0,y,z),(13.45,.007,.009),laminate,'CPO_BOARD',.002)
+for x in [-6.15,6.15]:
+    for z in [-6.15,6.15]:
+        # Corner clamp stays outside the optical fiber perimeter corridor.
+        box('Corner clamp',(x,.075,z),(.62,.12,.62),nickel,'CPO_BOARD',.05)
+        screw(x,.152,z,'CPO_BOARD',.17)
+
+# The exact native substrate envelope, with representative machined support
+# below it. None of this mechanical layer creates a signal-bearing trace.
+box('Package substrate',(0,.9,0),(10.4,.28,10.4),ceramic,'CPO_PACKAGE',.045)
+box('Lower socket stiffener',(0,.48,0),(10.65,.24,10.65),dark,'CPO_PACKAGE',.11)
+for z in [-5.12,5.12]: box('Socket edge lip',(0,.62,z),(10.15,.06,.1),nickel,'CPO_PACKAGE',.02)
+for x in [-5.12,5.12]: box('Socket edge lip',(x,.62,0),(.1,.06,10.15),nickel,'CPO_PACKAGE',.02)
+for x in [-4.72,4.72]:
+    for z in [-4.72,4.72]:
+        box('Socket clamp',(x,1.105,z),(.52,.11,.52),nickel,'CPO_PACKAGE',.065)
+        screw(x,1.177,z,'CPO_PACKAGE',.10)
+box('Shared silicon interposer',(0,1.45,0),(9.0,.1,9.0),pic,'CPO_PACKAGE',.02)
+# A perimeter seal sits outside the bare die; the polished die face stays open.
+for z in [-1.4,1.4]: box('Die carrier edge',(0,1.52,z),(2.9,.055,.10),nickel,'CPO_PACKAGE',.015)
+for x in [-1.4,1.4]: box('Die carrier edge',(x,1.52,0),(.10,.055,2.7),nickel,'CPO_PACKAGE',.015)
+
+# Six open retainers, three engines each. Their central apertures expose the
+# reviewed EIC/PIC surfaces. Front/back walls stay below fiber attachment height.
+for side,t0 in LAYOUT['subassemblies']:
+    out=[(1,0),(0,1),(-1,0),(0,-1)][side]; tan=(-out[1],out[0])
+    cx,cz=out[0]*3.35+tan[0]*t0,out[1]*3.35+tan[1]*t0
+    angle=side*math.pi/2
+    def pos(radial,tangent,y): return (cx+out[0]*radial+tan[0]*tangent,y+.15,cz+out[1]*radial+tan[1]*tangent)
+    box('Subassembly carrier',pos(0,0,1.415),(1.64,.1,3.5),dark,'CPO_RETAINERS',.035,angle)
+    for r in [-.94,.94]:
+        railY=1.25 if r>0 else 1.38
+        box('Machined retainer rail',pos(r,0,railY),(.40,.16,3.42),nickel,'CPO_RETAINERS',.045,angle)
+        box('Retainer underside seam',pos(r,0,railY-.095),(.38,.025,3.32),dark,'CPO_RETAINERS',.008,angle)
+    for t in [-1.62,1.62]:
+        box('Retainer end bridge',pos(0,t,1.37),(1.82,.14,.16),nickel,'CPO_RETAINERS',.035,angle)
+        for r in [-.93,.93]:
+            p=pos(r,t,1.35 if r>0 else 1.48); screw(*p,'CPO_RETAINERS',r=.095)
+
+# Mechanical ferrule supports surround the native glass interfaces. Clearances
+# above the drawn fibers stay open; these are not additional optical ports.
+for e,conn in zip(LAYOUT['engines'],LAYOUT['connectors']):
+    out=e['out']; tan=e['tan']; angle=e['side']*math.pi/2
+    def ip(r,t,y): return (e['x']+out[0]*r+tan[0]*t,y+.15,e['z']+out[1]*r+tan[1]*t)
+    for t in [-.43,.43]: box('Ferrule side cheek',ip(.83,t,1.56),(.36,.23,.045),nickel,'CPO_INTERFACES',.012,angle)
+    box('Ferrule lower seat',ip(.83,0,1.375),(.37,.03,.82),black,'CPO_INTERFACES',.008,angle)
+    for t in [-.37,.37]:
+        p=(conn[0]+tan[0]*t,1.22,conn[1]+tan[1]*t)
+        box('Connector guide cheek',p,(.35,.27,.035),nickel,'CPO_INTERFACES',.009,angle)
+
+# External-laser bodies are displayed beside the package schematically. Do not
+# add plugs across the fiber exit on each body's inward (-X) face.
+for i in range(5):
+    z=-4.4+i*2.2
+    box('External laser case',(8.2,1.35,z),(1.9,.9,1.1),nickel,'CPO_ELS',.06)
+    box('Laser case seam',(8.2,1.65,z),(1.89,.012,1.095),dark,'CPO_ELS',.008)
+    for x in [7.45,8.95]:
+        for dz in [-.38,.38]: screw(x,1.806,z+dz,'CPO_ELS',.045)
+    for k in range(4): box('Laser top ribs',(8.2,1.818,z-.30+k*.20),(1.25,.035,.075),edge,'CPO_ELS',.01)
+    box('Laser lid inset',(8.2,1.804,z),(1.54,.012,.87),dark,'CPO_ELS',.035)
+    # The native laser exit remains unobstructed on the inward face.
+    for dz in [-.44,.44]: box('Laser base rail',(8.2,.885,z+dz),(1.7,.08,.12),dark,'CPO_ELS',.025)
+    for dx in [-.67,.67]: box('Laser lid end',(8.2+dx,1.812,z),(.07,.025,.8),nickel,'CPO_ELS',.015)
+
+# A lifted, open-center cold-plate study. The translucent center is explicitly
+# an x-ray cutaway; opaque perimeter and fittings supply mechanical edge cues.
+for z in [-4.77,4.77]: box('Cold plate perimeter',(0,4.2,z),(9.8,.35,.26),copper,'CPO_COLDPLATE',.06)
+for x in [-4.77,4.77]: box('Cold plate perimeter',(x,4.2,0),(.26,.35,9.28),copper,'CPO_COLDPLATE',.06)
+box('X ray center',(0,4.2,0),(9.27,.32,9.27),ghost,'CPO_COLDPLATE',.03)
+for x in [-4.65,4.65]:
+    for z in [-4.65,4.65]: screw(x,4.395,z,'CPO_COLDPLATE',.10)
+for x in [-1.4,1.4]:
+    cylinder('Coolant fitting flange',(x,4.45,-4.2),.43,.16,nickel,'CPO_COLDPLATE')
+    cylinder('Coolant hex nut',(x,4.57,-4.2),.36,.17,edge,'CPO_COLDPLATE',6)
+    for y in [4.69,4.83,4.97]: cylinder('Fitting collar',(x,y,-4.2),.305,.055,nickel,'CPO_COLDPLATE')
+
+# The exploded 2.5x engine is a separate diagram. A subtle backing gives the
+# photonic die a finished edge without changing its waveguides or bond guides.
+box('Detail die backing',(-11.4,1.245,-8.4),(3.50,.15,2.49),ceramic,'CPO_DETAIL',.04)
+
+# Complete physical internals. Path locations match side-cpo.js, while the
+# close-up PIC topology is now actual Blender geometry instead of a flat map.
+def segment(name,a,b,r,mat,role,n=8):
+    a,b=Vector(world(a)),Vector(world(b)); d=b-a
+    if d.length<1e-9:return
+    q=d.to_track_quat('Z','Y'); verts=[]
+    for center in [a,b]:
+        for k in range(n):verts.append(center+q@Vector((r*CM*math.cos(k*math.tau/n),r*CM*math.sin(k*math.tau/n),0)))
+    faces=[tuple(reversed(range(n))),tuple(range(n,n*2))]
+    faces.extend((k,(k+1)%n,(k+1)%n+n,k+n) for k in range(n))
+    mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
+    o=bpy.data.objects.new(name,mesh);S.collection.objects.link(o)
+    o.parent=groups[role];o.data.materials.append(mat)
+    return o
+
+def path(name,pts,r,mat,role,n=8):
+    for a,b in zip(pts,pts[1:]):segment(name,a,b,r,mat,role,n)
+
+def flat_trace(a,b,y,width,role):
+    dx,dz=b[0]-a[0],b[1]-a[1]
+    box('Copper substrate trace',((a[0]+b[0])/2,y,(a[1]+b[1])/2),
+        (math.hypot(dx,dz),.004,width),traceCu,role,0,math.atan2(dz,dx))
+
+box('Bare switch ASIC',(0,1.62,0),(2.4,.1,2.4),asic,'CPO_DIES',.009)
+for z in [-5.2,5.2]:
+    for y in [.82,.94]:box('Substrate laminate',(0,y,z),(10.4,.012,.012),laminate,'CPO_PACKAGE',.002)
+for x in [-5.2,5.2]:
+    for y in [.82,.94]:box('Substrate laminate',(x,y,0),(.012,.012,10.4),laminate,'CPO_PACKAGE',.002)
+
+def photonic_die(cx,cy,cz,scale,angle,exploded=False):
+    role='CPO_DETAIL' if exploded else 'CPO_DIES'
+    pw,pd=1.35*scale,.95*scale
+    def w(x,y,z):return(cx+x*math.cos(angle)-z*math.sin(angle),cy+y,cz+x*math.sin(angle)+z*math.cos(angle))
+    def px(v):return -pw/2+v/512*pw
+    def pz(v):return -pd/2+v/384*pd
+    box('Photonic PIC',w(0,0,0),(pw,.15 if exploded else .06,pd),pic,role,.005*scale,angle)
+    ey=.95 if exploded else .065
+    box('Electronic EIC',w(0,ey,0),(1.23*scale,.12 if exploded else .07,.902*scale),eic,role,.005*scale,angle)
+    # Regions are schematic functional blocks, not a photographed die floorplan.
+    for i in range(8):
+        ex=-1.23*scale/2+(23+i*29)/256*(1.23*scale)
+        for z,m in [(-.198*scale,driver),(.227*scale,tia)]:
+            box('Driver' if m==driver else 'TIA',w(ex,ey+(.062 if exploded else .037),z),(.106*scale,.004,.324*scale),m,role,.002*scale,angle)
+    if not exploded:return
+    top=.082;radius=.0045
+    path('CW bus',[w(px(512),top,pz(24)),w(px(24),top,pz(24)),w(px(24),top,pz(190))],radius,fiberCw,role)
+    for i in range(8):
+        row=50+i*20;rx=110+i*40;ringz=row-10;rxrow=214+i*20
+        path('CW branch',[w(px(24),top,pz(row)),w(px(rx-14),top,pz(row))],radius,fiberCw,role)
+        path('TX waveguide',[w(px(rx-14),top,pz(row)),w(px(512),top,pz(row))],radius,fiberTx,role)
+        pts=[w(px(rx+6*math.cos(k*math.tau/32)),top,pz(ringz+6*math.sin(k*math.tau/32))) for k in range(33)]
+        path('Ring modulator',pts,.0038,fiberTx,role)
+        path('RX waveguide',[w(px(512),top,pz(rxrow)),w(px(90),top,pz(rxrow))],radius,fiberRx,role)
+        box('Photodiode',w(px(77),top,pz(rxrow)),(26/512*pw,.012,12/384*pd),tia,role,.004,angle)
+        for bx,bz,br in [(px(rx),pz(row-12-4-4.5),.020),(px(77),pz(rxrow),.033)]:
+            for by in [.09,.88]:cylinder('Face bonding pad',w(bx,by,bz),br,.025,gold,role,12)
+    box('Glass fiber attach',w(pw/2+.2,.1,0),(.4,.4,pd-.2),glass,role,.01,angle)
+    for i in range(8):
+        for ry,zz,m in [(.1,pz(50+i*20),fiberTx),(.14,pz(214+i*20),fiberRx)]:
+            path('Detail fiber',[w(pw/2+.4,ry,zz),w(pw/2+2.6,ry,zz)],.02,m,role)
+    for d in [-.07,.07]:path('Detail laser fiber',[w(pw/2+.4,.1,pz(24)+d),w(pw/2+2.6,.1,pz(24)+d)],.02,fiberCw,role)
+    for j in range(6):box('Detail electrical trace',w(-1.23*scale/2-.8,.95,-.55+j*.22),(1.6,.01,.05),traceCu,role,.002,angle)
+
+for i,(e,conn) in enumerate(zip(LAYOUT['engines'],LAYOUT['connectors'])):
+    x,z=e['x'],e['z'];out,tan=e['out'],e['tan'];angle=e['rot']
+    photonic_die(x,1.65,z,1,angle)
+    box('Engine glass ferrule',(x+out[0]*.83,1.73,z+out[1]*.83),(.3,.2,.8),glass,'CPO_INTERFACES',.008,angle)
+    # asicTap clamps the tangential coordinate to the 24 mm die's SerDes edge.
+    t=max(-1,min(1,e['t']*.6));a=(out[0]*1.2+tan[0]*t,out[1]*1.2+tan[1]*t)
+    b=(x-out[0]*.62,z-out[1]*.62)
+    for j in range(4):
+        o=(j-1.5)*.09
+        flat_trace((a[0]+tan[0]*o,a[1]+tan[1]*o),(b[0]+tan[0]*o,b[1]+tan[1]*o),1.041,.03,'CPO_CONDUCTORS')
+    ex,ez=conn
+    for j in range(16):
+        o=(j-7.5)*.034
+        path('Engine TX fiber' if j<8 else 'Engine RX fiber',[(x+out[0]+tan[0]*o,1.73,z+out[1]+tan[1]*o),(ex+tan[0]*o,1.2,ez+tan[1]*o)],.007,fiberTx if j<8 else fiberRx,'CPO_FIBERS')
+    box('Package connector',(ex,1.2,ez),(.3 if out[0] else .7,.3,.7 if out[0] else .3),black,'CPO_INTERFACES',.018)
+    li=i//4;lz=-4.4+li*2.2;R=6.3;side=e['side'];zc=-1 if side==3 else 1
+    pts=[(7.25,1.35,lz),(R,1.35,lz)]
+    if side in [1,3]:pts.extend([(R,1.35,zc*R),(ex,1.35,zc*R)])
+    if side==2:pts.extend([(R,1.35,R),(-R,1.35,R),(-R,1.35,ez)])
+    if side==0:pts.append((R,1.35,ez))
+    pts.extend([(ex+out[0]*.2,1.25,ez+out[1]*.2),(x+out[0]*.8,1.75,z+out[1]*.8)])
+    for d in [-.04,.04]:path('Laser supply fiber',[(p[0]+tan[0]*d,p[1],p[2]+tan[1]*d) for p in pts],.008,fiberCw,'CPO_FIBERS')
+
+photonic_die(-11.4,1.4,-8.4,2.5,math.pi,True)
+for i in range(5):box('Laser aperture',(7.24,1.5,-4.4+i*2.2),(.04,.18,.5),fiberCw,'CPO_ELS',.004)
+for x,m in [(-1.4,blue),(1.4,red)]:cylinder('Coolant pipe',(x,5.5,-4.2),.28,2.6,m,'CPO_COLDPLATE')
+
+# Bake and batch per semantic assembly/material. glTF converts Z-up to Y-up.
+bpy.context.view_layer.update(); deps=bpy.context.evaluated_depsgraph_get()
+for o in list(S.objects):
+    if o.type=='MESH':
+        baked=bpy.data.meshes.new_from_object(o.evaluated_get(deps)); o.modifiers.clear(); o.data=baked
+for parent in groups.values():
+    batches={}
+    for o in list(parent.children):
+        if o.type=='MESH': batches.setdefault(o.data.materials[0].name,[]).append(o)
+    for matname,objects in batches.items():
+        bpy.ops.object.select_all(action='DESELECT')
+        for o in objects:o.select_set(True)
+        bpy.context.view_layer.objects.active=objects[0]; bpy.ops.object.join()
+        bpy.context.object.name=parent.name+'__'+matname
+root=group('IFX_CPO_HARDWARE')
+for o in groups.values():o.parent=root
+root['ifx']=json.dumps({'version':4,'units':'m','coordinates':'gltf-root-rest','representative':True,
+    'engineCount':len(LAYOUT['engines']),'subassemblyCount':len(LAYOUT['subassemblies']),
+    'interposerCm':[9.0,.1,9.0], 'interposerCenterCm':[0,1.45,0],
+    'enginesCm':[[e['x'],1.65,e['z']] for e in LAYOUT['engines']],
+    'scope':'all static physical geometry; runtime owns animated overlays, labels and selection guides',
+    'physicalMeshes':'Blender authored', 'detailRingCount':8,'txFibersPerEngine':8,'rxFibersPerEngine':8,'laserFibersPerEngine':2})
+out=ROOT/'public/models/cpo-hardware.glb'; out.parent.mkdir(parents=True,exist_ok=True)
+bpy.ops.wm.save_as_mainfile(filepath=str(HERE/'cpo-hardware.blend'))
+bpy.ops.export_scene.gltf(filepath=str(out),export_format='GLB',export_extras=True,export_yup=True,export_cameras=False,export_lights=False)
+print('IFX_CPO_EXPORTED',out, out.stat().st_size)

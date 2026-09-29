@@ -41,8 +41,10 @@ export interface Accel {
   liquidShare: number;     // share of rack heat leaving in water
   hbm: { type: string; gb: number; tbs: number; stacks: number; layers: number };
   dies: number;
-  nvlink: { gen: string; tbs: number; domain: number };
-  nicGbps: 400 | 800 | 1600;
+  nvlink: { gen: string; tbs: number; domain: number; switchChipsPerRack: number; linksPerGpu: number };
+  nicGbps: 400 | 800 | 1600; // aggregate scale-out line rate per GPU
+  nicPortGbps: 400 | 800 | 1600; // physical NIC port line rate
+  nicsPerGpu: number; dpusPerTray: number; gpuPortsPerModule: number;
   fp8PF: number | null; fp4PF: number | null;          // dense, per GPU
   publishedRackKW: [number, number];
   coolingOptions: CoolingId[];
@@ -57,7 +59,7 @@ export const ACCELERATORS: Record<AccelId, Accel> = {
     scaleupKW: 1.8, nicKW: 1.4, otherKW: 5.2, busbarKW: 0.05,
     hbmShare: 0.1, vrmEff: 0.9, ibcEff: 0.983, psuEff: 0.96, liquidShare: 0,
     hbm: { type: 'HBM3', gb: 80, tbs: 3.35, stacks: 5, layers: 8 }, dies: 1,
-    nvlink: { gen: 'NVLink 4', tbs: 0.9, domain: 8 }, nicGbps: 400, fp8PF: 1.98, fp4PF: null,
+    nvlink: { gen: 'NVLink 4', tbs: 0.9, domain: 8, switchChipsPerRack: 16, linksPerGpu: 18 }, nicGbps: 400, nicPortGbps: 400, nicsPerGpu: 1, dpusPerTray: 0, gpuPortsPerModule: 2, fp8PF: 1.98, fp4PF: null,
     publishedRackKW: [36, 42], coolingOptions: ['air'], dc800: false, basis: 'typical',   // DGX H100 reference design is air-cooled
   },
   gb200: {
@@ -68,7 +70,7 @@ export const ACCELERATORS: Record<AccelId, Accel> = {
     hbm: { type: 'HBM3e', gb: 192, tbs: 8, stacks: 8, layers: 8 }, dies: 2,
     // NVIDIA's own reference design (DGX OS / DSX architecture docs, and the CoreWeave GB200 launch) wires one
     // 400G ConnectX-7 port per GPU; ConnectX-8 800G is a documented upgrade path, not the shipping default.
-    nvlink: { gen: 'NVLink 5', tbs: 1.8, domain: 72 }, nicGbps: 400, fp8PF: 5, fp4PF: 10,
+    nvlink: { gen: 'NVLink 5', tbs: 1.8, domain: 72, switchChipsPerRack: 18, linksPerGpu: 18 }, nicGbps: 400, nicPortGbps: 400, nicsPerGpu: 1, dpusPerTray: 2, gpuPortsPerModule: 1, fp8PF: 5, fp4PF: 10,
     publishedRackKW: [120, 132], coolingOptions: ['liquid', 'warm'], dc800: true, basis: 'typical',
   },
   gb300: {
@@ -77,7 +79,7 @@ export const ACCELERATORS: Record<AccelId, Accel> = {
     scaleupKW: 10.6, nicKW: 5.0, otherKW: 2.35, busbarKW: 0.34,
     hbmShare: 0.15, vrmEff: 0.91, ibcEff: 0.9828, psuEff: 0.975, liquidShare: 0.9,
     hbm: { type: 'HBM3e', gb: 288, tbs: 8, stacks: 8, layers: 12 }, dies: 2,
-    nvlink: { gen: 'NVLink 5', tbs: 1.8, domain: 72 }, nicGbps: 800, fp8PF: 5, fp4PF: 15,
+    nvlink: { gen: 'NVLink 5', tbs: 1.8, domain: 72, switchChipsPerRack: 18, linksPerGpu: 18 }, nicGbps: 800, nicPortGbps: 800, nicsPerGpu: 1, dpusPerTray: 1, gpuPortsPerModule: 1, fp8PF: 5, fp4PF: 15,
     publishedRackKW: [135, 155], coolingOptions: ['liquid', 'warm'], dc800: true, basis: 'typical',
   },
   rubin: {
@@ -85,8 +87,8 @@ export const ACCELERATORS: Record<AccelId, Accel> = {
     gpuW: 1800, gpusPerRack: 72, cpusPerRack: 36, cpuW: 400, cpuName: 'Vera CPUs + LPDDR5X',
     scaleupKW: 14, nicKW: 7.5, otherKW: 2.6, busbarKW: 0.4,
     hbmShare: 0.16, vrmEff: 0.915, ibcEff: 0.983, psuEff: 0.975, liquidShare: 1,
-    hbm: { type: 'HBM4', gb: 288, tbs: 22, stacks: 8, layers: 12 }, dies: 2,   // stack count not yet published
-    nvlink: { gen: 'NVLink 6', tbs: 3.6, domain: 72 }, nicGbps: 1600, fp8PF: null, fp4PF: 35,   // sources give 25–50
+    hbm: { type: 'HBM4', gb: 288, tbs: 19.2, stacks: 8, layers: 12 }, dies: 2,   // stack count not yet published
+    nvlink: { gen: 'NVLink 6', tbs: 3, domain: 72, switchChipsPerRack: 36, linksPerGpu: 36 }, nicGbps: 1600, nicPortGbps: 800, nicsPerGpu: 2, dpusPerTray: 1, gpuPortsPerModule: 1, fp8PF: null, fp4PF: 35,   // sources give 25–50
     publishedRackKW: [170, 230], coolingOptions: ['liquid', 'warm'], dc800: true, basis: 'est',
   },
 };
@@ -151,10 +153,13 @@ export function loopTemps(coolingId: CoolingId): Temps {
 }
 
 // ---------- scale-out fabric by NIC speed ----------
-// One port per GPU into a non-blocking fat tree. Switch-side modules are counted per port.
+// One physical port per NIC into a non-blocking fat tree; Rubin has two NICs per GPU.
+// gpuModuleW and portModuleW are per-port power allowances. Physical module
+// counts divide by the host/switch port grouping independently (H100 host OSFPs carry two).
 const FABRICS = {
   400: { radix: 64, switchKW: 0.75, gpuModuleW: 9, portModuleW: 8.5, portsPerModule: 2, fibersPerLink: 8, switchName: 'Quantum-2, 64 × 400G' },
-  800: { radix: 144, switchKW: 2.9, gpuModuleW: 17, portModuleW: 13.5, portsPerModule: 2, fibersPerLink: 8, switchName: 'Quantum-X800, 144 × 800G' },
+  800: { radix: 144, switchKW: 2.9, gpuModuleW: 17, portModuleW: 16.75, portsPerModule: 2,   // NVIDIA MMS4A00 1.6T twin-port: 33.5 W max, two ports
+        fibersPerLink: 8, switchName: 'Quantum-X800, 144 × 800G' },
   1600: { radix: 72, switchKW: 2.9, gpuModuleW: 27, portModuleW: 27, portsPerModule: 1, fibersPerLink: 16, switchName: 'Spectrum-6, 72 × 1.6T' },   // Rubin's Ethernet switch; its port count is not published yet
 } as const;
 
@@ -180,22 +185,22 @@ function rackOf(accel: Accel, power: PowerArch) {
 // A tier's own port count sets how many links and switch ports a GPU needs, which sets kwPerGpu, which sets how many
 // racks the site's power actually buys — so "how many GPUs" and "how many tiers" depend on each other. Evaluate both
 // tier configurations directly and pick the smaller one that stays inside its own port budget.
-function tierConfig(F: (typeof FABRICS)[keyof typeof FABRICS], tiers: 2 | 3) {
-  const portsPerGpu = tiers === 2 ? 3 : 5, linksPerGpu = tiers === 2 ? 2 : 3;
-  const kwPerGpu = portsPerGpu / F.radix * F.switchKW + (F.gpuModuleW + portsPerGpu * F.portModuleW) / 1000;
-  return { tiers, portsPerGpu, linksPerGpu, kwPerGpu };
+function tierConfig(F: (typeof FABRICS)[keyof typeof FABRICS], tiers: 2 | 3, nicsPerGpu = 1) {
+  const portsPerGpu = (tiers === 2 ? 3 : 5) * nicsPerGpu, linksPerGpu = (tiers === 2 ? 2 : 3) * nicsPerGpu;
+  const kwPerGpu = portsPerGpu / F.radix * F.switchKW + (nicsPerGpu * F.gpuModuleW + portsPerGpu * F.portModuleW) / 1000;
+  return { tiers, portsPerGpu, linksPerGpu, kwPerGpu, nicsPerGpu };
 }
 // one non-blocking fabric for G GPUs on one NIC speed: its counts and its power
-function fabricOf(F: (typeof FABRICS)[keyof typeof FABRICS], G: number, cfg: ReturnType<typeof tierConfig>) {
-  const threeTierMax = F.radix ** 3 / 4;
-  const leaf = Math.ceil(G / (F.radix / 2));
-  const spine = cfg.tiers === 2 ? Math.ceil(G / F.radix) : Math.ceil(G / (F.radix / 2));
-  const core = cfg.tiers === 3 ? Math.ceil(G / F.radix) : 0;
+function fabricOf(F: (typeof FABRICS)[keyof typeof FABRICS], G: number, cfg: ReturnType<typeof tierConfig>, gpuPortsPerModule = 1) {
+  const threeTierMax = F.radix ** 3 / 4, endpoints = G * cfg.nicsPerGpu;
+  const leaf = Math.ceil(endpoints / (F.radix / 2));
+  const spine = cfg.tiers === 2 ? Math.ceil(endpoints / F.radix) : Math.ceil(endpoints / (F.radix / 2));
+  const core = cfg.tiers === 3 ? Math.ceil(endpoints / F.radix) : 0;
   const switches = leaf + spine + core, links = G * cfg.linksPerGpu;
-  const gpuModules = G, switchModules = G * cfg.portsPerGpu / F.portsPerModule;   // twin-port modules carry two switch ports
+  const gpuModules = endpoints / gpuPortsPerModule, switchModules = G * cfg.portsPerGpu / F.portsPerModule;   // twin-port modules carry two switch ports
   return {
-    F, ...cfg, planes: Math.max(1, Math.ceil(G / threeTierMax)), gpus: G, leaf, spine, core, switches, links, gpuModules, switchModules,
-    switchMW: switches * F.switchKW / 1000, opticsMW: (gpuModules * F.gpuModuleW + G * cfg.portsPerGpu * F.portModuleW) / 1e6,
+    F, ...cfg, planes: Math.max(1, Math.ceil(endpoints / threeTierMax)), gpus: G, endpoints, leaf, spine, core, switches, links, gpuModules, switchModules,
+    switchMW: switches * F.switchKW / 1000, opticsMW: (endpoints * F.gpuModuleW + G * cfg.portsPerGpu * F.portModuleW) / 1e6,
   };
 }
 
@@ -217,7 +222,7 @@ export function compute(s: Scenario) {
   // ----- one rack of the accelerator the scenario names, the one the 3D levels draw -----
   const rack = rackOf(accel, power);
   const { pkgKW, vrmLossKW, dcBusKW } = rack, rackKW = rack.kw;
-  const F = FABRICS[accel.nicGbps];
+  const F = FABRICS[accel.nicPortGbps];
   const twoTierMax = F.radix * F.radix / 2;
 
   // ----- facility -----
@@ -231,9 +236,9 @@ export function compute(s: Scenario) {
   if (stage !== null) {
     // the operator's own GPU counts; a partly filled last rack counts toward power as the share it holds
     fleet = stages![stage].parts.filter(p => p.gpus > 0).map(p => {
-      const a = ACCELERATORS[p.accel], Fa = FABRICS[a.nicGbps];
-      const cfg = tierConfig(Fa, p.gpus <= Fa.radix * Fa.radix / 2 ? 2 : 3);
-      return { accel: a, gpus: p.gpus, racks: p.gpus / a.gpusPerRack, rack: rackOf(a, a.dc800 ? power : POWER.ac415), fab: fabricOf(Fa, p.gpus, cfg) };
+      const a = ACCELERATORS[p.accel], Fa = FABRICS[a.nicPortGbps];
+      const cfg = tierConfig(Fa, p.gpus * a.nicsPerGpu <= Fa.radix * Fa.radix / 2 ? 2 : 3, a.nicsPerGpu);
+      return { accel: a, gpus: p.gpus, racks: p.gpus / a.gpusPerRack, rack: rackOf(a, a.dc800 ? power : POWER.ac415), fab: fabricOf(Fa, p.gpus, cfg, a.gpuPortsPerModule) };
     });
     // the IT load is what the fleet draws: its racks, and its switches and optics as counted, so nothing is left over
     IT_MW = fleet.reduce((w, m) => w + m.racks * m.rack.kw / 1000 + m.fab.switchMW + m.fab.opticsMW, 0);
@@ -243,14 +248,14 @@ export function compute(s: Scenario) {
     meterMW = s.meterMW;
     IT_MW = meterMW / meterPerIT;
     const racksFor = (cfg: ReturnType<typeof tierConfig>) => Math.floor(IT_MW * 1000 / (rackKW + accel.gpusPerRack * cfg.kwPerGpu));
-    const two = tierConfig(F, 2), twoRacks = racksFor(two), twoGpus = twoRacks * accel.gpusPerRack;
+    const two = tierConfig(F, 2, accel.nicsPerGpu), twoRacks = racksFor(two), twoGpus = twoRacks * accel.gpusPerRack;
     // Two tiers is only a valid fabric if the GPUs it would actually buy fit its own port budget; once the site's
     // power buys more GPUs than that, the campus needs a third tier (which costs more per GPU, so it always buys
     // fewer of them — this can never flip back to "two tiers fits after all").
-    const feasible2Tier = twoGpus <= twoTierMax;
-    const chosen = feasible2Tier ? two : tierConfig(F, 3);
+    const feasible2Tier = twoGpus * accel.nicsPerGpu <= twoTierMax;
+    const chosen = feasible2Tier ? two : tierConfig(F, 3, accel.nicsPerGpu);
     const r = feasible2Tier ? twoRacks : racksFor(chosen), g = r * accel.gpusPerRack;
-    fleet = [{ accel, gpus: g, racks: r, rack, fab: fabricOf(F, g, chosen) }];
+    fleet = [{ accel, gpus: g, racks: r, rack, fab: fabricOf(F, g, chosen, accel.gpuPortsPerModule) }];
   }
   const coolMW = cooling.coolFrac * IT_MW, miscMW = MISC_FRAC * IT_MW;
   const gpus = fleet.reduce((n, m) => n + m.gpus, 0);
@@ -273,13 +278,18 @@ export function compute(s: Scenario) {
   const NET = {
     leaf, spine, core, switches, tiers: fab.tiers, planes: sumFab(x => x.planes), links, gpuModules, switchModules,
     modules: gpuModules + switchModules, fibers: sumFab(x => x.links * x.F.fibersPerLink),
-    crossHallFibers: sumFab(x => x.gpus / 2 * x.F.fibersPerLink), switchMW, opticsMW,
-    nvlinkLinks: Math.round(perRack(m => (h(m) ? m.accel.gpusPerRack * 18 : 1296))),
+    crossHallFibers: sumFab(x => x.endpoints / 2 * x.F.fibersPerLink), switchMW, opticsMW,
+    // NVIDIA NVLink specifications: 18 logical links/GPU for Hopper/Blackwell, 36 for Rubin.
+    nvlinkLinks: Math.round(perRack(m => m.accel.gpusPerRack * m.accel.nvlink.linksPerGpu)),
+    // Legacy wire-count estimate; Rubin physical pair mapping is unverified and omitted from UI.
     nvlinkPairs: Math.round(perRack(m => (h(m) ? m.accel.gpusPerRack * 18 * 4 : 5184))),
-    nvswitchChips: Math.round(perRack(m => (h(m) ? 16 : 18))),
-    dpus: Math.round(perRack(m => (h(m) ? 8 : 36))), dci, fabric: F,
+    // NVIDIA Vera Rubin technical blog: four NVLink6 chips/tray x nine trays.
+    // Scale-up power is a whole-rack budget, so this count does not double it.
+    nvswitchChips: Math.round(perRack(m => m.accel.nvlink.switchChipsPerRack)),
+    // DGX H100 has two front-end dual-port ConnectX7 cards/server, not BF3 DPUs.
+    dpus: Math.round(perRack(m => (h(m) ? 4 : 18) * m.accel.dpusPerTray)), dci, fabric: F,
     // a mixed fleet runs one fabric per accelerator, each at its own NIC speed
-    fabrics: fleet.map(m => ({ accel: m.accel.short, gpus: m.gpus, nicGbps: m.accel.nicGbps, tiers: m.fab.tiers, switches: m.fab.switches, radix: m.fab.F.radix, switchName: m.fab.F.switchName })),
+    fabrics: fleet.map(m => ({ accel: m.accel.short, gpus: m.gpus, nicGbps: m.accel.nicGbps, nicPortGbps: m.accel.nicPortGbps, nicsPerGpu: m.accel.nicsPerGpu, endpoints: m.fab.endpoints, tiers: m.fab.tiers, switches: m.fab.switches, radix: m.fab.F.radix, switchName: m.fab.F.switchName })),
   };
 
   // ----- the ledger: meter to GPU silicon -----
@@ -361,7 +371,7 @@ export function compute(s: Scenario) {
     ...(accel.dies > 1 ? [{ link: L(5, 'hbi', 'data'), label: 'NV-HBI', where: 'Die to die', gbs: 10000, latency: 'nanoseconds', note: 'aggregate, across the seam', dir: 'aggregate' as const, cls: 'hbi', basis: 'spec' as Basis }] : []),
     { link: L(5, 'hbm', 'data'), label: accel.hbm.type, where: 'Memory, on package', gbs: accel.hbm.tbs * 1000, latency: '≈100s of ns', note: 'aggregate, per GPU', dir: 'aggregate' as const, cls: 'hbm', basis: accel.basis },
     { link: accel.id === 'h100' ? L(4, 'nvswitch', 'data') : L(3, 'nvswitch', 'data'), label: accel.nvlink.gen, where: accel.id === 'h100' ? 'Scale-up, in the server' : 'Scale-up, in the rack', gbs: accel.nvlink.tbs * 500, latency: 'sub-µs, unpublished', note: `each way, ${accel.nvlink.domain}-GPU domain`, dir: 'each way' as const, cls: 'nvl', basis: accel.basis },
-    { link: L(2, 'leaf', 'data'), label: `${accel.nicGbps >= 1000 ? accel.nicGbps / 1000 + 'T' : accel.nicGbps + 'G'}`, where: 'Scale-out, the hall', gbs: accel.nicGbps / 8, latency: '≈1–2 µs', note: 'each way, per GPU', dir: 'each way' as const, cls: 'eth', basis: 'typical' as Basis },
+    { link: L(2, 'leaf', 'data'), label: `${accel.nicGbps >= 1000 ? accel.nicGbps / 1000 + 'T' : accel.nicGbps + 'G'}`, where: 'Scale-out, the hall', gbs: accel.nicGbps / 8, latency: '≈1–2 µs', note: `each way, per GPU${accel.nicsPerGpu > 1 ? ` (${accel.nicsPerGpu} ports)` : ''}`, dir: 'each way' as const, cls: 'eth', basis: 'typical' as Basis },
     { link: L(0, 'route', 'data'), label: 'DWDM', where: 'Scale across, 1,000 km', gbs: +dciPerGpuGBs.toFixed(2), latency: '≈5 ms one way', note: 'shared: an assumed per-GPU slice, not a dedicated link', dir: 'shared' as const, cls: 'dci', basis: 'est' as Basis },
   ];
 

@@ -1,3 +1,4 @@
+import { attachFlowRibbons } from '../flow-ribbons.js';
 // Scene 1: scale across, on a real map of the lower 48. World unit = 1 km (Albers equal-area); heights are exaggerated.
 // The campus sits at its real site when the scenario is based on one, otherwise at a generic spot in southwest Ohio.
 // States with EIA carbon figures are shaded by grams of CO₂ per kWh; the other real campuses are pinned.
@@ -8,6 +9,9 @@ import us from 'us-atlas/states-10m.json';
 import { THREE, MAT, Builder, mtx, flow, canvasTex, sky, glowMat, spinners } from '../kit.js';
 import { rbox, plumes } from '../fx.js';
 import { SITES, STATE_CARBON, DEFAULT_PLACE, PLACES, placeKey, albers, greatCircleKm } from '../model/sites.ts';
+import { preloadCampusCatalog, campusCatalogInstances } from './campus-blender-catalog.js';
+import { preloadAcrossAssets, hasAcrossAssets, acrossAssetInstances, acrossSurfaceGeometry, replaceWindRotor } from './across-blender-assets.js';
+export const preload = () => Promise.all([preloadCampusCatalog(), preloadAcrossAssets()]);
 
 const ORIGIN = albers(-92, 37);
 const world = (lon, lat) => { const [x, y] = albers(lon, lat); return [x - ORIGIN[0], -(y - ORIGIN[1])]; };
@@ -100,6 +104,43 @@ function labelSprite(text, color = '#ffe7a3', size = 26) {
   const k = size / 26 * 0.016;
   s.scale.set(w / 72 * k, k, 1); s.renderOrder = 10; return s;
 }
+// Map captions are annotations: keep their geographic anchors and move only the caption,
+// with a leader whenever screen-space collision avoidance displaces it.
+export function layoutMapCaptions(entries, camera, width, height, selected = null) {
+  const occupied = [];
+  camera.updateMatrixWorld();
+  for (const entry of [...entries].sort((a, b) =>
+    (b.main ? 100 : b.key === selected ? 90 : b.priority || 0) - (a.main ? 100 : a.key === selected ? 90 : a.priority || 0))) {
+    const { sprite, anchor, leader } = entry;
+    const p = anchor.clone().project(camera);
+    const eligible = entry.parent.visible && (!entry.route || selected === 'route');
+    sprite.visible = eligible && p.z > -1 && p.z < 1 && Math.abs(p.x) < 1.05 && Math.abs(p.y) < 1.05;
+    leader.visible = false;
+    if (!sprite.visible) continue;
+    const w = sprite.scale.x * camera.projectionMatrix.elements[0] * width / 2;
+    const h = sprite.scale.y * camera.projectionMatrix.elements[5] * height / 2;
+    const x = (p.x + 1) * width / 2, y = (1 - p.y) * height / 2;
+    let box = null;
+    for (const dy of [0, -24, 24, -48, 48, -72, 72, -96, 96]) {
+      const cx = Math.max(w / 2 + 8, Math.min(width - w / 2 - 8, x));
+      // Reserve the bottom strip for the map scale and canvas controls.
+      const cy = Math.max(h / 2 + 8, Math.min(height - h / 2 - 64, y + dy));
+      const candidate = [cx - w / 2 - 5, cy - h / 2 - 4, cx + w / 2 + 5, cy + h / 2 + 4];
+      if (!occupied.some(q => candidate[0] < q[2] && candidate[2] > q[0] && candidate[1] < q[3] && candidate[3] > q[1])) {
+        box = candidate;
+        sprite.position.set(cx / width * 2 - 1, 1 - cy / height * 2, p.z).unproject(camera);
+        sprite.updateMatrixWorld();
+        leader.visible = Math.hypot(cx - x, cy - y) > 8;
+        leader.geometry.setFromPoints([anchor, sprite.position]);
+        break;
+      }
+    }
+    sprite.visible = !!box;
+    sprite.userData.screenBox = box;
+    if (box) occupied.push(box);
+  }
+}
+
 // a wandering route between two points, like fiber laid along roads and rail
 function route(a, b, wiggle, seed) {
   let s = seed; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
@@ -154,7 +195,8 @@ function cityLights(quality) {
 }
 
 
-export function build({ quality, model }) {
+export function build({ quality, model, state = {} }) {
+  const authored = hasAcrossAssets();
   const siteId = model.scenario.site, site = siteId ? SITES[siteId] : null;
   const here = site ? { name: site.name, lat: site.lat, lon: site.lon } : DEFAULT_PLACE;
   const H = world(here.lon, here.lat);
@@ -167,24 +209,47 @@ export function build({ quality, model }) {
   const key = new THREE.DirectionalLight(0xc9d8ff, 0.45); key.position.set(-800, 1200, 600); scene.add(key);
   scene.add(cityLights(quality));                                      // metro glow: always on, whatever the layer
 
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(MW, MD), new THREE.MeshStandardMaterial({ map: mapTexture(quality.mobile), roughness: 1 }));
-  ground.rotation.x = -Math.PI / 2; ground.position.set((minX + maxX) / 2, 0, (minZ + maxZ) / 2); scene.add(ground);
-  const under = new THREE.Mesh(new THREE.PlaneGeometry(30000, 30000), new THREE.MeshStandardMaterial({ color: 0x05070a, roughness: 1 }));
-  under.rotation.x = -Math.PI / 2; under.position.y = -0.5; scene.add(under);
+  const ground = new THREE.Mesh(authored ? acrossSurfaceGeometry() : new THREE.PlaneGeometry(MW, MD), new THREE.MeshStandardMaterial({ map: mapTexture(quality.mobile), roughness: 1 }));
+  if (authored) ground.scale.set(MW, 1, MD); else ground.rotation.x = -Math.PI / 2;
+  ground.position.set((minX + maxX) / 2, 0, (minZ + maxZ) / 2); scene.add(ground);
+  const under = new THREE.Mesh(authored ? acrossSurfaceGeometry() : new THREE.PlaneGeometry(30000, 30000), new THREE.MeshStandardMaterial({ color: 0x05070a, roughness: 1 }));
+  if (authored) under.scale.set(30000, 1, 30000); else under.rotation.x = -Math.PI / 2;
+  under.position.y = -0.5; scene.add(under);
 
   const power = new THREE.Group(), data = new THREE.Group();
   scene.add(power, data);
-  const flows = [], dataFlows = [];
+  const flows = [], dataFlows = [], heatFlows = [];
 
   // campuses: exaggerated so they read at this scale, rounded so they read as buildings and not blocks
   const S = new Builder();
   const roofGlow = glowMat('#ffd49a', 1.35);
+  const iconRoof = new THREE.MeshStandardMaterial({ color: 0x58687b, roughness: .42, metalness: .55 });
+  const iconTrim = new THREE.MeshStandardMaterial({ color: 0xa5b6c4, roughness: .32, metalness: .7 });
   const campus = ([x, z], main) => {
     const k = main ? 1 : 0.7;
+    // Local heat rejection on exaggerated campus icons, not regional heat
+    // transport, exhaust specifications or a quantified thermal simulation.
+    for (const dz of [-6, 6]) {
+      const heat = flow([[x + 2 * k, 7, z + dz * k], [x + 2 * k, 18, z + dz * k],
+        [x + 5 * k, 30, z + (dz + 3) * k]], 'air',
+      { count: 5, speed: 8, size: .75 * k, k: 2.8, opacity: .8, trail: false });
+      heatFlows.push(heat); scene.add(heat.group);
+    }
+    if (authored) {
+      scene.add(campusCatalogInstances('MAP_CAMPUS', [mtx(x, 0, z, 0, k)]));
+      return;
+    }
     rbox(S, 34 * k, 0.6, 26 * k, MAT.concreteDark, x, 0.3, z, { r: 0.05 });
     for (const dz of [-6, 6]) {
       rbox(S, 24 * k, 5, 8 * k, MAT.wall, x + 2 * k, 3.1, z + dz * k, { r: 0.07 });
-      S.slab(24 * k, 0.3, 8 * k, roofGlow, x + 2 * k, 5.6, z + dz * k);
+      S.slab(24 * k, 0.3, 8 * k, iconRoof, x + 2 * k, 5.6, z + dz * k);
+      // Exaggerated landmark icons, not a second site-specific equipment inventory.
+      // Edge fixtures preserve the night-map glow while the roof retains physical form.
+      for (const edge of [-1, 1]) S.box(24 * k, .18, .25 * k, roofGlow, x + 2 * k, 5.88, z + (dz + edge * 3.9) * k);
+      for (let i = 0; i < 7; i++) {
+        S.box(.18 * k, 4.5, .3 * k, iconTrim, x + (-8 + i * 3.4) * k, 3.1, z + (dz + 4.05) * k);
+      }
+      for (let i = 0; i < 4; i++) rbox(S, 2.7 * k, .65, 3 * k, iconTrim, x + (-6 + i * 5.2) * k, 6.23, z + dz * k, { r: .12 });
     }
     rbox(S, 6 * k, 3, 10 * k, MAT.xfmr, x - 14 * k, 2.1, z, { r: 0.08 });
     if (main) S.slab(36, 0.4, 28, glowMat('#ffb14e', 0.65), x, 0.62, z);
@@ -192,10 +257,19 @@ export function build({ quality, model }) {
   campus(H, true);
   others.forEach(p => campus(world(p.site.lon, p.site.lat), false));
   scene.add(S.build({ cast: false }));
+  const mapCaptions = [];
+  const caption = (sprite, parent, options = {}) => {
+    const leader = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: options.main ? 0xffb14e : 0x91a3b7, transparent: true, opacity: .65, depthTest: false, depthWrite: false }));
+    leader.renderOrder = 9; leader.visible = false; parent.add(leader);
+    sprite.name = options.route ? 'Map route distance caption' : 'Map campus caption';
+    const entry = { sprite, parent, anchor: sprite.position.clone(), leader, ...options };
+    mapCaptions.push(entry); return entry;
+  };
   const hereLab = labelSprite(here.name, '#ffb14e', 36); hereLab.position.set(H[0], 70, H[1]); scene.add(hereLab);
+  caption(hereLab, scene, { main: true, key: 'home' });
   // the other campuses are named by their numbered pins in the power layer; the data layer names them on the map,
   // where they are the far ends of the fiber
-  others.forEach(p => { const [x, z] = world(p.site.lon, p.site.lat), l = labelSprite(p.name, '#e8ecf2', 28); l.position.set(x, 52, z); data.add(l); });
+  others.forEach(p => { const [x, z] = world(p.site.lon, p.site.lat), l = labelSprite(p.name, '#e8ecf2', 28); l.position.set(x, 52, z); data.add(l); caption(l, data, { key: placeKey(p), priority: 1 / Math.max(1, greatCircleKm(here, p.site)) }); });
 
   // ---------- power layer: state carbon labels, plants and the HV backbone near this campus ----------
   Object.entries(STATE_CARBON).forEach(([id, c]) => {
@@ -217,46 +291,63 @@ export function build({ quality, model }) {
   // glint, a faint emissive keeps the panels from reading as flat black slabs at night.
   const solarGlass = new THREE.MeshPhysicalMaterial({ color: 0x141c26, roughness: 0.12, metalness: 0.5, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 2.2, emissive: 0x16232f, emissiveIntensity: 0.4 });
   const nuclearEmitters = [], gasEmitters = [], turbineItems = [];
+  const plantMatrices = new Map();
+  const placePlant = (name, matrix) => { if (!plantMatrices.has(name)) plantMatrices.set(name, []); plantMatrices.get(name).push(matrix); };
   plants.forEach(([x, z, kind]) => {
     if (kind === 'gas') {                                              // a turbine hall and two tapered stacks
+      if (authored) placePlant('GAS_PLANT', mtx(x, 0, z));
+      else {
       rbox(P, 20, 7, 13, MAT.steel, x, 3.5, z, { r: 0.05 });
       const stack = new THREE.CylinderGeometry(1.3, 1.85, 24, 12);
       P.addM(stack, MAT.concrete, mtx(x - 4.5, 12, z)); P.addM(stack, MAT.concrete, mtx(x + 4.5, 12, z));
+      }
       gasEmitters.push({ p: [x - 4.5, 24, z], dir: [0.15, 1, 0] }, { p: [x + 4.5, 24, z], dir: [-0.1, 1, 0.1] });
     }
     if (kind === 'nuclear') {                                          // two hyperbolic cooling towers, a containment dome
       const H2 = 34, seg = quality.mobile ? 10 : 18;
+      if (authored) placePlant('NUCLEAR_PLANT', mtx(x, 0, z));
+      else {
       towerGeo ||= coolingTowerGeo(H2, 15, 9, 12, seg);
-      P.addM(towerGeo, MAT.concrete, mtx(x - 11, 0, z)); P.addM(towerGeo, MAT.concrete, mtx(x + 13, 0, z));
+      P.addM(towerGeo, MAT.concrete, mtx(x - 17, 0, z)); P.addM(towerGeo, MAT.concrete, mtx(x + 17, 0, z));
       P.cyl(7, 15, MAT.white, x + 1, 7.5, z + 19, 20);
-      nuclearEmitters.push({ p: [x - 11, H2, z], dir: [0.1, 1, 0] }, { p: [x + 13, H2, z], dir: [-0.1, 1, 0] });
+      }
+      nuclearEmitters.push({ p: [x - 17, H2, z], dir: [0.1, 1, 0] }, { p: [x + 17, H2, z], dir: [-0.1, 1, 0] });
     }
     if (kind === 'wind') {                                             // three-blade rotors, turning in update()
       const cols = quality.mobile ? 3 : 6, n = cols * (quality.mobile ? 3 : 3);
       for (let i = 0; i < n; i++) {
         const tx = x + (i % cols) * 14 - (cols - 1) * 7, tz = z + Math.floor(i / cols) * 16 - 16;
-        P.cyl(0.5, 16, MAT.white, tx, 8, tz, 8);
-        P.box(1.6, 1, 1.2, MAT.white, tx, 16.5, tz);
+        if (authored) placePlant('WIND_MAST', mtx(tx, 0, tz));
+        else { P.cyl(0.5, 16, MAT.white, tx, 8, tz, 8); P.box(1.6, 1, 1.2, MAT.white, tx, 16.5, tz); }
         turbineItems.push({ p: [tx, 16.5, tz], axis: 'z', r: 8 });
       }
     }
-    if (kind === 'solar') for (let i = 0; i < 10; i++) P.box(60, 0.4, 3, solarGlass, x, 1.2, z - 20 + i * 4.5, 0, -0.35);
+    if (kind === 'solar') for (let i = 0; i < 10; i++) {
+      if (authored) placePlant('SOLAR_ROW', new THREE.Matrix4().makeRotationX(-.35).setPosition(x, 1.2, z - 20 + i * 4.5));
+      else P.box(60, 0.4, 3, solarGlass, x, 1.2, z - 20 + i * 4.5, 0, -0.35);
+    }
   });
+  for (const [name, matrices] of plantMatrices) power.add(acrossAssetInstances(name, matrices));
   power.add(P.build({ cast: false }));
   const plumeUpdates = [];
   if (nuclearEmitters.length) { const pl = plumes(nuclearEmitters, { perEmitter: quality.mobile ? 10 : 22, size: 2.2, grow: 5, life: 9, rise: 2.1, drift: [0.4, 0, 0.15], spread: 0.6, color: '#eef3f8', opacity: 0.3 }); power.add(pl.points); plumeUpdates.push(pl.update); }
   if (gasEmitters.length) { const pl = plumes(gasEmitters, { perEmitter: quality.mobile ? 8 : 16, size: 1.6, grow: 4, life: 6, rise: 2.6, drift: [0.5, 0, 0.1], spread: 0.5, color: '#c9cfd6', opacity: 0.28 }); power.add(pl.points); plumeUpdates.push(pl.update); }
   const turbines = turbineItems.length ? spinners(turbineItems, MAT.white, { blades: 3, speed: 1.8 }) : null;
+  if (authored && turbines) replaceWindRotor(turbines.mesh);
   if (turbines) power.add(turbines.mesh);
   const towerPts = [];
   plants.forEach(([px, pz], i) => {
     const pts = route([px, pz], H, 60, 100 + i).map(p => [p[0], 6, p[2]]);
-    const f = flow(pts, 'hv', { count: 18, speed: 160, size: 4, trailR: 1.1, trailK: 0.45 });
+    const f = flow(pts, 'hv', { count: 18, speed: 160, size: 1.4, trailR: .38, trailK: 0.45 });
     flows.push(f); power.add(f.group);
     const L = polyLen(pts); for (let d = 0; d < L; d += 30) towerPts.push(pointAt(pts, d));
   });
-  const tb = new Builder(); tb.cyl(0.6, 6, MAT.galv, 0, 3, 0, 5); tb.box(4, 0.4, 0.4, MAT.galv, 0, 6, 0);
-  power.add(tb.instance(towerPts.map((p, i) => mtx(p[0], 0, p[2], i * 1.3))));
+  const towerMatrices = towerPts.map((p, i) => mtx(p[0], 0, p[2], i * 1.3));
+  if (authored) power.add(acrossAssetInstances('GRID_PYLON', towerMatrices));
+  else {
+    const tb = new Builder(); tb.cyl(0.6, 6, MAT.galv, 0, 3, 0, 5); tb.box(4, 0.4, 0.4, MAT.galv, 0, 6, 0);
+    power.add(tb.instance(towerMatrices));
+  }
 
   // ---------- data layer: DWDM routes to the two nearest other campuses ----------
   const near = others.map(p => ({ p, km: greatCircleKm(here, p.site) })).sort((a, b) => a.km - b.km).slice(0, 2);
@@ -266,9 +357,22 @@ export function build({ quality, model }) {
     const B = world(p.site.lon, p.site.lat);
     const pts = route(H, B, Math.min(160, km * 0.12), 7 + i * 10);
     const L = polyLen(pts);
+    // Screen-width cartographic overlay, not a physical cable diameter. The public geographic
+    // endpoints, representative wandering path and directional elevations stay unchanged.
+    const ink = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(...p))),
+      new THREE.LineBasicMaterial({ color: 0xffcf66, transparent: true, opacity: .72, depthTest: false, depthWrite: false }));
+    ink.name = 'Regional fiber route annotation'; ink.renderOrder = 3; data.add(ink);
     for (const dir of [1, -1]) {
       const pp = dir > 0 ? pts : [...pts].reverse().map(q => [q[0], q[1] + 1.5, q[2]]);
-      const f = flow(pp, 'dci', { count: Math.round(L / 22), speed: 240, size: 3.2, trailR: 1.0, trailK: 0.5 });
+      const f = flow(pp, 'dci', { count: Math.round(L / 22), speed: 240, size: 1.4, k: 1.7, trailR: 0.38, trailK: 0.4 });
+      // Keep a readable moving map symbol at long range, without a huge marker
+      // covering an amplifier shelter when the user inspects it close up.
+      const advance = f.update.bind(f), midpoint = new THREE.Vector3(...pointAt(pts, L / 2));
+      f.update = (t, projection) => {
+        f.size = projection ? Math.max(.65, Math.min(5, projection.position.distanceTo(midpoint) * projection.worldPerPixelAtUnit * 1.65)) : 1.4;
+        advance(t, projection);
+      };
+      f.mesh.material.depthTest = false; f.mesh.renderOrder = 4;
       dataFlows.push(f); data.add(f.group);
     }
     for (let d = 80; d < L - 20; d += 80) huts.push(pointAt(pts, d));
@@ -278,26 +382,53 @@ export function build({ quality, model }) {
     // ≈4.9 µs/km assumption used elsewhere, computed from the rounded km so the two numbers agree
     const kmR = Math.round(L / 10) * 10;
     const lab = labelSprite(`≈ ${kmR.toLocaleString('en-US')} km · ≈ ${(kmR * 0.0049).toFixed(1)} ms one way`);
-    lab.position.set(mid[0], 40, mid[2]); data.add(lab);
+    lab.position.set(mid[0], 40, mid[2]); lab.visible = false; data.add(lab); caption(lab, data, { route: true });
     if (!longest || L > longest.L) longest = { L, mid, B };
   });
-  const hut = new Builder(); hut.slab(6, 3, 4, MAT.beige, 0, 0, 0); hut.slab(6.4, 0.4, 4.4, MAT.roof, 0, 3, 0); hut.cyl(0.3, 8, MAT.galv, 3.5, 4, 0, 6);
-  data.add(hut.instance(huts.map(p => mtx(p[0], 0, p[2], Math.atan2(p[0], p[2])))));
-  const hutGlow = new THREE.InstancedMesh(new THREE.SphereGeometry(2.2, 10, 8), glowMat('#ffd35c', 2.2), huts.length);
-  huts.forEach((p, i) => hutGlow.setMatrixAt(i, mtx(p[0], 5, p[2]))); data.add(hutGlow);
-  const lt = new Builder(); lt.slab(8, 4, 6, MAT.white, 0, 0, 0); lt.slab(8.4, 0.4, 6.4, glowMat('#ffd35c', 0.9), 0, 4, 0);
-  data.add(lt.instance([H, ...near.map(({ p }) => world(p.site.lon, p.site.lat))].map(([x, z]) => mtx(x + 20, 0, z - 16))));
+  if (authored) data.add(campusCatalogInstances('MAP_HUT', huts.map(p => mtx(p[0], 0, p[2]))));
+  else {
+  const hut = new Builder();
+  // Representative shelter envelope, raised plinth and service door: no extra amplifier stages.
+  rbox(hut, 6, 3, 4, MAT.beige, 0, 1.5, 0, { r: .16 });
+  hut.slab(6.5, .25, 4.5, MAT.concreteDark, 0, 0, 0);
+  hut.slab(6.4, .22, 4.4, iconTrim, 0, 3, 0);
+  hut.box(1.2, 2.3, .05, MAT.darkSteel, 1.5, 1.35, 2.03);
+  hut.box(.1, .45, .08, iconTrim, 1.88, 1.45, 2.08);
+  for (let y = .65; y < 2.5; y += .25) hut.box(1.9, .09, .1, iconRoof, -1.35, y, 2.02);
+  hut.cyl(.3, 8, MAT.galv, 3.5, 4, 0, 6);
+  data.add(hut.instance(huts.map(p => mtx(p[0], 0, p[2]))));
+  }
+  const hutGlow = new THREE.InstancedMesh(new THREE.SphereGeometry(0.65, 10, 8), glowMat('#ffd35c', 1.4), huts.length);
+  huts.forEach((p, i) => hutGlow.setMatrixAt(i, mtx(p[0], 3.8, p[2]))); data.add(hutGlow);
+  const terminalMatrices = [H, ...near.map(({ p }) => world(p.site.lon, p.site.lat))].map(([x, z]) => mtx(x + 20, 0, z - 16));
+  if (authored) data.add(campusCatalogInstances('MAP_TERMINAL', terminalMatrices));
+  else {
+    const lt = new Builder(); lt.slab(8, 4, 6, MAT.white, 0, 0, 0); lt.slab(8.4, 0.4, 6.4, glowMat('#ffd35c', 0.9), 0, 4, 0);
+    data.add(lt.instance(terminalMatrices));
+  }
+
+  if (authored) scene.userData.blenderAcross = {
+    completePhysicalGeometry: true, sources: ['across-infrastructure.glb', 'campus-catalog.glb'],
+    representative: true, scale: 'Geographic positions follow public map data; facility symbols and heights are exaggerated.',
+    runtimeExceptions: ['animated signal and city markers', 'geographic data texture', 'captions and selection', 'sky and plume effects', 'authored rotor motion'],
+  };
+
+  const viewport = new THREE.Vector2();
+  scene.onBeforeRender = (renderer, _scene, camera) => {
+    renderer.getSize(viewport);
+    layoutMapCaptions(mapCaptions, camera, viewport.x, viewport.y, state.selected);
+  };
 
   const [hx, hz] = H, h0 = huts[3] || huts[0] || [hx, 3, hz], R0 = near[0] ? world(near[0].p.site.lon, near[0].p.site.lat) : [hx + 300, hz];
   const view = (x, z, d = 200) => ({ pos: [x + d * 0.3, d * 0.9, z + d * 1.1], target: [x, 0, z] });
   const siteSpots = Object.fromEntries(others.map(p => { const [x, z] = world(p.site.lon, p.site.lat); return [placeKey(p), { pos: [x, 12, z], view: view(x, z, 240) }]; }));
-  return {
-    scene, flows, dataFlows, heatFlows: [], layers: { power, data },
+  const built = {
+    scene, flows, dataFlows, heatFlows, layers: { power, data },
     look: { exposure: 1.0, bloom: 0.85, threshold: 0.92, ao: 0, env: 'night', envIntensity: 0.5 },
     camera: { pos: [hx - 120, 1650, hz + 1700], target: [hx + 80, 0, hz + 60], near: 1, far: 30000, min: 60, max: 6000 },
     hotspots: {
       grid: { pos: [(plants[1][0] + hx) / 2, 12, (plants[1][1] + hz) / 2], view: view((plants[1][0] + hx) / 2, (plants[1][1] + hz) / 2, 700) },
-      plants: { pos: [plants[0][0], 26, plants[0][1]], view: view(plants[0][0], plants[0][1], 260) },
+      plants: { pos: [plants[0][0], 26, plants[0][1]], view: view(plants[0][0], plants[0][1], 90) },
       home: { pos: [hx, 10, hz], view: view(hx, hz, 220) },
       carbon: (() => { const c = CENTROID[(site || DEFAULT_PLACE).state] || [hx, hz]; return { pos: [c[0], 34, c[1]], view: { pos: [c[0], 1300, c[1] + 1100], target: [c[0], 0, c[1]] } }; })(),
       ...siteSpots,
@@ -308,11 +439,13 @@ export function build({ quality, model }) {
     },
     dataHotspots: {
       dci: { pos: [hx + 20, 8, hz - 16], view: view(hx + 10, hz - 10, 200) },
-      ila: { pos: [h0[0], 9, h0[2]], view: view(h0[0], h0[2], 180) },
+      ila: { pos: [h0[0], 9, h0[2]], view: view(h0[0], h0[2], 60) },
       route: { pos: [longest?.mid[0] ?? hx, 60, longest?.mid[2] ?? hz], view: { pos: [(longest?.mid[0] ?? hx) - 100, 900, (longest?.mid[2] ?? hz) + 900], target: [longest?.mid[0] ?? hx, 0, longest?.mid[2] ?? hz] } },
       remote: { pos: [R0[0], 10, R0[1]], view: view(R0[0], R0[1], 260) },
       home: { pos: [hx - 40, 10, hz + 40], view: view(hx, hz, 220) },
     },
     update(t) { plumeUpdates.forEach(u => u(t)); if (turbines) turbines.update(t); },
   };
+  attachFlowRibbons(built, { width: 2.4, glow: 5.8, brightness: 2.65, mobile: quality.mobile });
+  return built;
 }

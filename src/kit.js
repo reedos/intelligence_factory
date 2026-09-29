@@ -1,5 +1,6 @@
 // Shared modeling kit: materials, a geometry merger, animated power flows and builders for
-// parts that repeat across scenes. Everything is procedural; no model files.
+// parts that repeat across scenes. Blender adapters provide authored physical
+// meshes; this kit also supplies runtime teaching overlays and native references.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { VOLT } from './data.js';
@@ -89,6 +90,10 @@ function withDetail(mat, tex, meters, amt, rough) {
   };
   mat.customProgramCacheKey = () => `detail-${tex.uuid}-${meters}-${amt}-${rough}`;
   return mat;
+}
+// Scene-local materials can share the world-scale detail shader without changing MAT.
+export function surfaceDetail(mat, { meters = 1, amount = 0.15, roughness = 0.1, pattern = 'grain' } = {}) {
+  return withDetail(mat, NOISE[pattern] || NOISE.grain, meters, amount, roughness);
 }
 // detail per material: which pattern, its size in meters, how much it shifts color and roughness
 const DETAILS = {
@@ -183,7 +188,10 @@ export class Flow {
     this.len = this.path.getLength(); this.count = count; this.speed = speed; this.size = size;
     this.phase = Math.random();
     this.color = new THREE.Color(css).multiplyScalar(k);
-    this.mesh = new THREE.InstancedMesh(pulseGeo, new THREE.MeshBasicMaterial({ color: this.color, transparent: opacity < 1, opacity, depthWrite: false }), count);
+    // Render after opaque hardware while still testing its depth. An opaque-
+    // queue particle with depthWrite:false can be painted over by a later
+    // hardware draw even when the particle is in front of that hardware.
+    this.mesh = new THREE.InstancedMesh(pulseGeo, new THREE.MeshBasicMaterial({ color: this.color, transparent: true, opacity, depthWrite: false }), count);
     this.mesh.frustumCulled = false;
     this.group = new THREE.Group(); this.group.add(this.mesh);
     if (trail) {
@@ -192,19 +200,50 @@ export class Flow {
       this.group.add(this.trail);
     }
     this.v = new THREE.Vector3();
+    this.tangent = new THREE.Vector3();
+    this.pulseAxis = new THREE.Vector3(0, 0, 1);
     this.base = { color: this.color.clone(), opacity, trail: this.trail?.material.color.clone() };
     this.update(0);
   }
   // position advances by speed × gain, so the clock can speed a flow up or stop it without a jump
-  update(t) {
+  // Presentation changes never alter routes, direction, speed or clock gating.
+  // Dense existing rails keep their count; sparse routes gain more moving cores.
+  setMotionStyle({ density = 1, brightness = 1, radius = 1, pixels = 0, stretch = 1 } = {}) {
+    if (this.motionStyle) return;
+    const spacingLimit = Math.max(this.count, Math.floor(this.len / (this.size * radius * 7)));
+    const count = Math.min(Math.ceil(this.count * density), spacingLimit);
+    if (count > this.count) {
+      this.mesh.instanceMatrix = new THREE.InstancedBufferAttribute(new Float32Array(count * 16), 16);
+      this.mesh.count = this.count = count;
+    }
+    this.base.color.multiplyScalar(brightness);
+    this.mesh.material.color.copy(this.base.color).multiplyScalar(this.bright);
+    this.motionStyle = { radius, pixels, stretch };
+  }
+  update(t, projection) {
     const dt = this.lastT === undefined ? 0 : Math.max(0, t - this.lastT);
     this.lastT = t; this.acc += this.speed * this.gain * dt;
     const step = this.acc / this.len;
     for (let i = 0; i < this.count; i++) {
       const u = ((i / this.count + step + this.phase) % 1 + 1) % 1;
       this.path.getPointAt(u, this.v);
-      const s = this.size * (0.75 + 0.25 * Math.sin(u * 40));
-      _o.position.copy(this.v); _o.rotation.set(0, 0, 0); _o.scale.set(s, s, s); _o.updateMatrix();
+      const style = this.motionStyle;
+      let radius = this.size * (style?.radius || 1);
+      if (style?.pixels && projection) {
+        const perPixel = this.v.distanceTo(projection.position) * projection.worldPerPixelAtUnit;
+        radius = Math.max(radius, Math.min(this.size * 1.6, perPixel * style.pixels));
+      }
+      // Keep a visible gap even on legacy rails whose original pulse count is
+      // already high. Preserve that count instead of turning it into a bar.
+      if (style) radius = Math.min(radius, this.len / this.count / 3.2);
+      const s = radius * (style ? 0.85 + 0.15 * Math.sin(u * 40) : 0.75 + 0.25 * Math.sin(u * 40));
+      const stretch = style ? Math.max(1, Math.min(style.stretch, this.len / this.count / (radius * 3))) : 1;
+      _o.position.copy(this.v);
+      if (stretch > 1) {
+        this.path.getTangentAt(u, this.tangent);
+        _o.quaternion.setFromUnitVectors(this.pulseAxis, this.tangent);
+      } else _o.rotation.set(0, 0, 0);
+      _o.scale.set(s, s, s * stretch); _o.updateMatrix();
       this.mesh.setMatrixAt(i, _o.matrix);
     }
     this.mesh.instanceMatrix.needsUpdate = true;
@@ -218,7 +257,7 @@ Flow.prototype.setLevel = function (gain, bright = 1) {
     this.bright = bright;
     const m = this.mesh.material;
     m.color.copy(this.base.color).multiplyScalar(bright);
-    m.opacity = Math.min(1, this.base.opacity * bright); m.transparent = m.opacity < 1;
+    m.opacity = Math.min(1, this.base.opacity * bright); m.transparent = true;
     if (this.trail) this.trail.material.color.copy(this.base.trail).multiplyScalar(bright);
   }
 };

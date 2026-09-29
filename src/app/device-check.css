@@ -1,0 +1,14 @@
+#device-check { flex: none; margin: 0 0 16px; border: 1px solid #657b8c; border-radius: 8px; background: #14222d; color: #e7eff5; font: 12px/1.5 system-ui; }
+#device-check summary { padding: 12px; cursor: pointer; font-weight: 600; }
+#device-check .device-check-body { padding: 0 12px 12px; }
+#device-check p { margin: 0 0 12px; }
+#device-check label { display: block; margin: 9px 0; }
+#device-check textarea { box-sizing: border-box; width: 100%; resize: vertical; display: block; margin-top: 6px; padding: 8px; background: #09141d; color: #e7eff5; border: 1px solid #6c8291; border-radius: 4px; font: 12px/1.4 monospace; }
+#device-check button { min-height: 44px; padding: 8px 12px; border: 1px solid #809ba9; border-radius: 5px; background: #263f50; color: white; cursor: pointer; font: inherit; }
+#device-check button:disabled { opacity: .5; cursor: default; }
+#device-check button:focus-visible, #device-check textarea:focus-visible { outline: 2px solid #f4d9a5; outline-offset: 2px; }
+#device-check .device-check-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+#device-check fieldset { min-width: 0; margin: 10px 0; border: 1px solid #536775; padding: 8px; }
+#device-check fieldset label { display: flex; gap: 8px; align-items: center; min-height: 36px; }
+#device-check input { flex: none; width: 18px; height: 18px; }
+#device-check [data-status] { color: #f4d9a5; }

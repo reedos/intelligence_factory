@@ -2,7 +2,9 @@
 // so this writes the body content with the title, fonts and stylesheet at the top. The stylesheet is inlined
 // (the host only admits Google Fonts stylesheets); the script stays a published file beside the page.
 // Usage: npm run artifact   → dist-artifact/index.html + dist-artifact/assets/*.js
-import { readFileSync, writeFileSync, mkdirSync, rmSync, copyFileSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, rmSync, cpSync, readdirSync } from 'fs';
+import { resolve } from 'path';
+import { verifyArtifact } from './artifact-verify.mjs';
 
 const html = readFileSync('dist/index.html', 'utf8');
 const pick = re => (html.match(re) || [])[0] || '';
@@ -15,9 +17,12 @@ const body = (html.match(/<body>([\s\S]*)<\/body>/) || [])[1];
 if (!cssHref || !jsSrc || !body || !title) throw new Error('unexpected dist/index.html shape');
 
 const css = readFileSync(`dist/${cssHref}`, 'utf8');
-rmSync('dist-artifact', { recursive: true, force: true });
-mkdirSync('dist-artifact/assets', { recursive: true });
-copyFileSync(`dist/${jsSrc}`, `dist-artifact/${jsSrc}`);
+const output = resolve('dist-artifact');
+if (output !== resolve(process.cwd(), 'dist-artifact')) throw new Error('Unexpected artifact output path');
+rmSync(output, { recursive: true, force: true });
+// Preserve the complete relative URL tree: Vite's dynamically imported chunks,
+// GLBs, textures, metadata and linked pages are runtime dependencies too.
+cpSync(resolve('dist'), output, { recursive: true });
 const page = [
   title, desc, fonts,
   `<style>\n${css}\n</style>`,
@@ -26,5 +31,6 @@ const page = [
   `<script type="module" src="./${jsSrc}"></script>`,
 ].join('\n');
 writeFileSync('dist-artifact/index.html', page);
+const checked = verifyArtifact(resolve('dist'), output);
 const files = readdirSync('dist-artifact/assets');
-console.log(`dist-artifact/index.html (${Math.round(page.length / 1024)} KB) + assets: ${files.join(', ')}`);
+console.log(`dist-artifact/index.html (${Math.round(page.length / 1024)} KB); ${checked} runtime files verified, ${files.length} asset files`);

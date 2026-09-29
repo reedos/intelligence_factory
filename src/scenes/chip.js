@@ -1,6 +1,8 @@
 // Scene 5: the GPU package, exploded, and the tokens that leave it. World unit = 1 cm.
 // Blackwell and Rubin: two dies, HBM above and below. H100: one die, HBM sites left and right.
 import { THREE, MAT, Builder, flow, canvasTex, glowMat } from '../kit.js';
+import { rbox } from '../fx.js';
+import { computeMaterials, finishCompute, boardFinish } from './compute-finish.js';
 import { STREAM_TPS, buildCycle, sampleAt, tick } from '../model/token-script.js';
 
 function dieTexture() {
@@ -8,7 +10,7 @@ function dieTexture() {
     const gr = g.createLinearGradient(0, 0, w, h);
     gr.addColorStop(0, '#2f3466'); gr.addColorStop(0.45, '#4d5c8e'); gr.addColorStop(0.55, '#5a4f86'); gr.addColorStop(1, '#2b3160');
     g.fillStyle = gr; g.fillRect(0, 0, w, h);
-    // streaming multiprocessors in a grid, with tensor-core blocks
+    // Illustrative lithographic pattern, not a literal floorplan or SM count.
     const cols = 8, rows = 10, pad = 36, cw = (w - pad * 2) / cols, rh = (h - pad * 2 - 60) / rows;
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const x = pad + c * cw, y = pad + r * rh + (r >= rows / 2 ? 60 : 0);
@@ -43,7 +45,7 @@ function chunkTexture(words, lane, startParity) {
       g.strokeStyle = lane === 'prompt' ? (parity ? 'rgba(120,225,255,0.55)' : 'rgba(120,225,255,0.85)') : (parity ? 'rgba(230,186,130,0.5)' : 'rgba(230,186,130,0.8)');
       g.lineWidth = 2.5; g.stroke();
     }
-    g.fillStyle = dim ? (parity ? 'rgba(150,165,190,0.75)' : 'rgba(182,196,216,0.92)') : lane === 'prompt' ? '#d8f6ff' : '#fff6e9';
+    g.fillStyle = dim ? (parity ? '#d2dff4' : '#edf3ff') : lane === 'prompt' ? '#d8f6ff' : '#fff6e9';
     g.textBaseline = 'middle'; g.fillText(w, x + (dim ? 10 : 20), h / 2 + (dim ? 1 : 2));
     x += ww + gap;
   });
@@ -62,28 +64,48 @@ export function build({ quality, state, model }) {
 
   const flows = [], dataFlows = [], heatFlows = [];
   const S = new Builder(), N = new Builder();
+  const finish = computeMaterials();
   // layer heights (exploded)
   const Y = { balls: 0.12, sub: 1.1, bumps: 2.05, inter: 2.3, dies: 3.2, lid: 4.7 };
   const SUB = 8.4;
 
   // board beneath, cut square
   S.box(12, 0.16, 12, MAT.pcb, 0, -0.08, 0);
+  boardFinish(N, finish, 0, -0.01, 0, 12, 12, 3);
   for (let i = 0; i < 26; i++) N.box(0.06, 0.004, 11.6, MAT.copper, -5.6 + i * 0.45, 0.002, 0);
   // BGA balls
   const ball = new THREE.SphereGeometry(0.1, 10, 8);
   const pitch = 0.3, nB = 26, balls = new THREE.InstancedMesh(ball, MAT.nickel, nB * nB);
+  balls.userData.computeDynamic = 'bga';
   const o = new THREE.Object3D(); let bi = 0;
   for (let i = 0; i < nB; i++) for (let j = 0; j < nB; j++) { o.position.set(-3.75 + i * pitch, Y.balls, -3.75 + j * pitch); o.updateMatrix(); balls.setMatrixAt(bi++, o.matrix); }
   balls.castShadow = true; scene.add(balls);
   // organic substrate with decoupling capacitors
   S.box(SUB, 0.25, SUB, MAT.pcbBlack, 0, Y.sub, 0);
   S.box(SUB - 0.1, 0.01, SUB - 0.1, MAT.pcb, 0, Y.sub + 0.13, 0);
-  for (let i = 0; i < 90; i++) { const a = i / 90 * Math.PI * 2, r = 3.7; N.box(0.12, 0.06, 0.07, MAT.beige, Math.cos(a) * r, Y.sub + 0.16, Math.sin(a) * r * 0.98, a); }
-  // stiffener ring
-  for (const s of [-1, 1]) { S.box(SUB, 0.18, 0.3, MAT.nickel, 0, Y.sub + 0.22, s * (SUB / 2 - 0.15)); S.box(0.3, 0.18, SUB - 0.6, MAT.nickel, s * (SUB / 2 - 0.15), Y.sub + 0.22, 0); }
+  // Four edge rows of representative surface-mount decoupling capacitors.
+  // Keep the original 90 count; the orthogonal placement and plated terminals
+  // read as assembled electronics rather than a decorative circular necklace.
+  for (let i = 0; i < 90; i++) {
+    const edge = Math.floor(i / 23), k = i % 23, a = (k - 11) * 0.29;
+    const x = edge < 2 ? a : (edge === 2 ? -3.64 : 3.64);
+    const z = edge < 2 ? (edge === 0 ? -3.64 : 3.64) : a;
+    const rotated = edge >= 2;
+    N.box(rotated ? 0.07 : 0.12, 0.06, rotated ? 0.12 : 0.07, MAT.beige, x, Y.sub + 0.16, z);
+    for (const s of [-1, 1]) N.box(rotated ? 0.075 : 0.025, 0.065, rotated ? 0.025 : 0.075, finish.satin,
+      x + (rotated ? 0 : s * 0.05), Y.sub + 0.16, z + (rotated ? s * 0.05 : 0));
+  }
+  for (const side of [-1, 1]) for (const dy of [-0.08, 0, 0.08]) {
+    N.box(SUB - 0.08, 0.008, 0.008, finish.laminate, 0, Y.sub + dy, side * (SUB / 2 + 0.004));
+    N.box(0.008, 0.008, SUB - 0.08, finish.laminate, side * (SUB / 2 + 0.004), Y.sub + dy, 0);
+  }
+  // Representative machined edge finish on the existing stiffener, preserving
+  // its envelope and opening. The small bevel catches the studio softbox.
+  for (const s of [-1, 1]) { rbox(S, SUB, 0.18, 0.3, MAT.nickel, 0, Y.sub + 0.22, s * (SUB / 2 - 0.15), { r: 0.1 }); rbox(S, 0.3, 0.18, SUB - 0.6, MAT.nickel, s * (SUB / 2 - 0.15), Y.sub + 0.22, 0, { r: 0.1 }); }
   // C4 bumps between substrate and interposer
   const bump = new THREE.SphereGeometry(0.045, 8, 6), nx = 34, nz = 32;
   const bumps = new THREE.InstancedMesh(bump, MAT.nickel, nx * nz); bi = 0;
+  bumps.userData.computeDynamic = 'c4';
   for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) { o.position.set(-2.97 + i * 0.18, Y.bumps, -2.79 + j * 0.18); o.updateMatrix(); bumps.setMatrixAt(bi++, o.matrix); }
   scene.add(bumps);
   // silicon interposer
@@ -91,7 +113,8 @@ export function build({ quality, state, model }) {
   S.box(IW, 0.1, ID, MAT.silicon, 0, Y.inter, 0);
   for (let i = 0; i < 40; i++) N.box(0.012, 0.004, ID - 0.3, MAT.gold, -2.9 + i * 0.15, Y.inter + 0.052, 0);
   // GPU dies
-  const dieMat = new THREE.MeshStandardMaterial({ map: dieTexture(), roughness: 0.34, metalness: 0.45, envMapIntensity: 0.5, emissive: 0x6fd8ff, emissiveIntensity: 0.0 });
+  const dieMat = new THREE.MeshPhysicalMaterial({ map: dieTexture(), roughness: 0.38, metalness: 0.35, clearcoat: 0.25, clearcoatRoughness: 0.32, iridescence: 0.18, iridescenceThicknessRange: [110, 230], envMapIntensity: 0.35, emissive: 0x6fd8ff, emissiveIntensity: 0.0 });
+  dieMat.userData.ifxAnimatedSurface = 'gpu-die';
   const dieSide = new THREE.MeshStandardMaterial({ color: 0x3b4262, roughness: 0.3, metalness: 0.6 });
   const dies = [];
   const dieX = twin ? [-1.36, 1.36] : [0];
@@ -104,6 +127,9 @@ export function build({ quality, state, model }) {
   // HBM stacks: a base die and one DRAM layer per level, slightly spread
   const hbmTop = canvasTex(128, 128, (g, w, h) => { g.fillStyle = '#2b2e35'; g.fillRect(0, 0, w, h); g.fillStyle = '#8b939e'; g.font = '600 18px system-ui'; g.fillText(A.hbm.type, 18, 70); });
   const hbmTopMat = new THREE.MeshStandardMaterial({ map: hbmTop, roughness: 0.4, metalness: 0.3 });
+  hbmTopMat.name = `HBM top cap ${A.hbm.type}`;
+  const hbmLayerMat = MAT.hbm.clone();
+  hbmLayerMat.color.setHex(0x334355); hbmLayerMat.roughness = .38; hbmLayerMat.metalness = .45;
   const hbmPos = [];
   if (twin) { for (const x of [-2.02, -0.7, 0.7, 2.02]) for (const z of [-2.3, 2.3]) hbmPos.push([x, z]); }
   else { for (const x of [-2.05, 2.05]) for (const z of [-1.12, 0, 1.12]) hbmPos.push([x, z]); }
@@ -112,8 +138,8 @@ export function build({ quality, state, model }) {
   hbmPos.forEach(([x, z], i) => {
     S.box(1.1, 0.05, 1.05, MAT.silicon, x, Y.dies - 0.02, z);
     if (i === spare) { S.box(1.06, stackH, 1.0, MAT.silicon, x, Y.dies + 0.013 + stackH / 2, z); return; }
-    for (let l = 0; l < layers; l++) S.box(1.06, 0.035, 1.0, l % 2 ? MAT.hbm : MAT.darkSteel, x, Y.dies + 0.04 + l * 0.055, z);
-    const top = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.02, 1.0), [MAT.hbm, MAT.hbm, hbmTopMat, MAT.hbm, MAT.hbm, MAT.hbm]);
+    for (let l = 0; l < layers; l++) S.box(1.06, 0.035, 1.0, l % 2 ? hbmLayerMat : MAT.darkSteel, x, Y.dies + 0.04 + l * 0.055, z);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.02, 1.0), [hbmLayerMat, hbmLayerMat, hbmTopMat, hbmLayerMat, hbmLayerMat, hbmLayerMat]);
     top.position.set(x, Y.dies + 0.04 + stackH, z); scene.add(top);
     // TSVs on the cut face that faces away from the die
     for (let t = 0; t < 5; t++) {
@@ -123,18 +149,27 @@ export function build({ quality, state, model }) {
   });
   const live = hbmPos.filter((_, i) => i !== spare);
   // lid, lifted, translucent so the dies read through it
-  const lid = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.2, 7.0), new THREE.MeshPhysicalMaterial({ color: 0xc98a5c, metalness: 0.6, roughness: 0.45, envMapIntensity: 0.4, transparent: true, opacity: 0.16, depthWrite: false }));
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.2, 7.0), new THREE.MeshPhysicalMaterial({ color: 0xc1cbd6, metalness: 0.6, roughness: 0.36, envMapIntensity: 0.4, transparent: true, opacity: 0.085, depthWrite: false }));
+  lid.material.userData.ifxCoverSurface = 'ihs';
   lid.position.set(0, Y.lid, 0); scene.add(lid);
-  const lidEdge = new THREE.LineSegments(new THREE.EdgesGeometry(lid.geometry), new THREE.LineBasicMaterial({ color: 0xd9a070, transparent: true, opacity: 0.6 }));
+  const lidEdge = new THREE.LineSegments(new THREE.EdgesGeometry(lid.geometry), new THREE.LineBasicMaterial({ color: 0xc8d2df, transparent: true, opacity: 0.4 }));
   lidEdge.position.copy(lid.position); scene.add(lidEdge);
+  lidEdge.userData.computeCoverOutline = 'ihs';
+  // Opaque machined perimeter keeps the illustrative x-ray lid legible as metal.
+  for (const side of [-1, 1]) {
+    rbox(N, 7.2, 0.035, 0.07, finish.satin, 0, Y.lid + 0.075, side * 3.465, { r: 0.22 });
+    rbox(N, 0.07, 0.035, 6.86, finish.satin, side * 3.565, Y.lid + 0.075, 0, { r: 0.22 });
+  }
 
   scene.add(S.build()); scene.add(N.build({ cast: false }));
+  finishCompute(scene, finish);
 
   // ---------- current climbing into the dies ----------
   let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const dieSpan = twin ? 5.0 : 2.4;
+  // Sample inside actual silicon, never in the visible seam between twin dies.
+  const dieSampleX = () => twin ? ((rnd() < 0.5 ? -1 : 1) * 1.36 + (rnd() - 0.5) * 2.4) : (rnd() - 0.5) * 2.4;
   for (let i = 0; i < 28; i++) {
-    const x = (rnd() - 0.5) * dieSpan, z = (rnd() - 0.5) * 3.0;
+    const x = dieSampleX(), z = (rnd() - 0.5) * 3.0;
     flows.push(flow([[x, -1.4, z], [x, Y.balls, z], [x, Y.sub, z], [x, Y.bumps, z], [x, Y.inter, z], [x, Y.dies, z]], 'core', { count: 3, speed: 1.6 + rnd(), size: 0.03, k: 2.8, trail: false }));
   }
   // die-to-die traffic across NV-HBI
@@ -143,23 +178,26 @@ export function build({ quality, state, model }) {
   if (twin) for (let i = 0; i < 7; i++) { const z = -1.35 + i * 0.45; dataFlows.push(flow([[-1.2, Y.dies + 0.06, z], [1.2, Y.dies + 0.06, z]], 'hbi', { count: 3, speed: 2.4, size: 0.035, k: 3.2, trail: false })); dataFlows.push(flow([[1.2, Y.dies + 0.07, z + 0.1], [-1.2, Y.dies + 0.07, z + 0.1]], 'hbi', { count: 3, speed: 2.4, size: 0.035, k: 3.2, trail: false })); }
   live.forEach(([x, z]) => { for (const d of [-0.25, 0, 0.25]) dataFlows.push(flow(twin ? [[x + d, Y.dies + 0.3, z], [x * 0.85 + d, Y.dies + 0.06, z * 0.5]] : [[x, Y.dies + 0.3, z + d], [x * 0.5, Y.dies + 0.06, z * 0.8 + d]], 'hbm', { count: 3, speed: 1.2, size: 0.03, k: 3.4, trail: false })); });
   const serdes = glowMat('#ff5fd2', 1.6);
-  // NVLink leaves the free edges: the outer die edges on a twin package, the top and bottom edges on H100
+  // NVLink leaves the free edges: outer die edges on twins, top/bottom on H100.
+  // The substrate leg is a buried electrical route, below the metal stiffener;
+  // its previous top-surface height falsely ran through that structural frame.
   for (const side of [-1, 1]) {
     if (twin) {
       const m = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 3.0), serdes); m.position.set(side * 2.62, Y.dies + 0.05, 0); scene.add(m);
-      for (let i = 0; i < 9; i++) { const z = -1.3 + i * 0.325; dataFlows.push(flow([[side * 2.62, Y.dies + 0.04, z], [side * 3.1, Y.inter + 0.06, z], [side * 3.1, Y.sub + 0.14, z * 1.2], [side * 4.2, Y.sub + 0.14, z * 1.25]], 'nvl', { count: 3, speed: 1.6, size: 0.035, k: 2.8, trailR: 0.008, trailK: 0.3 })); }
+      for (let i = 0, n = A.nvlink.linksPerGpu / 2; i < n; i++) { const z = -1.3 + i * 2.6 / (n - 1); dataFlows.push(flow([[side * 2.62, Y.dies + 0.04, z], [side * 3.1, Y.inter + 0.06, z], [side * 3.1, Y.sub - 0.01, z * 1.2], [side * 4.2, Y.sub - 0.01, z * 1.25]], 'nvl', { count: 3, speed: 1.6, size: 0.035, k: 2.8, trailR: 0.008, trailK: 0.3 })); }
     } else {
       const m = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.03, 0.1), serdes); m.position.set(0, Y.dies + 0.05, side * 1.62); scene.add(m);
-      for (let i = 0; i < 9; i++) { const x = -1.1 + i * 0.275; dataFlows.push(flow([[x, Y.dies + 0.04, side * 1.62], [x, Y.inter + 0.06, side * 2.1], [x * 1.2, Y.sub + 0.14, side * 2.6], [x * 1.25, Y.sub + 0.14, side * 4.0]], 'nvl', { count: 3, speed: 1.6, size: 0.035, k: 2.8, trailR: 0.008, trailK: 0.3 })); }
+      for (let i = 0; i < 9; i++) { const x = -1.1 + i * 0.275; dataFlows.push(flow([[x, Y.dies + 0.04, side * 1.62], [x, Y.inter + 0.06, side * 2.1], [x * 1.2, Y.sub - 0.01, side * 2.6], [x * 1.25, Y.sub - 0.01, side * 4.0]], 'nvl', { count: 3, speed: 1.6, size: 0.035, k: 2.8, trailR: 0.008, trailK: 0.3 })); }
     }
   }
   dataFlows.forEach(f => scene.add(f.group));
   // ---------- heat: up out of the dies and HBM, through the lid ----------
   for (let i = 0; i < 30; i++) {
-    const x = (rnd() - 0.5) * dieSpan, z = (rnd() - 0.5) * 3.0;
+    const x = dieSampleX(), z = (rnd() - 0.5) * 3.0;
     heatFlows.push(flow([[x, Y.dies + 0.06, z], [x, Y.lid - 0.12, z], [x * 1.05, Y.lid + 1.4, z * 1.05]], 'hot', { count: 3, speed: 1.1 + rnd() * 0.6, size: 0.045, k: 2.6, trail: false }));
   }
-  live.forEach(([x, z]) => heatFlows.push(flow([[x, Y.dies + 0.04 + stackH, z], [x, Y.lid - 0.12, z], [x, Y.lid + 1.2, z]], 'air', { count: 2, speed: 0.9, size: 0.04, k: 2.4, trail: false })));
+  live.forEach(([x, z]) => { const f = flow([[x, Y.dies + 0.04 + stackH, z], [x, Y.lid - 0.12, z], [x, Y.lid + 1.2, z]], 'hot', { count: 2, speed: 0.9, size: 0.04, k: 2.4, trail: false }); f.thermalOrigin = 'hbm'; heatFlows.push(f); });
+  scene.userData.computePackage = { gpuDies: dieX.length, liveHbmStacks: live.length, hbmDramLayers: layers, spacerSites: spare < 0 ? 0 : 1, nvlinkLinks: A.nvlink.linksPerGpu, explodedRepresentative: true };
   heatFlows.forEach(f => scene.add(f.group));
 
   // ---------- tokens: a live generation cycle, streamed as sprites ----------
@@ -180,19 +218,21 @@ export function build({ quality, state, model }) {
   function pool(n) {
     const arr = [];
     for (let i = 0; i < n; i++) {
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, opacity: 0 }));
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false, toneMapped: false, opacity: 0 }));
       sp.visible = false; scene.add(sp); arr.push({ sp, t: 0, live: false, x0: 0, z0: 0, aspect: 1 });
     }
     return arr;
   }
   const pools = { prompt: pool(CAP.prompt), reasoning: pool(CAP.reasoning), answer: pool(CAP.answer) };
   const nextI = { prompt: 0, reasoning: 0, answer: 0 };
+  let tokenSequence = 0;
   const pulse = { v: 0 };
   function spawnChunk(lane, words, startIdx) {
     const arr = pools[lane], s = arr[nextI[lane]++ % arr.length];
     const { tex, aspect } = texFor(lane, words, startIdx);
     s.sp.material.map = tex; s.sp.material.needsUpdate = true;
-    s.aspect = aspect; s.live = true; s.t = 0;
+    s.aspect = aspect; s.live = true; s.t = 0; s.sequence = tokenSequence++;
+    s.sp.userData.tokenChunk = { lane, words: [...words], sequence: s.sequence };
     s.x0 = (rnd() - 0.5) * (twin ? 4.2 : 2.2); s.z0 = (rnd() - 0.5) * 2.4; s.sp.visible = true;
     if (lane === 'answer') pulse.v = 1;
   }
@@ -226,7 +266,7 @@ export function build({ quality, state, model }) {
   // reads as a glow around the pink stack rather than sitting invisibly flush against it.
   const fillGeo = new THREE.BoxGeometry(1, 1, 1); fillGeo.translate(0, 0.5, 0);
   // additive so the rim reads as a glow against the stack's own pale pink material rather than blending into it
-  const fillMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#c86bff').multiplyScalar(3.3), transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending });
+  const fillMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#c86bff').multiplyScalar(.9), transparent: true, opacity: 0.23, depthWrite: false, blending: THREE.AdditiveBlending });
   const hbmFill = new THREE.InstancedMesh(fillGeo, fillMat, Math.max(1, live.length));
   hbmFill.frustumCulled = false; hbmFill.count = live.length; scene.add(hbmFill);
   let genCycle = buildCycle(model), genLen = genCycle.timings.totalS, genLastE = -1;
@@ -235,6 +275,7 @@ export function build({ quality, state, model }) {
   function animLane(arr, life, dt, place) {
     for (const item of arr) {
       if (!item.live) continue;
+      item.sp.visible = true;
       item.t += dt / life;
       if (item.t >= 1) { item.live = false; item.sp.visible = false; continue; }
       place(item, item.t);
@@ -246,13 +287,17 @@ export function build({ quality, state, model }) {
   const nvphyHS = twin ? { pos: [2.62, Y.dies + 0.1, -1.2], view: { pos: [8, 5, 1], target: [3, 2.6, 0] } } : { pos: [0.9, Y.dies + 0.1, 1.62], view: { pos: [2, 5.5, 8], target: [0, 2.6, 2.2] } };
   return {
     scene, flows,
+    look: { env: 'studio', envIntensity: 0.45, exposure: 0.94, bloom: 0.32, threshold: 2.0, ao: 0.12, dof: true },
     camera: { pos: [9.5, 8.2, 11.5], target: [0, 2.3, 0], near: 0.05, far: 500, min: 2, max: 40 },
+    // Lower power view exposes the exploded BGA/substrate/interposer gaps.
+    // Data and heat retain their higher view of silicon and the heat spreader.
+    cameraByMode: { power: { pos: [10.5, 4.4, 12], target: [0, 2.1, 0] } },
     hotspots: {
-      balls: { pos: [3.9, Y.sub, 3.9], view: { pos: [8, 2.5, 8], target: [2, 0.8, 2] } },
+      balls: { pos: [3.75, .20, 3.75], view: { pos: [7, .6, 7], target: [2.8, .15, 2.8] } },
       interposer: { pos: [3.1, Y.inter, 0], view: { pos: [7.5, 4.2, 4.5], target: [1.5, 2.2, 0] } },
       dies: { pos: [d0, Y.dies + 0.1, 0.4], view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
       hbm: hbmHS,
-      tokens: { pos: [3.8, 7.2, -1.0], view: { pos: [11, 8.5, 8], target: [2.5, 5.5, -1] } },
+      tokens: { pos: [4.8, 5.6, -2.0], view: { pos: [11, 8.5, 8], target: [2.5, 5.5, -1] } },
     },
     dataFlows, heatFlows,
     heatHotspots: {
@@ -263,7 +308,7 @@ export function build({ quality, state, model }) {
     },
     dataHotspots: {
       hbm: hbmHS,
-      ...(twin ? { hbi: { pos: [0, Y.dies + 0.12, 1.3], view: { pos: [1.5, 7.5, 5.5], target: [0, 3.1, 0] } } } : {}),
+      ...(twin ? { hbi: { pos: [0, Y.dies + 0.12, 1.3], view: { pos: [.2, 7.5, 1.2], target: [0, 3.1, .8] } } } : {}),
       nvphy: nvphyHS,
       cpo: { pos: [-4.2, Y.sub + 0.3, 3.8], view: { pos: [-8, 5, 9], target: [-2.5, 1.5, 2] } },
       tokens: { pos: [3.8, 7.2, -1.0], view: { pos: [11, 8.5, 8], target: [2.5, 5.5, -1] } },
@@ -300,6 +345,24 @@ export function build({ quality, state, model }) {
         const sz = 0.2 + g * 0.08; item.sp.scale.set(sz * item.aspect, sz, 1);
         item.sp.material.opacity = Math.min(1, u * 6) * (1 - Math.max(0, (u - 0.7) / 0.3));
       });
+      if (state.mode === 'data' && state.selected === 'tokens') {
+        // Tokens inspection alone gets a compact three-row readout. Heat and
+        // package views retain clear engineering overlays. The generation clock,
+        // transcript and numeric token/energy values remain unchanged.
+        const recent = Object.values(pools).flat().filter(item => item.live && item.sp.material.opacity > 0.04)
+          .sort((a, b) => b.sequence - a.sequence).slice(0, 3).reverse();
+        const shown = new Set(recent);
+        for (const item of Object.values(pools).flat()) item.sp.visible = shown.has(item);
+        recent.forEach((item, row) => {
+          const h = Math.min(0.32, 7.0 / item.aspect);
+          item.sp.position.set(2.5, 6.02 - row * 0.48, -1);
+          item.sp.scale.set(h * item.aspect, h, 1);
+          item.sp.material.opacity = Math.max(.9, item.sp.material.opacity); // selected, still-live text stays readable
+        });
+      }
+      if (state.mode !== 'data' || state.selected !== 'tokens') {
+        for (const item of Object.values(pools).flat()) item.sp.visible = false;
+      }
       live.forEach(([x, z], i) => {
         const h = Math.max(0.02, stackH * s.contextFrac);
         o.position.set(x, Y.dies + 0.043, z); o.rotation.set(0, 0, 0); o.scale.set(1.22, h, 1.16); o.updateMatrix();
