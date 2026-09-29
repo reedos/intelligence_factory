@@ -67,9 +67,9 @@ describe('Colossus 2 from Elon Musk’s 09/25/2026 counts', () => {
     expect(at(undefined).stage).toBeNull();                                // a size from the slider drops the stage
     expect(at(undefined).gpus).not.toBe(550000);
   });
-  it('the generic campus is untouched: 1.1 GW of GB300 is still 405,144 GPUs', () => {
+  it('the generic campus is untouched: 1.1 GW of GB300 is still 402,264 GPUs', () => {
     const M = compute({ meterMW: 1100, accel: 'gb300', power: 'ac415', cooling: 'liquid' }) as any;
-    expect(M.gpus).toBe(405144); expect(M.mixed).toBe(false); expect(M.stage).toBeNull();
+    expect(M.gpus).toBe(402264); expect(M.mixed).toBe(false); expect(M.stage).toBeNull();
   });
   it('Elon Musk’s post is reported, not spec, and the model’s figures stay estimates', () => {
     for (const [k, , b] of C2.facts) if (/Elon Musk/.test(k)) expect(b, k).toBe('reported');

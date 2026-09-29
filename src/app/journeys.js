@@ -114,7 +114,7 @@ export function story(M) {
     // a side trip from the tray's module cages: where the scale-out traffic becomes light, then back
     { link: at(4, 'osfp', 'data'), k: nvl ? 'Data · compute tray' : 'Data · the server', title: 'Out as light',
       text: `Every GPU’s traffic to other racks leaves ${nvl ? 'the tray' : 'the server'} through pluggable optical modules at its edge. Step inside one.`,
-      specs: rows(card('data', 4, 'osfp', 'NVIDIA'), card('data', 4, 'osfp', 'Cages')) },
+      specs: rows(...['A 400G', 'At the SuperNIC', 'Cages', 'Module'].map(l => card('data', 4, 'osfp', l))) },   // whichever this generation's card carries
     { link: at(6, 'mzm', 'data'), parent: 4, trip: 'module', k: 'Side trip · inside the module', title: 'Where electrons become light',
       text: 'On the transmit side, modulators put each electrical lane onto laser light, and waveguides carry it to its fiber. The receive side runs the other way, through photodiodes. Then back out to the tray.',
       specs: rows(card('data', 6, 'mzm', 'Kind')) },
@@ -224,7 +224,7 @@ export function light(M) {
   return keyed('light', [
     { link: at(4, 'osfp', 'data'), k: nvl ? 'Compute tray' : 'The server', title: 'One lane, leaving the tray',
       text: `Follow one electrical lane from the NIC to the fiber: first through a pluggable module in ${nvl ? 'the tray’s' : 'the server’s'} cage, then the same job done inside a switch package.`,
-      specs: rows(card('data', 4, 'osfp', 'NVIDIA'), card('data', 4, 'osfp', 'Cages')) },
+      specs: rows(...['A 400G', 'At the SuperNIC', 'Cages', 'Module'].map(l => card('data', 4, 'osfp', l))) },   // whichever this generation's card carries
     inside('module', 'fingers', 'In at the edge', 'The lane arrives on the edge connector’s gold fingers, one of eight transmit lanes. Eight more leave on other fingers: the receive side.', card('data', 6, 'fingers', 'Host lanes')),
     inside('module', 'dsp', 'Cleaned up', d('module', 'dsp').body, card('data', 6, 'dsp', 'What it does')),
     inside('module', 'driver', 'The driver', d('module', 'driver').body, card('data', 6, 'driver', 'LPO keeps')),
