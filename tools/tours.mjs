@@ -19,7 +19,11 @@ function report(name, ok, detail) {
   if (!ok) bad++;
 }
 
-const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+// Opt into the real Windows GPU for large authored models; software remains the portable default.
+const gateArgs = process.env.IFX_GATE_GPU === '1'
+  ? ['--use-angle=d3d11', '--ignore-gpu-blocklist']
+  : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+const b = await chromium.launch({ args: gateArgs });
 
 // ---------- (a) + (b): This level's entry context and This level's OUTWARD-aware next (findings 9, 16) ----------
 async function thisLevelCase(layer, scene) {
@@ -60,15 +64,17 @@ for (const layer of ['power', 'data', 'heat']) for (const scene of [0, 5]) await
   await p.waitForFunction(() => window.ifx.state.scene === 5, null, { timeout: 15000 });
   await p.click('#play-these');
   await p.waitForFunction(() => document.querySelector('.beat.on'), null, { timeout: 15000 });
+  await p.evaluate(() => { const play = document.getElementById('tour-play'); for (let i = 0; i < 2 && play?.getAttribute('aria-pressed') === 'true'; i++) play.click(); });
   let label = '';
   for (let k = 1; k <= 8; k++) {
     label = await p.evaluate(() => document.getElementById('tour-next')?.getAttribute('aria-label') || '');
     if (label.toLowerCase().includes('tray')) break;
-    await p.click('#tour-next');
+    await p.evaluate(() => document.querySelector('#tour-next').click());
     await p.waitForFunction(k => document.querySelector('.beat.on')?.dataset.i === String(k), k, { timeout: 8000 }).catch(() => {});
     await sleep(200);
   }
-  report('Heat This level at the package offers the tray next, outward', label.includes('Compute tray') && label.includes('outward'), `aria-label="${label}"`);
+  const trayTitle = await p.evaluate(() => window.ifx.store.C.SCENES[4].title);
+  report('Heat This level at the package offers the tray next, outward', label.includes(trayTitle) && label.includes('outward'), `aria-label="${label}"; wanted destination="${trayTitle}"`);
   await p.close();
 }
 
@@ -104,13 +110,8 @@ for (const layer of ['power', 'data', 'heat']) for (const scene of [0, 5]) await
 // ---------- (d): a sim beat does not advance before its key event, at 1x and 8x (finding 17) ----------
 // Reached by manual "Next" clicks, paused: onTick's dwell/sim-key gating only applies to autoplay, so stepping
 // there by hand skips straight past the two earlier sim beats (training, hot day) without waiting on them too.
-// This machine's software-rendered (swiftshader) WebGL runs well under 60 fps, and every timer here - dwell and
-// the clock's own advance alike - rides the same per-frame delta, so it can take minutes of real time for the
-// clock to reach sim-second 15 (the outage's "Full load, 10 s" key event) here, versus ~7.5 s in a normal
-// GPU-accelerated browser. Waiting that out isn't practical in a probe run, so the regression check below is
-// narrower but still direct: before this finding, dwell alone let an 8x beat leave in ~2 s of real time; at
-// every pace tried here the beat now still has to be showing well past that, proving the hold is in force. It
-// does not by itself watch the beat release at the key event - see the report for what that would take here.
+// Freeze the real clock before its key event, run the tour until dwell is exhausted, and require it to
+// hold. Then unfreeze the clock and require the tour to advance. This works at both GPU and software speeds.
 async function outageHoldCase(pace) {
   const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
   // set the pace via localStorage before load (story.js reads ifx-pace once, at import time) instead of driving
@@ -120,6 +121,7 @@ async function outageHoldCase(pace) {
   await p.goto(URL); await ready(p);
   await p.evaluate(() => window.ifx.enterStory('story'));
   await p.waitForFunction(() => document.querySelector('.beat.on'), null, { timeout: 15000 });
+  await p.evaluate(() => { const play = document.getElementById('tour-play'); for (let i = 0; i < 2 && play?.getAttribute('aria-pressed') === 'true'; i++) play.click(); });
   // A manual click faster than the panel's own scroll can settle sometimes outruns its steering window (a
   // pre-existing scroll/IntersectionObserver race, not one of the findings fixed on this branch) and the panel
   // falls back a beat on its own. Rather than assume each click lands exactly where aimed, click toward the
@@ -129,16 +131,25 @@ async function outageHoldCase(pace) {
     const sim = await p.evaluate(() => document.body.dataset.sim || null);
     // after a click, give the new step's clock time to load before judging it: under load a 400 ms look could miss
     // the outage beat's clock and click straight past it, to the tour's end
-    if (sim === 'outage') { seenTwice++; await sleep(400); } else { seenTwice = 0; await p.click('#tour-next'); await sleep(1500); }
+    if (sim === 'outage') { seenTwice++; await sleep(400); } else { seenTwice = 0; await p.evaluate(() => document.querySelector('#tour-next').click()); await sleep(1500); }
   }
   const reached = await p.evaluate(() => document.body.dataset.sim === 'outage');
   if (!reached) throw new Error(`outageHoldCase(${pace}): never settled on the outage beat`);
   const paceShown = await p.evaluate(() => document.getElementById('tour-pace')?.textContent || '');
-  await p.click('#tour-play');
-  await sleep(6000);   // well past the ~2 s an 8x beat would have taken to leave under dwell alone, before this fix
-  const stillOn = await p.evaluate(() => document.body.dataset.sim === 'outage');
-  const clockS = await p.evaluate(() => { const m = /([\d.]+)\s*s/.exec(document.getElementById('ck-time')?.textContent || ''); return m ? +m[1] : null; });
-  report(`Outage sim beat is still holding 6 s after Play, at ${pace}× (finding 17's regression check)`, stillOn, `pace shown "${paceShown}"; clock at ${clockS} s of the sim's own 15 s target - reaching it and releasing is a slow-motion check on this machine's software renderer, not one this probe can wait out`);
+  await p.evaluate(() => {
+    document.querySelector('#clock [data-sim="outage"]').click();
+    document.getElementById('ck-play').click(); // paused at zero, before the key event
+  });
+  await p.evaluate(() => document.querySelector('#tour-play').click());
+  await p.waitForFunction(() => {
+    const m = /scaleX\(([\d.]+)\)/.exec(document.querySelector('.beat.on .beat-bar i')?.style.transform || '');
+    return (m && +m[1] >= 0.999) || document.body.dataset.sim !== 'outage';
+  }, null, { timeout: 60000 });
+  const held = await p.evaluate(() => ({ sim: document.body.dataset.sim, clock: document.getElementById('ck-time')?.textContent, title: document.querySelector('.beat.on h3')?.textContent }));
+  report(`Outage step holds after its dwell at ${pace}× while its clock is before the key event`, held.sim === 'outage', `pace ${paceShown}; ${JSON.stringify(held)}`);
+  await p.evaluate(() => document.querySelector('#ck-play').click());
+  await p.waitForFunction(() => document.body.dataset.sim !== 'outage', null, { timeout: 60000 });
+  report(`Outage step advances after the clock resumes at ${pace}×`, true);
   await p.close();
 }
 await outageHoldCase(1);
@@ -152,11 +163,12 @@ await outageHoldCase(8);
   await p.waitForFunction(() => window.ifx.state.scene === 0, null, { timeout: 15000 });
   await p.click('#play-these');
   await p.waitForFunction(() => document.querySelector('.beat.on'), null, { timeout: 15000 });
+  await p.evaluate(() => { const play = document.getElementById('tour-play'); for (let i = 0; i < 2 && play?.getAttribute('aria-pressed') === 'true'; i++) play.click(); });
   await p.evaluate(() => { if (document.getElementById('tour-play')?.getAttribute('aria-pressed') === 'true') document.getElementById('tour-play').click(); });   // pause first
-  await p.click('#tour-next');                          // the next part (every-part beats walk data.js's own WALK order): has specs with chips either way
+  await p.evaluate(() => document.querySelector('#tour-next').click());                          // the next part (every-part beats walk data.js's own WALK order): has specs with chips either way
   await p.waitForFunction(() => document.querySelector('.beat.on .beat-specs .chip'), null, { timeout: 15000 });
   const beatBefore = await p.evaluate(() => document.querySelector('.beat.on')?.dataset.i);
-  await p.click('#tour-play');                          // resume
+  await p.evaluate(() => document.querySelector('#tour-play').click());                          // resume
   await p.click('.beat.on .beat-specs .chip');
   const opened = await p.evaluate(() => !document.getElementById('src-pop').hidden).catch(() => false);
   report('A chip in a tour beat opens the source popover', opened);
@@ -192,13 +204,14 @@ await outageHoldCase(8);
   await p.waitForFunction(() => window.ifx.state.scene === 0, null, { timeout: 15000 });
   await p.click('#play-these');
   await p.waitForFunction(() => document.querySelector('.beat.on'), null, { timeout: 15000 });
+  await p.evaluate(() => { const play = document.getElementById('tour-play'); for (let i = 0; i < 2 && play?.getAttribute('aria-pressed') === 'true'; i++) play.click(); });
   // 'Fiber route' (data.js's 'route' part on across): 4 spec rows in this build. Every-part beats walk the
   // scene in data.js's own WALK.data.across order (remote, route, ila, dci, home), not PARTS_DATA's array
   // order, so this is reached by title, not assumed to be a fixed step count away from the overview.
   let onIt = false;
   for (let tries = 0; tries < 10 && !onIt; tries++) {
     onIt = await p.evaluate(() => document.querySelector('.beat.on h3')?.textContent === 'Fiber route');
-    if (!onIt) { await p.click('#tour-next'); await sleep(600); }
+    if (!onIt) { await p.evaluate(() => document.querySelector('#tour-next').click()); await sleep(600); }
   }
   await p.waitForFunction(() => document.querySelector('.beat.on h3')?.textContent === 'Fiber route' && document.querySelector('.beat.on .beat-more'), null, { timeout: 30000 });
   const m1 = await p.evaluate(() => {
@@ -209,7 +222,7 @@ await outageHoldCase(8);
   });
   report('The beat shows exactly 3 spec rows as a preview', m1.previewRows === 3, JSON.stringify(m1));
   report('The disclosure names how many specifications there are in all, and starts closed', /All \d+ specifications/.test(m1.summary) && m1.open === false, m1.summary);
-  await p.click('.beat.on .beat-more summary');
+  await p.evaluate(() => document.querySelector('.beat.on .beat-more summary').click());
   const m2 = await p.evaluate(() => { const d = document.querySelector('.beat.on .beat-more'); return { open: d.open, visible: d.querySelector('dl.beat-specs')?.offsetHeight > 0 }; });
   report('The disclosure opens and shows the rest of the rows', m2.open && m2.visible, JSON.stringify(m2));
   await p.close();
@@ -223,11 +236,12 @@ await outageHoldCase(8);
   await p.waitForFunction(() => window.ifx.state.scene === 2, null, { timeout: 15000 });
   await p.click('#play-these');
   await p.waitForFunction(() => document.querySelector('.beat.on'), null, { timeout: 15000 });
+  await p.evaluate(() => { const play = document.getElementById('tour-play'); for (let i = 0; i < 2 && play?.getAttribute('aria-pressed') === 'true'; i++) play.click(); });
   let found = false;
   for (let k = 1; k <= 24 && !found; k++) {
     found = await p.evaluate(() => document.querySelector('.beat.on h3')?.textContent === 'Co-packaged optics');
     if (!found) {
-      await p.click('#tour-next');
+      await p.evaluate(() => document.querySelector('#tour-next').click());
       await p.waitForFunction(k => document.querySelector('.beat.on')?.dataset.i === String(k), k, { timeout: 10000 }).catch(() => {});
       await sleep(400);
     }
@@ -262,9 +276,10 @@ if (SHOTS) {
     await p.waitForFunction(() => window.ifx.state.scene === 0, null, { timeout: 15000 });
     await p.click('#play-these');
     await p.waitForFunction(() => document.querySelector('.beat.on'), null, { timeout: 15000 });
+  await p.evaluate(() => { const play = document.getElementById('tour-play'); for (let i = 0; i < 2 && play?.getAttribute('aria-pressed') === 'true'; i++) play.click(); });
     await sleep(400);
     await p.screenshot({ path: `shots/tours-head-${name}.png` });
-    await p.click('#tour-next');
+    await p.evaluate(() => document.querySelector('#tour-next').click());
     await p.waitForFunction(() => document.querySelector('.beat.on .beat-specs .chip'), null, { timeout: 15000 });
     await sleep(400);
     await p.screenshot({ path: `shots/tours-beat-chips-${name}.png` });

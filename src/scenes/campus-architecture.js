@@ -131,7 +131,7 @@ export function addCampusArchitecture({ scene, hallList, hallX0, hallX1, extra, 
   const identitySign = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 10.1), new THREE.MeshStandardMaterial({
     map: identity, emissiveMap: identity, emissive: 0xffffff, emissiveIntensity: 0.3, roughness: 0.6,
   }));
-  identitySign.rotation.y = -Math.PI / 2; identitySign.position.set(-137.71, 5.7, 215); scene.add(identitySign);
+  identitySign.rotation.y = -Math.PI / 2; identitySign.position.set(-137.76, 5.7, 215); scene.add(identitySign);
 
   // Low planted areas occupy unused pedestrian space; they stop short of roads,
   // fiber entrances, battery pads, generator yards, and hall service faces.

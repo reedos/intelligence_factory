@@ -29,7 +29,7 @@ for x in [-30+i*6 for i in range(11)]:
  # Short cutaway roof brackets, all above existing bus/fiber runs.
  beam('Tapered cutaway roof bracket',(x,6.6,.48),(x,7.08,1.15),.2,.25,ceramic,g)
  box('Bracket indirect light',(x,6.90,.82),(.08,.04,.65),walllight,g,.007)
-box('Folded wall crown',(0,7.42,.42),(60.6,.16,1.03),ceramic,g,.03)
+box('Folded wall crown',(0,7.45,.42),(60.6,.16,1.03),ceramic,g,.03)
 # Fixture housing replaces a fullbright plane; only the underside emits.
 g='LUMINAIRE'
 box('Folded luminaire housing',(0,0,0),(1.3,.075,.19),graphite,g,.028)

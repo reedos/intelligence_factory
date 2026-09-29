@@ -1,0 +1,929 @@
+{
+  "reviewedOn": "9/29/2026",
+  "branch": "blender/review-integration-2026-09-29",
+  "baseMain": "9d6ce44867112d1ebc4de631f57a1a878d10995d",
+  "buildContentId": "e85df3bf7009e363",
+  "status": "Ready for Opus integration review; required gate runs completed with two documented hidden-contact warnings. Final visual acceptance pending. No main write, push or public deployment.",
+  "files": [
+    {
+      "path": "public/blender-progress.json",
+      "bytes": 4683,
+      "sha256": "4ad724b107f9681972f6c2bc1d48e5a1e8d4a604ec3431856ad2c27352da8084"
+    },
+    {
+      "path": "public/design-review.html",
+      "bytes": 8725,
+      "sha256": "24499d17d87ca7956da0617414ed78a7b074cf0799523a3ace3a9649cfb8b295"
+    },
+    {
+      "path": "public/models/across-infrastructure.glb",
+      "bytes": 485788,
+      "sha256": "7a0187a07df3c58ffe286d2b5832d735276dc1f57677a09f25063b2075e556fa"
+    },
+    {
+      "path": "public/models/campus-architecture.glb",
+      "bytes": 3069804,
+      "sha256": "1d38eb8bdd0f9fc4ec5455e3325a0dd0806352a08199c226938f01c1ce4df116"
+    },
+    {
+      "path": "public/models/campus-catalog.glb",
+      "bytes": 4483780,
+      "sha256": "6bb3b799333ad24fed993fef641a6f16da783a94bee8741574ae88f2c369054c"
+    },
+    {
+      "path": "public/models/campus-tesla-white-review.png",
+      "bytes": 1464951,
+      "sha256": "eb57840d357466290b9f8d2bfc69349352c607fcf90c956b5e317bc5e65dc8b2"
+    },
+    {
+      "path": "public/models/campus-transformer.glb",
+      "bytes": 2558988,
+      "sha256": "8eabe0bc26900b550dad65849f502290878799db83c9fbc9eda07d89a89c850c"
+    },
+    {
+      "path": "public/models/campus-vehicles-review.png",
+      "bytes": 1547672,
+      "sha256": "3c33b51d05e8358577a09a4245e777c60746ba1ad7975179200e2b8c61b2a80e"
+    },
+    {
+      "path": "public/models/campus-vehicles.glb",
+      "bytes": 2466316,
+      "sha256": "6f95490edcb5d6ad8e7bd04a423f7007bec8dad83e34291ff0648491f98c1aab"
+    },
+    {
+      "path": "public/models/coherent-hardware.glb",
+      "bytes": 963708,
+      "sha256": "efc3e8d2fff0e03b72d023fa08b300e38adc1b5d23bdb4217363e7573164d358"
+    },
+    {
+      "path": "public/models/compute-chip-gb200.glb",
+      "bytes": 2184280,
+      "sha256": "96181b95e2ebe15335cd21a3c8b36a27acac53d13da83114af0ed22ee5eb9e5c"
+    },
+    {
+      "path": "public/models/compute-chip-gb300.glb",
+      "bytes": 2300552,
+      "sha256": "000ca82c97502677d0cb74161ac4e8a8241ca87663f8dbd215ee4570c4063f04"
+    },
+    {
+      "path": "public/models/compute-chip-h100.glb",
+      "bytes": 1988536,
+      "sha256": "37715c38b978253b3042a6c7926c9dca9d8c5394b2197220cbe19c0409bf56ea"
+    },
+    {
+      "path": "public/models/compute-chip-rubin.glb",
+      "bytes": 2300324,
+      "sha256": "5f4f6c97df7297daf3fb70ff239bf85fbdb93d5cd95c8bde431cdd5f95a3a9df"
+    },
+    {
+      "path": "public/models/compute-rack-gb200.glb",
+      "bytes": 4998492,
+      "sha256": "650914f55569011816611916732845c65065722aefadb6ae813ab52efcd8cfd7"
+    },
+    {
+      "path": "public/models/compute-rack-gb300.glb",
+      "bytes": 5001644,
+      "sha256": "77a7db947b4f58ba7a87c63f5dd12322305d3ef5de4e0f49c0110755c630619c"
+    },
+    {
+      "path": "public/models/compute-rack-h100.glb",
+      "bytes": 618304,
+      "sha256": "ccf099564c57968f632c91d945e3ec0349dc8d9c48f857e0f8e68c0bdd867e9b"
+    },
+    {
+      "path": "public/models/compute-rack-rubin.glb",
+      "bytes": 3990780,
+      "sha256": "00999adae0e30001a5df73fe8060ff8b257bc99c1baabfdc7999f212057cebf2"
+    },
+    {
+      "path": "public/models/compute-rotor.glb",
+      "bytes": 86724,
+      "sha256": "5d404f3c042615e06409a0f87c4b973db417a93dd498e54c18e495e60b37d94f"
+    },
+    {
+      "path": "public/models/compute-solder.glb",
+      "bytes": 8848,
+      "sha256": "c714ddf702ba82ad652cec4ee958c986473fde73bc9eaec6b980719c646f8196"
+    },
+    {
+      "path": "public/models/compute-tray-gb200.glb",
+      "bytes": 4833924,
+      "sha256": "f72daae72d1350c628afa2eca31bb41936bd1b7bb289430571440db97fba306e"
+    },
+    {
+      "path": "public/models/compute-tray-gb300.glb",
+      "bytes": 4775664,
+      "sha256": "130e42d7bd3abb940b106a234f8f8201d95903b3703fc62236e06b536b12146a"
+    },
+    {
+      "path": "public/models/compute-tray-h100.glb",
+      "bytes": 5219748,
+      "sha256": "62fa597e5a628139ed00bb567cb32f655acac925eea5fa53f7f3f2319f570540"
+    },
+    {
+      "path": "public/models/compute-tray-rubin.glb",
+      "bytes": 1770328,
+      "sha256": "3223700f0b0a329baed4e5e182b5d7674c11fac3f4ca0820d5aa438b603e1b3f"
+    },
+    {
+      "path": "public/models/copper-hardware.glb",
+      "bytes": 1412788,
+      "sha256": "55d0dbdb0ede4874b474994761809f473f9a6e44321f568838eafad226b04fa1"
+    },
+    {
+      "path": "public/models/cpo-hardware.glb",
+      "bytes": 9022768,
+      "sha256": "f70c5ac03be0ef6fcd8f68b5735af748845f10d67f28076d41c88d884c7b9978"
+    },
+    {
+      "path": "public/models/hall-finish.glb",
+      "bytes": 2029792,
+      "sha256": "51e49d09d250eedd3624ccdf253e812f1dd0f8a170b85933fc44bf905962f10e"
+    },
+    {
+      "path": "public/models/osfp-module-runtime.glb",
+      "bytes": 6663060,
+      "sha256": "a709c702fa43e7cc170300b5402cef73741fcbfba62930dd5fe913383b5a30e6"
+    },
+    {
+      "path": "public/models/site-construction.glb",
+      "bytes": 133072,
+      "sha256": "ab7904f979b6cbc46e5a7ab80e3e78c5935fc53b7c37b16d4d64d9942a51b119"
+    },
+    {
+      "path": "research/artifact-packaging-review-2026-09-29.md",
+      "bytes": 2489,
+      "sha256": "8e29116eae5fc0a8d3260f27d4481bdc17f7c6c9ee6be0e7c6b6d45295ea9d92"
+    },
+    {
+      "path": "research/campus-road-review-2026-09-29.md",
+      "bytes": 5918,
+      "sha256": "7945e616b4d154375421ddf82515807d618202a45fae84ca6b485a3155049cab"
+    },
+    {
+      "path": "research/compute-main-sync-2026-09-29.md",
+      "bytes": 5680,
+      "sha256": "468980e13645735e62b38fe7a6e568f9fdd165bd3beda5b69685d863db8077f0"
+    },
+    {
+      "path": "research/compute-redesign-2026-09-29.md",
+      "bytes": 5781,
+      "sha256": "e20df9120b4301058ae7fb9ee3f891628578e06d1f022892bf0f8e40f231a41d"
+    },
+    {
+      "path": "research/final-visual-review-2026-09-29.md",
+      "bytes": 11233,
+      "sha256": "569c0ea0378e52b7597150f58b93bf8016d6abf993bd7d7e9fcacd628e4b69cf"
+    },
+    {
+      "path": "research/generation-hardware-sources-2026-09-29.md",
+      "bytes": 2760,
+      "sha256": "08d6789eb8d8eb3ddb587d7a08043bcb85ddeb49031976c613322f6cc85c150e"
+    },
+    {
+      "path": "research/generation-model-review-2026-09-29.md",
+      "bytes": 3086,
+      "sha256": "d5454bf609899fb8647ecf1e23aa1219847b85528949330c720e4cab5bb4a60c"
+    },
+    {
+      "path": "research/interconnect-redesign-2026-09-29.md",
+      "bytes": 8401,
+      "sha256": "d0bafe35384200c18a50ac009033164626c8bf2568e88398944acc5dc9c44eec"
+    },
+    {
+      "path": "research/merge-readiness-2026-09-29.md",
+      "bytes": 8377,
+      "sha256": "034b877235d6222ade47ecb5c6c31b02ed8d76e3aa6c52d0cbf28043ef3d5628"
+    },
+    {
+      "path": "research/optics-independent-final-review-2026-09-29.md",
+      "bytes": 3173,
+      "sha256": "7dfa0e070d3acf1be4a18cfb5816087033db5be87bee0da4b960a57858ed902d"
+    },
+    {
+      "path": "research/site-redesign-2026-09-29.md",
+      "bytes": 10670,
+      "sha256": "961451298077b140b15d48461d0e2cbc488eb3be518082e7cbb0e4de17ec67cc"
+    },
+    {
+      "path": "research/version-inventory-2026-09-29.md",
+      "bytes": 5658,
+      "sha256": "7e3bb1057dd1de2130c8866e01d072cb1ba049f4426300dc322bcffebe2c8d4d"
+    },
+    {
+      "path": "research/version-sync-2026-09-29.md",
+      "bytes": 5655,
+      "sha256": "04bb6804af20671e0d6ba2c132565c03f5625f33b91be577ca58093f94d5eb27"
+    },
+    {
+      "path": "research/version-sync.json",
+      "bytes": 308,
+      "sha256": "887440219405177ef0ed9e3d1e945bfa6f79453828f7e18a40208bce4e68cfd3"
+    },
+    {
+      "path": "research/visual-redesign-review-2026-09-29.md",
+      "bytes": 7913,
+      "sha256": "f86c250d1308986e439a81c6dc47c5db32a7de075d43359ffa05500d3f49b39e"
+    },
+    {
+      "path": "src/app/blender-test.js",
+      "bytes": 6430,
+      "sha256": "f310e341c4d8091b53a9e7c5f6958d26e0d49bdf2026966415b34de5f4f222d7"
+    },
+    {
+      "path": "src/app/camera-presets.js",
+      "bytes": 793,
+      "sha256": "45c755120a7b64742da635455daf132f188ef5391a20a0554cd1a7eacafec6ba"
+    },
+    {
+      "path": "src/app/campus-presentation.css",
+      "bytes": 3471,
+      "sha256": "0c636d465644ba4577bb94d38a4483abdd01f5d7e3944acda7edaba25db930f0"
+    },
+    {
+      "path": "src/app/campus-presentation.js",
+      "bytes": 7349,
+      "sha256": "d8ce83b121e3e037d9e4a7d681e41b673497bd0b6577767b0f0abcb10cb71822"
+    },
+    {
+      "path": "src/app/device-check.css",
+      "bytes": 1400,
+      "sha256": "d6cb19baa10039d242320c0486cb5bb839809fd9342723240eb0ffc3fdcbc8e2"
+    },
+    {
+      "path": "src/app/device-check.js",
+      "bytes": 7775,
+      "sha256": "422cd61bf1d9e51dbe5a252ca8da2f2af3436680cccf0af2a402a021bc020f18"
+    },
+    {
+      "path": "src/app/journeys.js",
+      "bytes": 44929,
+      "sha256": "aed4166ec6257eafaa611bfc545e7e29a2c68816ccb9fce0f9a9da053150d381"
+    },
+    {
+      "path": "src/app/journeys.test.ts",
+      "bytes": 10567,
+      "sha256": "c52f0c4267bf5d23e95c936edc46bb1a346719a75812f7118a19374a30b7328f"
+    },
+    {
+      "path": "src/app/module-presentation.css",
+      "bytes": 5026,
+      "sha256": "1187593a1ab6b3e1774155953ff05b96a8c93ed127833fe804b19e3abfc28231"
+    },
+    {
+      "path": "src/app/module-presentation.js",
+      "bytes": 5645,
+      "sha256": "e24a15149e101bdab0a61d34a249b2f13bc79748964eb6dd9ddd6f89c45b0147"
+    },
+    {
+      "path": "src/app/pin-layout.js",
+      "bytes": 1077,
+      "sha256": "7445892bfc156844f58a4109303dddebd9fe4e0387b89c8e963075404bec9eac"
+    },
+    {
+      "path": "src/app/pin-layout.test.ts",
+      "bytes": 1266,
+      "sha256": "0e57ded9167baf9ab11ffa5f8d3fcb1fd1a820372d4c653df86ec04e3b69f437"
+    },
+    {
+      "path": "src/app/sections-generation.test.ts",
+      "bytes": 2505,
+      "sha256": "2b8775982826f5eb1f097a564df724578f5d55440e7492b5422f811ae8ad016b"
+    },
+    {
+      "path": "src/app/sections.js",
+      "bytes": 36688,
+      "sha256": "725234ec65c8df41f650f0ad6906ecf8a8e4612ea9b9b64a0693ff9656ca7f4b"
+    },
+    {
+      "path": "src/app/stage.js",
+      "bytes": 74189,
+      "sha256": "eae41c9dd9af72b8bdf0a443e4567c5b90b91ddda4912cfc2e5fd0442e104cb5"
+    },
+    {
+      "path": "src/data.js",
+      "bytes": 199729,
+      "sha256": "e86a4d7afc8fd5cec9248da7f3a0b0b9b9689c171b9bfc03e861bea3c8629212"
+    },
+    {
+      "path": "src/data.test.ts",
+      "bytes": 8611,
+      "sha256": "e9015aa1485905520b00d96e67fb134e06a4b8707da14ce30bcef6b79499927f"
+    },
+    {
+      "path": "src/evidence.js",
+      "bytes": 61049,
+      "sha256": "e100750cb826d18d730b4a93a23c1f92272a78424e115317b44d09bd38487b38"
+    },
+    {
+      "path": "src/flow-presentation.test.ts",
+      "bytes": 2776,
+      "sha256": "fe73ef6b49e7d97baf0b7a2feec51b17e2cc5bbe1cfe4dbbc9b13aab4974f4bd"
+    },
+    {
+      "path": "src/flow-ribbons.js",
+      "bytes": 7606,
+      "sha256": "fc8561092cc2adbed6a2123150b294642cbe9d93c7af8c5cf4bfa8d34f5592ab"
+    },
+    {
+      "path": "src/flow-ribbons.test.ts",
+      "bytes": 4786,
+      "sha256": "b3ff935ec06eac7443d06c0a6f9b5eadca37b27839d64cd26bfc9660b1d90338"
+    },
+    {
+      "path": "src/kit.js",
+      "bytes": 24829,
+      "sha256": "cb3ac0e3c7a5ca5870824baf60f35f5430e9115101b879e43d5942252969d5ea"
+    },
+    {
+      "path": "src/model/engine-generation.test.ts",
+      "bytes": 2618,
+      "sha256": "48f460790bf7e22cb454633d0aaa10430d276d8efc4b4cf4bff62fcd4cd300ed"
+    },
+    {
+      "path": "src/model/engine.ts",
+      "bytes": 39684,
+      "sha256": "bef86908e8fbb08b5e126f3812a7a9da61efd1ce0aacfe761af9ff7c29b340f3"
+    },
+    {
+      "path": "src/scenes/across-blender-assets.js",
+      "bytes": 1992,
+      "sha256": "646db6ddda428ec17014fa5d769f724e24333ba90e814654110e7205a3cc8756"
+    },
+    {
+      "path": "src/scenes/across-blender.test.ts",
+      "bytes": 6979,
+      "sha256": "6f025c8f04f0be0e7fe3365317a276db91886d9f9fc5fec30775a43165fb8a27"
+    },
+    {
+      "path": "src/scenes/across.js",
+      "bytes": 29501,
+      "sha256": "55103a4361626ece186643226bb5024f7f834706eb207e7df3347905e31696ba"
+    },
+    {
+      "path": "src/scenes/campus-architecture.js",
+      "bytes": 10730,
+      "sha256": "f3443b70277489546ec5bea0ab724aeb930aff083005da63f229da22b8f23879"
+    },
+    {
+      "path": "src/scenes/campus-architecture.test.ts",
+      "bytes": 10346,
+      "sha256": "812d17497d4c5f437a8e3402535ed6359f5327ac8f28aacdce635d132bc2a60f"
+    },
+    {
+      "path": "src/scenes/campus-atmosphere.js",
+      "bytes": 2901,
+      "sha256": "f64290771578dfeb5f15bfcb5d45efa058baff90b5ceb89341cc0ed60cfc08df"
+    },
+    {
+      "path": "src/scenes/campus-blender-architecture.js",
+      "bytes": 2936,
+      "sha256": "d60f132526c8e9a1549532a1312fd9210d77299a703c702ce940be4c7cc9bc3f"
+    },
+    {
+      "path": "src/scenes/campus-blender-catalog.js",
+      "bytes": 1948,
+      "sha256": "8bc7f91519af712fda40c08219fa9f0efb3139fca8436766e93fb9545257dd89"
+    },
+    {
+      "path": "src/scenes/campus-blender-transformer.js",
+      "bytes": 1196,
+      "sha256": "7d401e08de7eb5475c5da5e1a1be311245a519afb187923f3945b67ff4779e8e"
+    },
+    {
+      "path": "src/scenes/campus-blender-vehicles.js",
+      "bytes": 1570,
+      "sha256": "80075efcd530803db4401124c9f31e67292a5455b4e6b9306319de0a10c0e6c2"
+    },
+    {
+      "path": "src/scenes/campus-blender.test.ts",
+      "bytes": 19783,
+      "sha256": "e98998d49fabf15bda951ea0105f340a4bcca72b2b6c314b563502d041111029"
+    },
+    {
+      "path": "src/scenes/campus-detail.js",
+      "bytes": 7096,
+      "sha256": "f1c05553ba78924eebf133c0769068fb58f13104d485c98f9d2fdc91ff856963"
+    },
+    {
+      "path": "src/scenes/campus-landscape.js",
+      "bytes": 5371,
+      "sha256": "e127092ad582e3b55130b5edd292e314a128eebb6d5262bebb2b348919a46299"
+    },
+    {
+      "path": "src/scenes/campus-road-plan.js",
+      "bytes": 7130,
+      "sha256": "9253af27f6da0e3cb505cb66d9801140db85f6db8d36d954741141ecd65d85d1"
+    },
+    {
+      "path": "src/scenes/campus-roads.js",
+      "bytes": 1106,
+      "sha256": "26ababe3686030e6c01313617384bdc1443e04115e03fdac118923cce53891e3"
+    },
+    {
+      "path": "src/scenes/campus-roads.test.ts",
+      "bytes": 4594,
+      "sha256": "a02a40b4aeeb06a2e69ad26c0f17895701a5e695420fb609b528043cc06f4711"
+    },
+    {
+      "path": "src/scenes/campus.js",
+      "bytes": 57436,
+      "sha256": "ce19c1f84a80aafd85a3740241e11a49cbae04af64cae54882806dc206cc519c"
+    },
+    {
+      "path": "src/scenes/chip.js",
+      "bytes": 26904,
+      "sha256": "56fd89627250cb70cbad0f94c0479cb63794124e36ddfaf555bb12c03dac289d"
+    },
+    {
+      "path": "src/scenes/compute-art-direction.js",
+      "bytes": 3656,
+      "sha256": "d4ab1e8f1dc6f8a0600de17bcf8319ac80785392dd5b782dec6fdc998eb76c7c"
+    },
+    {
+      "path": "src/scenes/compute-blender.js",
+      "bytes": 6860,
+      "sha256": "39de512fb17d5624edef4d229a9ed5a7c902e8753cf0578c59bf440a0b1bf916"
+    },
+    {
+      "path": "src/scenes/compute-blender.test.ts",
+      "bytes": 28595,
+      "sha256": "388659e7768f09d26eb8d1cabfaca0cb1a729f07938627bfa93bc31a5da0a398"
+    },
+    {
+      "path": "src/scenes/compute-finish.js",
+      "bytes": 3484,
+      "sha256": "4214dd7dad81bfd9199b7befa57158fece45cc027a5f9caa2c8bdff6789aba2b"
+    },
+    {
+      "path": "src/scenes/hall-blender-finish.js",
+      "bytes": 1373,
+      "sha256": "c491512c8d313b6e88451fe21778c5040663ad1fe003007868c13655e1f14568"
+    },
+    {
+      "path": "src/scenes/hall.js",
+      "bytes": 59519,
+      "sha256": "dfa7a0fc6bb79ca0c311276328744dd202144d29cb0796102dbbcfcdd66797c1"
+    },
+    {
+      "path": "src/scenes/link-art-direction.js",
+      "bytes": 3939,
+      "sha256": "63c7f370f65ae3a29bffdd0c35f5b303172b373c1f502822ab69f65a3e71d6cb"
+    },
+    {
+      "path": "src/scenes/module-art-direction.js",
+      "bytes": 4611,
+      "sha256": "18ae7ab354efb91166c56c96a1c998fe87adf0867f1a6d466a05d799a67b9444"
+    },
+    {
+      "path": "src/scenes/rack.js",
+      "bytes": 37630,
+      "sha256": "bb1c89dfe07ea8bfbe479af9854b5b606dff6935122d698fc786dffff079d09e"
+    },
+    {
+      "path": "src/scenes/side-coherent.js",
+      "bytes": 18062,
+      "sha256": "c86a46c329bc6fbcea40d58cdf066b6c1f4650a3672ebe90556e93ce8a1aae4b"
+    },
+    {
+      "path": "src/scenes/side-copper.js",
+      "bytes": 8187,
+      "sha256": "c731f3211aa031fecac12e104b7103e2b0278da57e78bb0f416838212c656feb"
+    },
+    {
+      "path": "src/scenes/side-cpo-blender.js",
+      "bytes": 9459,
+      "sha256": "f961e759dfefbb7cfff03b7de6bd9fa0d20c1ba03ffa157a8b3eccf120aed606"
+    },
+    {
+      "path": "src/scenes/side-cpo.js",
+      "bytes": 18847,
+      "sha256": "91a0a329855c76dec888c94fe650811e36b4b3eb109990a23eb47a0b019e3601"
+    },
+    {
+      "path": "src/scenes/side-geometry.js",
+      "bytes": 2739,
+      "sha256": "e62e0f48399843813adcfb638788ac22a35e09a017ffde6a693aa54352e11555"
+    },
+    {
+      "path": "src/scenes/side-hardware-blender.test.ts",
+      "bytes": 21228,
+      "sha256": "038edec2f9a0e53cbeade1365b1161e500724ec629454c389c2f1ec2f4f7c7f0"
+    },
+    {
+      "path": "src/scenes/side-kit.js",
+      "bytes": 12930,
+      "sha256": "5d11190fba2ff532bb7a1767de466bd632ea2cd2ee472ae5fa01862f51671b9a"
+    },
+    {
+      "path": "src/scenes/side-links-blender.js",
+      "bytes": 10340,
+      "sha256": "3cbbf8bca12a81c8204bfc76f940227184d3cfbb1650c0a7f23208a5a1ff65df"
+    },
+    {
+      "path": "src/scenes/side-module-blender.js",
+      "bytes": 19320,
+      "sha256": "0486fb6b97c495081901df6aee256afc017e133779272cebe6a978cdd685a97e"
+    },
+    {
+      "path": "src/scenes/side-module-blender.test.ts",
+      "bytes": 30460,
+      "sha256": "64e36e434b36aab59d9421056bdb4ddbe9d9411d99d7c60426fbf13766f17c63"
+    },
+    {
+      "path": "src/scenes/side-module.js",
+      "bytes": 19826,
+      "sha256": "d31e28e0a703aebe7f6010f2dcac1243087c753c4c12195b5db974f764c7b82a"
+    },
+    {
+      "path": "src/scenes/site-blender-construction.js",
+      "bytes": 5914,
+      "sha256": "b1fc2f233054e21320430597dc8d0c26322b99f9362fd97db07e7deebdde5746"
+    },
+    {
+      "path": "src/scenes/site-peer-ribbons.test.ts",
+      "bytes": 3990,
+      "sha256": "627a4fc02983a891f005fb5aa03248c1228f9bc41a427aa599422c1614595646"
+    },
+    {
+      "path": "src/scenes/tray-rubin.js",
+      "bytes": 9149,
+      "sha256": "322ff42a9ea8b6640a3d74c4abad501e9b29d06a813bcd11cfa25578fe015990"
+    },
+    {
+      "path": "src/scenes/tray.js",
+      "bytes": 37185,
+      "sha256": "10e98e6ea2c4c75b1afa741a1adc6bf830474cb251b8b7550efb578882ee642d"
+    },
+    {
+      "path": "src/scenes/visual-direction.js",
+      "bytes": 3113,
+      "sha256": "808232b4995551fa9a00be64cf61925eead05aabb2495eb0d600e59854304460"
+    },
+    {
+      "path": "src/sources.js",
+      "bytes": 124551,
+      "sha256": "0ab49b16a7613b2e9bb882852d13ba5d5cba22363f122472277b341f6b866b91"
+    },
+    {
+      "path": "src/styles.css",
+      "bytes": 72617,
+      "sha256": "d69ac3345cde4ba65b1177a342c8331883eeeaa568dd8bb5bb13c32c052e7202"
+    },
+    {
+      "path": "src/visualizer.js",
+      "bytes": 4439,
+      "sha256": "a45863350eb9f6d56a737d9426ff881818bc91a27d6243401f40aa62fa5b782b"
+    },
+    {
+      "path": "tools/artifact-verify.mjs",
+      "bytes": 979,
+      "sha256": "a0d92789a48706e7ea0a0ae3da4a7b4d9a7dd540f039277bcbcd5a896a1d457b"
+    },
+    {
+      "path": "tools/artifact.mjs",
+      "bytes": 2338,
+      "sha256": "8d49f87d33076a24a65d2fb7613b9ffe9098f7677c9994632d6fab626f57802b"
+    },
+    {
+      "path": "tools/artifact.test.mjs",
+      "bytes": 2053,
+      "sha256": "762980c127a908954bfebd8f737fee169b2b23cb744defd7f3188b896e4ea343"
+    },
+    {
+      "path": "tools/blender/across-infrastructure.blend",
+      "bytes": 202870,
+      "sha256": "5d25bb7035e4cc70d75dc8ec2b9417ea3872df533912ec261a0a44b436b6fc63"
+    },
+    {
+      "path": "tools/blender/build-across-assets.py",
+      "bytes": 6988,
+      "sha256": "641a623c5e500861d98e6883ddc4306bf1712e6b92f5f114d46ed32219205e9a"
+    },
+    {
+      "path": "tools/blender/build-campus-architecture.py",
+      "bytes": 8417,
+      "sha256": "562caf26a3aeb8b931f0873e80d61813f472c24900fa307eeeded681700b0a6b"
+    },
+    {
+      "path": "tools/blender/build-campus-catalog.py",
+      "bytes": 11704,
+      "sha256": "225a6330f4942f87cee3570354bb76ce32013e4694bd1751120353d094721e64"
+    },
+    {
+      "path": "tools/blender/build-campus-transformer.py",
+      "bytes": 4551,
+      "sha256": "070f7d2970eb9ee062d2d96af84106793c1e6044ce84bdb20e6a44644b3cbce2"
+    },
+    {
+      "path": "tools/blender/build-campus-vehicles.py",
+      "bytes": 19790,
+      "sha256": "712b3e60089dc1b04dce43cf0bc9b03fd2ec87fbb1465084dfe08afba531685e"
+    },
+    {
+      "path": "tools/blender/build-compute-rotor.py",
+      "bytes": 1859,
+      "sha256": "77da972ee8ce0d2a3567fc40bf4fa6c58df9a049fe24ec4442d9151cdd9a36d4"
+    },
+    {
+      "path": "tools/blender/build-compute-solder.py",
+      "bytes": 880,
+      "sha256": "51a211ed71e1587f819a32e7a2180153bc8f17f144cf8e23bd91ef69ecebd615"
+    },
+    {
+      "path": "tools/blender/build-compute.py",
+      "bytes": 17553,
+      "sha256": "cde1f14ccda128a6cb888cef2de8965277c904c66e06d37748fc58e2d0e3401d"
+    },
+    {
+      "path": "tools/blender/build-cpo.py",
+      "bytes": 17676,
+      "sha256": "8cb8178c84a68440f4b8435530bf1f5ff4f7add605df67bd466919a2f5c7c91c"
+    },
+    {
+      "path": "tools/blender/build-hall-finish.py",
+      "bytes": 4991,
+      "sha256": "779db79296da6ebdb9dbf0d51b1f324df7a7b1c30f71dc370ef579ed21653097"
+    },
+    {
+      "path": "tools/blender/build-links.py",
+      "bytes": 18787,
+      "sha256": "7262e9747869b676d16720f0649ac73f81e3ac32f79528d4ddd822dd0fb051fc"
+    },
+    {
+      "path": "tools/blender/build-site-construction.py",
+      "bytes": 4663,
+      "sha256": "875a7a6f6a311b5247a7343ec1fd0f92a5f658d4896d678b02e5ad4e105df343"
+    },
+    {
+      "path": "tools/blender/campus-architecture.blend",
+      "bytes": 764160,
+      "sha256": "391c8a0a2f24e1dec59316beb0a5310f17044bf3bd078d72f9b791218b09711b"
+    },
+    {
+      "path": "tools/blender/campus-catalog.blend",
+      "bytes": 1010902,
+      "sha256": "ea4018c59ec34d791c4337d204506a636647b66f2fd1f7ef8d5dac052d04011e"
+    },
+    {
+      "path": "tools/blender/campus-transformer.blend",
+      "bytes": 624961,
+      "sha256": "04bccc2f9da37f3f1aebb4dffd79e4c38e71397b4616688daa58f04fa382ecd7"
+    },
+    {
+      "path": "tools/blender/campus-vehicles.blend",
+      "bytes": 1226157,
+      "sha256": "e581f931647a7864c6bc275708847083890d9ab6d01684c381465da54466906b"
+    },
+    {
+      "path": "tools/blender/coherent-hardware.blend",
+      "bytes": 391137,
+      "sha256": "834c29f8b58abb5fe6b038e3fe7acea857afa4a2dc92a1ae02559f34e7264d90"
+    },
+    {
+      "path": "tools/blender/complete-module-lpo.py",
+      "bytes": 2938,
+      "sha256": "00035c0da6ab68381c61ed092f36fc1b53f1a133e1f47ae22321a17d27808b58"
+    },
+    {
+      "path": "tools/blender/compute-chip-gb200.blend",
+      "bytes": 400163,
+      "sha256": "24f7ec2419606e17f833b88fed02346e70c6fc558b0caaa07a1829edc064082b"
+    },
+    {
+      "path": "tools/blender/compute-chip-gb300.blend",
+      "bytes": 487566,
+      "sha256": "153b97eba262c22d9829450c9e21c83d5a9caf49bffcbd2d4681a667fa1a4b35"
+    },
+    {
+      "path": "tools/blender/compute-chip-h100.blend",
+      "bytes": 634406,
+      "sha256": "dd679b01f0af1f31e3385f2bd3a0ef0819c8960eca834d3c8159e692115a1236"
+    },
+    {
+      "path": "tools/blender/compute-chip-rubin.blend",
+      "bytes": 576371,
+      "sha256": "f84036eaa99ed36c63eceac9db668dbdc12126bf72560a097454f81539287dd4"
+    },
+    {
+      "path": "tools/blender/compute-hero-detail.py",
+      "bytes": 7144,
+      "sha256": "edd7ee202ab8ca02fb0e32fbf5dcf21eeaf15c5d99473c7c167a578a5990901c"
+    },
+    {
+      "path": "tools/blender/compute-rack-gb200.blend",
+      "bytes": 2728303,
+      "sha256": "54a23bf4d8a162dea6042f5137a2ddd35e6c2cbec78cf61df274a1252b1f3c6f"
+    },
+    {
+      "path": "tools/blender/compute-rack-gb300.blend",
+      "bytes": 2479545,
+      "sha256": "34c83af44fdf43316fb25e2c4e14d2a97c83bdbcb4fbf6ad3ec0530539355f6c"
+    },
+    {
+      "path": "tools/blender/compute-rack-h100.blend",
+      "bytes": 754783,
+      "sha256": "bdcf9d5b0741e90acae203daa5428fdfe0bff2dc626fb28fc9060798a24e1f17"
+    },
+    {
+      "path": "tools/blender/compute-rack-rubin.blend",
+      "bytes": 2607103,
+      "sha256": "4b5baee0e205ce403ddee9f4d4ce45ba01aa13e8355328e4dbb1c4256d4b7eed"
+    },
+    {
+      "path": "tools/blender/compute-rotor.blend",
+      "bytes": 102408,
+      "sha256": "ada54ea0c8a893053bdaaea8ebd9a9acb6924b6e09257e22c7c2be28455da2ae"
+    },
+    {
+      "path": "tools/blender/compute-solder.blend",
+      "bytes": 101314,
+      "sha256": "56525f30fc3616be7c20dcf4f269e45de37c4210491c3d1c52a7fe79e27669b7"
+    },
+    {
+      "path": "tools/blender/compute-tray-gb200.blend",
+      "bytes": 732891,
+      "sha256": "4a71a171602a008092e310fff9ff8fca87f8d780b9d909bd3dd1b4bf6a8f816b"
+    },
+    {
+      "path": "tools/blender/compute-tray-gb300.blend",
+      "bytes": 844332,
+      "sha256": "577afbbc90600da8dc5137e150b15f08c649aab8bd03c4017af04f8a8f923167"
+    },
+    {
+      "path": "tools/blender/compute-tray-h100.blend",
+      "bytes": 535239,
+      "sha256": "ce255982a44636f2b90967dc18e9e84358b5c8880d996d54b6d4e93896dabda3"
+    },
+    {
+      "path": "tools/blender/compute-tray-rubin.blend",
+      "bytes": 380241,
+      "sha256": "edfc2b67a2cbd6e76f2794a6c84d15814adaa5de944ab1c07d06034698c42390"
+    },
+    {
+      "path": "tools/blender/convert-module-twin.py",
+      "bytes": 10030,
+      "sha256": "f0c6a816d9cfd198e9bf54dffd603a823c48b88f18f0410231a04242bbfe7d49"
+    },
+    {
+      "path": "tools/blender/copper-hardware.blend",
+      "bytes": 529936,
+      "sha256": "c10faa149d20a663724064fc7cf489fb2d4832a662300e33c412985287bc70c5"
+    },
+    {
+      "path": "tools/blender/cpo-hardware.blend",
+      "bytes": 1311826,
+      "sha256": "6a754e4dcea4ee98afa90a86d59a1515163e2122a7f9e44f2932d1c2fb81ddaa"
+    },
+    {
+      "path": "tools/blender/export-native-reference.mjs",
+      "bytes": 6098,
+      "sha256": "8020d0f065601f7986f3845a94b0b96e71fcc67620761dec0d057e6a43f2e053"
+    },
+    {
+      "path": "tools/blender/hall-finish.blend",
+      "bytes": 557852,
+      "sha256": "b04c5f0ed97957325635b95d6b55bf64bb8d6ba35d5b985597a2640b4a082248"
+    },
+    {
+      "path": "tools/blender/link-layout.json",
+      "bytes": 5689,
+      "sha256": "b703d5dda3fe0b672ac43fffbbf3fb0f6ac4adb6614079d66a557a0f14f9ec4c"
+    },
+    {
+      "path": "tools/blender/osfp-module-complete.blend",
+      "bytes": 2147857,
+      "sha256": "8d93e586200fbd5928e62666ba4b77856d6ec50374cfa455f83ed5220b7a6f5b"
+    },
+    {
+      "path": "tools/blender/osfp-module-single-engine-reference.glb",
+      "bytes": 5050696,
+      "sha256": "52e9993df3d468a4708a8b7147371ca431167b34025ea42e3aebae73c3a6d210"
+    },
+    {
+      "path": "tools/blender/osfp-module-twin.blend",
+      "bytes": 2243202,
+      "sha256": "b8370f09412f91d3310e720786e9318f0cac1f4a89818529f10de993916017c9"
+    },
+    {
+      "path": "tools/blender/references/chip-gb200.glb",
+      "bytes": 724320,
+      "sha256": "f8f5085d55e917aec1bb535a46a4d9fce7a7fd3abc0d2c0bf534c2c21fa252ad"
+    },
+    {
+      "path": "tools/blender/references/chip-gb300.glb",
+      "bytes": 752080,
+      "sha256": "5c2fb34c4b2af4d2ea39cdfbfe75713c9343944a722a65621b7465c8e0ef5749"
+    },
+    {
+      "path": "tools/blender/references/chip-h100.glb",
+      "bytes": 671892,
+      "sha256": "d92c173d63385f0b6cd7868c5177892590d8db99a984ff9466ff98c8a096d704"
+    },
+    {
+      "path": "tools/blender/references/chip-rubin.glb",
+      "bytes": 751856,
+      "sha256": "5acf193b6f7b3ddd87bf84c093d53b60751c360c6b1b1eb068ef0088fab849ae"
+    },
+    {
+      "path": "tools/blender/references/coherent-internals.glb",
+      "bytes": 213932,
+      "sha256": "746a462af41386155528d948684ffabc2aeb6ed4acf286de110f9faa04a1a1d4"
+    },
+    {
+      "path": "tools/blender/references/copper-internals.glb",
+      "bytes": 348688,
+      "sha256": "536d6e46ef6eb9b155aa009a4ba5fabfd441bf7d935a0d2f6b415cdec41f4a04"
+    },
+    {
+      "path": "tools/blender/references/rack-gb200.glb",
+      "bytes": 6192668,
+      "sha256": "ea22528ffa263aa08e4b4798ba87035f20ab81110cfab7fc4dae057a5a9a8112"
+    },
+    {
+      "path": "tools/blender/references/rack-gb300.glb",
+      "bytes": 6196976,
+      "sha256": "81c4e07458211f55b57ac6a6cfa96ba428899620caa079bd2b17bb0c7bc52db9"
+    },
+    {
+      "path": "tools/blender/references/rack-h100.glb",
+      "bytes": 1164860,
+      "sha256": "707c4569270c07596410702cfc581f726592148dd6fb6727f0c85c2fe8f89abc"
+    },
+    {
+      "path": "tools/blender/references/rack-rubin.glb",
+      "bytes": 6189916,
+      "sha256": "61324b824eb89a0c6b4b5e7c4f7a036d823888817dded747aa4be3c2655f9835"
+    },
+    {
+      "path": "tools/blender/references/tray-gb200.glb",
+      "bytes": 2220692,
+      "sha256": "48aa8f41d6197f18986f8c337c63997f9b9adba0d290dc9d7b5324772f08993c"
+    },
+    {
+      "path": "tools/blender/references/tray-gb300.glb",
+      "bytes": 2207728,
+      "sha256": "6947f70303d3c9581c70045803b2219e13ba61b6937307444997f13d860e9a37"
+    },
+    {
+      "path": "tools/blender/references/tray-h100.glb",
+      "bytes": 1589172,
+      "sha256": "e194dd16cfca139b1d76dcd2acdaf8f94d113029376225e14f133d3ace6dc5df"
+    },
+    {
+      "path": "tools/blender/references/tray-rubin.glb",
+      "bytes": 407040,
+      "sha256": "81c21cdc849224d03d548b1051dc89c70a6ecde7fb3f128e9fc8d07f343540a4"
+    },
+    {
+      "path": "tools/blender/render-compute-studio.py",
+      "bytes": 3604,
+      "sha256": "5e84c1a60a09159d51c692837fa0ec6b76f8d0ff257432baa045f320dcf7db58"
+    },
+    {
+      "path": "tools/blender/render-links-review.py",
+      "bytes": 2247,
+      "sha256": "9c78f5a67b21ed49e78e3c7d32a8c76e41acc70f17b86480cf3d8ada29a219ce"
+    },
+    {
+      "path": "tools/blender/site-construction.blend",
+      "bytes": 146119,
+      "sha256": "872fc97a9c3b2a646b8065587546a64222d10ee2604b6bfe29b283ab38253e00"
+    },
+    {
+      "path": "tools/build-identity.mjs",
+      "bytes": 1851,
+      "sha256": "f2d6f0f74b749e2ad6d984ed696ca78b0145c114a02259486c02b8dbcc92806a"
+    },
+    {
+      "path": "tools/coplanar.mjs",
+      "bytes": 7687,
+      "sha256": "4485270e88630258df68c5723dfcee6c8b95ac29b05165b9137d1233dca2746b"
+    },
+    {
+      "path": "tools/cycle.mjs",
+      "bytes": 3411,
+      "sha256": "553c20417b7fd57bf7966a4633ed8ce348755f816d7ea8fda87e0c30a3a288a1"
+    },
+    {
+      "path": "tools/tours.mjs",
+      "bytes": 21444,
+      "sha256": "454dc3eaf459a50e78c2729effd1b006d63d77080db36f3d8f0d3584008c6f36"
+    },
+    {
+      "path": "tools/ui.mjs",
+      "bytes": 7289,
+      "sha256": "c980f5a38ab86c204fed31777beba12d47926e7a0c4723e280c9818f603f14c6"
+    },
+    {
+      "path": "tools/views.mjs",
+      "bytes": 7333,
+      "sha256": "3c578dbf80f850ce2f8c8f889018ebf2a996f9a4056d90251e13b9a4886c2669"
+    },
+    {
+      "path": "vite.config.ts",
+      "bytes": 1081,
+      "sha256": "ee989b0d688f8e9e777980d584a1dac79503f0762d9e32ebf9fbd58a47924290"
+    }
+  ]
+}

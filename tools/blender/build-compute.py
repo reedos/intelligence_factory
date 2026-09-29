@@ -123,7 +123,7 @@ def tray_hardware(accel,m):
     if accel!='h100':
         box('Formed aluminum chassis',(0,.014,0),(4.4,.028,9),m['shell'],u,.007)
         for x in [-2.2,2.2]:
-            box('Folded outer wall',(x,H/2,0),(.038,H,9),m['shell'],u,.014)
+            box('Folded outer wall',(x,(H-.014)/2,0),(.038,H-.014,9),m['shell'],u,.014)
             box('Rolled upper return',(x,H-.012,0),(.095,.024,8.94),m['bright'],u,.01)
             box('Dark longitudinal reveal',(x+(.022 if x>0 else -.022),H*.6,0),(.006,.045,8.5),m['dark'],u,.002)
             for z in [-4.1,-2.8,-1.5,0,1.5,2.8,4.1]:screw((x,H+.005,z),.022,m,u)

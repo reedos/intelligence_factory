@@ -254,18 +254,24 @@ def coherent():
     ix=.96; y0=1.35
     box('Nano ITLA body',(ix,y0+.29,0),(2.5,.58,1.56),m['shell'],.027)
     box('Nano ITLA gasket',(ix,y0+.586,0),(2.47,.018,1.53),m['dark'],.016)
-    box('Nano ITLA welded lid',(ix,y0+.622,0),(2.5,.056,1.56),m['edge'],.024)
-    box('Nano ITLA label recess',(ix-.05,1.999,0),(1.68,.002,.70),m['shell'],.014)
+    cap = box('Nano ITLA welded lid',(ix,y0+.622,0),(2.5,.056,1.56),m['edge'],.024)
+    # Cut a real identification recess instead of laying coincident faces on the lid.
+    # The lid perimeter still reaches y=2.0, preserving the 6.5 mm package envelope.
+    cut = box('Temporary label pocket',(ix-.05,1.997,0),(1.68,.012,.70),m['shell'],.014)
+    pocket = cap.modifiers.new('Recessed identification pocket','BOOLEAN'); pocket.operation='DIFFERENCE'; pocket.object=cut
+    bpy.context.view_layer.objects.active=cap; bpy.ops.object.modifier_apply(modifier=pocket.name)
+    bpy.data.objects.remove(cut,do_unlink=True)
+    box('Nano ITLA label recess',(ix-.05,1.992,0),(1.65,.002,.67),m['shell'],.012)
     for j,w in enumerate([.018,.03,.014,.035,.02,.014,.026,.02,.038,.015,.025]):
-        box('Nano ITLA identification bar',(ix-.65+j*.065,1.9996,.13),(w,.0007,.20),m['mark'],.0002)
+        box('Nano ITLA identification bar',(ix-.65+j*.065,1.994,.13),(w,.0007,.20),m['mark'],.0002)
     for x in [ix-1.11,ix+1.11]:
         for z in [-.64,.64]:screw('Nano ITLA flush fastener',x,1.989,z,m,.046)
     # Open ceramic carriers and perimeter seals: the native chip diagrams and
     # their copper/optical connections stay exposed and authoritative.
     for name,cx,cz,length in [('CDM package',3.235,-.52,1.85),('ICR package',3.11,.52,1.6)]:
         box(name+' carrier',(cx,1.375,cz),(length,.05,.82),m['ceramic'],.014)
-        for dz in [-.398,.398]:box(name+' seal',(cx,1.397,cz+dz),(length-.07,.006,.022),m['seal'],.002)
-        for dx in [-length/2+.017,length/2-.017]:box(name+' seal',(cx+dx,1.397,cz),(.022,.006,.774),m['seal'],.002)
+        for dz in [-.398,.398]:box(name+' seal',(cx,1.403,cz+dz),(length-.07,.006,.022),m['seal'],.002)
+        for dx in [-length/2+.017,length/2-.017]:box(name+' seal',(cx+dx,1.403,cz),(.022,.006,.774),m['seal'],.002)
     # Existing duplex LC apertures gain concentric metal sleeves, with an open
     # bore comfortably wider than the optical pulse envelope.
     for z in [-.3,.3]:

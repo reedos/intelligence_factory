@@ -38,7 +38,9 @@ def box(n,p,d,m,g,b=.04):
  return mesh(n,v,[(0,4,6,2),(1,3,7,5),(0,1,5,4),(2,6,7,3),(0,2,3,1),(4,5,7,6)],m,g,b)
 def prism(n,outline,y0,y1,m,g,b=.08):
  v=[(x,y,z) for y in [y0,y1] for x,z in outline];l=len(outline)
- f=[tuple(range(l-1,-1,-1)),tuple(range(l,2*l))]+[(i,(i+1)%l,(i+1)%l+l,i+l) for i in range(l)]
+ # roundrect runs counterclockwise in X/Z. With Y up, its forward
+ # winding points down: use it for the bottom, reverse it for the top.
+ f=[tuple(range(l)),tuple(range(2*l-1,l-1,-1))]+[(i,i+l,(i+1)%l+l,(i+1)%l) for i in range(l)]
  return mesh(n,v,f,m,g,b)
 def roundrect(w,d,r,steps=8):
  return [(sx*(w/2-r)+r*math.cos(a),sz*(d/2-r)+r*math.sin(a)) for sx,sz,start in [(1,1,0),(-1,1,90),(-1,-1,180),(1,-1,270)] for a in [math.radians(start+i*90/steps) for i in range(steps+1)]]

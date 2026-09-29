@@ -3,13 +3,18 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
-const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+// Opt into the real Windows GPU for large authored models; software remains the portable default.
+const gateArgs = process.env.IFX_GATE_GPU === '1'
+  ? ['--use-angle=d3d11', '--ignore-gpu-blocklist']
+  : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+const b = await chromium.launch({ args: gateArgs });
 const p = await b.newPage({ viewport: { width: 1000, height: 700 } });
 p.on('pageerror', e => console.log('pageerror', e.message));
 await p.goto(process.env.URL || 'http://127.0.0.1:47400/');
 await p.waitForFunction(() => window.ifx && window.ifx.state.scene === 0, null, { timeout: 90000 });
 const names = ['across', 'campus', 'hall', 'rack', 'tray', 'chip', 'module', 'cpo', 'coherent', 'copper'];
 for (let sc = 0; sc < 10; sc++) {   // six levels and the four side levels inside the links
+  if (process.env.ONLY_SCENE && !process.env.ONLY_SCENE.split(',').includes(String(sc))) continue;
   await p.evaluate(i => window.ifx.go(i), sc); await p.waitForFunction(i => window.ifx.state.scene === i, sc);
   const res = await p.evaluate(() => {
     const w = window.ifx, B = w.built[w.state.scene], cam = B.camera;
@@ -42,7 +47,7 @@ for (let sc = 0; sc < 10; sc++) {   // six levels and the four side levels insid
             let axis = -1; if (Math.abs(n.y) > 0.9999) axis = 1; else if (Math.abs(n.x) > 0.9999) axis = 0; else if (Math.abs(n.z) > 0.9999) axis = 2; if (axis < 0) continue;
             if (axis === 1 && n.y < 0) continue;
             const sign = Math.sign(n.getComponent(axis)), [a1, a2] = axis === 1 ? [0, 2] : axis === 0 ? [1, 2] : [0, 1];
-            faces.push({ axis, sign, c: va.getComponent(axis), tri: [[va.getComponent(a1), va.getComponent(a2)], [vb.getComponent(a1), vb.getComponent(a2)], [vc.getComponent(a1), vc.getComponent(a2)]], tag, col, dbl: mt.side === 2 });
+            faces.push({ axis, sign, c: va.getComponent(axis), tri: [[va.getComponent(a1), va.getComponent(a2)], [vb.getComponent(a1), vb.getComponent(a2)], [vc.getComponent(a1), vc.getComponent(a2)]], tag, col, name: o.name || o.parent?.name || `mesh-${tag}`, dbl: mt.side === 2 });
           }
         }
       }
@@ -78,12 +83,12 @@ for (let sc = 0; sc < 10; sc++) {   // six levels and the four side levels insid
           const fs = all.filter(f => all.some(o => o.tag !== f.tag && Math.abs(o.c - f.c) < tol));
           if (fs.length < 2) continue;
           const label = [...new Set(fs.map(f => f.col))].sort().join(' + ');
-          const pr = pairs.get(label) || { n: 0, at: null, c: fs[0].c }; pr.n++; if (!pr.at) { const i = Math.floor(key / 100003), j = key - i * 100003; pr.at = [mnx + i * cell, mny + j * cell]; } pairs.set(label, pr);
+          const pr = pairs.get(label) || { n: 0, at: null, c: fs[0].c, names: new Set() }; fs.forEach(f => pr.names.add(f.name)); pr.n++; if (!pr.at) { const i = Math.floor(key / 100003), j = key - i * 100003; pr.at = [mnx + i * cell, mny + j * cell]; } pairs.set(label, pr);
         }
         for (const [label, pr] of pairs) {
           const area = pr.n * cell * cell;
           if (area < (d * 0.004) ** 2) continue;
-          hits.push({ axis: 'xyz'[Math.floor(k / 2)] + (k % 2 ? '+' : '-'), plane: +pr.c.toFixed(4), area: +area.toPrecision(3), at: pr.at.map(v => +v.toFixed(3)), mats: label });
+          hits.push({ axis: 'xyz'[Math.floor(k / 2)] + (k % 2 ? '+' : '-'), plane: +pr.c.toFixed(4), area: +area.toPrecision(3), at: pr.at.map(v => +v.toFixed(3)), mats: label, names: [...pr.names] });
         }
       }
     }
@@ -91,6 +96,6 @@ for (let sc = 0; sc < 10; sc++) {   // six levels and the four side levels insid
     return { d: +d.toFixed(2), tol: +tol.toExponential(1), faces: faces.length, hits: hits.slice(0, 25) };
   });
   console.log(`\n== ${names[sc]}: view distance ${res.d}, tol ${res.tol}, ${res.faces} axis faces, ${res.hits.length} overlap groups`);
-  for (const h of res.hits) console.log(`  ${h.axis} @ ${h.plane}  area ${h.area}  at ${h.at}  ${h.mats}`);
+  for (const h of res.hits) console.log(`  ${h.axis} @ ${h.plane}  area ${h.area}  at ${h.at}  ${h.mats}  [${h.names.join(', ')}]`);
 }
 await b.close();

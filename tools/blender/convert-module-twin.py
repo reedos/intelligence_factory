@@ -19,6 +19,16 @@ board=bpy.data.objects['02_BOARD'];root=bpy.data.objects['IFX_OSFP']
 M={int(m.name.split(' | ')[0]):m for m in bpy.data.materials if ' | ' in m.name}
 def B(p):return Vector((p[0],-p[2],p[1]))
 def G(p):return (p.x,p.z,-p.y)
+
+# Representative passive terminations originally ran only 5 micrometres below
+# overlapping ceramic tops. Recess their upper skin to avoid overview depth
+# ambiguity; these component internals carry no dimensional claim.
+caps=bpy.data.objects['PART_DCDC__02']; inv_caps=caps.matrix_world.inverted()
+for v in caps.data.vertices:
+ p=list(G(caps.matrix_world@v.co))
+ if .00315 <= p[1] <= .003170001:
+  p[1]=.00315+(p[1]-.00315)*.25
+  v.co=inv_caps@B(p)
 def group(name,parent=board):
  o=bpy.data.objects.new(name,None);bpy.context.collection.objects.link(o);o.parent=parent;return o
 def remove_children(g):

@@ -3,7 +3,11 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
-const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+// Opt into the real Windows GPU for large authored models; software remains the portable default.
+const gateArgs = process.env.IFX_GATE_GPU === '1'
+  ? ['--use-angle=d3d11', '--ignore-gpu-blocklist']
+  : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+const b = await chromium.launch({ args: gateArgs });
 const p = await b.newPage({ viewport: { width: 1280, height: 900 } });
 const errors = [];
 p.on('pageerror', e => errors.push(e.message));
@@ -44,3 +48,4 @@ for (const s of scenarios) {
 }
 console.log(errors.length ? `errors:\n  ${[...new Set(errors)].join('\n  ')}` : 'no page errors');
 await b.close();
+if (errors.length) process.exitCode = 1;

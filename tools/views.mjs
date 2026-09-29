@@ -22,7 +22,7 @@ const scenarios = (process.env.ONLY ? [process.env.ONLY] : ['gb200-ac-warm', 'gb
   'h100-air-1gw': { meterMW: 1000, accel: 'h100', power: 'ac415', cooling: 'air' },
   'rubin-dc-warm-10mw': { meterMW: 10, accel: 'rubin', power: 'dc800', cooling: 'warm' },
   'gb200-5gw': { meterMW: 5000, accel: 'gb200', power: 'ac415', cooling: 'warm' },
-  colossus2: { meterMW: 1100, accel: 'gb300', power: 'ac415', cooling: 'liquid', site: 'colossus2' },   // battery backup, closed loop
+  colossus2: { meterMW: 1460, accel: 'gb300', power: 'ac415', cooling: 'liquid', site: 'colossus2', stage: 0 },   // battery backup, closed loop
 }[k]]);
 
 // everything measured in the page, after the camera has arrived
@@ -64,7 +64,7 @@ const check = () => {
 
 const rows = [];
 for (const [label, s] of scenarios) {
-  await p.evaluate(s => { ifx.exitStory(); ifx.closeClock(); ifx.setScenario({ ...s, site: undefined }); }, s);
+  await p.evaluate(s => { ifx.exitStory(); ifx.closeClock(); ifx.setScenario({ site: undefined, ...s }); }, s);
   await p.waitForTimeout(500);
   const stops = await p.evaluate(all => {
     const M = ifx.store.M, J = ifx.journeys;
@@ -99,3 +99,4 @@ for (const [label, s] of scenarios) {
 for (const r of rows) console.log(`  ${r.label} · ${r.tour} #${r.i + 1} ${r.link.scene}:${r.link.mode}:${r.link.part}${r.sim ? ` (clock ${r.sim})` : ''} → ${[r.err, r.blocked && `3D blocked by ${r.blocked}`, ...(r.covers || []).map(c => `covered by ${c}`)].filter(Boolean).join('; ')}`);
 console.log(errors.length ? `errors: ${[...new Set(errors)].join(' | ')}` : 'no page errors');
 await b.close();
+if (rows.length || errors.length) process.exitCode = 1;

@@ -44,7 +44,12 @@ const measure = () => {
   ];
   // a beat's box can reach under the sticky head while its words sit clear; judge the words
   const inked = el => { const r = vis(el); if (!r || !el.matches('.beat')) return r; const k = [...el.children].map(c => c.getBoundingClientRect()).filter(c => c.height);
-    return k.length ? new DOMRect(r.left, k[0].top, r.width, k[k.length - 1].bottom - k[0].top) : r; };
+    if (!k.length) return r;
+    // Phone beats scroll inside their own box. Offscreen paragraphs are clipped, not painted over the picker.
+    const clips = /auto|scroll|hidden|clip/.test(getComputedStyle(el).overflowY);
+    const top = clips ? Math.max(r.top, k[0].top) : k[0].top;
+    const bottom = clips ? Math.min(r.bottom, k[k.length - 1].bottom) : k[k.length - 1].bottom;
+    return new DOMRect(r.left, top, r.width, Math.max(0, bottom - top)); };
   const boxes = named.map(([n, s]) => [n, inked(document.querySelector(s))]).filter(([, r]) => r);
   const overlaps = [];
   for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
@@ -70,7 +75,11 @@ const measure = () => {
   };
 };
 
-const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+// Opt into the real Windows GPU for large authored models; software remains the portable default.
+const gateArgs = process.env.IFX_GATE_GPU === '1'
+  ? ['--use-angle=d3d11', '--ignore-gpu-blocklist']
+  : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+const b = await chromium.launch({ args: gateArgs });
 let bad = 0;
 for (const form of forms) {
   for (const [name, run] of Object.entries(STATES)) {

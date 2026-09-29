@@ -19,6 +19,15 @@ def cyl(n,p,r,h,m,g,axis='y',segments=24):
  q=o.modifiers.new('Turned edge','BEVEL');q.width=min(r,h)*.08;q.segments=2;o.modifiers.new('Weighted normals','WEIGHTED_NORMAL');return o
 def ring(n,p,r,minor,m,g):
  bpy.ops.mesh.primitive_torus_add(major_radius=r,minor_radius=minor,major_segments=32,minor_segments=8,location=pt(p));o=bpy.context.object;o.name=n;o.parent=groups[g];o.data.materials.append(m);return o
+def open_throat(n,p,outer,inner,h,m,g,segments=32):
+ # Hollow fan shroud: annular lips and inner/outer walls, no solid disk
+ # underneath the aperture that would close the intended air passage.
+ v=[(p[0]+r*math.cos(i*2*math.pi/segments),p[1]+y,p[2]+r*math.sin(i*2*math.pi/segments)) for r,y in [(outer,-h/2),(outer,h/2),(inner,-h/2),(inner,h/2)] for i in range(segments)]
+ f=[]
+ for i in range(segments):
+  j=(i+1)%segments;a=i;b=segments+i;c=2*segments+i;d=3*segments+i
+  f.extend([(a,b,segments+j,j),(c,2*segments+j,3*segments+j,d),(b,d,3*segments+j,segments+j),(a,j,2*segments+j,c)])
+ return mesh(n,v,f,m,g)
 # Six-fan dry-cooler cassette. Original footprint/rotor anchors retained.
 g='COOLER';box('Structural skid',(0,.15,0),(11.6,.3,2.3),steel,g,.08)
 for z in [-.95,.95]:
@@ -26,7 +35,7 @@ for z in [-.95,.95]:
  for i in range(48):box('Coil-fin edge',(-5.6+i*.237,1.15,z+(1 if z>0 else -1)*.08),(.028,1.62,.12),steel,g,.008)
 box('Fan deck',(0,2.2,0),(11.6,.2,2.4),white,g,.09)
 for i in range(6):
- x=-4.9+i*1.96;cyl('Fan throat',(x,2.43,0),.9,.28,steel,g);ring('Rolled fan bellmouth',(x,2.57,0),.84,.055,white,g)
+ x=-4.9+i*1.96;open_throat('Fan throat',(x,2.43,0),.9,.78,.28,steel,g);ring('Rolled fan bellmouth',(x,2.57,0),.84,.055,white,g)
  # dark opening remains below native/exported rotor surface.
  cyl('Fan aperture',(x,2.585,0),.78,.016,black,g)
 for x in [-5.6,5.6]:

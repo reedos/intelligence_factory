@@ -212,7 +212,7 @@ export function build({ quality, model }) {
     // out via a low-intensity emissive map (same texture, no extra lights, no extra draw calls or shadows)
     const frontMat = new THREE.MeshStandardMaterial({ map: t, roughness: 0.5, metalness: 0.2, emissiveMap: t, emissive: 0xffffff, emissiveIntensity: 0.22 });
     const panel = new THREE.Mesh(new THREE.PlaneGeometry(bw - 0.08, h - 0.06), frontMat);
-    panel.position.set(x0 + bw / 2, h / 2, z + (d / 2 + 0.016) * facing);
+    panel.position.set(x0 + bw / 2, h / 2, z + (d / 2 + 0.010) * facing);
     if (facing < 0) panel.rotation.y = Math.PI;
     panel.receiveShadow = true; scene.add(panel);
     // Representative enclosure joinery: each existing cabinet gets a physical
