@@ -14,12 +14,15 @@ export function build({ quality, state }) {
   const scene = setup(quality, 14), M = materials();
   const S = new Builder(), N = new Builder();
   const flows = [], dataFlows = [], heatFlows = [];
-  const SUB = 10.4, Y = { board: 0, sub: 0.9, subTop: 1.04, inter: 1.45, die: 1.62, eng: 1.5, plate: 4.2 };
+  const SUB = 10.4, Y = { board: 0, sub: 0.9, subTop: 1.04, inter: 1.45, die: 1.62, eng: 1.65, plate: 4.2 };
   let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
   S.box(SUB + 3.2, 0.14, SUB + 3.2, MAT.pcb, 0, Y.board, 0);
   S.box(SUB, 0.28, SUB, MAT.pcbBlack, 0, Y.sub, 0);
-  S.box(4.6, 0.1, 4.6, MAT.silicon, 0, Y.inter, 0);
+  // one silicon interposer under the switch ASIC AND the ring of optical engines around it (NVIDIA: "these
+  // subassemblies are seamlessly integrated on the switch package's interposer"), sized to the engine ring
+  // (radius 3.35 cm, offsets to ±2.87 cm along each side) plus their own footprint, with margin
+  S.box(9.0, 0.1, 9.0, MAT.silicon, 0, Y.inter, 0);
   const asicTop = die(scene, M, 3.8, 0.1, 3.8, asicTex(), 0, Y.die, 0);
 
   // ---- engines ----

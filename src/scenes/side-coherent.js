@@ -144,8 +144,8 @@ export function build({ quality, state }) {
   label(scene, 'RX · lanes out', [MX0 - 0.9, 1.75, 0.55], COL.rx, 0.16);
   label(scene, 'Electrical · copper traces', [DSPX + 1.2, 1.9, -1.45], COL.elec, 0.14);
   label(scene, 'Tunable laser · sized to a published nano-ITLA (JLT 2023), 25.0 × 15.6 × 6.5 mm', [ITX, 2.45, 0], COL.cw, 0.15);
-  label(scene, 'Driver + IQ modulator (TX)', [CX_, 1.9, -1.45], COL.tx, 0.14);
-  label(scene, 'Coherent receiver + TIAs (RX)', [RX_, 1.9, 1.45], COL.rx, 0.14);
+  label(scene, 'Driver + IQ modulator (TX) · one common design', [CX_, 1.9, -1.45], COL.tx, 0.14);
+  label(scene, 'Coherent receiver + TIAs (RX) · one common design', [RX_, 1.9, 1.45], COL.rx, 0.14);
   label(scene, 'Light · glass fiber', [LCX - 0.6, 2.05, 0], COL.tx, 0.14);
 
   const view = (p, v, t) => ({ pos: p, view: { pos: v, target: t } });

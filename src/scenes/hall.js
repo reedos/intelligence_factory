@@ -54,6 +54,33 @@ function frontTex(kind) {
     } else if (kind === 'net') {
       g.fillStyle = '#121418'; g.fillRect(0, 0, w, h);
       for (let y = 20; y < h - 20; y += 22) { g.fillStyle = '#1f232a'; g.fillRect(10, y, w - 20, 18); for (let x = 16; x < w - 16; x += 8) { g.fillStyle = ['#e8c547', '#3fd1c8', '#e8c547', '#9aa3ad'][(x + y) % 4]; g.fillRect(x, y + 5, 4, 8); } }
+    } else if (kind === 'storage') {
+      // JBOD-style 2U drive shelves: dense grids of small drive bays, no NVLink switches, no coolant gear
+      g.fillStyle = '#15171b'; g.fillRect(0, 0, w, h);
+      const U = h / 48;
+      for (let s = 0; s < 12; s++) {
+        const y = s * U * 4;
+        g.fillStyle = '#1c1f24'; g.fillRect(6, y + 2, w - 12, U * 4 - 4);
+        g.fillStyle = '#0b0c0e'; g.fillRect(6, y + 2, w - 12, 3);
+        for (let r = 0; r < 2; r++) for (let c = 0; c < 12; c++) {
+          const bw = (w - 24) / 12, bx = 12 + c * bw, by = y + 7 + r * (U * 2 - 2);
+          g.fillStyle = '#2a2e35'; g.fillRect(bx, by, bw - 3, U * 2 - 6);
+          g.fillStyle = (c + r + s) % 7 === 0 ? '#ff8a3d' : '#5cf29a'; g.fillRect(bx + 2, by + U * 2 - 9, 4, 3);
+        }
+      }
+      g.fillStyle = '#0b0c0e'; g.fillRect(0, 0, 8, h); g.fillRect(w - 8, 0, 8, h);
+    } else if (kind === 'cpu') {
+      // plain 1U CPU server faces: head / login / scheduler nodes, no GPU faceplate, no drive-bay grid
+      g.fillStyle = '#121418'; g.fillRect(0, 0, w, h);
+      const U = h / 48;
+      for (let i = 0; i < 43; i++) {
+        const y = U * (2 + i * 1.06);
+        g.fillStyle = '#1d2026'; g.fillRect(8, y, w - 16, U - 2);
+        g.fillStyle = '#2a2e35'; g.fillRect(8, y, w - 16, 3);
+        for (let d = 0; d < 2; d++) { g.fillStyle = '#0b0c0e'; g.beginPath(); g.arc(24 + d * 16, y + U / 2, U * 0.28, 0, Math.PI * 2); g.fill(); }
+        g.fillStyle = i % 9 === 0 ? '#ffb347' : '#5cf29a'; g.fillRect(w - 26, y + U / 2 - 1.5, 5, 3);
+      }
+      g.fillStyle = '#0b0c0e'; g.fillRect(0, 0, 8, h); g.fillRect(w - 8, 0, 8, h);
     }
   });
 }
@@ -171,7 +198,7 @@ export function build({ quality, model }) {
     panel.receiveShadow = true; scene.add(panel);
     return { x0, bw, h, z };
   };
-  const TEX = { swgr: frontTex('swgr'), ups: frontTex(dc ? 'sst' : 'ups'), batt: frontTex('batt'), cdu: frontTex(air ? 'inrow' : 'cdu'), rack: frontTex(nvl ? 'rack' : 'rackH100'), net: frontTex('net') };
+  const TEX = { swgr: frontTex('swgr'), ups: frontTex(dc ? 'sst' : 'ups'), batt: frontTex('batt'), cdu: frontTex(air ? 'inrow' : 'cdu'), rack: frontTex(nvl ? 'rack' : 'rackH100'), net: frontTex('net'), storage: frontTex('storage'), cpu: frontTex('cpu') };
   cabinetRow(14, 0.9, 2.3, 1.5, TEX.swgr, -33.5, -15.6);                                 // 480 V switchgear against the back wall
   const upsH = dc ? 2.3 : 2.0;
   cabinetRow(3, 1.1, upsH, 1.0, TEX.ups, -33.5, -6.5); cabinetRow(3, 1.1, upsH, 1.0, TEX.ups, -29.6, -6.5); cabinetRow(3, 1.1, upsH, 1.0, TEX.ups, -25.7, -6.5);
@@ -292,6 +319,23 @@ export function build({ quality, model }) {
   S.cyl(0.36, 0.12, MAT.darkSteel, sleeveX, 0.2, sleeveZ, 20);
   for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; N.strut([sleeveX + Math.cos(a) * 0.16, 4.3, sleeveZ + Math.sin(a) * 0.16], [sleeveX + Math.cos(a) * 0.16, 0.1, sleeveZ + Math.sin(a) * 0.16], 0.045, MAT.yellowTray, 8); }
   N.box(1.4, 0.04, 0.3, MAT.yellowTray, sleeveX - 0.6, 4.3, sleeveZ);
+  // ---------- storage & control racks: free floor east of the ODFs, its own short fiber pigtail ----------
+  // storage: short 2U drive-shelf racks (dense drive-bay grid, no NVLink gear, no coolant manifolds) plus a
+  // pair of storage/front-end Ethernet switches on top of the last one; control: head/login/scheduler nodes
+  const svcZ = 12.0, svcGap = 0.6, storageX0 = 6.0;
+  const storageMx = []; for (let i = 0; i < 4; i++) storageMx.push({ x: storageX0 + i * RW + RW / 2, z: svcZ, f: 1 });
+  instanced(RW - 0.02, 2.3, 1.2, TEX.storage, 0x131519, storageMx);
+  const storLast = storageMx[3];
+  pluggableFace(storLast.x, storLast.z, storLast.f, { rows: 2, cols: 8, y0: 2.0, y1: 2.22, w: RW - 0.1 });
+  N.box(2.0, 0.04, 0.3, MAT.yellowTray, storLast.x, 4.3, svcZ);                             // short local runway stub
+  N.box(2.0, 0.1, 0.02, MAT.yellowTray, storLast.x, 4.35, svcZ - 0.15);
+  N.box(2.0, 0.1, 0.02, MAT.yellowTray, storLast.x, 4.35, svcZ + 0.15);
+  pigtail(storLast.x, 2.22, storLast.z + storLast.f * 0.735, 4.3, svcZ, 3);
+  const controlX0 = storageX0 + 4 * RW + svcGap;
+  const controlMx = []; for (let i = 0; i < 2; i++) controlMx.push({ x: controlX0 + i * RW + RW / 2, z: svcZ, f: 1 });
+  instanced(RW - 0.02, 2.3, 1.2, TEX.cpu, 0x131519, controlMx);
+  const ctrlFirst = controlMx[0];
+  pluggableFace(ctrlFirst.x, ctrlFirst.z, ctrlFirst.f, { rows: 1, cols: 6, y0: 2.05, y1: 2.2, w: RW - 0.14 }); // small ToR management switch
   // scale-out: a leaf-switch rack at the end of every row, a cross runway to the spine row
   const leafX = rowX1 + 0.45;
   instanced(0.6, 2.3, 1.2, TEX.net, 0x131519, rowZs.map((z, r) => ({ x: leafX, z, f: facing[r] })));
@@ -394,6 +438,7 @@ export function build({ quality, model }) {
   const hallLampZs = [-14, -6.4, 0.2, 8].filter((_, i) => !quality.mobile || i % 2 === 0);
   const hallLampItems = [];
   hallLampZs.forEach(lz => { for (let x = rowX0 - 3; x <= leafX + 3; x += quality.mobile ? 8 : 4) hallLampItems.push({ p: [x, 6.2, lz], w: 1.3, d: 0.5 }); });
+  hallLampItems.push({ p: [7, 6.2, svcZ], w: 1.3, d: 0.5 }, { p: [9.6, 6.2, svcZ], w: 1.3, d: 0.5 });   // over the storage/control racks
   scene.add(lamps(hallLampItems, { color: '#dce8ff', k: 1.9, halo: 1.8, haloOpacity: 0.26 }));
 
   // sprinkler branch lines with pendant heads, over the aisles
@@ -402,9 +447,22 @@ export function build({ quality, model }) {
     for (let x = rowX0 - 1; x <= rowX1 + 1; x += 3) { N.cyl(0.018, 0.12, MAT.darkSteel, x, 6.6, sz, 6); N.cyl(0.05, 0.02, MAT.orange, x, 6.53, sz, 8); }
   });
 
+  // air-sampling smoke detection: a wall box on the partition, well clear of the doorway opening so it
+  // reads against a solid wall face; a thin red sampling pipe along the ceiling with a few tiny sampling
+  // points, offset from the -9 sprinkler main so the two never share a plane
+  const asdX = -11.78, asdY = 2.3, asdZ = -9, asdPipeY = 6.6, asdPipeZ = -9.15;
+  N.box(0.14, 0.46, 0.36, MAT.white, asdX, asdY, asdZ);
+  N.box(0.03, 0.08, 0.1, glowMat('#ff5a5a', 1.4), asdX + 0.085, asdY + 0.12, asdZ);
+  N.strut([asdX, asdY + 0.23, asdZ], [asdX, asdPipeY, asdZ], 0.022, MAT.pipeRed, 8);
+  N.strut([asdX, asdPipeY, asdZ], [asdX, asdPipeY, asdPipeZ], 0.022, MAT.pipeRed, 8);
+  N.strut([asdX, asdPipeY, asdPipeZ], [-2, asdPipeY, asdPipeZ], 0.022, MAT.pipeRed, 8);
+  [-9, -5.5, -2].forEach(x => { N.cyl(0.016, 0.05, MAT.darkSteel, x, asdPipeY - 0.04, asdPipeZ, 6); N.cyl(0.04, 0.014, glowMat('#ff5a5a', 1.1), x, asdPipeY - 0.09, asdPipeZ, 8); });
+
   // cool LED strips along every rack top (a thin glowing line, distinct from the canvas texture's static dots)
   const ledStrip = glowMat('#8fe4ff', 1.6, 1);
   rowZs.forEach(z => N.box(rowX1 - rowX0, 0.012, 0.05, ledStrip, (rowX0 + rowX1) / 2, 2.312, z));
+  N.box(4 * RW, 0.012, 0.05, ledStrip, storageX0 + 2 * RW, 2.312, svcZ);
+  N.box(2 * RW, 0.012, 0.05, ledStrip, controlX0 + RW, 2.312, svcZ);
 
   // rack-front status LEDs, blinking at their own rate; modest count, fewer on phones
   const perRackLed = quality.mobile ? 1 : 2;
@@ -481,6 +539,7 @@ export function build({ quality, model }) {
       hotaisle: { pos: [6, 2.5, -9.7], view: { pos: [-11, 5, -9.2], target: [4, 1.5, -9.7] } },
       fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
       riser: { pos: [X0 + 2.4, hdrY + 3.2, -16.4], view: { pos: [X0 + 10, 10, -4], target: [X0 + 2.4, 5, -16.4] } },
+      fire: { pos: [asdX, 2.9, asdZ], view: { pos: [-7.5, 2.2, -5.2], target: [-10.8, 3.4, -9] } },   // the detector box and its sampling pipe rising to the ceiling
     },
     dataHotspots: {
       odf: { pos: [rowX0 + 4.4, 2.5, 14.5], view: { pos: [rowX0 + 11, 5.2, 23], target: [rowX0 + 5, 1.6, 12.5] } },
@@ -494,6 +553,9 @@ export function build({ quality, model }) {
       optics: { pos: [leafX, 2.6, -8.2], view: { pos: [leafX + 1.0, 4.0, -4.5], target: [leafX, 1.78, -8.2] } },
       cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.0, 4.2, 15.5], target: [netItems[CPO_I].x, 1.8, 10.5] } },
       racks: { pos: [midRow.x, 2.6, -4.6], view: { pos: [2, 4.5, 6.5], target: [4, 1.2, -4.6] } },
+      // storage's pin rides higher, over its first rack, so its label clears the management servers' pin beside it
+      storage: { pos: [storageMx[0].x, 3.3, svcZ], view: { pos: [(storageMx[0].x + storLast.x) / 2, 5, 19], target: [(storageMx[0].x + storLast.x) / 2, 1.3, svcZ] } },
+      control: { pos: [(controlMx[0].x + controlMx[1].x) / 2, 2.6, svcZ], view: { pos: [(controlMx[0].x + controlMx[1].x) / 2, 5, 19], target: [(controlMx[0].x + controlMx[1].x) / 2, 1.3, svcZ] } },
     },
     // bloom stays a small bump over the family default (0.5) for mood; threshold stays near the family
     // default (1.0) rather than dropping, so ceiling fixtures and the shared dataFlow/heatFlow markers

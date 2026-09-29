@@ -243,6 +243,7 @@ export function build({ quality, model }) {
   unitSub.slab(0.8, 0.6, 0.6, MAT.darkSteel, 0.6, 2.4, -0.3);
   const unitSubMx = [];
   const hallCentersZ = [];
+  let opsAnt;                              // the operations-center rooftop mast, set on hall A below
 
   const hallList = [hallA, hallB].slice(0, nHalls);
   hallList.forEach((h, hi) => {
@@ -271,6 +272,16 @@ export function build({ quality, model }) {
     const office = new THREE.Mesh(new THREE.BoxGeometry(28, 16, 60), officeMat);
     office.position.set(hallX0 - 14, 8.15, cz); office.castShadow = office.receiveShadow = true; scene.add(office);
     S.slab(29, 0.6, 61, MAT.roof, hallX0 - 14, 16.15, cz);
+    if (hi === 0) {
+      // this office is the operations center: a rooftop comms mast, dish and beacon mark it out from a plain
+      // office. Set on the SE corner of the roof, the side that faces the default and diagnostic camera views
+      // (both approach from +x/+z), so it isn't hidden behind the roof mass or the hall's own roof units.
+      const antX = hallX0 - 14 + 8, antZ = cz + 20, roofY = 16.45;
+      N.cyl(0.06, 4, MAT.galv, antX, roofY + 2, antZ, 8);
+      N.cylX(0.5, 0.12, MAT.darkSteel, antX, roofY + 3.1, antZ, 16);
+      N.add(new THREE.SphereGeometry(0.09, 10, 8), glowMat('#ff5a5a', 1.6), antX, roofY + 4.05, antZ);
+      opsAnt = { x: antX, z: antZ, roofY };
+    }
     // loading dock on the east end, with a stair down from the platform for the personnel door
     for (let i = 0; i < 4; i++) N.slab(0.3, 4.5, 3.6, MAT.darkSteel, hallX1 + 0.2, 0.15, cz - 20 + i * 5);
     S.slab(8, 0.6, 26, MAT.concrete, hallX1 + 4, 0.15, cz - 12);
@@ -385,6 +396,11 @@ export function build({ quality, model }) {
     N.slab(1.4, 1.2, 0.6, MAT.darkSteel, x + 6.5, 1.2, z); N.slab(1.4, 1.2, 0.6, MAT.darkSteel, x + 6.5, 1.2, z - 2);
     N.cyl(0.15, 9, MAT.galv, x - 5, 4.5, z + 3, 6);
   }
+  // ---------- meet-me room / border routers: a small annex on hall A's wall, where the hutB fiber path lands ----------
+  const borderX = hallX1 + 6, borderZ = -210;
+  S.slab(12, 3.6, 7, MAT.white, borderX, 0.15, borderZ); S.slab(12.6, 0.4, 7.6, MAT.roof, borderX, 3.75, borderZ);
+  N.slab(1.4, 1.2, 0.6, MAT.darkSteel, borderX - 6.5, 1.2, borderZ); N.slab(1.4, 1.2, 0.6, MAT.darkSteel, borderX - 6.5, 1.2, borderZ - 2);
+  N.cyl(0.15, 9, MAT.galv, borderX - 1, 4.5, borderZ + 3, 6);
   const dci = (pts, n) => dataFlows.push(flow(pts, 'dci', { count: n, speed: 45, size: 0.9, k: 2.2, trailK: 0.35, trailR: 0.3 }));
   dci([[fiberA[0], 0.7, 900], [fiberA[0], 0.7, fiberA[1]]], 40);
   dci([[fiberB[0], 0.7, -1100], [fiberB[0], 0.7, fiberB[1]]], 40);
@@ -533,6 +549,8 @@ export function build({ quality, model }) {
         towers: { pos: [45, 13, -275], view: { pos: [110, 60, -200], target: [70, 5, -275] } },
       } : {}),
       fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-60, 60, 330], target: [-120, 0, 200] } },
+      security: { pos: [-96, 4.2, 232], view: { pos: [-140, 20, 290], target: [-103, 3, 241] } },
+      ops: { pos: [opsAnt ? opsAnt.x : hallX0 - 14, opsAnt ? opsAnt.roofY + 3 : 17, opsAnt ? opsAnt.z : hallAz], view: { pos: [hallX0 - 14 - 75, 42, hallAz + 85], target: [hallX0 - 14, 8, hallAz] } },   // from the southwest, the office in front of its hall
     },
     dataFlows, heatFlows, layers: { data: dataGroup },
     heatHotspots: {
@@ -550,6 +568,7 @@ export function build({ quality, model }) {
       ...(nHalls > 1 ? { ductbank: { pos: [-54, 1.1, -90], view: { pos: [-57.2, 1.9, -87.4], target: [-54, 0.45, -89.2] } } } : {}),
       hall: { pos: [hcx, 26, hallAz], view: { pos: [hcx + 160, 170, 120], target: [hcx, 10, -120] } },
       longhaul: { pos: [fiberA[0], 3, 520], view: { pos: [200, 260, 900], target: [-150, 0, 420] } },
+      border: { pos: [borderX, 4.2, borderZ], view: { pos: [borderX + 70, 45, borderZ + 70], target: [borderX, 3, borderZ] } },
     },
     look: { env: 'sky', envIntensity: 0.6, exposure: 1.12, bloom: 0.95, threshold: 0.8, ao: 0 },
     update(t, dt) {
