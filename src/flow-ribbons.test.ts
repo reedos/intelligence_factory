@@ -40,6 +40,20 @@ describe('batched engineering motion ribbons',()=>{
     flows[1].group.visible=false;dataFlows[0].mesh.visible=false;built.update(4,1);
     expect(effect.batches.every((b:any)=>!b.group.visible)).toBe(true);
   });
+  it('drops the halo draw while preserving every animated route and clock',()=>{
+    const {built,flows}=fixture(),effect=attachFlowRibbons(built);
+    effect.setQuality({halo:false});flows[0].acc=.2;effect.update();
+    expect(effect.drawCallsPerVisibleLayer).toBe(1);
+    for(const batch of effect.batches) {
+      expect(batch.group.children[0].visible).toBe(false);
+      expect(batch.group.children[1].visible).toBe(true);
+      expect(batch.group.visible).toBe(true);
+    }
+    const phase=effect.batches[0].phase.getX(0);
+    effect.setQuality({halo:true});effect.update();
+    expect(effect.batches[0].phase.getX(0)).toBe(phase);
+    expect(effect.drawCallsPerVisibleLayer).toBe(2);
+  });
   it('injects per-route phase and visibility into both shared line shader variants',()=>{
     const {built}=fixture(),effect=attachFlowRibbons(built);
     for(const line of effect.batches[0].group.children){

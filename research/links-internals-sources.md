@@ -223,3 +223,109 @@ was sought or used.*
   amplified DWDM") and gives "Up to 75 km with 800ZR and 80 km with 800G ZR+" unamplified.
 - **Coherent DSP makers.** The "Broadcom is not among them" line rested on trade commentary; the site now names the
   makers one 2026 survey lists, without a universal exclusion.
+
+
+## 9/29/2026 — Separate coherent driver and TIA components
+
+The coherent close-up distinguishes electronic ICs from optical components. The visible
+`cdm` and `icr` part names become **Dual-polarization IQ modulator** and **Receiver optics
+(hybrids + photodiodes)**; the legacy IDs remain for old links. New `driver` and `tia` parts
+exist in data, power and heat views. The current drawing uses separately packaged board-mounted driver and TIA electronics, each
+physically distinct from the standalone optical assemblies. This package arrangement, its
+interfaces, component dimensions and placement remain explicit design assumptions. Only the OSFP envelope and the cited nano-ITLA case are to scale.
+
+Public source check on 9/29/2026:
+
+- [Precision OT, Part II](https://www.precisionot.com/whats-in-a-coherent-pluggablepart-ii/):
+  the “Coherent Pluggables: What’s Inside?” section and Figure 2 distinguish drivers, TIAs,
+  modulators and photodetectors. This is a generic architecture illustration, not a teardown
+  establishing physical package boundaries.
+- [Coherent IC announcement](https://www.coherent.com/news/press-releases/coherent-unveils-a-family-of-ics-for-next-generation-optical-transceivers):
+  CHR1094/CHR2094 is a coherent **400G ZR/ZR+** chipset. The separate CHR2075 announcement
+  for 800G/1.6T modules does not qualify that coherent chipset for 800ZR.
+- [Coherent TIA product table](https://www.coherent.com/networking/optoelectronic-devices/integrated-circuits/transimpedance-amplifiers):
+  CHR1094 is a four-channel, 64 GBd wire-bonded die for 400G ZR/ZR+. It is an example of
+  a distinct electronic IC, not the claimed component inside the modeled 800ZR module.
+- [Sumitomo Electric, E101-06](https://sumitomoelectric.com/sites/default/files/2025-10/download_documents/E101-06.pdf):
+  Figure 1 supports the signal-chain ordering. Sections 2–3 and Photos 1–2 document separate
+  driver and TIA ICs; Section 4.1 assembles them with optics into CDM/ICR packages.
+- [OIF ECOC 2022 presentation](https://www.oiforum.com/wp-content/uploads/ECOC-2022-Market-Focus-Gass-final1.pdf),
+  slide 10, groups photonics, driver and TIA within a COSA. It supports explaining component
+  roles without assuming one sealed package per component.
+- [Lightwave, Coherent 800G DCO](https://www.lightwaveonline.com/home/article/14305470/coherent-corp-800g-coherent-pluggable-dco-module-in-qsfp-dd-form-factor)
+  is **secondary** coverage. It describes an IC-TROSA containing optics and analog electronics;
+  it is context for integration alternatives, not evidence of discrete board packages.
+
+The intended paths are DSP → driver → modulator on transmit, and photodiodes → TIA → DSP
+on receive. Those links are electrical. Laser carrier and local-oscillator branches remain
+optical and terminate at optics, never at the driver or TIA. Short chip-to-optics connections
+avoid suggesting that sensitive RF/current paths can be routed arbitrarily around a module.
+
+Power and heat animations remain qualitative. No module-total wattage is reassigned to an
+individual driver, TIA or optical block. Optical-block bias/control and heat paths are
+explicit assumptions, not a specific vendor circuit or a claim of equal dissipation.
+
+Validation of the earlier 9/29/2026 bare-die discrete-IC revision (superseded by the board-package redesign below): Blender 5.2 regenerated the coherent
+`.blend` and GLB from the updated circuit reference. Separate islands fit within the
+PCB; signal geometry keeps light outside analog ICs. The review found and corrected
+small carrier overhangs and overlapping electrical trace widths. Explicit board-to-IC
+bonds now join the short IC-to-optics bonds. Component sizes remain illustrative.
+All 1,283 tests pass, TypeScript passes, and the claims checker reports zero problems
+across 66,515 claim instances. Desktop and 390-pixel phone camera gates each pass
+97 stops in the GB200 AC warm-water scenario. The coherent coplanar scan finds zero
+overlap groups. The driver and TIA close-ups were visually inspected in the browser.
+This revision is available in the private preview, not deployed to the public site.
+
+## 9/29/2026 — Discrete board-package redesign
+
+The earlier separate bare dies still resembled integrated optical subassemblies. The revised
+design makes the requested distinction physical: the driver and TIA are opaque, independently
+board-mounted electronic packages; the modulator and receiver optics are separate optical
+assemblies. Neither analog package shares an optical carrier. Short board connections carry
+electrical signals between these assemblies; optical paths terminate only at optics.
+
+This is an explicitly assumed discrete implementation. The public sources above establish
+separate analog ICs and signal-chain functions, but do not validate this exact four-assembly
+800ZR OSFP floorplan or its package interfaces. Current cards describe the discrete design
+being shown. Integrated alternatives are discussed in the evidence caveat, without presenting
+them as the current drawing. The validation results for the earlier bare-die revision do not
+certify this later package redesign; it requires fresh geometry and preview checks.
+
+## 9/29/2026 — Laser split and DSP interfaces
+
+[Acacia’s March 2021 white paper](https://acacia-inc.com/wp-content/uploads/2021/03/Coherent-for-Service-Provider-Edge-and-Access-Network-Applications-WP0321.pdf),
+page 10, explains the shared CW source for a coherent link using the same transmit and
+receive wavelength. The conventional diagram branches the laser through a splitter to the
+modulator and receiver LO. Its BiDi contrast uses separate lasers when those wavelengths
+differ. The laser card now cites this architecture directly; it does not generalize the
+shared source to every coherent design or source the illustrative OSFP floorplan from it.
+
+The DSP card identifies separate host-side digital and optical-side analog interfaces.
+The four drawn host-path groups organize the diagram; they are not four specified host
+lanes, a package pinout or a one-to-one mapping through the processor. Transmit processing
+and DAC conversion, and receive ADC conversion and processing, separate the two interfaces.
+Package terminal positions and internal converter implementation remain representative.
+The discrete driver/TIA package architecture caveat is unchanged.
+
+## 9/29/2026 — Final correction checks
+
+The discrete board-package geometry now passes dedicated checks for separate footprints,
+optical paths staying outside electronics, fixed DSP interface endpoints, electrical routes
+clearing the laser, and one laser trunk branching only at the visible splitter. The raised
+DSP thermal pad follows cover visibility so the interface banks remain inspectable.
+Coherent camera checks passed 97 desktop and 97 phone stops; the coherent coplanar scan
+found zero overlap groups. Package layout and electrical pin positions remain assumptions.
+
+Both pluggable DSPs now carry Blender-authored 4 × 200G / 800G each-way markings; existing
+four-lane-per-engine routes total 1.6T per direction. The old duplicated 8 × 200G lettering
+was removed. ACC REDRIVER and AEC DSP RETIMER lettering is printed on the copper packages.
+
+The apparent translucent ACC block was a GTAO normal-pass error: LineSegments2 flow
+ribbons were rendered using an ordinary mesh override, exposing their proxy rectangles.
+HardwareGTAOPass excludes teaching overlays, sprites and non-depth-writing transparent
+meshes only during AO rendering, then restores visibility. Hardware AO and color-pass
+signal animation remain enabled. The corrected ACC view was visually checked in-browser.
+
+Final validation: 1,288 tests pass across 30 files; TypeScript passes; the evidence checker
+reports zero problems across 66,827 claim instances. Production build and standalone
+artifact build succeed. Changes are in the private review preview, not the public release.

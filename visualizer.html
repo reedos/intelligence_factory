@@ -28,7 +28,7 @@
   <section class="stage" aria-label="Power chain in 3D">
     <nav class="steps" id="steps" aria-label="Scale"></nav>
     <div class="body">
-      <!-- the viewer stacks the 3D view over the strips that belong to it (the clock, and on phones the buttons),
+      <!-- the viewer stacks the 3D view over its controls (on phones the buttons),
            so nothing docked to the view can land on top of anything else -->
       <div class="viewer" id="viewer">
         <div class="view" id="view">
@@ -49,8 +49,8 @@
           <div class="veil" id="veil">Building the region…</div>
         </div>
         <div class="hud-btns" id="hud-btns">
-          <div class="hud-row"><button type="button" class="btn story-btn" id="back-out" hidden>↑ Back out</button><button type="button" class="btn story-btn" id="story-btn" aria-pressed="false">Tours</button><button type="button" class="btn story-btn" id="layer-play" title="Play every part in this layer, level 1 to 6">Play layer</button><button type="button" class="btn story-btn" id="clock-btn" aria-pressed="false">Clock</button><button type="button" class="btn story-btn" id="share-btn">Share</button></div>
-          <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>With the view focused or the pointer over it: 1–6 jumps scale · P D H switch layers · ← → steps parts · S tours · Space plays · C clock</p>
+          <div class="hud-row"><button type="button" class="btn story-btn" id="back-out" hidden>← Back outside</button><button type="button" class="btn story-btn" id="share-btn">Share</button></div>
+          <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>With the view focused or the pointer over it: 1–6 jumps scale · P D H switch layers · ← → steps parts</p>
         </div>
       </div>
       <aside class="panel" aria-label="Components">
@@ -79,7 +79,7 @@
       <div class="sc-compare"><button type="button" class="btn" id="sc-pin" aria-pressed="false">Pin to compare</button><span id="sc-pinned"></span></div>
     </section>
           <p class="intro" id="intro"></p>
-          <div class="parts-head"><span class="eyebrow" id="parts-k">Numbered in the view</span><button type="button" class="btn play-these" id="play-these">▶ Play them in order</button></div>
+          <div class="parts-head"><span class="eyebrow" id="parts-k">Numbered in the view</span></div>
           <ul class="parts" id="parts"></ul>
           <article class="card" id="card" hidden>
             <span class="k" id="card-k"></span>
@@ -89,7 +89,10 @@
             <div class="card-links" id="card-links" hidden></div>
             <div class="card-actions">
               <button type="button" class="btn go" id="card-go" hidden>Go inside →</button>
-              <button type="button" class="btn" id="card-next">Next part</button>
+              <div class="card-navigation" role="group" aria-label="Part navigation">
+                <button type="button" class="btn" id="card-prev">Previous part</button>
+                <button type="button" class="btn" id="card-next">Next part</button>
+              </div>
             </div>
           </article>
           <p class="pane-note">Personal educational project based on cited public sources. Not an official publication of my employer or the companies discussed. Models are schematic; estimates and assumptions are identified. Counts and layouts follow this scenario, not a photograph or one vendor's hardware.</p>

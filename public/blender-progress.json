@@ -1,5 +1,5 @@
 {
-  "updated": "9/29/2026, 2:02:51 AM",
+  "updated": "9/29/2026",
   "fleet": {
     "status": "White Model 3 / Model Y · revised Blender models",
     "detail": "Both production cars are white, with slimmer Model 3 headlights, the current Model Y lightbar, revised glazing and roof rails, and Model Y crossover cladding. These are simplified public-photo-inspired models. This image is rendered in Blender Cycles; the interactive campus uses Three.js/WebGL.",
@@ -25,26 +25,26 @@
     {
       "level": 2,
       "name": "Data hall",
-      "status": "Redesigned · available for visual review",
+      "status": "Rendering defects corrected · private preview",
       "audit": "passed",
-      "detail": "More visible rack power and optical motion; overhead lights and reflective floor retained.",
-      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+      "detail": "Fixed coincident wall/pier tops in the Blender hall. Overhead lighting and reflections retained.",
+      "next": "Full audit: 1,297 tests pass; 1,065 desktop and 180 phone part views clear. Rendering audit covers all ten levels in all three layers. Private preview only."
     },
     {
       "level": 3,
       "name": "Rack",
-      "status": "Redesigned · available for visual review",
+      "status": "Rendering defects corrected · private preview",
       "audit": "passed",
-      "detail": "Stronger bus and link motion with refined narrow exhaust streaks.",
-      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+      "detail": "Fixed overlapping handle/collar surfaces in GB200, GB300, and Rubin Blender racks. Flow motion retained.",
+      "next": "Full audit: 1,297 tests pass; 1,065 desktop and 180 phone part views clear. Rendering audit covers all ten levels in all three layers. Private preview only."
     },
     {
       "level": 4,
       "name": "Compute tray",
-      "status": "Redesigned · available for visual review",
+      "status": "Rendering defects corrected · private preview",
       "audit": "passed",
-      "detail": "Brighter connected power, data and coolant streams on the existing audited routes.",
-      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+      "detail": "Shared AO and cinematic focus now exclude shader backing rectangles and transparent overlays. Power, data, and heat verified; H100, GB200, GB300, and Rubin tray views inspected.",
+      "next": "Full audit: 1,297 tests pass; 1,065 desktop and 180 phone part views clear. Rendering audit covers all ten levels in all three layers. Private preview only."
     },
     {
       "level": 5,
@@ -57,34 +57,34 @@
     {
       "level": 6,
       "name": "Pluggable",
-      "status": "Redesigned · available for visual review",
+      "status": "DSP capacity labels corrected · private preview",
       "audit": "passed",
-      "detail": "Cover aligned directly above the body; overlays follow assembly and DSP/LPO changes.",
-      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+      "detail": "Both Blender DSP packages now read 4 × 200G / 800G each way: together 1.6T per direction. Per-engine routes and total capacity are regression-checked.",
+      "next": "Printed markings and lane allocation verified in the interactive model. Included in the 1,297 passing tests."
     },
     {
       "level": 7,
       "name": "CPO",
-      "status": "Redesigned · available for visual review",
+      "status": "Technical audit corrected · private preview",
       "audit": "passed",
-      "detail": "All 18 engines receive animated CW, TX and RX paths; Power inspection exposes buried supply routes.",
-      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+      "detail": "Primary-source EIC/PIC and microring review; printed driver/TIA functions; separate outbound data and laser-supply fibers; ASIC remains translucent in Power.",
+      "next": "Circuit floorplan and coupling remain representative. All physical fiber pairs pass the intersection/clearance gate; 180 desktop and 180 phone camera stops clear in the GB200 scenario."
     },
     {
       "level": 8,
       "name": "Coherent optics",
-      "status": "Redesigned · available for visual review",
+      "status": "Discrete board packages and routing corrected · private preview",
       "audit": "passed",
-      "detail": "Rebuilt photo-informed lid, aligned cover and denser electrical motion; discrete packaging alternatives remain explicit.",
-      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+      "detail": "Closed driver and TIA packages are physically separate from the optical assemblies. One laser trunk branches at its splitter into TX carrier and RX LO. Host and analog DSP paths terminate at separate interface banks.",
+      "next": "1,297 tests pass; coherent camera checks pass 97 desktop and 97 phone stops. Zero coherent coplanar overlap groups. Package floorplan remains representative; not a shipping-product teardown."
     },
     {
       "level": 9,
       "name": "Copper links",
-      "status": "Redesigned · available for visual review",
+      "status": "Printed labels and rendering artifact fixed · private preview",
       "audit": "passed",
-      "detail": "Rebuilt flat metal shells, latches, release loops and sectioned boots; all 24 directional paths animated.",
-      "next": "Independent route/geometry review passed. Current visual revision is available for your judgment; physical phone performance is not yet measured."
+      "detail": "ACC REDRIVER and AEC DSP RETIMER are printed on the Blender packages. Fixed the AO pass treating animated ribbons as solid rectangles; retained hardware AO and signal motion.",
+      "next": "Package lettering fits its physical footprints and is readable in the browser. ACC false rectangle visually verified gone with AO enabled. Included in 1,297 passing tests."
     }
   ]
 }

@@ -1,6 +1,7 @@
 """Re-author the representative twin-port internals while preserving the reviewed OSFP exterior.
-Two independent ports are documented; the separate DSP/PIC packages here are an
-explicit representative implementation, not a vendor teardown. SI metres, glTF Y up.
+Two optical ports share one eight-lane 1.6T DSP and a representative PIC.
+Eight TX lanes occupy one bank, eight RX lanes the other; analog ICs and
+placement are representative, not a vendor teardown. SI metres, glTF Y up.
 Run with Blender --background --python tools/blender/convert-module-twin.py.
 """
 import bpy,json,struct,math,shutil
@@ -29,6 +30,22 @@ for v in caps.data.vertices:
  if .00315 <= p[1] <= .003170001:
   p[1]=.00315+(p[1]-.00315)*.25
   v.co=inv_caps@B(p)
+# Clear two visible signal corridors between the center controllers and inductors.
+# Move the representative small passives, including their solder terminations,
+# from +/-3 mm to the spare outer rows; keep the actual contact assignments intact.
+for o in bpy.data.objects['PART_DCDC'].children_recursive:
+ if o.type!='MESH':continue
+ inv=o.matrix_world.inverted()
+ for v in o.data.vertices:
+  p=list(G(o.matrix_world@v.co))
+  if -.042 < p[0] < -.023 and .0026 < abs(p[2]) < .0034:
+   if p[2]<0 and p[0]>-.0285:p[0]-=.001575;p[2]+=.0108
+   else:p[2]+=math.copysign(.0048,p[2])
+   v.co=inv@B(p)
+# Replace the old decorative fan-out vias with the vias used by the complete nets.
+for name in ['PART_BOARD__05','PART_BOARD__07']:
+ if name in bpy.data.objects:bpy.data.objects.remove(bpy.data.objects[name],do_unlink=True)
+
 def group(name,parent=board):
  o=bpy.data.objects.new(name,None);bpy.context.collection.objects.link(o);o.parent=parent;return o
 def remove_children(g):
@@ -41,47 +58,44 @@ def box(name,p,d,m,parent,bevel=.000035):
   bpy.context.view_layer.objects.active=o;bpy.ops.object.modifier_apply(modifier=mod.name)
  world=o.matrix_world.copy();o.parent=parent;o.matrix_world=world;o['authoredStatic']=True
  return o
-def clone_transform(source,parent,fn):
+# Reveal only the connector breakout in the data diagram. The rest of the
+# laminate stays opaque, so buried routing is readable without a floating overlay.
+laminate=bpy.data.objects['PART_BOARD__04']
+window_mat=bpy.data.materials.new('PCB breakout laminate, revealed layers');window_mat.use_nodes=True
+bsdf=window_mat.node_tree.nodes.get('Principled BSDF');bsdf.inputs['Base Color'].default_value=(.018,.12,.075,1);bsdf.inputs['Alpha'].default_value=.08;bsdf.inputs['Roughness'].default_value=.75
+window_mat.diffuse_color=(.018,.12,.075,.08)
+for side in [-1,1]:
+ center=(-.0471,.0022,side*.0048);dimensions=(.0064,.001,.008)
+ cutter=box('Temporary breakout cut',center,(.0064,.0015,.008),M[4],board,0)
+ bpy.context.view_layer.objects.active=laminate
+ mod=laminate.modifiers.new('Connector breakout section','BOOLEAN');mod.operation='DIFFERENCE';mod.object=cutter
+ bpy.ops.object.modifier_apply(modifier=mod.name);bpy.data.objects.remove(cutter,do_unlink=True)
+ patch=box('PCB_BREAKOUT_WINDOW',center,dimensions,window_mat,board,0);patch['pcbBreakoutWindow']=True
+
+def clone_transform(source,parent,fn,replace_dsp_marking=False):
  for o in list(source.children_recursive):
   if o.type!='MESH':continue
+  # Replace the reference engraving with the explicit shared-DSP capacity marking.
+  if replace_dsp_marking and M[9] in list(o.data.materials):continue
   n=bpy.data.objects.new(o.name+' twin',o.data.copy());bpy.context.collection.objects.link(n);n.parent=parent
   for v in n.data.vertices:v.co=B(fn(G(o.matrix_world@v.co)))
   n['authoredStatic']=True
-# Separate engine packages retain the original fine silicon and package geometry.
-for name,center,scale in [('PART_DSP',(0,0),(.75,.60)),('03_THERMAL',(0,0),(.75,.60)),('PART_DRIVER',(.0111,.003885),(1,.44)),('PART_TIA',(.0111,-.003765),(1,.44))]:
+# Preserve the reference's single PIC and eight-channel driver/TIA packages:
+# all TX channels lie on +Z, all RX on -Z. The two MPOs remain separate ports.
+for name in ['PART_DSP', '03_THERMAL']:
  source=bpy.data.objects[name];tmp=group('temporary source')
  for o in list(source.children):world=o.matrix_world.copy();o.parent=tmp;o.matrix_world=world
- for e,s in enumerate([1,-1]):
-  dest=group(f'ENGINE_{e+1}_{name}',source)
-  if name in ['PART_DSP','03_THERMAL']:
-   fn=lambda p,s=s:(-.016+(p[0]+.016)*scale[0],p[1],s*.00525+p[2]*scale[1])
-  else:
-   znew=(.0077 if name=='PART_DRIVER' else .00315) if e==0 else (-.00315 if name=='PART_DRIVER' else -.0077)
-   fn=lambda p,s=s,znew=znew,center=center,scale=scale:(p[0],p[1],znew+s*(p[2]-center[1])*scale[1])
-  clone_transform(tmp,dest,fn)
+ dest=group(f'SHARED_{name}',source)
+ clone_transform(tmp,dest,lambda p:p,name=='PART_DSP')
  remove_children(tmp);bpy.data.objects.remove(tmp,do_unlink=True)
-for name in ['PART_PIC','PART_LASERS','PART_BONDS','PART_DSP_TRACES','PART_OPTICAL_ROUTES']:
+for name in ['PART_BONDS','PART_DSP_TRACES','PART_OPTICAL_ROUTES']:
  remove_children(bpy.data.objects[name])
 for o in list(bpy.data.objects):
  if o.name.startswith('LPO_BYPASS'):bpy.data.objects.remove(o,do_unlink=True)
-lpo=group('LPO_BYPASS');pic=bpy.data.objects['PART_PIC'];lasers=bpy.data.objects['PART_LASERS'];bonds=bpy.data.objects['PART_BONDS'];traces=bpy.data.objects['PART_DSP_TRACES'];optics=bpy.data.objects['PART_OPTICAL_ROUTES']
-# Independent silicon dies, edge seal, fiber attach blocks and photodiode/electrode detail.
-for e,s in enumerate([1,-1]):
- pg=group(f'ENGINE_{e+1}_PIC',pic)
- box('Silicon photonics die',( .023275,.00315,s*.00525),(.01885,.00085,.0088),M[8],pg)
- for z in [s*.00525-.0043,s*.00525+.0043]:box('PIC perimeter seal',(.023275,.003595,z),(.0184,.000022,.00004),M[5],pg,.000006)
- box('Eight-fiber attach',( .0331,.0039,s*.00525),(.0011,.00055,.0079),M[10],pg)
- for j in range(4):
-  tx=(.00875-j*.0007) if e==0 else (-.0021-j*.0007);rx=(.0042-j*.0007) if e==0 else (-.00665-j*.0007)
-  box('Photodiode',(.0145,.00366,rx),(.0007,.00012,.00025),M[8],pg,.00002)
-  for x in [.0140,.0200,.0260]:box('MZM electrode pad',(x,.00367,tx),(.00038,.000035,.00018),M[5],pg,.000006)
-  for off in [-.00027,.00027]:box('MZM travelling electrode',(.023,.00366,tx+off),(.006,.000028,.00006),M[6],pg,.000006)
- for k in range(2):
-  z=(.0084-k*.0014) if e==0 else (-.00245-k*.0014)
-  box('Laser submount',(.0163,.00371,z),(.0019,.00024,.00062),M[5],lasers)
-  box('CW laser die',(.0166,.00393,z),(.00115,.0003,.00032),M[8],lasers,.000018)
+lpo=group('LPO_BYPASS');bonds=bpy.data.objects['PART_BONDS'];traces=bpy.data.objects['PART_DSP_TRACES'];optics=bpy.data.objects['PART_OPTICAL_ROUTES']
 # Build physical conductors and metadata together: electrical and light never exchange materials.
-routes=[];parts={}
+routes=[];parts={};contacts={c['signal']:c for c in meta['contacts']};host_vias=[]
+via_group=group('HOST_SIGNAL_VIAS')
 def route(name,points,mat,radius,parent,engine=None):
  points=[list(p) for p in points];r={'name':name,'assembly':'02_BOARD','points':points}
  if engine is not None:r['engine']=engine+1
@@ -98,30 +112,53 @@ def route(name,points,mat,radius,parent,engine=None):
   for k in range(8):n=(k+1)%8;fs.append((base+k,base+n,base+8+n,base+8+k))
   fs.extend([tuple(base+k for k in range(7,-1,-1)),tuple(base+8+k for k in range(8))])
 for i in range(8):
- e=i//4;s=1 if e==0 else -1;j=i%4;tx=(.00875-j*.0007) if e==0 else (-.0021-j*.0007);rx=(.0042-j*.0007) if e==0 else (-.00665-j*.0007);num=f'{i+1:02d}'
+ e=i//4;tx=.00665-i*.00079;rx=-.001-i*.00079;num=f'{i+1:02d}'
  for prefix,z in [('TX',tx),('RX',rx)]:
-  oldz=(.00665-i*.00079) if prefix=='TX' else (-.001-i*.00079)
   names=[f'TX {num} MZM arm -1',f'TX {num} MZM arm 1',f'Driver bond {i+1}',f'TX RF feed {i+1}'] if prefix=='TX' else [f'RX {num} waveguide',f'TIA bond {i+1}']
   for name in names:
-   points=[[p[0],p[1],z+s*(p[2]-oldz)] for p in old[name]['points']]
+   points=old[name]['points']
    optical=('MZM arm' in name or 'waveguide' in name)
    route(name,points,M[13 if prefix=='TX' else 14] if optical else M[5 if 'bond' in name else 6],.000028 if optical else .000012,bonds if 'bond' in name else optics,e)
-  # Smooth fibers preserve the exact MPO-12 fiber positions; each engine feeds its own port only.
+  # Smooth fiber banks fan out to each port. RX arches above TX so crossings
+  # in plan view remain separate glass strands, never optical junctions.
   previous=old[f'{prefix} glass fiber {num}']['points'];start=[.0334,.00395,z];end=previous[-1]
   points=[]
   for k in range(25):
-   t=k/24;u=t*t*(3-2*t);points.append([start[0]+(end[0]-start[0])*t,start[1]+(end[1]-start[1])*u+.00055*math.sin(math.pi*t),start[2]+(end[2]-start[2])*u])
+   t=k/24;u=t*t*(3-2*t);points.append([start[0]+(end[0]-start[0])*t,start[1]+(end[1]-start[1])*u+(.00055 if prefix=='TX' else .0020)*math.sin(math.pi*t),start[2]+(end[2]-start[2])*u])
   route(f'{prefix} glass fiber {num}',points,M[13 if prefix=='TX' else 14],.000035,optics,e)
-  # These sampled traces begin after omitted contact fan-out. Pair spacing is preserved.
+  # Every conductor starts on its assigned OSFP contact. A short multilayer
+  # breakout preserves lane numbers and polarity despite the two-sided pinout.
+  # The eight representative PCB routing layers are exposed only at their vias;
+  # all long runs through the power section use the two clear top-side corridors.
   for sign in [-1,1]:
-   zp=z+s*sign*.000072;y=.00273
-   host=[[-.0273,y,zp],[-.0255,y,zp],[-.021625,y,zp]]
-   engine=[[-.010375,y,zp],[-.001,y,zp],[.006,y,zp],[.008450001,y,zp]]
+   zp=z+sign*.000072;y=.00273;dspz=zp*.7
+   polarity='p' if sign==(1 if prefix=='TX' else -1) else 'n'
+   contact=contacts[f'{prefix}{i+1}{polarity}'];start=contact['position']
+   layer=.00180+i*.00010
+   bankz=(.00352-i*.00024 if prefix=='TX' else -.00184-i*.00024)+sign*.000072
+   heelz=start[2]+(.00020 if start[1]<.002 else 0)
+   heel=[-.0500,start[1],heelz];via=[-.0442,y,bankz]
+   breakout=[start,heel,[-.0500,layer,heelz],[-.0488,layer,heelz],[-.0452,layer,bankz],[-.0442,layer,bankz],via]
+   host=[*breakout,[-.0428,y,bankz],[-.0281,y,bankz],[-.0245,y,dspz],[-.0235,y,dspz]]
+   engine=[[-.0085,y,dspz],[-.0065,y,dspz],[-.002,y,zp],[.006,y,zp],[.008450001,y,zp]]
    route(f'{prefix} host copper {i} {sign}',host,M[6],.000028,traces,e)
+   routes[-1].update(hostSignal=contact['signal'],hostPin=contact['pins'][0],pcbLayer=i+1)
    route(f'{prefix} engine copper {i} {sign}',engine,M[6],.000028,traces,e)
-   route(f'{prefix} LPO copper {i} {sign}',[host[0],host[1],[-.004,y,zp],*engine[-2:]],M[6],.000028,lpo,e)
- k=i//2;h=i%2;laserZ=(.0084-(j//2)*.0014) if e==0 else (-.00245-(j//2)*.0014)
- route(f'CW feed {k} {h}',[[.017175,.004035,laserZ],[.0179,.003605,laserZ],[.01835,.003605,tx],[.0189,.003605,tx]],M[15],.00003,optics,e)
+   bypass=[*breakout,[-.0428,y,bankz],[-.023,y,bankz],[-.019,y,zp],[-.004,y,zp],*engine[-2:]]
+   route(f'{prefix} LPO copper {i} {sign}',bypass,M[6],.000028,lpo,e)
+   routes[-1].update(hostSignal=contact['signal'],hostPin=contact['pins'][0],pcbLayer=i+1)
+   host_vias.extend([heel,via])
+ k=i//2;h=i%2
+ route(f'CW feed {k} {h}',old[f'CW feed {k} {h}']['points'],M[15],.00003,optics,e)
+# Plated annuli surround the actual layer transitions, rather than orphan dots.
+for index,p in enumerate(host_vias):
+ vs=[];fs=[]
+ for radius in [.000065,.000033]:
+  for k in range(16):
+   t=k*math.tau/16;vs.append(tuple(B((p[0]+radius*math.cos(t),p[1],p[2]+radius*math.sin(t)))))
+ for k in range(16):j=(k+1)%16;fs.append((k,j,16+j,16+k))
+ mesh=bpy.data.meshes.new('Plated signal via');mesh.from_pydata(vs,[],fs);mesh.update()
+ obj=bpy.data.objects.new(f'Signal via {index+1}',mesh);bpy.context.collection.objects.link(obj);obj.parent=via_group;obj.data.materials.append(M[5]);obj['authoredStatic']=True
 for (parent,mat),(vs,fs) in parts.items():
  mesh=bpy.data.meshes.new('Authored routes');mesh.from_pydata(vs,[],fs);mesh.update();o=bpy.data.objects.new(parent+' '+mat,mesh);bpy.context.collection.objects.link(o);o.parent=bpy.data.objects[parent];o.data.materials.append(bpy.data.materials[mat]);o['authoredStatic']=True
 # Batch manufacturable details per engine/material, retaining meaningful assembly groups.
@@ -134,14 +171,24 @@ for parent in [o for o in list(bpy.data.objects) if o.type=='EMPTY']:
   bpy.ops.object.select_all(action='DESELECT')
   for o in same:o.select_set(True)
   bpy.context.view_layer.objects.active=same[0];bpy.ops.object.join();bpy.context.object.name=parent.name+' '+mat.name
-meta['routes']=routes;meta['engineCount']=2;meta['lanesPerEngine']=4
-meta['implementation']='Two independent 800G ports; separate DSP/PIC packages and PCB fan-out are representative, not a teardown.'
-meta['engineAnchors']=[]
-for e,s in enumerate([1,-1]):
- a={'dsp':[-.016,.00406,s*.00525],'driver':[.0111,.00356,.0077 if e==0 else -.00315],'tia':[.0111,.00356,.00315 if e==0 else -.0077],'lasers':[.0166,.00408,.0084 if e==0 else -.00245],'mzm':[.023,.003605,.0077 if e==0 else -.00315],'pd':[.0143,.0037,.00315 if e==0 else -.0077]}
- meta['engineAnchors'].append(a)
-for key,p in meta['engineAnchors'][0].items():meta['anchors'][key]['position']=p
+marking='DSP\n8 × 200G\n1.6T'
+curve=bpy.data.curves.new('Shared DSP capacity marking','FONT')
+curve.body=marking;curve.align_x='CENTER';curve.align_y='CENTER';curve.size=.0013;curve.space_line=1.15;curve.extrude=.000002
+obj=bpy.data.objects.new('SHARED_DSP_CAPACITY',curve);bpy.context.collection.objects.link(obj)
+obj.location=B((-.016,.004075,0));obj.data.materials.append(M[9])
+bpy.ops.object.select_all(action='DESELECT');obj.select_set(True);bpy.context.view_layer.objects.active=obj;bpy.ops.object.convert(target='MESH')
+world=obj.matrix_world.copy();obj.parent=bpy.data.objects['SHARED_PART_DSP'];obj.matrix_world=world
+obj['authoredStatic']=True;obj['capacityMarking']=marking;obj['lanesPerDirection']=8;obj['nominalLaneGbps']=200
+meta['routes']=routes;meta['portCount']=2;meta['lanesPerPort']=4;meta['picCount']=1
+meta['laneBanks']={'TX':'+Z','RX':'-Z'}
+meta['hostRouting']='All 32 signal conductors connect to their named OSFP contact. Short multilayer breakout and top-side routing corridors are representative, not a production PCB layout.'
+meta['dspCount']=1;meta['dspLanesPerDirection']=8
+meta['nominalLaneGbps']=200;meta['nominalCapacityGbpsPerDirection']=1600
+meta['implementation']='One shared eight-lane 1.6T DSP and PIC; eight TX channels on +Z and eight RX on -Z; two 800G optical ports. Analog ICs, placement and PCB fan-out are representative, not a teardown.'
+meta['analogAnchors']=[{key:meta['anchors'][key]['position'] for key in ['driver','tia','lasers','mzm','pd']}]
 root['ifx']=json.dumps(meta,separators=(',',':'));root['authoredStatic']=True
 bpy.ops.wm.save_as_mainfile(filepath=str(ROOT/'tools/blender/osfp-module-twin.blend'))
-bpy.ops.export_scene.gltf(filepath=str(TARGET),export_format='GLB',export_yup=True,export_extras=True,export_cameras=False,export_lights=False)
+staged=TARGET.with_name(TARGET.stem+'.staged.glb')
+bpy.ops.export_scene.gltf(filepath=str(staged),export_format='GLB',export_yup=True,export_extras=True,export_cameras=False,export_lights=False)
+staged.replace(TARGET)
 print('TWIN MODULE',TARGET.stat().st_size)

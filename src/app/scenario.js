@@ -7,6 +7,7 @@ import { SITES, STATUS_WORD } from '../model/sites.ts';
 import { SOURCES } from '../sources.js';
 import { BASIS } from '../data.js';
 import { chip } from '../evidence.js';
+import { withScenario } from './scenario-links.js';
 
 const $ = id => document.getElementById(id);
 const n0 = v => Math.round(v).toLocaleString('en-US');
@@ -124,6 +125,9 @@ function writeUrl() {
   q.set('mw', s.meterMW); q.set('accel', s.accel); q.set('power', s.power); q.set('cooling', s.cooling);
   if (s.site) q.set('site', s.site); else q.delete('site');
   if (s.stage != null) q.set('stage', s.stage); else q.delete('stage');
+  // Keep a complete link for normal clicks, copying, and opening in a new tab.
+  const open = $('sc-open');
+  if (open) open.href = withScenario(q.toString(), 'visualizer.html?view=1.power');
   try { history.replaceState(null, '', `${location.pathname}?${q}${location.hash}`); } catch { /* sandboxed viewers refuse; the page still works */ }
 }
 function readUrl() {

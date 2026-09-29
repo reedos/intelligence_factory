@@ -16,6 +16,7 @@ const b = await chromium.launch({ headless: true, args: ['--use-angle=d3d11', '-
 const p = await b.newPage({ viewport: { width: 1440, height: 900 } });
 const errors = []; p.on('pageerror', e => errors.push(e.message));
 await p.goto(URL); await p.waitForFunction(() => window.ifx && ifx.state.scene === 0, null, { timeout: 90000 });
+await p.evaluate(() => ifx.setTransitions('instant')); // This gate checks pin membership, not transition animation.
 const seen = new Set(); let missingTotal = 0; const extras = new Set();
 for (const s of combos) {
   const r = await p.evaluate(async s => {

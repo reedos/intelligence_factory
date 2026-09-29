@@ -367,6 +367,23 @@ export function build({ quality, model }) {
     if (i === CPO_I) { cpoFace(it.x, it.z, it.f); }
     else { pluggableFace(it.x, it.z, it.f); pigtail(it.x, 1.97, it.z + it.f * 0.735, 4.3, it.z); }
   });
+  // Extend the IT distribution to deployed network racks as well as compute.
+  // These are representative rack feeds, not building voltage applied to an OSFP.
+  // The switch's PSU/regulators supply the module; the closeup draws that boundary.
+  const networkFeeds = [];
+  function networkPowerRoute(points, radius, kind) {
+    for (let i = 1; i < points.length; i++) N.strut(points[i - 1], points[i], radius, MAT.alu, 6);
+    const f = flow(points, itV, { count: kind === 'busway' ? 12 : 4, speed: 1.5, size: .045, trailR: .012, trailK: .18 });
+    f.group.userData.networkPower = kind; flows.push(f);
+    networkFeeds.push({ kind, points });
+  }
+  const spineBusZ = 10.25, lastSpineX = netItems[CPO_I - 1].x;
+  networkPowerRoute([[-9.5, 5.6, busZ1], [-9.5, 5.6, spineBusZ], [-9.5, 3.5, spineBusZ], [lastSpineX, 3.5, spineBusZ]], .07, 'busway');
+  netItems.slice(0, CPO_I).forEach(it => {
+    N.box(.22, .2, .2, tap, it.x, 3.29, spineBusZ);
+    networkPowerRoute([[it.x, 3.5, spineBusZ], [it.x, 2.3, spineBusZ]], .018, 'spine-drop');
+  });
+  scene.userData.networkPowerFeeds = networkFeeds;
   // this one switch stands apart from the pluggable row for comparison, not as a claim that the spine
   // actually mixes both — the tag keeps it from reading as deployed hardware or a ledger change.
   // kept small: the 'cpo' hotspot camera is close enough that a sprite sized like the rack-top
@@ -416,6 +433,12 @@ export function build({ quality, model }) {
   pluggableFace(ctrlFirst.x, ctrlFirst.z, ctrlFirst.f, { rows: 1, cols: 6, y0: 2.05, y1: 2.2, w: RW - 0.14 }); // small ToR management switch
   // scale-out: a leaf-switch rack at the end of every row, a cross runway to the spine row
   const leafX = rowX1 + 0.45;
+  rowZs.forEach((z, r) => {
+    const bz = z + facing[r] * .25;
+    networkPowerRoute([[rowX1, 3.5, bz], [leafX, 3.5, bz]], .07, 'busway');
+    N.box(.22, .2, .2, tap, leafX, 3.29, bz);
+    networkPowerRoute([[leafX, 3.5, bz], [leafX, 2.3, bz]], .018, 'leaf-drop');
+  });
   instanced(0.6, 2.3, 1.2, TEX.net, 0x131519, rowZs.map((z, r) => ({ x: leafX, z, f: facing[r] })));
   // leaf faceplates: pluggable OSFP modules, fiber pigtails rising into the runway overhead
   rowZs.forEach((z, r) => { pluggableFace(leafX, z, facing[r]); pigtail(leafX, 1.97, z + facing[r] * 0.735, 4.5, z); });
@@ -685,6 +708,7 @@ export function build({ quality, model }) {
       portrait: { pos: [65, 42, 70], target: [-6, 1.4, -2] },
       near: 0.1, far: 2000, min: 4, max: 180 },
     hotspots: {
+      optics: { pos: [leafX, 2.6, -8.2], view: { pos: [leafX + 2.2, 4.8, -3.8], target: [leafX, 2.45, -8.2] } },
       cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.0, 4.2, 15.5], target: [netItems[CPO_I].x, 1.8, 10.5] } },
       unitsub: { pos: [usX, 3.3, usZ], view: { pos: [-52, 8, 2], target: [usX, 1.5, usZ] } },
       swgr: { pos: [-27, 2.8, -15.6], view: { pos: [-25, 6, -4], target: [-27, 1.3, -15.6] } },

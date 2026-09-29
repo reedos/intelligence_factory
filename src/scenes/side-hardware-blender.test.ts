@@ -41,7 +41,7 @@ describe('coherent packaging qualifications remain visible in the interactive sc
     const b=build(1),asset=b.scene.children.find((o:THREE.Object3D)=>o.name.startsWith('Blender'));
     b.scene.updateMatrixWorld(true);
     const start=new THREE.Vector3(...b.camera.pos),ray=new THREE.Raycaster();
-    for(const id of ['cdm','icr']) {
+    for(const id of ['driver','cdm','icr','tia']) {
       const end=new THREE.Vector3(...b.dataHotspots[id].pos),direction=end.clone().sub(start),length=direction.length();
       ray.set(start,direction.normalize());
       const blockers=ray.intersectObject(asset,true).filter(hit=>hit.object.visible && hit.distance<length-.45 &&
@@ -49,9 +49,58 @@ describe('coherent packaging qualifications remain visible in the interactive sc
       expect(blockers.map(hit=>({name:hit.object.name,point:hit.point.toArray()})),id).toEqual([]);
     }
   });
+  it('keeps analog IC mounting islands separate from optics and optical paths outside electronics',()=>{
+    const b=build(1),asset=b.scene.children.find((o:THREE.Object3D)=>o.name.startsWith('Blender'));
+    asset.updateMatrixWorld(true);
+    const bounds=(id:string)=>new THREE.Box3().setFromObject(asset.getObjectByName(`coherent-hardware_${id}_ceramic`));
+    const driver=bounds('driver'),modulator=bounds('cdm'),receiver=bounds('icr'),tia=bounds('tia');
+    expect(driver.max.x).toBeLessThan(modulator.min.x-.15);
+    expect(tia.max.x).toBeLessThan(receiver.min.x-.15);
+    for(const box of [driver,modulator,receiver,tia]) {
+      expect(Math.max(Math.abs(box.min.z),Math.abs(box.max.z))).toBeLessThan(1.009);
+    }
+    const insideXZ=(box:THREE.Box3,p:THREE.Vector3)=>p.x>=box.min.x&&p.x<=box.max.x&&p.z>=box.min.z&&p.z<=box.max.z;
+    for(const f of b.dataFlows.filter((f:any)=>['cw','tx','rx'].includes(f.cls))) {
+      const points=f.path.getPoints(200);
+      expect(points.some((p:THREE.Vector3)=>insideXZ(driver,p)||insideXZ(tia,p))).toBe(false);
+    }
+    const routes=b.scene.userData.coherentRouting;
+    expect(routes.discretePackages).toBe(true);
+    const first=(points:number[][],box:THREE.Box3)=>points.findIndex(p=>insideXZ(box,new THREE.Vector3(...p)));
+    for(const p of routes.lineTx) {expect(first(p,driver)).toBeGreaterThan(-1);expect(first(p,modulator)).toBeGreaterThan(first(p,driver));}
+    for(const p of routes.lineRx) {expect(first(p,receiver)).toBe(0);expect(first(p,tia)).toBeGreaterThan(0);}
+    for(const p of routes.hostTx) expect(p.at(-1)[0]).toBeCloseTo(-2.065);
+    for(const p of routes.hostRx) expect(p[0][0]).toBeCloseTo(-2.065);
+    for(const p of routes.lineTx) expect(p[0][0]).toBeCloseTo(-.915);
+    for(const p of routes.lineRx) expect(p.at(-1)[0]).toBeCloseTo(-.915);
+
+  });
+  it('keeps DSP electrical routes outside the tunable laser and host routes clear of the power components',()=>{
+    const b=build(1),asset=b.scene.children.find((o:THREE.Object3D)=>o.name.startsWith('Blender'));
+    asset.updateMatrixWorld(true);
+    const laser=new THREE.Box3();for(const m of meshes(asset).filter(m=>m.name.includes('_itla_')))laser.union(new THREE.Box3().setFromObject(m));
+    for(const f of b.dataFlows.filter((f:any)=>f.cls==='eth')) {
+      const exclusion=laser.clone().expandByScalar(f.size);
+      expect(f.path.getPoints(300).some((p:THREE.Vector3)=>exclusion.containsPoint(p))).toBe(false);
+    }
+    const routes=b.scene.userData.coherentRouting;
+    for(const route of [...routes.hostTx,...routes.hostRx]) for(const p of route) {
+      if(p[0]<-3.2&&p[0]>-4.4)expect(Math.abs(p[2])).toBeGreaterThan(.4);
+    }
+    expect(routes.hostTx).toHaveLength(4);expect(routes.hostRx).toHaveLength(4);
+    expect(routes.hostPathGroupsAreNotLaneCounts).toBe(true);
+  });
+  it('keeps the thermal pad in x-ray with the cover so DSP signal banks remain visible',()=>{
+    const opts=options(),b=wrappers[1].build(opts);
+    const pad=meshes(b.scene).find(m=>m.userData.sourceMesh==='Coherent DSP thermal pad');
+    expect(pad).toBeDefined();
+    b.inspection.setView('driver');b.update(0,0);expect(pad!.visible).toBe(true);
+    for(const material of Array.isArray(pad!.material)?pad!.material:[pad!.material]) { expect(material.opacity).toBeLessThan(.25);expect(material.depthWrite).toBe(false); }
+    opts.state.mode='heat';b.update(1,0);expect(pad!.visible).toBe(true);
+  });
   it('shows qualitative heat from both active optical packages as well as the DSP and laser',()=>{
     const b=build(1);
-    for(const id of ['cdm','icr']) {
+    for(const id of ['driver','cdm','icr','tia']) {
       const p=b.dataHotspots[id].pos;
       expect(b.heatFlows.some((f:any)=>{
         const a=f.path.getPoint(0),z=f.path.getPoint(1);
@@ -63,17 +112,22 @@ describe('coherent packaging qualifications remain visible in the interactive sc
   it('states a representative option in the scope and both optical package labels',()=>{
     const b=build(1),captions:string[]=[];
     b.scene.traverse((o:THREE.Object3D)=>{if(o.userData.caption?.text)captions.push(o.userData.caption.text);});
-    expect(b.inspection.scope).toContain('One packaging example');
-    expect(b.inspection.scope).toContain('not universal boundaries');
+    expect(b.inspection.scope).toContain('Discrete board-level design');
+    expect(b.inspection.scope).toContain('No shared package or substrate');
     expect(b.inspection.scope).toContain('Exact die placement varies');
     expect(b.inspection.scope).toContain('remaining layout is representative');
-    expect(captions).toContain('Driver + IQ modulator (TX) · one packaging example');
-    expect(captions).toContain('Coherent receiver + TIAs (RX) · one packaging example');
-    expect(b.inspection.scope).not.toMatch(/separate driver and TIA chips|chips beside/);
+    expect(captions).toContain('TX · separate driver IC → IQ modulator');
+    expect(captions).toContain('RX · photodiodes → separate TIA IC');
     const laserPaths=b.dataFlows.filter((f:any)=>f.cls==='cw');
-    expect(laserPaths).toHaveLength(2);
-    expect(laserPaths[0].path.getPoint(0).toArray()).toEqual(laserPaths[1].path.getPoint(0).toArray());
-    expect(laserPaths[0].path.getPoint(1).toArray()).not.toEqual(laserPaths[1].path.getPoint(1).toArray());
+    expect(laserPaths).toHaveLength(3);
+    const routing=b.scene.userData.coherentRouting;
+    expect(routing.carrierPath[0]).toEqual(routing.laserTrunk.at(-1));
+    expect(routing.loPath[0]).toEqual(routing.laserTrunk.at(-1));
+    expect(routing.carrierPath.at(-1)[2]).toBeLessThan(0);
+    expect(routing.loPath.at(-1)[2]).toBeGreaterThan(0);
+    expect(routing.carrierPath.slice(1).every((p:number[])=>p[2]<0)).toBe(true);
+    expect(routing.loPath.slice(1).every((p:number[])=>p[2]>0)).toBe(true);
+
   });
 });
 afterAll(()=>{vi.restoreAllMocks();vi.unstubAllGlobals();});
@@ -147,7 +201,7 @@ describe('Blender mechanical layers preserve native technical diagrams',()=>{
       expect(edge,`${width}×${height}: all physical geometry, including hidden covers`).toBeLessThan(.96);
     }
   });
-  for (const i of [1,2]) it(`cover inspection ${i}: heat retains its target while data reveals the board`,()=>{
+  for (const i of [1,2]) it(`cover inspection ${i}: all layers and detail views retain the complete housing`,()=>{
     const opts=options(),b=wrappers[i].build(opts),covers=meshes(b.scene).filter(m=>m.name.includes('_cover_'));
     expect(covers.length).toBeGreaterThan(0);
     expect(covers.every(m=>m.visible)).toBe(true);
@@ -157,8 +211,8 @@ describe('Blender mechanical layers preserve native technical diagrams',()=>{
     expect(covers.every(m=>m.visible)).toBe(true);
     expect(b.inspection.covers).toBe(true);expect(b.inspection.coversForced).toBe(true);
     opts.state.mode='data';b.update(3,1/60);
-    expect(covers.every(m=>!m.visible)).toBe(true);
-    expect(b.inspection.covers).toBe(false);expect(b.inspection.coversForced).toBe(false);
+    expect(covers.every(m=>m.visible)).toBe(true);
+    expect(b.inspection.covers).toBe(true);expect(b.inspection.coversForced).toBe(true);
   });
   it('CPO authors eighteen engine positions in six groups matching the native layout',async()=>{
     const {engineLayout}=await import('./side-geometry.js');let metadata:any;
@@ -239,7 +293,7 @@ describe('complete link housings',()=>{
   const b=build(1),asset=b.scene.children.find((o:THREE.Object3D)=>o.name.startsWith('Blender'));asset.updateMatrixWorld(true);
   const laser=new THREE.Box3();for(const m of meshes(asset).filter(m=>m.name.includes('_itla_')))laser.union(new THREE.Box3().setFromObject(m));
   const feeds=b.flows.filter((f:any)=>f.cls==='core'&&f.path.getPoint(1).x>laser.max.x);
-  expect(feeds).toHaveLength(2);
+  expect(feeds).toHaveLength(4);
   for(const f of feeds) {
    const padded=laser.clone().expandByScalar(f.size);
    for(let n=0;n<=200;n++)expect(padded.containsPoint(f.path.getPoint(n/200))).toBe(false);
@@ -252,7 +306,7 @@ describe('complete link housings',()=>{
    expect(all.some(m=>m.name.includes('_pull_'))).toBe(true);
    const coverPositions=covers.map(m=>m.position.clone());
    b.inspection.setView('receive');b.update(1,1/60);
-   expect(covers.every(m=>!m.visible)).toBe(true);
+   expect(covers.every(m=>m.visible)).toBe(true);
    b.inspection.setView('diagram');b.update(2,1/60);
    expect(covers.every(m=>m.visible)).toBe(true);
    opts.state.mode='heat';b.update(3,1/60);
@@ -308,17 +362,15 @@ describe('photo-grounded copper inspection',()=>{
 });
 
 describe('CPO complete motion coverage and isolated power inspection',()=>{
- it('supplies each of the eighteen package engines through its own CW route',async()=>{
-  const {engineLayout}=await import('./side-geometry.js'),b=build(0),engines=engineLayout();
-  const routes=b.dataFlows.filter((f:any)=>f.cls==='cw' && engines.some(e=>{
-   const end=f.path.getPoint(1);return Math.abs(end.x-(e.x+e.out[0]*.8))<1e-7 && Math.abs(end.z-(e.z+e.out[1]*.8))<1e-7;
-  }));
-  expect(routes).toHaveLength(18);
-  for(const e of engines) {
-   const matched=routes.filter((f:any)=>{
-    const end=f.path.getPoint(1);return Math.abs(end.x-(e.x+e.out[0]*.8))<1e-7 && Math.abs(end.z-(e.z+e.out[1]*.8))<1e-7;
-   });
-   expect(matched).toHaveLength(1);
+ it('keeps physical glass and animated TX, RX and CW on the same eighteen independent routes',async()=>{
+  const {engineLayout,cpoFiberRoutes}=await import('./side-geometry.js'),b=build(0);
+  let meta:any;assets.get('cpo').scene.traverse((o:THREE.Object3D)=>{if(o.userData.ifx)meta=JSON.parse(o.userData.ifx);});
+  const routes=engineLayout().map(cpoFiberRoutes);
+  expect(meta.fiberRoutesCm).toEqual(routes);
+  for(const bundle of routes) for(const [kind,points] of [['tx',bundle.tx[3]],['rx',[...bundle.rx[3]].reverse()],['cw',bundle.cw[0]]] as const) {
+   const expectedStart=new THREE.Vector3(...points[0]),expectedEnd=new THREE.Vector3(...points.at(-1)!);
+   const matches=b.dataFlows.filter((f:any)=>f.cls===kind && f.path.getPoint(0).distanceTo(expectedStart)<1e-6 && f.path.getPoint(1).distanceTo(expectedEnd)<1e-6);
+   expect(matches).toHaveLength(1);
   }
  });
  it('reveals only selected package stack layers for power and restores them in other modes',()=>{
@@ -328,7 +380,7 @@ describe('CPO complete motion coverage and isolated power inspection',()=>{
    opts.state.mode=mode;b.update(1,1/60);
    for(const layer of layers) {
     expect(layer).toBeDefined();expect(layer.material.transparent).toBe(mode==='power');
-    expect(layer.material.opacity).toBe(mode==='power'?.16:1);
+    expect(layer.material.opacity).toBe(mode==='power'?(layer.name.includes('ASIC')?.58:.16):1);
     expect(layer.material.depthWrite).toBe(mode!=='power');expect(layer.material.depthTest).toBe(true);
    }
    const pics=meshes(b.scene).filter(m=>m.name.includes('Photonic_die_passivation')&&!m.name.includes('CPO_PACKAGE'));

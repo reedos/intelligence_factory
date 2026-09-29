@@ -25,6 +25,32 @@ export function engineLayout() {
 // each laser module lights 32 transmit lanes (NVIDIA), four engines of eight: 18 engines need four and a half
 export const elsOf = i => Math.floor(i / (ELS_LANES / 8));
 
+// Representative fan-out, not a vendor harness drawing. Data fibers continue
+// outward toward omitted front-panel ports; lower CW fibers terminate only at
+// their assigned engine. Separate elevations prevent an apparent optical bus.
+export function cpoFiberRoutes(e, i) {
+  const { out, tan, side } = e;
+  const point = (r, y, t) => [out[0] * r + tan[0] * t, y, out[1] * r + tan[1] * t];
+  const data = Array.from({ length: 16 }, (_, j) => {
+    const t = e.t + (j - 7.5) * .034;
+    return [point(4.18, 1.73, t), point(5.4, 1.2, t),
+      point(5.75, 1.2, t), point(6.8, 2.35, t), point(7.6, 2.35, t)];
+  });
+  const cw = Array.from({ length: 2 }, (_, j) => {
+    const r = 5.94 + i * .032 + j * .013, y = .35 + i * .045 + j * .021;
+    const lz = -4.4 + elsOf(i) * 2.2 + (i % 4 - 1.5) * .10 + (j - .5) * .028;
+    const t = e.t + .305 + j * .028;
+    // Descend outside the complete perimeter fan-out, then enter the assigned
+    // elevation horizontally. A diagonal descent to r crosses other fibers.
+    const end = point(r, y, t), pts = [[7.24, 1.5, lz], [6.95, y, lz], [r, y, lz]];
+    if (side === 1 || side === 3) pts.push([r, y, side === 3 ? -r : r]);
+    if (side === 2) pts.push([r, y, r], [-r, y, r]);
+    pts.push(end, point(5.4, 1.2, t), point(4.18, 1.73, t));
+    return pts;
+  });
+  return { tx: data.slice(0, 8), rx: data.slice(8), cw };
+}
+
 // ---------- the copper cable plugs ----------
 // four pairs each way per plug: transmit on the left half of the card, receive on the right; x of pair i's centerline
 export const COPPER_HEADS = [['dac', -4.6], ['acc', 0], ['aec', 4.6]];

@@ -1,10 +1,11 @@
 // Opt-in Blender geometry behind the existing module scene contract. World unit = 1 cm.
 // The asset is a representative layout, not a recovered production design. Exported
-// routes describe visible conductors; chip-internal paths and contact fan-out are omitted.
+// routes describe visible conductors; chip-internal paths are omitted; contact breakout uses representative PCB layers.
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { THREE, flow, setup, label, FLOW, COL, note, unitCol } from './side-kit.js';
 import { applyArtDirection } from './module-art-direction.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
+import { hardwareBounds } from '../app/housing-frame.js';
 
 let cached, pending;
 const CM = 100;
@@ -15,7 +16,7 @@ const EXPLODED = {
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
 
-export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=twin4`) {
+export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=edge-connected9`) {
   if (cached) return Promise.resolve(cached);
   if (!pending) pending = new GLTFLoader().loadAsync(url).then(gltf => {
     cached = gltf;
@@ -77,6 +78,13 @@ export function build({ quality, state }) {
   for (const [name, offset] of Object.entries(EXPLODED)) object(name).position.set(...offset.map(v => v / CM));
   scene.add(model);
   model.updateMatrixWorld(true);
+  const breakoutWindows = [];
+  model.traverse(node => {
+    if (node.userData.pcbBreakoutWindow && node.material) {
+      node.material.transparent = true; node.material.depthWrite = false;
+      node.castShadow = false; breakoutWindows.push(node);
+    }
+  });
   const matched = typeof location !== 'undefined' && new URLSearchParams(location.search).get('finish') === 'matched';
   const look = matched ? undefined : { ...applyArtDirection({ scene, model, quality }), grain: 0.008, vignette: 0.22 };
   let amount = 1, targetAmount = 1, startAmount = 1, assemblyTime = 0;
@@ -145,7 +153,7 @@ export function build({ quality, state }) {
 
   // LPO is a different electrical routing layout, not merely an absent DSP.
   // Draw both conductors of all eight pairs per direction and animate one member
-  // of representative pairs. Host fan-out before the exported vias stays omitted.
+  // of representative pairs, all the way to their assigned edge-connector contacts.
   for (let i = 0; i < 8; i++) for (const rx of [false, true]) for (const sign of [-1, 1]) {
     const prefix = rx ? 'RX' : 'TX';
     const host = sourceRoute(`${prefix} host copper ${i} ${sign}`);
@@ -175,29 +183,31 @@ export function build({ quality, state }) {
   const fingers = anchorLocal('fingers'), converter = anchorLocal('dcdc');
   addFlow({ id: 'power-input', points: [[fingers[0] - 1, fingers[1], fingers[2]], fingers, converter],
     mode: 'power', kind: 'power', voltage: 'v33', from: 'fingers', to: 'dcdc' });
-  const engineAnchors = metadata.engineAnchors;
-  if (engineAnchors?.length !== 2) throw new Error('Twin-port module requires two authored engine anchor sets.');
-  for (const [engineIndex, anchors] of engineAnchors.entries()) for (const target of ['dsp', 'driver', 'tia', 'lasers']) {
+  const analogAnchors = metadata.analogAnchors;
+  if (analogAnchors?.length !== 1) throw new Error('Module requires one authored eight-channel analog anchor set.');
+  const dspLocal = anchorLocal('dsp');
+  addFlow({ id: 'power-dsp', points: [converter, [converter[0] + 0.4, converter[1], dspLocal[2]], dspLocal],
+    mode: 'power', kind: 'power', from: 'dcdc', to: 'dsp', variant: 'dsp' });
+  for (const [engineIndex, anchors] of analogAnchors.entries()) for (const target of ['driver', 'tia', 'lasers']) {
     const end = cm(anchors[target]);
     addFlow({ id: `power-${target}-${engineIndex}`, points: [converter, [converter[0] + 0.4, converter[1], end[2]], end],
-      mode: 'power', kind: 'power', from: 'dcdc', to: target, variant: target === 'dsp' ? 'dsp' : 'common' });
+      mode: 'power', kind: 'power', from: 'dcdc', to: target });
   }
   const dspAnchor = anchorWorld('dsp'), shellAnchor = anchorWorld('shell');
   const padY = EXPLODED['03_THERMAL'][1] + 0.518;
   const coverY = EXPLODED['04_COVER'][1] + 0.675, exhaustY = Math.max(shellAnchor[1] + 0.3, 5.6);
-  for (const [engineIndex, anchors] of engineAnchors.entries()) {
-  const engineWorld = name => cm(anchors[name]).map((v, i) => v + EXPLODED['02_BOARD'][i]);
-  const dspAnchor = engineWorld('dsp');
   for (let i = 0; i < 6; i++) {
     const x = dspAnchor[0] + (i % 3 - 1) * 0.22, z = dspAnchor[2] + (Math.floor(i / 3) - 0.5) * 0.4;
-    addFlow({ id: `heat-dsp-${engineIndex}-${i}`, points: [[x, dspAnchor[1], z], [x, padY, z], [x, coverY, z], [x, exhaustY, z]],
+    addFlow({ id: `heat-dsp-${i}`, points: [[x, dspAnchor[1], z], [x, padY, z], [x, coverY, z], [x, exhaustY, z]],
       mode: 'heat', kind: 'heat', variant: 'dsp', from: 'dsp', to: 'shell', assembly: null });
   }
-  for (const source of ['driver', 'tia', 'lasers']) {
-    const p = engineWorld(source);
-    addFlow({ id: `heat-${source}-${engineIndex}`, points: [p, [p[0], coverY, p[2]], [p[0], exhaustY, p[2]]],
-      mode: 'heat', kind: 'heat', from: source, to: 'shell', assembly: null });
-  }
+  for (const [engineIndex, anchors] of analogAnchors.entries()) {
+    const engineWorld = name => cm(anchors[name]).map((v, i) => v + EXPLODED['02_BOARD'][i]);
+    for (const source of ['driver', 'tia', 'lasers']) {
+      const p = engineWorld(source);
+      addFlow({ id: `heat-${source}-${engineIndex}`, points: [p, [p[0], coverY, p[2]], [p[0], exhaustY, p[2]]],
+        mode: 'heat', kind: 'heat', from: source, to: 'shell', assembly: null });
+    }
   }
   for (let i = 0; i < 5; i++) {
     const z = -1.2 + i * 0.35;
@@ -222,16 +232,16 @@ export function build({ quality, state }) {
     if (node.material) node.material = Array.isArray(node.material) ? node.material.map(isolate) : isolate(node.material);
   });
   const ghost = new THREE.Group(); boardOverlay.add(ghost);
-  for (const anchors of engineAnchors) {
-    const outline = new THREE.Mesh(new THREE.BoxGeometry(1.125, 0.015, 0.9),
+  {
+    const outline = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.015, 1.5),
       new THREE.MeshBasicMaterial({ color: 0x8fd3ff, transparent: true, opacity: 0.12, depthWrite: false }));
-    const p = cm(anchors.dsp); outline.position.set(p[0], 0.279, p[2]); ghost.add(outline);
+    outline.position.set(dspLocal[0], 0.279, dspLocal[2]); ghost.add(outline);
   }
   const lpoTag = label(scene, 'LPO · direct host lanes to the linear driver and TIA',
     [dspAnchor[0], dspAnchor[1] + 0.6, dspAnchor[2]], '#8fd3ff', 0.15);
   label(scene, 'Pluggable module · 1.6T twin-port OSFP, 2 × DR4', [0.6, -0.35, 2.6], '#e8ecf2', 0.32);
-  label(scene, '107.8 × 22.58 mm footprint · exploded spacing · separate DSP/PIC dies representative', [0.6, -0.72, 2.6], note, 0.17);
-  label(scene, '2 independent 800G ports · 4 TX + 4 RX fibers per port', [0.6, -1.02, 2.6], unitCol, 0.17);
+  label(scene, '107.8 × 22.58 mm footprint · exploded spacing · representative internals', [0.6, -0.72, 2.6], note, 0.17);
+  label(scene, 'One DSP · 1.6T · 8 TX + 8 RX · two 800G ports', [0.6, -1.02, 2.6], unitCol, 0.17);
   // End-to-end TX/RX explanations live in the panel. Placing them at the host
   // connector would imply that light enters or leaves that electrical interface.
   const modeNote = label(scene, 'Power and heat arrows are schematic across the exploded assembly.',
@@ -245,6 +255,12 @@ export function build({ quality, state }) {
     syncFlows();
   }
   function syncFlows() {
+    // Reveal the buried connector escape only in the open data diagram.
+    for (const window of breakoutWindows) {
+      const revealed = state.mode === 'data' && amount === 1 && targetAmount === 1;
+      window.material.opacity = revealed ? 0.08 : 1;
+      window.material.depthWrite = !revealed;
+    }
     for (const [mode, list] of Object.entries(lists)) for (const f of list) {
       f.group.visible = amount === 1 && targetAmount === 1 && state.mode === mode && !(lpo ? dspOnly.has(f) : lpoOnly.has(f));
     }
@@ -275,9 +291,10 @@ export function build({ quality, state }) {
   }
   setLpo(false);
   scene.userData.blenderModule = { version: metadata.version, units: 'cm', source: 'osfp-module-runtime.glb',
-    scope: 'Representative separate DSP/PIC implementation of two independent 800G ports. Exterior informed by public OSFP photographs. Exploded spacing; internals are illustrative.' };
+    scope: 'Representative single-DSP implementation: eight 200G lanes per direction, split across two 800G optical ports. Exterior informed by public OSFP photographs. Exploded spacing; internals are illustrative.' };
   const built = {
     scene, flows, dataFlows, heatFlows, look,
+    housingBounds: hardwareBounds(model),
     camera: { pos: quality.mobile ? [1.6, 13.5, 20.5] : [1.6, 12, 17.5], target: [0.5, 2.1, 0], near: 0.05, far: 300, min: 1.2, max: 40,
       portrait: { pos: [1.2, 14.5, 19], target: [0.7, 2.3, 0.3] } },
     hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers },
@@ -295,7 +312,7 @@ export function build({ quality, state }) {
       },
       partCopy(part, mode) {
         if (!lpo) return part;
-        if (part.id === 'dsp') return { ...part, title: 'DSP footprints, absent in LPO', kicker: 'Removed in this variant', body: 'The blue outlines mark both DSP footprints for comparison. This LPO view contains no module DSPs, DSP power branches or DSP thermal pads. The host provides the signal processing the linear optical link needs.', specs: [] };
+        if (part.id === 'dsp') return { ...part, title: 'DSP footprint, absent in LPO', kicker: 'Removed in this variant', body: 'The blue outline marks the shared DSP footprint for comparison. This LPO view contains no module DSP, DSP power branch or DSP thermal pad. The host provides the signal processing the linear optical link needs.', specs: [] };
         if (part.id === 'dcdc') return { ...part, body: 'The host supplies the module. Its converters provide the rails for the linear driver, TIA, laser sources and control circuitry. This LPO comparison has no module DSP power branch.' };
         if (part.id === 'driver' && mode === 'data') return { ...part, body: 'The linear driver takes outgoing electrical lanes directly from the host and drives the modulator electrodes. The module DSP is absent in this LPO comparison.' };
         return part;

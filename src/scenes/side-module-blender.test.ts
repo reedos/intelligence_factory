@@ -70,6 +70,16 @@ function expectPoint(actual: number[], expected: number[], context: string) {
   });
 }
 
+function segmentDistance(a:Point,b:Point,c:Point,d:Point) {
+      const A=new THREE.Vector3(...a), B=new THREE.Vector3(...b), C=new THREE.Vector3(...c), D=new THREE.Vector3(...d);
+      const ab=new THREE.Line3(A,B), cd=new THREE.Line3(C,D), q=new THREE.Vector3();
+      let min=Math.min(cd.closestPointToPoint(A,true,q).distanceTo(A),cd.closestPointToPoint(B,true,q).distanceTo(B),ab.closestPointToPoint(C,true,q).distanceTo(C),ab.closestPointToPoint(D,true,q).distanceTo(D));
+      const u=B.clone().sub(A), v=D.clone().sub(C), w=A.clone().sub(C);
+      const aa=u.dot(u), bb=u.dot(v), cc=v.dot(v), dd=u.dot(w), ee=v.dot(w), den=aa*cc-bb*bb;
+      if(den>1e-26){const s=(bb*ee-cc*dd)/den,t=(aa*ee-bb*dd)/den;if(s>=0&&s<=1&&t>=0&&t<=1)min=Math.min(min,A.clone().addScaledVector(u,s).distanceTo(C.clone().addScaledVector(v,t)));}
+      return min;
+}
+
 beforeAll(async () => {
   vi.stubGlobal('document', canvasDocument());
   const bytes = readFileSync(new URL('../../public/models/osfp-module-runtime.glb', import.meta.url));
@@ -458,6 +468,60 @@ describe('Blender optical module integration', () => {
     expect(Math.max(...leading(2)), 'power reaches the mating end before signal').toBeLessThan(Math.min(...leading(3)));
   });
 
+  it('connects all 32 host signal conductors to the correct contact in DSP and LPO layouts', () => {
+    const typed = metadata.routes as (AssetMetadata['routes'][number] & {hostSignal?:string;hostPin?:number})[];
+    for (const section of ['host', 'LPO']) {
+      const used = new Set<string>();
+      for (const direction of ['TX', 'RX']) for (let lane=0;lane<8;lane++) for (const sign of [-1,1]) {
+        const polarity = sign === (direction === 'TX' ? 1 : -1) ? 'p' : 'n';
+        const signal = `${direction}${lane+1}${polarity}`;
+        const contact = metadata.contacts.find(c=>c.signal===signal)!;
+        const route = typed.find(r=>r.name===`${direction} ${section} copper ${lane} ${sign}`)!;
+        expect(route.hostSignal).toBe(signal); expect(route.hostPin).toBe(contact.pins[0]);
+        expectPoint(route.points[0],contact.position,`${section} ${signal} starts on its contact`);
+        expect(route.points.some(p=>p[0]<-.040 && p[1]>.0027),`${signal}: visible top-side route after breakout`).toBe(true);
+        used.add(signal);
+      }
+      expect(used.size).toBe(32);
+    }
+    // Representative escape routing must not pass through the power packages.
+    asset.scene.updateMatrixWorld(true);
+    const power=asset.scene.getObjectByName('PART_DCDC')!;
+    const ray=new THREE.Raycaster();
+    for(const route of typed.filter(r=>/^(TX|RX) (host|LPO) copper/.test(r.name))){
+      for(let i=1;i<route.points.length;i++){
+        const a=new THREE.Vector3(...route.points[i-1]),b=new THREE.Vector3(...route.points[i]);
+        const delta=b.clone().sub(a),length=delta.length();
+        ray.set(a,delta.normalize());ray.far=length;
+        expect(ray.intersectObject(power,true),route.name).toHaveLength(0);
+      }
+    }
+  });
+
+  it('reveals buried connector traces only in the exploded data diagram', () => {
+    const {result,state}=build('data');
+    const windows:THREE.Mesh[]=[];
+    result.scene.traverse((o:THREE.Object3D)=>{if(o.userData.pcbBreakoutWindow)windows.push(o as THREE.Mesh);});
+    expect(windows.length).toBeGreaterThan(0);
+    const materials=windows.map(w=>w.material as THREE.MeshStandardMaterial);
+    expect(materials.every(m=>m.opacity===.08&&!m.depthWrite)).toBe(true);
+    state.mode='power'; result.update(1);
+    expect(materials.every(m=>m.opacity===1&&m.depthWrite)).toBe(true);
+    state.mode='data'; result.update(2);
+    expect(materials.every(m=>m.opacity===.08&&!m.depthWrite)).toBe(true);
+  });
+
+  it('keeps every pair of separate host conductors electrically isolated through the breakout', () => {
+    for(const section of ['host','LPO']){
+      const nets=metadata.routes.filter(r=>new RegExp(`^(TX|RX) ${section} copper`).test(r.name));
+      for(let a=0;a<nets.length;a++)for(let b=a+1;b<nets.length;b++){
+        let clearance=Infinity;
+        for(let i=1;i<nets[a].points.length;i++)for(let j=1;j<nets[b].points.length;j++)clearance=Math.min(clearance,segmentDistance(nets[a].points[i-1],nets[a].points[i],nets[b].points[j-1],nets[b].points[j]));
+        expect(clearance,`${nets[a].name} / ${nets[b].name}`).toBeGreaterThan(.000056);
+      }
+    }
+  });
+
   it('keeps every photodetector-to-TIA bond short, on its receive lane, and terminated at the TIA', () => {
     const routes = new Map(metadata.routes.map(route => [route.name, route]));
     const tia = asset.scene.getObjectByName('PART_TIA')!;
@@ -497,20 +561,68 @@ describe('Blender optical module integration', () => {
 });
 
 describe('twin-port authored module correction', () => {
-  it('contains two separate DSP/PIC packages and two thermal pads within the unchanged shell', () => {
-    const meta = metadata as AssetMetadata & { engineCount:number; lanesPerEngine:number; implementation:string };
-    expect(meta.engineCount).toBe(2);expect(meta.lanesPerEngine).toBe(4);
-    expect(meta.implementation).toContain('representative');expect(meta.implementation).toContain('not a teardown');
-    asset.scene.updateMatrixWorld(true);
-    for (const kind of ['PART_DSP','PIC','03_THERMAL']) {
-      const a=asset.scene.getObjectByName(`ENGINE_1_${kind}`),b=asset.scene.getObjectByName(`ENGINE_2_${kind}`);
-      expect(a,kind).toBeDefined();expect(b,kind).toBeDefined();
-      const aa=new THREE.Box3().setFromObject(a!),bb=new THREE.Box3().setFromObject(b!);
-      expect(aa.min.z,`${kind}: separate packages`).toBeGreaterThan(bb.max.z+.0005);
-      expect(aa.max.z).toBeLessThan(.010);expect(bb.min.z).toBeGreaterThan(-.010);
+  it('uses one eight-lane DSP for all 1.6T host and line-side traffic', () => {
+    const meta = metadata as AssetMetadata & {
+      portCount: number; lanesPerPort: number; nominalLaneGbps: number;
+      nominalCapacityGbpsPerDirection: number; dspCount: number; dspLanesPerDirection: number;
+    };
+    expect(meta.portCount * meta.lanesPerPort * meta.nominalLaneGbps).toBe(1600);
+    expect(meta.nominalCapacityGbpsPerDirection).toBe(1600);
+    expect(meta.dspCount).toBe(1);
+    expect(meta.dspLanesPerDirection * meta.nominalLaneGbps).toBe(1600);
+    const marking = asset.scene.getObjectByName('SHARED_DSP_CAPACITY')!;
+    expect(marking).toBeDefined();
+    expect(marking.userData.capacityMarking).toBe('DSP\n8 × 200G\n1.6T');
+    expect(marking.parent!.name).toBe('SHARED_PART_DSP');
+    const dspBox = new THREE.Box3().setFromObject(marking.parent!);
+    for (const direction of ['TX', 'RX']) for (let lane = 0; lane < 8; lane++) for (const sign of [-1, 1]) {
+      const host = metadata.routes.find(r => r.name === `${direction} host copper ${lane} ${sign}`)!;
+      const line = metadata.routes.find(r => r.name === `${direction} engine copper ${lane} ${sign}`)!;
+      expect(host).toBeDefined(); expect(line).toBeDefined();
+      for (const p of [host.points.at(-1)!, line.points[0]]) {
+        expect(p[0]).toBeGreaterThanOrEqual(dspBox.min.x - .0001);
+        expect(p[0]).toBeLessThanOrEqual(dspBox.max.x + .0001);
+        expect(p[2]).toBeGreaterThan(dspBox.min.z);
+        expect(p[2]).toBeLessThan(dspBox.max.z);
+      }
+    }
+    for (let e = 0; e < 2; e++) {
+      const engineRoutes = metadata.routes.filter(route => (route as typeof route & { engine: number }).engine === e + 1);
+      for (const direction of ['TX', 'RX']) {
+        expect(engineRoutes.filter(route => new RegExp(`^${direction} host copper \\d+ -1$`).test(route.name))).toHaveLength(4);
+        expect(engineRoutes.filter(route => new RegExp(`^${direction} glass fiber \\d+$`).test(route.name))).toHaveLength(4);
+      }
     }
   });
-  it('maps each engine to its own MPO positions 1–4 TX and 9–12 RX without fiber crossovers', () => {
+  it('keeps eight TX lanes on +Z and eight RX lanes on -Z through the shared PIC', () => {
+    const meta = metadata as AssetMetadata & { portCount:number; lanesPerPort:number; picCount:number; implementation:string };
+    expect(meta.portCount).toBe(2); expect(meta.lanesPerPort).toBe(4); expect(meta.picCount).toBe(1);
+    expect(meta.implementation).toContain('representative'); expect(meta.implementation).toContain('not a teardown');
+    asset.scene.updateMatrixWorld(true);
+    for (const kind of ['PART_DSP', '03_THERMAL', 'PART_PIC', 'PART_DRIVER', 'PART_TIA']) {
+      const group = asset.scene.getObjectByName(['PART_DSP', '03_THERMAL'].includes(kind) ? `SHARED_${kind}` : kind)!;
+      expect(group).toBeDefined();
+      const box = new THREE.Box3().setFromObject(group);
+      expect(box.min.z).toBeGreaterThan(-.010); expect(box.max.z).toBeLessThan(.010);
+    }
+    for (const direction of ['TX', 'RX']) {
+      const side = direction === 'TX' ? 1 : -1;
+      for (let lane = 0; lane < 8; lane++) {
+        for (const section of ['host', 'engine', 'LPO']) for (const sign of [-1, 1]) {
+          const r = metadata.routes.find(r => r.name === `${direction} ${section} copper ${lane} ${sign}`)!;
+          for (const p of r.points) expect(p[2] * side, r.name).toBeGreaterThan(0);
+        }
+        const n = String(lane + 1).padStart(2, '0');
+        const optical = metadata.routes.filter(r => r.name.startsWith(`${direction} ${n} `));
+        expect(optical.length).toBeGreaterThan(0);
+        for (const r of optical) for (const p of r.points) expect(p[2] * side, r.name).toBeGreaterThan(0);
+      }
+      // One contiguous bank: uniform lane pitch, including lanes four and five.
+      const zs = Array.from({length:8}, (_, i) => metadata.routes.find(r => r.name === `${direction} host copper ${i} -1`)!.points.at(-1)![2]);
+      for (let i=1;i<8;i++) expect(zs[i-1]-zs[i]).toBeCloseTo(.00079 * .7, 8);
+    }
+  });
+  it('maps each port to MPO positions 1–4 TX and 9–12 RX with physically separated fiber crossings', () => {
     const routes=new Map(metadata.routes.map(r=>[r.name,r]));
     for(let e=0;e<2;e++){
       const center=e===0?.0051:-.0051;
@@ -519,21 +631,22 @@ describe('twin-port authored module correction', () => {
         const r=routes.get(`${prefix} glass fiber ${String(e*4+j+1).padStart(2,'0')}`)!;
         const position=(prefix==='TX'?j:8+j);
         expect(r.points.at(-1)![2]).toBeCloseTo(center+.001375-position*.00025,8);
-        for(const p of r.points)expect(Math.sign(p[2])).toBe(e===0?1:-1);
         fibers.push(r.points);
       }
-      // Same-X samples share the authored smooth interpolation; a preserved
-      // transverse order and >70um surface separation excludes false junctions.
-      for(let a=0;a<fibers.length;a++)for(let b=a+1;b<fibers.length;b++){
-        const order=Math.sign(fibers[a][0][2]-fibers[b][0][2]);
-        for(let k=0;k<fibers[a].length;k++)expect((fibers[a][k][2]-fibers[b][k][2])*order).toBeGreaterThan(.00007);
-      }
+    }
+    const fibers = metadata.routes.filter(r => /^(TX|RX) glass fiber/.test(r.name));
+    // Check the complete 3D segment geometry, including crossings between ports.
+    for(let a=0;a<fibers.length;a++)for(let b=a+1;b<fibers.length;b++){
+      let clearance=Infinity;
+      for(let i=1;i<fibers[a].points.length;i++)for(let j=1;j<fibers[b].points.length;j++)clearance=Math.min(clearance,segmentDistance(fibers[a].points[i-1],fibers[a].points[i],fibers[b].points[j-1],fibers[b].points[j]));
+      expect(clearance,`${fibers[a].name} / ${fibers[b].name}`).toBeGreaterThan(.00007);
     }
   });
-  it('powers both engines and removes both DSP/pad sets in LPO while retaining direct pairs', () => {
+  it('powers one DSP and both analog banks and removes the DSP and pad in LPO', () => {
     const {result}=build('power');
-    for(const target of ['dsp','driver','tia','lasers'])expect(result.flows.filter(f=>f.route.to===target)).toHaveLength(2);
-    expect(result.heatFlows.filter(f=>f.route.from==='dsp')).toHaveLength(12);
+    expect(result.flows.filter(f=>f.route.to==='dsp')).toHaveLength(1);
+    for(const target of ['driver','tia','lasers'])expect(result.flows.filter(f=>f.route.to===target)).toHaveLength(1);
+    expect(result.heatFlows.filter(f=>f.route.from==='dsp')).toHaveLength(6);
     result.variant.setLpo(true);result.update(1);
     expect(result.scene.getObjectByName('PART_DSP')!.visible).toBe(false);
     expect(result.scene.getObjectByName('03_THERMAL')!.visible).toBe(false);

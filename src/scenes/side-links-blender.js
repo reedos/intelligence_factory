@@ -4,13 +4,14 @@ import { build as buildCoherent } from './side-coherent.js';
 import { build as buildCopper } from './side-copper.js';
 import { directLink } from './link-art-direction.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
+import { hardwareBounds } from '../app/housing-frame.js';
 
 const cached = new Map();
 let pending;
 export function preloadLinks() {
   if (cached.size === 2) return Promise.resolve();
   if (!pending) pending = Promise.all(['coherent', 'copper'].map(async name => {
-    const gltf = await new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=7`);
+    const gltf = await new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 11 : 10}`);
     cached.set(name, gltf.scene);
   })).catch(error => { pending = null; throw error; });
   return pending;
@@ -94,13 +95,15 @@ function build(name, nativeBuilder, options) {
   built.scene.add(model);
   directLink({ built, model, kind: name, quality: options.quality, state: options.state });
   built.inspection.scope = name === 'coherent'
-    ? 'One packaging example: a driver/modulator package and a separate receiver/TIA package. These are not universal boundaries; alternatives include discrete driver and TIA packages, or a shared transmit/receive photonic chip with driver/TIA electronics in one optical subassembly. Exact die placement varies. OSFP shell footprint and the nano-ITLA case envelope are to scale; the remaining layout is representative. The release loop is representative and extends beyond the shell. Layers are separated for inspection; transfer across display gaps is schematic. The same tunable laser supplies the transmit carrier and receive local oscillator. Heat paths are qualitative; pulse counts do not represent power ratios.'
+    ? 'Discrete board-level design: the driver and TIA are each in their own electronic package, physically separate from the IQ modulator and receiver optical assemblies. No shared package or substrate joins electronics to optics here. This packaging choice, dimensions and RF routing are representative assumptions, not a teardown of a shipping 800ZR. Exact die placement varies. OSFP shell footprint and the nano-ITLA case envelope are to scale; the remaining layout is representative. The release loop is representative and extends beyond the shell. Layers are separated for inspection; transfer across display gaps is schematic. The same tunable laser supplies the transmit carrier and receive local oscillator. Heat paths are qualitative; pulse counts do not represent power ratios.'
     : 'Representative DAC, ACC and AEC circuits in a flat-top, QSFP-style enclosure, informed by public exterior photographs rather than a teardown. Mechanical dimensions and internal placement are illustrative. Four transmit and four receive pairs are shown. Layers, pair shields and the upper half of the cable jacket are opened for inspection. Every signal path is electrical. The ACC redriver handles receive; the AEC retimer handles both directions. Heat motion shows qualitative transfer from active chips to the case and surroundings across exploded gaps; it does not encode watts or a power ratio. Release hardware adds no signal connections.';
   built.inspection.scope += ' Lids lift straight above their bodies without lateral displacement. Their surfaces use an x-ray inspection treatment to keep internal paths visible; this is not transparent metal. In Heat, each lid is an x-ray thermal target.';
   const view = (label, hotspot) => ({ label, ...hotspot.view });
   built.inspection.views = name === 'coherent' ? {
     diagram: { label: 'Complete module', ...built.camera },
     laser: view('Tunable laser', built.dataHotspots.itla),
+    driver: view('Driver IC', built.dataHotspots.driver),
+    tia: view('TIA IC', built.dataHotspots.tia),
     transmit: view('Transmit optics', built.dataHotspots.cdm),
     receive: view('Coherent receiver', built.dataHotspots.icr),
   } : {
@@ -110,7 +113,7 @@ function build(name, nativeBuilder, options) {
     aec: view('AEC · retimer', built.dataHotspots.aec),
   };
   const covers = [];
-  model.traverse(object => { if (object.isMesh && object.name.includes('_cover_')) covers.push(object); });
+  model.traverse(object => { if (object.isMesh && (object.name.includes('_cover_') || object.userData.sourceMesh === 'Coherent DSP thermal pad')) covers.push(object); });
   // Export merges by material, so lid edge metal can share a material with the
   // lower chassis. Keep thermal x-ray treatment local to lid meshes only.
   const lidCopies = new Map();
@@ -121,22 +124,22 @@ function build(name, nativeBuilder, options) {
   for (const cover of covers) cover.material = Array.isArray(cover.material) ? cover.material.map(lidMaterial) : lidMaterial(cover.material);
   const coverPositions = new Map(covers.map(cover => [cover, cover.position.clone()]));
   const coverMaterials = new Set(covers.flatMap(cover => Array.isArray(cover.material) ? cover.material : [cover.material]));
-  let showCovers = true;
+  built.housingBounds = hardwareBounds(model);
   Object.defineProperties(built.inspection, {
-    covers: { get: () => showCovers || options.state.mode === 'heat' },
-    coversForced: { get: () => options.state.mode === 'heat' },
+    covers: { value: true },
+    coversForced: { value: true },
+    coversAlwaysVisible: { value: true },
     hasCovers: { value: covers.length > 0 },
   });
   let coversDirty = false;
-  built.inspection.setCovers = value => {
-    showCovers = !!value;
-    const visible = showCovers || options.state.mode === 'heat';
+  built.inspection.setCovers = () => {
+    const visible = true;
     for (const cover of covers) { coversDirty ||= cover.visible !== visible; cover.visible = visible; }
   };
-  built.inspection.setView = name => built.inspection.setCovers(name === 'diagram');
+  built.inspection.setView = () => built.inspection.setCovers();
   const update = built.update;
   built.update = (t, dt) => {
-    const changed = update(t, dt), visible = showCovers || options.state.mode === 'heat';
+    const changed = update(t, dt), visible = true;
     for (const [target, source] of diagramTargets) target.emissiveIntensity = source.emissiveIntensity;
     let moved = coversDirty; coversDirty = false;
     for (const cover of covers) {
@@ -148,7 +151,10 @@ function build(name, nativeBuilder, options) {
     }
     for (const material of coverMaterials) {
       if (!material.transparent) { material.transparent = true; material.needsUpdate = true; moved = true; }
-      material.opacity = options.state.mode === 'heat' ? .18 : .12; material.depthWrite = false;
+      // Keep a readable enclosure outline without layering a bright sheet over
+      // the electronics. This is an inspection treatment, not clear metal.
+      material.opacity = options.state.mode === 'heat' ? .18 : /edge highlights/i.test(material.name) ? .32 : .07;
+      material.depthWrite = false;
     }
     return moved || changed;
   };

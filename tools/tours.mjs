@@ -44,6 +44,7 @@ async function thisLevelCase(layer, scene) {
   // before This level ever gets a chance to read where the reader actually was.
   await p.click('#story-btn');
   await sleep(150);
+  await p.click('#tour-toggle');
   await p.click('.tour-more summary');           // open "Every part, in order" so the This level tab is reachable
   await p.click('[data-tour="here"]');
   await p.waitForFunction(({ layer, scene }) => window.ifx.state.mode === layer && window.ifx.state.scene === scene, { layer, scene }, { timeout: 15000 }).catch(() => {});
@@ -84,11 +85,14 @@ for (const layer of ['power', 'data', 'heat']) for (const scene of [0, 5]) await
   await p.goto(URL); await ready(p);
   await p.evaluate(() => window.ifx.enterStory('story'));
   await sleep(150);
+  report('Mobile: tour choices are hidden by default', await p.locator('#tour-pick').isHidden());
+  await p.click('#tour-toggle');
   await p.click('.tour-more summary');
   const before = await p.evaluate(() => window.scrollY);
-  await p.click('[data-tour="all-data"]');           // the last Every-part tab: off screen in the row before it scrolls in
-  // the centering scroll is smooth and this jump is long (slow under the software renderer): wait until it settles
-  for (let last = -1, i = 0; i < 40; i++) { await sleep(250); const sl = await p.evaluate(() => document.querySelector('.tour-pick').scrollLeft); if (sl > 0 && sl === last) break; last = sl; }
+  await p.click('[data-tour="all-data"]');
+  report('Mobile: picking a tour collapses its choices', await p.locator('#tour-pick').isHidden());
+  report('Mobile: picker retains keyboard focus after choosing', await p.evaluate(() => document.activeElement?.id === 'tour-toggle'));
+  await p.click('#tour-toggle');
   const m = await p.evaluate(() => {
     const btn = document.querySelector('.tour-tabs [aria-selected="true"]'), row = document.querySelector('.tour-pick');
     const br = btn.getBoundingClientRect(), rr = row.getBoundingClientRect();

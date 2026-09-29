@@ -1,3 +1,4 @@
+import { particleBudget } from './app/render-quality.js';
 // Shared modeling kit: materials, a geometry merger, animated power flows and builders for
 // parts that repeat across scenes. Blender adapters provide authored physical
 // meshes; this kit also supplies runtime teaching overlays and native references.
@@ -160,7 +161,7 @@ export class Builder {
   build({ cast = true, receive = true } = {}) {
     const group = new THREE.Group();
     for (const [mat, geo] of this.geometries()) {
-      const m = new THREE.Mesh(geo, mat); m.castShadow = cast; m.receiveShadow = receive; group.add(m);
+      const m = new THREE.Mesh(geo, mat); m.castShadow = cast && mat.userData.ifxCastShadow !== false; m.receiveShadow = receive; group.add(m);
     }
     return group;
   }
@@ -170,7 +171,7 @@ export class Builder {
     for (const [mat, geo] of this.geometries()) {
       const m = new THREE.InstancedMesh(geo, mat, matrices.length);
       matrices.forEach((mx, i) => m.setMatrixAt(i, mx));
-      m.castShadow = cast; m.receiveShadow = receive; group.add(m);
+      m.castShadow = cast && mat.userData.ifxCastShadow !== false; m.receiveShadow = receive; group.add(m);
     }
     return group;
   }
@@ -192,6 +193,7 @@ export class Flow {
     // queue particle with depthWrite:false can be painted over by a later
     // hardware draw even when the particle is in front of that hardware.
     this.mesh = new THREE.InstancedMesh(pulseGeo, new THREE.MeshBasicMaterial({ color: this.color, transparent: true, opacity, depthWrite: false }), count);
+    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.frustumCulled = false;
     this.group = new THREE.Group(); this.group.add(this.mesh);
     if (trail) {
@@ -220,12 +222,17 @@ export class Flow {
     this.mesh.material.color.copy(this.base.color).multiplyScalar(this.bright);
     this.motionStyle = { radius, pixels, stretch };
   }
+  setRenderBudget(fraction = 1) {
+    this.renderFraction = Math.max(.1, Math.min(1, fraction));
+    this.mesh.count = particleBudget(this.count, this.renderFraction);
+  }
   update(t, projection) {
     const dt = this.lastT === undefined ? 0 : Math.max(0, t - this.lastT);
     this.lastT = t; this.acc += this.speed * this.gain * dt;
     const step = this.acc / this.len;
-    for (let i = 0; i < this.count; i++) {
-      const u = ((i / this.count + step + this.phase) % 1 + 1) % 1;
+    const activeCount = this.mesh.count;
+    for (let i = 0; i < activeCount; i++) {
+      const u = ((i / activeCount + step + this.phase) % 1 + 1) % 1;
       this.path.getPointAt(u, this.v);
       const style = this.motionStyle;
       let radius = this.size * (style?.radius || 1);
@@ -246,6 +253,8 @@ export class Flow {
       _o.scale.set(s, s, s * stretch); _o.updateMatrix();
       this.mesh.setMatrixAt(i, _o.matrix);
     }
+    this.mesh.instanceMatrix.clearUpdateRanges();
+    this.mesh.instanceMatrix.addUpdateRange(0, activeCount * 16);
     this.mesh.instanceMatrix.needsUpdate = true;
   }
 }

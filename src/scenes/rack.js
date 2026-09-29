@@ -121,7 +121,9 @@ function serviceFace(B, y, z, heavy, kind) {
   }
   for (const x of [-0.204, 0.194]) {
     rbox(B, 0.009, U * 0.57, 0.004, COLLAR, x, y, z + 0.004, { r: 0.22 });
-    B.box(0.005, U * 0.34, 0.006, MAT.black, x, y, z + 0.005);
+    // The black grip sits on the collar front; its rear must not coincide
+    // with the collar rear (which caused a second, overlapping back face).
+    B.box(0.005, U * 0.34, 0.002, MAT.black, x, y, z + 0.007);
   }
 }
 

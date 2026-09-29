@@ -24,12 +24,16 @@ export function setup(quality, extent = 14) {
 
 export function materials() {
   const glassFiber = (hex, glow) => new THREE.MeshStandardMaterial({ color: hex, emissive: glow, emissiveIntensity: 0.35, roughness: 0.15, metalness: 0, transparent: true, opacity: 0.85 });
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0xbfe6ff, transmission: 0.8, roughness: 0.08, thickness: 0.2, transparent: true, opacity: 0.55 });
+  // PCF shadow depth ignores this glass's transmission and alpha. Keep the
+  // ferrules/splitter visible without projecting an opaque rectangular shadow.
+  glass.userData.ifxCastShadow = false;
   return {
     dieSide: new THREE.MeshStandardMaterial({ color: 0x3b4262, roughness: 0.3, metalness: 0.6 }),
     fiberTx: glassFiber(0xc8f6ff, 0x62e6ff),
     fiberRx: glassFiber(0xffd6f2, 0xff7ad9),
     fiberCw: glassFiber(0xffe2b8, 0xffb347),
-    glass: new THREE.MeshPhysicalMaterial({ color: 0xbfe6ff, transmission: 0.8, roughness: 0.08, thickness: 0.2, transparent: true, opacity: 0.55 }),
+    glass,
     lid: new THREE.MeshPhysicalMaterial({ color: 0xb8c0c8, metalness: 0.7, roughness: 0.4, envMapIntensity: 0.4, transparent: true, opacity: 0.14, depthWrite: false }),
     bond: MAT.gold,
     trace: MAT.copper,

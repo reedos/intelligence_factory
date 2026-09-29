@@ -9,7 +9,7 @@ box.open = true;
 box.innerHTML = `<summary>Device check · 30 seconds</summary>
   <div class="device-check-body">
     <p>This measures the device running this page. A phone-sized desktop window does not measure a phone. No results are uploaded.</p>
-    <p>Choose a scene, stop any tour, and let the view settle. Keep this tab visible during the check. You may orbit and zoom; changing scene, layer, or scenario cancels the run.</p>
+    <p>Choose a scene and let the view settle. Keep this tab visible during the check. You may orbit and zoom; changing scene, layer, or scenario cancels the run.</p>
     <div class="device-check-actions"><button type="button" data-run>Run current view</button><button type="button" data-cancel disabled>Cancel</button></div>
     <p data-status role="status">Ready. Run on your phone to measure your phone.</p>
     <label>Device / browser and observations<textarea data-notes rows="2" placeholder="e.g. iPhone, Safari; smooth orbit; mild warmth"></textarea></label>
@@ -17,7 +17,7 @@ box.innerHTML = `<summary>Device check · 30 seconds</summary>
       <label><input type="checkbox" data-check="Orbit and pinch zoom respond smoothly"> Orbit and pinch zoom</label>
       <label><input type="checkbox" data-check="Part selection and source cards are usable"> Select parts and open sources</label>
       <label><input type="checkbox" data-check="Door entry and Back out return correctly"> Enter a close-up and Back out</label>
-      <label><input type="checkbox" data-check="Tours and layers remain usable"> Tours and layers</label>
+      <label><input type="checkbox" data-check="Power, data and heat layers remain usable"> Power, data and heat layers</label>
       <label><input type="checkbox" data-check="Device warmth checked manually and recorded in notes"> Note device warmth manually</label>
     </fieldset>
     <p>Browser timing does not measure temperature or battery draw. Check warmth yourself; a 30-second run does not establish sustained performance.</p>
@@ -37,7 +37,7 @@ const dimensions = () => {
 };
 const quality = () => {
   const q = qualityInfo();
-  return { tier: q.tiers[store.ui.scene], pixelRatio: renderScale(), composerRatio: q.composerRatio, governing: q.governing };
+  return { tier: q.tiers[store.ui.scene], pixelRatio: renderScale(), composerRatio: q.composerRatio, governing: q.governing, preference: q.preference, bloom: q.bloom, particleFraction: q.particleFraction };
 };
 function updateReport() {
   if (!measurement) return;

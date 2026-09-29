@@ -4,12 +4,13 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { HardwareGTAOPass } from './hardware-ao.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+import { HardwareBokehPass } from './hardware-bokeh.js';
 import { DETAIL } from '../kit.js';
+import { TIERS, qualityPressure } from './render-quality.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VOLT, BASIS } from '../data.js';
 import { chip as basisChip } from '../evidence.js';
@@ -27,6 +28,7 @@ import * as sideCopper from '../scenes/side-copper.js';
 import { applyVisualDirection } from '../scenes/visual-direction.js';
 import { applyComputeArtDirection } from '../scenes/compute-art-direction.js';
 import { cameraPresetFor } from './camera-presets.js';
+import { fitHousing } from './housing-frame.js';
 import { overlapsRect, pinLabelBox } from './pin-layout.js';
 
 // six levels in a line, outermost first, then the side levels inside the links, each its own diagram: the module, the
@@ -189,20 +191,11 @@ renderer.setPixelRatio(ratio);
 // ---------- the quality governor ----------
 // Frame time decides what each level can afford, not a guess about the device. Each tier sheds the next most costly
 // effect, in the order measured in the data hall (tools/costs.mjs): the floor mirror (about half the frame), ambient
-// occlusion and depth of field, then 4x antialiasing and per-frame shadow maps, then resolution. Every level keeps its
+// occlusion and depth of field, then 4x antialiasing and per-frame shadow maps, then resolution, bloom, and decorative flow density. Every route keeps moving signals. Every level keeps its
 // own tier, since the hall and rack carry the mirror and the campus does not. A level steps down when its frames run
-// slower than about 40 fps because of drawing, and a tier that failed stays out of reach for a while. Frames tell
+// slower than about 50 fps because of drawing, and a tier that failed stays out of reach for a while. Frames tell
 // nothing about headroom under vsync, so it steps back up only where the browser has GPU timers and they say the
-// better tier fits. Phones never build the first four effects, so they start at tier 3 and trade only resolution.
-const TIERS = [
-  { mirror: true, ao: true, dof: true, msaa: 4, liveShadows: true, ratio: Infinity },
-  { mirror: false, ao: true, dof: true, msaa: 4, liveShadows: true, ratio: Infinity },
-  { mirror: false, ao: false, dof: false, msaa: 4, liveShadows: true, ratio: Infinity },
-  { mirror: false, ao: false, dof: false, msaa: 0, liveShadows: false, ratio: Infinity },
-  { mirror: false, ao: false, dof: false, msaa: 0, liveShadows: false, ratio: 1.25 },
-  { mirror: false, ao: false, dof: false, msaa: 0, liveShadows: false, ratio: 1 },
-  { mirror: false, ao: false, dof: false, msaa: 0, liveShadows: false, ratio: 0.75 },
-];
+// better tier fits. Phones start without those effects at tier 3 and can shed bloom, particle density and resolution.
 const params = new URLSearchParams(location.search);
 const compareProbe = params.has('module');
 if (compareProbe) renderer.info.autoReset = false;
@@ -218,13 +211,15 @@ const integrated = /Intel(?!.*\bArc)|Radeon\(TM\) Graphics|Radeon Graphics|Vega 
 let timerExt = glx.getExtension('EXT_disjoint_timer_query_webgl2');
 const forced = /^[0-6]$/.test(params.get('quality') || '') ? +params.get('quality') : null;
 const governing = forced === null && (!navigator.webdriver || params.has('govern'));   // test browsers opt in
-const bestTier = mobile ? 3 : 0;
-const tiers = BUILDERS.map(() => forced ?? (mobile ? 3 : integrated && governing ? 1 : 0));   // test browsers: full quality
+let qualityPreference = 'auto';
+try { if (localStorage.getItem('ifx-render-preference') === 'laptop') qualityPreference = 'laptop'; } catch { /* private browsing */ }
+let bestTier = qualityPreference === 'laptop' ? 4 : mobile ? 3 : 0;
+const tiers = BUILDERS.map(() => forced ?? (Math.max(bestTier, integrated && governing ? 1 : 0)));   // test browsers: full quality
 const ceilings = BUILDERS.map(() => bestTier);            // the best tier each level may try for now
 // when a failed tier may be tried again; the wait doubles each time a level climbs back and fails straight away
 const retryAt = BUILDERS.map(() => 0), backoff = BUILDERS.map(() => 30000), climbedAt = BUILDERS.map(() => -Infinity);
 // with timers a level can climb back, so what each settled on is worth remembering; without them a bad moment would stick
-const QKEY = 'ifx-quality-1';
+const QKEY = 'ifx-quality-2';
 if (timerExt && governing) try {
   const s = JSON.parse(localStorage.getItem(QKEY) || 'null');
   if (s?.gpu === gpuName && s.tiers?.length === tiers.length) s.tiers.forEach((v, i) => { if (Number.isInteger(v) && v >= bestTier && v < TIERS.length) tiers[i] = v; });
@@ -313,15 +308,16 @@ function getComposer(i) {
     c.addPass(new RenderPass(b.scene, camera));
     const L = lookOf(i);
     if (L.ao && !mobile) {
-      const ao = new GTAOPass(b.scene, camera, 1, 1);
+      const ao = new HardwareGTAOPass(b.scene, camera, 1, 1);
       ao.blendIntensity = 0.75;
       ao.updateGtaoMaterial({ radius: L.ao, distanceExponent: 1.5, thickness: 1, scale: 1, samples: 12 });
       ao.enabled = tierOf(i).ao; aos[i] = ao;
       c.addPass(ao);
     }
     // depth of field for tour close-ups (desktop): off until a tour frames a part, then focused on it every frame
-    if (quality.dof && L.dof) { const dof = new BokehPass(b.scene, camera, { focus: 1, aperture: 0, maxblur: 0.006 }); dof.enabled = false; c.addPass(dof); dofs[i] = dof; }
+    if (quality.dof && L.dof) { const dof = new HardwareBokehPass(b.scene, camera, { focus: 1, aperture: 0, maxblur: 0.006 }); dof.enabled = false; c.addPass(dof); dofs[i] = dof; }
     c.flowBloom = new UnrealBloomPass(new THREE.Vector2(1, 1), L.bloom * .7, 0.28, L.threshold);
+    c.flowBloom.enabled = tierOf(i).bloom;
     c.addPass(c.flowBloom);
     c.addPass(new OutputPass());
     const fin = new ShaderPass(FINISH);
@@ -360,6 +356,10 @@ function applyTier(i) {
   const t = tierOf(i), c = composers[i];
   built[i]?._mirrors.forEach(m => { m.visible = t.mirror; });
   if (aos[i]) aos[i].enabled = t.ao;
+  if (c?.flowBloom) c.flowBloom.enabled = t.bloom;
+  built[i]?.flowRibbons?.setQuality({ halo: t.halo });
+  for (const key of ['flows', 'dataFlows', 'heatFlows'])
+    for (const f of built[i]?.[key] || []) f.setRenderBudget?.(t.particles);
   if (c) for (const rt of [c.renderTarget1, c.renderTarget2]) { const n = mobile ? 0 : t.msaa; if (rt.samples !== n) { rt.samples = n; rt.dispose(); } }
   if (i !== ui.scene) return false;
   emit('render-quality');
@@ -369,14 +369,14 @@ function applyTier(i) {
   ratio = r; renderer.setPixelRatio(ratio); return true;
 }
 // what a tier actually changes on level i: tiers that shed an effect this level lacks are the same tier here
-const looksLike = (i, n) => { const t = TIERS[n]; return [t.mirror && built[i]?._mirrors.length > 0, t.ao && !!aos[i], t.dof && !!dofs[i], mobile ? 0 : t.msaa, t.liveShadows && quality.shadows, Math.min(maxRatio, t.ratio)].join(); };
+const looksLike = (i, n) => { const t = TIERS[n]; return [t.mirror && built[i]?._mirrors.length > 0, t.ao && !!aos[i], t.dof && !!dofs[i], mobile ? 0 : t.msaa, t.liveShadows && quality.shadows, Math.min(maxRatio, t.ratio), t.bloom, t.halo && !!built[i]?.flowRibbons, t.particles].join(); };
 function stepFrom(i, dir) {
   const now = looksLike(i, tiers[i]);
   for (let n = tiers[i] + dir; n >= ceilings[i] && n < TIERS.length; n += dir) if (looksLike(i, n) !== now) return n;
   return null;
 }
-const gov = { frames: [], gpu: [], cpu: [], quietUntil: 0, q: [], live: null, t0: 0, drawMs: 0 };
-const hush = ms => { gov.frames.length = gov.gpu.length = gov.cpu.length = 0; gov.quietUntil = Math.max(gov.quietUntil, performance.now() + ms); };
+const gov = { frames: [], gpu: [], cpu: [], quietUntil: 0, q: [], live: null, t0: 0, drawMs: 0, workMs: 0, healthy: 0 };
+const hush = ms => { gov.frames.length = gov.gpu.length = gov.cpu.length = 0; gov.healthy = 0; gov.quietUntil = Math.max(gov.quietUntil, performance.now() + ms); };
 function setTier(i, n) {
   tiers[i] = n;
   if (applyTier(i)) resize();
@@ -405,35 +405,53 @@ const median = a => a.slice().sort((x, y) => x - y)[a.length >> 1];
 // a GPU that falls behind delivers frames in bursts, a few at the display's rate and then a long stall, and the median
 // of that reads 60 fps while the page runs at 15.
 const felt = a => { const s = a.slice().sort((x, y) => x - y); s.length -= Math.floor(s.length * 0.05); return s.reduce((x, y) => x + y, 0) / s.length; };
-// Judged every 90 steady frames, or 2 s on a slow machine. Frames slower than 25 ms (about 40 fps) shed a tier, two
-// below 20 fps, but only when drawing is what is slow: if the timers show the GPU and the draw calls both well inside a
-// frame, the limit is elsewhere (a battery saver's 30 fps, other work on the page) and fewer effects would not help.
-// A tier that failed is out of reach for 30 s, longer if it fails again as soon as it is back. GPU and draw time both
-// under 6 ms a frame, so that even a tier twice the cost fits a 60 Hz frame, earn one back.
+// Sustained rendering pressure below ~50 fps sheds one tier, below 25 fps two.
+// CPU includes animation updates and render submission, not just draw calls.
+// Ignore idle-GPU frame caps. Recovery needs three healthy windows plus the
+// failed-tier cooldown, preventing rapid quality oscillation.
 function govern(raw) {
   const now = performance.now();
   if (!governing || now < gov.quietUntil) return;
   if (!gov.frames.length) gov.t0 = now;
-  gov.frames.push(raw * 1000); gov.cpu.push(gov.drawMs);
-  if (gov.frames.length < 90 && !(now - gov.t0 > 2000 && gov.frames.length >= 4)) return;
-  const i = ui.scene, frame = felt(gov.frames), cpu = median(gov.cpu);
+  gov.frames.push(raw * 1000); gov.cpu.push(gov.workMs);
+  if (gov.frames.length < 90 && !(now - gov.t0 > 1800 && gov.frames.length >= 12)) return;
+  const i = ui.scene, frame = felt(gov.frames), cpu = felt(gov.cpu);
   const gpu = timerExt && gov.gpu.length >= Math.max(4, Math.min(30, gov.frames.length / 3)) ? median(gov.gpu) : null;
   gov.frames.length = gov.gpu.length = gov.cpu.length = 0; gov.judged = { frame, gpu, cpu };
-  if (frame > 25 && (gpu === null || gpu > 14 || cpu > 14)) {
+  const pressure = qualityPressure({ frame, gpu, cpu });
+  gov.healthy = pressure === -1 ? gov.healthy + 1 : 0;
+  if (pressure > 0) {
     let n = stepFrom(i, 1);
-    if (n !== null && frame > 50) { const was = tiers[i]; tiers[i] = n; n = stepFrom(i, 1) ?? n; tiers[i] = was; }
+    if (n !== null && pressure === 2) { const was = tiers[i]; tiers[i] = n; n = stepFrom(i, 1) ?? n; tiers[i] = was; }
     if (n !== null) {
-      if (now - climbedAt[i] < 20000) backoff[i] *= 2;
+      if (now - climbedAt[i] < 20000) backoff[i] = Math.min(300000, backoff[i] * 2);
       ceilings[i] = n; retryAt[i] = now + backoff[i]; setTier(i, n);
     }
-  } else if (gpu !== null && gpu < 6 && cpu < 6) {
+  } else if (gov.healthy >= 3) {
     if (now >= retryAt[i]) ceilings[i] = bestTier;         // a tier that failed gets another chance once its wait is up
     const n = stepFrom(i, -1); if (n !== null) { climbedAt[i] = now; setTier(i, n); }
   }
 }
 export const qualityInfo = () => ({ gpu: gpuName, integrated, timers: !!timerExt, governing, tiers: [...tiers], ceilings: [...ceilings], ratio,
-  gpuMs: gov.gpu.length >= 10 ? median(gov.gpu) : gov.judged?.gpu ?? null, drawMs: gov.cpu.length >= 10 ? median(gov.cpu) : gov.judged?.cpu ?? null,
+  preference: qualityPreference, bloom: composers[ui.scene]?.flowBloom?.enabled ?? null, particleFraction: tierOf(ui.scene)?.particles ?? 1,
+  cpuMs: gov.judged?.cpu ?? null,
+  gpuMs: gov.gpu.length >= 10 ? median(gov.gpu) : gov.judged?.gpu ?? null, drawMs: gov.drawMs,
   composerRatio: composers[ui.scene]?.tierRatio ?? null, ao: aos[ui.scene] ? aos[ui.scene].enabled : null, judged: gov.judged ?? null, pending: gov.q.length, quietFor: Math.max(0, gov.quietUntil - performance.now()), window: gov.frames.length });
+// Laptop is a conservative starting floor, never a fixed quality lock.
+export function setQualityPreference(value) {
+  if (!['auto', 'laptop'].includes(value)) return;
+  qualityPreference = value; bestTier = value === 'laptop' ? 4 : mobile ? 3 : 0;
+  try { localStorage.setItem('ifx-render-preference', value); } catch { /* optional */ }
+  for (let i = 0; i < tiers.length; i++) {
+    ceilings[i] = bestTier; retryAt[i] = 0; backoff[i] = 30000;
+    // Returning to Auto permits measured recovery; avoid a sudden expensive jump.
+    if (forced === null && value === 'auto' && !timerExt) tiers[i] = Math.max(bestTier, integrated ? 1 : 0);
+    else if (forced === null && tiers[i] < bestTier) tiers[i] = bestTier;
+    if (built[i]) applyTier(i);
+  }
+  if (ui.scene >= 0) { applyTier(ui.scene); resize(); }
+  emit('render-quality');
+}
 // for probes: put level i at tier n; `hold` keeps it there (it may still step down, never up)
 export const forceTier = (n, { hold = false, i = ui.scene } = {}) => { ceilings[i] = hold ? n : Math.min(ceilings[i], n); retryAt[i] = hold ? Infinity : 0; setTier(i, n); };
 export const renderScale = () => ratio;
@@ -446,8 +464,12 @@ function resize() {
   const inspection = built[ui.scene]?.inspection;
   const named = inspection?.views?.[inspection.currentView];
   if (named && !tween && !cinema) {
-    const preset = cameraPresetFor(named, w, h);
+    const preset = cameraPreset(named);
     camera.position.fromArray(preset.pos); controls.target.fromArray(preset.target);
+  }
+  if (built[ui.scene]?.housingBounds && !tween && !cinema) {
+    const fitted = housingFrame({ pos: camera.position.toArray(), target: controls.target.toArray() });
+    camera.position.fromArray(fitted.pos); controls.target.fromArray(fitted.target);
   }
   composers.forEach(c => c && sizeComposer(c));
   // resizing clears the canvas; draw straight away so a strip opening below the view never flashes it black
@@ -540,8 +562,11 @@ function focusDof() {
 
 export const campusFocusInfo = () => ({ enabled: campusSoftFocus, available: !!dofs[1] && tierOf(1).dof });
 export function setCampusFocus(enabled) { campusSoftFocus = !!enabled; emit('campus-presentation'); }
+function housingFrame(c) {
+  return fitHousing(c, built[ui.scene]?.housingBounds, view.clientWidth, view.clientHeight, safeBox());
+}
 function cameraPreset(c) {
-  return cameraPresetFor(c, view.clientWidth, view.clientHeight);
+  return housingFrame(cameraPresetFor(c, view.clientWidth, view.clientHeight));
 }
 const overviewCamera = b => ({ ...b.camera, ...(b.cameraByMode?.[ui.mode] || {}) });
 export function setCampusView(name) {
@@ -589,7 +614,8 @@ function glide(pos, target, dur, curve) {
 }
 export function flyTo(pos, target, dur = 1.1) {
   drift = null;
-  const p1 = V(pos), t1 = V(target);
+  const fitted = housingFrame({ pos, target });
+  const p1 = V(fitted.pos), t1 = V(fitted.target);
   if (reduced) dur = 0.01;
   let arc = null;
   if (cinema && !reduced) {
@@ -703,12 +729,22 @@ function buildPanel(i) {
   $('hud-title').textContent = s.side ? s.title : `${s.n}. ${s.title}`;
   $('optics-variant').hidden = i !== MODULE_LEVEL;
   const back = $('back-out'); back.hidden = !isSide(i);
-  if (isSide(i)) { const t = SCENES()[backTarget()].title; back.innerHTML = `↑ <span class="bo-long">Back to ${t}</span><span class="bo-short">Back</span>`; back.setAttribute('aria-label', `Back to ${t}`); }
+  if (isSide(i)) {
+    const t = SCENES()[backTarget()].title;
+    back.innerHTML = `<span class="bo-action">← Back outside</span><span class="bo-destination">${t}</span>`;
+    back.setAttribute('aria-label', `Back outside to ${t}`);
+  }
   $('hud-sub').textContent = `${voltFor(s).name} · ${s.scale}`;
   const list = $('parts'); list.innerHTML = '';
   $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · ${s.side ? 'inside the links' : `level ${s.n}`} · ${parts.length} parts`;
-  $('play-these').textContent = `▶ Play 1 to ${parts.length}`;
-  $('play-these').hidden = !parts.length;
+  const playThese = $('play-these');
+  if (playThese) { playThese.textContent = `▶ Play 1 to ${parts.length}`; playThese.hidden = !parts.length; }
+  const overviewRow = document.createElement('li'), overview = document.createElement('button');
+  overview.type = 'button'; overview.dataset.overview = ''; overview.setAttribute('aria-pressed', 'true');
+  overview.setAttribute('aria-label', `0. Overview of ${s.title}`);
+  overview.innerHTML = '<span class="pn">0</span><span class="pt">Overview</span><span class="pk">Full view</span>';
+  overview.addEventListener('click', () => selectOverview());
+  overviewRow.appendChild(overview); list.appendChild(overviewRow);
   parts.forEach((p, n) => {
     const li = document.createElement('li'), b = document.createElement('button');
     b.type = 'button'; b.dataset.id = p.id; b.setAttribute('aria-pressed', 'false');
@@ -767,7 +803,15 @@ export function select(id, fly) {
 export function deselect() {
   ui.selected = null; $('card').hidden = true;
   pins.forEach(p => p.el.classList.remove('on'));
-  document.querySelectorAll('#parts button').forEach(b => b.setAttribute('aria-pressed', 'false'));
+  document.querySelectorAll('#parts button').forEach(b => b.setAttribute('aria-pressed', String(b.hasAttribute('data-overview'))));
+}
+async function selectOverview() {
+  if (ui.scene < 0) return;
+  const focusOverview = $('card').contains(document.activeElement);
+  emit('user-camera');
+  await show({ scene: ui.scene, mode: ui.mode, part: null }, { scroll: false });
+  if (focusOverview) document.querySelector('#parts button[data-overview]')?.focus({ preventScroll: true });
+  revealInPane([$('intro')]);
 }
 export function setModuleExplode(value, { frame: reframe = true } = {}) {
   const b = built[ui.scene]; if (!b?.presentation) return;
@@ -781,12 +825,15 @@ export function setModuleExplode(value, { frame: reframe = true } = {}) {
   }
   emit('module-presentation');
 }
+$('card-prev').addEventListener('click', () => cycle(-1));
 $('card-next').addEventListener('click', () => cycle(1));
 export function cycle(d) {
   const parts = partsFor(ui.scene);
-  const i = parts.findIndex(p => p.id === ui.selected);
-  const n = (i + d + parts.length) % parts.length;
-  select(parts[n].id, true);
+  // Overview is stop 0; real parts retain their existing numbers and tour order.
+  const i = parts.findIndex(p => p.id === ui.selected) + 1;
+  const n = (i + d + parts.length + 1) % (parts.length + 1);
+  if (n === 0) selectOverview();
+  else select(parts[n - 1].id, true);
 }
 export const hasPart = (scene, id, mode = ui.mode) => !!(PARTS_BY()[mode][SCENES()[scene].id] || []).find(p => p.id === id);
 
@@ -963,10 +1010,16 @@ export const sceneCount = BUILDERS.length;
 // Back out of a side level to the level, layer and door part the reader came in by
 export async function backOut() {
   if (!isSide(ui.scene)) return;
+  const restoreFocus = document.activeElement === $('back-out');
   const to = backTarget(), via = sideEntered ? sideVia : null, mode = sideEntered ? sideMode : null;
   if (mode && mode !== ui.mode) setMode(mode);
   await go(to, null);
   if (via && hasPart(to, via)) select(via, true);
+  if (restoreFocus) {
+    const row = [...document.querySelectorAll('#parts button')].find(b => via && b.dataset.id === via)
+      || document.querySelector('#parts button[data-overview]');
+    row?.focus({ preventScroll: true });
+  }
 }
 $('back-out')?.addEventListener('click', () => backOut());
 export const isBusy = () => busy;
@@ -995,6 +1048,7 @@ export async function show({ scene, mode, part }, { scroll = true, still = () =>
     emit('campus-presentation');
     const opening = cameraPreset(overviewCamera(built[scene]));
     flyTo(opening.pos, opening.target, 1.6);
+    emit('select', { scene: ui.scene, mode: ui.mode, id: null });
   }
 }
 function beacon(id) {
@@ -1134,6 +1188,7 @@ function loop(ts) {
   focusDof();
   if (compareProbe || frameListeners.size) renderer.info.reset();
   gpuBegin(); const d0 = performance.now(); composers[ui.scene].render(); gov.drawMs = performance.now() - d0; gpuEnd();
+  gov.workMs = performance.now() - frameStarted;
   if (!tween) govern(raw);                                // judge speed on steady frames, never mid-move
   updatePins();
   if (frameN++ % 6 === 0) updateScale();

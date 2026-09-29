@@ -40,13 +40,13 @@ it('CPO activates all 18 actual engine CW paths and limits new stack x-ray to Po
  const state={mode:'data'},b=cpoBuilder.build({quality:{mobile:false,shadows:false},state});
  const cw=b.dataFlows.filter((f:any)=>f.cls==='cw'),engines=engineLayout();expect(cw).toHaveLength(21); // 18 package paths plus three enlarged-detail samples
  for(const [i,e]of engines.entries()){
-  const p=cw[i].path.getPoint(1);expect(p.x).toBeCloseTo(e.x+e.out[0]*.8);expect(p.z).toBeCloseTo(e.z+e.out[1]*.8);
+  const p=cw[i].path.getPoint(1);expect(p.x).toBeCloseTo(e.x+e.out[0]*.83+e.tan[0]*.305);expect(p.z).toBeCloseTo(e.z+e.out[1]*.83+e.tan[1]*.305);
  }
  for(const mode of ['data','power','heat','data']){
   state.mode=mode;b.update(2,.016);exactWorldRoutes(b);
   for(const name of ['CPO_BOARD__Midnight_laminate','CPO_PACKAGE__Package_ceramic','CPO_DIES__Switch_ASIC_silicon']){
-   const m=b.scene.getObjectByName(name).material;expect(m.transparent).toBe(mode==='power');expect(m.opacity).toBe(mode==='power'?.16:1);expect(m.depthWrite).toBe(mode!=='power');
+   const m=b.scene.getObjectByName(name).material;expect(m.transparent).toBe(mode==='power');expect(m.opacity).toBe(mode==='power'?(name.includes('ASIC')?.58:.16):1);expect(m.depthWrite).toBe(mode!=='power');
   }
  }
- expect(b.inspection.scope).toContain('Moving marks show direction, not lane counts');expect(b.inspection.scope).toContain('Power also shows the board');
+ expect(b.inspection.scope).toContain('Moving marks show direction, not lane counts');expect(b.inspection.scope).toContain('ASIC partially translucent');
 });

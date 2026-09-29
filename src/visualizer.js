@@ -1,17 +1,14 @@
 // The contained visualizer (visualizer.html): the 3D stage and its side pane fill one screen, and nothing scrolls but
-// the pane. The same store, stage, tours and scenario controls as the story page, without its chapters.
+// the pane. Exploration uses numbered parts, layers and scenario controls.
 import { store, setScenario, pin } from './app/store.js';
 import * as stage from './app/stage.js';
 import './app/sources-ui.js';
-import './app/story.js';
-import './app/clock-ui.js';
+// Tours and simulation clocks are deferred. Keep their modules for future work,
+// but do not load their UI, keyboard listeners or automatic deep-link handlers.
 import './app/share.js';
 import './app/tokens-ui.js';
 import './tokens.css';
 import { THREE } from './kit.js';
-import * as journeys from './app/journeys.js';
-import { openClock, closeClock } from './app/clock-ui.js';
-import { enter as enterStory, exit as exitStory } from './app/story.js';
 import './app/scenario.js';
 import './app/site.js';
 import './app/campus-presentation.js';
@@ -26,7 +23,7 @@ window.ifx = {
   store, setScenario, pin, state: store.ui, go: stage.go, select: stage.select, setMode: stage.setMode,
   camera: stage.camera, controls: stage.controls, composers: stage.composers, built: stage.built, settle: stage.settle,
   renderer: stage.getRenderer, renderScale: stage.renderScale, quality: stage.qualityInfo, forceTier: stage.forceTier, setTransitions: stage.setTransitions,
-  show: stage.show, THREE, journeys, openClock, closeClock, enterStory, exitStory,
+  show: stage.show, THREE,
 };
 if (new URLSearchParams(location.search).has('module')) import('./app/blender-test.js');
 if (new URLSearchParams(location.search).get('module') !== 'native') import('./app/module-presentation.js');

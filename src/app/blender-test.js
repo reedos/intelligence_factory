@@ -6,7 +6,7 @@ const query = new URLSearchParams(location.search), variant = query.get('module'
 const box = document.createElement('details');
 box.id = 'blender-test';
 box.innerHTML = `<summary>Visual test · ${variant === 'blender' ? 'Blender' : 'Original'}</summary>
-  <div class="test-body"><p>Same app, controls and tours. Use Matched effects for the original lighting comparison. Representative internals.</p>
+  <div class="test-body"><p>Same app, controls and layers. Use Matched effects for the original lighting comparison. Representative internals.</p>
   <nav><a data-model="original">Original</a><a data-model="blender">Blender</a></nav>
   <button type="button" id="measure-layers">Measure three layers</button>
   <button type="button" id="measure-current">Measure current view</button>

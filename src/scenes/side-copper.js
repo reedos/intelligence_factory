@@ -69,7 +69,8 @@ export function build({ quality, state, authoredHardware = false }) {
     // flows: transmit from the host into the cable, receive from the cable to the host, through the chip if there is one
     for (let i = 0; i < 4; i++) for (const rx of [false, true]) {
       const x = lane(i, rx), yF = cardTop + 0.01;
-      const via = chip && (kind === 'aec' || rx) ? [[x, cardTop + 0.08, chipZ + chip.d / 2], [x, cardTop + 0.08, chipZ - chip.d / 2]] : [];
+      // Electrical transfer inside the opaque IC stays below its printed top.
+      const via = chip && (kind === 'aec' || rx) ? [[x, cardTop + 0.035, chipZ + chip.d / 2], [x, cardTop + 0.035, chipZ - chip.d / 2]] : [];
       const pts = [[x, yF, z0 + 1.0], [x, yF, z0 - 0.55], ...via, [x, yF, back], [hx + (x - hx) * 0.35, cardY, back - 4.0]];
       dataFlows.push(flow(rx ? pts.reverse() : pts, 'eth', { ...FLOW.elec, count: 5, size: .018, k: 3.6 }));
     }
@@ -97,6 +98,11 @@ export function build({ quality, state, authoredHardware = false }) {
 
   const view = (p, v, t) => ({ pos: p, view: { pos: v, target: t } });
   const hs = Object.fromEntries(heads.map((h, k) => [h.kind, view([h.x, 1.3, zc + 1.4 - k * 1.4], [h.x + 1.6, 5.0, z0 + 2.4], [h.x, 0.9, zc - 0.3])]));   // staggered front to back
+  // Active-package views prioritize legible physical identification while
+  // keeping the incoming/outgoing board traces visible around each chip.
+  for (const h of heads.filter(h => h.chip)) {
+    hs[h.kind].view = { pos: [h.x + 1.2, 4.2, 3.1], target: [h.chip.x, .95, zc] };
+  }
   const heatHotspots = Object.fromEntries(heads.filter(h => h.chip).map(h => [h.kind,
     view([h.chip.x, 1.15, zc], [h.x + 1.6, 5.0, z0 + 2.4], [h.x, 1.7, zc])]));
   return {

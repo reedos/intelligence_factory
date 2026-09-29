@@ -15,6 +15,10 @@ const soft = mode === 'soft';
 const b = await chromium.launch({ headless: true, args: soft ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=d3d11', '--ignore-gpu-blocklist'] });
 const p = await b.newPage({ viewport: soft ? { width: 1280, height: 800 } : { width: 1920, height: 1080 }, deviceScaleFactor: soft ? 1 : 1.5 });
 const errors = []; p.on('pageerror', e => errors.push(e.message));
+if (mode === 'no-timers') await p.addInitScript(() => {
+  const get = WebGL2RenderingContext.prototype.getExtension;
+  WebGL2RenderingContext.prototype.getExtension = function(name) { return name === 'EXT_disjoint_timer_query_webgl2' ? null : get.call(this, name); };
+});
 if (mode === 'throttle') await p.addInitScript(() => {   // every callback runs on every other frame, as a 30 fps cap does
   const raf = window.requestAnimationFrame.bind(window); let queue = [], armed = false, last = -1e9;
   const arm = () => { if (!armed) { armed = true; raf(pump); } };
@@ -34,6 +38,7 @@ const state = () => p.evaluate(() => {
   const i = ifx.state.scene, q = ifx.quality(), c = ifx.composers[i], bb = ifx.built[i];
   const mirrors = []; bb.scene.traverse(o => { if (o.isReflector) mirrors.push(o.visible); });
   return { tier: q.tiers[i], ceiling: q.ceilings[i], ratio: q.ratio, composerRatio: q.composerRatio, rtWidth: c.renderTarget1.width, gpuMs: q.gpuMs, drawMs: q.drawMs, fps: __fps.at(-1), gpu: q.gpu, timers: q.timers, integrated: q.integrated,
+    bloom: c.flowBloom.enabled, halo: bb.flowRibbons?.batches.every(v=>v.group.children[0].visible) ?? null, particles: q.particleFraction,
     mirror: mirrors.length ? mirrors.every(Boolean) : null, ao: q.ao, samples: c.renderTarget1.samples, liveShadows: ifx.renderer().shadowMap.autoUpdate, q };
 });
 const s0 = await state();
@@ -56,6 +61,9 @@ const check = s => {
   const want = TIERS[Math.min(3, s.tier)], bad = [];
   if (s.mirror !== null && s.mirror !== want[0]) bad.push('mirror');
   if (s.ao !== null && s.ao !== want[1]) bad.push('ao');
+  if (s.bloom !== (s.tier < 4)) bad.push('bloom');
+  if (s.halo !== null && s.halo !== (s.tier < 3)) bad.push('flow halo');
+  if (s.particles !== [1,1,1,.8,.6,.45,.3][s.tier]) bad.push('particle budget');
   if (s.samples !== want[2]) bad.push('msaa');
   if (s.liveShadows !== want[3]) bad.push('shadows');
   if (s.composerRatio !== s.ratio) bad.push(`passes draw at ${s.composerRatio}, not ${s.ratio}`);
@@ -74,7 +82,29 @@ const HEAVY = n => {
   ifx.built[ifx.state.scene].scene.add(m);
 };
 let s;
-if (mode === 'res') {
+if (mode === 'profile') {
+  await p.getByRole('combobox', {name:'Rendering quality'}).selectOption('laptop');
+  await p.waitForTimeout(500); s = await state(); check(s);
+  const inspect = () => {
+    const q=ifx.quality(), bb=ifx.built[ifx.state.scene];
+    return {preference:q.preference,tiers:q.tiers,governing:q.governing,
+      wrongCounts:['flows','dataFlows','heatFlows'].flatMap(k=>bb[k]||[]).filter(f=>f.mesh.count !== Math.min(f.count,Math.max(Math.min(f.count,3),Math.ceil(f.count*q.particleFraction)))).length};
+  };
+  const laptop=await p.evaluate(inspect);
+  if(laptop.preference!=='laptop'||laptop.tiers.some(t=>t<4)||!laptop.governing||laptop.wrongCounts) fails.push('Laptop preference/budget not applied');
+  await p.reload(); await p.waitForFunction(()=>window.ifx && ifx.state.scene===0);
+  if(await p.getByRole('combobox',{name:'Rendering quality'}).inputValue()!=='laptop') fails.push('Laptop preference not restored');
+  await p.evaluate(async sc=>{await ifx.show({scene:+sc,mode:'heat',part:null},{scroll:false});ifx.settle();},scene);
+  if((await p.evaluate(inspect)).wrongCounts) fails.push('new scene/layer lost particle budget');
+  await p.getByRole('combobox',{name:'Rendering quality'}).selectOption('auto');
+  if((await p.evaluate(inspect)).preference!=='auto') fails.push('Auto preference not restored');
+  console.log('Laptop persistence, future scenes, all layers, and return to Auto checked');
+} else if (mode === 'no-timers') {
+  if(s0.timers) fails.push('timer-unavailable simulation failed');
+  await p.evaluate(`(${HEAVY})(60000)`);
+  s=await watch(30); check(s);
+  if(s.tier===0) fails.push('sustained low FPS without timers did not lower quality');
+} else if (mode === 'res') {
   const rows = [];
   await p.evaluate(`(${HEAVY})(30000)`);                // fill-bound, as on a laptop GPU, so resolution is what costs
   for (const t of [3, 4, 5, 6]) {

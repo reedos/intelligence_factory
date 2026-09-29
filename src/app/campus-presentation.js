@@ -1,5 +1,5 @@
 import { on, store } from './store.js';
-import { setCampusView, setCampusFocus, campusFocusInfo, setInspectionView, built } from './stage.js';
+import { setCampusView, setCampusFocus, campusFocusInfo, setInspectionView, built, qualityInfo, setQualityPreference } from './stage.js';
 import './campus-presentation.css';
 
 const panel = document.createElement('section');
@@ -15,7 +15,7 @@ panel.innerHTML = `<div class="campus-view-buttons" role="group" aria-label="Cam
   <button type="button" id="link-annotations" aria-pressed="false" hidden>Annotations</button>
   <select id="link-view" aria-label="Closeup camera view" hidden></select>
   <button type="button" id="link-covers" aria-pressed="false" hidden>Show covers</button>
-  <div class="view-tools"><button type="button" id="presentation-view" aria-pressed="false">Present</button>
+  <div class="view-tools"><select id="render-quality" aria-label="Rendering quality"><option value="auto">Auto quality</option><option value="laptop">Laptop mode</option></select><button type="button" id="presentation-view" aria-pressed="false">Present</button>
   <button type="button" id="inspector-toggle" aria-expanded="true" aria-controls="inspector">Hide details</button></div>`;
 document.getElementById('viewer').append(panel);
 const scope = document.createElement('section'); scope.className = 'link-scope'; scope.hidden = true;
@@ -59,12 +59,14 @@ on('select', () => {
   });
 });
 const focusButton = panel.querySelector('#campus-focus');
+panel.querySelector('#render-quality').addEventListener('change', e => setQualityPreference(e.target.value));
 function sync() {
+  panel.querySelector('#render-quality').value = qualityInfo().preference;
   const inspection = built[store.ui.scene]?.inspection;
   scope.hidden = !inspection?.scope;
   scopeText.textContent = inspection?.scope || '';
   scopeBrief.textContent = store.ui.scene === 8
-    ? 'One packaging example. Driver and TIA chips may also be separate from the optics.'
+    ? 'Discrete driver and TIA packages, separate from the optical assemblies. Representative board-level design.'
     : store.ui.scene === 7
       ? 'Representative package with a separate 2.5× engine detail. X-ray layers reveal buried routes.'
       : 'Representative plug ends and internal routing. Moving marks explain flow, not speed or watts.';
@@ -82,7 +84,7 @@ function sync() {
   const annotations = panel.querySelector('#link-annotations'), covers = panel.querySelector('#link-covers');
   annotations.hidden = !inspection;
   annotations.setAttribute('aria-pressed', String(!!inspection?.annotations));
-  covers.hidden = !inspection?.hasCovers;
+  covers.hidden = !inspection?.hasCovers || !!inspection?.coversAlwaysVisible;
   const thermal = !!inspection?.coversForced;
   covers.disabled = thermal;
   const coverLabel = inspection?.coverLabel || 'covers';

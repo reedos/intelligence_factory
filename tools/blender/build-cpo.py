@@ -222,6 +222,14 @@ def photonic_die(cx,cy,cz,scale,angle,exploded=False):
         for z,m in [(-.198*scale,driver),(.227*scale,tia)]:
             box('Driver' if m==driver else 'TIA',w(ex,ey+(.062 if exploded else .037),z),(.106*scale,.004,.324*scale),m,role,.002*scale,angle)
     if not exploded:return
+    for words,z,mat in [('TX DRIVERS',-.198*scale,fiberTx),('RX TIAs',.227*scale,fiberRx)]:
+        curve=bpy.data.curves.new(words,'FONT');curve.body=words;curve.size=.16*CM
+        curve.align_x='CENTER';curve.align_y='CENTER';curve.extrude=0
+        obj=bpy.data.objects.new(words,curve);S.collection.objects.link(obj)
+        obj.location=world(w(0,ey+.071,z));obj.rotation_euler[2]=math.pi-angle
+        obj.parent=groups[role];curve.materials.append(mat)
+        bpy.context.view_layer.objects.active=obj;obj.select_set(True)
+        bpy.ops.object.convert(target='MESH');obj.select_set(False)
     top=.082;radius=.0045
     path('CW bus',[w(px(512),top,pz(24)),w(px(24),top,pz(24)),w(px(24),top,pz(190))],radius,fiberCw,role)
     for i in range(8):
@@ -252,17 +260,10 @@ for i,(e,conn) in enumerate(zip(LAYOUT['engines'],LAYOUT['connectors'])):
         o=(j-1.5)*.09
         flat_trace((a[0]+tan[0]*o,a[1]+tan[1]*o),(b[0]+tan[0]*o,b[1]+tan[1]*o),1.041,.03,'CPO_CONDUCTORS')
     ex,ez=conn
-    for j in range(16):
-        o=(j-7.5)*.034
-        path('Engine TX fiber' if j<8 else 'Engine RX fiber',[(x+out[0]+tan[0]*o,1.73,z+out[1]+tan[1]*o),(ex+tan[0]*o,1.2,ez+tan[1]*o)],.007,fiberTx if j<8 else fiberRx,'CPO_FIBERS')
-    box('Package connector',(ex,1.2,ez),(.3 if out[0] else .7,.3,.7 if out[0] else .3),black,'CPO_INTERFACES',.018)
-    li=i//4;lz=-4.4+li*2.2;R=6.3;side=e['side'];zc=-1 if side==3 else 1
-    pts=[(7.25,1.35,lz),(R,1.35,lz)]
-    if side in [1,3]:pts.extend([(R,1.35,zc*R),(ex,1.35,zc*R)])
-    if side==2:pts.extend([(R,1.35,R),(-R,1.35,R),(-R,1.35,ez)])
-    if side==0:pts.append((R,1.35,ez))
-    pts.extend([(ex+out[0]*.2,1.25,ez+out[1]*.2),(x+out[0]*.8,1.75,z+out[1]*.8)])
-    for d in [-.04,.04]:path('Laser supply fiber',[(p[0]+tan[0]*d,p[1],p[2]+tan[1]*d) for p in pts],.008,fiberCw,'CPO_FIBERS')
+    routes=LAYOUT['fiberRoutes'][i]
+    for kind,mat in [('tx',fiberTx),('rx',fiberRx),('cw',fiberCw)]:
+        for points in routes[kind]:path('Engine '+kind+' fiber',points,.008 if kind=='cw' else .007,mat,'CPO_FIBERS')
+    box('Package fiber guide',(ex,1.2,ez),(.3 if out[0] else .7,.3,.7 if out[0] else .3),black,'CPO_INTERFACES',.018)
 
 photonic_die(-11.4,1.4,-8.4,2.5,math.pi,True)
 for i in range(5):box('Laser aperture',(7.24,1.5,-4.4+i*2.2),(.04,.18,.5),fiberCw,'CPO_ELS',.004)
@@ -284,12 +285,12 @@ for parent in groups.values():
         bpy.context.object.name=parent.name+'__'+matname
 root=group('IFX_CPO_HARDWARE')
 for o in groups.values():o.parent=root
-root['ifx']=json.dumps({'version':4,'units':'m','coordinates':'gltf-root-rest','representative':True,
+root['ifx']=json.dumps({'version':5,'units':'m','coordinates':'gltf-root-rest','representative':True,
     'engineCount':len(LAYOUT['engines']),'subassemblyCount':len(LAYOUT['subassemblies']),
     'interposerCm':[9.0,.1,9.0], 'interposerCenterCm':[0,1.45,0],
     'enginesCm':[[e['x'],1.65,e['z']] for e in LAYOUT['engines']],
     'scope':'all static physical geometry; runtime owns animated overlays, labels and selection guides',
-    'physicalMeshes':'Blender authored', 'detailRingCount':8,'txFibersPerEngine':8,'rxFibersPerEngine':8,'laserFibersPerEngine':2})
+    'physicalMeshes':'Blender authored', 'fiberRoutesCm':LAYOUT['fiberRoutes'], 'detailRingCount':8,'txFibersPerEngine':8,'rxFibersPerEngine':8,'laserFibersPerEngine':2})
 out=ROOT/'public/models/cpo-hardware.glb'; out.parent.mkdir(parents=True,exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=str(HERE/'cpo-hardware.blend'))
 bpy.ops.export_scene.gltf(filepath=str(out),export_format='GLB',export_extras=True,export_yup=True,export_cameras=False,export_lights=False)

@@ -1,6 +1,6 @@
 // Side level: inside a co-packaged optics switch package, NVIDIA Photonics style. World unit = 1 cm.
 // Counts are NVIDIA's (six optical subassemblies of three engines per switch chip, 18 fibers per engine: 8 transmit,
-// 8 receive, 2 laser in; laser modules at the front panel, 32 transmit lanes each; engines socketed, fibers through a
+// 8 receive, 2 laser in; laser modules at the front panel, 32 transmit lanes each; subassemblies socketed, fibers through a
 // sealed interface). The package's size and layout, its cold plate and the photonic chip's floorplan are representative.
 // Electrical paths: the switch chip's SerDes to each engine through copper traces in the package substrate, then
 // down through bonds from the electronic chip to the photonic chip. Light: the laser fibers in, the modulated
@@ -8,7 +8,7 @@
 // a labeled 2.5x detail view.
 import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, label, lidBox, outline, FLOW, COL, note, unitCol, asicTex, ringPicTex, RING, eicTex, glowMat } from './side-kit.js';
 
-import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf } from './side-geometry.js';
+import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes } from './side-geometry.js';
 
 export function build({ quality, state, authoredHardware = false, authoredAsicMaterial = null }) {
   const scene = setup(quality, 14), M = materials();
@@ -63,10 +63,12 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   });
   // light: each engine's 8 transmit and 8 receive fibers to its own connector at the package edge
   const edgeConn = engines.map(e => edgeConnOf(e, SUB));
-  engines.forEach(({ x, z, out, tan }, i) => {
+  const fiberRoutes = engines.map(cpoFiberRoutes);
+  engines.forEach(({ out }, i) => {
     const [ex, ez] = edgeConn[i];
-    for (let j = 0; j < 16; j++) { const o = (j - 7.5) * 0.034, px = tan[0] * o, pz = tan[1] * o; N.strut([x + out[0] * 1.0 + px, Y.eng + 0.08, z + out[1] * 1.0 + pz], [ex + px, Y.sub + 0.3, ez + pz], 0.007, j < 8 ? M.fiberTx : M.fiberRx, 4); }
-    S.box(out[0] !== 0 ? 0.3 : 0.7, 0.3, out[0] !== 0 ? 0.7 : 0.3, MAT.polymer, ex, Y.sub + 0.3, ez);
+    for (const [kind, material] of [['tx', M.fiberTx], ['rx', M.fiberRx], ['cw', M.fiberCw]])
+      for (const points of fiberRoutes[i][kind]) strand(N, points, material, kind === 'cw' ? .008 : .007);
+    S.box(out[0] !== 0 ? .3 : .7, .3, out[0] !== 0 ? .7 : .3, MAT.polymer, ex, 1.2, ez);
   });
   // the laser modules at the front panel, and each engine's two laser fibers, run round the outside of the package
   // and in through the engine's own connector with its data fibers
@@ -74,18 +76,6 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   // This allocation is illustrative; published totals do not specify the cross-package wiring.
   const ELSX = SUB / 2 + 3.0, nEls = elsOf(engines.length - 1) + 1, els = [];
   for (let i = 0; i < nEls; i++) { const z = -4.4 + i * 2.2; if (!authoredHardware) S.box(1.9, 0.9, 1.1, MAT.darkSteel, ELSX, Y.sub + 0.45, z); N.box(0.04, 0.18, 0.5, glowMat(COL.cw, 1.5), ELSX - 0.96, Y.sub + 0.6, z); els.push([ELSX, z]); }
-  const R = SUB / 2 + 1.1, yF = Y.sub + 0.45;
-  const laserRoute = i => {
-    const { x, z, out, side } = engines[i], [lx, lz] = els[elsOf(i)], [ex, ez] = edgeConn[i];
-    const zc = side === 3 ? -1 : 1;
-    const pts = [[lx - 0.95, yF, lz], [R, yF, lz]];
-    if (side === 1 || side === 3) pts.push([R, yF, zc * R], [ex, yF, zc * R]);
-    if (side === 2) pts.push([R, yF, R], [-R, yF, R], [-R, yF, ez]);
-    if (side === 0) pts.push([R, yF, ez]);
-    pts.push([ex + out[0] * 0.2, Y.sub + 0.35, ez + out[1] * 0.2], [x + out[0] * 0.8, Y.eng + 0.1, z + out[1] * 0.8]);
-    return pts;
-  };
-  engines.forEach((e, i) => { const pts = laserRoute(i); for (const d of [-0.04, 0.04]) strand(N, pts.map(p => [p[0] + e.tan[0] * d, p[1], p[2] + e.tan[1] * d]), M.fiberCw, 0.008); });
   // the cold plate, lifted and see-through; water in and out straight up
   if (!authoredHardware) {
   const plate = new THREE.Mesh(new THREE.BoxGeometry(SUB - 0.6, 0.35, SUB - 0.6), new THREE.MeshPhysicalMaterial({ color: 0xc98a5c, metalness: 0.6, roughness: 0.45, transparent: true, opacity: 0.12, depthWrite: false }));
@@ -162,9 +152,10 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     // Every modeled engine is active. These route-level marks sample its lane
     // bundle; they are not a count of fibers or a bandwidth scale.
     {
-      dataFlows.push(flow([[e.x + e.out[0] * 0.5, Y.eng + 0.08, e.z + e.out[1] * 0.5], [cx_, Y.sub + 0.3, cz_], [cx_ + e.out[0] * 0.9, Y.sub + 0.3, cz_ + e.out[1] * 0.9]], 'tx', FLOW.light));
-      dataFlows.push(flow([[cx_ + e.out[0] * 0.9 + tn[0] * 0.12, Y.sub + 0.32, cz_ + e.out[1] * 0.9 + tn[1] * 0.12], [cx_ + tn[0] * 0.12, Y.sub + 0.32, cz_ + tn[1] * 0.12], [e.x + e.out[0] * 0.5, Y.eng + 0.1, e.z + e.out[1] * 0.5]], 'rx', FLOW.light));
-      dataFlows.push(flow(laserRoute(i), 'cw', FLOW.cw));
+      const routes = fiberRoutes[i];
+      dataFlows.push(flow(routes.tx[3], 'tx', FLOW.light));
+      dataFlows.push(flow([...routes.rx[3]].reverse(), 'rx', FLOW.light));
+      dataFlows.push(flow(routes.cw[0], 'cw', FLOW.cw));
     }
   });
   // in the detail: electrical in to the drivers, down to the rings; laser light along the bus; light out; light in to
@@ -193,10 +184,12 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   label(scene, 'Size and layout representative · counts are NVIDIA’s', [0, 0.1, FZ], note, 0.2);
   label(scene, '18 engines · 28.8T each way · 1 engine = 1.6T each way, like one module', [0, -0.3, FZ], unitCol, 0.2);
   label(scene, 'Detail · one engine, lifted out and exploded · 2.5×', [DX, DY + 2.9, DZ], '#e8ecf2', 0.22);
-  label(scene, 'Bonded EIC/PIC faces separated · crossing motion is schematic', [DX, DY - 0.45, DZ + 2.0], note, 0.13);
+  label(scene, 'Functional schematic · bonded faces and surface fiber coupling unfolded', [DX, DY - 0.45, DZ + 2.0], note, 0.13);
   label(scene, 'Electronic chip: drivers (TX) and TIAs (RX)', [DX, DY + 2.35, DZ - 1.6], unitCol, 0.15);
   label(scene, 'Photonic chip: ring modulators (TX), photodiodes (RX)', [DX, DY + 0.55, DZ + 2.0], unitCol, 0.15);
   label(scene, 'Light · 8 TX, 8 RX, 2 laser fibers', [DX - PW / 2 - 1.6, DY + 0.75, DZ], COL.tx, 0.15);
+  label(scene, 'TX / RX fibers → front-panel ports (outside this diagram)', [0, 2.8, 7.8], COL.tx, .16);
+  label(scene, 'Lower amber fibers: laser supply only · no engine-to-engine optical loop', [0, .5, 7.8], COL.cw, .14);
   label(scene, 'Electrical · copper traces in the substrate', [0, Y.subTop + 0.5, -2.6], COL.elec, 0.15);
   label(scene, 'Laser modules · front panel, light only · 32 transmit lanes each', [ELSX, Y.sub + 1.6, 0], COL.cw, 0.16);
   label(scene, 'Five shown · allocation illustrative · 18 serve the four-package switch', [ELSX, Y.sub + 1.25, els[nEls - 1][1]], note, 0.13);
@@ -211,7 +204,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     rings: view(w(r3x, 0.12, r3z), [DX + 0.5, DY + 3.6, DZ + 3.8], w(r3x, 0.1, r3z)),
     pd: view(w(pdX, 0.12, rxRowZ(4)), [DX + 1.2, DY + 2.3, DZ - 4.0], w(pdX, 0.1, rxRowZ(4))),
     els: view([ELSX, Y.sub + 1.0, 0], [ELSX + 3.2, 5, 5.5], [ELSX - 1, Y.sub, 0]),
-    fiberout: view([edgeConn[1][0], Y.sub + 0.5, edgeConn[1][1]], [edgeConn[1][0] + 3, 4.5, edgeConn[1][1] + 3], [edgeConn[1][0] - 0.5, Y.sub, edgeConn[1][1]]),
+    fiberout: view([edgeConn[1][0], 1.45, edgeConn[1][1]], [edgeConn[1][0] + 4, 7.5, 10.7], [edgeConn[1][0], 1.5, 5.5]),
     coldplate: view([2.5, Y.plate + 0.3, 2.5], [6, 10, 11], [0, 2.4, 0]),
   };
   return {

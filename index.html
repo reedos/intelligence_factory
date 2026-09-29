@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <script>
   // Links from before the 3D view moved to its own page (a shared ?view= part, a clock, #explore, a #tour-... start)
-  // go straight to the visualizer, keeping the part, scenario and tour they point at.
+  // go straight to the visualizer, keeping the part and scenario. Retired tour/clock links open exploration.
   (function () {
     var q = new URLSearchParams(location.search), h = location.hash;
     if (q.has('view') || q.has('clock') || /^#(explore|viewer|tour-)/.test(h))
@@ -45,8 +45,8 @@
     <p class="eyebrow">Power · Data · Heat · Six scales</p>
     <h1 id="hero-h">The Intelligence Factory</h1>
     <p class="tagline"><span class="v1">Electricity in.</span> <span class="v2">Intelligence out.</span></p>
-    <p class="lede">Follow the power from the plants on a 2,000 km grid into one AI campus: 345,000 volts at the fence, down through the substation, the halls, a rack and a tray, to 0.8 V at a GPU die, and out as tokens. Switch to the data layer to follow the links back out, or to heat to follow every watt to the sky. The figures on each part, chart and tour carry a label for what backs them: a published spec, a vendor claim, a third party's report, or this page's own math or assumption.</p>
-    <div class="hero-actions"><a class="btn go" href="visualizer.html#tour-story" id="story-hero-play">▶ Play the overview</a><a class="btn" href="visualizer.html" id="hero-explore">Explore the campus</a><span class="hint-inline">or follow <a href="#tour-watt" data-tour-start="watt">a watt</a>, <a href="#tour-request" data-tour-start="request">a request</a> or <a href="#tour-heat" data-tour-start="heat">the heat</a></span></div>
+    <p class="lede">Follow the power from the plants on a 2,000 km grid into one AI campus: 345,000 volts at the fence, down through the substation, the halls, a rack and a tray, to 0.8 V at a GPU die, and out as tokens. Switch to the data layer to follow the links back out, or to heat to follow every watt to the sky. The figures on each part and chart carry a label for what backs them: a published spec, a vendor claim, a third party's report, or this page's own math or assumption.</p>
+    <div class="hero-actions"><a class="btn go" href="visualizer.html" id="hero-explore">Explore the campus →</a></div>
     <p class="hero-note">Personal educational project based on cited public sources. Not an official publication of my employer or the companies discussed. Models are schematic; estimates and assumptions are identified.</p>
   </div>
   <p class="hero-cap" id="hero-cap">Illustration, drawn by an image model from this site's campus layout</p>
@@ -72,6 +72,7 @@
       <div class="sc-group"><span class="lab">Cooling</span><div class="sc-seg" id="sc-cooling" role="group" aria-label="Cooling"></div></div>
     </div>
     <div class="sc-sites"><span class="lab">Or start from a real campus</span><div class="sc-seg" id="sc-site" role="group" aria-label="Real campuses"></div></div>
+    <a class="btn go sc-open" id="sc-open" href="visualizer.html?view=1.power">Open campus in visualizer →</a>
     <div class="site-card" id="site-card" hidden></div>
     <p class="note" id="sc-note"></p>
     <div class="kpis" id="kpis"></div>
@@ -87,15 +88,12 @@
     </div>
     <div class="ov-actions">
       <a class="btn go ov-open" href="visualizer.html">Open the visualizer →</a>
-      <a class="btn" href="visualizer.html#tour-story">▶ Play the overview</a>
-      <a class="btn" href="visualizer.html#tour-light">▶ Electrons to light</a>
-      <a class="btn" href="visualizer.html#tour-all-data">▶ Every part: data</a>
     </div>
   </section>
 
   <header class="chapter" id="power" style="--c: var(--mv)">
     <p class="ch-k"><span>02</span>Power</p>
-    <p class="ch-s">From the meter to the die: where every megawatt goes, why the voltage steps down eleven times, and how the load moves from second to second.</p>
+    <p class="ch-s">From the meter to the die: where every megawatt goes and why the voltage steps down.</p>
   </header>
   <section class="ledger" aria-labelledby="ledger-h">
     <div class="sec-head">
@@ -120,15 +118,6 @@
       <p>Power is volts times amps. Each step down in voltage raises the current a conductor has to carry, which is why the last step happens millimeters from the chip.</p>
     </div>
     <div class="chart-box"><svg id="stairs" viewBox="0 0 1000 380" role="img" aria-label="Voltage at each stage on a log scale, with the current one conductor carries"></svg></div>
-  </section>
-
-  <section class="clocks" aria-labelledby="clocks-h">
-    <div class="sec-head">
-      <p class="eyebrow">2.3 · Time</p>
-      <h2 id="clocks-h">Four clocks</h2>
-      <p>A campus is never steady. Training swings it every two seconds, an outage hands it to batteries and diesel in ten, and over a day the weather and the people asking questions move it by the hour. Each chart follows your scenario; play one to watch the flows in 3D react. The events and timings are illustrative, and the notes under each chart say which figures are published and which are assumed.</p>
-    </div>
-    <div class="clock-grid" id="clock-grid"></div>
   </section>
 
   <header class="chapter" id="data" style="--c: var(--nvl)">

@@ -25,7 +25,9 @@ for i in range(20):
  for j in range(7):box('Vertical acoustic folded fin',(x-1.16+j*.386,5.1,.36),(.075,3.62,.27),steel,g,.018)
  box('Upper reveal',(x,7.08,.23),(2.87,.045,.16),alloy,g,.01)
 for x in [-30+i*6 for i in range(11)]:
- box('Backwall structural pier',(x,3.85,.28),(.22,7.3,.5),ceramic,g,.034)
+ # End at the crown underside (7.37m), below the wall's 7.50m top.
+ # The former pier tops coincided with the wall top and flickered in cutaway views.
+ box('Backwall structural pier',(x,3.785,.28),(.22,7.17,.5),ceramic,g,.034)
  # Short cutaway roof brackets, all above existing bus/fiber runs.
  beam('Tapered cutaway roof bracket',(x,6.6,.48),(x,7.08,1.15),.2,.25,ceramic,g)
  box('Bracket indirect light',(x,6.90,.82),(.08,.04,.65),walllight,g,.007)

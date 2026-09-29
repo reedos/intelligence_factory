@@ -115,6 +115,11 @@ export function attachFlowRibbons(built, { width = 2.3, glow = 5.5, brightness =
   built.update = (...args) => { const result = previousUpdate?.(...args); update(); return result; };
   const previousDispose = built.dispose;
   built.dispose = () => { previousDispose?.(); for (const b of batches) { b.geometry.dispose(); b.group.children.forEach(o => o.material.dispose()); } root.removeFromParent(); };
-  const effect = { root, batches, update, drawCallsPerVisibleLayer: 2 };
+  const effect = { root, batches, update, drawCallsPerVisibleLayer: 2,
+    setQuality({ halo = true } = {}) {
+      for (const batch of batches) batch.group.children[0].visible = halo;
+      this.drawCallsPerVisibleLayer = halo ? 2 : 1;
+    },
+  };
   built.flowRibbons = effect; update(); return effect;
 }

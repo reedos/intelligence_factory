@@ -7,6 +7,7 @@ Author dimensions below in native centimetres; GLB is metres, Y-up after export.
 """
 import bpy
 import math
+import sys
 import json
 from pathlib import Path
 
@@ -209,10 +210,10 @@ def export(name, mats, footprint):
     def role(o):
         if 'lifted cover' in o.name:return 'cover'
         if 'release pull' in o.name:return 'pull'
-        for prefix,part in [('Nano ITLA','itla'),('CDM package','cdm'),('ICR package','icr'),('ACC active','acc_chip'),('AEC active','aec_chip')]:
+        for prefix,part in [('Nano ITLA','itla'),('Modulator island','cdm'),('Receiver island','icr'),('Driver island','driver'),('TIA island','tia'),('ACC active','acc_chip'),('AEC active','aec_chip')]:
             if o.name.startswith(prefix):return part
         return 'base'
-    for part in ['base','cover','pull','itla','cdm','icr','acc_chip','aec_chip']:
+    for part in ['base','cover','pull','itla','cdm','icr','driver','tia','acc_chip','aec_chip']:
         for key,m in mats.items():
             objects = [o for o in bpy.context.scene.objects if o.type=='MESH' and o.data.materials and o.data.materials[0] == m and role(o) == part]
             if not objects: continue
@@ -266,12 +267,14 @@ def coherent():
         box('Nano ITLA identification bar',(ix-.65+j*.065,1.994,.13),(w,.0007,.20),m['mark'],.0002)
     for x in [ix-1.11,ix+1.11]:
         for z in [-.64,.64]:screw('Nano ITLA flush fastener',x,1.989,z,m,.046)
-    # Open ceramic carriers and perimeter seals: the native chip diagrams and
-    # their copper/optical connections stay exposed and authoritative.
-    for name,cx,cz,length in [('CDM package',3.235,-.52,1.85),('ICR package',3.11,.52,1.6)]:
-        box(name+' carrier',(cx,1.375,cz),(length,.05,.82),m['ceramic'],.014)
-        for dz in [-.398,.398]:box(name+' seal',(cx,1.403,cz+dz),(length-.07,.006,.022),m['seal'],.002)
-        for dx in [-length/2+.017,length/2-.017]:box(name+' seal',(cx+dx,1.403,cz),(.022,.006,.774),m['seal'],.002)
+    # Four independent board footprints: closed electronic packages are imported
+    # with marked tops; optical assemblies remain open for the photonic schematic.
+    for name,cx,cz,length,width in [
+        ('Modulator island',3.92,-.55,1.18,.72),
+        ('Driver island',2.85,-.55,.61,.61),
+        ('Receiver island',3.92,.55,1.18,.72),
+        ('TIA island',2.85,.55,.61,.61)]:
+        box(name+' carrier',(cx,1.375,cz),(length,.05,width),m['ceramic'],.012)
     # Existing duplex LC apertures gain concentric metal sleeves, with an open
     # bore comfortably wider than the optical pulse envelope.
     for z in [-.3,.3]:
@@ -282,8 +285,25 @@ def coherent():
     internals('coherent')
     export('coherent-hardware',m,[L,W])
 
+def copper_package_mark(name, text, x, z, width, material):
+    # Printed package identification: real flat Blender geometry on the molded
+    # top, not a floating caption. Align to the connector's host-facing edge.
+    curve=bpy.data.curves.new(name, 'FONT');curve.body=text
+    curve.align_x='CENTER';curve.align_y='CENTER';curve.size=.001
+    curve.space_line=1.12;curve.extrude=0;curve.resolution_u=3
+    font=Path('C:/Windows/Fonts/consolab.ttf')
+    if font.exists(): curve.font=bpy.data.fonts.load(str(font),check_existing=True)
+    obj=bpy.data.objects.new(name,curve);bpy.context.collection.objects.link(obj)
+    obj.location=xyz((x,1.014,z));obj.data.materials.append(material)
+    bpy.context.view_layer.update()
+    factor=width*.01/max(obj.dimensions.x,1e-6);obj.scale=(factor,factor,factor)
+    bpy.ops.object.select_all(action='DESELECT');obj.select_set(True)
+    bpy.context.view_layer.objects.active=obj;bpy.ops.object.convert(target='MESH')
+    obj['packageMark']=text.replace('\n',' ')
+
 def copper():
     m=reset(); W=2.2; L=6; zc=-.2
+    m['ink']=mat('Copper IC printed identification',(.94,.96,.93),0,.75)
     for kind,x in [('DAC',-4.6),('ACC',0),('AEC',4.6)]:
         box(kind+' lower tray',(x,0,zc),(W,.12,L),m['shell'],.065)
         for sign in [-1,1]:
@@ -308,13 +328,16 @@ def copper():
             chipx=x+.39 if kind=='ACC' else x
             cw,cd=(.62,.6) if kind=='ACC' else (1.6,.95)
             box(kind+' active package',(chipx,.975,zc),(cw,.07,cd),m['package'],.018)
-            # Flush package identification texture substitute, not a die floorplan.
-            for k in range(3):
-                box(kind+' active etch',(chipx-cw*.18,.010+.999,zc-.12+k*.10),(cw*.37,.001,.018),m['mark'],.0003)
+            # Function first, with a quieter second line. These are printed on
+            # the molded chip, independent of floating annotations and layers.
+            copper_package_mark(kind+' active function label', 'REDRIVER' if kind=='ACC' else 'RETIMER',chipx,zc-cd*.13,cw*.91,m['ink'])
+            copper_package_mark(kind+' active identifier label', 'ACC / RX' if kind=='ACC' else 'AEC DSP',chipx,zc+cd*.22,cw*.56,m['ink'])
         lid(kind+' lifted cover',x,2.3,zc,L,W,False,m)
         copper_pull(kind+' release pull',x,m)
     internals('copper')
     export('copper-hardware',m,[W,L])
 
-coherent()
-copper()
+# Optional target avoids unrelated asset churn.
+targets = sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else ['coherent','copper']
+if 'coherent' in targets: coherent()
+if 'copper' in targets: copper()

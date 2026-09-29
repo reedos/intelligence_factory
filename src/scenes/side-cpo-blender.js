@@ -10,7 +10,7 @@ import { attachFlowRibbons } from '../flow-ribbons.js';
 let source, pending;
 export function preload() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=4`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=5`)
     .then(gltf => { source = gltf.scene; return source; })
     .catch(error => { pending = undefined; throw error; });
 }
@@ -78,7 +78,7 @@ export function build(args) {
     powerLayers.push({ mesh, material: mesh.material, castShadow: mesh.castShadow,
       opacity: mesh.material.opacity, transparent: mesh.material.transparent, depthWrite: mesh.material.depthWrite });
   }
-  const powerNote = label(built.scene, 'Power: board, package and ASIC in x-ray; supply paths are schematic', [0, 2.6, 5.2], note, .17);
+  const powerNote = label(built.scene, 'Power: ASIC partially translucent; board and package in x-ray', [0, 2.6, 5.2], note, .17);
   const pipeMaterials = new Map(), pipeMeshes = [];
   plate.traverse(object => {
     if (!object.isMesh) return;
@@ -96,7 +96,7 @@ export function build(args) {
       const transparent = power || layer.transparent;
       if (layer.material.transparent !== transparent) { layer.material.needsUpdate = true; dirty = true; }
       layer.material.transparent = transparent;
-      layer.material.opacity = power ? .16 : layer.opacity;
+      layer.material.opacity = power ? (layer.material === asicMaterial ? .58 : .16) : layer.opacity;
       layer.material.depthWrite = power ? false : layer.depthWrite;
       layer.mesh.castShadow = layer.castShadow && !power;
     }
@@ -127,7 +127,7 @@ export function build(args) {
     hasCovers: { value: true }, coverLabel: { value: 'cold plate' },
   });
   built.inspection.setCovers = value => { showPlate = !!value; syncPlate(); };
-  built.inspection.scope = 'Representative package and mechanics; six groups of three engines. Package layers and the cold plate are separated for inspection. Data and Power show the interposer in x-ray to expose buried electrical routes; it is not transparent silicon. Power also shows the board, package ceramic and ASIC in x-ray so the schematic supply paths from below remain visible. Heat view shows the cold plate and coolant pipes in x-ray so their internal flow is visible. Moving marks show direction, not lane counts, speed or watts. Electrical and heat motion across display gaps is schematic. The separate engine detail is enlarged 2.5×: its EIC/PIC faces are bonded in hardware, and its dashed leader identifies the enlarged engine.';
+  built.inspection.scope = 'Representative package and mechanics; six groups of three engines. Package layers and the cold plate are separated for inspection. Data and Power show the interposer in x-ray to expose buried electrical routes; it is not transparent silicon. Power shows the board and package ceramic in x-ray, with the ASIC partially translucent so its footprint and the schematic supply paths from below remain visible. TX/RX fibers continue outward to front-panel ports outside this diagram; separate lower amber fibers supply laser light. Fiber routing is representative, with surface coupling unfolded for clarity rather than a literal edge-coupled NVIDIA die. Heat view shows the cold plate and coolant pipes in x-ray so their internal flow is visible. Moving marks show direction, not lane counts, speed or watts. Electrical and heat motion across display gaps is schematic. The separate engine detail is enlarged 2.5×: its EIC/PIC faces are bonded in hardware, and its dashed leader identifies the enlarged engine.';
   built.inspection.views = {
     diagram: { label: 'Complete diagram', ...built.camera },
     package: { label: 'Package', pos: [14, 18, 27], target: [1, 1.1, 0],

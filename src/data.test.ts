@@ -135,9 +135,12 @@ describe('reviewed hardware distinctions', () => {
     const scene = C.SCENES.find(s => s.id === 'coherent');
     expect(scene?.intro).toContain('discrete');
     expect(scene?.dataIntro).toContain('separate');
+    for (const layer of [C.PARTS, C.PARTS_DATA, C.PARTS_HEAT]) {
+      expect((layer as any).coherent.map((p: any) => p.id)).toEqual(expect.arrayContaining(['driver','tia','cdm','icr']));
+    }
     for (const id of ['cdm', 'icr']) {
       const body = (C.PARTS_DATA as any).coherent.find((p: any) => p.id === id)?.body;
-      expect(body).toContain('discrete driver and TIA');
+      expect(body).toContain('separate');
       expect(body).not.toMatch(/common design/);
     }
   });

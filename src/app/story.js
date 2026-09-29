@@ -47,6 +47,7 @@ export const TOURS = {
   'all': { label: 'Every part, every layer', short: 'All', beats: everything, group: 'Every part' },
 };
 let tour = 'story';
+let tourPickerOpen = false;
 let resume = null;                                        // { tour, i }: where the reader left a tour to look around
 
 // ---------- UI ----------
@@ -237,7 +238,8 @@ function render() {
     + `<button type="button" class="btn pace" id="tour-pace" aria-haspopup="menu" aria-expanded="false"></button>`
     + `<span class="tour-t" id="tour-t" aria-live="polite"></span>`
     + `<button type="button" class="btn icon" id="story-exit" aria-label="Leave the tour">×</button></div>`
-    + `<div class="tour-pick"><div class="tour-group"><span class="tour-g">Tours</span>${tabRow('Tours')}</div>${everyPart}</div>`
+    + `<div class="tour-chooser"><button type="button" class="tour-toggle" id="tour-toggle" aria-expanded="${tourPickerOpen}" aria-controls="tour-pick">${tourPickerOpen ? 'Hide tours' : 'Show tours'}<span aria-hidden="true">${tourPickerOpen ? '−' : '+'}</span></button>`
+    + `<div class="tour-pick" id="tour-pick"${tourPickerOpen ? '' : ' hidden'}><div class="tour-group"><span class="tour-g">Tours</span>${tabRow('Tours')}</div>${everyPart}</div></div>`
     + `<div class="tally" id="tally" aria-live="polite"${list.some(b => b.tally) && !perLevel() ? '' : ' hidden'}><span class="eyebrow">${TOURS[tour].label}</span><b id="tally-v"></b></div>`
     + `${TOUR_NOTES[tour] || chainTxt(tour) ? `<p class="tour-note">${[TOUR_NOTES[tour], chainTxt(tour)].filter(Boolean).join(' ')}</p>` : ''}`
     + `${chapterPicker}</div>`
@@ -248,6 +250,13 @@ function render() {
       const n = pinOf(b);
       return `<article class="beat${b.level ? ' level' : ''}" data-i="${i}"><span class="k">${n ? `<span class="bpin" role="img" aria-label="Pin ${n}" title="Pin ${n} in the view">${n}</span>` : ''}${b.k}</span><h3>${b.title}</h3><p>${b.text}</p>${specsHTML(b)}${figureHTML(b)}${acts ? `<div class="beat-acts">${acts}</div>` : ''}<span class="beat-bar" aria-hidden="true"><i></i></span></article>`; }).join('');
   $('story-exit').addEventListener('click', exit);
+  $('tour-toggle').addEventListener('click', () => {
+    tourPickerOpen = !tourPickerOpen;
+    const toggle = $('tour-toggle');
+    toggle.setAttribute('aria-expanded', String(tourPickerOpen));
+    toggle.innerHTML = `${tourPickerOpen ? 'Hide tours' : 'Show tours'}<span aria-hidden="true">${tourPickerOpen ? '−' : '+'}</span>`;
+    $('tour-pick').hidden = !tourPickerOpen;
+  });
   // while the reader's own scrolling holds the tour, the button offers to carry on now rather than to pause
   $('tour-play').addEventListener('click', () => { if (playing && performance.now() < holdUntil) { holdUntil = 0; ctlLabel(); } else setPlaying(!playing); });
   $('tour-prev').addEventListener('click', () => step(-1));
@@ -260,9 +269,17 @@ function render() {
   });
   paceLabel();
   box.querySelectorAll('[data-tour]').forEach(b => b.addEventListener('click', () => {
-    if (b.dataset.tour === tour) return;
+    tourPickerOpen = false;
+    if (b.dataset.tour === tour) {
+      $('tour-pick').hidden = true;
+      $('tour-toggle').setAttribute('aria-expanded', 'false');
+      $('tour-toggle').innerHTML = 'Show tours<span aria-hidden="true">+</span>';
+      $('tour-toggle').focus({ preventScroll: true });
+      return;
+    }
     if (b.dataset.tour === 'here') { here.scene = entry.scene; here.mode = entry.mode; }   // finding 9: the level the reader entered the tours from
     switchTour(b.dataset.tour);
+    $('tour-toggle').focus({ preventScroll: true });
   }));
   box.querySelectorAll('[data-drill]').forEach(b => b.addEventListener('click', () => {
     const to = +b.dataset.drill;
@@ -274,11 +291,6 @@ function render() {
   box.querySelectorAll('[data-next-tour]').forEach(b => b.addEventListener('click', () => { switchTour(b.dataset.nextTour); setPlaying(true); }));
   box.querySelectorAll('[data-explore]').forEach(b => b.addEventListener('click', () => exit()));
   box.querySelectorAll('[data-restart]').forEach(b => b.addEventListener('click', () => { switchTour(tour); setPlaying(true); }));
-  // finding 15: the selected tab, whenever the picker renders (a tour switch, or the scenario/tokens changes
-  // that also call render()). Not also on the "Every part" <details> toggle event: a <details open> element
-  // inserted via innerHTML can fire that event on its own during parsing, and centering twice in one render -
-  // the second measurement mid-animation from the first - was overshooting the scroll (found while testing).
-  centerInPicker(box.querySelector('.tour-tabs [aria-selected="true"]'));
   observe();
   if (active >= 0) mark(active);
   else ctlLabel();
@@ -340,15 +352,6 @@ function centerInPanel(el, smooth = true) {
   panel.scrollBy({ top: dy, behavior: smooth && !reduced ? 'smooth' : 'auto' });
 }
 panel.addEventListener('scrollend', () => { steering = Math.min(steering, performance.now() + 60); });
-// finding 15: on a phone the picker itself scrolls sideways (styles.css); keep the active tab reachable without
-// an exploratory swipe by scrolling that row alone into view - never scrollIntoView, which would also walk the
-// page's own scroll container and could move the stage
-function centerInPicker(el) {
-  if (!el || !narrow.matches) return;
-  const row = el.closest('.tour-pick'); if (!row) return;
-  const r = el.getBoundingClientRect(), rr = row.getBoundingClientRect(), dx = r.left - rr.left - (rr.width - r.width) / 2;
-  if (Math.abs(dx) > 1) row.scrollBy({ left: dx, behavior: reduced ? 'auto' : 'smooth' });
-}
 function step(d) {
   if (d > 0 && active === list.length - 1) { crossTo(beyond()); return; }
   if (d < 0 && active === 0) { crossTo(before(), 'last'); return; }
@@ -366,6 +369,7 @@ const readerAt = () => ({ scene: destination(), mode: store.ui.mode });
 // fromStart: a button that names a tour starts it over; the Tours button picks up where the reader left off
 export function enter(which = tour, { fromStart = false } = {}) {
   if (!box.hidden && which === tour) return;
+  tourPickerOpen = false;
   resetVariant();                                          // finding 17: the tours narrate the DSP module
   entry = readerAt();                                       // finding 9: the view the reader was on when the tour UI opened, before anything below moves the camera
   tour = TOURS[which] ? which : 'story';
