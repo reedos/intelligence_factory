@@ -22,7 +22,11 @@ describe('campus circulation topology',()=>{
  it('uses a nonoverlapping pavement union and keeps crossroad markings clear',()=>{
   for(const options of variants){
    const p=campusRoadPlan(options);
-   for(let i=0;i<p.tiles.length;i++)for(let j=i+1;j<p.tiles.length;j++)expect(overlap(p.tiles[i],p.tiles[j]),'overlaid asphalt faces').toBe(false);
+   // Check every pair, but avoid creating an assertion object for each of the
+   // many nonoverlapping pairs in the expanded campuses on small CI runners.
+   const overlaid:number[][]=[];
+   for(let i=0;i<p.tiles.length;i++)for(let j=i+1;j<p.tiles.length;j++)if(overlap(p.tiles[i],p.tiles[j]))overlaid.push([i,j]);
+   expect(overlaid,`${options.name}: overlaid asphalt tile pairs`).toEqual([]);
    for(const m of p.markings){
     const horizontal=m.w>m.d;
     const paint={x0:m.x-m.w/2,x1:m.x+m.w/2,z0:m.z-m.d/2,z1:m.z+m.d/2};
