@@ -126,8 +126,9 @@ async function outageHoldCase(pace) {
   let seenTwice = 0;
   for (let tries = 0; tries < 40 && seenTwice < 2; tries++) {
     const sim = await p.evaluate(() => document.body.dataset.sim || null);
-    if (sim === 'outage') seenTwice++; else { seenTwice = 0; await p.click('#tour-next'); }
-    await sleep(400);
+    // after a click, give the new step's clock time to load before judging it: under load a 400 ms look could miss
+    // the outage beat's clock and click straight past it, to the tour's end
+    if (sim === 'outage') { seenTwice++; await sleep(400); } else { seenTwice = 0; await p.click('#tour-next'); await sleep(1500); }
   }
   const reached = await p.evaluate(() => document.body.dataset.sim === 'outage');
   if (!reached) throw new Error(`outageHoldCase(${pace}): never settled on the outage beat`);
