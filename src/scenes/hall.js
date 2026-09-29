@@ -700,13 +700,13 @@ export function build({ quality, model }) {
     },
     dataFlows, heatFlows, layers: { data: par },
     heatHotspots: {
-      fire: { pos: [asdX, 2.9, asdZ], view: { pos: [-7.5, 2.2, -5.2], target: [-10.8, 3.4, -9] } },   // the detector box and its sampling pipe rising to the ceiling
       cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.0, 4.2, 15.5], target: [netItems[CPO_I].x, 1.8, 10.5] } },
       [air ? 'inrow' : 'cdu']: { pos: [cduMx[0].x, 2.7, cduMx[0].z], view: { pos: [-11, 4, -4], target: [cduMx[0].x, 1.2, cduMx[0].z] } },
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
       hotaisle: { pos: [6, 2.5, -9.7], view: { pos: [-11, 5, -9.2], target: [4, 1.5, -9.7] } },
       fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
       riser: { pos: [X0 + 2.4, hdrY + 3.2, -16.4], view: { pos: [X0 + 10, 10, -4], target: [X0 + 2.4, 5, -16.4] } },
+      fire: { pos: [asdX, 2.9, asdZ], view: { pos: [-7.5, 2.2, -5.2], target: [-10.8, 3.4, -9] } },   // the detector box and its sampling pipe rising to the ceiling
     },
     dataHotspots: {
       storage: { pos: [storageMx[0].x, 3.3, svcZ], view: { pos: [(storageMx[0].x + storLast.x) / 2, 5, 19], target: [(storageMx[0].x + storLast.x) / 2, 1.3, svcZ] } },
