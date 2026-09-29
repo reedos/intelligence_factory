@@ -209,7 +209,7 @@ export function content(M) {
       id: 'cpo', n: '+', side: true, title: 'Inside the CPO package', scale: 'package, representative', unit: 0.01, volt: 'core', dataVolt: 'cpo288', heatVolt: 'hot', heatShort: 'one cold plate',
       intro: 'A switch package with its optics built around the switch chip, in the style NVIDIA ships: 18 optical engines in six groups of three. The counts are NVIDIA’s; the package’s size and layout are drawn to show its parts. One engine is lifted out beside it as a detail.',
       dataIntro: 'Electrical lanes leave the switch chip’s SerDes through copper traces in the package, a few millimeters to each engine. In the engine, the electronic chip’s drivers swing ring modulators on the photonic chip below; photodiodes there read incoming light for its TIAs. Laser light arrives separately, by fiber, from modules at the front panel.',
-      heatIntro: 'The switch chip and every engine sit in one package, cooled with liquid; the single cold plate drawn over it is representative. The lasers stay out of the heat, at the front panel.',
+      heatIntro: 'The switch chip and every engine sit in one package, cooled with liquid; the single cold plate drawn over it is representative.',
     },
     {
       id: 'coherent', n: '+', side: true, title: 'Inside the coherent module', scale: '10.8 cm long', unit: 0.01, volt: 'v33', dataVolt: 'zr800', heatVolt: 'hot', heatShort: 'fins',
@@ -219,9 +219,9 @@ export function content(M) {
     },
     {
       id: 'copper', n: '+', side: true, title: 'Inside the copper cables', scale: 'one plug end', unit: 0.01, volt: 'v33', dataVolt: 'cu', heatVolt: 'hot', heatShort: 'little',
-      intro: 'Three copper cables, one end of each, opened up: a passive cable with nothing in the signal path, an active copper cable with one redriver, and an active electrical cable with a retimer in each end. No light anywhere; copper the whole way.',
-      dataIntro: 'Transmit pairs on the left of each card, receive pairs on the right. In a passive cable they run straight from the fingers into the twinax. An ACC passes the receive pairs through one analog redriver; an AEC passes both directions through a DSP retimer.',
-      heatIntro: 'A passive cable makes almost no heat: a little in its ID memory, and some loss in the copper itself. The chips in active cables draw from the port and warm the plug.',
+      intro: 'Three copper cables, one end of each, opened up: a passive copper cable (DAC) with nothing in the signal path, an active copper cable with one redriver, and an active electrical cable with a retimer in each end. No light anywhere; copper the whole way.',
+      dataIntro: 'Transmit pairs on the left of each card, receive pairs on the right. In a passive copper cable they run straight from the fingers into the twinax. An ACC passes the receive pairs through one analog redriver; an AEC passes both directions through a DSP retimer.',
+      heatIntro: 'A passive copper cable makes almost no heat: a little in its ID memory, and some loss in the copper itself. The chips in active cables draw from the port and warm the plug.',
     },
   ];
 
@@ -1169,13 +1169,13 @@ export function content(M) {
     { ...edge, specs: [lanes8, pins] },
     { id: 'dsp', title: 'DSP', kicker: 'Cleans up every lane, both ways', body: 'Host lanes arrive with loss and distortion from the board. The DSP retimes and equalizes them and drives clean lanes to the driver; on the way back it recovers the data from the TIA’s signals. The LPO module leaves it out and lets the host’s own SerDes do that work. In the LPO view this chip is gone; its outline marks where it sat.',
       specs: [['What it does', 'retiming, equalization, error correction', 'spec', { refs: [ref('juniper-1p6t-transceiver', '"The CDR is responsible for re-timing incoming data to reduce jitter. The DSP handles functions like equalization, error correction, and other signal processing tasks"')] }], ['Examples', 'Marvell Ara, Broadcom Sian3 (3 nm)', 'spec', { refs: [ref('marvell-ara-1-6t-prnewswire', 'headline and body: Ara, a 3 nm 1.6 Tb/s PAM4 DSP, 8 × 200G electrical and 8 × 200G optical lanes'), ref('broadcom-sian3-200g-lane-dsp', 'body text: Sian3, a 3 nm 200G-per-lane DSP PHY for 800G and 1.6T modules')] }]] },
-    { id: 'driver', title: 'Driver', kicker: 'Transmit only', body: 'The driver takes each outgoing lane from the DSP and swings a modulator’s electrodes with it, through bond wires to the photonic chip. It works on transmit only.', specs: [lpoKeeps, lay] },
-    { id: 'lasers', title: 'Lasers', kicker: 'Light for the transmit side', body: 'Continuous-wave lasers bonded at the chip’s far edge make steady light for the modulators. Nothing on the receive side needs a laser.', specs: [sipDrawn] },
+    { id: 'driver', title: 'Driver', kicker: 'Transmit only', body: 'The driver takes each outgoing lane from the DSP and swings a modulator’s electrodes with it, through bond wires to the photonic chip.', specs: [lpoKeeps, lay] },
+    { id: 'lasers', title: 'Lasers', kicker: 'Light for the transmit side', body: 'Continuous-wave lasers bonded at the chip’s far edge make steady light for the modulators.', specs: [sipDrawn] },
     { id: 'mzm', title: 'Modulators', kicker: 'Where electrons become light', body: 'Eight Mach-Zehnder modulators, one per lane. Each splits the lasers’ light into two arms, shifts one arm with the lane’s signal and recombines them, so the light brightens and dims with the data. Waveguides carry it to the fiber edge.',
       specs: [['Kind', 'Mach-Zehnder, the mainstream silicon modulator', 'reported', { refs: [ref('tspa-400g-lane-ofc', 'modulator section: Mach-Zehnder interferometer modulators, mature and high-bandwidth, the current commercial mainstream in silicon photonics')] }], sipDrawn] },
     { id: 'mpo', title: 'Fiber connectors', kicker: 'One fiber per lane, each way', body: 'Two MPO-12 connectors, one per DR4 half: positions 1–4 transmit, 9–12 receive, 5–8 unused. Half of each direction’s fibers go to each connector, which is why the transmit and receive fibers cross on the way.',
       specs: [['Connectors', 'dual MPO-12', 'spec', { refs: [ref('juniper-1p6t-transceiver', 'optical interface: DR8 / 2×DR4 modules use dual MPO-12/APC connectors'), ref('nvidia-800g-dr8-datasheet', 'optical interface: two MPO-12/APC connectors on the twin-port DR8 module')] }], ['Fibers lit', '16: 4 out and 4 in per connector', 'spec', { refs: [ref('nvidia-800g-dr8-datasheet', 'optical interface: a twin-port DR8 module on two MPO-12/APC connectors, eight fibers active on each (four transmit, four receive)')] }]] },
-    { id: 'pd', title: 'Photodiodes', kicker: 'Receive only', body: 'Light from each receive fiber runs along a waveguide to a germanium photodiode, which turns it into a small current. Receive has no laser and no modulator.', specs: [['Receive, per module', '8 photodiodes, one per lane', 'spec', { refs: [ref('juniper-1p6t-transceiver', 'receive section: eight photodetectors and eight TIAs, one pair per optical lane')] }], lay] },
+    { id: 'pd', title: 'Photodiodes', kicker: 'Receive only', body: 'Light from each receive fiber runs along a waveguide to a germanium photodiode, which turns it into a small current.', specs: [['Receive, per module', '8 photodiodes, one per lane', 'spec', { refs: [ref('juniper-1p6t-transceiver', 'receive section: eight photodetectors and eight TIAs, one pair per optical lane')] }], lay] },
     { id: 'tia', title: 'TIA', kicker: 'Receive only', body: 'The transimpedance amplifier turns each photodiode’s current into a voltage and sends it to the DSP, or straight to the host in an LPO module.', specs: [tiaDoes, lpoKeeps] },
   ];
   PARTS_HEAT.module = [
@@ -1221,14 +1221,14 @@ export function content(M) {
   // the coherent module's power figures ride on its data cards (the DSP and the laser); its only door, the line
   // terminals, is a data-layer card, so a power card here would never be reached by the Every part: power tour
   PARTS_DATA.copper = [
-    { id: 'dac', title: 'Passive copper (DAC)', kicker: 'No active signal conditioning', body: 'Twinax pairs run straight from the plug’s card into the cable. Nothing boosts or cleans the signal, so the copper’s own loss limits it to a meter or two at today’s rates, and it draws only a little power, for its ID memory. The NVLink spine inside an NVL72 rack is this kind.', specs: [dacNone, dacW, dacReach, spinePassive, headLay] },
-    { id: 'acc', title: 'Active copper (ACC)', kicker: 'One redriver', body: 'A small analog chip boosts and equalizes the signal arriving at the plug, the receive direction, but does not recover its clock. NVIDIA’s version puts one in each end. It buys a little more reach for a couple of watts.', specs: [accChip, accW, headLay] },
-    { id: 'aec', title: 'Active electrical cable (AEC)', kicker: 'A retimer in each end', body: 'Each end holds the same kind of DSP retimer an optical module uses on its electrical side, for both directions: it recovers the clock and rebuilds the signal. That reaches several meters, at several times the power.', specs: [aecChip, aecW, headLay] },
+    { id: 'dac', title: 'Direct Attach Copper (DAC)', kicker: 'No active signal conditioning', body: 'Twinax pairs run straight from the plug’s card into the cable, so the copper’s own loss limits it to a meter or two at today’s rates, and it draws only a little power, for its ID memory. The NVLink spine inside an NVL72 rack is this kind.', specs: [dacNone, dacW, dacReach, spinePassive, headLay] },
+    { id: 'acc', title: 'Active Copper Cable (ACC)', kicker: 'One redriver', body: 'A small analog chip boosts and equalizes the signal arriving at the plug, the receive direction, but does not recover its clock. NVIDIA’s version puts one in each end. It buys a little more reach for a couple of watts.', specs: [accChip, accW, headLay] },
+    { id: 'aec', title: 'Active Electrical Cable (AEC)', kicker: 'A retimer in each end', body: 'Each end holds the same kind of DSP retimer an optical module uses on its electrical side, for both directions: it recovers the clock and rebuilds the signal. That reaches several meters, at several times the power.', specs: [aecChip, aecW, headLay] },
   ];
   PARTS.copper = [
-    { id: 'dac', title: 'Passive copper (DAC)', kicker: 'About 0.1 W per end', body: 'No redriver or retimer to power; the plug’s small ID memory draws a little. NVIDIA’s NVL72 NVLink spine is passive copper.', specs: [dacW, dacNone, spinePassive] },
-    { id: 'acc', title: 'Active copper (ACC)', kicker: 'A couple of watts', body: 'One small analog chip in the plug, powered from the port.', specs: [accW, accChip] },
-    { id: 'aec', title: 'Active electrical cable (AEC)', kicker: 'A DSP in each end', body: 'Two DSP retimers per cable, one in each plug, each drawing power from its port.', specs: [aecW, aecChip] },
+    { id: 'dac', title: 'Direct Attach Copper (DAC)', kicker: 'About 0.1 W per end', body: 'No redriver or retimer to power; the plug’s small ID memory draws a little. NVIDIA’s NVL72 NVLink spine is passive copper.', specs: [dacW, dacNone, spinePassive] },
+    { id: 'acc', title: 'Active Copper Cable (ACC)', kicker: 'A couple of watts', body: 'One small analog chip in the plug, powered from the port.', specs: [accW, accChip] },
+    { id: 'aec', title: 'Active Electrical Cable (AEC)', kicker: 'A DSP in each end', body: 'Two DSP retimers per cable, one in each plug, each drawing power from its port.', specs: [aecW, aecChip] },
   ];
   // doors: the NVL72 rack's NVLink spine opens the copper cables, the line terminals the coherent module
   for (const P of [PARTS.rack, PARTS_DATA.rack]) { const sp = P?.find(p => p.id === 'spine'); if (sp) Object.assign(sp, { drill: 9, trip: 'copper' }); }

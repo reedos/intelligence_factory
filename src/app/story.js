@@ -248,7 +248,8 @@ function render() {
       const n = pinOf(b);
       return `<article class="beat${b.level ? ' level' : ''}" data-i="${i}"><span class="k">${n ? `<span class="bpin" role="img" aria-label="Pin ${n}" title="Pin ${n} in the view">${n}</span>` : ''}${b.k}</span><h3>${b.title}</h3><p>${b.text}</p>${specsHTML(b)}${figureHTML(b)}${acts ? `<div class="beat-acts">${acts}</div>` : ''}<span class="beat-bar" aria-hidden="true"><i></i></span></article>`; }).join('');
   $('story-exit').addEventListener('click', exit);
-  $('tour-play').addEventListener('click', () => setPlaying(!playing));
+  // while the reader's own scrolling holds the tour, the button offers to carry on now rather than to pause
+  $('tour-play').addEventListener('click', () => { if (playing && performance.now() < holdUntil) { holdUntil = 0; ctlLabel(); } else setPlaying(!playing); });
   $('tour-prev').addEventListener('click', () => step(-1));
   $('tour-next').addEventListener('click', () => step(1));
   $('tour-pace').addEventListener('click', e => togglePaceMenu(e.currentTarget));
@@ -326,7 +327,10 @@ function observe() {
 let steering = 0;                                         // until then the column is scrolling for a step, not for the reader
 function centerInPanel(el, smooth = true) {
   if (!el) return;
-  const r = el.getBoundingClientRect(), pr = panel.getBoundingClientRect(), dy = r.top - pr.top - (pr.height - r.height) / 2;
+  // center the step, but never so far that its top (and heading) slides under the panel's sticky header: a tall step
+  // settles just below the header instead (reviewers, 09/28: 53 of the Data tour's 69 steps used to land under it)
+  const r = el.getBoundingClientRect(), pr = panel.getBoundingClientRect(), headH = box.querySelector('.story-head')?.getBoundingClientRect().height ?? 0;
+  const dy = Math.min(r.top - pr.top - (pr.height - r.height) / 2, r.top - pr.top - headH - 10);
   // found while verifying findings 15-17 (rapid manual "Next" clicks on desktop): a cinematic camera move
   // (stage.js's flyTo, cinema mode) can run up to ~3.4 s, longer than this window used to allow for, so the
   // IntersectionObserver below could fire mid-flight and re-activate() whatever beat the still-settling scroll
@@ -365,7 +369,10 @@ export function enter(which = tour, { fromStart = false } = {}) {
   resetVariant();                                          // finding 17: the tours narrate the DSP module
   entry = readerAt();                                       // finding 9: the view the reader was on when the tour UI opened, before anything below moves the camera
   tour = TOURS[which] ? which : 'story';
-  const at = !fromStart && resume?.tour === tour ? resume.i : 0;
+  // a This level walk resumes only where the reader left it: if they have since moved to another level or layer,
+  // it starts over on the one on screen (phone review, 09/28: it used to resume the old level and fly back to it)
+  const stale = tour === 'here' && (entry.scene !== here.scene || entry.mode !== here.mode);
+  const at = !fromStart && !stale && resume?.tour === tour ? resume.i : 0;
   resume = null;
   // the This level tab names the level the reader came from, even before it is picked; a This level walk being
   // resumed keeps its own level, since the step it resumes at belongs to that level's list
@@ -398,9 +405,11 @@ export const inStory = () => !box.hidden;
 // on the last step, paused, Play means start over, and shows it
 function playIcon() {
   const b = $('tour-play'); if (!b) return;
-  const again = !playing && active === list.length - 1 && list.length > 1;
-  b.textContent = playing ? '❚❚' : again ? '↺' : '▶';
-  b.setAttribute('aria-label', playing ? 'Pause' : again ? 'Start over and play' : 'Play');
+  const again = !playing && active === list.length - 1 && list.length > 1, held = playing && performance.now() < holdUntil;
+  // held: playing, but waiting while the reader looks around; the button says so and offers to carry on now
+  b.classList.toggle('held', held);
+  b.textContent = held ? '▶' : playing ? '❚❚' : again ? '↺' : '▶';
+  b.setAttribute('aria-label', held ? 'Held while you look around: carry on now' : playing ? 'Pause' : again ? 'Start over and play' : 'Play');
 }
 export function setPlaying(on_) {
   if (on_ && !playing && active === list.length - 1 && list.length > 1 && inStory()) { playing = true; activate(0); if (!narrow.matches) centerInPanel(box.querySelector('.beat[data-i="0"]')); }
@@ -499,7 +508,7 @@ onTick(dt => {
   }
 });
 // the reader looking around holds the tour; it carries on HOLD_MS after the last touch, drag or wheel
-const lookAround = e => { if (!e.target.closest?.('.story-head, .beat-acts, .pace-menu, #story-hero-play, #clock')) hold(); };
+const lookAround = e => { if (!e.target.closest?.('.story-head, .beat-acts, .pace-menu, #story-hero-play, #clock, #optics-variant')) hold(); };   // a tap on a control is not looking around
 for (const el of [panel, $('view')]) for (const ev of ['wheel', 'touchstart', 'touchmove', 'pointerdown', 'pointermove']) el?.addEventListener(ev, e => { if (ev !== 'pointermove' || e.buttons) lookAround(e); }, { passive: true });
 addEventListener('wheel', e => { if (narrow.matches) lookAround(e); }, { passive: true });
 addEventListener('touchmove', e => { if (narrow.matches) lookAround(e); }, { passive: true });

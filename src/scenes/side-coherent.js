@@ -138,7 +138,7 @@ export function build({ quality, state }) {
   [flows, dataFlows, heatFlows].forEach(a => a.forEach(f => scene.add(f.group)));
 
   label(scene, 'Coherent pluggable · 800ZR, OSFP', [0, -0.35, 2.6], '#e8ecf2', 0.34);
-  label(scene, 'Footprint to scale · layers pulled apart · laser sized to a published nano-ITLA · the rest representative', [0, -0.75, 2.6], note, 0.18);
+  label(scene, 'Footprint to scale · layers pulled apart · the rest representative', [0, -0.75, 2.6], note, 0.18);
   label(scene, '1 module = 800G each way on one wavelength, one fiber pair', [0, -1.05, 2.6], unitCol, 0.18);
   label(scene, 'TX · lanes in', [MX0 - 0.9, 1.75, -0.55], COL.tx, 0.16);
   label(scene, 'RX · lanes out', [MX0 - 0.9, 1.75, 0.55], COL.rx, 0.16);

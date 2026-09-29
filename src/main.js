@@ -1,27 +1,22 @@
-// The Intelligence Factory: the store holds the scenario and the model; the stage, the sections below it
-// and the scenario bar each subscribe to it.
+// The Intelligence Factory, the story page: the scenario, the chapters and their charts. The 3D visualizer is its
+// own page (visualizer.html, src/visualizer.js); links here that show a part open it at that level, layer and part.
 import { store, setScenario, pin } from './app/store.js';
-import * as stage from './app/stage.js';
 import './app/sections.js';
 import './app/sources-ui.js';
-import './app/story.js';
-import './app/clock-ui.js';
-import './app/share.js';
-import './app/tokens-ui.js';
 import './tokens.css';
-import { THREE } from './kit.js';
-import * as journeys from './app/journeys.js';
-import { openClock, closeClock } from './app/clock-ui.js';
-import { enter as enterStory, exit as exitStory } from './app/story.js';
 import './app/scenario.js';
 import './app/site.js';
+import { on } from './app/store.js';
+import { renderSection, opts, WHERE } from './app/clock-charts.js';
+import { visualizerHref } from './app/links.js';
 
-stage.start();
+// the Four clocks: charts here, "Play in 3D" opens the visualizer with that clock running at its place
+const playClock = id => {
+  const w = WHERE[id];
+  location.href = visualizerHref(`${w.scene}.${w.mode}.${w.part}`, `&clock=${id}&pt=${opts.peakTrough}&hot=${opts.hotMax}`);
+};
+on('scenario', () => renderSection(playClock));
+renderSection(playClock);
 
 // test hook
-window.ifx = {
-  store, setScenario, pin, state: store.ui, go: stage.go, select: stage.select, setMode: stage.setMode,
-  camera: stage.camera, controls: stage.controls, composers: stage.composers, built: stage.built, settle: stage.settle,
-  renderer: stage.getRenderer, renderScale: stage.renderScale, quality: stage.qualityInfo, forceTier: stage.forceTier, setTransitions: stage.setTransitions,
-  show: stage.show, THREE, journeys, openClock, closeClock, enterStory, exitStory,
-};
+window.ifx = { store, setScenario, pin };

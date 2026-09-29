@@ -585,7 +585,9 @@ export function setMode(m) {
   document.body.dataset.mode = m;
   built.forEach(b => b && applyMode(b));
   renderSteps();
+  const was = ui.selected;
   if (ui.scene >= 0 && built[ui.scene]) buildPanel(ui.scene);
+  if (was && ui.scene >= 0 && hasPart(ui.scene, was, m)) select(was, false);   // the same part, told in the new layer
   emit('mode', m);
 }
 document.querySelectorAll('[data-mode]').forEach(x => x.addEventListener('click', () => setMode(x.dataset.mode)));
@@ -625,6 +627,15 @@ function buildPanel(i) {
   [...stepsEl.children].forEach((b, n) => { if (n === i) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
   $('card').hidden = true; ui.selected = null;
 }
+// bring the selected row and its card into the side pane's view, scrolling the pane alone (never the page): both
+// when they fit, otherwise the card's top
+function revealInPane(els) {
+  const sc = document.querySelector('.panel-scroll'); if (!sc || document.body.classList.contains('story') || sc.scrollHeight <= sc.clientHeight) return;
+  const pr = sc.getBoundingClientRect(), rs = els.filter(Boolean).map(e => e.getBoundingClientRect()); if (!rs.length) return;
+  const top = Math.min(...rs.map(r => r.top)), bottom = Math.max(...rs.map(r => r.bottom)), pad = 12;
+  const dy = bottom - top > pr.height ? rs[rs.length - 1].top - pr.top - pad : bottom > pr.bottom ? bottom - pr.bottom + pad : top < pr.top ? top - pr.top - pad : 0;
+  if (dy) sc.scrollBy({ top: dy, behavior: reduced ? 'auto' : 'smooth' });
+}
 export function select(id, fly) {
   const parts = partsFor(ui.scene), p = parts.find(q => q.id === id); if (!p) return;
   ui.selected = id;
@@ -638,6 +649,7 @@ export function select(id, fly) {
   if (p.drill !== undefined) go_.textContent = `${inw ? 'Go inside' : 'Back out'}: ${SCENES()[to].title} ${inw ? '→' : '↑'}`;
   go_.onclick = () => (p.drill === 'out' ? backOut() : go(drillOf(p), id));
   if (fly) { const h = hotspotsFor(ui.scene)[id]; if (h?.view) { const f = frame(built[ui.scene], h); flyTo(f.pos, f.target); } }
+  revealInPane([document.querySelector(`#parts button[data-id="${id}"]`)?.closest('li'), $('card')]);
   emit('select', { scene: ui.scene, mode: ui.mode, id });
 }
 export function deselect() {
@@ -694,7 +706,7 @@ function stepIris(dt) {
 }
 function jumpLabel(from, to) {
   const a = SCENES()[from], b = SCENES()[to];
-  const where = isSide(to) && isSide(from) ? 'Across' : isSide(to) ? `In · inside level ${a.n}` : isSide(from) ? `Out · level ${b.n} of ${MAIN_LEVELS}` : `${to > from ? 'In' : 'Out'} · level ${b.n} of ${MAIN_LEVELS}`;
+  const where = isSide(to) && isSide(from) ? 'Across' : isSide(to) ? `In · inside level ${SCENES()[sideEntered ? from : SIDE_PARENT[to]].n}` : isSide(from) ? `Out · level ${b.n} of ${MAIN_LEVELS}` : `${to > from ? 'In' : 'Out'} · level ${b.n} of ${MAIN_LEVELS}`;
   return `<div class="jump"><span class="jump-k">${where}</span><b>${b.title}</b><span class="jump-s">${a.scale} → ${b.scale}</span></div>`;
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -708,7 +720,9 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   busy = true; goingTo = i;
   const veil = $('veil');
   const same = i === ui.scene;
-  if (isSide(i) && !isSide(ui.scene) && ui.scene >= 0) { sideFrom = ui.scene; sideVia = fromId; sideMode = ui.mode; sideEntered = true; }   // whichever level, part and layer the reader came in by
+  // a door entry records the way back (level, part, layer); any other way in, a share link or a jump, clears it so
+  // Back goes to the level that holds that diagram
+  if (isSide(i) && !isSide(ui.scene) && ui.scene >= 0) { if (fromId) { sideFrom = ui.scene; sideVia = fromId; sideMode = ui.mode; sideEntered = true; } else sideEntered = false; }
   const from = ui.scene, inward = isInward(from, i), T = TRANSITIONS[transitions] / Math.sqrt(cinema ? tourPace : 1);
   const cut = reduced || transitions === 'instant';
   const travel = from >= 0 && !same && !cut;              // a level transition, rather than the first load or a rebuild

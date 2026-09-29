@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">  <!-- until the phone check; remove to let search engines in -->
+<title>Visualizer · The Intelligence Factory</title>
+<meta name="description" content="Zoom from a 2,000 km grid into one AI campus and down to a GPU die at 0.8 V: power, data and heat at six scales, every figure labeled by where it comes from.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body class="app">
+<header class="topbar" id="topbar">
+  <a class="brand" href="index.html" aria-label="The Intelligence Factory, the story"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span><span class="brand-t">The Intelligence Factory</span></a>
+  <nav class="topnav" id="topnav" aria-label="Site">
+    <a href="visualizer.html" aria-current="page">Visualizer</a>
+    <a href="index.html">The story</a>
+    <span class="sep" aria-hidden="true"></span>
+    <a href="evidence.html">Evidence</a>
+    <a href="method.html">Method</a>
+    <a href="glossary.html">Glossary</a>
+  </nav>
+  <button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="topnav"><span aria-hidden="true"></span>Menu</button>
+</header>
+<main class="app-main">
+  <section class="stage" aria-label="Power chain in 3D">
+    <nav class="steps" id="steps" aria-label="Scale"></nav>
+    <div class="body">
+      <!-- the viewer stacks the 3D view over the strips that belong to it (the clock, and on phones the buttons),
+           so nothing docked to the view can land on top of anything else -->
+      <div class="viewer" id="viewer">
+        <div class="view" id="view">
+          <canvas id="gl" tabindex="0" aria-label="3D scene. Drag to orbit, scroll to zoom."></canvas>
+          <div class="pins" id="pins"></div>
+          <div class="hud tl"><span class="ttl" id="hud-title">Scale across</span><span class="sub" id="hud-sub">2,000 km across</span></div>
+          <div class="hud vl"><div class="mode variant" id="optics-variant" role="group" aria-label="Pluggable module" hidden><button type="button" data-variant="dsp" aria-pressed="true" style="--c: var(--eth)"><i></i>DSP module</button><button type="button" data-variant="lpo" aria-pressed="false" style="--c: #8fd3ff"><i></i>LPO, no DSP</button></div></div>
+          <div class="hud bl"><div class="scalebar"><span id="scale-label">100 m</span><i id="scale-bar"></i></div></div>
+          <div class="hud br" id="legend"></div>
+          <div class="hud tr">
+            <div class="mode" role="group" aria-label="Layer">
+              <button type="button" data-mode="power" aria-pressed="true" style="--c: var(--mv)"><i></i>Power</button>
+              <button type="button" data-mode="data" aria-pressed="false" style="--c: var(--nvl)"><i></i>Data</button>
+              <button type="button" data-mode="heat" aria-pressed="false" style="--c: var(--warm)"><i></i>Heat</button>
+            </div>
+          </div>
+          <div class="toast" id="toast" role="status" hidden></div>
+          <div class="veil" id="veil">Building the region…</div>
+        </div>
+        <div class="hud-btns" id="hud-btns">
+          <div class="hud-row"><button type="button" class="btn story-btn" id="back-out" hidden>↑ Back out</button><button type="button" class="btn story-btn" id="story-btn" aria-pressed="false">Tours</button><button type="button" class="btn story-btn" id="layer-play" title="Play every part in this layer, level 1 to 6">Play layer</button><button type="button" class="btn story-btn" id="clock-btn" aria-pressed="false">Clock</button><button type="button" class="btn story-btn" id="share-btn">Share</button></div>
+          <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>With the view focused or the pointer over it: 1–6 jumps scale · P D H switch layers · ← → steps parts · S tours · Space plays · C clock</p>
+        </div>
+      </div>
+      <aside class="panel" aria-label="Components">
+        <div class="pane-tabs" role="tablist" aria-label="Side pane"><button type="button" class="sheet-toggle" id="sheet-toggle" aria-expanded="false" aria-label="Expand the panel"><i aria-hidden="true"></i></button><button type="button" role="tab" data-pane="parts" aria-selected="true">Parts</button><button type="button" role="tab" data-pane="scenario" aria-selected="false">Scenario</button><span class="pane-sum" id="pane-sum"></span></div>
+        <div class="panel-scroll">
+    <section class="scenario pane-scenario" id="pane-scenario" aria-labelledby="sc-h" hidden>
+      <div class="sc-head">
+        <p class="eyebrow">1.1 · Scenario</p>
+        <h2 id="sc-h">Build your campus</h2>
+      </div>
+      <div class="sc-controls">
+        <div class="sc-group sc-size">
+          <div class="ctl-head"><label for="sc-mw">Campus size, at the meter</label><output id="sc-mw-v" for="sc-mw">100 MW</output></div>
+          <input type="range" id="sc-mw" min="0" max="1000" step="1" value="500">
+          <div class="presets"><button type="button" data-mw="10">10 MW</button><button type="button" data-mw="100">100 MW</button><button type="button" data-mw="1000">1 GW</button><button type="button" data-mw="5000">5 GW</button></div>
+        </div>
+        <div class="sc-group"><span class="lab">Accelerator</span><div class="sc-seg" id="sc-accel" role="group" aria-label="Accelerator"></div></div>
+        <div class="sc-group"><span class="lab">Power to the rack</span><div class="sc-seg" id="sc-power" role="group" aria-label="Power to the rack"></div></div>
+        <div class="sc-group"><span class="lab">Cooling</span><div class="sc-seg" id="sc-cooling" role="group" aria-label="Cooling"></div></div>
+      </div>
+      <div class="sc-sites"><span class="lab">Or start from a real campus</span><div class="sc-seg" id="sc-site" role="group" aria-label="Real campuses"></div></div>
+      <div class="site-card" id="site-card" hidden></div>
+      <p class="note" id="sc-note"></p>
+      <div class="kpis" id="kpis"></div>
+      <p class="note">These are this model’s estimates for the scenario above, not figures for a real building, even when a real campus is picked. The label beside each number on a part says what backs it.</p>
+      <div class="sc-compare"><button type="button" class="btn" id="sc-pin" aria-pressed="false">Pin to compare</button><span id="sc-pinned"></span></div>
+    </section>
+          <p class="intro" id="intro"></p>
+          <div class="parts-head"><span class="eyebrow" id="parts-k">Numbered in the view</span><button type="button" class="btn play-these" id="play-these">▶ Play them in order</button></div>
+          <ul class="parts" id="parts"></ul>
+          <article class="card" id="card" hidden>
+            <span class="k" id="card-k"></span>
+            <h3 id="card-t"></h3>
+            <p id="card-b"></p>
+            <dl class="specs" id="card-s"></dl>
+            <div class="card-links" id="card-links" hidden></div>
+            <div class="card-actions">
+              <button type="button" class="btn go" id="card-go" hidden>Go inside →</button>
+              <button type="button" class="btn" id="card-next">Next part</button>
+            </div>
+          </article>
+          <p class="pane-note">Personal educational project based on cited public sources. Not an official publication of my employer or the companies discussed. Models are schematic; estimates and assumptions are identified. Counts and layouts follow this scenario, not a photograph or one vendor's hardware.</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+</main>
+<script type="module" src="/src/visualizer.js"></script>
+</body>
+</html>

@@ -116,7 +116,7 @@ export function story(M) {
       text: `Every GPU’s traffic to other racks leaves ${nvl ? 'the tray' : 'the server'} through pluggable optical modules at its edge. Step inside one.`,
       specs: rows(card('data', 4, 'osfp', 'NVIDIA'), card('data', 4, 'osfp', 'Cages')) },
     { link: at(6, 'mzm', 'data'), parent: 4, trip: 'module', k: 'Side trip · inside the module', title: 'Where electrons become light',
-      text: 'On the transmit side, modulators put each electrical lane onto laser light, and waveguides carry it to its fiber. The receive side runs the other way, through photodiodes, with no laser at all. Then back out to the tray.',
+      text: 'On the transmit side, modulators put each electrical lane onto laser light, and waveguides carry it to its fiber. The receive side runs the other way, through photodiodes. Then back out to the tray.',
       specs: rows(card('data', 6, 'mzm', 'Kind')) },
     { link: at(4, 'vrm'), k: nvl ? 'Compute tray' : 'The server', title: 'The last volt',
       text: `Voltage regulators ring each GPU and make the final step to about 0.8 V: ${M.staircase[M.staircase.length - 1].current} into one chip. They lose ${mw(loss('Voltage regulators'))} across the campus doing it.`,

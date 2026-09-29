@@ -505,8 +505,14 @@ body.story #story-btn, body.story #layer-play { display: none; }
 .transport .btn { min-height: 38px; padding: 0 12px; }
 .transport .btn.icon { width: 38px; padding: 0; justify-content: center; font: 400 22px/1 var(--sans); letter-spacing: 0; }
 .transport .btn.icon:disabled { opacity: .3; cursor: default; border-color: var(--line); }
+@media (pointer: coarse) {   /* touch: every transport control and the module toggle at least 44 px */
+  .transport .btn { min-height: 44px; }
+  .transport .btn.icon { width: 44px; }
+  .mode.variant button { min-height: 44px; }
+}
 .transport .btn.play { width: 46px; padding: 0; justify-content: center; background: var(--accent); border-color: var(--accent); color: #000; font-size: 13px; letter-spacing: -1px; }
 .transport .btn.play:hover { background: #f0cc9c; }
+.transport .btn.play.held { background: transparent; color: var(--accent); }   /* held while the reader looks around: resumes on its own, or now on a press */
 .transport .btn.pace { min-width: 46px; padding: 0 8px; justify-content: center; font: 600 12px/1 var(--mono); font-variant-numeric: tabular-nums; }
 .tour-t { flex: 1 1 auto; min-width: 0; font: 400 10.5px/1.25 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .tour-pick { display: flex; flex-wrap: wrap; gap: 10px 16px; }
@@ -770,3 +776,54 @@ body.scrolled .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--
 .pace-menu [role="group"] + [role="group"] { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line-2); }
 .pace-h { padding: 8px 12px 4px; font: 400 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); opacity: .8; }
 .pace-menu [data-t] b { min-width: 64px; }
+
+/* ---------- the contained visualizer (visualizer.html): one screen, nothing scrolls but the side pane ---------- */
+body.app { height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; }
+body.app .topbar { position: relative; flex: none; }
+body.app .app-main { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+body.app .stage { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; border-block: 0; }
+body.app .stage .body { flex: 1 1 0; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+body.app .viewer { height: auto; min-height: 0; }
+body.app .panel { height: auto; min-height: 0; overflow: hidden; }
+body.app .panel-scroll { flex: 1 1 0; min-height: 0; }
+body.app .pane-off { display: none !important; }
+.pane-tabs { display: flex; align-items: stretch; gap: 0; border-bottom: 1px solid var(--line); flex: none; }
+.pane-tabs button { all: unset; cursor: pointer; padding: 12px 18px; font: 600 12px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid transparent; }
+.pane-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.pane-tabs button:focus-visible { outline: 1px solid var(--accent); outline-offset: -3px; }
+.pane-sum { margin-left: auto; align-self: center; padding: 0 16px; font: 500 11px/1.2 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.app .pane-scenario { padding: 0; border: 0; background: none; }
+body.app .pane-scenario .sc-controls { grid-template-columns: minmax(0, 1fr); }
+body.app .pane-scenario .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+body.story .pane-tabs { display: none; }
+@media (max-width: 1100px) {
+  body.app .stage .body { display: flex; flex-direction: column; }
+  body.app .viewer { flex: none; }
+  body.app .view { flex: none; height: 54vh; height: 54dvh; min-height: 260px; }
+  body.app .panel { flex: 1 1 0; }
+}
+
+/* the publication statement at the foot of the side pane, not over the view */
+.pane-note { margin: 8px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font: 400 11px/1.5 var(--mono); color: var(--faint); }
+body.story .pane-note { display: none; }
+.sheet-toggle { display: none; }
+@media (max-width: 760px) {
+  body.app .view { height: 46vh; height: 46dvh; transition: height .28s ease; }
+  body.app.sheet-open .view { height: 24vh; height: 24dvh; min-height: 150px; }
+  /* a tour with a clock running stacks the clock over the step: the view gives up the room so the step reads whole */
+  body.app.story.clocking .view { height: 34vh; height: 34dvh; min-height: 200px; }
+  .sheet-toggle { all: unset; display: grid; place-items: center; width: 52px; cursor: pointer; border-right: 1px solid var(--line); }
+  .sheet-toggle i { display: block; width: 12px; height: 12px; border-left: 2px solid var(--ink); border-top: 2px solid var(--ink); transform: translateY(3px) rotate(45deg); transition: transform .2s ease; }
+  body.sheet-open .sheet-toggle i { transform: translateY(-3px) rotate(225deg); }
+  body.app .pane-scenario h2 { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) { body.app .view { transition: none; } }
+
+/* the story page's way into the visualizer, where the embedded viewer used to be */
+.open-vis { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 28px; align-items: center; padding: 34px; border: 1px solid var(--line); background: var(--surface); margin-block: 8px 40px; }
+.open-vis h2 { margin: 6px 0 12px; }
+.open-vis p { max-width: 62ch; }
+.ov-actions { display: grid; gap: 10px; justify-items: stretch; }
+.ov-actions .btn { justify-content: center; min-height: 46px; }
+.ov-actions .ov-open { font-size: 15px; min-height: 56px; }
+@media (max-width: 900px) { .open-vis { grid-template-columns: minmax(0, 1fr); padding: 22px; } }

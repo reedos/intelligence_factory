@@ -137,7 +137,6 @@ export function build({ quality, state }) {
   label(scene, 'Electronic chip: drivers (TX) and TIAs (RX)', [DX, DY + 2.35, DZ - 1.6], unitCol, 0.15);
   label(scene, 'Photonic chip: ring modulators (TX), photodiodes (RX)', [DX, DY + 0.55, DZ + 2.0], unitCol, 0.15);
   label(scene, 'Light · 8 TX, 8 RX, 2 laser fibers', [DX - PW / 2 - 1.6, DY + 0.75, DZ], COL.tx, 0.15);
-  label(scene, 'Electrical · from the switch chip, through the package', [DX + 3.0, DY + 1.55, DZ], COL.elec, 0.15);
   label(scene, 'Electrical · copper traces in the substrate', [0, Y.subTop + 0.5, -2.6], COL.elec, 0.15);
   label(scene, 'Laser modules · front panel, light only · 32 transmit lanes each', [ELSX, Y.sub + 1.6, 0], COL.cw, 0.16);
   label(scene, 'The fifth also lights lanes in the next package (18 serve 4 packages)', [ELSX, Y.sub + 1.25, els[nEls - 1][1]], note, 0.13);

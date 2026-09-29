@@ -24,7 +24,7 @@ document.addEventListener('click', e => { if (nav?.classList.contains('open') &&
 // time, from the URL as it stands then, so a scenario set after the page loaded is never stale.
 const crossPage = a => { const h = a.getAttribute('href'); return h && !/^#|^https?:|^mailto:/.test(h); };
 for (const type of ['click', 'auxclick']) document.addEventListener(type, e => {
-  const a = e.target.closest?.('#topbar a[href]');
+  const a = e.target.closest?.('a[href]');
   if (a && crossPage(a)) a.href = withScenario(location.search, a.getAttribute('href'));
 });
 

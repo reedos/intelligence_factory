@@ -18,7 +18,8 @@ const VP = {
 const STATES = {
   explore: async p => { await p.evaluate(() => ifx.go(2)); },
   clock: async p => { await p.evaluate(() => { ifx.go(1); document.getElementById('clock-btn').click(); }); },
-  tour: async p => { await p.evaluate(() => document.getElementById('story-hero-play').click()); },
+  // the visualizer page has no hero button: start the overview through the player, then play it
+  tour: async p => { await p.evaluate(() => { const h = document.getElementById('story-hero-play'); if (h) h.click(); else { window.ifx.enterStory('story'); document.getElementById('tour-play').click(); } }); },
   tourclock: async p => {
     await p.evaluate(() => ifx.enterStory('story'));
     await p.waitForTimeout(1500);

@@ -1,7 +1,7 @@
 // Pure scenario-in-URL helper, shared by the topbar's link handling (site.js) and, if a future page needs
 // it, anything else that has to turn a plain page link into one that keeps the reader's campus. Kept free of
 // document/location so it can be checked directly, without a DOM.
-export const SCENARIO_KEYS = ['mw', 'accel', 'power', 'cooling', 'site'];
+export const SCENARIO_KEYS = ['mw', 'accel', 'power', 'cooling', 'site', 'stage'];
 
 // Copies whichever scenario keys are present in `search` onto `href`, preserving href's own path and hash and
 // overwriting only those keys if href already carries a (now stale) scenario of its own. Returns href

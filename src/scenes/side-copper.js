@@ -49,11 +49,10 @@ export function build({ quality, state }) {
   [flows, dataFlows].forEach(a => a.forEach(f => scene.add(f.group)));
 
   label(scene, 'Copper cables · one end of each', [0, 0.9, z0 + 2.6], '#e8ecf2', 0.34);
-  label(scene, 'Plugs and cards representative · electrical the whole way, no light', [0, 0.5, z0 + 2.6], note, 0.18);
-  label(scene, 'DAC: nothing in the path · ACC: one redriver · AEC: a retimer in each end', [0, 0.2, z0 + 2.6], unitCol, 0.18);
-  label(scene, 'Passive (DAC)', [-4.6, 2.9, z0 + 0.6], '#e8ecf2', 0.2);
-  label(scene, 'Active copper (ACC) · redriver on the receive side', [0, 2.9, z0 + 0.6], '#e8ecf2', 0.2);
-  label(scene, 'AEC · retimer, both directions · this end shown', [4.6, 2.9, z0 + 0.6], '#e8ecf2', 0.2);
+  label(scene, 'Plugs and cards representative', [0, 0.5, z0 + 2.6], note, 0.18);
+  label(scene, 'Direct Attach Copper (DAC) · passive', [-4.6, 2.9, z0 + 0.6], '#e8ecf2', 0.2);
+  label(scene, 'Active Copper Cable (ACC) · redriver on the receive side', [0, 2.9, z0 + 0.6], '#e8ecf2', 0.2);
+  label(scene, 'Active Electrical Cable (AEC) · retimer, both directions', [4.6, 2.9, z0 + 0.6], '#e8ecf2', 0.2);
   for (const hx of [-4.6, 0, 4.6]) { label(scene, 'TX', [hx - 0.45, 1.35, z0 + 0.35], COL.tx, 0.14); label(scene, 'RX', [hx + 0.4, 1.35, z0 + 0.35], COL.rx, 0.14); }
   label(scene, 'Electrical · traces, then twinax pairs', [0, 1.6, back - 3.2], COL.elec, 0.16);
 

@@ -120,7 +120,7 @@ export function build({ quality, state }) {
 
   // ======================= what the reader should know at a glance =======================
   label(scene, 'Pluggable module · 1.6T DR8, OSFP', [0, -0.35, 2.6], '#e8ecf2', 0.34);
-  label(scene, 'Footprint to scale, 107.8 × 22.58 mm · layers pulled apart vertically · parts inside representative', [0, -0.75, 2.6], note, 0.18);
+  label(scene, '107.8 × 22.58 mm · layers pulled apart · parts representative', [0, -0.75, 2.6], note, 0.18);
   label(scene, '1 module = 1.6T each way, over 16 fibers', [0, -1.05, 2.6], unitCol, 0.18);
   label(scene, 'TX · 8 lanes in', [MX0 - 0.9, 1.75, -0.55], COL.tx, 0.16);
   label(scene, 'RX · 8 lanes out', [MX0 - 0.9, 1.75, 0.55], COL.rx, 0.16);

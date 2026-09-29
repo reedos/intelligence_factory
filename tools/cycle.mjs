@@ -34,7 +34,8 @@ for (const s of scenarios) {
   }
   // play each clock for a moment on the current scene, in every layer
   for (const sim of ['training', 'outage', 'hotday', 'inference']) {
-    await p.evaluate(id => document.querySelector(`[data-play="${id}"]`).click(), sim);
+    // the story page's Four clocks buttons, or on the visualizer page (no charts) the clock strip's own tab
+    await p.evaluate(id => { const b = document.querySelector(`[data-play="${id}"]`); if (b) b.click(); else { window.ifx.openClock(id); document.querySelector(`#clock [data-sim="${id}"]`).click(); } }, sim);
     await p.waitForTimeout(1500);
     for (const mode of ['data', 'heat', 'power']) { await p.evaluate(m => window.ifx.setMode(m), mode); await p.waitForTimeout(300); }
   }

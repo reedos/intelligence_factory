@@ -9,6 +9,9 @@ import { MEDIA_LADDER, FIGURE_CLAIMS, copperWallSVG, opticsCutawaySVG } from '..
 export { calc, tokenFigures };
 
 const $ = id => document.getElementById(id);
+// the story page draws everything below; the contained visualizer (visualizer.html) has none of these sections, but
+// still needs the token calculator's state and defaults, which the chip's token console and the clock read
+const STORY = !!$('bom');
 const fmt = (n, d = 0) => n.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
 const n0 = v => Math.round(v).toLocaleString('en-US');
 const kilo = v => v >= 1e6 ? `${(v / 1e6).toFixed(1)} M` : v >= 1e4 ? `${Math.round(v / 1000)}k` : n0(v);
@@ -295,7 +298,7 @@ export function syncRange(el, text) {
   el.style.setProperty('--pct', `${(el.value - el.min) / (el.max - el.min) * 100}%`);
   if (text !== undefined) el.setAttribute('aria-valuetext', text);
 }
-const T = { tps: logSlider($('tps'), 2, Math.log10(20000)), train: logSlider($('train'), 0, Math.log10(300)), life: logSlider($('life'), 13, 17) };
+const T = STORY ? { tps: logSlider($('tps'), 2, Math.log10(20000)), train: logSlider($('train'), 0, Math.log10(300)), life: logSlider($('life'), 13, 17) } : null;
 const sig = (v, d = 2) => v >= 100 ? fmt(v) : v >= 10 ? v.toFixed(1) : v.toFixed(d);
 const big = v => v >= 1e12 ? `${sig(v / 1e12)} T` : v >= 1e9 ? `${sig(v / 1e9)} B` : v >= 1e6 ? `${sig(v / 1e6)} M` : v >= 1e3 ? `${sig(v / 1e3)} k` : sig(v);
 function renderTokens() {
@@ -322,26 +325,28 @@ function renderTokens() {
   syncRange($('train'), trainTxt); syncRange($('life'), `${lifeTxt} tokens`);
   emit('tokens');
 }
-T.tps.set(calc.tokPerGpu); T.train.set(calc.trainGWh); T.life.set(calc.lifeTokens);
-$('tps').addEventListener('input', () => { calc.tokPerGpu = Math.round(T.tps.get()); calc.tpsTouched = true; calc.tpsAccel = null; renderTokens(); });
-$('util').addEventListener('input', e => { calc.util = +e.target.value / 100; renderTokens(); });
-$('carbon').addEventListener('input', e => { calc.carbon = +e.target.value; renderTokens(); });
-$('train').addEventListener('input', () => { calc.trainGWh = T.train.get(); renderTokens(); });
-$('life').addEventListener('input', () => { calc.lifeTokens = T.life.get(); renderTokens(); });
-$('with-train').addEventListener('change', e => { calc.withTrain = e.target.checked; renderTokens(); });
-document.querySelectorAll('#presets button').forEach(b => b.addEventListener('click', () => { calc.tokPerGpu = +b.dataset.tps; calc.tpsTouched = true; calc.tpsAccel = b.dataset.accel ?? null; T.tps.set(calc.tokPerGpu); renderTokens(); }));
-document.querySelectorAll('#grid-presets button').forEach(b => b.addEventListener('click', () => setCarbon(+b.dataset.g)));
-export function setCarbon(g) { calc.carbon = g; $('carbon').value = g; renderTokens(); }
+if (STORY) {
+  T.tps.set(calc.tokPerGpu); T.train.set(calc.trainGWh); T.life.set(calc.lifeTokens);
+  $('tps').addEventListener('input', () => { calc.tokPerGpu = Math.round(T.tps.get()); calc.tpsTouched = true; calc.tpsAccel = null; renderTokens(); });
+  $('util').addEventListener('input', e => { calc.util = +e.target.value / 100; renderTokens(); });
+  $('carbon').addEventListener('input', e => { calc.carbon = +e.target.value; renderTokens(); });
+  $('train').addEventListener('input', () => { calc.trainGWh = T.train.get(); renderTokens(); });
+  $('life').addEventListener('input', () => { calc.lifeTokens = T.life.get(); renderTokens(); });
+  $('with-train').addEventListener('change', e => { calc.withTrain = e.target.checked; renderTokens(); });
+  document.querySelectorAll('#presets button').forEach(b => b.addEventListener('click', () => { calc.tokPerGpu = +b.dataset.tps; calc.tpsTouched = true; calc.tpsAccel = b.dataset.accel ?? null; T.tps.set(calc.tokPerGpu); renderTokens(); }));
+  document.querySelectorAll('#grid-presets button').forEach(b => b.addEventListener('click', () => setCarbon(+b.dataset.g)));
+}
+export function setCarbon(g) { calc.carbon = g; if (!STORY) { emit('tokens'); return; } $('carbon').value = g; renderTokens(); }
 
 // ---------- wiring ----------
 function renderAll() {
   // A hardware-specific benchmark preset names one accelerator; switching to a different one can't go on quietly
   // reusing that number, so it falls back to the illustrative, memory-bandwidth-scaled default instead (issue 15).
   if (calc.tpsAccel && calc.tpsAccel !== store.M.accel.id) { calc.tpsTouched = false; calc.tpsAccel = null; }
-  if (!calc.tpsTouched) { calc.tokPerGpu = store.M.tokPerGpuRef; T.tps.set(calc.tokPerGpu); }
+  if (!calc.tpsTouched) { calc.tokPerGpu = store.M.tokPerGpuRef; T?.tps.set(calc.tokPerGpu); }
+  if (!STORY) { emit('tokens'); return; }
   renderLedger(); renderStairs(); renderBandwidth(); renderLinks(); renderLinksMedia(); renderTemps(); renderParallel(); renderBom(); renderTokens();
 }
 on('scenario', renderAll);
-on('pin', renderLedger);
-on('scene', highlightLedger);
+if (STORY) { on('pin', renderLedger); on('scene', highlightLedger); }
 renderAll();

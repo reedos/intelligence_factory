@@ -28,7 +28,7 @@ function render() {
       <header><h3>${esc(t.term)}</h3>${t.aka?.length ? `<span class="gl-aka">also ${t.aka.map(esc).join(', ')}</span>` : ''}<span class="ev-mode">${t.layer}</span></header>
       <p>${esc(t.def)}</p>
       ${t.cites?.length ? `<ul class="gl-cites">${t.cites.filter(([id]) => SOURCES[id]).map(([id, at]) => `<li><a href="${esc(SOURCES[id].url)}" target="_blank" rel="noopener">${esc(SOURCES[id].publisher)}</a>: ${esc(at)}</li>`).join('')}</ul>` : ''}
-      ${t.link || t.sources?.length ? `<footer>${t.link ? `<a class="ev-go" href="index.html?view=${t.link.scene}.${t.link.mode}.${t.link.part}#explore">See it in 3D ↗</a>` : ''}${t.sources?.length ? `<span class="ev-src">${srcLinks(t.sources)}</span>` : ''}</footer>` : ''}
+      ${t.link || t.sources?.length ? `<footer>${t.link ? `<a class="ev-go" href="visualizer.html?view=${t.link.scene}.${t.link.mode}.${t.link.part}">See it in 3D ↗</a>` : ''}${t.sources?.length ? `<span class="ev-src">${srcLinks(t.sources)}</span>` : ''}</footer>` : ''}
     </article>`).join('')}</div></section>`).join('') || '<p class="ev-none">Nothing matches. Clear the search or turn a layer back on.</p>';
   $('gl-count').textContent = `${shown.length} of ${terms.length} terms`;
   $('gl-az').innerHTML = [...'#ABCDEFGHIJKLMNOPQRSTUVWXYZ'].map(L => letters.includes(L) ? `<a href="#l-${L === '#' ? 'num' : L}">${L}</a>` : `<span aria-hidden="true">${L}</span>`).join('');
