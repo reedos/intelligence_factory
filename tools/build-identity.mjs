@@ -23,11 +23,14 @@ export function buildIdentity() {
   let sync = null;
   if (existsSync(join(root, 'research/version-sync.json'))) sync = JSON.parse(readFileSync(join(root, 'research/version-sync.json'), 'utf8'));
   const currentMain = git('rev-parse', 'main');
+  // A reviewed branch can become main without making its contents stale. Detect
+  // actual upstream commits missing from HEAD, not merely a changed branch name/tip.
+  const includesMain = currentMain && git('merge-base', '--is-ancestor', currentMain, 'HEAD') !== null;
   return {
     builtAt: new Date().toISOString(), revision: git('rev-parse', 'HEAD'),
     contentId: hash.digest('hex').slice(0, 16), sourceAndAssetFiles: files,
     synchronizedMain: sync?.integratedMain || null, currentMain,
-    upstreamReviewNeeded: !sync?.integratedMain || sync.integratedMain !== currentMain,
+    upstreamReviewNeeded: !sync?.integratedMain || !includesMain,
   };
 }
 
