@@ -279,9 +279,11 @@ function rng(seed) { let s = seed >>> 0; return () => (s = (Math.imul(s, 1664525
 // giving a matching color map and tangent-space normal map. Cell size is
 // representative (ASSUMPTIONS 'dgx-h100-bezel-rear').
 function foamMaps(w = 512, h = 400, seed = 7) {
+  // Dense, overlapping shallow pores leave a web of struts rather than isolated
+  // dark holes on a flat plate; the tile repeats 2 x 2 so a cell is about 1-2 mm.
   const r = rng(seed), H = new Float32Array(w * h).fill(1);
-  for (let n = 0, count = Math.round(w * h / 32); n < count; n++) {
-    const cx = r() * w, cy = r() * h, rad = 1.3 + r() * r() * 3.0, depth = 0.6 + r() * 0.4;
+  for (let n = 0, count = Math.round(w * h / 7); n < count; n++) {
+    const cx = r() * w, cy = r() * h, rad = 1.6 + r() * r() * 2.4, depth = 0.3 + r() * 0.3;
     for (let y = Math.floor(cy - rad); y <= Math.ceil(cy + rad); y++) for (let x = Math.floor(cx - rad); x <= Math.ceil(cx + rad); x++) {
       const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy) / rad; if (d >= 1) continue;
       const i = ((y + h) % h) * w + ((x + w) % w), v = 1 - depth * (1 - d * d);
@@ -289,23 +291,24 @@ function foamMaps(w = 512, h = 400, seed = 7) {
     }
   }
   const at = (x, y) => H[((y + h) % h) * w + ((x + w) % w)];
+  const repeat = [2, 2];
   const map = canvasTex(w, h, (g) => {
     const img = g.createImageData(w, h), d = img.data;
     for (let i = 0; i < w * h; i++) {
-      const k = 0.1 + 0.98 * Math.pow(H[i], 2.2), j = 0.94 + 0.12 * ((i * 2654435761 >>> 0) / 4294967296);
-      d[i * 4] = Math.min(255, 186 * k * j); d[i * 4 + 1] = Math.min(255, 160 * k * j); d[i * 4 + 2] = Math.min(255, 110 * k * j); d[i * 4 + 3] = 255;
+      const k = 0.46 + 0.62 * Math.pow(H[i], 1.6), j = 0.96 + 0.08 * ((i * 2654435761 >>> 0) / 4294967296);
+      d[i * 4] = Math.min(255, 204 * k * j); d[i * 4 + 1] = Math.min(255, 178 * k * j); d[i * 4 + 2] = Math.min(255, 128 * k * j); d[i * 4 + 3] = 255;
     }
     g.putImageData?.(img, 0, 0);
-  });
+  }, { repeat });
   const normalMap = canvasTex(w, h, (g) => {
     const img = g.createImageData(w, h), d = img.data;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const dx = (at(x - 1, y) - at(x + 1, y)) * 2.2, dy = (at(x, y + 1) - at(x, y - 1)) * 2.2, len = Math.hypot(dx, dy, 1), i = (y * w + x) * 4;
+      const dx = (at(x - 1, y) - at(x + 1, y)) * 1.6, dy = (at(x, y + 1) - at(x, y - 1)) * 1.6, len = Math.hypot(dx, dy, 1), i = (y * w + x) * 4;
       d[i] = 128 + 127 * dx / len; d[i + 1] = 128 + 127 * dy / len; d[i + 2] = 128 + 127 / len; d[i + 3] = 255;
     }
     g.putImageData?.(img, 0, 0);
-  }, { srgb: false });
-  const mat = new THREE.MeshStandardMaterial({ map, normalMap, normalScale: new THREE.Vector2(1, 1), roughness: 0.5, metalness: 0.82 });
+  }, { srgb: false, repeat });
+  const mat = new THREE.MeshStandardMaterial({ map, normalMap, normalScale: new THREE.Vector2(0.55, 0.55), roughness: 0.55, metalness: 0.8 });
   mat.name = 'DGX bezel metal foam';
   return mat;
 }
