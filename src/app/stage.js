@@ -1169,8 +1169,8 @@ view.addEventListener('pointerdown', e => { if (expandedPins && !e.target.closes
 function updatePins() {
   const w = view.clientWidth, h = view.clientHeight, placed = [];
   const vr = view.getBoundingClientRect(), reserved = [];
-  for (const el of document.querySelectorAll('#view .hud, #hud-btns')) {
-    if (el.hidden || getComputedStyle(el).display === 'none') continue;
+  for (const el of document.querySelectorAll('#view .hud, #hud-btns, #view .hint')) {
+    if (el.hidden || getComputedStyle(el).display === 'none' || getComputedStyle(el).visibility === 'hidden') continue;
     const r = el.getBoundingClientRect();
     if (!r.width || !r.height || r.bottom <= vr.top || r.top >= vr.bottom) continue;
     reserved.push({ left: r.left - vr.left, right: r.right - vr.left, top: r.top - vr.top, bottom: r.bottom - vr.top });

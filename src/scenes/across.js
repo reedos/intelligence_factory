@@ -635,7 +635,7 @@ export function build({ quality, model, state = {} }) {
 
   const viewport = new THREE.Vector2();
   // the page's overlays inside the view: numbered pins (circle and label), the title block, layer switch, buttons, hint
-  const OVERLAYS = '#pins .pin .num, #pins .pin .lbl, #pins .pin-group, #view .hud.tl, #view .hud.tr, #hud-btns .btn, #hud-btns .hint';
+  const OVERLAYS = '#pins .pin .num, #pins .pin .lbl, #pins .pin-group, #view .hud.tl, #view .hud.tr, #hud-btns .btn, #view .hint';
   const reservedBoxes = canvas => {
     if (typeof document === 'undefined' || !document.querySelectorAll || !canvas?.getBoundingClientRect) return [];
     const c = canvas.getBoundingClientRect(), out = [];
