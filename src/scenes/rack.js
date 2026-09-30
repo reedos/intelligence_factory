@@ -798,8 +798,11 @@ function buildNVL({ quality, model, state }) {
   for (const x of [-0.12, 0.12]) flows.push(flow([[x, TAP.glandY, -0.25], [x, H + 0.02, -0.25], [x * 0.8, trayY(TOP_SHELF), ZB + 0.16]], feedV, { count: 8, speed: 0.35, size: 0.012, trailR: 0.004 }));
   flows.push(flow([[0.1, H, -0.3], [0.1, trayY(1), ZB + 0.16]], feedV, { count: 10, speed: 0.35, size: 0.012, trailR: 0.004 }));
   // DC: from shelves onto the busbar, up and down the bar
-  flows.push(flow([[-0.018, trayY(31), bbZ - 0.045], [-0.018, bbBot + 0.1, bbZ - 0.045]], 'dc', { count: 42, speed: 0.22, size: 0.011, trailR: 0.004, k: 2.4 }));
-  flows.push(flow([[0.018, trayY(1), bbZ - 0.045], [0.018, bbTop - 0.1, bbZ - 0.045]], 'dc', { count: 42, speed: 0.22, size: 0.011, trailR: 0.004, k: 2.4 }));
+  // Close rear views sit at the pulse screen-size ceiling, so these rails are
+  // dimmed rather than shrunk: the bars, contact lands and cartridges stay readable.
+  const busDC = { count: 42, speed: 0.22, size: 0.009, trailR: 0.003, k: 1.5, opacity: 0.72 };
+  flows.push(flow([[-0.018, trayY(31), bbZ - 0.045], [-0.018, bbBot + 0.1, bbZ - 0.045]], 'dc', busDC));
+  flows.push(flow([[0.018, trayY(1), bbZ - 0.045], [0.018, bbTop - 0.1, bbZ - 0.045]], 'dc', busDC));
   // DC into the pulled tray
   flows.push(flow([[0, py, bbZ + 0.06], [0, py, ZB + 0.3], [0, py - U / 2 + 0.03, pz - 0.2]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
   // coolant
