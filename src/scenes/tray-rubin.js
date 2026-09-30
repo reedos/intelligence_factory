@@ -132,7 +132,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
  for(const [x,z] of [...nic,dpu])flows.push(flow([[x,.18,1.45],[x,.18,z]],'bus12',{count:8,speed:.8,size:.022,trail:false}));
  scene.add(S.build(),N.build({cast:false}));for(const list of [flows,dataFlows,heatFlows])for(const f of list)scene.add(f.group);
  const hs=(p,off=[2.2,2.8,3.5])=>({pos:p,view:{pos:p.map((v,i)=>v+off[i]),target:p}});
- const hotspots={osfp:hs([-1.35,.5,4.25]),clip:hs([0,.45,-4.5],[2.4,2,-3]),ibc:hs([-1.5,.45,-4]),vrm:hs([1.6,.2,-2.04],[-.5,1.9,2.4]),gpu:{pos:[1.6,.3,-2.7],view:componentView([1.6,.22,-2.7],[-.3,.2,1.35],[.9,.4,.9])},grace:hs([-1.1,.32,-.65]),lpddr:hs([1.74,.3,-.65],[0,2.1,.5]),coldplates:hs([-1.1,.82,-.65]),nic:hs([1.35,.8,2.85]),nvconn:hs([1.75,.4,-4.35],[2,2,-3])};
+ const hotspots={osfp:hs([-1.35,.5,4.25]),clip:hs([0,.45,-4.5],[2.4,2,-3]),ibc:hs([-1.5,.45,-4]),vrm:hs([1.6,.2,-2.04],[-.5,1.9,2.4]),gpu:{pos:[1.6,.3,-2.7],view:componentView([1.6,.16,-2.7],[-.25,.4,1.3],[.6,.2,.6])},grace:hs([-1.1,.32,-.65]),lpddr:hs([1.74,.3,-.65],[0,2.1,.5]),coldplates:hs([-1.1,.82,-.65]),nic:hs([1.35,.8,2.85]),nvconn:hs([1.75,.4,-4.35],[2,2,-3])};
  finishCompute(scene,finish);
  scene.userData.computeGeneration={id:'rubin',gpus:4,cpus:2,fans:0,internalHoses:0,midplane:true,nicAssemblies:2,nicCount:8,dpuCount:1,opticalPorts:8,representative:true};
  return {scene,flows,dataFlows,heatFlows,hotspots,
