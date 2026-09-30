@@ -250,6 +250,27 @@ function blanking(scene, N, y0, y1, z, w) {
   N.box(w, y1 - y0, 0.004, MAT.black, 0, (y0 + y1) / 2, z - 0.012);
 }
 
+// 0U vertical PDU face: C19 outlets in branch-circuit banks, each bank with its
+// own colored band. Outlet type follows the reported C19 class for these
+// strips; bank count, colors and layout are representative (ASSUMPTIONS
+// 'h100-pdu-cords').
+function pduTex(banks) {
+  return canvasTex(64, 1024, (g, w, h) => {
+    g.fillStyle = '#2c3036'; g.fillRect(0, 0, w, h);
+    const colors = ['#3f6fa8', '#b88a2e', '#6e4a9e'];
+    for (let b = 0; b < banks; b++) {
+      const y0 = 40 + b * (h - 80) / banks, bh = (h - 80) / banks - 12;
+      g.fillStyle = '#1b1e22'; g.fillRect(6, y0, w - 12, bh);
+      g.fillStyle = colors[b % 3]; g.fillRect(6, y0, 5, bh);
+      for (let o = 0; o < 5; o++) {
+        const oy = y0 + 10 + o * (bh - 20) / 5;
+        g.fillStyle = '#0a0b0d'; g.fillRect(20, oy, 30, 20);
+        g.fillStyle = '#4b5159'; g.fillRect(25, oy + 5, 20, 3); g.fillRect(25, oy + 12, 20, 3);
+      }
+    }
+  });
+}
+
 // Seeded generator: every build, and the Blender export, draws identical surface detail.
 function rng(seed) { let s = seed >>> 0; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296; }
 
@@ -437,23 +458,44 @@ function buildHGX({ quality, state }) {
   fans.mesh.userData.computeDynamic = 'rotor';
   scene.add(fans.mesh);
 
-  // rear: two vertical power strips, real sagging cable bundles to each server's supplies
+  // rear: two 0U vertical power strips and 24 C19-C20 cords (six supplies per
+  // server, three from each strip) plugged into the supplies across the bottom
+  // of each server's rear panel. Supply inlet positions follow serverRearTex().
   const pduX = [-0.22, 0.22], pduZ = ZB + 0.105, pTop = sy(3) + SU / 2, pBot = sy(0) - SU / 2;
-  pduX.forEach(x => { S.box(0.05, pTop - pBot, 0.05, MAT.black, x, (pTop + pBot) / 2, pduZ); for (let k = 0; k < 4; k++) for (let o = 0; o < 3; o++) N.box(0.03, 0.03, 0.01, MAT.darkSteel, x, sy(k) - 0.08 + o * 0.08, pduZ + 0.031); });
-  [0, 1, 3].forEach(k => pduX.forEach(x => {
-    bundle(N, [x, sy(k) - 0.01, pduZ + 0.045], [x * 0.55, sy(k) - 0.12, ZF - 0.07 - sd], { n: 3, r: 0.0035, spread: 0.035, sag: 0.055, mats: [MAT.black, MAT.darkSteel], seed: k * 11 + (x > 0 ? 5 : 1), seg: 5 });
-  }));
+  const psuX = i => 0.1598 - 0.0705 * i, psuY = k => sy(k) - 0.111, psuZ = ZF - 0.07 - sd - 0.0105;
+  const PDUBODY = new THREE.MeshStandardMaterial({ color: 0x2b2e33, roughness: 0.5, metalness: 0.4 }); PDUBODY.name = 'PDU extrusion';
+  const PLUG = new THREE.MeshStandardMaterial({ color: 0x121316, roughness: 0.55, metalness: 0.05 }); PLUG.name = 'Molded C19/C20 plug';
+  const outletFace = new THREE.MeshStandardMaterial({ map: pduTex(8), roughness: 0.55, metalness: 0.3 });
+  const cordEnds = [];
+  pduX.forEach((x, side) => {
+    const inward = -Math.sign(x);
+    const faces = [PDUBODY, PDUBODY, PDUBODY, PDUBODY, PDUBODY, PDUBODY]; faces[inward > 0 ? 0 : 1] = outletFace;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.055, pTop - pBot, 0.055), faces);
+    body.position.set(x, (pTop + pBot) / 2, pduZ); body.castShadow = body.receiveShadow = true; scene.add(body);
+    // input head: breaker block with toggles and a small meter window
+    rbox(N, 0.06, 0.07, 0.06, PDUBODY, x, pTop + 0.035, pduZ, { r: 0.12 });
+    for (const dy of [0.012, 0.042]) N.box(0.008, 0.014, 0.01, MAT.white, x + inward * 0.031, pTop + dy, pduZ);
+    N.box(0.003, 0.014, 0.03, glowMat('#6fc3e0', 0.3), x + inward * 0.031, pTop + 0.027, pduZ + 0.008);
+    N.cyl(0.014, 0.02, GLAND, x, pTop + 0.078, pduZ, 12);
+    [0, 1, 3].forEach(k => [0, 1, 2].forEach(o => {
+      const oy = sy(k) - 0.035 + o * 0.035, px = x + inward * 0.036, psu = side ? o : 3 + o;
+      N.box(0.022, 0.026, 0.03, PLUG, px, oy, pduZ);                                          // C19 plug in the strip
+      N.box(0.03, 0.03, 0.022, PLUG, psuX(psu), psuY(k), psuZ);                                 // C20 plug in the supply
+      bundle(N, [px + inward * 0.012, oy, pduZ], [psuX(psu), psuY(k), psuZ - 0.01], { n: 1, r: 0.0042, sag: 0.05 + o * 0.012, mats: [MAT.black], seed: k * 7 + o + side * 3, seg: 6 });
+      if (o === 1) cordEnds.push({ k, from: [px + inward * 0.012, oy, pduZ], to: [psuX(psu), psuY(k), psuZ - 0.01] });
+    }));
+  });
   // feed from the busway above to the top of each strip
   busway(scene, S, N, pduX.map(x => x * 0.5), glowMat('#ff8a3d', 0.9), H);
-  pduX.forEach(x => { N.strut([x * 0.5, TAP.glandY, -0.25], [x * 0.5, H + 0.02, -0.25], 0.012, MAT.black, 8); N.strut([x * 0.5, H, -0.25], [x, pTop + 0.02, pduZ], 0.012, MAT.black, 8); });
+  pduX.forEach(x => { N.strut([x * 0.5, TAP.glandY, -0.25], [x * 0.5, H + 0.02, -0.25], 0.012, MAT.black, 8); N.strut([x * 0.5, H, -0.25], [x, pTop + 0.085, pduZ], 0.012, MAT.black, 8); });
   // data: fiber from each server's rear cages up the back to the runway
   const fx = 0.12, fz = ZB + 0.06;
   S.box(RACK_RUNWAY.width,.03,RACK_RUNWAY.length,MAT.yellowTray,RACK_RUNWAY.x,RACK_RUNWAY.floorY,0); for(const side of [-1,1]) S.box(.012,.1,RACK_RUNWAY.length,MAT.yellowTray,RACK_RUNWAY.x+side*.14,3.66,0);
   scene.add(S.build()); scene.add(N.build({ cast: false }));
 
   // ---------- flows ----------
-  pduX.forEach(x => flows.push(flow([[x * 0.5, TAP.glandY, -0.25], [x * 0.5, H + 0.02, -0.25], [x, pTop + 0.02, pduZ], [x, pBot, pduZ]], 'lv', { count: 16, speed: 0.35, size: 0.012, trailR: 0.004 })));
-  [0, 1, 3].forEach(k => pduX.forEach(x => flows.push(flow([[x, sy(k), pduZ + 0.04], [x * 0.55, sy(k) - 0.04, ZF - 0.07 - sd]], 'lv', { count: 3, speed: 0.2, size: 0.009, trail: false }))));
+  pduX.forEach(x => flows.push(flow([[x * 0.5, TAP.glandY, -0.25], [x * 0.5, H + 0.02, -0.25], [x, pTop + 0.085, pduZ], [x, pBot, pduZ]], 'lv', { count: 16, speed: 0.35, size: 0.012, trailR: 0.004 })));
+  cordEnds.forEach(({ from, to }) => flows.push(flow([from, [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2 - 0.04, (from[2] + to[2]) / 2], to], 'lv', { count: 3, speed: 0.2, size: 0.009, trail: false })));
   flows.push(flow([[0, yb + 0.06, pz - sd / 2 + 0.14], [0, yb + 0.03, pz - 0.05], [0, yb + 0.03, pz + 0.25]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
   // scale-up: NVLink only inside the pulled server, GPUs to the switch row
   sinks.forEach(([x, z]) => dataFlows.push(flow([[x, yb + 0.03, z], [x * 0.9, yb + 0.03, pz - 0.03]], 'nvl', { count: 3, speed: 0.12, size: 0.006, k: 2.4, trail: false })));

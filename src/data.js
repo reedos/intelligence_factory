@@ -560,7 +560,7 @@ export function content(M) {
       specs: [['Per server', '6 × 3.3 kW, 4+2', 'spec', { refs: [ref('nvidia-dgxh100-user-guide', 'Power Specifications: "six power supply units (PSU) configured for 4+2 redundancy"; Specification for Each Power Supply column: "3300 W @ 200-240 V, 16 A, 50-60 Hz"')] }], ['Efficiency', '≈96% (80 PLUS Titanium class)', 'assumed', { assume: 'dgx-h100-psu-efficiency' }], ['Loss per rack', `≈${RK.convKW.toFixed(1)} kW`, 'derived', { calc: 'shelf-loss' }]] },
     { id: 'cabling', title: 'Power cords', kicker: 'No busbar',
       body: 'Twenty-four cords, six per server, run from the strips to the supplies. Air-cooled racks at 40 kW do not need a busbar.',
-      specs: [['Cords per rack', '24', 'derived', { calc: 'count-per-rack' }]] },
+      specs: [['Cords per rack', '24', 'derived', { calc: 'count-per-rack' }], ['Cord ends', 'C19/C20, 1.2 m', 'spec', { refs: [ref('nvidia-dgxh100-user-guide', 'Power Cord Specification: "Plug Standard | C19/C20"; "Dimension | 1200mm length"')] }], ['Strips and routing as drawn', 'representative', 'assumed', { assume: 'h100-pdu-cords' }]] },
     { id: 'mgmt', title: 'Management switch', kicker: 'Out-of-band',
       body: 'A small copper switch at the top runs the rack’s management network: firmware, sensors and power control, separate from the fabrics that move model data.',
       specs: [['Rate', '1–10 GbE class', 'assumed', { assume: 'bmc-network-speed' }], ['Ports as drawn', '48 × 1 GbE + 4 × 100 GbE', 'assumed', { assume: 'tor-switch-ports', refs: [ref('nvidia-sn2201-specs', 'Connector/Port Specifications: "48 RJ45 ports of 1GbE and 4 QSFP28 ports of 100GbE"')] }], ['Free units above', 'cable manager + blanking panels', 'assumed', { assume: 'rack-elevation-fill' }]] },
