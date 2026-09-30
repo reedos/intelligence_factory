@@ -289,7 +289,7 @@ describe('readable connected site activity',()=>{
    for(const r of links)expect(Math.sign(r.start[2]-r.rack.z)).toBe(accel==='h100'?-r.rack.f:r.rack.f);
    scene.scene.traverse((o:any)=>{if(o.geometry)o.geometry.dispose();});
   }
- });
+ }, 60000);   // builds the hall six times: slow on CI runners
  it('animates sampled existing hall power drops and fiber uplinks at their real elevations',()=>{
   const power=builtHall.flows.filter((f:any)=>f.group.userData.rackPowerDrop),data=builtHall.dataFlows.filter((f:any)=>f.group.userData.rackFiberUplink);
   expect(power.length).toBeGreaterThanOrEqual(24);expect(data.length).toBeGreaterThanOrEqual(24);
