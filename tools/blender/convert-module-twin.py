@@ -345,6 +345,7 @@ meta['analogAnchors']=[{key:meta['anchors'][key]['position'] for key in ['driver
 root['ifx']=json.dumps(meta,separators=(',',':'));root['authoredStatic']=True
 bpy.ops.wm.save_as_mainfile(filepath=str(ROOT/'tools/blender/osfp-module-twin.blend'))
 staged=TARGET.with_name(TARGET.stem+'.staged.glb')
-bpy.ops.export_scene.gltf(filepath=str(staged),export_format='GLB',export_yup=True,export_extras=True,export_cameras=False,export_lights=False)
+# EXT_meshopt_compression: the viewer and the tests register three's MeshoptDecoder before parsing
+bpy.ops.export_scene.gltf(filepath=str(staged),export_format='GLB',export_yup=True,export_extras=True,export_cameras=False,export_lights=False,export_meshopt_compression_enable=True)
 staged.replace(TARGET)
 print('TWIN MODULE',TARGET.stat().st_size)
