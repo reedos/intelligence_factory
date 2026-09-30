@@ -818,7 +818,9 @@ export function build({ quality, model }) {
     scene, flows,
     camera: { pos: [42, 28, 46], target: [-6, 1.4, -2],
       compact: { pos: [52, 34, 56], target: [-6, 1.4, -2] },
-      portrait: { pos: [65, 42, 70], target: [-6, 1.4, -2] },
+      // Portrait looks steeply down the hall's diagonal so the 60 m hall fills the tall frame and the
+      // power-room pins (1-4) separate from the data-hall ones instead of stacking in one cluster.
+      portrait: { pos: [42, 83, 33], target: [-8, 2.5, -4.5] },
       near: 0.1, far: 2000, min: 4, max: 180 },
     hotspots: {
       optics: { pos: [leafX, 2.6, -8.2], view: { pos: [leafX + 2.2, 4.8, -3.8], target: [leafX, 2.45, -8.2] } },
@@ -842,7 +844,7 @@ export function build({ quality, model }) {
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
       hotaisle: { pos: [6, 2.5, -9.7], view: { pos: [-11, 5, -9.2], target: [4, 1.5, -9.7] } },
       fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
-      riser: { pos: [X0 + 2.4, hdrY + 3.2, -16.4], view: { pos: [X0 + 10, 10, -4], target: [X0 + 2.4, 5, -16.4] } },
+      riser: { pos: [X0 + 2.4, hdrY + 1.4, -16.4], view: { pos: [X0 + 10, 10, -4], target: [X0 + 2.4, 5, -16.4] } },
       fire: { pos: [asdX, 2.9, asdZ], view: { pos: [-7.5, 2.2, -5.2], target: [-10.8, 3.4, -9] } },   // the detector box and its sampling pipe rising to the ceiling
     },
     dataHotspots: {
