@@ -54,8 +54,20 @@ export function cpoFiberRoutes(e, i) {
 // ---------- the copper cable plugs ----------
 // four pairs each way per plug: transmit on the left half of the card, receive on the right; x of pair i's centerline
 export const COPPER_HEADS = [['dac', -4.6], ['acc', 0], ['aec', 4.6]];
-export const copperLane = (hx, i, rx) => hx + (rx ? 0.12 : -0.72) + i * 0.18;
+export const copperLane = (hx, i, rx) => hx + (rx ? 0.15 : -0.63) + i * 0.16;
+// The card edge: 38 contacts (QSFP112 MSA), drawn as 19 on each face at a representative 0.8 mm pitch.
+// Kinds per face, host-left to right: g ground, s high-speed signal, l low-speed control, p power. Grounds reach
+// nearest the edge, power next, signals last (the MSA's ground, power, signal mating order).
+export const COPPER_PADS = 'gssgssgllpllgssgssg', PAD_PITCH = 0.08;
+export const copperPadX = (hx, j) => hx + (j - 9) * PAD_PITCH;
+// Where each pair meets the edge: half the pairs on the top face, half on the bottom, reaching the top-layer
+// routing through vias. Returns the pad pair's centerline and its face.
+export const copperPad = (hx, i, rx) => {
+  const top = rx ? i % 2 === 1 : i % 2 === 0;
+  const outer = rx ? i >= 2 : i <= 1;
+  return { x: hx + (rx ? 1 : -1) * (outer ? 0.6 : 0.36), top };
+};
 export const PAIR_HALF = 0.02;                              // each pair's two traces sit this far either side of its centerline
 // the chip in each plug's path: none, a redriver on the receive side, or a retimer across both directions
 // h: package height above the card (representative: a leaded QFN redriver; a lidded flip-chip BGA retimer).
-export const copperChip = (kind, hx) => kind === 'acc' ? { x: hx + 0.39, w: 0.62, d: 0.6, h: 0.085, rxOnly: true } : kind === 'aec' ? { x: hx, w: 1.6, d: 0.95, h: 0.194, rxOnly: false } : null;
+export const copperChip = (kind, hx) => kind === 'acc' ? { x: hx + 0.39, w: 0.62, d: 0.6, h: 0.085, rxOnly: true } : kind === 'aec' ? { x: hx, w: 1.42, d: 0.95, h: 0.194, rxOnly: false } : null;

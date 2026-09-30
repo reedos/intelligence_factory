@@ -191,6 +191,11 @@ def internals(kind):
             p=m.node_tree.nodes.get('Principled BSDF')
             if not p:continue
             c=p.inputs['Base Color'].default_value
+            if m.name.startswith('Gold contact pads'):
+                # Hard gold plating. Partly dielectric response keeps the gold legible where the
+                # dark studio surround would otherwise mirror as black.
+                p.inputs['Base Color'].default_value=(1.0,.72,.3,1);p.inputs['Metallic'].default_value=.72;p.inputs['Roughness'].default_value=.3
+                continue
             # Solder mask has a restrained deep-green finish; signal metals and
             # the separately colored optical fibers retain their identity.
             if c[1]>c[0]*1.12 and c[1]>c[2]*1.05 and p.inputs['Metallic'].default_value<.3:
