@@ -5,7 +5,7 @@ exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque buil
 import random
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for name in ['COOLER','UNITSUB','GENSET','BESS','CAR','TRUCK','TREE0','TREE1','TREE2','FAN','HALL_RACK','HALL_CABINET','MAP_CAMPUS','MAP_HUT','MAP_TERMINAL','WALKER','EHOUSE','CTRL_HOUSE','SHELTER','GATEHOUSE','TOWER_CELL','BESS_PCS','SUB_BREAKER','SUB_POST','SUB_ARRESTER','SUB_CVT','SUB_DISCONNECT','SUB_STRING','FUEL_TANK','FUEL_TANK_ACCESS']:
+for name in ['COOLER','UNITSUB','GENSET','BESS','CAR','TRUCK','TREE0','TREE1','TREE2','FAN','HALL_RACK','HALL_CABINET','MAP_CAMPUS','MAP_HUT','MAP_TERMINAL','WALKER','EHOUSE','CTRL_HOUSE','SHELTER','GATEHOUSE','TOWER_CELL','BESS_PCS','SUB_BREAKER','SUB_POST','SUB_ARRESTER','SUB_CVT','SUB_DISCONNECT','SUB_STRING','FUEL_TANK','FUEL_TANK_ACCESS','HALL_SWGR_SECTION','HALL_UPS','HALL_BATT']:
  g=bpy.data.objects.new(name,None);S.collection.objects.link(g);groups[name]=g
 steel=mat('Mechanical brushed steel',(.34,.42,.46),.8,.35)
 white=mat('Equipment ceramic white',(.72,.77,.76),.3,.39)
@@ -233,11 +233,54 @@ for x in [-.278,.278]:
  for y in [.22,2.1]:box('Captive latch',(x,y,.621),(.017,.066,.018),bronze,g,.004)
 box('Rack rear panel',(0,1.17,-.587),(.55,2.18,.025),shadow,g,.008)
 for y in [.17,2.2]:box('Recessed front cross rail',(0,y,.604),(.54,.026,.025),steel,g,.005)
-# Unit cabinet casing, sized by runtime placement. Front graphic is a separate label plane.
+# Unit cabinet casing, sized by runtime placement (a 1 m unit cube the hall stretches per lineup). Edge radii
+# are kept tiny so the stretch does not smear them; the rear carries louvres, a rating label and a top cable
+# gland plate. Front graphic is a separate label plane.
 g='HALL_CABINET'
-box('Cabinet body',(0,.5,0),(1,1,1),white,g,.025)
-for x in [-.47,.47]:box('Folded door stile',(x,.51,.512),(.035,.93,.035),steel,g,.008)
-box('Cabinet plinth',(0,.025,0),(.96,.05,.94),shadow,g,.01)
+box('Cabinet body',(0,.5,0),(1,1,1),white,g,.006)
+for x in [-.47,.47]:box('Folded door stile',(x,.51,.512),(.035,.93,.035),steel,g,.004)
+box('Cabinet plinth',(0,.025,0),(.96,.05,.94),shadow,g,0)
+for y in [.55+i*.06 for i in range(6)]:box('Rear louvre',(0,y,-.505),(.7,.022,.012),shadow,g,0)
+box('Rear rating label',(.3,.82,-.503),(.16,.08,.006),pearl,g,0)
+box('Top cable gland plate',(0,1.004,-.25),(.6,.008,.3),steel,g,0)
+# True-size lineup sections (front +Z, origin at floor centre) so nothing is stretched. Offered to the hall
+# level to replace the stretched HALL_CABINET; cubicle counts and face details are representative.
+graph=mat('Hall graphite enclosure',(.05,.055,.062),.4,.45)
+screen=mat('Hall display glow',(.2,.55,.7),0,.3,.8)
+g='HALL_SWGR_SECTION'
+box('Section enclosure',(0,1.15,0),(.9,2.3,1.5),white,g,.01)
+box('Section plinth',(0,.04,0),(.9,.08,1.46),shadow,g,0)
+for i,y in enumerate([.42,1.0,1.58]):
+ box('Breaker cubicle door',(0,y,.755),(.82,.54,.02),white,g,.005)
+ box('Breaker escutcheon',(0,y+.02,.767),(.42,.24,.015),shadow,g,0)
+ box('Trip unit window',(-.12,y+.04,.776),(.12,.08,.006),screen,g,0)
+ box('Charging handle',(.14,y-.05,.78),(.05,.14,.03),steel,g,0)
+ cyl('Racking port',(.3,y-.18,.768),.018,.01,steel,g,'z',8)
+box('Relay and metering door',(0,2.0,.755),(.82,.42,.02),white,g,.005)
+cyl('Meter bezel',(-.2,2.02,.768),.07,.012,shadow,g,'z',12);cyl('Meter bezel',(.05,2.02,.768),.07,.012,shadow,g,'z',12)
+box('Top vent hood',(0,2.36,-.2),(.7,.12,.7),white,g,.01);box('Pressure relief flap',(0,2.43,-.2),(.6,.02,.6),steel,g,0)
+for x in [-.38,.38]:box('Lifting eye',(x,2.34,.6),(.03,.08,.08),steel,g,0)
+for y in [.5+i*.08 for i in range(10)]:box('Rear louvre',(0,y,-.755),(.7,.03,.012),shadow,g,0)
+box('Rear rating label',(.25,1.6,-.753),(.2,.12,.006),pearl,g,0)
+box('Top cable gland plate',(0,2.304,-.45),(.6,.008,.4),steel,g,0)
+g='HALL_UPS'
+box('UPS enclosure',(0,1.0,0),(1.1,2.0,1.0),graph,g,.01)
+box('UPS plinth',(0,.04,0),(1.1,.08,.96),shadow,g,0)
+box('UPS louvred door',(0,1.0,.505),(1.02,1.84,.02),graph,g,.005)
+for y in [.2+i*.07 for i in range(16)]:box('UPS door slot',(0,y,.517),(.86,.025,.006),shadow,g,0)
+box('UPS display bezel',(-.2,1.5,.52),(.3,.2,.02),shadow,g,0);box('UPS display',(-.2,1.5,.531),(.26,.16,.004),screen,g,0)
+box('UPS door handle',(.44,1.1,.53),(.05,.6,.04),steel,g,0)
+for y in [.5+i*.08 for i in range(10)]:box('Rear louvre',(0,y,-.505),(.86,.03,.012),shadow,g,0)
+box('Rear rating label',(.3,1.6,-.503),(.2,.12,.006),pearl,g,0)
+g='HALL_BATT'
+box('Battery cabinet',(0,1.0,0),(.6,2.0,.8),graph,g,.01)
+box('Battery plinth',(0,.04,0),(.6,.08,.76),shadow,g,0)
+box('Door frame',(0,1.0,.405),(.56,1.9,.01),steel,g,0)
+for y in [.22+i*.2 for i in range(8)]:
+ box('Battery module drawer',(0,y,.415),(.48,.17,.012),shadow,g,0)
+ box('Module status LED',(.19,y+.04,.422),(.02,.02,.004),screen,g,0)
+ box('Module pull',(0,y-.04,.425),(.16,.02,.02),steel,g,0)
+for y in [.5+i*.08 for i in range(10)]:box('Rear louvre',(0,y,-.405),(.46,.03,.012),shadow,g,0)
 # Cartographic facilities: complete authored silhouettes, intentionally exaggerated.
 g='MAP_CAMPUS'
 # Map symbol for a campus (the across-map level instances it, uniformly scaled). Two halls with vertical
