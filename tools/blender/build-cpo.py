@@ -65,6 +65,14 @@ eicFace = material('Electronic die face', (.03,.045,.07), .1,.25)
 ribbonTx = material('Transmit ribbon', (.37,.80,.90), 0,.5)
 ribbonRx = material('Receive ribbon', (.82,.37,.66), 0,.5)
 bondLine = material('Hybrid bond interface', (.015,.016,.02), .2,.5)
+# Exploded-detail finishes: its own photonic-die material, lit ring
+# modulators so they read at the rings hotspot, matte labels that do not smear.
+detailPic = material('Detail photonic die cladding', (.08,.11,.16), .15,.26)
+ringGlow = material('Ring modulator rim', (.37,.80,.90), 0,.25)
+labelTx = material('Detail label transmit', (.37,.80,.90), 0,.6)
+labelRx = material('Detail label receive', (.82,.37,.66), 0,.6)
+for m,k in [(ringGlow,3.0),(labelTx,.18),(labelRx,.18)]:
+    b=m.node_tree.nodes.get('Principled BSDF'); b.inputs['Emission Color'].default_value=m.diffuse_color; b.inputs['Emission Strength'].default_value=k
 vgroove = material('Fiber array V-groove block', (.04,.05,.06), .1,.35)
 lidGlass = material('Fiber array lid glass', (.6,.8,.95), 0,.05,.25)
 epoxy = material('Fiber array epoxy', (.12,.07,.02), 0,.5)
@@ -333,7 +341,7 @@ def photonic_die(cx,cy,cz,scale,angle,exploded=False):
     def w(x,y,z):return(cx+x*math.cos(angle)-z*math.sin(angle),cy+y,cz+x*math.sin(angle)+z*math.cos(angle))
     def px(v):return -pw/2+v/512*pw
     def pz(v):return -pd/2+v/384*pd
-    box('Photonic PIC',w(0,0,0),(pw,.15 if exploded else .06,pd),pic,role,.005*scale,angle)
+    box('Photonic PIC',w(0,0,0),(pw,.15 if exploded else .06,pd),detailPic if exploded else pic,role,.005*scale,angle)
     ey=.95 if exploded else .073
     # In the package the EIC sits back from the fiber edge so the photonic die's
     # fiber-array landing shows, on a thin dark hybrid-bond line (representative).
@@ -346,7 +354,7 @@ def photonic_die(cx,cy,cz,scale,angle,exploded=False):
         ex=-1.23*scale/2+(23+i*29)/256*(1.23*scale)
         for z,m in [(-.198*scale,driver),(.227*scale,tia)]:
             box('Driver' if m==driver else 'TIA',w(ex,ey+.062,z),(.106*scale,.004,.324*scale),m,role,0,angle)
-    for words,z,mat in [('TX DRIVERS',-.198*scale,fiberTx),('RX TIAs',.227*scale,fiberRx)]:
+    for words,z,mat in [('TX DRIVERS',-.198*scale,labelTx),('RX TIAs',.227*scale,labelRx)]:
         curve=bpy.data.curves.new(words,'FONT');curve.body=words;curve.size=.16*CM
         curve.align_x='CENTER';curve.align_y='CENTER';curve.extrude=0
         obj=bpy.data.objects.new(words,curve);S.collection.objects.link(obj)
@@ -361,7 +369,7 @@ def photonic_die(cx,cy,cz,scale,angle,exploded=False):
         path('CW branch',[w(px(24),top,pz(row)),w(px(rx-14),top,pz(row))],radius,fiberCw,role)
         path('TX waveguide',[w(px(rx-14),top,pz(row)),w(px(512),top,pz(row))],radius,fiberTx,role)
         pts=[w(px(rx+6*math.cos(k*math.tau/32)),top,pz(ringz+6*math.sin(k*math.tau/32))) for k in range(33)]
-        path('Ring modulator',pts,.0038,fiberTx,role)
+        tube('Ring modulator',pts,.0065,ringGlow,role,6)
         path('RX waveguide',[w(px(512),top,pz(rxrow)),w(px(90),top,pz(rxrow))],radius,fiberRx,role)
         box('Photodiode',w(px(77),top,pz(rxrow)),(26/512*pw,.012,12/384*pd),tia,role,.004,angle)
         for bx,bz,br in [(px(rx),pz(row-12-4-4.5),.020),(px(77),pz(rxrow),.033)]:
