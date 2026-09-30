@@ -128,8 +128,8 @@ def boot_stations():
     st=[(-3.2,.62),(-3.55,.62)]
     for k in range(5):
         zg=-3.85-k*.4; r=.62-(k+1)*.028
-        for i in range(9):
-            u=i/8;st.append((zg+.07-.14*u,r-.04*(1-math.cos(2*math.pi*u))/2))
+        for i in range(7):
+            u=i/6;st.append((zg+.07-.14*u,r-.04*(1-math.cos(2*math.pi*u))/2))
     st+= [(-5.75,.47),(-5.82,.43),(-6.0,.43)]
     return st
 
@@ -294,7 +294,16 @@ def internals(kind):
         # conductor centerline or touching the active circuit topology.
         # Swept round conductors (copper twinax) are already smooth tubes: no bevel.
         swept=any(m and m.name.startswith(('Twinax','Tinned drain','Solder fillet')) for m in o.data.materials)
-        if not swept:
+        # Copper traces, vias and gold pads are hundreds of flat boxes: the import leaves every face unwelded, so a
+        # bevel finds no shared edge and changes nothing. Weld them and keep them flat-shaded, which exports each
+        # box with a third fewer vertices and the same look.
+        flat=kind=='copper' and any(m and (m.name.startswith('Gold contact pads') or m.name.startswith('Physical')) for m in o.data.materials)
+        if flat:
+            bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
+            bpy.ops.mesh.remove_doubles(threshold=.0000005);bpy.ops.object.mode_set(mode='OBJECT')
+            if o.data.has_custom_normals:bpy.ops.mesh.customdata_custom_splitnormals_clear()
+            for p in o.data.polygons:p.use_smooth=False
+        elif not swept:
             b=o.modifiers.new('Manufactured micro edge','BEVEL');b.width=.000015;b.segments=2;b.limit_method='ANGLE'
             bpy.ops.object.modifier_apply(modifier=b.name)
             w=o.modifiers.new('Weighted manufactured normals','WEIGHTED_NORMAL');w.keep_sharp=True
@@ -699,8 +708,11 @@ def copper_card_detail(kind, x, zc, m):
             vz=2.05-j*.25
             vx=x+rx
             if chip and chip[0]-.04<vx<chip[1]+.04 and chip[2]<vz<chip[3]:continue
-            bpy.ops.mesh.primitive_cylinder_add(vertices=6,radius=.018*.01,depth=.004*.01,location=xyz((vx,top+.0015,vz)))
-            o=bpy.context.object;o.name=kind+' stitching via';o.data.materials.append(m['via'])
+            # a via reads only as its ring on the card top: one flat hexagon at the old barrel's top face
+            ring=[xyz((vx+.018*math.cos(a*math.pi/3),top+.0035,vz+.018*math.sin(a*math.pi/3))) for a in range(6)]
+            mesh=bpy.data.meshes.new(kind+' stitching via');mesh.from_pydata(ring,[],[tuple(range(6))]);mesh.update()
+            if mesh.polygons[0].normal.z<0:mesh.flip_normals()     # Blender +Z is native up
+            o=bpy.data.objects.new(kind+' stitching via',mesh);bpy.context.collection.objects.link(o);mesh.materials.append(m['via'])
             k+=1
     return k
 
