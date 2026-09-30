@@ -13,6 +13,12 @@ const EXPLODED = {
   '01_BASE': [0, 0, 0], '02_BOARD': [0, 1.5, 0], '03_THERMAL': [0, 2.8, 0],
   '04_COVER': [0, 4, 0], '05_PULL_TAB': [0, 0, 0],
 };
+// Pin offsets from each exported anchor, cm. The driver pin sits at the driver's
+// front-left corner (clear of its DRV marking) and the laser pin at the back of the
+// laser row, so the two no longer touch at overview distance.
+const PIN_OFFSET = {
+  driver: [-0.22, 0, 0.24], lasers: [0.04, 0, -0.2],
+};
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
 
@@ -339,7 +345,10 @@ export function build({ quality, state }) {
       tia: [[-.75, 1.3, -1.35], [.75, .3, .8]],
       shell: [[-2.5, 2.0, 4.0], [7.5, .7, 2.5]],
     })[name];
-    hs[name] = { pos: p, view: componentView(p, offset, size) };
+    // A pin marks its part without sitting on the part's printed marking, and neighbouring
+    // parts' pins stay apart: the pin moves to a free corner, the camera keeps the anchor.
+    const pin = PIN_OFFSET[name] || [0, 0, 0];
+    hs[name] = { pos: p.map((v, i) => v + pin[i]), view: componentView(p, offset, size) };
   }
   setLpo(false);
   scene.userData.blenderModule = { version: metadata.version, units: 'cm', source: 'osfp-module-runtime.glb',
