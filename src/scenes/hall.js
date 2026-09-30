@@ -145,7 +145,9 @@ export function build({ quality, model }) {
   if (quality.shadows) { key.castShadow = true; key.shadow.mapSize.set(4096, 4096); Object.assign(key.shadow.camera, { left: -48, right: 48, top: 32, bottom: -32, near: 10, far: 180 }); key.shadow.bias = -0.0003; key.shadow.normalBias = 0.04; }
   scene.add(key, key.target);
   const fill = new THREE.DirectionalLight(0xadc2d5, 0.48); fill.position.set(40, 18, 60); scene.add(fill);
-  const edgeLight=new THREE.DirectionalLight(0xffddba,.5);edgeLight.position.set(30,12,-30);edgeLight.target.position.set(4,1,0);scene.add(edgeLight,edgeLight.target);
+  // Raised to ~40 deg: at the old ~15 deg its mirror angle matched the low close-up cameras (CDU, fan wall,
+  // busway), so it painted a glare hotspot on flat cabinet tops, tray and floor.
+  const edgeLight=new THREE.DirectionalLight(0xffddba,.5);edgeLight.position.set(30,34,-30);edgeLight.target.position.set(4,1,0);scene.add(edgeLight,edgeLight.target);
 
   const flows = [], dataFlows = [], heatFlows = [];
   const S = new Builder(), N = new Builder();
