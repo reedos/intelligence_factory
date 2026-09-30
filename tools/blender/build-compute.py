@@ -185,12 +185,21 @@ def rubin_hardware(m):
     for x in [-.65,.65]:
         for sx in [-1,1]:box('Rubin handle standoff',(x+sx*.43,.07,4.63),(.08,.09,.20),m['shell'],u,.024)
         box('Rubin broad service pull',(x,.07,4.75),(.88,.09,.075),m['graphite'],u,.035)
-    # Fine pressure seals and machining on the exact nine native cold-plate footprints.
+    # Folded cage mouths and extraction bails on the eight native optical cages.
+    for x in [-1.66,-1.04,1.04,1.66]:
+        for y in [.16,.34]:
+            for sy in [-1,1]:box('Rubin cage folded mouth',(x,y+sy*.071,4.452),(.31,.014,.024),m['bright'],u,.006)
+            for sx in [-1,1]:box('Rubin cage folded mouth',(x+sx*.151,y,4.452),(.014,.128,.024),m['bright'],u,.006)
+            for sx in [-1,1]:box('Rubin module bail arm',(x+sx*.105,y-.035,4.49),(.012,.012,.07),m['graphite'],u,.004)
+            box('Rubin module bail',(x,y-.035,4.525),(.222,.014,.012),m['graphite'],u,.005)
+    # Machined bosses on the nine native cold-plate caps (cap top y=.729): a
+    # raised inlet/outlet pair with an O-ring groove, plus a service etch.
     plates=[(x,-2.7,.88,1.0) for x in [-1.6,-.62,.62,1.6]]+[(x,-.65,.80,.85) for x in [-1.1,1.1]]+[(x,2.85,1.08,1.65) for x in [-1.35,1.35]]+[(0,2.85,.76,1.65)]
     for x,z,w,d in plates:
-        for sx in [-1,1]:box('Rubin plate machined rail',(x+sx*w*.38,.747,z),(.045,.015,d*.78),m['bright'],u,.006)
-        for sz in [-1,1]:box('Rubin plate seal',(x,.695,z+sz*d*.485),(w*.94,.026,.015),m['dark'],u,.003)
-        for i in range(5):box('Rubin plate service etch',(x-.12+i*.055,.739,z+.15),(.018,.001,.075),m['etch'],u,.0002)
+        for sz in [-1,1]:
+            cylinder('Rubin plate coolant boss',(x,.743,z+sz*d*.3),.042,.028,m['shell'],u)
+            cylinder('Rubin boss O-ring groove',(x,.7305,z+sz*d*.3),.05,.003,m['dark'],u)
+        for i in range(5):box('Rubin plate service etch',(x-.12+i*.055,.7295,z+.12),(.018,.001,.075),m['etch'],u,.0002)
 
 def tray_specular_finish():
     # Tray cameras sit 10-30 cm from broad flat metal (chassis walls, runners,

@@ -588,10 +588,11 @@ export function content(M) {
       body: A.id === 'rubin' ? 'Vera uses LPDDR5X SOCAMM memory modules. These are serviceable modules, not a ring of individual DRAM packages soldered around the CPU.' : `Low-power LPDDR5X is the ${X.cpu} CPU’s system memory. The illustrated placement is representative; it is separate from the GPU’s HBM.`,
       specs: [A.id === 'rubin'
         ? ['Capacity', X.cpuMem, 'spec', { refs: [ref('nvidia-vera-rubin-current-specs', 'Superchip column: up to 1.5 TB LPDDR5X for its one Vera CPU.'), ref('nvidia-vera-rubin-system-blog', 'Vera CPU and superchip sections identify SOCAMM LPDDR5X modules.')] }]
-        : ['Capacity', X.cpuMem, 'derived', { calc: 'hbm-per-gpu', refs: [ref(A.id === 'gb300' ? 'nvidia-gb300-nvl72' : 'nvidia-gb200-nvl72', A.id === 'gb300' ? '"17 TB LPDDR5X" CPU memory ÷ 36 CPUs' : '"17 TB LPDDR5X" total ÷ 36 Grace CPUs')] }]] },
+        : ['Capacity', X.cpuMem, 'derived', { calc: 'hbm-per-gpu', refs: [ref(A.id === 'gb300' ? 'nvidia-gb300-nvl72' : 'nvidia-gb200-nvl72', A.id === 'gb300' ? '"17 TB LPDDR5X" CPU memory ÷ 36 CPUs' : '"17 TB LPDDR5X" total ÷ 36 Grace CPUs')] }],
+        ...(A.id === 'rubin' ? [['Module screws and package layout', 'representative', 'assumed', { assume: 'tray-mechanical-detail' }]] : [])] },
     { id: 'coldplates', title: 'Cold plates', kicker: 'Water on every hot chip',
       body: 'Copper plates with fine internal fins sit on each GPU and CPU. Coolant enters cool, picks up over a kilowatt per GPU, and leaves warm.',
-      specs: (() => { const p = gpuPowerEv(); return [['Heat per GPU', `≈${(A.gpuW / 1000).toFixed(1)} kW`, p.basis, p.ev]]; })() },
+      specs: (() => { const p = gpuPowerEv(); return [['Heat per GPU', `≈${(A.gpuW / 1000).toFixed(1)} kW`, p.basis, p.ev], ['Plate, fitting and screw shapes', 'representative', 'assumed', { assume: 'tray-mechanical-detail' }]]; })() },
     { id: 'nic', title: 'NICs, DPU and SSDs', kicker: 'The front of the tray',
       body: `${X.nic} cards carry scale-out traffic to the spine, ${A.dpusPerTray} BlueField ${A.dpusPerTray === 1 ? 'DPU handles' : 'DPUs handle'} storage and security, and E1.S drives hold local data.`,
       specs: (() => { const n = nicPerGpuEv(); return [['Scale-out', `${nicTxt} per GPU`, n.basis, n.ev]]; })() },
@@ -1103,7 +1104,7 @@ export function content(M) {
         specs: [['Tray heat', `≈${trayKW.toFixed(1)} kW`, 'derived', { calc: 'tray-power' }]] },
       ...(A.id === 'rubin' ? [{ id: 'manifold', title: 'Integrated liquid manifold', kicker: 'Fanless reference tray',
         body: 'The Vera Rubin reference replaces internal fans and flexible hoses with modular bays and an integrated liquid manifold. Cooling geometry is representative; no absent fan is drawn as installed hardware.',
-        specs: [['Tray cooling', 'fanless, hose-free liquid cooling', 'spec', { refs: [ref('nvidia-vera-rubin-pod-blog', 'Compute and NVLink Switch trays section: redesigned PCB midplane and fanless, hose-free tray; MGX section describes internal tray manifolds.')] }]] }] : [{ id: 'fans', title: 'Fans', kicker: 'For what water misses',
+        specs: [['Tray cooling', 'fanless, hose-free liquid cooling', 'spec', { refs: [ref('nvidia-vera-rubin-pod-blog', 'Compute and NVLink Switch trays section: redesigned PCB midplane and fanless, hose-free tray; MGX section describes internal tray manifolds.')] }], ['Tube and boss routing', 'representative', 'assumed', { assume: 'tray-mechanical-detail' }]] }] : [{ id: 'fans', title: 'Fans', kicker: 'For what water misses',
         body: 'Small fans push air past the peripheral electronics that are not served by CPU/GPU cold plates.',
         specs: [['Air-cooled parts', 'peripheral electronics', 'reported', { refs: [ref('nvidia-dgx-gb200-hardware', 'Hardware: CPU/GPU liquid cooling and air-cooled peripheral components.')] }]] }]),
       { id: 'qd', title: 'Quick disconnects', kicker: 'Dripless',
