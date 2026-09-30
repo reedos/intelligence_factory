@@ -62,6 +62,13 @@ def box(name, pos, size, material, bevel=.025):
     for p in o.data.polygons: p.use_smooth = True
     return o
 
+def reweight(o):
+    # A boolean leaves smooth-shaded n-gons whose vertex normals lean toward
+    # the side walls, which reads as a sloped frustum. Re-weight by face area.
+    bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o
+    w=o.modifiers.new('Face weighted normals','WEIGHTED_NORMAL');w.keep_sharp=True;w.weight=100
+    bpy.ops.object.modifier_apply(modifier=w.name)
+
 def screw(name, x, y, z, mats, r=.058):
     bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=r*.01, depth=.019*.01, location=xyz((x,y,z)))
     o = bpy.context.object; o.name = name; o.data.materials.append(mats['edge'])
@@ -92,6 +99,7 @@ def osfp_top_housing(name, cx, cy, cz, length, width, mats):
     pocket=top.modifiers.new('Label recess','BOOLEAN');pocket.operation='DIFFERENCE';pocket.object=cut
     bpy.context.view_layer.objects.active=top;bpy.ops.object.modifier_apply(modifier=pocket.name)
     bpy.data.objects.remove(cut,do_unlink=True)
+    reweight(top)
 
 def lid(name, cx, cy, cz, length, width, along_x, mats):
     # Opaque metal, lifted for inspection. The UI can hide the cover entirely.
@@ -308,6 +316,14 @@ def coherent_board_detail(m):
                 box('RF edge bond pad',(3.37+.035,1.4615,cz+o+g),(.04,.003,wd),m['gold'],0)
     for x,z,size in [(4.49,-.55,(.04,.07,.10)),(3.92,-.205,(.10,.07,.03)),(4.49,.55,(.04,.07,.10)),(3.92,.205,(.10,.07,.03))]:
         box('Fiber attach block',(x,1.435,z),size,m['attach'],.005)
+    # Fused tap on a small ceramic mount; fibers get a glossy acrylate coat.
+    box('Fused tap mount',(3.5,1.44,0),(.24,.18,.14),m['ceramic'],.01)
+    for name in ['Coherent CW fiber','Coherent TX fiber','Coherent RX fiber']:
+        for o in by_source(name):
+            for mt in o.data.materials:
+                p=mt.node_tree.nodes.get('Principled BSDF')
+                c=p.inputs['Base Color'].default_value;p.inputs['Base Color'].default_value=(c[0],c[1],c[2],1)
+                p.inputs['Alpha'].default_value=1;p.inputs['Roughness'].default_value=.25
     # Inductors: silver end terminations on the rounded molded bodies.
     for i in range(4):
         x=-5.39+1.35+(i%2)*.48;z=-.22 if i<2 else .22
@@ -355,6 +371,7 @@ def duplex_lc_receptacle(m):
         mod=body.modifiers.new('Port','BOOLEAN');mod.operation='DIFFERENCE';mod.object=c
         bpy.context.view_layer.objects.active=body;bpy.ops.object.modifier_apply(modifier=mod.name)
         bpy.data.objects.remove(c,do_unlink=True)
+    reweight(body)
     for z in [-.3,.3]:
         tube('LC split sleeve',4.93,5.20,y,z,.085,m['zirconia'],32,.0625)
         tube('LC ferrule stub',4.93,5.16,y,z,.0625,m['zirconia'],24)
@@ -423,20 +440,42 @@ def coherent():
     # Research-sized nano-ITLA case, not a claimed teardown of any named 800ZR.
     # Everything in the itla semantic group stays within 25 x 15.6 x 6.5 mm.
     ix=.96; y0=1.35
-    box('Nano ITLA body',(ix,y0+.29,0),(2.5,.58,1.56),m['shell'],.027)
+    m['itla']=mat('Nano ITLA nickel case',(.40,.42,.45),.85,.36)
+    m['itlalid']=mat('Nano ITLA seam-welded lid',(.47,.50,.53),.85,.33)
+    m['kovar']=mat('Kovar fiber feedthrough',(.52,.50,.46),.9,.3)
+    m['buffer']=mat('Tight-buffered PM fiber',(.92,.88,.78),0,.4)
+    m['flex']=mat('Polyimide flex tail',(.62,.34,.06),0,.45)
+    box('Nano ITLA body',(ix,y0+.29,0),(2.5,.58,1.56),m['itla'],.027)
     box('Nano ITLA gasket',(ix,y0+.586,0),(2.47,.018,1.53),m['dark'],.016)
-    cap = box('Nano ITLA welded lid',(ix,y0+.622,0),(2.5,.056,1.56),m['edge'],.024)
-    # Cut a real identification recess instead of laying coincident faces on the lid.
-    # The lid perimeter still reaches y=2.0, preserving the 6.5 mm package envelope.
-    cut = box('Temporary label pocket',(ix-.05,1.997,0),(1.68,.012,.70),m['shell'],.014)
+    # A flat seam-welded lid (small edge break, not a frustum) with a raised
+    # weld bead just inside its edge. The bead top is the 6.5 mm envelope.
+    cap = box('Nano ITLA welded lid',(ix,1.967,0),(2.5,.046,1.56),m['itlalid'],.005)
+    for s_ in [-1,1]:
+        box('Nano ITLA seam weld',(ix,1.995,s_*(.78-.036)),(2.5-.06,.01,.012),m['itlalid'],.004)
+        box('Nano ITLA seam weld',(ix+s_*(1.25-.036),1.995,0),(.012,.01,1.56-.084),m['itlalid'],.004)
+    # A real identification recess cut into the lid, holding a flat label.
+    cut = box('Temporary label pocket',(ix-.05,1.987,0),(1.68,.012,.70),m['shell'],.014)
     pocket = cap.modifiers.new('Recessed identification pocket','BOOLEAN'); pocket.operation='DIFFERENCE'; pocket.object=cut
     bpy.context.view_layer.objects.active=cap; bpy.ops.object.modifier_apply(modifier=pocket.name)
     bpy.data.objects.remove(cut,do_unlink=True)
-    box('Nano ITLA label recess',(ix-.05,1.992,0),(1.65,.002,.67),m['shell'],.012)
+    reweight(cap)
+    box('Nano ITLA label recess',(ix-.05,1.982,0),(1.65,.002,.67),m['shell'],0)
     for j,w in enumerate([.018,.03,.014,.035,.02,.014,.026,.02,.038,.015,.025]):
-        box('Nano ITLA identification bar',(ix-.65+j*.065,1.994,.13),(w,.0007,.20),m['mark'],.0002)
+        box('Nano ITLA identification bar',(ix-.65+j*.065,1.9835,.13),(w,.001,.20),m['mark'],0)
     for x in [ix-1.11,ix+1.11]:
-        for z in [-.64,.64]:screw('Nano ITLA flush fastener',x,1.989,z,m,.046)
+        for z in [-.64,.64]:screw('Nano ITLA flush fastener',x,1.978,z,m,.046)
+    # Output: a Kovar feedthrough snout, black strain-relief boot and a
+    # tight-buffered PANDA fiber pigtail, and a polyimide flex tail from the
+    # host-side face to a board-to-board receptacle (a nano-ITLA vendor page
+    # lists a PANDA fiber pigtail and a Molex board connector). The native
+    # layout routes the pigtail to the tap with a bend radius of 5 mm or more.
+    ox=ix+1.25; oy=1.68
+    tube('ITLA pigtail feedthrough snout',ox-.01,ox+.3,oy,0,.08,m['kovar'],24)
+    tube('ITLA pigtail strain relief boot',ox+.3,ox+.6,oy,0,.06,m['boot'],20)
+    hx=ix-1.25
+    box('ITLA flex tail riser',(hx-.012,1.53,0),(.015,.34,.5),m['flex'],0)
+    box('ITLA flex tail run',(hx-.053,1.362,0),(.095,.015,.5),m['flex'],0)
+    box('ITLA board-to-board receptacle',(hx-.15,1.39,0),(.1,.08,.56),m['package'],.01)
     # Four independent board footprints: closed electronic packages are imported
     # with marked tops; optical assemblies remain open for the photonic schematic.
     for name,cx,cz,length,width in [

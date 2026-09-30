@@ -120,10 +120,10 @@ export function build({ quality, state, authoredHardware = false }) {
   }
   }
   const itOut = [ITX + ITL / 2, Y.top + 0.33, 0];
-  N.box(0.03, 0.12, 0.3, glowMat(COL.cw, 1.5), itOut[0] + 0.015, itOut[1], 0);
-  // a tap splits the laser's light between the transmit carrier and the receiver's local oscillator
-  const tap = [3.5, Y.top + 0.12, 0];
-  S.box(0.18, 0.12, 0.3, M.glass, tap[0], tap[1], 0);
+  // A fused tap (about 1 x 1 x 3 mm, on a mount in the Blender asset) splits the
+  // laser's light between the transmit carrier and the receiver's local oscillator.
+  const tap = [3.5, Y.top + 0.23, 0];
+  S.box(0.3, 0.1, 0.1, M.glass, tap[0], tap[1], 0);
   // Two-by-two board layout: closed electronic packages on the host side,
   // distinct optical assemblies toward the fiber side. No shared substrate or lid.
   const CX0=3.37, CL=1.10, CX_=CX0+CL/2, cdmZ=-.55;
@@ -156,9 +156,17 @@ export function build({ quality, state, authoredHardware = false }) {
   }
   const cdmIn=[CX_,Y.top+.1,cdmZ+.33],cdmOut=[CX0+CL,Y.top+.1,cdmZ];
   const icrSig=[RX0+RL,Y.top+.1,icrZ],icrLo=[RX_,Y.top+.1,icrZ-.33];
-  const laserTrunk=[itOut,tap];
-  const carrierPath=[tap,[3.68,tap[1],-.12],cdmIn];
-  const loPath=[tap,[3.68,tap[1],.12],icrLo];
+  // Fibers follow smooth cubic bends, never kinks. The laser pigtail leaves
+  // through its snout and boot (0.6 cm) and drops to the tap in an S-bend whose
+  // radius stays at or above the 5 mm a nano-ITLA vendor page specifies.
+  const bez=(p0,p1,p2,p3,n=10)=>Array.from({length:n-1},(_,i)=>{const t=(i+1)/n,u=1-t;
+    return [0,1,2].map(k=>u*u*u*p0[k]+3*u*u*t*p1[k]+3*u*t*t*p2[k]+t*t*t*p3[k]);});
+  const bootEnd=[itOut[0]+.6,itOut[1],0],tapIn=[tap[0]-.15,tap[1],0];
+  const laserTrunk=[itOut,bootEnd,...bez(bootEnd,[3.08,itOut[1],0],[3.08,tap[1],0],tapIn),tapIn,tap];
+  const branch=(end,s)=>{const a=[tap[0]+.15,tap[1],s*.02];
+    return [tap,a,...bez(a,[3.86,tap[1],s*.02],[end[0],end[1],s*.03],end),end];};
+  const carrierPath=branch(cdmIn,-1);
+  const loPath=branch(icrLo,1);
   strand(N,laserTrunk,M.fiberCw,.012);
   strand(N,carrierPath,M.fiberCw,.012);strand(N,loPath,M.fiberCw,.012);
   // Duplex LC receptacle at the module front (the Blender asset models the
@@ -166,8 +174,8 @@ export function build({ quality, state, authoredHardware = false }) {
   // the fiber cores glow at the ferrule stub faces inside the bores.
   const LCX = MX1 - 0.3, LCY = Y.top + 0.3, LCR = 4.78, LCF = 5.165;
   const lcTx = [LCR, LCY, -0.3], lcRx = [LCR, LCY, 0.3];
-  const txLead = [[cdmOut[0] + .12, Y.top + .12, -.52], [LCR - .1, LCY, -.32]];
-  const rxLead = [[LCR - .1, LCY, .32], [icrSig[0] + .12, Y.top + .12, .52]];
+  const txLead = bez(cdmOut, [4.64, cdmOut[1], -.55], [4.62, LCY, -.3], lcTx);
+  const rxLead = bez(lcRx, [4.62, LCY, .3], [4.64, icrSig[1], .55], icrSig);
   strand(N, [cdmOut, ...txLead, lcTx], M.fiberTx, 0.012);
   strand(N, [lcRx, ...rxLead, icrSig], M.fiberRx, 0.012);
   for (const [dz, c] of [[-0.3, COL.tx], [0.3, COL.rx]]) N.box(0.006, 0.07, 0.07, glowMat(c, 1.4), LCF, LCY, dz);
