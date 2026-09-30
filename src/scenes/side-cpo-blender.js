@@ -10,7 +10,7 @@ import { attachFlowRibbons } from '../flow-ribbons.js';
 let source, pending;
 export function preload() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=11`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=12`)
     .then(gltf => { source = gltf.scene; return source; })
     .catch(error => { pending = undefined; throw error; });
 }
@@ -46,6 +46,17 @@ function eicFace() {
   });
 }
 
+// Bare switch die back: ground-silicon sheen, faint grind arcs and a seal ring.
+// No part mark: nothing published identifies the die face.
+function asicFace() {
+  return paintFace(512, 512, (u, v, e) => {
+    if (e <= 6) return [.02, .03, .045];
+    if (e < 10) return [.15, .17, .19];
+    const r = Math.hypot(u - 1.6, v + .4), grind = .011 * Math.sin(r * 900) * Math.sin(r * 37);
+    const sheen = .05 * Math.max(0, 1 - Math.hypot(u - .3, v - .3) * 1.3);
+    return [.024 + sheen + grind, .042 + sheen + grind, .07 + sheen * 1.2 + grind];
+  });
+}
 // One stripe per fiber across a data ribbon: a rounded coated core, dark seams.
 function ribbonStripes(color) {
   const tex = paintFace(64, 4, (u, v, e, block, x) => {
@@ -93,6 +104,7 @@ export function build(args) {
   asset.traverse(node => { if (node.isMesh && node.material.name === 'Switch ASIC silicon') asicMaterial = node.material; });
   if (!asicMaterial) throw new Error('CPO asset is missing its authored switch ASIC');
   asicMaterial.emissive.set(0xff6a1a);
+  if (!asicMaterial.map) { asicMaterial.map = asicFace(); asicMaterial.needsUpdate = true; }
   asset.traverse(node => {
     if (node.isMesh && node.material.name === 'Electronic die face' && !node.material.map) {
       node.material.map = eicFace(); node.material.color.set(0xffffff); node.material.needsUpdate = true;

@@ -31,7 +31,7 @@ def material(name, color, metal=0, rough=.4, alpha=1):
 
 # Materials named in UV_MATERIALS keep a 0-1 top-face UV; side-cpo-blender.js
 # paints their face textures at runtime (no embedded images in the GLB).
-UV_MATERIALS={'Electronic die face','Transmit ribbon','Receive ribbon'}
+UV_MATERIALS={'Electronic die face','Transmit ribbon','Receive ribbon','Switch ASIC silicon'}
 
 nickel = material('Satin nickel retainers', (.5,.57,.62), .82,.29)
 edge = material('Polished screw heads', (.68,.73,.76), .9,.22)
@@ -44,7 +44,7 @@ copper = material('Cold plate brushed nickel', (.43,.49,.53), .86,.28)
 ceramic = material('Package ceramic', (.055,.076,.09), .3,.38)
 ghost = material('Cutaway cold plate', (.45,.5,.55), .35,.35,.055)
 silicon = material('Polished silicon', (.025,.045,.075), .78,.20)
-asic = material('Switch ASIC silicon', (.025,.045,.075), .78,.20)
+asic = material('Switch ASIC silicon', (1,1,1), .35,.22)
 asic.node_tree.nodes.get('Principled BSDF').inputs['Emission Color'].default_value=(1,.15,.015,1)
 asic.node_tree.nodes.get('Principled BSDF').inputs['Emission Strength'].default_value=0
 eic = material('Electronic die passivation', (.035,.055,.085), .5,.3)
@@ -142,9 +142,11 @@ for x in [-4.72,4.72]:
         box('Socket clamp',(x,1.105,z),(.52,.11,.52),nickel,'CPO_PACKAGE',.065)
         screw(x,1.177,z,'CPO_PACKAGE',.10)
 box('Shared silicon interposer',(0,1.45,0),(9.0,.1,9.0),pic,'CPO_PACKAGE',.02)
-# A perimeter seal sits outside the bare die; the polished die face stays open.
-for z in [-1.4,1.4]: box('Die carrier edge',(0,1.52,z),(2.9,.055,.10),nickel,'CPO_PACKAGE',.015)
-for x in [-1.4,1.4]: box('Die carrier edge',(x,1.52,0),(.10,.055,2.7),nickel,'CPO_PACKAGE',.015)
+# Underfill (representative) skirts the bare die on the interposer; there is
+# no published lid or stiffener around it, so none is drawn.
+underfill = material('Underfill epoxy', (.14,.08,.03), 0,.5)
+for z in [-1.235,1.235]: box('Underfill fillet',(0,1.54,z),(2.53,.07,.06),underfill,'CPO_PACKAGE',.02)
+for x in [-1.235,1.235]: box('Underfill fillet',(x,1.539,0),(.06,.068,2.4),underfill,'CPO_PACKAGE',.02)
 
 # Six open retainers, three engines each. Their central apertures expose the
 # reviewed EIC/PIC surfaces. Front/back walls stay below fiber attachment height.
@@ -303,7 +305,7 @@ def flat_trace(a,b,y,width,role):
     box('Copper substrate trace',((a[0]+b[0])/2,y,(a[1]+b[1])/2),
         (math.hypot(dx,dz),.004,width),traceCu,role,0,math.atan2(dz,dx))
 
-box('Bare switch ASIC',(0,1.62,0),(2.4,.1,2.4),asic,'CPO_DIES',.009)
+box('Bare switch ASIC',(0,1.62,0),(2.4,.1,2.4),asic,'CPO_DIES',.02,uv_top=True)
 for z in [-5.2,5.2]:
     for y in [.82,.94]:box('Substrate laminate',(0,y,z),(10.4,.012,.012),laminate,'CPO_PACKAGE',.002)
 for x in [-5.2,5.2]:
