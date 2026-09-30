@@ -88,45 +88,110 @@ def lid(name, cx, cy, cz, length, width, along_x, mats):
         box(name+'_rear shoulder', (cx,cy+.065,cz-length/2+.58), (width-.14,.13,1.0), mats['lid'], .065)
         box(name+'_label landing', (cx,cy+.048,cz+.35), (width-.65,.008,2.3), mats['shell'], .045)
 
+def boot_stations():
+    # Tapered strain-relief overmold (representative: no dimensioned source),
+    # 12.4 mm across at the neck collar, easing to the jacket over 25 mm with
+    # five flex-relief grooves, then the jacket itself to the end of the cutaway.
+    st=[(-3.2,.62),(-3.55,.62)]
+    for k in range(5):
+        zg=-3.85-k*.4; r=.62-(k+1)*.028
+        st+= [(zg+.05,r),(zg+.03,r-.05),(zg-.03,r-.05),(zg-.05,r)]
+    st+= [(-5.75,.47),(-5.82,.43),(-6.0,.43)]
+    return st
+
 def cable_cutaway(name, cx, mats):
     # Lower half-shell of the boot and jacket: sectioned through the upper half
-    # so the modeled conductors remain visible. Not transparent polymer.
-    stations=[(-3.18,.68),(-3.42,.68),(-3.58,.59),(-4.12,.55),(-4.30,.52),(-6.22,.52)]
+    # so the modeled conductors remain visible. Not transparent polymer. The
+    # section faces carry their own lighter "cut" finish so the cut reads as
+    # intentional.
+    stations=boot_stations()
     n=32;verts=[]
     for z,r in stations:
-        for radius in [r,r-.08]:
+        t=.08 if r>.45 else .06
+        for radius in [r,r-t]:
             for i in range(n+1):
                 a=math.pi+i*math.pi/n
                 verts.append(xyz((cx+radius*math.cos(a),.9+radius*math.sin(a),z)))
-    faces=[];stride=2*(n+1)
+    faces=[];cut=[];stride=2*(n+1)
     for j in range(len(stations)-1):
         for i in range(n):
             a=j*stride+i;b=a+stride
             faces.extend([(a,a+1,b+1,b),(a+n+1,b+n+1,b+n+2,a+n+2)])
         for i in [0,n]:
             a=j*stride+i;b=a+stride
-            faces.append((a,b,b+n+1,a+n+1))
+            cut.append(len(faces));faces.append((a,b,b+n+1,a+n+1))
     for j in [0,len(stations)-1]:
         for i in range(n):
-            a=j*stride+i;faces.append((a,a+n+1,a+n+2,a+1))
+            a=j*stride+i;cut.append(len(faces));faces.append((a,a+n+1,a+n+2,a+1))
     mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
-    o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o);mesh.materials.append(mats['boot'])
+    o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o)
+    mesh.materials.append(mats['boot']);mesh.materials.append(mats['cut'])
+    for f in cut:mesh.polygons[f].material_index=1
     # Recalculate outward normals on this closed, physically thick section.
-    bpy.context.view_layer.objects.active=o;o.select_set(True)
-    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT');o.select_set(False)
-    for p in mesh.polygons:p.use_smooth=True
-    # Narrow molded grip lands belong to the remaining side walls only.
-    for z in [-3.6,-3.82,-4.04]:
-        for s in [-1,1]:box(name+' side grip',(cx+s*.565,.68,z),(.07,.22,.075),mats['boot'],.028)
+    bpy.ops.object.select_all(action='DESELECT');bpy.context.view_layer.objects.active=o;o.select_set(True)
+    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False)
+    # one material per object: the export joins by first material
+    bpy.ops.mesh.separate(type='MATERIAL');bpy.ops.object.mode_set(mode='OBJECT')
+    for part in bpy.context.selected_objects:
+        part.data.materials[0]=part.data.materials[part.data.polygons[0].material_index]
+        for p in part.data.polygons:p.material_index=0;p.use_smooth=True
+        while len(part.data.materials)>1:part.data.materials.pop(index=1)
+    bpy.ops.object.select_all(action='DESELECT')
+    # Crimp collar where the overmold grips the housing neck (lower half).
+    n2=24;cv=[]
+    for z in [-3.12,-3.32]:
+        for r in [.6,.52]:
+            for i in range(n2+1):
+                a=math.pi+i*math.pi/n2;cv.append(xyz((cx+r*math.cos(a),.9+r*math.sin(a),z)))
+    cf=[];st=2*(n2+1)
+    for i in range(n2):
+        cf+=[(i,i+1,st+i+1,st+i),(n2+1+i,st+n2+1+i,st+n2+2+i,n2+2+i),(i,n2+1+i,n2+2+i,i+1),(st+i,st+i+1,st+n2+2+i,st+n2+1+i)]
+    for i in [0,n2]:cf.append((i,st+i,st+n2+1+i,n2+1+i))
+    cm=bpy.data.meshes.new(name+' collar');cm.from_pydata(cv,[],cf);cm.update()
+    co=bpy.data.objects.new(name+' crimp collar',cm);bpy.context.collection.objects.link(co);cm.materials.append(mats['edge'])
+    bpy.context.view_layer.objects.active=co;co.select_set(True)
+    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT');co.select_set(False)
+    # Beyond the cutaway the jacket is whole: a closed round cable whose cut
+    # end faces the viewer, so the pairs run into the cable, not into air.
+    bpy.ops.mesh.primitive_cylinder_add(vertices=40,radius=.43*.01,depth=.9*.01,location=xyz((cx,.9,-6.45)),rotation=(math.pi/2,0,0))
+    j=bpy.context.object;j.name=name+' closed jacket';j.data.materials.append(mats['boot'])
+    b=j.modifiers.new('Jacket edge','BEVEL');b.width=.00012;b.segments=2;b.limit_method='ANGLE'
+    bpy.ops.object.modifier_apply(modifier=b.name)
+    for p in j.data.polygons:p.use_smooth=len(p.vertices)<=4
+    # the cut end facing the cutaway, a hair proud of the cap
+    bpy.ops.mesh.primitive_circle_add(vertices=40,radius=.41*.01,fill_type='NGON',location=xyz((cx,.9,-5.994)),rotation=(math.pi/2,0,0))
+    c=bpy.context.object;c.name=name+' jacket cut face';c.data.materials.append(mats['cut'])
 
 def copper_pull(name, cx, mats):
-    # Low, rounded rectangular pull surrounding the cable, connected to the two
-    # side release rails. Photo-inspired thermoplastic, not a finned metal lid.
-    for s in [-1,1]:
-        box(name+' side arm',(cx+s*.99,.2,-3.61),(.1,.12,2.6),mats['boot'],.04)
-        box(name+' latch linkage',(cx+s*.965,.2,-1.58),(.03,.14,1.6),mats['edge'],.01)
-    box(name+' grip',(cx,.24,-4.93),(2.04,.12,.26),mats['boot'],.085)
-    for i in range(7):box(name+' grip texture',(cx-.60+i*.2,.307,-4.94),(.065,.012,.15),mats['dark'],.01)
+    # Flat molded pull tab (representative, photo-inspired): two straps from
+    # the stamped de-latch sliders on the housing sides, joining into one
+    # 1.2 mm polymer tab that runs back under the boot to a rounded grip.
+    import bmesh
+    outer=[(-.975,-.9),(-.975,-2.95),(-.62,-3.6),(-.62,-6.05)]
+    for k in range(9):
+        a=math.pi+k*math.pi/8;outer.append((.62*math.cos(a),-6.05+.3*math.sin(a)))
+    outer+=[(.62,-3.6),(.975,-2.95),(.975,-.9),(.94,-.9),(.94,-2.97),(.56,-3.55),(-.56,-3.55),(-.94,-2.97),(-.94,-.9)]
+    y0,h=.14,.12
+    bm=bmesh.new()
+    vb=[bm.verts.new(xyz((cx+u,y0,z))) for u,z in outer]
+    face=bm.faces.new(vb)
+    ext=bmesh.ops.extrude_face_region(bm,geom=[face])
+    for v in [e for e in ext['geom'] if isinstance(e,bmesh.types.BMVert)]:v.co.z+=h*.01
+    bmesh.ops.recalc_face_normals(bm,faces=bm.faces)
+    bmesh.ops.triangulate(bm,faces=[f for f in bm.faces if len(f.verts)>4])
+    mesh=bpy.data.meshes.new(name);bm.to_mesh(mesh);bm.free()
+    o=bpy.data.objects.new(name+' tab',mesh);bpy.context.collection.objects.link(o);mesh.materials.append(mats['pull'])
+    bpy.ops.object.select_all(action='DESELECT');bpy.context.view_layer.objects.active=o;o.select_set(True)
+    b=o.modifiers.new('Molded edge','BEVEL');b.width=.00018;b.segments=2;b.limit_method='ANGLE'
+    bpy.ops.object.modifier_apply(modifier=b.name)
+    o.select_set(False)
+    # debossed chevrons on the grip
+    for k in range(3):
+        for sgn in [-1,1]:
+            bpy.ops.mesh.primitive_cube_add(size=1,location=xyz((cx+sgn*.14,y0+h-.004,-5.7-k*.16)))
+            c=bpy.context.object;c.name=name+' grip chevron';c.dimensions=(.3*.01,.05*.01,.01*.01)
+            c.rotation_euler=(0,0,sgn*math.radians(35));c.data.materials.append(mats['dark'])
+            bpy.ops.object.transform_apply(location=False,rotation=True,scale=True)
 
 def annulus(name, center, outer, inner, depth, axis, material):
     # A real opening, never a solid cylinder laid across an optical/electrical path.
@@ -416,6 +481,12 @@ def copper_shell(kind, x, zc, W, m):
 def copper():
     m=reset(); W=1.84; L=6; zc=-.2
     m['shell']=mat('Satin die-cast zinc',(.5,.53,.56),.9,.36)
+    m['cut']=mat('Sectioned overmold face',(.2,.21,.22),0,.7)
+    m['pull']=mat('Molded copper pull tab',(.1,.12,.15),0,.72)
+    # Matte polymer: a low specular level keeps the broad studio softbox from
+    # sheeting across these flat molded faces.
+    for k in ['pull','boot','cut']:
+        m[k].node_tree.nodes.get('Principled BSDF').inputs['Specular IOR Level'].default_value=.15
     m['lead']=mat('Tinned package leads',(.72,.73,.74),1,.28)
     m['etch']=mat('Laser etched package mark',(.2,.22,.24),.1,.62)
     m['substrate']=mat('Dark BGA substrate',(.03,.05,.04),.05,.5)
