@@ -22,16 +22,18 @@ for i in range(20):
  box('Lower removable wall panel',(x,1.58,.18),(2.85,2.62,.11),ceramic,g,.026)
  # High acoustic cassette remains above the floor service equipment.
  box('Recessed upper wall cassette',(x,5.11,.21),(2.76,4.0,.13),graphite,g,.032)
- for j in range(7):box('Vertical acoustic folded fin',(x-1.16+j*.386,5.1,.36),(.075,3.62,.27),steel,g,.018)
+ for j in range(7):box('Vertical acoustic folded fin',(x-1.16+j*.386,5.1,.36),(.075,3.62,.27),steel,g,.018).modifiers['Manufactured edge radii'].segments=1
  box('Upper reveal',(x,7.08,.23),(2.87,.045,.16),alloy,g,.01)
 for x in [-30+i*6 for i in range(11)]:
  # End at the crown underside (7.37m), below the wall's 7.50m top.
  # The former pier tops coincided with the wall top and flickered in cutaway views.
  box('Backwall structural pier',(x,3.785,.28),(.22,7.17,.5),ceramic,g,.034)
- # Short cutaway roof brackets, all above existing bus/fiber runs.
- beam('Tapered cutaway roof bracket',(x,6.6,.48),(x,7.08,1.15),.2,.25,ceramic,g)
- box('Bracket indirect light',(x,6.90,.82),(.08,.04,.65),walllight,g,.007)
 box('Folded wall crown',(0,7.45,.42),(60.6,.16,1.03),ceramic,g,.03)
+# Continuous folded cove soffit under the crown (replaces 11 cantilevered brackets that read as
+# cameras on stalks); a linear warm LED line runs in its underside. Representative finish.
+box('Cove soffit fascia',(0,7.22,.9),(60.6,.3,.05),ceramic,g,.012)
+box('Cove soffit underside',(0,7.085,.66),(60.6,.03,.48),ceramic,g,.008)
+box('Cove linear LED line',(0,7.066,.78),(60.2,.008,.05),walllight,g,0)
 # Fixture housing replaces a fullbright plane; only the underside emits.
 g='LUMINAIRE'
 box('Folded luminaire housing',(0,0,0),(1.3,.075,.19),graphite,g,.028)
