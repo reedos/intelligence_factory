@@ -74,6 +74,12 @@ function chunkTexture(words, lane, startParity) {
 export function build(options) {
   const result = buildPackage(options);
   frameCompute(result, 'chip', options.model.accel.id);
+  if (options.quality?.mobile) {
+    // Portrait phones are width-limited: a steeper view and a tighter fit on the
+    // 8.4 cm package (the board is context) let the stack fill more of the height.
+    result.camera = { ...result.camera, ...componentView([0, 2.9, 0], [6, 11, 7.5], [7.9, 5.6, 7.9]) };
+    result.cameraByMode.power = { ...componentView([0, 2.3, 0], [8, 5.6, 9.8], [8.1, 5.0, 8.1]) };
+  }
   return result;
 }
 function buildPackage({ quality, state, model }) {
