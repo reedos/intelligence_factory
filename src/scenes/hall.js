@@ -326,7 +326,6 @@ export function build({ quality, model }) {
   flows.push(flow([[X0 - 1.5, 2.2, usZ], [X0 + 0.5, 2.2, usZ], [-33, 2.6, -15.2], [-21, 2.6, -15.2]], dc ? 'mv' : 'lv', { count: 16, speed: 2.4, size: 0.1, trailR: 0.03 }));
   flows.push(flow([[-21, 2.6, -15.2], [-21, 2.6, -9], [-30.5, 2.2, -7]], dc ? 'mv' : 'lv', { count: 12, speed: 2.4, size: 0.1, trailR: 0.03 }));
   flows.push(flow([[-30.5, 2.2, -7], [-22.5, 2.2, -6.5], [-22.5, 5.6, -6.5], [-12.2, 5.6, -6.5]], itV, { count: 14, speed: 2.4, size: 0.1, trailR: 0.03 }));
-  person(N, -27, -12.5, 0.3); person(N, -29.5, 3.6, 2.4);
 
   // ---------- data hall: three contained pods, six rows ----------
   const rowX0 = -7.2, groups = 4, perGroup = 8, RW = 0.6, CW = 0.8, GAP = 0.6;
@@ -804,7 +803,11 @@ export function build({ quality, model }) {
   if (quality.reflections) scene.add(floorMirror(X1 - X0 - 1, Z1 - Z0 - 1, { x: (X0 + X1) / 2, y: 0.155, z: 0, res: 0.85, strength: 0.16, blur: 0.56, tint: '#9aaaba' }));
 
   // light fixtures over the aisles: standing figures for scale
-  person(N, rowX0 + 6, -6.4, 0.4); person(N, rowX0 + 14, 0.2, 2.6); person(N, rowX0 + 3.5, 8.6, -0.6);
+  // Standing scale figures use the same muted technician as the walkers (campus WALKER asset), so the
+  // level shows one human style instead of a lime block figure beside the most detailed cabinets.
+  const standing = [[-27, -12.5, 0.3], [-29.5, 3.6, 2.4], [rowX0 + 6, -6.4, 0.4], [rowX0 + 14, 0.2, 2.6], [rowX0 + 3.5, 8.6, -0.6]];
+  if (hasCampusCatalog()) scene.add(campusCatalogBuilder('WALKER').instance(standing.map(([x, z, ry]) => mtx(x, 0, z, ry))));
+  else { const vest = new THREE.MeshStandardMaterial({ color: 0x6f7a4a, roughness: .85 }); standing.forEach(([x, z, ry]) => person(N, x, z, ry, 0, vest)); }
 
   scene.add(S.build({ cast: true, receive: true }));
   scene.add(N.build({ cast: false, receive: true }));
