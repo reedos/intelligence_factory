@@ -69,24 +69,43 @@ def screw(name, x, y, z, mats, r=.058):
     bpy.ops.object.modifier_apply(modifier=b.name)
     box(name+'_slot', (x,y+.010,z), (r*1.2,.002,r*.22), mats['dark'], .001)
 
+def osfp_top_housing(name, cx, cy, cz, length, width, mats):
+    # Die-cast OSFP top housing with an integrated closed-top heat sink: a
+    # ceiling plate, longitudinal fins running the whole length, and a flat top
+    # skin, so air can pass along the module (OSFP MSA Rev 5.0 sec. 3.3). The
+    # channels stay open at both ends. Fin count, pitch and heights are
+    # representative; the MSA gives example designs, not this one.
+    b=cy-.045; H=.6; skin=.08; wall=.1
+    box(name+'_ceiling plate',(cx,b+.05,cz),(length,.1,width),mats['lid'],.04)
+    for s in [-1,1]:
+        box(name+'_side wall',(cx,b+.1+(H-.1)/2,cz+s*(width/2-wall/2)),(length,H-.1,wall),mats['lid'],.03)
+        box(name+'_parting seam',(cx,b+.012,cz+s*(width/2-.004)),(length-.12,.012,.01),mats['dark'],.003)
+    for x in [-1,1]:
+        box(name+'_parting seam',(cx+x*(length/2-.004),b+.012,cz),(.01,.012,width-.12),mats['dark'],.003)
+    n=11; span=width-2*wall-.16
+    for i in range(n):
+        z=cz-span/2+i*span/(n-1)
+        box(name+'_heat sink fin',(cx,b+.1+(H-.1-skin)/2,z),(length-.02,H-.1-skin,.05),mats['edge'],.012)
+    top=box(name+'_top skin',(cx,b+H-skin/2,cz),(length,skin,width),mats['lid'],.04)
+    # A shallow label recess (OSFP MSA Fig. 3-4 gives a recommended label area).
+    cut=box('Temporary cover label pocket',(cx-.6,b+H,cz),(4.2,.03,1.5),mats['lid'],.01)
+    pocket=top.modifiers.new('Label recess','BOOLEAN');pocket.operation='DIFFERENCE';pocket.object=cut
+    bpy.context.view_layer.objects.active=top;bpy.ops.object.modifier_apply(modifier=pocket.name)
+    bpy.data.objects.remove(cut,do_unlink=True)
+
 def lid(name, cx, cy, cz, length, width, along_x, mats):
     # Opaque metal, lifted for inspection. The UI can hide the cover entirely.
-    dims=(length,.09,width) if along_x else (width,.09,length)
-    box(name+'_cutaway', (cx,cy,cz), dims, mats['lid'], .035)
     if along_x:
-        for z in [-width/2+.05,width/2-.05]: box(name+'_fold', (cx,cy,cz+z), (length,.12,.1), mats['edge'])
-        for x in [-length/2+.09,length/2-.09]: box(name+'_end', (cx+x,cy,cz), (.18,.12,width-.2), mats['shell'])
-        # The photographed coherent OSFP has a broad flat lid and a short
-        # transverse bank of fins near the LC end, not full-length fins.
-        box(name+'_flat crown',(cx-.38,cy+.065,cz),(length-1.1,.12,width-.18),mats['lid'],.04)
-        for i in range(11): box(name+'_fin', (cx+length/2-.63,cy+.18,cz-.8+i*.16), (.48,.3,.035), mats['fin'], .012)
-    else:
-        for x in [-width/2+.05,width/2-.05]: box(name+'_fold', (cx+x,cy,cz), (.1,.12,length), mats['edge'])
-        for z in [-length/2+.09,length/2-.09]: box(name+'_end', (cx,cy,cz+z), (width-.2,.12,.18), mats['shell'])
-        # Flat QSFP-style clamshell: no invented cooling ribs. The shallow rear
-        # shoulder and inset label landing follow the public QSFP112 DAC photo.
-        box(name+'_rear shoulder', (cx,cy+.065,cz-length/2+.58), (width-.14,.13,1.0), mats['lid'], .065)
-        box(name+'_label landing', (cx,cy+.048,cz+.35), (width-.65,.008,2.3), mats['shell'], .045)
+        osfp_top_housing(name,cx,cy,cz,length,width,mats)
+        return
+    dims=(width,.09,length)
+    box(name+'_cutaway', (cx,cy,cz), dims, mats['lid'], .035)
+    for x in [-width/2+.05,width/2-.05]: box(name+'_fold', (cx+x,cy,cz), (.1,.12,length), mats['edge'])
+    for z in [-length/2+.09,length/2-.09]: box(name+'_end', (cx,cy,cz+z), (width-.2,.12,.18), mats['shell'])
+    # Flat QSFP-style clamshell: no invented cooling ribs. The shallow rear
+    # shoulder and inset label landing follow the public QSFP112 DAC photo.
+    box(name+'_rear shoulder', (cx,cy+.065,cz-length/2+.58), (width-.14,.13,1.0), mats['lid'], .065)
+    box(name+'_label landing', (cx,cy+.048,cz+.35), (width-.65,.008,2.3), mats['shell'], .045)
 
 def cable_cutaway(name, cx, mats):
     # Lower half-shell of the boot and jacket: sectioned through the upper half
