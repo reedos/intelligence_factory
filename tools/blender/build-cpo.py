@@ -64,6 +64,11 @@ eicFace = material('Electronic die face', (.03,.045,.07), .1,.25)
 # coating; the runtime paints one stripe per fiber across the ribbon (UV u).
 ribbonTx = material('Transmit ribbon', (.37,.80,.90), 0,.5)
 ribbonRx = material('Receive ribbon', (.82,.37,.66), 0,.5)
+vgroove = material('Fiber array V-groove block', (.04,.05,.06), .1,.35)
+lidGlass = material('Fiber array lid glass', (.6,.8,.95), 0,.05,.25)
+epoxy = material('Fiber array epoxy', (.12,.07,.02), 0,.5)
+boot = material('Connector strain relief boot', (.02,.022,.025), 0,.7)
+pinSteel = material('Guide pin steel', (.5,.52,.55), 1,.32)
 driver = material('Driver schematic regions', (.05,.19,.24), .45,.32)
 tia = material('TIA schematic regions', (.20,.07,.15), .45,.32)
 blue = material('Supply coolant pipe', (.025,.20,.36), .38,.28)
@@ -165,7 +170,7 @@ for e,conn in zip(LAYOUT['engines'],LAYOUT['connectors']):
     def ip(r,t,y): return (e['x']+out[0]*r+tan[0]*t,y+.15,e['z']+out[1]*r+tan[1]*t)
     for t in [-.43,.43]: box('Ferrule side cheek',ip(.83,t,1.56),(.36,.23,.045),nickel,'CPO_INTERFACES',.012,angle)
     box('Ferrule lower seat',ip(.83,0,1.375),(.37,.03,.82),black,'CPO_INTERFACES',.008,angle)
-    for t in [-.37,.37]:
+    for t in [-.5,.5]:
         p=(conn[0]+tan[0]*t,1.22,conn[1]+tan[1]*t)
         box('Connector guide cheek',p,(.35,.27,.035),nickel,'CPO_INTERFACES',.009,angle)
 
@@ -349,7 +354,16 @@ def photonic_die(cx,cy,cz,scale,angle,exploded=False):
 for i,(e,conn) in enumerate(zip(LAYOUT['engines'],LAYOUT['connectors'])):
     x,z=e['x'],e['z'];out,tan=e['out'],e['tan'];angle=e['rot']
     photonic_die(x,1.65,z,1,angle)
-    box('Engine glass ferrule',(x+out[0]*.83,1.73,z+out[1]*.83),(.3,.2,.8),glass,'CPO_INTERFACES',.008,angle)
+    # Fiber-array unit (representative): a V-groove block holds each lane under
+    # a clear lid, epoxied to the photonic die's edge.
+    def fp(r,t,y): return (x+out[0]*r+tan[0]*t,y,z+out[1]*r+tan[1]*t)
+    box('Fiber array V-groove block',fp(.83,0,1.675),(.3,.09,.8),vgroove,'CPO_INTERFACES',.008,angle)
+    box('Engine glass ferrule',fp(.83,0,1.777),(.3,.111,.8),lidGlass,'CPO_INTERFACES',.008,angle)
+    box('Fiber array epoxy fillet',fp(.66,0,1.70),(.04,.08,.78),epoxy,'CPO_INTERFACES',0,angle)
+    for j in range(16):
+        box('Fiber in groove',fp(.83,(j-7.5)*.034,1.726),(.3,.007,.012),fiberTx if j<8 else fiberRx,'CPO_INTERFACES',0,angle)
+    for j in range(2):
+        box('Fiber in groove',fp(.83,.305+j*.028,1.726),(.3,.007,.012),fiberCw,'CPO_INTERFACES',0,angle)
     # asicTap clamps the tangential coordinate to the 24 mm die's SerDes edge.
     t=max(-1,min(1,e['t']*.6));a=(out[0]*1.2+tan[0]*t,out[1]*1.2+tan[1]*t)
     b=(x-out[0]*.62,z-out[1]*.62)
@@ -361,7 +375,13 @@ for i,(e,conn) in enumerate(zip(LAYOUT['engines'],LAYOUT['connectors'])):
     ribbon('Engine tx ribbon',routes['tx'],ribbonTx,'CPO_FIBERS')
     ribbon('Engine rx ribbon',routes['rx'],ribbonRx,'CPO_FIBERS')
     for points in routes['cw']:tube('Engine cw fiber',round_corners(points,keep_cw,.25),.008,fiberCw,'CPO_FIBERS')
-    box('Package fiber guide',(ex,1.2,ez),(.3 if out[0] else .7,.3,.7 if out[0] else .3),black,'CPO_INTERFACES',.018)
+    # MT-style ferrule connector at the package edge (representative geometry):
+    # molded body, two steel guide pins beside the fiber rows, boot and latch.
+    def cp(r,t,y): return (ex+out[0]*r+tan[0]*t,y,ez+out[1]*r+tan[1]*t)
+    box('Package fiber guide',cp(0,0,1.2),(.36,.22,.9),black,'CPO_INTERFACES',.03,angle)
+    box('Connector latch',cp(-.02,0,1.325),(.14,.04,.2),black,'CPO_INTERFACES',.012,angle)
+    box('Connector strain relief boot',cp(.22,0,1.2),(.08,.13,.66),boot,'CPO_INTERFACES',.02,angle)
+    for t in [-.4,.4]: segment('Connector guide pin',cp(.17,t,1.2),cp(.3,t,1.2),.035,pinSteel,'CPO_INTERFACES',8)
 
 photonic_die(-11.4,1.4,-8.4,2.5,math.pi,True)
 for i in range(5):box('Laser aperture',(7.24,1.5,-4.4+i*2.2),(.04,.18,.5),fiberCw,'CPO_ELS',.004)
