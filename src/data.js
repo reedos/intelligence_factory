@@ -688,7 +688,7 @@ export function content(M) {
         : 'One reticle-limit die, about as large as a chip can be made in one exposure. Nearly every watt that reaches it, whether it runs computation, on-chip memory, communication or leakage, ends as heat.',
       specs: [['Transistors', X.transistors, EV6.transistors.basis, EV6.transistors.ev],
         ...(A.dies > 1 ? [['Die-to-die link', '10 TB/s NV-HBI', EV6.dieRow.basis, EV6.dieRow.ev]] : [['Die area', '814 mm²', EV6.dieRow.basis, EV6.dieRow.ev]]),
-        ['Process', X.process, EV6.process.basis, EV6.process.ev]] },
+        ['Process', X.process, EV6.process.basis, EV6.process.ev], ['Floorplan shown', 'illustrative x-ray', 'assumed', { assume: 'die-floorplan-drawing' }]] },
     { id: 'hbm', title: `${A.hbm.type} stacks`, kicker: `${stacksTxt}, ${A.hbm.gb} GB`,
       body: `Each stack, from suppliers such as SK hynix, Micron and Samsung, is ${A.hbm.layers} DRAM dies thinned and stacked with through-silicon vias. Moving model weights out of HBM for every token is a large share of inference energy.`,
       specs: [['Capacity', `${A.hbm.gb} GB${A.id === 'gb200' ? ' nominal; rack total implies ≈186 GB' : A.id === 'gb300' ? ' nominal; rounded rack total implies ≈278 GB' : ''}`, EV6.hbm.basis, EV6.hbm.ev], ['Bandwidth', hbmTB, EV6.hbm.basis, EV6.hbm.ev],

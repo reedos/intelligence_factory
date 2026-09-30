@@ -6,22 +6,40 @@ import { STREAM_TPS, buildCycle, sampleAt, tick } from '../model/token-script.js
 import { frameCompute } from './compute-framing.js';
 import { componentView } from '../app/housing-frame.js';
 
-function dieTexture() {
-  return canvasTex(640, 800, (g, w, h) => {
-    const gr = g.createLinearGradient(0, 0, w, h);
-    gr.addColorStop(0, '#2f3466'); gr.addColorStop(0.45, '#4d5c8e'); gr.addColorStop(0.55, '#5a4f86'); gr.addColorStop(1, '#2b3160');
-    g.fillStyle = gr; g.fillRect(0, 0, w, h);
-    // Illustrative lithographic pattern, not a literal floorplan or SM count.
-    const cols = 8, rows = 10, pad = 36, cw = (w - pad * 2) / cols, rh = (h - pad * 2 - 60) / rows;
+// The visible top of a flip-chip die is its polished silicon backside. A faint
+// roughness pattern (a grayscale map) lets the key light break across it.
+function dieRoughness() {
+  return canvasTex(512, 640, (g, w, h) => {
+    g.fillStyle = 'rgb(60,60,60)'; g.fillRect(0, 0, w, h);
+    let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const cols = 8, rows = 10, pad = 20, cw = (w - pad * 2) / cols, rh = (h - pad * 2) / rows;
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      const x = pad + c * cw, y = pad + r * rh + (r >= rows / 2 ? 60 : 0);
-      g.fillStyle = 'rgba(200,215,255,0.10)'; g.fillRect(x + 3, y + 3, cw - 6, rh - 6);
-      g.fillStyle = 'rgba(160,255,230,0.16)'; for (let t = 0; t < 4; t++) g.fillRect(x + 8 + t * (cw - 16) / 4, y + rh * 0.55, (cw - 16) / 4 - 4, rh * 0.3);
-      g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(x + 8, y + 8, cw - 16, rh * 0.35);
+      const v = 38 + Math.round(rnd() * 72);
+      g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(pad + c * cw + 2, pad + r * rh + 2, cw - 4, rh - 4);
     }
-    g.fillStyle = 'rgba(255,205,140,0.22)'; g.fillRect(pad, h / 2 - 28, w - pad * 2, 56);       // L2 cache band
-    g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(0, 0, w, 18); g.fillRect(0, h - 18, w, 18); // HBM PHY edges
-    g.fillStyle = 'rgba(120,200,255,0.25)'; g.fillRect(w - 16, 40, 16, h - 80);                  // NV-HBI edge
+    g.fillStyle = 'rgba(120,120,120,0.6)'; g.fillRect(0, 0, w, 6); g.fillRect(0, h - 6, w, 6); g.fillRect(0, 0, 6, h); g.fillRect(w - 6, 0, 6, h);
+  }, { srgb: false });
+}
+// X-ray floorplan decal: thin lines, not filled boxes. Illustrative, not a
+// literal floorplan or SM count (die-floorplan-drawing). hbmEdges: 'z' puts the
+// HBM PHY along the long edges (twin dies), 'x' along the short edges (H100).
+function floorplanTexture(hbmEdges, seam) {
+  return canvasTex(1024, 1300, (g, w, h) => {
+    g.clearRect(0, 0, w, h);
+    const line = (a, width = 2) => { g.strokeStyle = `rgba(150,225,255,${a})`; g.lineWidth = width; };
+    const phy = 70, pad = hbmEdges === 'z' ? phy + 26 : 40, padX = hbmEdges === 'x' ? phy + 26 : 40;
+    const cols = 8, rows = 8, cw = (w - padX * 2) / cols, band = 90, rh = (h - pad * 2 - band) / rows;
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const x = padX + c * cw, y = pad + r * rh + (r >= rows / 2 ? band : 0);
+      line(0.55, 2); g.strokeRect(x + 5, y + 5, cw - 10, rh - 10);
+      line(0.25, 1); for (let t = 1; t < 4; t++) { g.beginPath(); g.moveTo(x + 5 + t * (cw - 10) / 4, y + rh * 0.45); g.lineTo(x + 5 + t * (cw - 10) / 4, y + rh - 5); g.stroke(); }
+      g.beginPath(); g.moveTo(x + 5, y + rh * 0.45); g.lineTo(x + cw - 5, y + rh * 0.45); g.stroke();
+    }
+    g.strokeStyle = 'rgba(255,200,140,0.75)'; g.lineWidth = 2.5; g.strokeRect(padX, h / 2 - band / 2 + 8, w - padX * 2, band - 16);   // L2 cache band
+    g.strokeStyle = 'rgba(200,150,255,0.8)'; g.lineWidth = 2.5;                                                               // HBM PHY
+    if (hbmEdges === 'z') { g.strokeRect(24, 10, w - 48, phy); g.strokeRect(24, h - 10 - phy, w - 48, phy); }
+    else { g.strokeRect(10, 24, phy, h - 48); g.strokeRect(w - 10 - phy, 24, phy, h - 48); }
+    if (seam) { g.strokeStyle = 'rgba(111,216,255,0.9)'; g.strokeRect(w - 34, pad, 24, h - pad * 2); }                       // NV-HBI PHY on the seam edge
   });
 }
 // A token sprite's look depends on its lane (prompt in, reasoning dim and small, answer bright and larger) and
@@ -116,18 +134,25 @@ function buildPackage({ quality, state, model }) {
   const IW = twin ? 6.2 : 6.0, ID = twin ? 5.9 : 4.0;
   S.box(IW, 0.1, ID, MAT.silicon, 0, Y.inter, 0);
   for (let i = 0; i < 40; i++) N.box(0.012, 0.004, ID - 0.3, MAT.gold, -2.9 + i * 0.15, Y.inter + 0.052, 0);
-  // GPU dies
-  const dieMat = new THREE.MeshPhysicalMaterial({ map: dieTexture(), roughness: 0.38, metalness: 0.35, clearcoat: 0.25, clearcoatRoughness: 0.32, iridescence: 0.18, iridescenceThicknessRange: [110, 230], envMapIntensity: 0.35, emissive: 0x6fd8ff, emissiveIntensity: 0.0 });
+  // GPU dies: polished silicon backside with a dark sidewall; the floorplan is a
+  // separate x-ray decal (runtime overlay) shown in the data and heat layers.
+  const dieMat = new THREE.MeshPhysicalMaterial({ color: 0x4a5262, roughness: 1, roughnessMap: dieRoughness(), metalness: 0.35, clearcoat: 1.0, clearcoatRoughness: 0.06, iridescence: 0.1, iridescenceThicknessRange: [180, 320], envMapIntensity: 0.9, emissive: 0x6fd8ff, emissiveIntensity: 0.0 });
+  dieMat.name = 'GPU die silicon backside';
   dieMat.userData.ifxAnimatedSurface = 'gpu-die';
-  const dieSide = new THREE.MeshStandardMaterial({ color: 0x3b4262, roughness: 0.3, metalness: 0.6 });
-  const dies = [];
+  const dieSide = new THREE.MeshStandardMaterial({ color: 0x1a1d24, roughness: 0.4, metalness: 0.3 }); dieSide.name = 'GPU die sidewall';
+  const dies = [], xray = [];
   const dieX = twin ? [-1.36, 1.36] : [0];
+  const planTex = floorplanTexture(twin ? 'z' : 'x', twin);
   for (const dx of dieX) {
     const d = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.08, 3.3), [dieSide, dieSide, dieMat, dieSide, dieSide, dieSide]);
     d.position.set(dx, Y.dies, 0); if (dx > 0) d.rotation.y = Math.PI; d.castShadow = true; scene.add(d); dies.push(d);
+    const plan = new THREE.Mesh(new THREE.PlaneGeometry(2.56, 3.26), new THREE.MeshBasicMaterial({ map: planTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+    plan.rotation.x = -Math.PI / 2; if (dx > 0) plan.rotation.z = Math.PI; plan.position.set(dx, Y.dies + 0.046, 0);
+    plan.name = 'Illustrative die floorplan (x-ray)'; plan.renderOrder = 3; scene.add(plan); xray.push(plan);
   }
-  // NV-HBI bridge glow between the dies
-  if (twin) { const hbi = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 3.0), glowMat('#6fd8ff', 2.4)); hbi.position.set(0, Y.dies + 0.02, 0); scene.add(hbi); }
+  // NV-HBI seam: a thin inlaid line in power, brighter in the data layer
+  const hbiMat = glowMat('#6fd8ff', 1.0);
+  if (twin) { const hbi = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 3.0), hbiMat); hbi.position.set(0, Y.dies + 0.03, 0); scene.add(hbi); }
   // HBM stacks: one molded block per stack (logic base die plus DRAM dies in
   // epoxy mold compound) with a bare silicon top. The layer count reads as a
   // striped band on the cut face that carries the TSVs. Real stacks are about
@@ -215,16 +240,16 @@ function buildPackage({ quality, state, model }) {
   // ---------- data: die to die, HBM into the dies, NVLink out of the package edge ----------
   if (twin) for (let i = 0; i < 7; i++) { const z = -1.35 + i * 0.45; dataFlows.push(flow([[-1.2, Y.dies + 0.06, z], [1.2, Y.dies + 0.06, z]], 'hbi', { count: 3, speed: 2.4, size: 0.035, k: 3.2, trail: false })); dataFlows.push(flow([[1.2, Y.dies + 0.07, z + 0.1], [-1.2, Y.dies + 0.07, z + 0.1]], 'hbi', { count: 3, speed: 2.4, size: 0.035, k: 3.2, trail: false })); }
   live.forEach(([x, z]) => { for (const d of [-0.25, 0, 0.25]) dataFlows.push(flow(twin ? [[x + d, Y.dies + 0.3, z], [x * 0.85 + d, Y.dies + 0.06, z * 0.5]] : [[x, Y.dies + 0.3, z + d], [x * 0.5, Y.dies + 0.06, z * 0.8 + d]], 'hbm', { count: 3, speed: 1.2, size: 0.03, k: 3.4, trail: false })); });
-  const serdes = glowMat('#ff5fd2', 1.6);
+  const serdes = glowMat('#ff5fd2', 0.5);                // an inlaid strip in power and heat, lit in the data layer
   // NVLink leaves the free edges: outer die edges on twins, top/bottom on H100.
   // The substrate leg is a buried electrical route, below the metal stiffener;
   // its previous top-surface height falsely ran through that structural frame.
   for (const side of [-1, 1]) {
     if (twin) {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 3.0), serdes); m.position.set(side * 2.62, Y.dies + 0.05, 0); scene.add(m);
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 3.0), serdes); m.position.set(side * 2.6, Y.dies + 0.035, 0); scene.add(m);
       for (let i = 0, n = A.nvlink.linksPerGpu / 2; i < n; i++) { const z = -1.3 + i * 2.6 / (n - 1); dataFlows.push(flow([[side * 2.62, Y.dies + 0.04, z], [side * 3.1, Y.inter + 0.06, z], [side * 3.1, Y.sub - 0.01, z * 1.2], [side * 4.2, Y.sub - 0.01, z * 1.25]], 'nvl', { count: 3, speed: 1.6, size: 0.035, k: 2.8, trailR: 0.008, trailK: 0.3 })); }
     } else {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.03, 0.1), serdes); m.position.set(0, Y.dies + 0.05, side * 1.62); scene.add(m);
+      const m = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.02, 0.04), serdes); m.position.set(0, Y.dies + 0.035, side * 1.63); scene.add(m);
       for (let i = 0; i < 9; i++) { const x = -1.1 + i * 0.275; dataFlows.push(flow([[x, Y.dies + 0.04, side * 1.62], [x, Y.inter + 0.06, side * 2.1], [x * 1.2, Y.sub - 0.01, side * 2.6], [x * 1.25, Y.sub - 0.01, side * 4.0]], 'nvl', { count: 3, speed: 1.6, size: 0.035, k: 2.8, trailR: 0.008, trailK: 0.3 })); }
     }
   }
@@ -416,6 +441,10 @@ function buildPackage({ quality, state, model }) {
       hbmFill.visible = state.mode === 'data';          // the cache is a data-layer idea: hardware stays hardware in power and heat
 
       pulse.v = Math.max(0, pulse.v - dt * 3);
+      const dataOn = state.mode === 'data', xrayOn = dataOn || state.mode === 'heat' || ['dies', 'junction', 'flux', 'hbi'].includes(state.selected);
+      for (const p of xray) { p.material.opacity = xrayOn ? (state.mode === 'heat' ? 0.3 : 0.6) : 0; p.visible = xrayOn; }
+      hbiMat.color.set('#6fd8ff').multiplyScalar(dataOn ? 2.2 : 1.0);
+      serdes.color.set('#ff5fd2').multiplyScalar(dataOn ? 1.6 : 0.5);
       const heatOn = state.mode === 'heat';
       dieMat.emissive.setHex(heatOn ? 0xff6a1a : 0x6fd8ff);
       dieMat.emissiveIntensity = heatOn ? 0.55 + 0.08 * Math.sin(t * 2) : 0.06 + pulse.v * 0.12;
