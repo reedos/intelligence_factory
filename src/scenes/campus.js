@@ -43,6 +43,10 @@ export function build({ quality, model }) {
     sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096);
     Object.assign(sun.shadow.camera, { left: -760, right: 760, top: 520, bottom: -520, near: 100, far: 3000 });
     sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.6;
+    // Draw the shadow map once per frame. The composer calls render() more than once a frame (the scene pass, and
+    // the soft-focus depth pass), and a light left on autoUpdate redraws its whole caster list on every one of them:
+    // the same map twice over. update() below re-arms it each frame, so it still follows the moving fleet.
+    sun.shadow.autoUpdate = false; sun.shadow.needsUpdate = true;
   }
   scene.add(sun, sun.target);
   // fill from the sun's opposite quarter (east/south), stronger than a token bounce so the shadow
@@ -900,6 +904,7 @@ export function build({ quality, model }) {
     },
     look: { env: 'sky', envIntensity: 0.75, exposure: 1.08, bloom: 0.7, threshold: 1.4, ao: 0, grain: 0.006, vignette: 0.18, dof: true },
     update(t, dt) {
+      if (sun.castShadow) sun.shadow.needsUpdate = true;
       woodlandMotion(t); gardenMotion(t);
       reuseGroup.visible = globalThis.document?.body?.dataset.mode === 'heat';
       if (cloudDrift && !quality.reduced) cloudDrift.position.x = Math.sin(t * .008) * 35;
