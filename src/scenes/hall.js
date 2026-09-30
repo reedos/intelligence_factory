@@ -1047,7 +1047,9 @@ export function build({ quality, model }) {
       cpo: cpoSpot,
       [air ? 'inrow' : 'cdu']: cduSpot,
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
-      hotaisle: { pos: [rowX0 + 2.5, 1.7, -9.7], view: { pos: [rowX0 - 4.4, 2.5, -7.2], target: [rowX0 + 2.5, 1.3, -9.7] } },   // through the pod's end doors, down the contained aisle
+      // Heat keeps the long one-point view down the contained aisle toward the fan wall, over the end doors, so the
+      // hot air is seen running the aisle's length; the power layer's containment view stays head-on to the doors.
+      hotaisle: { pos: [rowX0 + 6.2, 1.7, -9.7], view: { pos: [rowX0 - 3, 3.6, -9.45], target: [rowX0 + 11.2, 1.3, -9.7] } },
       fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
       riser: { pos: [X0 + 2.4, 8.5, -15.6], view: { pos: [X0 + 10, 10, -4], target: [X0 + 2.4, 5, -16.4] } },
       fire: { pos: [asdX, 2.9, asdZ], view: { pos: [-7.5, 2.2, -5.2], target: [-10.8, 3.4, -9] } },   // the detector box and its sampling pipe rising to the ceiling
