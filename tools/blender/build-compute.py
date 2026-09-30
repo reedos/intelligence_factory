@@ -192,6 +192,32 @@ def rubin_hardware(m):
         for sz in [-1,1]:box('Rubin plate seal',(x,.695,z+sz*d*.485),(w*.94,.026,.015),m['dark'],u,.003)
         for i in range(5):box('Rubin plate service etch',(x-.12+i*.055,.739,z+.15),(.018,.001,.075),m['etch'],u,.0002)
 
+def tray_specular_finish():
+    # Tray cameras sit 10-30 cm from broad flat metal (chassis walls, runners,
+    # cold-plate lids, IHS lids, connector shrouds). A directional key mirrored
+    # in a smooth lid produced a highlight far above the bloom threshold and
+    # washed labels to white. Satin (bead-blast / brushed) roughness spreads
+    # that highlight; colors, shapes and positions are unchanged.
+    seen=set()
+    for o in bpy.context.scene.objects:
+        if o.type!='MESH':continue
+        for mat in o.data.materials:
+            if not mat or mat.name in seen or not mat.use_nodes:continue
+            seen.add(mat.name)
+            p=mat.node_tree.nodes.get('Principled BSDF')
+            if not p:continue
+            metal,rough=p.inputs['Metallic'],p.inputs['Roughness']
+            if metal.is_linked or rough.is_linked:continue
+            if metal.default_value>=.5 and rough.default_value<.6:
+                rough.default_value=.6+(rough.default_value-.2)*.15
+                # Pale polished trim reads as a white line at 10 cm; keep it a
+                # machined grey so it still catches light without clipping.
+                c=p.inputs['Base Color']
+                if not c.is_linked and sum(c.default_value[:3])/3>.6:
+                    c.default_value=(*[v*.78 for v in c.default_value[:3]],1)
+            elif metal.default_value>=.35 and rough.default_value<.45:
+                rough.default_value=.45
+
 def rack_hardware(accel,m):
     u=1
     # Contoured external stiles and repeating vent relief: no extra chassis or port.
@@ -255,6 +281,7 @@ def export_variant(kind,accel):
     spec=importlib.util.spec_from_file_location('compute_hero',HERE/'compute-hero-detail.py')
     hero=importlib.util.module_from_spec(spec);spec.loader.exec_module(hero)
     hero.enhance(kind,accel,m,box,cylinder,p3,material)
+    if kind=='tray':tray_specular_finish()
     if kind=='rack':
         spec=importlib.util.spec_from_file_location('rack_inspection',HERE/'rack-inspection-detail.py')
         inspection=importlib.util.module_from_spec(spec);spec.loader.exec_module(inspection)
