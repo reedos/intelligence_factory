@@ -9,9 +9,9 @@ def enhance(kind,accel,m,box,cylinder,p3,material):
     dark=material('Hero deep service recess',(.009,.016,.023),.25,.46)
     trim=material('Hero polished edge',(.56,.64,.70),.90,.23)
 
-    def ring(name,p,r,section,u):
+    def ring(name,p,r,section,u,mat=titanium):
         bpy.ops.mesh.primitive_torus_add(major_segments=32,minor_segments=8,major_radius=r*u,minor_radius=section*u,location=p3(p,u))
-        o=bpy.context.object;o.name=name;o.rotation_euler.x=math.pi/2;o.data.materials.append(titanium)
+        o=bpy.context.object;o.name=name;o.rotation_euler.x=math.pi/2;o.data.materials.append(mat)
         for f in o.data.polygons:f.use_smooth=True
     def front_frame(name,x,y,z,w,h,t,u,mat=titanium):
         for sy in [-1,1]:box(name+' horizontal',(x,y+sy*(h-t)/2,z),(w,t,t*1.6),mat,u,t*.38)
@@ -61,9 +61,10 @@ def enhance(kind,accel,m,box,cylinder,p3,material):
                     # Broad sculpted shoulders create large reflections at the
                     # overview distance without hiding the coolant fittings.
                     for side in [-1,1]:box('Cold plate forged shoulder',(x+side*s*.32,.751,z),(s*.13,.075,s*.72),titanium,u,.030)
+            molded=material('Hero molded fan bezel',(.022,.025,.029),0,.55)
             for i in range(6):
                 x=-1.71+i*.76
-                ring('Fan inlet rolled lip',(x,.20,2.748),.147,.012,u)
+                ring('Fan inlet molded lip',(x,.20,2.748),.147,.012,u,molded)
                 front_frame('Removable fan cartridge bezel',x,.20,2.733,.375,.354,.025,u)
                 for sx in [-1,1]:
                     for sy in [-1,1]:cylinder('Fan captive corner',(x+sx*.151,.20+sy*.137,2.758),.017,.012,trim,u,'z')
@@ -83,12 +84,14 @@ def enhance(kind,accel,m,box,cylinder,p3,material):
             for center in ([-.35] if accel=='gb300' else [-.8,-.3]):
                 for x in [center-.16,center+.16]:box('DPU thermal edge shoulder',(x,.385,3.65),(.025,.065,.58),titanium,u,.01)
         else:
-            # Existing two-by-six HGX fan wall, no additional fans.
+            # Existing two-by-six HGX fan wall, no additional fans. Molded
+            # black plastic bezels (the chrome rings read as polished metal).
+            molded=material('Hero molded fan bezel',(.022,.025,.029),0,.55)
             for y in [.9,2.6]:
                 for i in range(6):
                     x=-1.85+i*.74
-                    ring('HGX rolled fan inlet',(x,y,4.43),.303,.023,u)
-                    front_frame('HGX fan cassette',x,y,4.418,.696,.775,.044,u)
+                    ring('HGX molded fan inlet',(x,y,4.43),.303,.023,u,molded)
+                    front_frame('HGX fan cassette',x,y,4.418,.696,.775,.044,u,molded)
     else:
         u=.01
         # A stepped structural frame around the existing substrate, interrupted

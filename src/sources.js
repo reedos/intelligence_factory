@@ -357,6 +357,7 @@ export const SOURCES = {
   // (its DPU product page no longer describes SuperNICs) is no longer cited for SuperNIC bandwidth claims here,
   // in favor of NVIDIA's own SuperNIC page; 'arxiv-2601-14342' (a VCSEL co-packaged-optics paper) is no longer
   // cited for the NVLink copper spine, which is unrelated to its subject.
+  'nvidia-dgxh100-service-manual-fans': { title: 'NVIDIA DGX H100/H200 Service Manual: Replacing a Front Fan Module', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx/dgxh100-service-manual/front-fan-replacement.html', accessed: '09/30/2026', kind: 'primary' },
   'nvidia-dgxh100-user-guide': { title: 'Introduction to NVIDIA DGX H100/H200 Systems', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx/dgxh100-user-guide/introduction-to-dgxh100.html', dated: 'unknown page-specific date; part of the current DGX H100/H200 User Guide', accessed: '09/27/2026', kind: 'primary' },
   'nvidia-dgxh100-safety': { title: 'NVIDIA DGX H100/H200 System User Guide: Safety', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx/dgxh100-user-guide/safety.html', dated: 'unknown page-specific date; part of the current DGX H100/H200 User Guide', accessed: '09/30/2026', kind: 'primary' },
   'nvidia-sn2201-specs': { title: 'NVIDIA SN2201 Switch Systems User Manual: Specifications', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/sn2201hw/specifications', dated: 'unknown page-specific date; current NVIDIA hardware manual', accessed: '09/30/2026', kind: 'primary' },

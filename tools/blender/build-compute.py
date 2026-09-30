@@ -151,10 +151,39 @@ def tray_hardware(accel,m):
             for z in [-4.2,-2.1,0,2.1,4.2]:
                 box('Folded service edge',(x,.035,z),(.1,.045,.52),m['bright'],u,.015)
                 screw((x,.065,z),.032,m,u)
+        h100_chassis_detail(m,u)
     # Actual manufactured heat-sink fins over existing NIC footprints (not new NICs).
     if accel!='h100':
         for x in [.2,.7,1.2,1.7]:
             for j in range(7):box('NIC precision fin',(x-.126+j*.042,.40,3.3),(.015,.11,.47),m['shell'],u,.004)
+
+def h100_chassis_detail(m,u):
+    # DGX H100 (8U): detail on the large plain sheet-metal planes. Pressed
+    # stiffening ribs, rack-rail fastener rows and a blank service-label field
+    # on the intact far wall; no logos, part numbers or extra I/O.
+    xi=-2.2+.015
+    for y in [1.22,2.42]:box('Pressed wall stiffener rib',(xi+.008,y,0),(.018,.05,8.3),m['shell'],u,.022)
+    for y in [.2,3.3]:
+        for i in range(17):box('Rack rail fastener hole',(xi+.0015,y,-4.0+i*.5),(.004,.045,.07),m['dark'],u,0)
+    box('Service label field',(xi+.0025,1.82,2.9),(.004,.42,.95),m['etch'],u,.004)
+    for k in range(4):box('Service label rule',(xi+.0035,1.72+k*.07,2.9),(.003,.012,.8),m['graphite'],u,0)
+    # Six rear power supplies (3.3 kW each, NVIDIA DGX H100 user guide): square
+    # perforated fan grille, pull handle, release latch and a framed inlet.
+    ZB=-4.5
+    for i in range(6):
+        px=-1.83+i*.73
+        for r in range(6):
+            for c in range(6):box('PSU grille perforation',(px-.2+c*.08,.2+r*.08,ZB-.0335),(.052,.052,.004),m['dark'],u,0)
+        for sy in [-1,1]:box('PSU handle standoff',(px-.3,.4+sy*.2,ZB-.064),(.04,.04,.11),m['graphite'],u,.01)
+        box('PSU pull handle',(px-.3,.4,ZB-.12),(.035,.44,.035),m['graphite'],u,.014)
+        box('PSU release latch',(px+.29,.1,ZB-.022),(.05,.07,.03),m['bright'],u,.008)
+        for sy in [-1,1]:box('PSU inlet frame',(px+.2,.62+sy*.062,ZB-.08),(.18,.016,.02),m['graphite'],u,.004)
+        for sx in [-1,1]:box('PSU inlet frame',(px+.2+sx*.082,.62,ZB-.08),(.016,.11,.02),m['graphite'],u,.004)
+    # Folded mouths on the four rear OSFP cages; the optical aperture stays open.
+    ty=1.95
+    for x in [-1.65,-1.05,1.05,1.65]:
+        for sy in [-1,1]:box('OSFP cage folded mouth',(x,ty+.35+sy*.085,ZB-.005),(.25,.014,.03),m['bright'],u,.005)
+        for sx in [-1,1]:box('OSFP cage folded mouth',(x+sx*.118,ty+.35,ZB-.005),(.014,.156,.03),m['bright'],u,.005)
 
 def rubin_hardware(m):
     # NVIDIA public Figure18: independent compute/rear and networking/front bays.
@@ -185,12 +214,73 @@ def rubin_hardware(m):
     for x in [-.65,.65]:
         for sx in [-1,1]:box('Rubin handle standoff',(x+sx*.43,.07,4.63),(.08,.09,.20),m['shell'],u,.024)
         box('Rubin broad service pull',(x,.07,4.75),(.88,.09,.075),m['graphite'],u,.035)
-    # Fine pressure seals and machining on the exact nine native cold-plate footprints.
+    # Folded cage mouths and extraction bails on the eight native optical cages.
+    for x in [-1.66,-1.04,1.04,1.66]:
+        for y in [.16,.34]:
+            for sy in [-1,1]:box('Rubin cage folded mouth',(x,y+sy*.071,4.452),(.31,.014,.024),m['bright'],u,.006)
+            for sx in [-1,1]:box('Rubin cage folded mouth',(x+sx*.151,y,4.452),(.014,.128,.024),m['bright'],u,.006)
+            for sx in [-1,1]:box('Rubin module bail arm',(x+sx*.105,y-.035,4.49),(.012,.012,.07),m['graphite'],u,.004)
+            box('Rubin module bail',(x,y-.035,4.525),(.222,.014,.012),m['graphite'],u,.005)
+    # Machined bosses on the nine native cold-plate caps (cap top y=.729): a
+    # raised inlet/outlet pair with an O-ring groove, plus a service etch.
     plates=[(x,-2.7,.88,1.0) for x in [-1.6,-.62,.62,1.6]]+[(x,-.65,.80,.85) for x in [-1.1,1.1]]+[(x,2.85,1.08,1.65) for x in [-1.35,1.35]]+[(0,2.85,.76,1.65)]
     for x,z,w,d in plates:
-        for sx in [-1,1]:box('Rubin plate machined rail',(x+sx*w*.38,.747,z),(.045,.015,d*.78),m['bright'],u,.006)
-        for sz in [-1,1]:box('Rubin plate seal',(x,.695,z+sz*d*.485),(w*.94,.026,.015),m['dark'],u,.003)
-        for i in range(5):box('Rubin plate service etch',(x-.12+i*.055,.739,z+.15),(.018,.001,.075),m['etch'],u,.0002)
+        for sz in [-1,1]:
+            cylinder('Rubin plate coolant boss',(x,.743,z+sz*d*.3),.042,.028,m['shell'],u)
+            cylinder('Rubin boss O-ring groove',(x,.7305,z+sz*d*.3),.05,.003,m['dark'],u)
+        for i in range(5):box('Rubin plate service etch',(x-.12+i*.055,.7295,z+.12),(.018,.001,.075),m['etch'],u,.0002)
+
+def tray_specular_finish():
+    # Tray cameras sit 10-30 cm from broad flat metal (chassis walls, runners,
+    # cold-plate lids, IHS lids, connector shrouds). A directional key mirrored
+    # in a smooth lid produced a highlight far above the bloom threshold and
+    # washed labels to white. Satin (bead-blast / brushed) roughness spreads
+    # that highlight; colors, shapes and positions are unchanged.
+    seen=set()
+    for o in bpy.context.scene.objects:
+        if o.type!='MESH':continue
+        for mat in o.data.materials:
+            if not mat or mat.name in seen or not mat.use_nodes:continue
+            seen.add(mat.name)
+            p=mat.node_tree.nodes.get('Principled BSDF')
+            if not p:continue
+            metal,rough=p.inputs['Metallic'],p.inputs['Roughness']
+            if metal.is_linked or rough.is_linked:continue
+            if metal.default_value>=.5 and rough.default_value<.6:
+                rough.default_value=.6+(rough.default_value-.2)*.15
+                # Pale polished trim reads as a white line at 10 cm; keep it a
+                # machined grey so it still catches light without clipping.
+                c=p.inputs['Base Color']
+                if not c.is_linked and sum(c.default_value[:3])/3>.6:
+                    c.default_value=(*[v*.78 for v in c.default_value[:3]],1)
+            elif metal.default_value>=.35 and rough.default_value<.45:
+                rough.default_value=.45
+
+def dedupe_materials():
+    # The reference import creates one material per native mesh ("Physical 10",
+    # "Physical 10.001" ...), so identical surfaces never shared a batch. Map
+    # every slot to one canonical material per visible look, then the export
+    # join groups them: fewer draw calls, identical pixels.
+    def key(mat):
+        if not mat or not mat.use_nodes:return ('raw',mat.name if mat else '')
+        p=mat.node_tree.nodes.get('Principled BSDF')
+        if not p:return ('custom',mat.name)
+        def val(name):
+            i=p.inputs[name]
+            if i.is_linked:
+                n=i.links[0].from_node
+                return ('tex',getattr(getattr(n,'image',None),'name',n.name))
+            v=i.default_value
+            return tuple(round(x,4) for x in v) if hasattr(v,'__len__') else round(v,4)
+        return (val('Base Color'),val('Metallic'),val('Roughness'),val('Emission Color'),val('Emission Strength'),val('Alpha'),mat.blend_method,tuple(sorted(mat.keys())))
+    canon={}
+    for o in bpy.context.scene.objects:
+        if o.type!='MESH':continue
+        for slot in o.material_slots:
+            if not slot.material:continue
+            k=key(slot.material)
+            canon.setdefault(k,slot.material)
+            if canon[k]!=slot.material:slot.material=canon[k]
 
 def rack_hardware(accel,m):
     u=1
@@ -260,6 +350,7 @@ def export_variant(kind,accel):
     spec=importlib.util.spec_from_file_location('compute_hero',HERE/'compute-hero-detail.py')
     hero=importlib.util.module_from_spec(spec);spec.loader.exec_module(hero)
     hero.enhance(kind,accel,m,box,cylinder,p3,material)
+    if kind=='tray':tray_specular_finish();dedupe_materials()
     if kind=='rack':
         spec=importlib.util.spec_from_file_location('rack_inspection',HERE/'rack-inspection-detail.py')
         inspection=importlib.util.module_from_spec(spec);spec.loader.exec_module(inspection)
