@@ -13,8 +13,8 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
  S.box(4.4,.035,9,MAT.galv,0,.0175,0);
  for(const x of [-2.2,2.2])S.box(.035,.44,9,MAT.galv,x,.22,0);
  // Midplane: blind-mate connector housings on both faces instead of one solid
- // bar. Housing count and pin rows are representative; lanes at the four
- // PCIe crossings stay open above the housings (y > .31).
+ // bar. Housing count and pin rows are representative; the PCIe runs cross
+ // through the housing pairs at x = +/-.795 and +/-1.325.
  S.box(4.32,.05,.16,MAT.darkSteel,0,.06,1.1);
  for(let i=0;i<8;i++){const x=-1.855+i*.53;
   for(const zf of [.955,1.245]){S.box(.40,.2,.13,MAT.black,x,.19,zf);for(let r=0;r<2;r++)N.box(.34,.014,.008,MAT.gold,x,.15+r*.06,zf+(zf<1.1?-.066:.066));}
@@ -98,9 +98,13 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
  }
  // Spine connectors remain at the back; eight front 800G port positions are
  // represented as four pairs so each GPU has 1.6T of scale-out capacity.
- // One continuous cable-like run over the midplane (it passes through every
- // original control point), instead of straight segments that read as a zigzag.
- const smooth=pts=>new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)),false,'centripetal').getPoints(pts.length*8).map(v=>v.toArray());
+ // Routed runs: straight legs joined by short bends (45-degree jogs, a dip
+ // into the midplane connector pair), read as board routing rather than a wave.
+ const routed=(pts,r=.04)=>{const V=pts.map(p=>new THREE.Vector3(...p)),out=[pts[0]];
+  for(let i=1;i<V.length-1;i++){const a=V[i-1],b=V[i],c=V[i+1],d1=b.clone().sub(a),d2=c.clone().sub(b),rr=Math.min(r,d1.length()/2,d2.length()/2);
+   const p0=b.clone().addScaledVector(d1.normalize(),-rr),p1=b.clone().addScaledVector(d2.normalize(),rr);
+   for(let k=0;k<=6;k++){const t=k/6;out.push(p0.clone().multiplyScalar((1-t)**2).addScaledVector(b,2*t*(1-t)).addScaledVector(p1,t*t).toArray());}}
+  out.push(pts[pts.length-1]);return out;};
  const nvX=[-1.75,-.7,.7,1.75],ports=[-1.66,-1.04,1.04,1.66];
  for(const x of nvX)nvConnector(S,N,x,.18,-4.35,.5,.22,.26);
  for(const x of ports)for(const y of [.16,.34]){
@@ -117,9 +121,12 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
   // NVIDIA SuperPOD RA Figure 2: NIC PCIe is rooted at Vera, not a
   // direct GPU-to-NIC trace. Each CPU serves its four CX9 endpoints.
   const cpu=cp[Math.floor(i/2)];
-  const lane=ports[i],route=[[cpu[0],.30,cpu[1]+.385],[lane,.29,.50],[lane,.29,.75],[lane,.50,.90],[lane,.50,1.32],[lane,.29,1.55],[lane,.29,2.12]];
-  // Midplane connector crossing is electrical; no exposed trace penetrates its body.
-  const input=flow(smooth(route),'pcie',{count:10,speed:.9,size:.026,trailR:.009});input.rubinPcieRoot=Math.floor(i/2);dataFlows.push(input);
+  // The crossing goes through a blind-mate connector pair (the housing
+  // nearest the lane, inward), so the run enters one housing and leaves the
+  // other rather than hopping over the midplane.
+  const lane=ports[i],hx=Math.sign(lane)*(Math.abs(lane)<1.3?.795:1.325),j1=Math.abs(hx-cpu[0]),j2=Math.abs(lane-hx);
+  const route=[[cpu[0],.30,cpu[1]+.385],[cpu[0],.30,.1],[hx,.30,.1+j1],[hx,.30,.74],[hx,.19,.82],[hx,.19,1.38],[hx,.29,1.44],[lane,.29,1.44+j2],[lane,.29,2.12]];
+  const input=flow(routed(route),'pcie',{count:10,speed:.9,size:.026,trailR:.009});input.rubinPcieRoot=Math.floor(i/2);dataFlows.push(input);
   // Each GPU is represented by two CX9 packages on one column. The branch
   // placement is illustrative; both ends touch actual package regions.
   const flank=lane+(i%2===0?-.23:.23);
