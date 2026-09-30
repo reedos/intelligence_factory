@@ -168,23 +168,28 @@ export function build({ quality, model }) {
     }
     networkPorts.set(`${cx}:${cz}`,ports);return ports;
   }
-  // the co-packaged optics switch: dense MPO connectors flush on the chassis, external laser source modules, no pluggables
+  // the co-packaged optics switch, drawn with the Quantum-X Photonics Q3450's published front-panel counts:
+  // 144 MPO connectors, 18 removable external light-source (ELS) modules, 4 UDQ4 liquid connections
+  // (lambda-q3450-unboxing). Adapter size is to scale (~13 x 8 mm); the arrangement is representative.
   function cpoFace(cx, cz, fs) {
-    const y0 = 1.5, y1 = 1.98, rows = 5, cols = 8, w = 0.5, dv = (y1 - y0) / rows, du = w / cols, faceZ = cz + fs * 0.6;
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      const x = cx - w / 2 + du * (c + 0.5), y = y0 + dv * (r + 0.5);
-      N.box(du * 0.72, dv * 0.72, 0.03, mpoBody, x, y, faceZ + fs * 0.02);               // MPO connector, near flush
+    const faceZ = cz + fs * 0.6, plateZ = faceZ + fs * .018, frontZ = faceZ + fs * .033;
+    N.box(.47, .34, .03, elsMetal, cx, 1.71, plateZ);                                     // chassis faceplate
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 18; c++) {                              // 144 MPO adapters, 8 x 18
+      const x = cx + (c - 8.5) * .0225, y = 1.61 + r * .0135;
+      N.box(.0135, .0085, .012, MAT.black, x, y, frontZ + fs * .006);
+      N.box(.005, .0022, .003, mpoBody, x, y + .0032, frontZ + fs * .0135);                // coloured key
     }
-    for (let i = 0; i < 3; i++) {                                                        // external laser source modules
-      const x = cx - 0.16 + i * 0.16;
-      N.box(0.13, 0.09, 0.1, elsMetal, x, 2.1, faceZ + fs * 0.06);
-      N.box(0.09, 0.02, 0.02, glowMat('#ffb347', 1.3), x, 2.1, faceZ + fs * 0.115);
+    for (let i = 0; i < 18; i++) {                                                         // 18 hot-swap ELS modules
+      const x = cx + (i - 8.5) * .0225;
+      N.box(.019, .05, .02, elsMetal, x, 1.8, frontZ + fs * .01);
+      N.box(.012, .006, .012, pullTabMat, x, 1.772, frontZ + fs * .026);                   // pull handle
+      N.box(.004, .004, .004, glowMat('#ffb347', 1.3), x + .005, 1.818, frontZ + fs * .0215);
     }
-    // The comparison chassis is not deployed: capped representative service
-    // ports, with no floor hoses or fiber drop into the live fabric.
-    for (const [dx, mat] of [[-.2,MAT.pipeBlue],[.2,MAT.pipeRed]]) {
-      N.cylZ(.045,.055,mat,cx+dx,1.15,faceZ+fs*.045,10);
-      N.cylZ(.035,.018,MAT.darkSteel,cx+dx,1.15,faceZ+fs*.08,10);
+    // The comparison chassis is not deployed: four capped UDQ4-style couplings (two supply, two return),
+    // with no floor hoses or fiber drop into the live fabric.
+    for (const [dx, mat] of [[-.165,MAT.pipeBlue],[-.115,MAT.pipeBlue],[.115,MAT.pipeRed],[.165,MAT.pipeRed]]) {
+      N.cylZ(.019,.03,mat,cx+dx,1.575,frontZ+fs*.015,12);
+      N.cylZ(.015,.012,MAT.darkSteel,cx+dx,1.575,frontZ+fs*.036,12);
     }
   }
   // Physical jackets and particles use one route definition. Network and rack
@@ -445,7 +450,7 @@ export function build({ quality, model }) {
   instanced(0.6, 2.3, 1.2, TEX.net, 0x131519, netItems);
   // spine faceplates: pluggable OSFP; the unit apart is the CPO switch (liquid-cooled, MPO direct on the chassis)
   const CPO_I = 10;
-  scene.userData.cpoComparison={deployed:false,fiberDrops:0,cappedCoolantPorts:2};
+  scene.userData.cpoComparison={deployed:false,fiberDrops:0,cappedCoolantPorts:4,mpoConnectors:144,laserModules:18};
   netItems.forEach((it, i) => {
     if (i === CPO_I) { cpoFace(it.x, it.z, it.f); }
     else { pluggableFace(it.x, it.z, it.f); }
@@ -824,10 +829,10 @@ export function build({ quality, model }) {
       // Portrait looks steeply down the hall's diagonal so the 60 m hall fills the tall frame and the
       // power-room pins (1-4) separate from the data-hall ones instead of stacking in one cluster.
       portrait: { pos: [42, 83, 33], target: [-8, 2.5, -4.5] },
-      near: 0.1, far: 2000, min: 4, max: 180 },
+      near: 0.1, far: 2000, min: 2.5, max: 180 },
     hotspots: {
       optics: { pos: [leafX, 2.6, -8.2], view: { pos: [leafX + 2.2, 4.8, -3.8], target: [leafX, 2.45, -8.2] } },
-      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.0, 4.2, 15.5], target: [netItems[CPO_I].x, 1.8, 10.5] } },
+      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.1, 2.0, 13.45], target: [netItems[CPO_I].x, 1.7, 11.1] } },
       unitsub: { pos: [usX, 3.3, usZ], view: { pos: [-52, 8, 2], target: [usX, 1.5, usZ] } },
       swgr: { pos: [-27, 2.8, -15.6], view: { pos: [-25, 6, -4], target: [-27, 1.3, -15.6] } },
       [dc ? 'sst' : 'ups']: { pos: [-28, 2.8, -6.5], view: { pos: [-27, 5, 2.5], target: [-28, 1, -6.5] } },
@@ -842,7 +847,7 @@ export function build({ quality, model }) {
     },
     dataFlows, heatFlows, layers: { data: par },
     heatHotspots: {
-      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.0, 4.2, 15.5], target: [netItems[CPO_I].x, 1.8, 10.5] } },
+      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.1, 2.0, 13.45], target: [netItems[CPO_I].x, 1.7, 11.1] } },
       [air ? 'inrow' : 'cdu']: cduSpot,
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
       hotaisle: { pos: [6, 2.5, -9.7], view: { pos: [-11, 5, -9.2], target: [4, 1.5, -9.7] } },
@@ -862,7 +867,7 @@ export function build({ quality, model }) {
       spine: { pos: [rowX0 + 4, 2.7, 10.5], view: { pos: [rowX0 + 5, 5, 18], target: [rowX0 + 5, 1.2, 10.5] } },
       runways: { pos: [rowX1 + 0.45, 4.7, 4], view: { pos: [rowX1 - 6, 8, 12], target: [rowX1, 4, 2] } },
       optics: { pos: [leafX, 2.6, -8.2], view: { pos: [leafX + 1.0, 4.0, -4.5], target: [leafX, 1.78, -8.2] } },
-      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.0, 4.2, 15.5], target: [netItems[CPO_I].x, 1.8, 10.5] } },
+      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.1, 2.0, 13.45], target: [netItems[CPO_I].x, 1.7, 11.1] } },
       racks: { pos: [front[18].x, 2.6, rowZs[5]], view: { pos: [front[18].x + 1.6, 3.5, 12], target: [front[18].x, 1.25, rowZs[5]] } },
     },
     // bloom stays a small bump over the family default (0.5) for mood; threshold stays near the family
