@@ -392,8 +392,8 @@ function buildNVL({ quality, model }) {
     }
   }
   // clip to the converters, converters onto the 12 V runs
-  flows.push(flow([[0, 0.2, ZB - 0.2], [0, 0.2, ZB + 0.4], [-1.5, 0.12, ZB + 0.6], [-1.5, 0.12, ZB + 0.85]], 'dc', { count: 10, speed: 1.2, size: 0.035, trailR: 0.012 }));
-  flows.push(flow([[0, 0.2, ZB - 0.2], [0, 0.2, ZB + 0.4], [1.5, 0.12, ZB + 0.6], [1.5, 0.12, ZB + 0.85]], 'dc', { count: 10, speed: 1.2, size: 0.035, trailR: 0.012 }));
+  flows.push(flow([[0, 0.2, ZB - 0.2], [0, 0.2, ZB + 0.4], [-1.5, 0.12, ZB + 0.6], [-1.5, 0.12, ZB + 0.85]], 'dc', { count: 10, speed: 1.2, size: 0.028, k: 1.8, trailR: 0.01 }));
+  flows.push(flow([[0, 0.2, ZB - 0.2], [0, 0.2, ZB + 0.4], [1.5, 0.12, ZB + 0.6], [1.5, 0.12, ZB + 0.85]], 'dc', { count: 10, speed: 1.2, size: 0.028, k: 1.8, trailR: 0.01 }));
   for (const bx of [-1.1, 1.1]) flows.push(flow([[bx * 1.36, 0.12, ZB + 1.1], [bx, floorY + 0.06, ZB + 1.3], [bx, floorY + 0.06, 1.4]], 'bus12', { count: 18, speed: 1.1, size: 0.03, trailR: 0.01 }));
 
   // ---------- cold plates, lifted to show the chips ----------
@@ -417,8 +417,9 @@ function buildNVL({ quality, model }) {
     tube(N, ret, 0.034, MAT.pipeRed, { seg: 10 });
     for (let i = 1; i < sup.length - 1; i++) rbox(N, 0.09, 0.09, 0.09, MAT.nickel, ...sup[i], { r: 0.3 });   // hose barb fittings at the bends
     for (let i = 1; i < ret.length - 1; i++) rbox(N, 0.09, 0.09, 0.09, MAT.nickel, ...ret[i], { r: 0.3 });
-    flows.push(flow(sup, 'cool', { count: 14, speed: 0.8, size: 0.035, trail: false }));
-    flows.push(flow(ret, 'warm', { count: 14, speed: 0.8, size: 0.035, trail: false }));
+    // power-mode coolant beads stay small and below clipping: the heat layer carries the coolant story
+    flows.push(flow(sup, 'cool', { count: 14, speed: 0.8, size: 0.022, k: 1.5, trail: false }));
+    flows.push(flow(ret, 'warm', { count: 14, speed: 0.8, size: 0.022, k: 1.5, trail: false }));
     heatFlows.push(flow(sup, 'cool', { count: 20, speed: 0.8, size: 0.045, k: 2.4, trailR: 0.034, trailK: 0.45 }));
     heatFlows.push(flow(ret, 'warm', { count: 20, speed: 0.8, size: 0.045, k: 2.4, trailR: 0.034, trailK: 0.45 }));
     S.cylZ(0.07, 0.2, MAT.nickel, qdX, 0.25, ZB - 0.1, 12); S.cylZ(0.07, 0.2, MAT.nickel, qdX + 0.15, 0.25, ZB - 0.1, 12);

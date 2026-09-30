@@ -75,7 +75,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex}) {
   S.cylZ(.062,8.55,MAT.nickel,x,.662,-.05,24);S.box(.05,.09,8.4,MAT.nickel,x,.585,-.05);
   for(const z of [-3.9,-2.3,-.3,1.6,3.3])S.box(.16,.05,.1,MAT.darkSteel,x+side*.08,.56,z);
   const path=[[x,.825,-4.55],[x,.825,4.20]];if(side===1)path.reverse();
-  flows.push(flow(path,side===-1?'cool':'warm',{count:20,speed:.8,size:.033,trail:false}));
+  flows.push(flow(path,side===-1?'cool':'warm',{count:20,speed:.8,size:.022,k:1.5,trail:false}));
   heatFlows.push(flow(path,side===-1?'cool':'warm',{count:26,speed:.8,size:.040,trailR:.015}));
   S.cylZ(.075,.1,MAT.nickel,x,.662,-4.34,24);S.cylZ(.05,.14,MAT.darkSteel,x,.662,-4.45,16);
  }
