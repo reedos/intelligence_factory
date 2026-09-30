@@ -320,6 +320,11 @@ def coherent_board_detail(m):
                 box('RF edge bond pad',(3.37+.035,1.4615,cz+o+g),(.04,.003,wd),m['gold'],0)
     for x,z,size in [(4.49,-.55,(.04,.07,.10)),(3.92,-.205,(.10,.07,.03)),(4.49,.55,(.04,.07,.10)),(3.92,.205,(.10,.07,.03))]:
         box('Fiber attach block',(x,1.435,z),size,m['attach'],.005)
+    # Hard gold on the card-edge pads and bond lands.
+    for o in by_source('Coherent gold contacts'):
+        for mt in o.data.materials:
+            p=mt.node_tree.nodes.get('Principled BSDF')
+            p.inputs['Base Color'].default_value=(1,.78,.35,1);p.inputs['Metallic'].default_value=1;p.inputs['Roughness'].default_value=.3
     # Fused tap on a small ceramic mount; fibers get a glossy acrylate coat.
     box('Fused tap mount',(3.5,1.44,0),(.24,.18,.14),m['ceramic'],.01)
     for name in ['Coherent CW fiber','Coherent TX fiber','Coherent RX fiber']:

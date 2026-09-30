@@ -98,7 +98,18 @@ export function build({ quality, state, authoredHardware = false }) {
   }
   S.box(LEN - 0.9, 0.1, MW - 0.24, MAT.pcb, (MX0 + MX1 - 0.9) / 2 + 0.05, Y.pcb, 0);
   for (const z of [-(MW - 0.24) / 2, (MW - 0.24) / 2]) N.box(LEN - 0.92, 0.025, 0.008, laminate, -0.4, Y.pcb, z);
-  for (let i = 0; i < 30; i++) { const z = -0.95 + i * 0.066; N.box(0.55, 0.012, 0.045, MAT.gold, mx(0.33), Y.top + 0.006, z); N.box(0.55, 0.012, 0.045, MAT.gold, mx(0.33), Y.pcb - 0.056, z); }
+  // 60-contact card edge, 30 pads a side. Sequenced mating: ground pads reach
+  // closest to the leading edge, then power, then signal (OSFP MSA Rev 5.0
+  // sec. 3.5); pads 15/16 and 45/46 are the wider power pads. The ground and
+  // signal order between them is representative, not the MSA pinout.
+  const trail = mx(0.33) + 0.275;
+  for (let i = 0; i < 30; i++) {
+    if (i === 15) continue;                                  // joined into the 15/16 power pad
+    const power = i === 14, ground = !power && i % 3 === 0;
+    const lead = mx(0.055) + (ground ? 0 : power ? 0.025 : 0.05), len = trail - lead;
+    const z = -0.95 + i * 0.066 + (power ? 0.033 : 0), w = power ? 0.111 : 0.045;
+    N.box(len, 0.012, w, MAT.gold, lead + len / 2, Y.top + 0.006, z); N.box(len, 0.012, w, MAT.gold, lead + len / 2, Y.pcb - 0.056, z);
+  }
   for (let i = 0; i < 4; i++) S.box(0.34, 0.22, 0.34, MAT.inductor, mx(1.35 + (i % 2) * 0.48), Y.top + 0.11, i < 2 ? -0.22 : 0.22);
   // the coherent DSP
   const DSPX = mx(3.9), DH = 0.85;
