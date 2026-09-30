@@ -37,6 +37,16 @@ function sweep(curve, u0, u1, { ox = 0, oy = 0, rx, ry = rx, seg = 8, steps = 16
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
   return g;
 }
+// a soft round falloff for glows that should read as light on the board, not as a disc
+let softDot;
+function softTex() {
+  if (softDot) return softDot;
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'), r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.35, 'rgba(255,255,255,0.45)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+  return (softDot = new THREE.CanvasTexture(c));
+}
 // curve parameter where the pair crosses depth z (the route only ever moves toward -z)
 const uAtZ = (curve, z) => { let lo = 0, hi = 1; for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (curve.getPointAt(m).z > z) lo = m; else hi = m; } return (lo + hi) / 2; };
 
@@ -58,7 +68,7 @@ export function build({ quality, state, authoredHardware = false }) {
   const conductor = new THREE.MeshStandardMaterial({ name: 'Twinax conductor copper', color: 0xe0a080, metalness: 0.75, roughness: 0.32 });
   const drain = new THREE.MeshStandardMaterial({ name: 'Tinned drain wire', color: 0xc9ccd0, metalness: 0.85, roughness: 0.3 });
   const solder = new THREE.MeshStandardMaterial({ name: 'Solder fillet', color: 0xd9dbde, metalness: 0.85, roughness: 0.22 });
-  const heads = [];
+  const heads = [], powerGlows = [];
   COPPER_HEADS.forEach(([kind, hx]) => {
     if (!authoredHardware) {
     S.box(HW, 0.12, HL, MAT.darkSteel, hx, 0, zc);
@@ -149,7 +159,25 @@ export function build({ quality, state, authoredHardware = false }) {
       const supply = [[hx, yS, z0 + 1.0], [hx, yS, padRear + 0.02], ...(kind === 'aec' ? [] : [[hx, yS, chipZ]]), end];
       trace(N, [hx, padRear + 0.02], [hx, kind === 'aec' ? end[2] : chipZ], cardTop + 0.002, 0.04);
       if (kind !== 'aec') trace(N, [hx - 0.02, chipZ], [end[0], chipZ], cardTop + 0.002, 0.04);
-      flows.push(flow(supply, 'v33', FLOW.power));
+      const f = flow(supply, 'v33', { ...FLOW.power, count: 8, size: 0.042 });
+      flows.push(f);
+      // Power layer only: the supply trace glows as energized copper, and the port's power pad pulses where it enters.
+      const hot = new THREE.MeshBasicMaterial({ color: f.base.color.clone().multiplyScalar(2.2), transparent: true, opacity: 0.8, depthWrite: false, toneMapped: false });
+      const line = new THREE.Group();
+      for (let k = 0; k < supply.length - 1; k++) {
+        const a = new THREE.Vector3(...supply[k]).setY(cardTop + 0.0055), b = new THREE.Vector3(...supply[k + 1]).setY(cardTop + 0.0055);
+        if (k === 0) a.z = padRear + 0.02;
+        const len = a.distanceTo(b); if (len < 1e-4) continue;
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.002, len), hot);
+        bar.position.copy(a).add(b).multiplyScalar(0.5); bar.lookAt(b); line.add(bar);
+      }
+      const pad = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), new THREE.MeshBasicMaterial({ map: softTex(), color: f.base.color.clone().multiplyScalar(2.2), transparent: true, opacity: 0.6, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending }));
+      pad.rotation.x = -Math.PI / 2; pad.position.set(hx, cardTop + 0.006, padRear + 0.12);
+      // where the power is spent: a soft halo on the card around the active package
+      const halo = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: softTex(), color: f.base.color.clone().multiplyScalar(1.6), transparent: true, opacity: 0.22, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending }));
+      halo.rotation.x = -Math.PI / 2; halo.scale.set(chip.w * 0.95, chip.d * 1.1, 1); halo.position.set(chip.x, cardTop + 0.0065, chipZ);
+      line.add(pad, halo); line.userData.pad = pad; line.userData.halo = halo; line.visible = false;
+      scene.add(line); powerGlows.push(line);
     }
     // Qualitative energy transfer, not coolant or a claimed thermal-interface
     // construction. The display gap to the lifted cover is deliberately schematic.
@@ -161,6 +189,9 @@ export function build({ quality, state, authoredHardware = false }) {
     heads.push({ kind, x: hx, chip });
   });
   scene.add(S.build()); scene.add(N.build({ cast: false }));
+  // a warm key from camera-left for the Power layer only: the port feeding the plug sets the mood
+  const warm = new THREE.DirectionalLight(0xffc27a, 0); warm.name = 'Copper power warm key';
+  warm.position.set(-9, 8, 6); warm.target.position.set(0, 0.8, 0); scene.add(warm, warm.target);
   [flows, dataFlows, heatFlows].forEach(a => a.forEach(f => scene.add(f.group)));
 
   label(scene, 'Copper cables · one end of each', [0, 0.9, z0 + 2.6], '#e8ecf2', 0.34);
@@ -186,6 +217,18 @@ export function build({ quality, state, authoredHardware = false }) {
     hotspots: { dac: hs.dac, acc: hs.acc, aec: hs.aec },
     dataHotspots: { dac: hs.dac, acc: hs.acc, aec: hs.aec },
     heatHotspots,
-    update() {},
+    update(t = 0) {
+      const on = state?.mode === 'power';
+      for (const g of powerGlows) {
+        g.visible = on;
+        if (on) {
+          const k = 0.8 + 0.2 * Math.sin(t * 3.2);
+          g.userData.pad.scale.setScalar(k); g.userData.pad.material.opacity = 0.35 + 0.35 * k;
+          g.userData.halo.material.opacity = 0.14 + 0.12 * (0.5 + 0.5 * Math.sin(t * 3.2 - 1.2));
+        }
+      }
+      warm.intensity = on ? 1.4 : 0;
+      return on;
+    },
   };
 }
