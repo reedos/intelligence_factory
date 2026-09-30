@@ -95,7 +95,18 @@ export function build({ quality, model }) {
   const tipAt = (x, i) => [x + tips[i][2], tips[i][1], towerZ - tips[i][0]];
   const spans = [];
   for (let t = towerXs.length - 1; t > 0; t--) for (let i = 0; i < tips.length; i++) spans.push({ i, pts: catenary(tipAt(towerXs[t], i), tipAt(towerXs[t - 1], i), i >= 6 ? 7 : 10) });
-  scene.add(wires(spans.map(s => s.pts), 0x3a4048));
+  // each phase is a two-conductor bundle 0.45 m apart (the card's "bundled aluminum conductor"), held by
+  // spacer-dampers about every 60 m; the top pair are the dark optical ground (shield) wires
+  const bundle = (pts, dz) => pts.map(([x, y, z]) => [x, y, z + dz]);
+  const phaseSpans = spans.filter(s => s.i < 6), shieldSpans = spans.filter(s => s.i >= 6);
+  scene.add(wires(phaseSpans.flatMap(s => [bundle(s.pts, -0.225), bundle(s.pts, 0.225)]), 0x3a4048));
+  scene.add(wires(shieldSpans.map(s => s.pts), 0x1b1d20));
+  for (const s of phaseSpans) for (let k = 1; k < 6; k++) {
+    const u = k / 6, p = s.pts[Math.round(u * (s.pts.length - 1))];
+    N.box(0.08, 0.08, 0.5, MAT.alu, p[0], p[1], p[2]);
+  }
+  // concrete pier caps under the four legs of every tower
+  for (const x of towerXs) for (const dx of [-4.5, 4.5]) for (const dz of [-4.5, 4.5]) S.cyl(0.7, 0.6, MAT.concrete, x + dx, 0.3, towerZ + dz, 16);
   // last span into the dead-end gantries
   const gantryX = -548, gantryH = 20, circuitZ = [-178, -122];
   const phaseZ = [-6, 0, 6];
@@ -105,7 +116,7 @@ export function build({ quality, model }) {
     const a = tipAt(towerXs[0], tipIdx), b = [gantryX, gantryH - 1.5, circuitZ[c] + phaseZ[p]];
     landing.push({ c, p, pts: catenary(a, b, 5, 20) });
   }
-  scene.add(wires(landing.map(l => l.pts), 0x3a4048));
+  scene.add(wires(landing.flatMap(l => [bundle(l.pts, -0.225), bundle(l.pts, 0.225)]), 0x3a4048));
   // HV flow: one conductor per phase on the incoming line, all the way to the gantry
   for (let c = 0; c < 2; c++) for (let p = 0; p < 3; p++) {
     const tipIdx = [0, 2, 4][p] + (c === 0 ? 0 : 1);
