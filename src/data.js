@@ -239,10 +239,12 @@ export function content(M) {
         ['Interconnection', '230–500 kV', 'assumed', { assume: 'campus-interconnection-voltage-range' }],
         ['Example', 'Amazon Project Rainier: existing Olive 345 kV station, new interconnection', 'reported',
           { refs: [['measuredai-new-carlisle', 'body text: "the campus already adjoined extra-high-voltage (EHV) transmission and a very substantial existing substation — the Olive 345 kV station"']] }],
+        ['Map symbols', 'substation, towers and tie-ins are representative', 'assumed', { assume: 'across-map-symbols' }],
       ] },
     { id: 'plants', title: 'Generation', kicker: 'Gas, nuclear, wind, solar',
       body: 'Plants inject power into the grid far from the campus; the grid delivers it with about 5% lost on the way.',
-      specs: [['US grid losses', '≈5% (EIA)', 'spec', { refs: [['eia-td-losses', 'FAQ answer: "annual electricity transmission and distribution (T&D) losses averaged about 5% of the electricity transmitted and distributed in the United States in 2018 through 2022"']] }]] },
+      specs: [['US grid losses', '≈5% (EIA)', 'spec', { refs: [['eia-td-losses', 'FAQ answer: "annual electricity transmission and distribution (T&D) losses averaged about 5% of the electricity transmitted and distributed in the United States in 2018 through 2022"']] }],
+        ['Plant symbols', 'representative types, heights exaggerated', 'assumed', { assume: 'across-map-symbols' }]] },
     site
       ? { id: 'home', title: site.name, kicker: `${site.place} · ${meter} modeled`,
         body: `${site.owner}. This page rebuilds the campus from the closest scenario it can: ${site.unknowns.join(' ')} Go in to follow the power down.`,

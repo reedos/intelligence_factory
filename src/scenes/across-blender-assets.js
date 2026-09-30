@@ -4,7 +4,7 @@ import { Builder } from '../kit.js';
 let source, pending;
 export function preloadAcrossAssets() {
   if (source) return Promise.resolve();
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/across-infrastructure.glb?v=2`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/across-infrastructure.glb?v=5`)
     .then(g => { source = g.scene; source.updateMatrixWorld(true); })
     .catch(e => { pending = null; throw e; });
 }
@@ -36,7 +36,7 @@ export function acrossSurfaceGeometry() {
   return geo;
 }
 export function replaceWindRotor(mesh) {
-  const [geo] = acrossAssetBuilder('WIND_ROTOR').geometries().values();
-  mesh.geometry.dispose(); mesh.geometry = geo;
+  const [[material, geo]] = acrossAssetBuilder('WIND_ROTOR').geometries().entries();
+  mesh.geometry.dispose(); mesh.geometry = geo; mesh.material = material;
   mesh.userData.blenderAsset = 'WIND_ROTOR'; geo.userData.authoredIn = 'Blender';
 }
