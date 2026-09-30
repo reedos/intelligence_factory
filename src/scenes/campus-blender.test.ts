@@ -77,7 +77,9 @@ describe('authored Blender campus replaces geometry without changing the enginee
    expect(b.scene.userData.campusHallCounts).toEqual({modeled:model.halls,detailed:2,expansion:model.halls-2});
    const expansion=b.scene.getObjectByName('Expanded campus halls');
    expect(expansion.userData.hallCount).toBe(model.halls-2);
-   expect(expansion.children.length).toBeGreaterThan(3);
+   // the hall's finishes share one palette draw (campus-palette.js), not one instanced mesh per finish
+   expect(expansion.children.length).toBeGreaterThan(0);
+   expect(expansion.children.some((m:any)=>m.material.userData.ifxPalette && m.geometry.attributes.color)).toBe(true);
    for(const m of expansion.children){expect(m.count).toBe(model.halls-2);expect(m.geometry.userData.blender.asset).toBe('campus-architecture');}
    expect(b.scene.userData.blenderCoverage.unconverted).toEqual([]);
    const bounds=new THREE.Box3().setFromObject(expansion);

@@ -11,6 +11,7 @@ import { campusWoodland, campusMeadow, campusContactShade } from './campus-lands
 import { preloadCampusArchitecture, hasCampusArchitecture, addBlenderCampusArchitecture, addBlenderCampusExpansion } from './campus-blender-architecture.js';
 import { preloadCampusCatalog, campusCatalogInstances, campusCatalogRotor, campusCatalogBuilder } from './campus-blender-catalog.js';
 import { preloadCampusVehicles, hasCampusVehicles, campusVehicleInstances } from './campus-blender-vehicles.js';
+import { palette } from './campus-palette.js';
 import { preloadCampusTransformer, hasCampusTransformer, campusTransformerInstances } from './campus-blender-transformer.js';
 export const preload = () => Promise.all([preloadCampusArchitecture(), preloadCampusCatalog(), preloadSiteConstruction(), preloadCampusVehicles(), preloadCampusTransformer()]);
 
@@ -43,6 +44,10 @@ export function build({ quality, model }) {
     sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096);
     Object.assign(sun.shadow.camera, { left: -760, right: 760, top: 520, bottom: -520, near: 100, far: 3000 });
     sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.6;
+    // Draw the shadow map once per frame. The composer calls render() more than once a frame (the scene pass, and
+    // the soft-focus depth pass), and a light left on autoUpdate redraws its whole caster list on every one of them:
+    // the same map twice over. update() below re-arms it each frame, so it still follows the moving fleet.
+    sun.shadow.autoUpdate = false; sun.shadow.needsUpdate = true;
   }
   scene.add(sun, sun.target);
   // fill from the sun's opposite quarter (east/south), stronger than a token bounce so the shadow
@@ -92,7 +97,7 @@ export function build({ quality, model }) {
   const tips = latticeTower(tower, 46, 9, authoredCampus ? { string: campusCatalogBuilder('SUB_STRING') } : {});
   const towerXs = [-640, -990, -1340, -1690, -2040, -2390, -2740];
   const towerZ = -150;
-  scene.add(tower.instance(towerXs.map(x => mtx(x, 0, towerZ, Math.PI / 2))));
+  scene.add(palette(tower).instance(towerXs.map(x => mtx(x, 0, towerZ, Math.PI / 2))));
   // conductors: tower tips rotated 90° (arms along z)
   const tipAt = (x, i) => [x + tips[i][2], tips[i][1], towerZ - tips[i][0]];
   const spans = [];
@@ -579,7 +584,7 @@ export function build({ quality, model }) {
   D.slab(1.6, 0.05, 2.6, MAT.gravel, dbX, dbY - 0.02, dbZ);                                   // trench floor
   // handhole a few meters on, where cables are spliced and slack is stored
   D.slab(1.4, 0.9, 1.1, MAT.concrete, dbX, dbY, dbZ + 4); D.slab(1.2, 0.02, 0.9, MAT.darkSteel, dbX, dbY + 0.9, dbZ + 4);
-  dataGroup.add(D.build({ cast: false }));
+  dataGroup.add(palette(D).build({ cast: false }));
   if (nHalls > 1) scene.add(dataGroup);
 
   // ---------- the rest of a big campus: representative authored hall exteriors ----------
@@ -651,7 +656,7 @@ export function build({ quality, model }) {
     }
     const pads = new Builder();
     for (let c = 0; c < cols; c++) pads.slab(300, 0.1, perCol * 120 + 20, MAT.concreteDark, 750 + c * 320, 0.05, z0 + (perCol - 1) * 60);
-    scene.add(pads.build({ cast: false }));
+    scene.add(palette(pads).build({ cast: false }));
   }
   scene.userData.campusHallCounts={modeled:model.halls,detailed:nHalls,expansion:extra};
   // hall-to-hall: the two spines joined through the duct bank, both directions
@@ -758,16 +763,16 @@ export function build({ quality, model }) {
   ]);
 
   // ---------- activity: cars and a truck loop the site roads, a few people walk, clouds drift ----------
-  moverGroups.push(movers(carBuild,roadPlan.carPaths,{speed:quality.mobile?9:11,perPath:quality.mobile?1:2}));
+  moverGroups.push(movers(B=>palette(carBuild(B)??B),roadPlan.carPaths,{speed:quality.mobile?9:11,perPath:quality.mobile?1:2}));
   // Catalog truck cab faces -X; movers orients +X along travel. Rotate the
   // owned builder geometry so the truck travels cab-first, not trailer-first.
-  const forwardTruck=B=>{truckBuild(B);for(const parts of B.parts.values())for(const g of parts)g.rotateY(Math.PI);};
+  const forwardTruck=B=>{truckBuild(B);for(const parts of B.parts.values())for(const g of parts)g.rotateY(Math.PI);palette(B);};
   moverGroups.push(movers(forwardTruck,roadPlan.truckPaths,{speed:6.5,perPath:quality.mobile?1:2}));
   const walkPaths = [
     [[-30, 0.16, 178], [-30, 0.16, 202], [-64, 0.16, 202], [-64, 0.16, 226], [-96, 0.16, 226], [-64, 0.16, 226], [-64, 0.16, 202], [-30, 0.16, 202], [-30, 0.16, 178]],
     [[hallX0 - 20, 0.16, hallCentersZ[0] + 40], [hallX0 - 1, 0.16, hallCentersZ[0] + 26], [hallX0 - 20, 0.16, hallCentersZ[0] + 40]],
   ];
-  moverGroups.push(movers(walkerBuild, walkPaths, { speed: 1.3, perPath: quality.mobile ? 1 : 2 }));
+  moverGroups.push(movers(B => palette(walkerBuild(B) ?? B), walkPaths, { speed: 1.3, perPath: quality.mobile ? 1 : 2 }));
   moverGroups.forEach(m => scene.add(m.group));
 
   // vapor plumes off the cooling-tower fans, visible in every layer (not just the heat overlay);
@@ -800,8 +805,8 @@ export function build({ quality, model }) {
     for (const cloud of cloudDrift.children) { cloud.scale.y *= .3; cloud.material.opacity *= .45; }
   }
 
-  scene.add(S.build({ cast: true, receive: true }));
-  scene.add(N.build({ cast: false, receive: true }));
+  scene.add(palette(S).build({ cast: true, receive: true }));
+  scene.add(palette(N).build({ cast: false, receive: true }));
   flows.forEach(f => scene.add(f.group));
   dataFlows.forEach(f => scene.add(f.group));
   heatFlows.forEach(f => scene.add(f.group));
@@ -900,6 +905,7 @@ export function build({ quality, model }) {
     },
     look: { env: 'sky', envIntensity: 0.75, exposure: 1.08, bloom: 0.7, threshold: 1.4, ao: 0, grain: 0.006, vignette: 0.18, dof: true },
     update(t, dt) {
+      if (sun.castShadow) sun.shadow.needsUpdate = true;
       woodlandMotion(t); gardenMotion(t);
       reuseGroup.visible = globalThis.document?.body?.dataset.mode === 'heat';
       if (cloudDrift && !quality.reduced) cloudDrift.position.x = Math.sin(t * .008) * 35;
