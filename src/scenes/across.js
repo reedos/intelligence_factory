@@ -508,13 +508,13 @@ export function build({ quality, model, state = {} }) {
     hotspots: {
       grid: { pos: [(plants[1][0] + hx) / 2, 12, (plants[1][1] + hz) / 2], view: view((plants[1][0] + hx) / 2, (plants[1][1] + hz) / 2, 700) },
       plants: { pos: [plants[0][0] + 5 * Math.cos(GAS_RY) - 7 * Math.sin(GAS_RY), 24, plants[0][1] - 5 * Math.sin(GAS_RY) - 7 * Math.cos(GAS_RY)], view: view(plants[0][0] + 2, plants[0][1] - 4, 95) },
-      home: { pos: [hx, 10, hz], view: view(hx, hz, 220) },
+      home: { pos: [hx, 10, hz], view: view(hx - 8, hz, 130) },          // close enough that the lit halls and substation fill the frame
       carbon: (() => { const c = CENTROID[(site || DEFAULT_PLACE).state] || [hx, hz]; return { pos: [c[0], 34, c[1]], view: { pos: [c[0], 1300, c[1] + 1100], target: [c[0], 0, c[1]] } }; })(),
       ...siteSpots,
     },
     heatHotspots: {
       climate: { pos: [hx - 300, 12, hz + 200], view: { pos: [hx - 300, 1400, hz + 1500], target: [hx - 300, 0, hz] } },
-      home: { pos: [hx - 40, 10, hz + 40], view: view(hx, hz, 220) },
+      home: { pos: [hx + 2, 12, hz + 6], view: view(hx, hz + 6, 150) },
     },
     dataHotspots: {
       dci: { pos: [hx + 20, 8, hz - 16], view: view(hx + 10, hz - 10, 200) },
