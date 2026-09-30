@@ -61,8 +61,17 @@ function frontTex(kind) {
       g.fillStyle = '#0e1d2a'; g.fillRect(60, 60, 136, 90); g.fillStyle = '#4c8dff'; g.fillRect(72, 76, 50, 8); g.fillStyle = '#ff5a6e'; g.fillRect(72, 94, 70, 8);
       g.fillStyle = '#b3b8bc'; for (let y = 200; y < h - 30; y += 12) g.fillRect(24, y, w - 48, 6);
     } else if (kind === 'net') {
-      g.fillStyle = '#121418'; g.fillRect(0, 0, w, h);
-      for (let y = 20; y < h - 20; y += 22) { g.fillStyle = '#1f232a'; g.fillRect(10, y, w - 20, 18); for (let x = 16; x < w - 16; x += 8) { g.fillStyle = ['#e8c547', '#3fd1c8', '#e8c547', '#9aa3ad'][(x + y) % 4]; g.fillRect(x, y + 5, 4, 8); } }    } else if (kind === 'storage') {
+      // network rack: 1U blanking panels, two horizontal cable managers either side of the switch units
+      // (the switch chassis and patch panel are geometry drawn over this face); representative
+      g.fillStyle = '#101216'; g.fillRect(0, 0, w, h);
+      const row = y => (2.25 - y) / 2.2 * h, U = .04445 / 2.2 * h;
+      for (let y = row(2.25); y < h; y += U) { g.fillStyle = '#16191e'; g.fillRect(10, y + 1, w - 20, U - 2); g.fillStyle = '#1d2127'; g.fillRect(10, y + 1, w - 20, 1); }
+      for (const y of [1.76, 1.48]) {
+        const top = row(y + .022); g.fillStyle = '#0a0b0d'; g.fillRect(8, top, w - 16, U);
+        g.fillStyle = '#23272e'; for (let x = 14; x < w - 14; x += 12) g.fillRect(x, top + 2, 6, U - 4);
+      }
+      g.fillStyle = '#0b0c0e'; g.fillRect(0, 0, 8, h); g.fillRect(w - 8, 0, 8, h);
+    } else if (kind === 'storage') {
       // JBOD-style 2U drive shelves: dense grids of small drive bays, no NVLink switches, no coolant gear
       g.fillStyle = '#15171b'; g.fillRect(0, 0, w, h);
       const U = h / 48;
@@ -154,19 +163,33 @@ export function build({ quality, model }) {
   const fiberJacket = new THREE.MeshStandardMaterial({ color: FIBER_JACKET, roughness: 0.5, metalness: 0.1 });
   const networkPorts = new Map(), fiberRoutes = [];
   const portLedItems = [];                              // link LEDs on the switch ports (the racks keep ledItems)
-  // one bank of pluggable OSFP cages + modules on a network-rack face at (cx, cz), front normal +z*fs
-  function pluggableFace(cx, cz, fs, { rows = 2, cols = 6, y0 = 1.55, y1 = 1.95, w = 0.46 } = {}) {
-    const dv = (y1 - y0) / rows, du = w / cols, faceZ = cz + fs * 0.6;
-    const ports=[];
+  // Switch chassis drawn at true size with pluggable OSFP modules (22.58 mm wide x 13 mm tall, OSFP MSA).
+  // 400G fabrics: Quantum-2 QM9700, 1U (43.6 mm) x 438 mm, 32 OSFP cages (nvidia-quantum2-qm9700-specs).
+  // 800G and up: Quantum-X800 Q3400, 4U (177.8 mm) x 438 mm, 72 OSFP cages (nvidia-xdr-switch-specs,
+  // nvidia-quantum-x800-switches). Cage arrangement and the chassis count per rack are representative.
+  const bigSwitch = model.accel.nicGbps >= 800;
+  const SWITCH_FORMS = { qm9700: { h: .0436, rows: 2, cols: 16 }, q3400: { h: .1778, rows: 4, cols: 18 }, tor: { h: .0436, rows: 1, cols: 16 } };
+  function switchChassis(cx, cz, fs, form, yb, ports) {
+    const { h, rows, cols } = SWITCH_FORMS[form], faceZ = cz + fs * 0.6, pitchX = .0235, pitchY = .0172;
+    const yc = yb + h / 2;
+    N.box(.438, h - .002, .012, MAT.darkSteel, cx, yc, faceZ + fs * .006);                  // chassis face
+    N.box(.018, h - .006, .006, MAT.black, cx - .209, yc, faceZ + fs * .015);                 // mounting ears
+    N.box(.018, h - .006, .006, MAT.black, cx + .209, yc, faceZ + fs * .015);
+    portLedItems.push({ p: [cx - .2, yc + h / 2 - .008, faceZ + fs * .02], color: '#5cf29a', rate: .6 });   // status LED
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      const x = cx - w / 2 + du * (c + 0.5), y = y0 + dv * (r + 0.5);
-      N.box(du * 0.82, dv * 0.78, 0.05, MAT.darkSteel, x, y, faceZ + fs * 0.015);        // cage, set into the face
-      N.box(du * 0.6, dv * 0.5, 0.09, moduleMetal, x, y, faceZ + fs * 0.075);            // module body, protrudes
-      N.box(du * 0.56, dv * 0.22, 0.02, pullTabMat, x, y - dv * 0.18, faceZ + fs * 0.13); // pull tab
-      ports.push({point:[x,y,faceZ+fs*.12],f:fs});
-      portLedItems.push({ p: [x + du * 0.16, y + dv * 0.22, faceZ + fs * 0.11], color: (r + c) % 3 ? '#5cf29a' : '#ffb347', rate: 0.35 + ((r * cols + c) * 0.37) % 1.2 });
+      const bank = form === 'q3400' ? (r < 2 ? -1 : 1) * .012 : 0;
+      const x = cx + (c - (cols - 1) / 2) * pitchX, y = yc + (r - (rows - 1) / 2) * pitchY + bank;
+      N.box(.0226, .013, .02, moduleMetal, x, y, faceZ + fs * .02);                           // OSFP module, ~18 mm proud
+      N.box(.004, .0035, .03, pullTabMat, x, y - .0045, faceZ + fs * .027);                    // pull tab
+      ports.push({ point: [x, y, faceZ + fs * .03], f: fs, cx, i: ports.length, under: yb - .012 });
+      portLedItems.push({ p: [x + .008, y + .0047, faceZ + fs * .0305], color: (r + c) % 3 ? '#5cf29a' : '#ffb347', rate: 0.35 + ((r * cols + c) * 0.37) % 1.2 });
     }
-    networkPorts.set(`${cx}:${cz}`,ports);return ports;
+  }
+  function pluggableFace(cx, cz, fs, { forms, y0 }) {
+    const ports = [];
+    let yb = y0;
+    for (const form of forms) { switchChassis(cx, cz, fs, form, yb, ports); yb += SWITCH_FORMS[form].h + .0009; }
+    networkPorts.set(`${cx}:${cz}`, ports); return ports;
   }
   // the co-packaged optics switch, drawn with the Quantum-X Photonics Q3450's published front-panel counts:
   // 144 MPO connectors, 18 removable external light-source (ELS) modules, 4 UDQ4 liquid connections
@@ -220,9 +243,15 @@ export function build({ quality, model }) {
   }
   function portDrop(port,rowZ) {
     const [x,y,z]=port.point,fs=port.f;
-    N.box(.022,.014,.025,mpoBody,x,y,z+fs*.013);
-    return [[x,y,z+fs*.026],[x,y,z+fs*.12],[x,HALL_RUNWAY.entryY,z+fs*.12],
+    N.box(.012,.008,.02,mpoBody,x,y,z+fs*.01);                                       // connector boot
+    if(port.cx===undefined)return [[x,y,z+fs*.026],[x,y,z+fs*.12],[x,HALL_RUNWAY.entryY,z+fs*.12],
       [x,HALL_RUNWAY.entryY,rowZ],[x,HALL_RUNWAY.cableY,rowZ]];
+    // Jumpers drop below the chassis, dress sideways to the vertical cable manager at the nearer rack edge, then rise there,
+    // leaving the switch face readable; each strand keeps its own lane in the manager.
+    const side=Math.sign(x-port.cx)||1,lane=(port.i%10)*.007,mx=port.cx+side*(.232-lane),mz=z+fs*(.05+(port.i%3)*.012);
+    const low=port.under-(port.i%4)*.006;                                              // under the chassis, then sideways
+    return [[x,y,z+fs*.026],[x,y,mz],[x,low,mz],[mx,low,mz],[mx,HALL_RUNWAY.entryY,mz],
+      [mx,HALL_RUNWAY.entryY,rowZ],[mx,HALL_RUNWAY.cableY,rowZ]];
   }
   function rackDrop(k) {
     const fs=model.accel.id==='h100'?-k.f:k.f,y=model.accel.id==='h100'?1.108:1.333375;
@@ -461,7 +490,7 @@ export function build({ quality, model }) {
   scene.userData.cpoComparison={deployed:false,fiberDrops:0,cappedCoolantPorts:4,mpoConnectors:144,laserModules:18};
   netItems.forEach((it, i) => {
     if (i === CPO_I) { cpoFace(it.x, it.z, it.f); }
-    else { pluggableFace(it.x, it.z, it.f); }
+    else { pluggableFace(it.x, it.z, it.f, { forms: bigSwitch ? ['q3400', 'q3400'] : ['qm9700', 'qm9700', 'qm9700', 'qm9700'], y0: 1.52 }); }   // chassis per rack representative
   });
   // Extend the IT distribution to deployed network racks as well as compute.
   // These are representative rack feeds, not building voltage applied to an OSFP.
@@ -515,7 +544,7 @@ export function build({ quality, model }) {
   const storageMx = []; for (let i = 0; i < 4; i++) storageMx.push({ x: storageX0 + i * RW + RW / 2, z: svcZ, f: 1 });
   instanced(RW - 0.02, 2.3, 1.2, TEX.storage, 0x131519, storageMx).name = 'Storage rack faces';
   const storLast = storageMx[3];
-  pluggableFace(storLast.x, storLast.z, storLast.f, { rows: 2, cols: 8, y0: 2.0, y1: 2.22, w: RW - 0.1 });
+  pluggableFace(storLast.x, storLast.z, storLast.f, { forms: ['tor', 'tor'], y0: 2.02 });   // representative storage/front-end pair
   N.box(2.0, 0.04, 0.3, MAT.yellowTray, storLast.x, 4.3, svcZ);                             // short local runway stub
   N.box(2.0, 0.1, 0.02, MAT.yellowTray, storLast.x, 4.35, svcZ - 0.15);
   // Rear wall leaves a T-junction into the storage-to-ODF spur.
@@ -531,7 +560,7 @@ export function build({ quality, model }) {
     N.box(.3,.04,2.2,MAT.yellowTray,it.x,4.3,13.1);
     N.box(.6,.04,.3,MAT.yellowTray,it.x,4.3,svcZ);
   }
-  pluggableFace(ctrlFirst.x, ctrlFirst.z, ctrlFirst.f, { rows: 1, cols: 6, y0: 2.05, y1: 2.2, w: RW - 0.14 }); // small ToR management switch
+  pluggableFace(ctrlFirst.x, ctrlFirst.z, ctrlFirst.f, { forms: ['tor'], y0: 2.06 }); // small ToR management switch, representative
   // scale-out: a leaf-switch rack at the end of every row, a cross runway to the spine row
   const leafX = rowX1 + 0.45;
   rowZs.forEach((z, r) => {
@@ -542,7 +571,7 @@ export function build({ quality, model }) {
   });
   instanced(0.6, 2.3, 1.2, TEX.net, 0x131519, rowZs.map((z, r) => ({ x: leafX, z, f: facing[r] })));
   // leaf faceplates: pluggable OSFP modules, fiber pigtails rising into the runway overhead
-  rowZs.forEach((z, r) => { pluggableFace(leafX,z,facing[r],{rows:5,cols:8,y0:1.3,y1:2.1}); });
+  rowZs.forEach((z, r) => { pluggableFace(leafX, z, facing[r], { forms: bigSwitch ? ['q3400'] : ['qm9700', 'qm9700'], y0: 1.52 }); });
   N.box(.3,.04,23,MAT.yellowTray,leafX,HALL_RUNWAY.floorY,-.8);
   // Open T-junctions: the row fibers must not pass through a solid tray wall.
   const runwayOpenings=[...rowZs,10.5];let wallStart=-12.3;
@@ -554,7 +583,12 @@ export function build({ quality, model }) {
   N.box(.02,.1,23,MAT.yellowTray,leafX+.15,4.35,-.8);
   N.box(leafX-(rowX0-1.3),.04,.3,MAT.yellowTray,(leafX+rowX0-1.3)/2,4.3,10.5);
   // patch panels on the spine row
-  for (let i = 0; i < 10; i++) N.box(0.5, 0.18, 0.08, MAT.white, rowX0 + 2 + i * 0.62, 2.38, 11.1);
+  // 1U MPO patch panel in each spine rack's top units (was a block sitting on the roof): 12 cassette ports
+  for (let i = 0; i < 10; i++) {
+    const px = rowX0 + 2 + i * 0.62;
+    N.box(.438, .042, .014, MAT.darkSteel, px, 2.12, 11.107);
+    for (let k = 0; k < 12; k++) N.box(.02, .012, .01, mpoBody, px - .165 + k * .03, 2.12, 11.118);
+  }
   rowZs.forEach((z,r)=>{
     const ports=networkPorts.get(`${leafX}:${z}`),row=rackMx.filter(k=>k.z===z);
     row.forEach((k,i)=>{
@@ -893,7 +927,7 @@ export function build({ quality, model }) {
   flows.forEach(f => scene.add(f.group));
   dataFlows.forEach(f => scene.add(f.group));
   heatFlows.forEach(f => scene.add(f.group));
-  const leds = blinkers(portLedItems, { size: 0.014 });
+  const leds = blinkers(portLedItems, { size: 0.006 });
   scene.add(leds.mesh);
 
   finalizeSiteGeometry(scene);
@@ -911,9 +945,9 @@ export function build({ quality, model }) {
       // Portrait looks steeply down the hall's diagonal so the 60 m hall fills the tall frame and the
       // power-room pins (1-4) separate from the data-hall ones instead of stacking in one cluster.
       portrait: { pos: [42, 83, 33], target: [-8, 2.5, -4.5] },
-      near: 0.1, far: 2000, min: 2.5, max: 180 },
+      near: 0.1, far: 2000, min: 1.2, max: 180 },
     hotspots: {
-      optics: { pos: [leafX, 2.6, -8.2], view: { pos: [leafX + 2.2, 4.8, -3.8], target: [leafX, 2.45, -8.2] } },
+      optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .62, 1.9, -6.25], target: [leafX + .02, 1.6, -7.6] } },   // close enough to read true-size OSFP modules
       cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.1, 2.0, 13.45], target: [netItems[CPO_I].x, 1.7, 11.1] } },
       unitsub: { pos: [usX, 3.3, usZ], view: { pos: [usX - 6.6, 5.0, usZ + 6.4], target: [usX + 1.2, 1.3, usZ] } },
       swgr: { pos: [-27, 2.8, -15.6], view: { pos: [-25, 6, -4], target: [-27, 1.3, -15.6] } },
@@ -948,7 +982,7 @@ export function build({ quality, model }) {
       leaf: { pos: [rowX1 + 0.45, 2.7, -1.6], view: { pos: [rowX1 - 5, 5, 8], target: [rowX1 + 0.4, 1.5, -1.6] } },
       spine: { pos: [rowX0 + 4, 2.7, 10.5], view: { pos: [rowX0 + 5, 5, 18], target: [rowX0 + 5, 1.2, 10.5] } },
       runways: { pos: [rowX1 + 0.45, 4.7, 4], view: { pos: [rowX1 - 6, 8, 12], target: [rowX1, 4, 2] } },
-      optics: { pos: [leafX, 2.6, -8.2], view: { pos: [leafX + 1.0, 4.0, -4.5], target: [leafX, 1.78, -8.2] } },
+      optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .62, 1.9, -6.25], target: [leafX + .02, 1.6, -7.6] } },   // close enough to read true-size OSFP modules
       cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.1, 2.0, 13.45], target: [netItems[CPO_I].x, 1.7, 11.1] } },
       racks: { pos: [front[18].x, 2.6, rowZs[5]], view: { pos: [front[18].x + 1.6, 3.5, 12], target: [front[18].x, 1.25, rowZs[5]] } },
     },
