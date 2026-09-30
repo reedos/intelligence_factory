@@ -757,10 +757,19 @@ export function build({ quality, model }) {
     for (const [mat, list] of runs) inst('PIPE_UNIT', list, mat);
     for (const [mat, list] of bends) inst('PIPE_ELBOW', list, mat);
     inst('PIPE_FLANGE', flanges); inst('BUTTERFLY_VALVE', valves); inst('PIPE_HANGER', bands);
-    // roof curb where the risers leave the building: a short cut section of roof deck with flashing collars
-    S.box(3.0, .25, 3.7, MAT.concrete, X0 + 2.4, 7.675, -16.05);
-    N.box(3.0, .02, 3.7, cutTop, X0 + 2.4, 7.812, -16.05);
-    for (const [x, z] of [[X0 + 2, -16.4], [X0 + 2.8, returnRiserZ]]) N.cyl(.34, .14, MAT.galv, x, 7.9, z, 24);
+    // Roof curb where the risers leave the building: the one bay of roof kept in the cutaway. The deck bears on
+    // the back wall's crown and on two steel roof beams framed into that wall, both cut off at the bay's edge
+    // with the rest of the section, so it reads as retained roof rather than a plate hanging in the air.
+    const curbZ0 = Z0 - .28, curbZ1 = -14.1, curbZc = (curbZ0 + curbZ1) / 2, curbL = curbZ1 - curbZ0;
+    const beamTop = WALL_H + .295, beamD = .4;
+    for (const bx of [X0 + 1.02, X0 + 3.78]) {
+      for (const y of [beamTop - .0125, beamTop - beamD + .0125]) N.box(.17, .025, curbL - .05, MAT.darkSteel, bx, y, curbZc - .025);
+      N.box(.012, beamD - .05, curbL - .05, MAT.darkSteel, bx, beamTop - beamD / 2, curbZc - .025);
+    }
+    S.box(3.18, beamTop - WALL_H - .01, .29, MAT.concrete, X0 + 2.4, (WALL_H + beamTop) / 2, Z0 - .15);   // wall crown under the deck
+    S.box(3.2, .22, curbL, MAT.concrete, X0 + 2.4, beamTop + .005 + .11, curbZc);
+    N.box(3.2, .02, curbL, cutTop, X0 + 2.4, beamTop + .005 + .23, curbZc);
+    for (const [x, z] of [[X0 + 2, -16.4], [X0 + 2.8, returnRiserZ]]) N.cyl(.34, .14, MAT.galv, x, beamTop + .31, z, 24);
   } else {
     S.cylX(0.26, headerEndX-facilitySupplyX, MAT.pipeBlue, (headerEndX+facilitySupplyX)/2, hdrY, -16.4, 16);
     S.cylX(0.26, headerEndX-facilityReturnX, MAT.pipeRed, (headerEndX+facilityReturnX)/2, hdrY-.7, -16.4, 16);
@@ -1040,7 +1049,7 @@ export function build({ quality, model }) {
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
       hotaisle: { pos: [rowX0 + 2.5, 1.7, -9.7], view: { pos: [rowX0 - 4.4, 2.5, -7.2], target: [rowX0 + 2.5, 1.3, -9.7] } },   // through the pod's end doors, down the contained aisle
       fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
-      riser: { pos: [X0 + 2.4, hdrY + 1.4, -16.4], view: { pos: [X0 + 10, 10, -4], target: [X0 + 2.4, 5, -16.4] } },
+      riser: { pos: [X0 + 2.4, 8.5, -15.6], view: { pos: [X0 + 10, 10, -4], target: [X0 + 2.4, 5, -16.4] } },
       fire: { pos: [asdX, 2.9, asdZ], view: { pos: [-7.5, 2.2, -5.2], target: [-10.8, 3.4, -9] } },   // the detector box and its sampling pipe rising to the ceiling
     },
     dataHotspots: {
