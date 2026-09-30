@@ -195,16 +195,20 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   label(scene, 'Five shown · allocation illustrative · 18 serve the four-package switch', [ELSX, Y.sub + 1.25, els[nEls - 1][1]], note, 0.13);
 
   const view = (p, v, t) => ({ pos: p, view: { pos: v, target: t } });
+  // Fitted views: the whole subject box (not just the pin) is kept inside the
+  // area left clear by the page title, layer switch and buttons at any aspect.
+  const fitted = (p, v, t, size) => ({ pos: p, view: { pos: v, target: t, focus: p, detailSize: size } });
+  const stack = w(0.1, 0.55, 0), stackSize = [3.5, 1.2, 2.5];
   const [r3x, r3z] = ringAt(3);
   const hs = {
-    asic: view([0, Y.die + 0.1, 0], [-1, 8.5, 7], [0, Y.die, 0]),
+    asic: fitted([0, Y.die + 0.1, 0], [-1, 8.5, 7], [0, Y.die, 0], [3.6, 0.5, 3.6]),
     serdes: view([asicEdge(engines[1])[0], Y.subTop + 0.1, asicEdge(engines[1])[1] + 0.3], [engines[1].x + 1.5, 5, engines[1].z + 3.2], [engines[1].x * 0.7, Y.subTop, engines[1].z * 0.7]),
     engine: view([EQ.x, Y.eng + 0.15, EQ.z], [EQ.x + 2.5, 5, EQ.z + 3.2], [EQ.x, Y.eng, EQ.z]),
-    eic: view(w(-0.9, 1.1, 0.4), [DX + 1.5, DY + 4.2, DZ + 4.2], w(-0.6, 0.6, 0)),
-    rings: view(w(r3x, 0.12, r3z), [DX + 0.5, DY + 3.6, DZ + 3.8], w(r3x, 0.1, r3z)),
-    pd: view(w(pdX, 0.12, rxRowZ(4)), [DX + 1.2, DY + 2.3, DZ - 4.0], w(pdX, 0.1, rxRowZ(4))),
+    eic: fitted(w(-0.9, 1.1, 0.4), [DX + 1.5, DY + 4.2, DZ + 4.2], stack, stackSize),
+    rings: fitted(w(r3x, 0.12, r3z), [DX + 0.5, DY + 3.6, DZ + 3.8], stack, stackSize),
+    pd: fitted(w(pdX, 0.12, rxRowZ(4)), [DX + 1.2, DY + 2.3, DZ - 4.0], stack, stackSize),
     els: view([ELSX, Y.sub + 1.0, 0], [ELSX + 3.2, 5, 5.5], [ELSX - 1, Y.sub, 0]),
-    fiberout: view([edgeConn[1][0], 1.45, edgeConn[1][1]], [edgeConn[1][0] + 4, 7.5, 10.7], [edgeConn[1][0], 1.5, 5.5]),
+    fiberout: fitted([edgeConn[1][0], 1.45, edgeConn[1][1]], [edgeConn[1][0] + 4, 7.5, 10.7], [edgeConn[1][0], 1.6, 5.9], [4.2, 1.6, 3.4]),
     coldplate: view([2.5, Y.plate + 0.3, 2.5], [6, 10, 11], [0, 2.4, 0]),
   };
   return {
