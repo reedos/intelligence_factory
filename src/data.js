@@ -568,7 +568,7 @@ export function content(M) {
   PARTS.tray = nvl ? [
     { id: 'clip', title: 'Busbar clip', kicker: '≈50 V DC in',
       body: 'Spring copper fingers at the back of the tray grab the rack busbar. More than a hundred amps flows through this clip when the tray is working hard.',
-      specs: [['Tray power', `≈${trayKW.toFixed(1)} kW`, 'derived', { calc: 'tray-power' }], ['Current at 50 V', `≈${n0(trayKW * 20)} A`, 'derived', { calc: 'tray-clip-current' }]] },
+      specs: [['Tray power', `≈${trayKW.toFixed(1)} kW`, 'derived', { calc: 'tray-power' }], ['Current at 50 V', `≈${n0(trayKW * 20)} A`, 'derived', { calc: 'tray-clip-current' }], ['Finger count and housing', 'representative', 'assumed', { assume: 'tray-mechanical-detail' }]] },
     { id: 'ibc', title: 'Bus converters', kicker: '50 V → 12 V',
       body: 'Fixed-ratio converter bricks cut the voltage by about four and hand 12 V to the board. They are very efficient because they do not regulate. Vendors do not publish figures for this board, so the loss here is an estimate.',
       specs: [['Efficiency', '≈97–98%', 'assumed', { assume: 'ibc-efficiency' }], ['Loss, campus-wide', lossTxt('Bus converters'), 'derived', { calc: 'conversion-loss-campus' }]] },

@@ -72,8 +72,17 @@ function chassisLip(N, wallX, topY, depth, inward, heavy) {
   }
 }
 
+// Rear NVLink connector (shared by the NVL72 builders): black housing, a thin
+// shroud, recessed contact rows on the rear mating face, guide pins.
+export function nvConnector(S, N, x, y, z, w = 0.5, h = 0.24, d = 0.32) {
+  S.box(w - 0.04, h - 0.04, d, MAT.black, x, y, z);
+  for (const s of [-1, 1]) { S.box(w, 0.016, d, MAT.galv, x, y + s * (h / 2 - 0.008), z); S.box(0.016, h - 0.032, d, MAT.galv, x + s * (w / 2 - 0.008), y, z); }
+  for (let r = 0; r < 3; r++) N.box(w - 0.16, 0.012, 0.012, MAT.gold, x, y - 0.05 + r * 0.05, z - d / 2 + 0.004);
+  for (const s of [-1, 1]) N.cylZ(0.012, 0.07, MAT.nickel, x + s * (w / 2 - 0.05), y, z - d / 2 - 0.02, 10);
+}
+
 export function build(opts) {
-  const result = opts.model.accel.id === 'rubin' ? buildRubin(opts, { lights, pkgTex, dieTex }) : opts.model.accel.gpusPerRack === 72 ? buildNVL(opts) : buildHGX(opts);
+  const result = opts.model.accel.id === 'rubin' ? buildRubin(opts, { lights, pkgTex, dieTex, nvConnector }) : opts.model.accel.gpusPerRack === 72 ? buildNVL(opts) : buildHGX(opts);
   frameCompute(result, 'tray', opts.model.accel.id);
   modeAccents(result, opts.state);
   return result;
@@ -326,6 +335,7 @@ function buildNVL({ quality, model }) {
   const finish = computeMaterials();
   const W = 4.4, D = 9, H = 0.42, ZF = D / 2, ZB = -D / 2;
   const floorY = 0.03;
+  const hoseMat = new THREE.MeshStandardMaterial({ color: 0x16181b, roughness: 0.6, metalness: 0 });
   const heavy = !quality.mobile;
   const statusLeds = [], warmTops = [];
 
@@ -349,8 +359,14 @@ function buildNVL({ quality, model }) {
 
   // ---------- rear power board: busbar clip, bus converters, 12 V copper ----------
   S.box(W - 0.2, 0.02, 1.0, MAT.pcbBlack, 0, floorY + 0.01, ZB + 0.65);
-  for (let i = 0; i < 5; i++) N.box(0.05, 0.3, 0.26, MAT.copper, -0.12 + i * 0.06, 0.2, ZB - 0.12);        // clip fingers
-  S.box(0.5, 0.18, 0.3, MAT.polymer, 0, 0.12, ZB + 0.1);
+  // Busbar clip: two rows of sprung copper fingers either side of an empty
+  // slot, in a dark glass-filled polymer housing (finger count representative).
+  const clipPoly = new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 0.62, metalness: 0.05 });
+  for (const side of [-1, 1]) {
+    N.box(0.014, 0.3, 0.08, MAT.copper, side * 0.062, 0.2, ZB - 0.02);
+    for (let k = 0; k < 8; k++) N.box(0.012, 0.026, 0.22, MAT.copper, side * 0.044, 0.08 + k * 0.034, ZB - 0.15, side * 0.07);
+  }
+  S.box(0.5, 0.2, 0.3, clipPoly, 0, 0.13, ZB + 0.1);
   const ibcX = [-1.5, -0.55, 0.55, 1.5];
   ibcX.forEach(x => {
     S.box(0.62, 0.08, 0.5, MAT.darkSteel, x, floorY + 0.06, ZB + 0.85);
@@ -426,10 +442,20 @@ function buildNVL({ quality, model }) {
     // supply: rear quick disconnect → CPU plate → GPU → GPU → back
     const sup = [[qdX, 0.25, ZB - 0.05], [qdX, y, ZB + 0.3], [bx - 0.2, y, -1.55], [bx - 0.2, y, 0.2], [bx - 0.2, y, 1.75]];
     const ret = [[bx + 0.2, y, 1.75], [bx + 0.2, y, 0.2], [bx + 0.2, y, -1.55], [qdX + 0.15, y, ZB + 0.3], [qdX + 0.15, 0.25, ZB - 0.05]];
-    tube(N, sup, 0.034, MAT.pipeBlue, { seg: 10 });
-    tube(N, ret, 0.034, MAT.pipeRed, { seg: 10 });
-    for (let i = 1; i < sup.length - 1; i++) rbox(N, 0.09, 0.09, 0.09, MAT.nickel, ...sup[i], { r: 0.3 });   // hose barb fittings at the bends
-    for (let i = 1; i < ret.length - 1; i++) rbox(N, 0.09, 0.09, 0.09, MAT.nickel, ...ret[i], { r: 0.3 });
+    // Black EPDM hose with a colored ID band either side of each turned fitting
+    // (hex body, collars); the animated flows still carry supply/return color.
+    for (const [pts, band] of [[sup, MAT.pipeBlue], [ret, MAT.pipeRed]]) {
+      tube(N, pts, 0.034, hoseMat, { seg: 10 });
+      const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)));
+      for (let i = 1; i < pts.length - 1; i++) {
+        const t = i / (pts.length - 1), p = curve.getPoint(t), d = curve.getTangent(t).multiplyScalar(0.05);
+        N.strut(p.clone().sub(d).toArray(), p.clone().add(d).toArray(), 0.048, MAT.nickel, 6);
+        for (const s of [-1, 1]) {
+          N.strut(p.clone().addScaledVector(d, s * 1.0).toArray(), p.clone().addScaledVector(d, s * 1.5).toArray(), 0.04, MAT.nickel, 16);
+          N.strut(p.clone().addScaledVector(d, s * 2.2).toArray(), p.clone().addScaledVector(d, s * 3.0).toArray(), 0.037, band, 16);
+        }
+      }
+    }
     // power-mode coolant beads stay small and below clipping: the heat layer carries the coolant story
     flows.push(flow(sup, 'cool', { count: 14, speed: 0.8, size: 0.022, k: 1.5, trail: false }));
     flows.push(flow(ret, 'warm', { count: 14, speed: 0.8, size: 0.022, k: 1.5, trail: false }));
@@ -439,7 +465,9 @@ function buildNVL({ quality, model }) {
   }
 
   // ---------- rear connectors, front NICs, DPU, drives, fans ----------
-  for (const x of [-1.9, -1.15, 1.15, 1.9]) { S.box(0.5, 0.24, 0.32, MAT.black, x, 0.15, ZB + 0.2); N.box(0.46, 0.02, 0.3, MAT.gold, x, 0.28, ZB + 0.2); }
+  // NVLink connectors: dark housing in a metal shroud, a recessed contact field
+  // on the mating (rear) face and guide pins at both ends; no gold slab on top.
+  for (const x of [-1.9, -1.15, 1.15, 1.9]) nvConnector(S, N, x, 0.15, ZB + 0.2);
   const nicCardX = [];
   for (let i = 0; i < 4; i++) {
     const x = -1.7 + i * 0.5, ncx = x + 1.9;

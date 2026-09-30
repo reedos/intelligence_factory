@@ -61,9 +61,10 @@ def enhance(kind,accel,m,box,cylinder,p3,material):
                     # Broad sculpted shoulders create large reflections at the
                     # overview distance without hiding the coolant fittings.
                     for side in [-1,1]:box('Cold plate forged shoulder',(x+side*s*.32,.751,z),(s*.13,.075,s*.72),titanium,u,.030)
+            molded=material('Hero molded fan bezel',(.022,.025,.029),0,.55)
             for i in range(6):
                 x=-1.71+i*.76
-                ring('Fan inlet rolled lip',(x,.20,2.748),.147,.012,u)
+                ring('Fan inlet molded lip',(x,.20,2.748),.147,.012,u,molded)
                 front_frame('Removable fan cartridge bezel',x,.20,2.733,.375,.354,.025,u)
                 for sx in [-1,1]:
                     for sy in [-1,1]:cylinder('Fan captive corner',(x+sx*.151,.20+sy*.137,2.758),.017,.012,trim,u,'z')

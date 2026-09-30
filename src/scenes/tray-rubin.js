@@ -4,7 +4,7 @@ import { THREE, MAT, Builder, flow, canvasTex, texMat } from '../kit.js';
 import { rbox } from '../fx.js';
 import { componentView } from '../app/housing-frame.js';
 import { computeMaterials, finishCompute, boardFinish } from './compute-finish.js';
-export function buildRubin({quality,model}, {lights,pkgTex,dieTex}) {
+export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) {
  const scene=new THREE.Scene();lights(scene,quality);
  const S=new Builder(),N=new Builder(),flows=[],dataFlows=[],heatFlows=[],finish=computeMaterials();
  const gp=[[-1.60,-2.7],[-.62,-2.7],[.62,-2.7],[1.60,-2.7]],cp=[[-1.1,-.65],[1.1,-.65]];
@@ -99,7 +99,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex}) {
  // original control point), instead of straight segments that read as a zigzag.
  const smooth=pts=>new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)),false,'centripetal').getPoints(pts.length*8).map(v=>v.toArray());
  const nvX=[-1.75,-.7,.7,1.75],ports=[-1.66,-1.04,1.04,1.66];
- for(const x of nvX){S.box(.50,.22,.26,MAT.black,x,.18,-4.35);N.box(.44,.018,.20,MAT.gold,x,.30,-4.35);}
+ for(const x of nvX)nvConnector(S,N,x,.18,-4.35,.5,.22,.26);
  for(const x of ports)for(const y of [.16,.34]){
   S.box(.29,.13,.46,MAT.galv,x,y,4.21);N.box(.25,.085,.015,MAT.black,x,y,4.455);
  }
