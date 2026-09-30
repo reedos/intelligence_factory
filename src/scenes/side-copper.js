@@ -68,7 +68,7 @@ export function build({ quality, state, authoredHardware = false }) {
   const conductor = new THREE.MeshStandardMaterial({ name: 'Twinax conductor copper', color: 0xe0a080, metalness: 0.75, roughness: 0.32 });
   const drain = new THREE.MeshStandardMaterial({ name: 'Tinned drain wire', color: 0xc9ccd0, metalness: 0.85, roughness: 0.3 });
   const solder = new THREE.MeshStandardMaterial({ name: 'Solder fillet', color: 0xd9dbde, metalness: 0.85, roughness: 0.22 });
-  const heads = [], powerGlows = [];
+  const heads = [], powerGlows = [], heatGlows = [];
   COPPER_HEADS.forEach(([kind, hx]) => {
     if (!authoredHardware) {
     S.box(HW, 0.12, HL, MAT.darkSteel, hx, 0, zc);
@@ -181,10 +181,25 @@ export function build({ quality, state, authoredHardware = false }) {
     }
     // Qualitative energy transfer, not coolant or a claimed thermal-interface
     // construction. The display gap to the lifted cover is deliberately schematic.
-    // Identical treatment avoids implying a numerical ACC/AEC power ratio.
-    if (chip) for (const dx of [-chip.w * 0.22, chip.w * 0.22]) {
-      heatFlows.push(flow([[chip.x + dx, cardTop + chip.h, chipZ],
-        [chip.x + dx, 2.44, chipZ], [chip.x + dx * 1.6, 3.3, chipZ - 0.25]], 'hot', FLOW.heat));
+    // Identical treatment avoids implying a numerical ACC/AEC power ratio: the same strands, glow and haze per
+    // chip; only the package's own footprint differs.
+    if (chip) {
+      const top = cardTop + chip.h;
+      [-0.36, -0.18, 0, 0.18, 0.36].forEach((u, k) => {
+        const dx = u * chip.w, dz = (k % 2 ? 0.2 : -0.12) * chip.d;
+        heatFlows.push(flow([[chip.x + dx, top, chipZ + dz], [chip.x + dx * 1.1, 2.44, chipZ + dz],
+          [chip.x + dx * 1.9, 3.3 + Math.abs(u) * 0.3, chipZ + dz - 0.3]], 'hot', { ...FLOW.heat, count: 4, size: 0.05 }));
+      });
+      const hot = heatFlows[heatFlows.length - 1].base.color;
+      const glow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: softTex(), color: hot.clone().multiplyScalar(1.8), transparent: true, opacity: 0.5, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending }));
+      glow.rotation.x = -Math.PI / 2; glow.scale.set(chip.w * 1.5, chip.d * 1.6, 1); glow.position.set(chip.x, top + 0.004, chipZ);
+      const haze = [0, 1, 2, 3].map(i => {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: softTex(), color: hot.clone().multiplyScalar(1.2), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+        sp.userData.phase = i / 4; return sp;
+      });
+      const g = new THREE.Group(); g.add(glow, ...haze); g.visible = false;
+      g.userData = { glow, haze, x: chip.x, z: chipZ, top, w: chip.w };
+      scene.add(g); heatGlows.push(g);
     }
     heads.push({ kind, x: hx, chip });
   });
@@ -228,7 +243,20 @@ export function build({ quality, state, authoredHardware = false }) {
         }
       }
       warm.intensity = on ? 1.4 : 0;
-      return on;
+      // Heat layer: the package top glows and a warm haze rises off it toward the lifted case.
+      const heat = state?.mode === 'heat';
+      for (const g of heatGlows) {
+        g.visible = heat; if (!heat) continue;
+        const { glow, haze, x, z, top, w } = g.userData;
+        glow.material.opacity = 0.3 + 0.1 * Math.sin(t * 2.1);
+        for (const sp of haze) {
+          const p = (t * 0.32 + sp.userData.phase) % 1;
+          sp.position.set(x, top + 0.15 + p * 2.1, z - p * 0.2);
+          sp.scale.setScalar(w * (0.7 + p * 1.3));
+          sp.material.opacity = 0.15 * Math.sin(Math.PI * p);
+        }
+      }
+      return on || heat;
     },
   };
 }
