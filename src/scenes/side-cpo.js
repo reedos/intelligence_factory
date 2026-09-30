@@ -128,8 +128,17 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   // the electrical side: a stub of package trace from the switch chip into the electronic chip
   for (let j = 0; j < 6; j++) N.box(1.6, 0.01, 0.05, MAT.copper, ...w(electricalEdge - 0.8, 0.95, -0.55 + j * 0.22));
   const EQ = engines[6];                                 // a back-side engine, the one nearest the detail
-  const eqGeo = new THREE.BoxGeometry(1.55, 0.34, 1.15);
-  outline(scene, eqGeo, [EQ.x, Y.eng + 0.08, EQ.z], 0x62e6ff, 0.9, -EQ.rot);
+  // Corner brackets, the same drawn language as the detail's corner marks, pick
+  // out the enlarged engine instead of a full wireframe box.
+  const eqTicks = [], eqHW = 1.55 / 2, eqHD = 1.15 / 2, eqY0 = Y.eng + 0.08 - 0.17, eqY1 = Y.eng + 0.08 + 0.17, tick = 0.34;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const x = sx * eqHW, z = sz * eqHD;
+    eqTicks.push(x, eqY1, z, x - sx * tick, eqY1, z, x, eqY1, z, x, eqY1, z - sz * tick * 0.8, x, eqY1, z, x, eqY0, z);
+    eqTicks.push(x, eqY0, z, x - sx * tick, eqY0, z, x, eqY0, z, x, eqY0, z - sz * tick * 0.8);
+  }
+  const eqMark = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(eqTicks, 3)),
+    new THREE.LineBasicMaterial({ color: 0x62e6ff, transparent: true, opacity: 0.9 }));
+  eqMark.position.set(EQ.x, 0, EQ.z); eqMark.rotation.y = -EQ.rot; scene.add(eqMark);
   // a dotted leader from the detail to the engine it shows
   const eqTop = Y.eng + 0.08 + 0.17;
   const leader = new THREE.Line(new THREE.BufferGeometry().setFromPoints([
@@ -219,6 +228,6 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     dataHotspots: { asic: hs.asic, serdes: hs.serdes, eic: hs.eic, rings: hs.rings, pd: hs.pd, els: hs.els, fiberout: hs.fiberout },
     // Heat looks in under the lifted plate: the die glows below, its heat rises into the channels above.
     heatHotspots: { asic: view(hs.asic.pos, [1.2, 3.55, 10.5], [0, 2.75, 0]), coldplate: hs.coldplate },
-    update(t) { if (asicTop) asicTop.emissiveIntensity = state.mode === 'heat' ? 0.5 + 0.08 * Math.sin(t * 2) : 0; },
+    update(t) { eqMark.material.opacity = 0.62 + 0.3 * Math.sin(t * 1.6); if (asicTop) asicTop.emissiveIntensity = state.mode === 'heat' ? 0.5 + 0.08 * Math.sin(t * 2) : 0; },
   };
 }
