@@ -44,7 +44,15 @@ const sheetBtn = document.getElementById('sheet-toggle');
 function setSheet(open) { document.body.style.removeProperty('--inspector-size'); document.body.classList.toggle('sheet-open', open); sheetBtn.setAttribute('aria-expanded', String(open)); sheetBtn.setAttribute('aria-label', open ? 'Shrink the panel' : 'Expand the panel'); }
 // the pane says when there is more below its fold; on a phone whose sheet is down, More pulls the sheet up first
 const phoneSheet = () => matchMedia('(max-width: 1100px)').matches;
-moreCue(document.querySelector('.panel-scroll'), { host: document.querySelector('.panel'),
+// on the parts tab it counts the parts still below the fold
+const scroller = document.querySelector('.panel-scroll');
+const moreLabel = () => {
+  if (!sc.hidden) return 'More';
+  const fold = scroller.getBoundingClientRect().bottom - 24;
+  const below = [...document.querySelectorAll('#parts li')].filter(li => li.getBoundingClientRect().top > fold).length;
+  return below ? `${below} more part${below === 1 ? '' : 's'}` : 'More';
+};
+moreCue(scroller, { host: document.querySelector('.panel'), label: moreLabel,
   press: () => { if (phoneSheet() && !document.body.classList.contains('sheet-open')) { setSheet(true); return true; } return false; } });
 let sheetDrag = null, dragged = false;
 sheetBtn.addEventListener('pointerdown', e => {

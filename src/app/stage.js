@@ -760,6 +760,7 @@ function buildPanel(i) {
   $('hud-sub').textContent = `${voltFor(s).name} · ${s.scale}`;
   const list = $('parts'); list.innerHTML = '';
   $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · ${s.side ? 'inside the links' : `level ${s.n}`} · ${parts.length} parts`;
+  const tabN = $('parts-n'); if (tabN) { tabN.textContent = parts.length; tabN.setAttribute('aria-label', `, ${parts.length} parts`); }
   const playThese = $('play-these');
   if (playThese) { playThese.textContent = `▶ Play 1 to ${parts.length}`; playThese.hidden = !parts.length; }
   const overviewRow = document.createElement('li'), overview = document.createElement('button');

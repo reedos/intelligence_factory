@@ -847,6 +847,12 @@ body.story .pane-tabs { display: none; }
 /* ---------- more below: the pane fades at its foot and a button says there is more ---------- */
 body.app .panel { position: relative; }
 .has-more > .panel-scroll { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 72px), rgba(0,0,0,.12)); mask-image: linear-gradient(180deg, #000 calc(100% - 72px), rgba(0,0,0,.12)); }
+/* the pane's own scrollbar stays visible, thin, so a long list shows it continues */
+body.app .panel-scroll { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+.pane-tabs button[role="tab"] { display: inline-flex; align-items: center; white-space: nowrap; }
+.tab-n { display: inline-grid; place-items: center; min-width: 20px; height: 18px; margin-left: 8px; padding: 0 5px; border: 1px solid var(--line-2); font: 500 10.5px/1 var(--mono); letter-spacing: 0; color: var(--muted); vertical-align: 1px; }
+.tab-n:empty { display: none; }
+.pane-tabs [aria-selected="true"] .tab-n { border-color: var(--accent); color: var(--accent); }
 .more-cue { position: absolute; z-index: 4; left: 50%; bottom: 12px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 14px; background: var(--ground); color: var(--ink); border: 1px solid var(--accent); border-radius: 0; font: 600 11px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; cursor: pointer; box-shadow: 0 6px 22px rgba(0,0,0,.65); }
 .more-cue i { font-style: normal; color: var(--accent); }
 .more-cue:hover { background: var(--surface); }
