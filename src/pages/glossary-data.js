@@ -989,7 +989,7 @@ export const TERMS = [
   "aka": [
    "thermal interface material"
   ],
-  "def": "A thin layer of thermally conductive paste or pad between a die and its lid, and again between the lid and the cold plate or heat sink above it. Each layer of TIM the heat crosses costs a few degrees before it reaches coolant.",
+  "def": "A thin layer of thermally conductive paste or pad between a die and whatever sits on it: its lid, where the package has one, or else the cold plate or heat sink directly (a bare-die package such as the H100 SXM5). A lidded package has a second layer between the lid and the cooler. Each layer of TIM the heat crosses costs a few degrees before it reaches coolant.",
   "layer": "heat",
   "link": {
    "scene": 5,
