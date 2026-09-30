@@ -90,7 +90,7 @@ function buildPackage({ quality, state, model }) {
   const S = new Builder(), N = new Builder();
   const finish = computeMaterials();
   // layer heights (exploded)
-  const Y = { balls: 0.12, sub: 1.1, bumps: 2.05, inter: 2.3, dies: 3.2, lid: 4.7 };   // lid: the lifted cooler base (no lid drawn)
+  const Y = { balls: 0.068, sub: 1.1, bumps: 2.05, inter: 2.3, dies: 3.2, lid: 4.7 };   // lid: the lifted cooler base (no lid drawn)
   const SUB = 8.4;
 
   // board beneath, cut square
