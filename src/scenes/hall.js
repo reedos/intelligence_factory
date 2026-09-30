@@ -1,3 +1,4 @@
+import { managedRoute, FIBER_JACKET, HALL_RUNWAY } from './fiber-routing.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { SiteBuilder as Builder, preloadSiteConstruction, finalizeSiteGeometry, hasSiteConstruction } from './site-blender-construction.js';
@@ -119,18 +120,22 @@ export function build({ quality, model }) {
   const pullTabMat = new THREE.MeshStandardMaterial({ color: 0x101215, roughness: 0.55, metalness: 0.1 });
   const mpoBody = new THREE.MeshStandardMaterial({ color: 0x2fb6c9, roughness: 0.4, metalness: 0.3 });
   const elsMetal = new THREE.MeshStandardMaterial({ color: 0xbcc2c9, roughness: 0.3, metalness: 0.7 });
-  const fiberAqua = new THREE.MeshStandardMaterial({ color: 0x3fd1c8, roughness: 0.5, metalness: 0.1 });
+  const fiberJacket = new THREE.MeshStandardMaterial({ color: FIBER_JACKET, roughness: 0.5, metalness: 0.1 });
+  const networkPorts = new Map(), fiberRoutes = [];
   const portLedItems = [];                              // link LEDs on the switch ports (the racks keep ledItems)
   // one bank of pluggable OSFP cages + modules on a network-rack face at (cx, cz), front normal +z*fs
   function pluggableFace(cx, cz, fs, { rows = 2, cols = 6, y0 = 1.55, y1 = 1.95, w = 0.46 } = {}) {
     const dv = (y1 - y0) / rows, du = w / cols, faceZ = cz + fs * 0.6;
+    const ports=[];
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const x = cx - w / 2 + du * (c + 0.5), y = y0 + dv * (r + 0.5);
       N.box(du * 0.82, dv * 0.78, 0.05, MAT.darkSteel, x, y, faceZ + fs * 0.015);        // cage, set into the face
       N.box(du * 0.6, dv * 0.5, 0.09, moduleMetal, x, y, faceZ + fs * 0.075);            // module body, protrudes
       N.box(du * 0.56, dv * 0.22, 0.02, pullTabMat, x, y - dv * 0.18, faceZ + fs * 0.13); // pull tab
+      ports.push({point:[x,y,faceZ+fs*.12],f:fs});
       portLedItems.push({ p: [x + du * 0.16, y + dv * 0.22, faceZ + fs * 0.11], color: (r + c) % 3 ? '#5cf29a' : '#ffb347', rate: 0.35 + ((r * cols + c) * 0.37) % 1.2 });
     }
+    networkPorts.set(`${cx}:${cz}`,ports);return ports;
   }
   // the co-packaged optics switch: dense MPO connectors flush on the chassis, external laser source modules, no pluggables
   function cpoFace(cx, cz, fs) {
@@ -151,13 +156,33 @@ export function build({ quality, model }) {
       N.cylZ(.035,.018,MAT.darkSteel,cx+dx,1.15,faceZ+fs*.08,10);
     }
   }
-  // thin fiber pigtails rising from a face into the overhead runway (n small strands, aqua/yellow)
-  function pigtail(x, y0, z0, y1, z1, n = 4) {
-    for (let i = 0; i < n; i++) { const o = (i - (n - 1) / 2) * 0.03; N.strut([x + o, y0, z0], [x + o, y1, z1], i % 2 ? 0.006 : 0.0075, i % 2 ? MAT.yellowTray : fiberAqua, 5); }
+  // Physical jackets and particles use one route definition. Network and rack
+  // drops rise beside the face, then pass over the raceway rim before landing.
+  function fiberPath(points,kind,{count=6,size=.035,animated=true,radius=.006}={}) {
+    const pts=managedRoute(points,.075),f=flow(pts,'eth',{count,speed:1.6,size,k:1.4,trail:false});
+    for(let i=1;i<pts.length;i++)N.strut(pts[i-1],pts[i],radius,fiberJacket,6);
+    f.group.userData.fiberRoute=kind;
+    if(kind==='rack-to-leaf')f.group.userData.rackFiberUplink=true;
+    if(animated)dataFlows.push(f);
+    fiberRoutes.push({kind,points:pts,start:pts[0],end:pts.at(-1)});return pts;
   }
-  // a compute rack's uplinks, drawn as a small fiber bundle riser (the eth data flow already carries the traffic)
-  function fiberBundle(x, y0, z0, y1, z1, n = 5) {
-    for (let i = 0; i < n; i++) { const o = (i - (n - 1) / 2) * 0.035; N.strut([x + o, y0, z0 + o * 0.3], [x + o, y1, z1 + o * 0.3], 0.008, i % 2 ? MAT.yellowTray : fiberAqua, 5); }
+  function portDrop(port,rowZ) {
+    const [x,y,z]=port.point,fs=port.f;
+    N.box(.022,.014,.025,mpoBody,x,y,z+fs*.013);
+    return [[x,y,z+fs*.026],[x,y,z+fs*.12],[x,HALL_RUNWAY.entryY,z+fs*.12],
+      [x,HALL_RUNWAY.entryY,rowZ],[x,HALL_RUNWAY.cableY,rowZ]];
+  }
+  function rackDrop(k) {
+    const fs=model.accel.id==='h100'?-k.f:k.f,y=model.accel.id==='h100'?1.108:1.333375;
+    const x=k.x+.20,z=k.z+fs*.62,rail=k.x+.255;
+    N.box(.026,.017,.035,moduleMetal,x,y,z);
+    N.box(.014,.009,.022,mpoBody,x,y,z+fs*.025);
+    N.box(.025,.035,.018,MAT.darkSteel,rail,2.327,k.z+fs*.70);
+    N.box(.004,1.08,.012,MAT.darkSteel,rail+.016,1.81,k.z+fs*.708);
+    for(let yy=1.4;yy<2.31;yy+=.18)N.box(.032,.006,.012,moduleMetal,rail,yy,k.z+fs*.712);
+    return [[x,y,z+fs*.036],[x,y,z+fs*.10],[rail,y,z+fs*.10],
+      [rail,2.34,k.z+fs*.70],[rail,HALL_RUNWAY.entryY,k.z+fs*.70],
+      [rail,HALL_RUNWAY.entryY,k.z],[rail,HALL_RUNWAY.cableY,k.z]];
   }
 
   // ---------- site, slab, walls (section cut) ----------
@@ -365,7 +390,7 @@ export function build({ quality, model }) {
   scene.userData.cpoComparison={deployed:false,fiberDrops:0,cappedCoolantPorts:2};
   netItems.forEach((it, i) => {
     if (i === CPO_I) { cpoFace(it.x, it.z, it.f); }
-    else { pluggableFace(it.x, it.z, it.f); pigtail(it.x, 1.97, it.z + it.f * 0.735, 4.3, it.z); }
+    else { pluggableFace(it.x, it.z, it.f); }
   });
   // Extend the IT distribution to deployed network racks as well as compute.
   // These are representative rack feeds, not building voltage applied to an OSFP.
@@ -391,7 +416,7 @@ export function build({ quality, model }) {
   const cpoTag = textSprite('CPO alternative · disconnected', '#8fe4ff', 0.065);
   cpoTag.position.set(netItems[CPO_I].x, 2.42, netItems[CPO_I].z + netItems[CPO_I].f * 0.85);
   scene.add(cpoTag);
-  N.box(7.8, 0.04, 0.3, MAT.yellowTray, rowX0 + 5.5, 4.3, 10.5); N.box(0.3, 0.04, 3.5, MAT.yellowTray, rowX0 - 1.3, 4.3, 8.3);
+  N.box(.3,.04,.6,MAT.yellowTray,rowX0-1.3,4.3,10.2);
   // fiber distribution frames: every fabric link is patched here, between the spine row and the cross-hall sleeve
   const odfTex = canvasTex(256, 512, (g, w, h) => {
     g.fillStyle = '#d7dadd'; g.fillRect(0, 0, w, h);
@@ -407,13 +432,12 @@ export function build({ quality, model }) {
   odf.castShadow = odf.receiveShadow = true; scene.add(odf);
   N.box(0.3, 0.04, 3.7, MAT.yellowTray, rowX0 + 4.8, 4.3, 12.35);                         // runway spine row → frames
   N.box(7.8, 0.04, 0.3, MAT.yellowTray, rowX0 + 4.4, 4.3, 14.2);
-  odfItems.forEach(it => { for (const dx of [-0.25, 0, 0.25]) N.strut([it.x + dx, 4.28, 14.2], [it.x + dx, 2.2, 14.2], 0.02, MAT.yellowTray, 5); });
   // floor sleeve where the cross-hall cables drop into the duct bank
   const sleeveX = rowX0 + 9.4, sleeveZ = 14.2;
   S.cyl(0.36, 0.12, MAT.darkSteel, sleeveX, 0.2, sleeveZ, 20);
   for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; N.strut([sleeveX + Math.cos(a) * 0.16, 4.3, sleeveZ + Math.sin(a) * 0.16], [sleeveX + Math.cos(a) * 0.16, 0.1, sleeveZ + Math.sin(a) * 0.16], 0.045, MAT.yellowTray, 8); }
   N.box(1.4, 0.04, 0.3, MAT.yellowTray, sleeveX - 0.6, 4.3, sleeveZ);
-  // ---------- storage & control racks: free floor east of the ODFs, its own short fiber pigtail ----------
+  // ---------- storage & control racks: patched via the ODF runway ----------
   // storage: short 2U drive-shelf racks (dense drive-bay grid, no NVLink gear, no coolant manifolds) plus a
   // pair of storage/front-end Ethernet switches on top of the last one; control: head/login/scheduler nodes
   const svcZ = 12.0, svcGap = 0.6, storageX0 = 6.0;
@@ -423,13 +447,19 @@ export function build({ quality, model }) {
   pluggableFace(storLast.x, storLast.z, storLast.f, { rows: 2, cols: 8, y0: 2.0, y1: 2.22, w: RW - 0.1 });
   N.box(2.0, 0.04, 0.3, MAT.yellowTray, storLast.x, 4.3, svcZ);                             // short local runway stub
   N.box(2.0, 0.1, 0.02, MAT.yellowTray, storLast.x, 4.35, svcZ - 0.15);
-  N.box(2.0, 0.1, 0.02, MAT.yellowTray, storLast.x, 4.35, svcZ + 0.15);
-  pigtail(storLast.x, 2.22, storLast.z + storLast.f * 0.735, 4.3, svcZ, 3);
+  // Rear wall leaves a T-junction into the storage-to-ODF spur.
+  for(const side of [-1,1])N.box(.8,.1,.02,MAT.yellowTray,storLast.x+side*.6,4.35,svcZ+.15);
+
   const controlX0 = storageX0 + 4 * RW + svcGap;
   const controlMx = []; for (let i = 0; i < 2; i++) controlMx.push({ x: controlX0 + i * RW + RW / 2, z: svcZ, f: 1 });
   instanced(RW - 0.02, 2.3, 1.2, TEX.cpu, 0x131519, controlMx).name = 'Control rack faces';
   scene.userData.supportRacks = { storage: storageMx.length, control: controlMx.length, representative: true };
   const ctrlFirst = controlMx[0];
+  N.box(ctrlFirst.x-sleeveX,.04,.3,MAT.yellowTray,(ctrlFirst.x+sleeveX)/2,4.3,14.2);
+  for(const it of [storLast,ctrlFirst]){
+    N.box(.3,.04,2.2,MAT.yellowTray,it.x,4.3,13.1);
+    N.box(.6,.04,.3,MAT.yellowTray,it.x,4.3,svcZ);
+  }
   pluggableFace(ctrlFirst.x, ctrlFirst.z, ctrlFirst.f, { rows: 1, cols: 6, y0: 2.05, y1: 2.2, w: RW - 0.14 }); // small ToR management switch
   // scale-out: a leaf-switch rack at the end of every row, a cross runway to the spine row
   const leafX = rowX1 + 0.45;
@@ -441,30 +471,47 @@ export function build({ quality, model }) {
   });
   instanced(0.6, 2.3, 1.2, TEX.net, 0x131519, rowZs.map((z, r) => ({ x: leafX, z, f: facing[r] })));
   // leaf faceplates: pluggable OSFP modules, fiber pigtails rising into the runway overhead
-  rowZs.forEach((z, r) => { pluggableFace(leafX, z, facing[r]); pigtail(leafX, 1.97, z + facing[r] * 0.735, 4.5, z); });
-  N.box(0.3, 0.04, 23, MAT.yellowTray, leafX, 4.5, -0.8); N.box(0.02, 0.1, 23, MAT.yellowTray, leafX - 0.15, 4.55, -0.8); N.box(0.02, 0.1, 23, MAT.yellowTray, leafX + 0.15, 4.55, -0.8);
-  N.box(leafX - rowX0 - 3, 0.04, 0.3, MAT.yellowTray, (leafX + rowX0 + 3) / 2, 4.5, 10.5);
+  rowZs.forEach((z, r) => { pluggableFace(leafX,z,facing[r],{rows:4,cols:8,y0:1.3,y1:2.1}); });
+  N.box(.3,.04,23,MAT.yellowTray,leafX,HALL_RUNWAY.floorY,-.8);
+  // Open T-junctions: the row fibers must not pass through a solid tray wall.
+  const runwayOpenings=[...rowZs,10.5];let wallStart=-12.3;
+  for(const junction of runwayOpenings){
+    const end=junction-.2;
+    if(end>wallStart)N.box(.02,.1,end-wallStart,MAT.yellowTray,leafX-.15,4.35,(wallStart+end)/2);
+    wallStart=junction+.2;
+  }
+  N.box(.02,.1,23,MAT.yellowTray,leafX+.15,4.35,-.8);
+  N.box(leafX-(rowX0-1.3),.04,.3,MAT.yellowTray,(leafX+rowX0-1.3)/2,4.3,10.5);
   // patch panels on the spine row
   for (let i = 0; i < 10; i++) N.box(0.5, 0.18, 0.08, MAT.white, rowX0 + 2 + i * 0.62, 2.38, 11.1);
-  // k tuned down from the pre-mood-lighting default (2.6): at hotspot zoom a marker this bright fills enough
-  // screen space that hall's own bloom (tuned for the fixtures) blows it into an oversized blurred sphere;
-  // same hue and path, just under the bloom knee at close range
-  const eth = (pts, n, s = 0.09) => dataFlows.push(flow(pts, 'eth', { count: n, speed: 2.4, size: s, k: 1.5, trailR: 0.03, trailK: 0.5 }));
-  rowZs.forEach((z, r) => {
-    const mid = rackMx.filter(k => k.z === z)[10];
-    eth([[mid.x, 2.35, z], [mid.x, 4.3, z], [leafX, 4.3, z], [leafX, 2.35, z]], 14);          // racks to the leaf
-    eth([[leafX, 2.35, z + 0.2], [leafX, 4.5, z + 0.2], [leafX, 4.5, 10.5], [rowX0 + 5, 4.5, 10.5], [rowX0 + 5, 2.35, 10.5]], 22); // leaf to spine
-    // Additional sampled rack uplinks make the row-to-leaf hierarchy legible;
-    // each ends on the existing runway, not on an invented second fabric.
-    rackMx.filter(k=>k.z===z).forEach((k,i)=>{
-      if(i%(quality.mobile?8:4)||k===mid)return;
-      fiberBundle(k.x,2.32,z,4.3,z);
-      const f=flow([[k.x,2.35,z],[k.x,4.3,z]],'eth',{count:4,speed:1.8,size:.055,k:2.1,trail:false});
-      f.group.userData.rackFiberUplink=true;dataFlows.push(f);
+  rowZs.forEach((z,r)=>{
+    const ports=networkPorts.get(`${leafX}:${z}`),row=rackMx.filter(k=>k.z===z);
+    const samples=row.filter((_,i)=>i%(quality.mobile?8:4)===0||i===10);
+    samples.forEach((k,i)=>{
+      const rise=rackDrop(k),drop=portDrop(ports[i],z);
+      fiberPath([...rise,[drop.at(-1)[0],HALL_RUNWAY.cableY,z],...drop.slice(0,-1).reverse()],'rack-to-leaf');
     });
-    fiberBundle(mid.x, 2.32, z, 4.3, z);                                                      // rack uplink, drawn as fiber
-    fiberBundle(leafX, 4.3, z, 1.97, z + facing[r] * 0.7);                                     // runway down into the leaf face
+    const leaf=portDrop(ports.at(-1),z),spineRack=netItems[r],spinePort=networkPorts.get(`${spineRack.x}:10.5`)[0];
+    const spine=portDrop(spinePort,10.5);
+    fiberPath([...leaf,[leafX,HALL_RUNWAY.cableY,z],[leafX,HALL_RUNWAY.cableY,10.5],
+      [spine.at(-1)[0],HALL_RUNWAY.cableY,10.5],...spine.slice(0,-1).reverse()],'leaf-to-spine',{count:14,size:.06});
   });
+  // Spine patching and storage/control use the same continuous overhead plan.
+  netItems.slice(0,CPO_I).forEach((it,i)=>{
+    const start=portDrop(networkPorts.get(`${it.x}:${it.z}`).at(-1),it.z),od=odfItems[i%odfItems.length];
+    const px=od.x+(i<odfItems.length?-.12:.12),end=[px,2.17,od.z+.32];
+    N.box(.08,.06,.04,mpoBody,...end);
+    fiberPath([...start,[rowX0+4.8,HALL_RUNWAY.cableY,10.5],
+      [rowX0+4.8,HALL_RUNWAY.cableY,14.2],[px,HALL_RUNWAY.cableY,14.2],
+      [px,HALL_RUNWAY.entryY,14.2],[px,HALL_RUNWAY.entryY,end[2]],end],'spine-to-patch',{count:8,size:.045});
+  });
+  for(const [i,it] of [storLast,ctrlFirst].entries()) {
+    const rise=portDrop(networkPorts.get(`${it.x}:${it.z}`).at(-1),it.z),od=odfItems.at(-1),px=od.x+.12+i*.18,end=[px,2.17,od.z+.32];
+    N.box(.08,.06,.04,mpoBody,...end);
+    fiberPath([...rise,[it.x,HALL_RUNWAY.cableY,svcZ],[it.x,HALL_RUNWAY.cableY,14.2],[px,HALL_RUNWAY.cableY,14.2],
+      [px,HALL_RUNWAY.entryY,14.2],[px,HALL_RUNWAY.entryY,end[2]],end],'storage-control',{count:8,size:.045});
+  }
+  scene.userData.hallFiber={routes:fiberRoutes,runway:HALL_RUNWAY,representative:true};
   // fan wall on the east side
   S.slab(1.2, 6, 26, MAT.darkSteel, X1 - 1.0, 0, -3);
   const wallFans = [];
@@ -531,19 +578,22 @@ export function build({ quality, model }) {
     for (const y of [0.8, 1.5, 2.1]) heatFlows.push(flow([[rowX0 + 1, y, zc], [rowX1 + 1.2, y + 0.4, zc], [X1 - 1.8, y + 1.2, zc]], 'air', { count: 16, speed: 2.2, size: 0.13, k: 1.5, opacity: 0.9, trail: false }));
     heatFlows.push(flow([[X1 - 2.2, 0.7, zc + 3.3], [rowX0 + 2, 0.5, zc + 3.3]], 'cool', { count: 14, speed: 2.0, size: 0.12, k: 2.0, opacity: 0.6, trail: false }));
   }
-  // spine → frames → the other hall
-  dataFlows.push(flow([[rowX0 + 4.8, 4.4, 10.5], [rowX0 + 4.8, 4.4, 14.2], [rowX0 + 8.2, 4.4, 14.2], [rowX0 + 9.4, 4.4, 14.2], [rowX0 + 9.4, 0.1, 14.2]], 'eth', { count: 22, speed: 2.2, size: 0.09, k: 1.5, trailR: 0.03, trailK: 0.5 }));
-  for (let i = 0; i < 8; i += 2) dataFlows.push(flow([[rowX0 + 1.2 + i * 0.92, 4.4, 14.2], [rowX0 + 1.2 + i * 0.92, 2.2, 14.2]], 'eth', { count: 4, speed: 1.4, size: 0.06, k: 1.5, trail: false }));
+  // A separate panel port exits through the sleeve into the cross-hall duct.
+  const crossPatch=[odfItems[6].x+.12,2.17,14.52];
+  N.box(.08,.06,.04,mpoBody,...crossPatch);
+  fiberPath([crossPatch,[crossPatch[0],HALL_RUNWAY.entryY,14.52],
+    [crossPatch[0],HALL_RUNWAY.entryY,14.2],[crossPatch[0],HALL_RUNWAY.cableY,14.2],
+    [sleeveX,HALL_RUNWAY.cableY,14.2],[sleeveX,HALL_RUNWAY.entryY,14.2],
+    [sleeveX,HALL_RUNWAY.entryY,14.48],[sleeveX,.26,14.48]],'cross-hall',{count:14,size:.065});
   // ---------- parallelism overlay (data layer): stages and replicas on the rack tops ----------
   const stageCol = ['#ff5fd2', '#c77dff', '#7c9cff', '#5ce1c6'];
   const par = new THREE.Group();
   const stageMats = stageCol.map(c => glowMat(c, 1.1, 0.85));
   const tintGeo = new THREE.BoxGeometry(RW - 0.08, 0.03, 1.0), tints = [[], [], [], []];
-  rowZs.forEach((z, r) => {
+  rowZs.forEach(z => {
     const racks = rackMx.filter(k => k.z === z);
     racks.forEach((k, i) => {
       tints[i % 4].push(mtx(k.x, 2.34, z));                       // one instanced mesh per stage color, not one mesh per rack
-      if (i % 4 !== 3 && r >= 4) dataFlows.push(flow([[k.x, 2.5, z], [racks[i + 1].x, 2.5, z]], 'eth', { count: 2, speed: 0.6, size: 0.05, k: 1.5, trail: false }));
     });
   });
   tints.forEach((list, c) => { const m = new THREE.InstancedMesh(tintGeo, stageMats[c], list.length); list.forEach((mx, n) => m.setMatrixAt(n, mx)); par.add(m); });

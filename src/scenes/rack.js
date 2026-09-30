@@ -1,3 +1,4 @@
+import { RACK_RUNWAY } from './fiber-routing.js';
 // Scene 3: one rack. Units are meters. Front faces +z, open side faces +x.
 // NVL72 class (GB200, GB300, Rubin), or four air-cooled DGX H100 servers.
 import { THREE, MAT, Builder, mtx, flow, canvasTex, glowMat, spinners } from '../kit.js';
@@ -204,7 +205,7 @@ function buildHGX({ quality, state }) {
   N.strut([-0.25, 3.3, -0.25], [-0.25, 3.8, -0.25], 0.01, MAT.darkSteel, 4); N.strut([0.25, 3.3, -0.25], [0.25, 3.8, -0.25], 0.01, MAT.darkSteel, 4);
   // data: fiber from each server's rear cages up the back to the runway
   const fx = 0.12, fz = ZB + 0.06;
-  S.box(0.3, 0.03, 3.2, MAT.yellowTray, 0.2, 3.62, 0); S.box(0.012, 0.1, 3.2, MAT.yellowTray, 0.06, 3.66, 0); S.box(0.012, 0.1, 3.2, MAT.yellowTray, 0.34, 3.66, 0);
+  S.box(RACK_RUNWAY.width,.03,RACK_RUNWAY.length,MAT.yellowTray,RACK_RUNWAY.x,RACK_RUNWAY.floorY,0); for(const side of [-1,1]) S.box(.012,.1,RACK_RUNWAY.length,MAT.yellowTray,RACK_RUNWAY.x+side*.14,3.66,0);
   scene.add(S.build()); scene.add(N.build({ cast: false }));
 
   // ---------- flows ----------
@@ -412,7 +413,7 @@ function buildNVL({ quality, model, state }) {
 
   // ---------- data: scale-out fiber up the front, runway overhead ----------
   const fx = 0.27, fz = ZF - 0.03;
-  S.box(0.3, 0.03, 3.2, MAT.yellowTray, 0.2, 3.62, 0); S.box(0.012, 0.1, 3.2, MAT.yellowTray, 0.06, 3.66, 0); S.box(0.012, 0.1, 3.2, MAT.yellowTray, 0.34, 3.66, 0);
+  S.box(RACK_RUNWAY.width,.03,RACK_RUNWAY.length,MAT.yellowTray,RACK_RUNWAY.x,RACK_RUNWAY.floorY,0); for(const side of [-1,1]) S.box(.012,.1,RACK_RUNWAY.length,MAT.yellowTray,RACK_RUNWAY.x+side*.14,3.66,0);
 
   scene.add(S.build()); scene.add(N.build({ cast: false }));
 

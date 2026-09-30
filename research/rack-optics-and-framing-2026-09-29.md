@@ -39,3 +39,11 @@ Follow-up, 9/29/2026: the rack overview now faces the front at a three-quarter a
 - Rack, tray, and GPU coplanar-face checks reported zero overlap groups after the edge correction.
 - Production artifact verification passed: 74 runtime files and 37 assets.
 - A short rack Data-view smoke measurement on RTX 5090 at 1440 × 900 held approximately 16.7 ms median / 16.8 ms p95 frame intervals. Laptop mode engaged tier 4. This is a display-capped local smoke check, not a benchmark of integrated graphics or the user's workplace laptop. Auto recovery after Laptop mode is gradual, so later Auto samples are not independent full-quality benchmarks.
+
+
+## Fiber runway alignment follow-up, 9/29/2026
+
+- Both rack looms now enter above the runway lip and settle between its sidewalls. The left loom previously ran outside the tray. All four editable Blender rack sources and GLB exports were rebuilt.
+- Rack and hall share rounded route construction and yellow fiber jacket styling. Hall cables and particles use the same centerline, including the module connector, managed rack-side rise, overhead row route, leaf/spine connections, and ODF patch ports. Paths are representative samples, not a full port or fiber BOM.
+- Hall row and cross-hall trays use one floor height. Open T-junctions clear the physical sidewalls. Extended the spine and storage/control routes to join the ODF runway. Replaced roof-ending uplinks and arbitrary pigtails with connector-ending routes. Removed the floating rack-to-rack shortcut animation; traffic follows the network routes instead. CPO remains a disconnected comparison.
+- Typecheck and all 1,319 tests passed. Route regression checks cover rack lane bounds, clearance over the rim, hall run heights, and physical/animated endpoints. All 392 selectable hall/rack views across four generations on desktop and 390 px phone passed the framing, obstruction, overflow, and browser-error checks. Hall and rack coplanar-face checks found zero overlap groups. Production artifact verification passed.

@@ -1,17 +1,6 @@
 import { THREE, MAT, Builder, flow } from '../kit.js';
 
-// Rounded orthogonal cable runs: fixed corridors avoid spline overshoot into
-// neighboring trays. Corner radius is illustrative, not a cable SKU rating.
-function managedRoute(points, radius=.035) {
-  const p=points.map(v=>new THREE.Vector3(...v)), out=[p[0].toArray()];
-  for(let i=1;i<p.length-1;i++) {
-    const a=p[i-1],b=p[i],c=p[i+1],r=Math.min(radius,a.distanceTo(b)*.4,b.distanceTo(c)*.4);
-    const start=b.clone().add(a.clone().sub(b).normalize().multiplyScalar(r));
-    const end=b.clone().add(c.clone().sub(b).normalize().multiplyScalar(r));
-    out.push(start.toArray(),...new THREE.QuadraticBezierCurve3(start,b,end).getPoints(8).slice(1).map(v=>v.toArray()));
-  }
-  out.push(p.at(-1).toArray());return out;
-}
+import { managedRoute, RACK_RUNWAY, FIBER_JACKET } from './fiber-routing.js';
 
 // Representative optical population, not an exact customer cable schedule.
 // GB200/GB300: four compute-fabric OSFP cages; H100: four twin-port OSFP
@@ -20,7 +9,7 @@ function managedRoute(points, radius=.035) {
 export function addRackOptics(built, accel) {
   const h100 = accel === 'h100', rubin = accel === 'rubin', U = .04445;
   const hardware = new Builder(), modules = [], links = [], storageCages = [];
-  const jacket = new THREE.MeshStandardMaterial({ color: 0xd3b940, roughness: .48, metalness: .08 });
+  const jacket = new THREE.MeshStandardMaterial({ color: FIBER_JACKET, roughness: .48, metalness: .08 });
   jacket.name = 'Optical patch cable jacket';
   const connector = new THREE.MeshStandardMaterial({ color: 0x266c50, roughness: .42, metalness: .1 });
   connector.name = 'MPO APC connector boot';
@@ -108,9 +97,12 @@ export function addRackOptics(built, accel) {
     // runway. This is a cable bundle, not an optical combiner or active switch.
     for(let strand=0;strand<4;strand++) {
       const x=center+(strand-1.5)*.0035,z=managerZ;
-      const f=flow(managedRoute([[x,2.34,z],[x,3.54,z],
-        [side*(.12+strand*.007),3.66,z],[side*(.12+strand*.007),3.66,-1.52]],.10),'eth',{count:9,speed:.4,size:.0017,k:1,trail:false});
-      f.ribbonIntensity=.30;f.rackOpticalTrunk=true;
+      const laneX=RACK_RUNWAY.x+(side<0?-.085:.035)+strand*.012;
+      // Pass above the side lip before settling inside the yellow raceway.
+      const f=flow(managedRoute([[x,2.34,z],[x,RACK_RUNWAY.rimTop+.10,z],
+        [laneX,RACK_RUNWAY.rimTop+.10,z],[laneX,RACK_RUNWAY.cableY,z-.12],
+        [laneX,RACK_RUNWAY.cableY,-1.58]],.055),'eth',{count:9,speed:.4,size:.0017,k:1,trail:false});
+      f.ribbonIntensity=.30;f.rackOpticalTrunk={laneX,runway:RACK_RUNWAY};
       hardware.addM(new THREE.TubeGeometry(f.path,64,.0018,5,false),jacket,new THREE.Matrix4());
       built.dataFlows.push(f);built.scene.add(f.group);
     }

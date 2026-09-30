@@ -270,6 +270,25 @@ describe('readable connected site activity',()=>{
   const power=builtHall.flows.filter((f:any)=>f.group.userData.rackPowerDrop),data=builtHall.dataFlows.filter((f:any)=>f.group.userData.rackFiberUplink);
   expect(power.length).toBeGreaterThanOrEqual(24);expect(data.length).toBeGreaterThanOrEqual(24);
   for(const f of power){expect(f.path.getPoint(0).y).toBe(3.5);expect(f.path.getPoint(1).y).toBe(2.3);expect(f.path.getPoint(0).x).toBe(f.path.getPoint(1).x);}
-  for(const f of data){expect(f.path.getPoint(0).y).toBe(2.35);expect(f.path.getPoint(1).y).toBe(4.3);}
+  for(const f of data){
+   expect(f.path.getPoint(0).y).toBeCloseTo(1.333375,6);
+   expect(f.path.getPoint(1).y).toBeGreaterThan(1.3);
+   expect(f.path.getPoint(1).y).toBeLessThan(2.3);
+  }
+  const audit=builtHall.scene.userData.hallFiber;
+  expect(audit.routes.filter((r:any)=>r.kind==='rack-to-leaf').length).toBe(data.length);
+  for(const route of audit.routes){
+   expect(Math.max(...route.points.map((p:number[])=>p[1]))).toBeCloseTo(4.55,6);
+   // Long overhead runs sit above the 4.32 m tray floor, below its 4.4 m rim.
+   for(let i=1;i<route.points.length;i++){
+    const a=route.points[i-1],b=route.points[i];
+    if(a[1]>4&&Math.abs(a[1]-b[1])<1e-8&&Math.hypot(a[0]-b[0],a[2]-b[2])>1){
+     expect(a[1]).toBeCloseTo(4.36,6);
+    }
+   }
+   const f=builtHall.dataFlows.find((f:any)=>f.group.userData.fiberRoute===route.kind&&f.path.getPoint(0).distanceTo(new THREE.Vector3(...route.start))<1e-6);
+   expect(f).toBeDefined();
+   expect(f.path.getPoint(1).distanceTo(new THREE.Vector3(...route.end))).toBeLessThan(1e-6);
+  }
  });
 });

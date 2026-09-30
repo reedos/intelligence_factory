@@ -375,6 +375,18 @@ it('rack optics seat on compute units, retain generation port counts and termina
    expect(m.capacityGbps).toBe(id==='gb200'?400:800);
    expect(m.connectors).toBe(id==='h100'||id==='gb300'?2:1);
   }
+  const trunks=b.dataFlows.filter((f:any)=>f.rackOpticalTrunk);
+  expect(trunks).toHaveLength(8);
+  for(const f of trunks){
+   const end=f.path.getPoint(1);
+   expect(end.x).toBeGreaterThan(.08);expect(end.x).toBeLessThan(.32);
+   expect(end.y).toBeCloseTo(3.665,6);expect(end.z).toBeCloseTo(-1.58,6);
+   // Side-wall crossings happen above the 3.71 m rim; the long run is inside.
+   for(const curve of f.path.curves)for(const p of [curve.getPoint(0),curve.getPoint(1)]){
+    if(p.z<-1.2){expect(p.x).toBeGreaterThan(.08);expect(p.x).toBeLessThan(.32);expect(p.y).toBeCloseTo(3.665,6);}
+    if(Math.abs(p.x-.06)<.012||Math.abs(p.x-.34)<.012)expect(p.y).toBeGreaterThan(3.73);
+   }
+  }
   const links=b.dataFlows.filter((f:any)=>f.rackOpticalLink);
   expect(links).toHaveLength(count*(id==='h100'||id==='gb300'?4:2));
   const hardware=b.scene.getObjectByName('Blender complete rack hardware');hardware.updateMatrixWorld(true);
