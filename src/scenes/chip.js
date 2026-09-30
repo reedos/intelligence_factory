@@ -206,9 +206,19 @@ function buildPackage({ quality, state, model }) {
   interMat.name = cowosL ? 'CoWoS-L organic redistribution interposer' : 'CoWoS-S silicon interposer';
   if (cowosL) S.box(IW, 0.1, ID, interMat, 0, Y.inter, 0); else texBox(IW, 0.1, ID, interMat, 0, Y.inter, 0, 0.5);
   if (cowosL) {
-    const bridge = new THREE.MeshStandardMaterial({ color: 0xc8d0dc, roughness: 0.12, metalness: 0.6 }); bridge.name = 'Embedded silicon bridge';
-    S.box(0.3, 0.02, 2.6, bridge, 0, Y.inter + 0.045, 0);                                   // under the die-to-die seam
-    for (const x of [-2.02, -0.7, 0.7, 2.02]) for (const z of [-1.72, 1.72]) S.box(0.8, 0.02, 0.36, bridge, x, Y.inter + 0.045, z);   // die-to-HBM edges
+    // Bright polished silicon against the dark organic body, each span reaching
+    // under both sides of the edge it joins, with a crisp rim so the bridges
+    // still read as separate inlays through the microbump fields above them.
+    const bridge = new THREE.MeshStandardMaterial({ color: 0xd2dae6, roughness: 0.1, metalness: 0.55, emissive: 0x3c4a60, emissiveIntensity: 0.6 }); bridge.name = 'Embedded silicon bridge';
+    const rim = new THREE.LineBasicMaterial({ color: 0xe8f0fa, transparent: true, opacity: 0.7 });
+    const bridges = new THREE.Group(); bridges.name = 'Embedded silicon bridges';
+    const inlay = (w, d, x, z) => {
+      S.box(w, 0.02, d, bridge, x, Y.inter + 0.045, z);
+      const e = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, 0.02, d)), rim); e.position.set(x, Y.inter + 0.045, z); bridges.add(e);
+    };
+    inlay(0.46, 2.9, 0, 0);                                                                  // under the die-to-die seam
+    for (const x of [-2.02, -0.7, 0.7, 2.02]) for (const z of [-1.72, 1.72]) inlay(0.84, 0.62, x, z);   // die-to-HBM edges
+    scene.add(bridges);
   }
   // GPU dies: polished silicon backside with a dark sidewall; the floorplan is a
   // separate x-ray decal (runtime overlay) shown in the data and heat layers.
@@ -280,7 +290,7 @@ function buildPackage({ quality, state, model }) {
   });
   // Underfill with the microbump field under every die and HBM site, on the
   // interposer: what each exploded gap connects to (pitch representative).
-  const underfill = new THREE.MeshPhysicalMaterial({ color: 0x8a6a3a, map: dots(12, 3.2, '#6b5230', '#d8c08a'), roughness: 0.45, metalness: 0.2, transparent: true, opacity: 0.8 });
+  const underfill = new THREE.MeshPhysicalMaterial({ color: 0x8a6a3a, map: dots(12, 3.2, '#6b5230', '#d8c08a'), roughness: 0.45, metalness: 0.2, transparent: true, opacity: cowosL ? 0.62 : 0.8 });
   underfill.name = 'Underfill and microbumps';
   for (const dx of dieX) texBox(2.6, 0.012, 3.3, underfill, dx, Y.inter + 0.072, 0, 1.2);
   for (const [x, z] of hbmPos) texBox(HW, 0.012, HD, underfill, x, Y.inter + 0.072, z, 1.2);
