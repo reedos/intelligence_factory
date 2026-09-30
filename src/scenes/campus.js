@@ -437,13 +437,17 @@ export function build({ quality, model }) {
   flows.push(flow([[-275, uY, 55], [-275, uY, 20], [-340, uY, 20], [-340, uY, -62]], 'mv', { count: 12, speed: 20, size: 1.0, k: 1.2, opacity: 0.7, trailK: 0.2 }));
 
   // ---------- cooling towers and water tanks ----------
+  // Blender counterflow cells (casing, louvers, deck, eased-inlet stack); the rotor turns 0.8 m below the stack rim
+  const towerMx = [];
   towerRows.forEach(z => { for (let i = 0; i < 6; i++) {
     const x = 15 + i * 12;
+    if (authoredCampus) { towerMx.push(mtx(x, 0.15, z)); fanItems.push({ p: [x, 11.55, z], axis: 'y', r: 3.7 }); continue; }
     fanItems.push({ p: [x, 11.36, z], axis: 'y', r: 3.7 });
     S.slab(11.4, 8, 11, MAT.ansi61, x, 0.15, z);
     for (let y = 1; y < 6; y += 0.6) N.slab(11.5, 0.12, 0.2, MAT.darkSteel, x, y, z + 5.6);
     S.cyl(4.2, 3.2, MAT.ansi61, x, 9.8, z, 24); N.cyl(3.9, 0.2, MAT.fan, x, 11.2, z, 24);
   } });
+  if (towerMx.length) scene.add(campusCatalogInstances('TOWER_CELL', towerMx, { cast: true }));
   if (towerRows.length) S.slab(205, 0.04, 55, MAT.gravel, 100, 0.15, -280);
   if (!warm) {
     // chiller plant: a long shed with louvered walls, headers to hall A and to the towers

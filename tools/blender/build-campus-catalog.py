@@ -5,7 +5,7 @@ exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque buil
 import random
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for name in ['COOLER','UNITSUB','GENSET','BESS','CAR','TRUCK','TREE0','TREE1','TREE2','FAN','HALL_RACK','HALL_CABINET','MAP_CAMPUS','MAP_HUT','MAP_TERMINAL','WALKER','EHOUSE','CTRL_HOUSE','SHELTER','GATEHOUSE']:
+for name in ['COOLER','UNITSUB','GENSET','BESS','CAR','TRUCK','TREE0','TREE1','TREE2','FAN','HALL_RACK','HALL_CABINET','MAP_CAMPUS','MAP_HUT','MAP_TERMINAL','WALKER','EHOUSE','CTRL_HOUSE','SHELTER','GATEHOUSE','TOWER_CELL']:
  g=bpy.data.objects.new(name,None);S.collection.objects.link(g);groups[name]=g
 steel=mat('Mechanical brushed steel',(.34,.42,.46),.8,.35)
 white=mat('Equipment ceramic white',(.72,.77,.76),.3,.39)
@@ -40,15 +40,37 @@ for i in range(6):
  cyl('Fan aperture',(x,2.585,0),.78,.016,black,g)
 for x in [-5.6,5.6]:
  for z in [-1,1]:box('Cooler support',(x,-.2,z),(.15,.4,.15),steel,g,.025)
-# Five swept fan blades, normalized radius1, for existing animation transforms.
-g='FAN';cyl('Rotor hub',(0,0,0),.16,.12,steel,g)
-for i in range(5):
- a=i*2*math.pi/5
- outline=[(.15,-.01,-.07),(.48,.018,-.1),(.94,.06,.02),(.9,.09,.2),(.43,.06,.17)]
- v=[]
- for dy in [-.015,.015]:
-  for x,y,z in outline:v.append((x*math.cos(a)-z*math.sin(a),y+dy,x*math.sin(a)+z*math.cos(a)))
- mesh('Swept axial blade',v,[(0,1,2,3,4),(5,9,8,7,6)]+[(j,(j+1)%5,(j+1)%5+5,j+5) for j in range(5)],steel,g,.012)
+# Axial fan rotor, normalized radius 1 for the runtime spinners (blades in the XZ plane, spinning about Y).
+# Five twisted, cambered airfoil blades (about 18 degrees pitch at the root easing to 8 at the tip) on a hub.
+# One material, because the viewer takes the rotor as a single geometry.
+g='FAN'
+rotor=mat('Rotor FRP grey',(.13,.14,.15),.25,.5)
+bpy.ops.mesh.primitive_cylinder_add(vertices=16,radius=.17,depth=.14,location=(0,0,0));o=bpy.context.object;o.name='Rotor hub';o.parent=groups[g];o.data.materials.append(rotor)
+bpy.ops.mesh.primitive_uv_sphere_add(segments=16,ring_count=6,radius=.17,location=(0,0,.07));o=bpy.context.object;o.name='Rotor hub cap';o.scale=(1,1,.45);o.parent=groups[g];o.data.materials.append(rotor)
+stations=[.15,.3,.45,.6,.75,.88,.97];chord=lambda r:.24-.1*r;pitch=lambda r:math.radians(18-10*(r-.15)/.82)
+for k in range(5):
+ a0=k*2*math.pi/5;v=[];f=[];cols=5
+ for r in stations:
+  c=chord(r);ph=pitch(r)
+  for side in [1,-1]:
+   for j in range(cols):
+    u=j/(cols-1)-.5;cam=.035*c*(1-4*u*u);t=.012*(1-4*u*u)*side
+    x=u*c;y=cam+t
+    # twist about the radial axis, then place at radius r, rotated to blade angle a0
+    yy=x*math.sin(ph)+y*math.cos(ph);xx=x*math.cos(ph)-y*math.sin(ph)
+    px=r*math.cos(a0)-xx*math.sin(a0);pz=r*math.sin(a0)+xx*math.cos(a0)
+    v.append((px,yy,pz))
+ n=len(stations);row=2*cols
+ for i in range(n-1):
+  for j in range(cols-1):
+   a_=i*row+j;b_=(i+1)*row+j
+   f.append((a_,a_+1,b_+1,b_));f.append((a_+cols+1,a_+cols,b_+cols,b_+cols+1))
+ for i in range(n-1):
+  for j in [0,cols-1]:
+   a_=i*row+j;b_=(i+1)*row+j;f.append((a_,b_,b_+cols,a_+cols) if j==0 else (a_,a_+cols,b_+cols,b_))
+ last=(n-1)*row;f.append(tuple(last+j for j in range(cols))+tuple(last+cols+j for j in reversed(range(cols))))
+ o=mesh('Twisted airfoil blade',v,f,rotor,g)
+ for q in o.data.polygons:q.use_smooth=True
 # Pad-mounted unit substation, 2500 kVA class, local +Z faces the road. Proportions follow published
 # 2500 kVA pad-mount data (about 72 in W x 99 in D x 73 in H): a 1.85 m wide tank with the HV (left) and
 # LV (right) compartments in front behind lockable doors, radiators on the sides and back projecting no
@@ -249,6 +271,65 @@ box('Gatehouse head band',(0,3.35,0),(8,.5,5),panel,g,.02)
 box('Gatehouse roof',(0,3.7,0),(9.4,.2,6.4),seam,g,.04)
 box('Gatehouse door',(-4.03,1.4,1.4),(.05,2.2,1.0),door,g,0)
 box('Gatehouse door light',(-4.12,2.95,1.4),(.12,.1,.4),lamp,g,.02)
+# Counterflow cooling-tower cell (representative type), 11.4 x 11 m plan, origin at grade. Ribbed FRP casing,
+# 45-degree air-inlet louvers on all four sides over dark fill, a fan deck with handrail, a smooth eased-inlet
+# fan stack with a flared top (the runtime rotor turns 0.8 m below its rim), a motor and driveshaft, a caged
+# ladder and a hot-water riser. The card does not name the tower type, so counterflow is representative.
+g='TOWER_CELL'
+frp=mat('Tower FRP casing',(.44,.46,.45),0,.62)
+frpr=mat('Tower FRP rib',(.38,.4,.39),0,.6)
+fillm=mat('Tower wet fill recess',(.012,.016,.018),0,.9)
+louv=mat('Tower inlet louver',(.1,.11,.11),0,.7)
+deck=mat('Tower deck grating',(.16,.17,.17),.4,.6)
+W,D=11.4,11.0
+box('Basin curb',(0,.45,0),(W+.4,.6,D+.4),base,g,.04)
+box('Fill recess',(0,1.9,0),(W-.3,2.3,D-.3),fillm,g,0)
+def slat(n,c,length,axis,m):
+ bpy.ops.mesh.primitive_cube_add(size=1,location=pt(c));o=bpy.context.object;o.name=n;o.parent=groups[g];o.data.materials.append(m)
+ if axis=='x':o.scale=(length,.36,.035);o.rotation_euler=(math.radians(45),0,0)
+ else:o.scale=(.36,length,.035);o.rotation_euler=(0,math.radians(45),0)
+ return o
+for y in [1.0+i*.3 for i in range(7)]:
+ for sz in [-1,1]:slat('Air inlet louver',(0,y,sz*(D/2-.05)),W-.4,'x',louv)
+ for sx in [-1,1]:slat('Air inlet louver',(sx*(W/2-.05),y,0),D-.4,'z',louv)
+for sx in [-1,1]:
+ for sz in [-1,1]:box('Casing corner post',(sx*(W/2-.1),1.9,sz*(D/2-.1)),(.25,2.3,.25),frpr,g,0)
+box('FRP casing',(0,5.6,0),(W,5.1,D),frp,g,.03)
+for i in range(int(W/.6)):
+ for sz in [-1,1]:box('Casing rib',(-W/2+.3+i*W/int(W/.6),5.6,sz*(D/2+.02)),(.08,5.0,.05),frpr,g,0)
+for i in range(int(D/.6)):
+ for sx in [-1,1]:box('Casing rib',(sx*(W/2+.02),5.6,-D/2+.3+i*D/int(D/.6)),(.05,5.0,.08),frpr,g,0)
+box('Fan deck',(0,8.27,0),(W+.2,.25,D+.2),deck,g,.02)
+# handrail round the deck edge
+for sx in [-1,1]:
+ for zz in [-5.4,-2.7,0,2.7,5.4]:box('Handrail post',(sx*5.6,8.95,zz),(.05,1.1,.05),steel,g,0)
+ box('Handrail',(sx*5.6,9.5,0),(.05,.05,D),steel,g,0)
+for sz in [-1,1]:
+ for xx in [-5.6,-2.8,0,2.8,5.6]:box('Handrail post',(xx,8.95,sz*5.4),(.05,1.1,.05),steel,g,0)
+ box('Handrail',(0,9.5,sz*5.4),(W,.05,.05),steel,g,0)
+# eased-inlet fan stack: outer skin up, lip, inner skin down so the throat reads from above
+prof=[(4.75,8.4),(4.45,8.55),(4.2,8.85),(4.08,9.25),(4.05,10.2),(4.05,11.4),(4.12,11.8),(4.3,12.1),(4.38,12.18),
+      (4.3,12.2),(4.2,12.12),(4.0,11.8),(3.95,11.4),(3.95,10.2),(3.98,9.25),(4.1,8.85),(4.35,8.55),(4.6,8.42)]
+v=[];f=[];seg=48
+for j,(r,y) in enumerate(prof):
+ for i in range(seg):a=i/seg*2*math.pi;v.append((r*math.cos(a),y,r*math.sin(a)))
+for j in range(len(prof)-1):
+ for i in range(seg):
+  a=j*seg+i;b=j*seg+(i+1)%seg;f.append((a,b,b+seg,a+seg))
+o=mesh('Eased-inlet fan stack',v,f,frp,g)
+for q in o.data.polygons:q.use_smooth=True
+# gearbox under the rotor on a bridge beam, driveshaft out through the stack to a motor on the deck
+box('Fan bridge beam',(0,10.55,0),(8.0,.3,.35),steel,g,0)
+cyl('Speed reducer',(0,10.85,0),.42,.55,steel,g,'y',16)
+cyl('Driveshaft',(3.3,10.95,0),.09,4.9,steel,g,'x',8)
+box('Fan motor',(6.1,9.35,0),(1.1,.8,.8),steel,g,.04)
+# caged ladder on the +Z face and a hot-water riser on the -Z face
+for x in [4.1,4.6]:box('Ladder rail',(x,4.6,D/2+.35),(.06,8.0,.06),steel,g,0)
+for y in [.9+i*.35 for i in range(22)]:box('Ladder rung',(4.35,y,D/2+.35),(.5,.035,.035),steel,g,0)
+for y in [3.0+i*.9 for i in range(7)]:
+ bpy.ops.mesh.primitive_torus_add(major_radius=.42,minor_radius=.025,major_segments=16,minor_segments=4,location=pt((4.35,y,D/2+.5)));o=bpy.context.object;o.name='Ladder cage hoop';o.parent=groups[g];o.data.materials.append(steel)
+cyl('Hot water riser',(-3.0,4.2,-D/2-.45),.35,8.4,steel,g,'y',16)
+cyl('Riser elbow',(-3.0,8.2,-D/2+.1),.35,1.1,steel,g,'z',16)
 # Bake modifiers/transforms and one mesh per material within each asset.
 bpy.ops.object.select_all(action='DESELECT')
 for o in list(S.objects):

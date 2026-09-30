@@ -390,6 +390,7 @@ export function content(M) {
         ['Towers', `≈${n0(L.towers)}`, 'derived', evCalc('campus-tower-count')],
         ['WUE, on site', `≈${M.wue.toFixed(2)} L/kWh IT`, 'assumed', evAssume('wue-by-cooling')],
         ['Use', warm ? 'peak days only' : 'all year', 'derived', evCalc('campus-tower-use')],
+        ['Cell drawn', 'counterflow, representative', 'assumed', evAssume('campus-tower-drawing')],
       ] },
     ]),
     { id: 'fiber', title: 'Fiber entrances', kicker: 'Two diverse routes',
