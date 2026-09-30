@@ -94,12 +94,26 @@ for z in [-38,-30,15,23,31,39]:
 box('East facade crown',(130.6,22.55,0),(2.1,1.25,90),pearl,'HALL',.18)
 # Office is an independently placed fixed 28x60m, three-story volume. Rounded corners,
 # deep roof sails and vertical mullions create a visibly new flagship entrance.
-prism('Three-story office glazing',roundrect(28,60,4),.3,16.3,glass,'OFFICE',.04)
+# Curtain wall: reflective (not near-black matte) glass, with lit rooms grouped per floor behind it so the
+# operations center reads as occupied at dusk. Representative architecture.
+officeGlass=mat('Office curtain-wall glass',(.1,.17,.21),.55,.07)
+roomLit=mat('Office lit interior',(.62,.42,.22),0,.6,.45)
+prism('Three-story office glazing',roundrect(28,60,4),.3,16.3,officeGlass,'OFFICE',.04)
+for row,(y0,y1) in enumerate([(.9,5.3),(6.15,10.55),(11.4,15.8)]):
+ for col in range(16):
+  if (col//3+row*2)%5<2:
+   z=-22.5+col*3
+   for sx in [-1,1]:box('Lit office bay',(sx*14.03,(y0+y1)/2,z),(.02,y1-y0,2.6),roomLit,'OFFICE',0)
+ for col in range(6):
+  if (col+row)%3==0:
+   x=-7.5+col*3
+   for sz in [-1,1]:box('Lit office bay',(x,(y0+y1)/2,sz*30.03),(2.6,y1-y0,.02),roomLit,'OFFICE',0)
 for y in [.28,5.55,10.8,16.25]:
  prism('Office continuous floor fascia',roundrect(29.2,61.2,4.2),y,y+.38,pearl,'OFFICE',.09)
 # Roof canopy is supported, not a floating extra floor.
-prism('Aerodynamic office roof sail',roundrect(36,68,7),18.7,19.4,pearl,'OFFICE',.23)
-prism('Dark canopy underside',roundrect(34,66,6.5),18.58,18.7,shadow,'OFFICE',.07)
+prism('Aerodynamic office roof sail',roundrect(32,64,6),18.7,19.4,pearl,'OFFICE',.23)
+prism('Dark canopy underside',roundrect(30.6,62.6,5.6),18.58,18.7,shadow,'OFFICE',.07)
+prism('Roof fascia light line',roundrect(32.2,64.2,6.05),18.98,19.06,lamp,'OFFICE',0)
 for z in [-25,25]:
  for x in [-10,10]:beam('Roof sail supports',(x,16.5,z),(x-1.2,18.65,z),.32,.32,bronze,'OFFICE')
 for z in range(-24,25,3):
@@ -108,6 +122,11 @@ for x in range(-9,10,3):
  for z in [-30.04,30.04]:box('Office end mullion',(x,8.35,z),(.16,15.6,.22),bronze,'OFFICE',.035)
 # Two lower entry canopies stay within prior porch extent west of the office.
 for z in [-21,21]:
+ # glazed entrance vestibule with a door, tied back to the facade by the canopy beams
+ box('Entrance vestibule glass',(-15.6,1.85,z),(3.2,3.1,5.2),officeGlass,'OFFICE',.02)
+ box('Vestibule frame',(-15.6,3.47,z),(3.3,.14,5.3),bronze,'OFFICE',.02)
+ box('Entrance door',(-17.23,1.4,z),(.04,2.2,1.8),black,'OFFICE',0)
+ for dz in [-2.6,2.6]:beam('Canopy tie beam',(-21.5,4.85,z+dz),(-14.1,4.85,z+dz),.22,.3,bronze,'OFFICE')
  prism('Entry canopy',roundrect(10,11,2),4.65,5.05,pearl,'OFFICE',.12).location.x=-17.5
  for dz in [-4,4]:beam('Entry canopy support',(-21,.2,z+dz),(-21,4.65,z+dz),.28,.28,bronze,'OFFICE')
  # canopy prism above is centered before this local offset.
