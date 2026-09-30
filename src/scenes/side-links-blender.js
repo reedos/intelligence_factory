@@ -41,6 +41,51 @@ function cloneAsset(source) {
   return copy;
 }
 
+// A line material that fades to nothing under the HUD overlays docked on the 3D view (title, layer buttons, the
+// back button and help text). The overlay rectangles are read from the page as the outlines draw and handed to
+// the fragment shader in drawing-buffer pixels; with no document (tests) the lines draw as usual.
+const HUD_OVERLAYS = '#view .hud.tl, #view .hud.tr, #hud-btns .btn, #hud-btns .hint';
+function hudFadedLineMaterial({ color, opacity }) {
+  const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
+  const rects = Array.from({ length: 6 }, () => new THREE.Vector4(0, 0, -1, -1));
+  const uniforms = { uHudRect: { value: rects }, uHudFeather: { value: 18 } };
+  let stamp = -1e9, width = -1;
+  material.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.fragmentShader = 'uniform vec4 uHudRect[6];\nuniform float uHudFeather;\n' + shader.fragmentShader.replace('#include <opaque_fragment>',
+      `for (int i = 0; i < 6; i++) {
+        vec4 r = uHudRect[i];
+        vec2 d = max(r.xy - gl_FragCoord.xy, gl_FragCoord.xy - r.zw);
+        diffuseColor.a *= smoothstep(0.0, uHudFeather, max(d.x, d.y));
+      }
+      #include <opaque_fragment>`);
+  };
+  material.customProgramCacheKey = () => 'copper-hud-faded-line';
+  material.userData.track = renderer => {
+    if (typeof document === 'undefined') return;
+    // gl_FragCoord is in the pixels of whatever is being drawn into: the canvas, or a post-processing target
+    const target = renderer.getRenderTarget(), canvas = renderer.domElement, tw = target ? target.width : canvas.width, th = target ? target.height : canvas.height;
+    // the three outlines draw back to back: measure the overlays once per burst, not once per outline
+    const now = performance.now();
+    if (now - stamp < 30 && tw === width) return;
+    stamp = now; width = tw;
+    const cr = canvas.getBoundingClientRect();
+    const sx = cr.width ? tw / cr.width : 1, sy = cr.height ? th / cr.height : 1, pad = 10;
+    let n = 0;
+    for (const el of document.querySelectorAll(HUD_OVERLAYS)) {
+      if (n === rects.length) break;
+      if (el.hidden || el.closest('[hidden]')) continue;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height || r.bottom <= cr.top || r.top >= cr.bottom || r.right <= cr.left || r.left >= cr.right) continue;
+      // gl_FragCoord runs bottom-up from the canvas's lower-left corner
+      rects[n++].set((r.left - cr.left - pad) * sx, (cr.bottom - r.bottom - pad) * sy, (r.right - cr.left + pad) * sx, (cr.bottom - r.top + pad) * sy);
+    }
+    for (; n < rects.length; n++) rects[n].set(0, 0, -1, -1);
+    uniforms.uHudFeather.value = 18 * sy;
+  };
+  return material;
+}
+
 function build(name, nativeBuilder, options) {
   const source = cached.get(name);
   if (!source) throw new Error(`Call preloadLinks() before building the Blender ${name} scene.`);
@@ -143,10 +188,14 @@ function build(name, nativeBuilder, options) {
   };
   for (const cover of covers) cover.material = Array.isArray(cover.material) ? cover.material.map(lidMaterial) : lidMaterial(cover.material);
   // Copper: an edge-only outline keeps each lifted upper half reading as a metal part, not a pane of glass.
-  if (name === 'copper') for (const cover of covers) if (/lifted cover/i.test(cover.material.name)) {
-    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(cover.geometry, 29),
-      new THREE.LineBasicMaterial({ color: 0xd3dde8, transparent: true, opacity: .5, depthWrite: false }));
-    edges.name = 'Copper lifted cover outline'; edges.raycast = () => {}; cover.add(edges);
+  // In close-ups the lids run behind the level title, the layer buttons and the help text, so the outline fades
+  // out under those overlays instead of striking through their letters.
+  if (name === 'copper') {
+    const outline = hudFadedLineMaterial({ color: 0xd3dde8, opacity: .5 });
+    for (const cover of covers) if (/lifted cover/i.test(cover.material.name)) {
+      const edges = new THREE.LineSegments(new THREE.EdgesGeometry(cover.geometry, 29), outline);
+      edges.name = 'Copper lifted cover outline'; edges.raycast = () => {}; edges.onBeforeRender = outline.userData.track; cover.add(edges);
+    }
   }
   const coverPositions = new Map(covers.map(cover => [cover, cover.position.clone()]));
   const coverMaterials = new Set(covers.flatMap(cover => Array.isArray(cover.material) ? cover.material : [cover.material]));
