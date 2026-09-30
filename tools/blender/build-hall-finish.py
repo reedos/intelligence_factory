@@ -6,7 +6,7 @@ HERE=pathlib.Path(__file__).resolve().parent
 exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque building envelope.')[0])
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT','STORAGE_FACE','HALL_UNITSUB','PIPE_UNIT','PIPE_ELBOW','PIPE_FLANGE','BUTTERFLY_VALVE','PIPE_HANGER','FANWALL_CELL']:
+for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT','STORAGE_FACE','HALL_UNITSUB','PIPE_UNIT','PIPE_ELBOW','PIPE_FLANGE','BUTTERFLY_VALVE','PIPE_HANGER','FANWALL_CELL','TAPOFF','BUS_JOINT']:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
 ceramic=mat('Soft satin architectural panel',(.30,.38,.43),.25,.45)
 alloy=mat('Anodized champagne edge',(.31,.29,.23),.8,.3)
@@ -227,6 +227,25 @@ for k in range(8):
 for k in range(4):
  a_=math.pi/4+math.pi*k/2;beam('Guard standoff',(.6*math.cos(a_),.6*math.sin(a_),.22),(.66*math.cos(a_),.66*math.sin(a_),0),.014,.014,guardM,g)
 cyl('Guard centre boss',(0,0,.22),.07,.02,guardM,g,'z',16)
+# ---- Busway plug-in tap-off unit, origin at the busway underside (top centre of the unit), hanging
+# down: grey steel enclosure, breaker-handle window, stab collar into the busway, cord grip at the
+# bottom, a status LED and a thin voltage label band (the viewer tints the band). Representative.
+g='TAPOFF'
+tapGrey=mat('Tap-off enclosure, light grey paint',(.42,.45,.47),.35,.45)
+band=mat('Voltage label band',(.9,.5,.2),0,.5,1.2)
+led=mat('Tap-off status LED',(.3,1,.5),0,.4,4)
+box('Stab collar',(0,-.012,0),(.12,.024,.1),graphite,g,.004)
+box('Tap-off enclosure',(0,-.125,0),(.30,.2,.15),tapGrey,g,.012)
+box('Breaker window',(-.05,-.11,.0765),(.09,.07,.004),graphite,g,.002)
+box('Breaker handle',(-.05,-.11,.081),(.018,.04,.008),steel,g,.002)
+box('Voltage label band',(0,-.2,.0768),(.28,.022,.004),band,g,0)
+box('Status LED',(.1,-.08,.0768),(.012,.012,.004),led,g,0)
+cyl('Cord grip',(0,-.245,0),.03,.04,graphite,g,'y',16)
+# ---- Busway joint pack cover: a slightly larger sleeve with bolt heads, centred on a joint.
+g='BUS_JOINT'
+box('Joint pack cover',(0,0,0),(.16,.25,.21),steel,g,.01)
+for dy in [-.07,.07]:
+ for dx in [-.045,.045]:cyl('Joint bolt head',(dx,dy,.108),.012,.01,graphite,g,'z',8)
 # Face relief follows existing rack texture rows, not an invented tray count.
 # Canonical cabinet envelope .58 wide x2.3 high, front z=.6.
 def drawer(g,top,height,pull=False):

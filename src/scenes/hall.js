@@ -453,14 +453,28 @@ export function build({ quality, model }) {
   }
   // overhead busway per row with tap-off boxes and drops
   const tap = glowMat(dc ? '#d8f04a' : '#ff8a3d', 0.9);
+  // Authored tap-off units carry the voltage colour on a label band only (the box itself is grey steel);
+  // joint-pack covers every 3 m and threaded-rod trapeze hangers replace the thin struts. Representative.
+  const tapMx = [], jointMx = [];
+  const tapOff = (x, z) => { if (hasHallFinish()) tapMx.push(mtx(x, 3.39, z)); else N.box(0.22, 0.2, 0.2, tap, x, 3.29, z); };
   N.box(2.7,.22,.18,MAT.alu,-10.85,5.6,-6.5);
   const busZ0=rowZs[0]+facing[0]*.25,busZ1=rowZs.at(-1)+facing.at(-1)*.25;
   N.box(.18,.22,busZ1-busZ0,MAT.alu,-9.5,5.6,(busZ0+busZ1)/2);
   rowZs.forEach((z, r) => {
     const bz = z + facing[r] * 0.25;
     S.box(rowX1 - rowX0 + 5, 0.22, 0.18, MAT.alu, (rowX0 + rowX1) / 2 - 2.5, 3.5, bz);
-    for (let x = rowX0 + 0.3; x < rowX1; x += 2 * RW) N.strut([x, 3.6, bz], [x, WALL_H - 0.9, bz], 0.012, MAT.darkSteel, 4);
-    rackMx.filter(k => k.z === z).forEach(k => { N.box(0.22, 0.2, 0.2, tap, k.x, 3.29, bz); N.strut([k.x, 3.2, bz], [k.x, 2.3, bz], 0.018, MAT.black, 5); });
+    if (hasHallFinish()) {
+      // joints and trapezes at rack-group gaps and every fifth rack boundary, clear of the tap-offs
+      const gaps = [rowX0 - 2.5, rowX0 - .3];
+      for (let gI = 0; gI < groups; gI++) { const gx = rowX0 + gI * (CW + perGroup * RW + GAP); gaps.push(gx + CW + 3 * RW, gx + CW + perGroup * RW + GAP / 2); }
+      gaps.forEach((x, i) => {
+        if (x < rowX1 - .1) jointMx.push(mtx(x, 3.5, bz));
+        for (const dz of [-.14, .14]) N.strut([x + .09, 3.37, bz + dz], [x + .09, WALL_H - 0.9, bz + dz], 0.008, MAT.galv, 6);
+        N.box(.04, .035, .34, MAT.galv, x + .09, 3.37, bz);
+      });
+      N.box(.02, .24, .2, MAT.darkSteel, rowX1 + .005, 3.5, bz);                          // end cap
+    } else for (let x = rowX0 + 0.3; x < rowX1; x += 2 * RW) N.strut([x, 3.6, bz], [x, WALL_H - 0.9, bz], 0.012, MAT.darkSteel, 4);
+    rackMx.filter(k => k.z === z).forEach(k => { tapOff(k.x, bz); N.strut([k.x, hasHallFinish() ? 3.13 : 3.2, bz], [k.x, 2.3, bz], hasHallFinish() ? 0.012 : 0.018, MAT.black, 6); });
     N.box(.18,2.1,.18,MAT.alu,-9.5,4.55,bz);
     flows.push(flow([[-12.2, 5.6, -6.5], [-9.5, 5.6, -6.5], [-9.5, 5.6, bz], [-9.5, 3.5, bz], [rowX1, 3.5, bz]], itV, { count: 20, speed: 2.2, size: 0.07, trailR: 0.02, trailK: 0.25 }));
     // Sampled activity down the already modeled tap/drop cables. Particle count
@@ -505,7 +519,7 @@ export function build({ quality, model }) {
   const spineBusZ = 10.25, lastSpineX = netItems[CPO_I - 1].x;
   networkPowerRoute([[-9.5, 5.6, busZ1], [-9.5, 5.6, spineBusZ], [-9.5, 3.5, spineBusZ], [lastSpineX, 3.5, spineBusZ]], .07, 'busway');
   netItems.slice(0, CPO_I).forEach(it => {
-    N.box(.22, .2, .2, tap, it.x, 3.29, spineBusZ);
+    tapOff(it.x, spineBusZ);
     networkPowerRoute([[it.x, 3.5, spineBusZ], [it.x, 2.3, spineBusZ]], .018, 'spine-drop');
   });
   scene.userData.networkPowerFeeds = networkFeeds;
@@ -566,10 +580,15 @@ export function build({ quality, model }) {
   rowZs.forEach((z, r) => {
     const bz = z + facing[r] * .25;
     networkPowerRoute([[rowX1, 3.5, bz], [leafX, 3.5, bz]], .07, 'busway');
-    N.box(.22, .2, .2, tap, leafX, 3.29, bz);
+    tapOff(leafX, bz);
     networkPowerRoute([[leafX, 3.5, bz], [leafX, 2.3, bz]], .018, 'leaf-drop');
   });
   instanced(0.6, 2.3, 1.2, TEX.net, 0x131519, rowZs.map((z, r) => ({ x: leafX, z, f: facing[r] })));
+  if (tapMx.length) {
+    const taps = hallFinishInstances('TAPOFF', tapMx);
+    taps.traverse(o => { if (o.isMesh && o.material.name === 'Voltage label band') { o.material.color.set(dc ? '#d8f04a' : '#ff8a3d'); o.material.emissive.set(dc ? '#d8f04a' : '#ff8a3d'); } });
+    scene.add(taps, hallFinishInstances('BUS_JOINT', jointMx));
+  }
   // leaf faceplates: pluggable OSFP modules, fiber pigtails rising into the runway overhead
   rowZs.forEach((z, r) => { pluggableFace(leafX, z, facing[r], { forms: bigSwitch ? ['q3400'] : ['qm9700', 'qm9700'], y0: 1.52 }); });
   N.box(.3,.04,23,MAT.yellowTray,leafX,HALL_RUNWAY.floorY,-.8);
