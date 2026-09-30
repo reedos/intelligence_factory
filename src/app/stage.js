@@ -28,7 +28,7 @@ import * as sideCopper from '../scenes/side-copper.js';
 import { applyVisualDirection } from '../scenes/visual-direction.js';
 import { applyComputeArtDirection } from '../scenes/compute-art-direction.js';
 import { cameraPresetFor } from './camera-presets.js';
-import { fitHousing } from './housing-frame.js';
+import { fitHousing, fitComponent } from './housing-frame.js';
 import { overlapsRect, pinLabelBox } from './pin-layout.js';
 
 // six levels in a line, outermost first, then the side levels inside the links, each its own diagram: the module, the
@@ -463,11 +463,24 @@ function resize() {
   camera.aspect = w / h; camera.fov = w / h < 0.9 ? 48 : 35; camera.updateProjectionMatrix();
   const inspection = built[ui.scene]?.inspection;
   const named = inspection?.views?.[inspection.currentView];
+  const selected = ui.selected && hotspotsFor(ui.scene)[ui.selected];
+  if (selected?.view.detailSize && !cinema && inspection?.currentView !== 'custom') {
+    const fitted = frame(built[ui.scene], selected);
+    if (tween) {
+      tween.p1.fromArray(fitted.pos); tween.t1.fromArray(fitted.target);
+      if (tween.arc) {
+        tween.arc.s1.setFromVector3(tween.p1.clone().sub(tween.t1));
+        const turn = tween.arc.s1.theta - tween.arc.s0.theta;
+        tween.arc.dTheta = turn - Math.round(turn / (2 * Math.PI)) * 2 * Math.PI;
+      }
+    }
+    else { camera.position.fromArray(fitted.pos); controls.target.fromArray(fitted.target); }
+  }
   if (named && !tween && !cinema) {
     const preset = cameraPreset(named);
     camera.position.fromArray(preset.pos); controls.target.fromArray(preset.target);
   }
-  if (built[ui.scene]?.housingBounds && !tween && !cinema) {
+  if (built[ui.scene]?.housingBounds && !ui.selected && !named?.detailSize && inspection?.currentView !== 'custom' && !tween && !cinema) {
     const fitted = housingFrame({ pos: camera.position.toArray(), target: controls.target.toArray() });
     camera.position.fromArray(fitted.pos); controls.target.fromArray(fitted.target);
   }
@@ -529,7 +542,8 @@ function clearLine(b, pos, part) {
 }
 export function frame(b, h) {
   const part = V(h.pos), box = safeBox();
-  let pos = V(h.view.pos), target = V(h.view.target);
+  const preset = h.view.detailSize ? fitComponent(h.view, view.clientWidth, view.clientHeight, box) : h.view;
+  let pos = V(preset.pos), target = V(preset.target);
   // 1. on screen: slide the aim toward the part until it lands in the clear area
   for (let k = 0.25; k <= 1.001 && !onScreen(pos, target, part, box); k += 0.25) target = V(h.view.target).lerp(part, k);
   if (clearLine(b, pos, part)) return { pos: pos.toArray(), target: target.toArray() };
@@ -566,6 +580,7 @@ function housingFrame(c) {
   return fitHousing(c, built[ui.scene]?.housingBounds, view.clientWidth, view.clientHeight, safeBox());
 }
 function cameraPreset(c) {
+  if (c.detailSize) return frame(built[ui.scene], { pos: c.focus, view: c });
   return housingFrame(cameraPresetFor(c, view.clientWidth, view.clientHeight));
 }
 const overviewCamera = b => ({ ...b.camera, ...(b.cameraByMode?.[ui.mode] || {}) });
@@ -584,7 +599,7 @@ export function setInspectionView(name) {
   built[ui.scene].inspection.currentView = name;
   emit('campus-presentation', { view: name });
   const opening = cameraPreset(c);
-  flyTo(opening.pos, opening.target, reduced ? .01 : 1.5);
+  flyTo(opening.pos, opening.target, reduced ? .01 : 1.5, { detail: !!c.detailSize });
 }
 
 // ---------- camera moves ----------
@@ -612,21 +627,26 @@ function glide(pos, target, dur, curve) {
   drift = null;
   tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos.clone(), t1: target.clone(), u: 0, dur: reduced ? 0.01 : dur, arc: null, curve, still: true };
 }
-export function flyTo(pos, target, dur = 1.1) {
+export function flyTo(pos, target, dur = 1.1, { detail = false } = {}) {
   drift = null;
-  const fitted = housingFrame({ pos, target });
-  const p1 = V(fitted.pos), t1 = V(fitted.target);
+  const p1 = V(pos), t1 = V(target);
   if (reduced) dur = 0.01;
   let arc = null;
-  if (cinema && !reduced) {
+  if ((cinema || detail) && !reduced) {
     const s0 = new THREE.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
     const s1 = new THREE.Spherical().setFromVector3(p1.clone().sub(t1));
     let dTheta = s1.theta - s0.theta; dTheta -= Math.round(dTheta / (2 * Math.PI)) * 2 * Math.PI;   // the short way round
     const travel = controls.target.distanceTo(t1) / Math.max(s0.radius, s1.radius);
     arc = { s0, s1, dTheta, lift: Math.min(0.35, 0.12 + 0.25 * Math.min(1, travel)), pull: Math.min(0.45, 0.15 + 0.3 * Math.min(1, travel)) };
     dur = Math.min(3.4, Math.max(1.8, 1.6 + Math.abs(dTheta) * 0.6 + Math.abs(Math.log(s1.radius / s0.radius)) * 0.45 + travel * 0.6)) / Math.sqrt(tourPace);
+    if (detail && !cinema) {
+      // A restrained orbit and dolly descend into the component. Settle at the
+      // authored angle; no perpetual drift after a reader selects a part.
+      arc.lift = .055; arc.pull = .025;
+      dur = Math.min(2.1, 1.55 + Math.abs(dTheta) * .16);
+    }
   }
-  tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1, t1, u: 0, dur, arc };
+  tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1, t1, u: 0, dur, arc, still: detail && !cinema };
 }
 function stepTween(dt) {
   if (drift && !tween) stepDrift(dt);
@@ -796,7 +816,7 @@ export function select(id, fly) {
   const go_ = $('card-go'), to = drillOf(p), inw = isInward(ui.scene, to); go_.hidden = p.drill === undefined;
   if (p.drill !== undefined) go_.textContent = `${inw ? 'Go inside' : 'Back out'}: ${SCENES()[to].title} ${inw ? '→' : '↑'}`;
   go_.onclick = () => (p.drill === 'out' ? backOut() : go(drillOf(p), id));
-  if (fly) { const h = hotspotsFor(ui.scene)[id]; if (h?.view) { const f = frame(built[ui.scene], h); flyTo(f.pos, f.target); } }
+  if (fly) { const h = hotspotsFor(ui.scene)[id]; if (h?.view) { const f = frame(built[ui.scene], h); flyTo(f.pos, f.target, 1.1, { detail: !!h.view.detailSize }); } }
   revealInPane([document.querySelector(`#parts button[data-id="${id}"]`)?.closest('li'), $('card')]);
   emit('select', { scene: ui.scene, mode: ui.mode, id });
 }

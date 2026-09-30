@@ -5,6 +5,7 @@
 // receive pairs on the right. Plugs and cards are representative (no labeled teardown is public).
 import { THREE, MAT, Builder, flow, setup, materials, strand, trace, label, lidBox, FLOW, COL, note, unitCol } from './side-kit.js';
 import { COPPER_HEADS, copperLane, copperChip, PAIR_HALF } from './side-geometry.js';
+import { componentView } from '../app/housing-frame.js';
 
 export function build({ quality, state, authoredHardware = false }) {
   const scene = setup(quality, 12), M = materials();
@@ -96,15 +97,13 @@ export function build({ quality, state, authoredHardware = false }) {
   label(scene, 'Electrical · traces, then twinax pairs', [0, 1.6, back - 3.2], COL.elec, 0.16);
   label(scene, 'Pair shields opened for illustration', [0, 0.35, back - 1.05], note, 0.13);
 
-  const view = (p, v, t) => ({ pos: p, view: { pos: v, target: t } });
-  const hs = Object.fromEntries(heads.map((h, k) => [h.kind, view([h.x, 1.3, zc + 1.4 - k * 1.4], [h.x + 1.6, 5.0, z0 + 2.4], [h.x, 0.9, zc - 0.3])]));   // staggered front to back
-  // Active-package views prioritize legible physical identification while
-  // keeping the incoming/outgoing board traces visible around each chip.
-  for (const h of heads.filter(h => h.chip)) {
-    hs[h.kind].view = { pos: [h.x + 1.2, 4.2, 3.1], target: [h.chip.x, .95, zc] };
+  const hs = {}, heatHotspots = {};
+  for (const h of heads) {
+    const focus = [h.chip?.x ?? h.x, 1.12, zc];
+    hs[h.kind] = { pos: focus };
+    hs[h.kind].view = componentView(focus, [1.3, 1.55, 3.0], h.kind === 'dac' ? [2.25, .45, 3.1] : h.kind === 'acc' ? [1.8, .45, 1.9] : [2.4, .5, 2.0]);
+    if (h.chip) heatHotspots[h.kind] = hs[h.kind];
   }
-  const heatHotspots = Object.fromEntries(heads.filter(h => h.chip).map(h => [h.kind,
-    view([h.chip.x, 1.15, zc], [h.x + 1.6, 5.0, z0 + 2.4], [h.x, 1.7, zc])]));
   return {
     scene, flows, dataFlows, heatFlows,
     camera: { pos: [0, 12.5, 14], target: [0, 0.9, 0], near: 0.05, far: 300, min: 1.5, max: 60, portrait: { pos: [0, 18, 22], target: [0, 0.6, 0.5] } },

@@ -14,16 +14,13 @@ export function hardwareBounds(model) {
   return bounds;
 }
 
-// Preserve the chosen viewing direction, but retain the full enclosure as
-// context in every automatic part view. Fit the actual canvas and HUD margins.
+// Fit overview geometry to the canvas and HUD margins. Component views use a
+// smaller inspection region; their surrounding housing remains in the scene.
 export function fitHousing(preset, bounds, width, height, safe = { x0: -.86, x1: .86, y0: -.82, y1: .82 }) {
   if (!bounds || bounds.isEmpty()) return preset;
   const aspect = width / Math.max(1, height);
   const camera = new PerspectiveCamera(aspect < .9 ? 48 : 35, aspect, .001, 10000);
   const direction = new Vector3().fromArray(preset.pos).sub(new Vector3().fromArray(preset.target)).normalize();
-  // Shallow chip close-ups look through the raised lid and side walls. Keep an
-  // elevated inspection angle while retaining the selected side's azimuth.
-  if (direction.y < .72) { direction.y = 0; direction.normalize().multiplyScalar(Math.sqrt(1 - .72 ** 2)); direction.y = .72; }
   const center = bounds.getCenter(new Vector3());
   const corners = [];
   for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) corners.push(new Vector3(x, y, z));
@@ -47,4 +44,14 @@ export function fitHousing(preset, bounds, width, height, safe = { x0: -.86, x1:
   for (let i = 0; i < 32; i++) { const mid = (low + high) / 2; if (place(mid)) high = mid; else low = mid; }
   place(high * 1.015);
   return { ...preset, pos: camera.position.toArray(), target: target.toArray() };
+}
+
+// Sizes describe the component plus a little surrounding routing, in scene cm.
+export function componentView(focus, offset, detailSize) {
+  return { pos: focus.map((v, i) => v + offset[i]), target: [...focus], focus: [...focus], detailSize };
+}
+
+export function fitComponent(preset, width, height, safe) {
+  const bounds = new Box3().setFromCenterAndSize(new Vector3(...preset.target), new Vector3(...preset.detailSize));
+  return fitHousing(preset, bounds, width, height, safe);
 }

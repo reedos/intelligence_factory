@@ -5,7 +5,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { THREE, flow, setup, label, FLOW, COL, note, unitCol } from './side-kit.js';
 import { applyArtDirection } from './module-art-direction.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
-import { hardwareBounds } from '../app/housing-frame.js';
+import { hardwareBounds, componentView } from '../app/housing-frame.js';
 
 let cached, pending;
 const CM = 100;
@@ -284,10 +284,19 @@ export function build({ quality, state }) {
   const hs = {};
   for (const name of ['fingers', 'dcdc', 'dsp', 'driver', 'lasers', 'mzm', 'mpo', 'pd', 'tia', 'shell']) {
     const p = anchorWorld(name);
-    const offset = ({ fingers: [-1.5, 2.2, 3.5], dcdc: [-0.5, 2.4, 3.2], dsp: [-0.6, 2.6, 3.8],
-      driver: [-0.5, 1.8, 2.6], lasers: [-0.6, 1.4, 2.0], mzm: [-0.4, 1.7, 2.5],
-      mpo: [2.5, 1.9, 3.2], pd: [-0.5, 1.5, -2.6], tia: [-0.5, 1.8, -2.8], shell: [1.2, 4.4, 8.5] })[name];
-    hs[name] = { pos: p, view: { pos: p.map((v, i) => v + offset[i]), target: [...p] } };
+    const [offset, size] = ({
+      fingers: [[-2.0, 1.1, 2.5], [1.5, .35, 2.3]],
+      dcdc: [[-.9, 1.2, 2.5], [1.8, .55, 1.3]],
+      dsp: [[-1.2, 1.55, 3.2], [2.35, .5, 2.1]],
+      driver: [[-.65, 1.0, 2.3], [1.25, .35, 1.2]],
+      lasers: [[-.65, .9, 2.2], [1.2, .45, 1.15]],
+      mzm: [[.85, 1.1, 2.4], [2.0, .35, 1.4]],
+      mpo: [[2.4, 1.15, 1.7], [1.6, .8, 2.45]],
+      pd: [[.7, 1.0, -2.2], [1.3, .35, 1.2]],
+      tia: [[-.65, 1.0, -2.3], [1.25, .35, 1.2]],
+      shell: [[-2.5, 2.0, 4.0], [7.5, .7, 2.5]],
+    })[name];
+    hs[name] = { pos: p, view: componentView(p, offset, size) };
   }
   setLpo(false);
   scene.userData.blenderModule = { version: metadata.version, units: 'cm', source: 'osfp-module-runtime.glb',

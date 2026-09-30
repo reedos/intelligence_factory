@@ -5,6 +5,7 @@
 // OSFP footprint and nano-ITLA envelope are dimensioned; other dimensions and RF
 // routing are schematic. Optical signals never enter the electronic packages.
 import { THREE, MAT, Builder, flow, canvasTex, setup, materials, die, strand, label, lidBox, FLOW, COL, note, unitCol, dspTex, glowMat } from './side-kit.js';
+import { componentView } from '../app/housing-frame.js';
 
 // The IQ modulator seen from above, as one dual-polarization IQ modulator: laser in at the near edge, split into an X and
 // a Y polarization branch; each holds an I and a Q Mach-Zehnder, with a 90-degree phase section on Q; the Y branch
@@ -241,16 +242,25 @@ export function build({ quality, state, authoredHardware = false }) {
   label(scene, 'RX local oscillator', [3.7,1.85,.18], COL.cw, .10);
   label(scene, 'Light · glass fiber', [LCX - 0.6, 2.05, 0], COL.tx, 0.14);
 
-  const view = (p, v, t) => ({ pos: p, view: { pos: v, target: t } });
   const hs = {
-    cdsp: view([DSPX, Y.top + 0.2, 0.3], [DSPX - 0.6, 4.4, 3.8], [DSPX, Y.top, 0]),
-    itla: view([ITX, Y.top + ITH + 0.1, 0], [2.8, 7.0, 4.0], [2.4, Y.top, 0]),
-    cdm: view([CX_, Y.top + 0.15, cdmZ], [CX_ - 0.2, 3.4, -2.6], [CX_, Y.top, cdmZ]),
-    driver: view([DRX, Y.top + .27, drvZ], [DRX+.3, 5.2, -2.8], [DRX+.3,Y.top,drvZ]),
-    tia: view([TIAX, Y.top + .27, tiaZ], [TIAX+.3, 5.2, 2.8], [TIAX+.3,Y.top,tiaZ]),
-    icr: view([RX_, Y.top + 0.15, icrZ], [RX_ - 0.2, 3.4, 2.8], [RX_, Y.top, icrZ]),
-    lc: view([LCX, Y.top + 0.5, 0], [MX1 + 1.8, 3.2, 3.4], [LCX - 0.5, Y.top, 0]),
+    cdsp: { pos: [DSPX, Y.top + .2, .3] },
+    itla: { pos: [ITX, Y.top + ITH + .1, 0] },
+    cdm: { pos: [CX_, Y.top + .15, cdmZ] },
+    driver: { pos: [DRX, Y.top + .27, drvZ] },
+    tia: { pos: [TIAX, Y.top + .27, tiaZ] },
+    icr: { pos: [RX_, Y.top + .15, icrZ] },
+    lc: { pos: [LCX, Y.top + .5, 0] },
   };
+  const detail = {
+    cdsp: [[-.9, 1.4, 2.9], [2.2, .5, 2.1]],
+    itla: [[-.9, 1.45, 3.0], [3.2, .9, 2.15]],
+    driver: [[-.55, 1.0, -2.4], [1.45, .45, 1.2]],
+    cdm: [[.65, 1.0, -2.4], [1.8, .4, 1.2]],
+    icr: [[.65, 1.0, 2.4], [1.8, .4, 1.2]],
+    tia: [[-.55, 1.0, 2.4], [1.45, .45, 1.2]],
+    lc: [[2.2, 1.05, 1.6], [1.6, .8, 1.9]],
+  };
+  for (const [id, [offset, size]] of Object.entries(detail)) hs[id].view = componentView(hs[id].pos, offset, size);
   return {
     scene, flows, dataFlows, heatFlows,
     camera: { pos: [1.2, 10.5, 14.5], target: [0, 1.3, 0], near: 0.05, far: 300, min: 1.2, max: 40, portrait: { pos: [0.6, 12.5, 16.5], target: [0, 0.9, 0.4] } },
