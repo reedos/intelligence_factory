@@ -136,17 +136,42 @@ for x in [-3,-1,1,3]:box('Terminal face panel',(x,2.2,3.04),(1.75,3.45,.16),whit
 box('Terminal entrance',(0,1.5,3.16),(1.1,2.55,.1),steel,g,.04)
 box('Terminal fixture',(0,4.03,3.24),(7,.08,.12),lamp,g,.02)
 
-# Simple clothed human scale cue; articulated leg placement is illustrative.
+# Walking human scale cue, 1.75 m, facing +X (the direction fx.movers travels), mid-stride.
+# Dark work clothes under a muted hi-vis vest with a retro-reflective band, boots and a hard hat.
+def tube(n,a,b,r,m,g,r2=None,segments=8):
+ A=Vector(pt(a));B=Vector(pt(b));d=B-A
+ bpy.ops.mesh.primitive_cone_add(vertices=segments,radius1=r,radius2=r if r2 is None else r2,depth=d.length,location=(A+B)/2)
+ o=bpy.context.object;o.name=n;o.rotation_euler=d.to_track_quat('Z','Y').to_euler();o.parent=groups[g];o.data.materials.append(m)
+ for p in o.data.polygons:p.use_smooth=True
+ return o
+def blob(n,p,sc,m,g,segments=12,rings=8):
+ bpy.ops.mesh.primitive_uv_sphere_add(segments=segments,ring_count=rings,radius=1,location=pt(p));o=bpy.context.object;o.name=n;o.parent=groups[g];o.scale=sc;o.data.materials.append(m)
+ for q in o.data.polygons:q.use_smooth=True
+ return o
 g='WALKER'
-cloth=mat('Walker clothing',(.09,.17,.22),0,.85)
+shirt=mat('Walker work shirt',(.022,.04,.07),0,.85)
+trousers=mat('Walker work trousers',(.028,.03,.034),0,.9)
+vest=mat('Walker hi-vis vest',(.42,.5,.06),0,.6)
+band=mat('Walker reflective band',(.5,.52,.53),.3,.35)
 skin=mat('Walker skin',(.48,.31,.22),0,.84)
-box('Walker torso',(0,1.17,0),(.38,.5,.22),cloth,g,.09)
-for x in [-.11,.11]:
- beam('Walker trouser leg',(x,.12,-x*.65),(x,.94,0),.13,.14,shadow,g)
- box('Walker shoe',(x,.055,.045-x*.65),(.16,.11,.3),rubber,g,.035)
-for x in [-.25,.25]:beam('Walker sleeve',(x*.8,1.38,0),(x,.85,x*.4),.1,.11,cloth,g)
-bpy.ops.mesh.primitive_uv_sphere_add(segments=12,ring_count=8,radius=1,location=pt((0,1.59,0)))
-o=bpy.context.object;o.name='Walker head';o.parent=groups[g];o.scale=(.115,.105,.15);o.data.materials.append(skin)
+hat=mat('Walker hard hat',(.78,.76,.7),0,.45)
+# legs: right (+Z) forward, left back, knees slightly bent
+for hip,knee,ankle,boot in [((0,.93,.1),(.11,.5,.1),(.17,.09,.1),(.21,.055,.1)),((0,.93,-.1),(-.06,.5,-.1),(-.17,.12,-.1),(-.13,.075,-.1))]:
+ tube('Walker thigh',hip,knee,.075,trousers,g,.065);tube('Walker shin',knee,ankle,.062,trousers,g,.052)
+ box('Walker boot',boot,(.28,.11,.12),rubber,g,.03)
+box('Walker hips',(0,.93,0),(.21,.16,.34),trousers,g,.05)
+# torso: flattened taper wide at the shoulders; vest shell and band over it
+o=tube('Walker torso',(0,.94,0),(0,1.5,0),.15,shirt,g,.2,12);o.scale=(.62,1,1)
+o=tube('Walker vest',(0,1.03,0),(0,1.48,0),.165,vest,g,.205,12);o.scale=(.66,1,1)
+o=tube('Walker reflective band',(0,1.1,0),(0,1.15,0),.172,band,g,.176,12);o.scale=(.69,1,1)
+# arms swing against the legs
+for sh,el,wr in [((0,1.44,.215),(-.09,1.18,.245),(-.12,.94,.235)),((0,1.44,-.215),(.09,1.18,-.245),(.21,.98,-.225))]:
+ tube('Walker upper arm',sh,el,.052,shirt,g,.046);tube('Walker forearm',el,wr,.044,shirt,g,.038)
+ blob('Walker hand',wr,(.045,.045,.05),skin,g,8,6)
+tube('Walker neck',(0,1.49,0),(0,1.57,0),.048,skin,g)
+blob('Walker head',(0,1.645,0),(.1,.095,.118),skin,g)
+blob('Walker hard hat shell',(.01,1.715,0),(.13,.12,.075),hat,g)
+tube('Walker hard hat brim',(.02,1.675,0),(.02,1.69,0),.155,hat,g,.15,16)
 # Bake modifiers/transforms and one mesh per material within each asset.
 bpy.ops.object.select_all(action='DESELECT')
 for o in list(S.objects):

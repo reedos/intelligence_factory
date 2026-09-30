@@ -640,7 +640,10 @@ export function build({ quality, model }) {
     const light = new THREE.PointLight(0xffd39a, 1800, 150, 2);
     light.position.set(-455, 13.5, z); scene.add(light);
   }
-  for (let i = 0; i < 6; i++) person(N, -405 + i * 2.2, -140 + i * 1.3, i);
+  // scale cues in the yard: a crew of three at a transformer's operating cabinet and two at an e-house door,
+  // standing on the gravel (top at 0.4 m) rather than in a diagonal row
+  [[-410.2, -100.6, -1.9], [-409.6, -102.4, -1.2], [-411.4, -98.6, -2.6]].forEach(([x, z, ry]) => person(N, x, z, ry, 0.4));
+  [[-384.8, -168.2, -2.2], [-385.6, -166.6, 0.6]].forEach(([x, z, ry]) => person(N, x, z, ry, 0.4));
   person(N, 212, -104, 1.2); person(N, 214, -103, 2.2);
   const treeCount = quality.mobile ? 5 : 9;
   const treeMx = treeMatrices(rnd, {
