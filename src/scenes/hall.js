@@ -816,8 +816,10 @@ export function build({ quality, model }) {
   const cduSpot = { pos: [cduHero.x, 2.75, cduHero.z], view: { pos: [cduHero.x - 3.4, 3.1, cduHero.z + 4.6], target: [cduHero.x + .2, 1.35, cduHero.z] } };
   const built = {
     scene, flows,
-    camera: { pos: [42, 28, 46], target: [-6, 1.4, -2],
-      compact: { pos: [52, 34, 56], target: [-6, 1.4, -2] },
+    // Desktop overview sits ~15% closer than before so the hall fills the frame; the target is offset
+    // right so the risers' pin clears the orbit-hint line at the top left.
+    camera: { pos: [40, 26, 37], target: [-2, 1.5, -4],
+      compact: { pos: [48, 31, 45], target: [-2, 1.5, -4] },
       // Portrait looks steeply down the hall's diagonal so the 60 m hall fills the tall frame and the
       // power-room pins (1-4) separate from the data-hall ones instead of stacking in one cluster.
       portrait: { pos: [42, 83, 33], target: [-8, 2.5, -4.5] },
