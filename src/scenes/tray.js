@@ -198,8 +198,9 @@ function buildHGX({ quality }) {
   });
   // small local fill so GPU0's lifted-lid package reads clearly from the 'gpu' hotspot, not just lit from the far key
   const gpuFill = new THREE.PointLight(0xfff2df, 0.9, 3.2, 2); gpuFill.position.set(gpuX[0] - 0.15, 0.7, gpuZ[0] + 1.1); scene.add(gpuFill);
-  // warm rim from behind and above: catches fin edges, heat pipes and the PSU bay (the site's amber)
-  const amber = new THREE.DirectionalLight(0xe6ba82, 1.3); amber.name = 'H100 amber rim'; amber.position.set(-5, 6.5, -8); amber.target.position.set(0, 1, 0); scene.add(amber, amber.target);
+  // warm rim from behind, low and grazing: catches fin edges, heat pipes and the PSU bay (the site's amber)
+  // without flooding the flat CPU-tray board, which turned olive under a steeper rim
+  const amber = new THREE.DirectionalLight(0xe6ba82, 1.3); amber.name = 'H100 amber rim'; amber.position.set(-5, 1.9, -8); amber.target.position.set(0, 1.2, 0); scene.add(amber, amber.target);
   // NVSwitch chips behind the GPUs, with small sinks
   const swX = [-1.5, -0.5, 0.5, 1.5], swZ = -0.25;
   swX.forEach(x => { S.box(0.42, 0.03, 0.42, MAT.pcbBlack, x, fy + 0.05, swZ); S.box(0.4, 0.5, 0.4, MAT.alu, x, fy + 0.32, swZ); for (let f = 0; f < 8; f++) N.box(0.015, 0.45, 0.42, MAT.galv, x - 0.18 + f * 0.05, fy + 0.35, swZ); });
