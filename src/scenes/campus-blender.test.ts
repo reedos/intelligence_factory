@@ -110,13 +110,13 @@ describe('authored Blender campus replaces geometry without changing the enginee
   expect(fixtures).toHaveLength(2);
   for(const group of fixtures){const bounds=new THREE.Box3().setFromObject(group);expect(bounds.max.z).toBeLessThan(-17);}
  });
- it('covers scenario variants',()=>{
-  for(const scenario of [
+ it.each([
    {...DEFAULT_SCENARIO,meterMW:10},
    {...DEFAULT_SCENARIO,meterMW:1000},
    {...DEFAULT_SCENARIO,site:'colossus2',accel:'gb300',cooling:'liquid'},
    {...DEFAULT_SCENARIO,accel:'h100',cooling:'air',power:'dc800'},
-  ])for(const builder of [campus,hall]){
+ ])('covers scenario variant $accel / $meterMW MW',scenario=>{
+  for(const builder of [campus,hall]){
    const model=compute(scenario as any),before=JSON.stringify(model);
    const scene=builder.build({quality:{mobile:true,shadows:false},model}).scene;
    expect(JSON.stringify(model)).toBe(before);
@@ -266,6 +266,16 @@ describe('readable connected site activity',()=>{
   }
   expect(thermal.length).toBe(services.cool.length+services.warm.length);
  });
+ it('keeps all compute racks connected on desktop and phone while sampling only motion',()=>{
+  for(const [mobile,accel,expectedMotion]of [[false,'gb200',54],[true,'h100',30]] as const){
+   const scene=hall.build({quality:{mobile,shadows:false},model:compute({...DEFAULT_SCENARIO,accel})});
+   const links=scene.scene.userData.hallFiber.routes.filter((r:any)=>r.kind==='rack-to-leaf');
+   expect(links).toHaveLength(192);
+   expect(links.filter((r:any)=>r.animated)).toHaveLength(expectedMotion);
+   for(const r of links)expect(Math.sign(r.start[2]-r.rack.z)).toBe(accel==='h100'?-r.rack.f:r.rack.f);
+   scene.scene.traverse((o:any)=>{if(o.geometry)o.geometry.dispose();});
+  }
+ });
  it('animates sampled existing hall power drops and fiber uplinks at their real elevations',()=>{
   const power=builtHall.flows.filter((f:any)=>f.group.userData.rackPowerDrop),data=builtHall.dataFlows.filter((f:any)=>f.group.userData.rackFiberUplink);
   expect(power.length).toBeGreaterThanOrEqual(24);expect(data.length).toBeGreaterThanOrEqual(24);
@@ -276,7 +286,18 @@ describe('readable connected site activity',()=>{
    expect(f.path.getPoint(1).y).toBeLessThan(2.3);
   }
   const audit=builtHall.scene.userData.hallFiber;
-  expect(audit.routes.filter((r:any)=>r.kind==='rack-to-leaf').length).toBe(data.length);
+  const links=audit.routes.filter((r:any)=>r.kind==='rack-to-leaf');
+  expect(links).toHaveLength(192);expect(links.length).toBe(audit.computeRackCount);
+  expect(new Set(links.map((r:any)=>`${r.rack.x}:${r.rack.z}`)).size).toBe(192);
+  expect(new Set(links.map((r:any)=>r.end.join(':'))).size).toBe(192);
+  expect(links.filter((r:any)=>r.animated)).toHaveLength(data.length);
+  for(const route of links){
+   // Rack-side risers remain inside the 600 mm cabinet width.
+   for(const p of route.points.filter((p:number[])=>p[1]<4.4&&Math.abs(p[2]-route.rack.z)>.3)){
+    // Only the compute end, before the overhead leg, belongs to this rack.
+    if(Math.abs(p[0]-route.start[0])<.2)expect(Math.abs(p[0]-route.rack.x)).toBeLessThan(.29);
+   }
+  }
   for(const route of audit.routes){
    expect(Math.max(...route.points.map((p:number[])=>p[1]))).toBeCloseTo(4.55,6);
    // Long overhead runs sit above the 4.32 m tray floor, below its 4.4 m rim.
@@ -286,6 +307,7 @@ describe('readable connected site activity',()=>{
      expect(a[1]).toBeCloseTo(4.36,6);
     }
    }
+   if(!route.animated)continue;
    const f=builtHall.dataFlows.find((f:any)=>f.group.userData.fiberRoute===route.kind&&f.path.getPoint(0).distanceTo(new THREE.Vector3(...route.start))<1e-6);
    expect(f).toBeDefined();
    expect(f.path.getPoint(1).distanceTo(new THREE.Vector3(...route.end))).toBeLessThan(1e-6);

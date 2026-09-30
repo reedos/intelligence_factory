@@ -159,12 +159,18 @@ export function build({ quality, model }) {
   // Physical jackets and particles use one route definition. Network and rack
   // drops rise beside the face, then pass over the raceway rim before landing.
   function fiberPath(points,kind,{count=6,size=.035,animated=true,radius=.006}={}) {
-    const pts=managedRoute(points,.075),f=flow(pts,'eth',{count,speed:1.6,size,k:1.4,trail:false});
+    const pts=managedRoute(points,.075);
     for(let i=1;i<pts.length;i++)N.strut(pts[i-1],pts[i],radius,fiberJacket,6);
-    f.group.userData.fiberRoute=kind;
-    if(kind==='rack-to-leaf')f.group.userData.rackFiberUplink=true;
-    if(animated)dataFlows.push(f);
-    fiberRoutes.push({kind,points:pts,start:pts[0],end:pts.at(-1)});return pts;
+    // Preserve every physical connection at every quality level. Only moving
+    // particles are sampled; unanimated links allocate no flow objects.
+    if(animated){
+      const f=flow(pts,'eth',{count,speed:1.6,size,k:1.4,trail:false});
+      f.group.userData.fiberRoute=kind;
+      if(kind==='rack-to-leaf')f.group.userData.rackFiberUplink=true;
+      dataFlows.push(f);
+    }
+    const route={kind,points:pts,start:pts[0],end:pts.at(-1),animated};
+    fiberRoutes.push(route);return route;
   }
   function portDrop(port,rowZ) {
     const [x,y,z]=port.point,fs=port.f;
@@ -471,7 +477,7 @@ export function build({ quality, model }) {
   });
   instanced(0.6, 2.3, 1.2, TEX.net, 0x131519, rowZs.map((z, r) => ({ x: leafX, z, f: facing[r] })));
   // leaf faceplates: pluggable OSFP modules, fiber pigtails rising into the runway overhead
-  rowZs.forEach((z, r) => { pluggableFace(leafX,z,facing[r],{rows:4,cols:8,y0:1.3,y1:2.1}); });
+  rowZs.forEach((z, r) => { pluggableFace(leafX,z,facing[r],{rows:5,cols:8,y0:1.3,y1:2.1}); });
   N.box(.3,.04,23,MAT.yellowTray,leafX,HALL_RUNWAY.floorY,-.8);
   // Open T-junctions: the row fibers must not pass through a solid tray wall.
   const runwayOpenings=[...rowZs,10.5];let wallStart=-12.3;
@@ -486,10 +492,11 @@ export function build({ quality, model }) {
   for (let i = 0; i < 10; i++) N.box(0.5, 0.18, 0.08, MAT.white, rowX0 + 2 + i * 0.62, 2.38, 11.1);
   rowZs.forEach((z,r)=>{
     const ports=networkPorts.get(`${leafX}:${z}`),row=rackMx.filter(k=>k.z===z);
-    const samples=row.filter((_,i)=>i%(quality.mobile?8:4)===0||i===10);
-    samples.forEach((k,i)=>{
+    row.forEach((k,i)=>{
       const rise=rackDrop(k),drop=portDrop(ports[i],z);
-      fiberPath([...rise,[drop.at(-1)[0],HALL_RUNWAY.cableY,z],...drop.slice(0,-1).reverse()],'rack-to-leaf');
+      const route=fiberPath([...rise,[drop.at(-1)[0],HALL_RUNWAY.cableY,z],...drop.slice(0,-1).reverse()],
+        'rack-to-leaf',{animated:i%(quality.mobile?8:4)===0||i===10});
+      route.rack={x:k.x,z:k.z,f:k.f};
     });
     const leaf=portDrop(ports.at(-1),z),spineRack=netItems[r],spinePort=networkPorts.get(`${spineRack.x}:10.5`)[0];
     const spine=portDrop(spinePort,10.5);
@@ -511,7 +518,7 @@ export function build({ quality, model }) {
     fiberPath([...rise,[it.x,HALL_RUNWAY.cableY,svcZ],[it.x,HALL_RUNWAY.cableY,14.2],[px,HALL_RUNWAY.cableY,14.2],
       [px,HALL_RUNWAY.entryY,14.2],[px,HALL_RUNWAY.entryY,end[2]],end],'storage-control',{count:8,size:.045});
   }
-  scene.userData.hallFiber={routes:fiberRoutes,runway:HALL_RUNWAY,representative:true};
+  scene.userData.hallFiber={routes:fiberRoutes,runway:HALL_RUNWAY,computeRackCount:rackMx.length,representative:true};
   // fan wall on the east side
   S.slab(1.2, 6, 26, MAT.darkSteel, X1 - 1.0, 0, -3);
   const wallFans = [];

@@ -394,12 +394,19 @@ it('rack optics seat on compute units, retain generation port counts and termina
   // face and cable triangle for every lead needlessly scales with rack detail.
   const connectors=meshes(hardware).filter(o=>(Array.isArray(o.material)?o.material:[o.material]).some((m:any)=>m.name.startsWith('MPO APC connector boot')));
   expect(connectors.length).toBeGreaterThan(0);
+  const cables=meshes(hardware).filter(o=>(Array.isArray(o.material)?o.material:[o.material]).some((m:any)=>m.name.startsWith('Optical patch cable jacket')));
+  expect(cables.length).toBeGreaterThan(0);
+  for(const cable of cables){
+   const box=new THREE.Box3().setFromObject(cable);
+   expect(box.min.x).toBeGreaterThan(-.3);expect(box.max.x).toBeLessThan(.3);
+  }
+
   const ray=new THREE.Raycaster();
   for(const f of links){
    expect(f.rackOpticalLink.managed).toBe(true);
    for(const segment of f.path.curves) {
     for(const p of [segment.getPoint(0),segment.getPoint(1)]) {
-     expect(Math.abs(p.x)).toBeLessThan(.39);
+     expect(Math.abs(p.x)).toBeLessThan(.29);
      expect(p.z).toBeLessThan(1.55);
     }
    }

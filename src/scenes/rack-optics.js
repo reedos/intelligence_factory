@@ -46,12 +46,12 @@ export function addRackOptics(built, accel) {
         const cx=x+(connectorCount===2?(lane-.5)*.009:0);
         hardware.box(connectorCount===2?.0075:.014,.007,.018,connector,cx,y,z+direction*.03);
         for(let rib=0;rib<4;rib++)hardware.box(connectorCount===2?.0078:.0143,.0074,.0012,MAT.black,cx,y,z+direction*(.035+rib*.002));
-        const side = Math.sign(x), rail = side*(.365+(index%6)*.0028);
-        const managerZ=(h100?-.63:.64)+direction*(Math.floor(index/6)*.007+lane*.0032);
+        const side = Math.sign(x), rail = side*(.252+(index%6)*.0028);
+        const managerZ=(h100?-.575:.575)+direction*(Math.floor(index/6)*.007+lane*.0032);
         const start=[cx,y,z+direction*.044], end=[rail,2.32,managerZ];
         // Short faceplate run, then a controlled side return for the extended
         // service tray. Neighboring leads share a narrow, combed riser corridor.
-        const exitZ=z+direction*(.105+lane*.008);
+        const exitZ=z+direction*(.085+lane*.008);
         const points=managedRoute([start,[cx,y,exitZ],[rail,y,exitZ],
           [rail,y,managerZ],[rail,y+.10,managerZ],end]);
         const motion=flow(points,'eth',{count:8,speed:.30,size:.0013,k:1,trail:false});
@@ -85,13 +85,14 @@ export function addRackOptics(built, accel) {
     }
   });
   for (const side of [-1,1]) {
-    const center=side*.372,managerZ=h100?-.63:.64;
+    const center=side*.259,managerZ=h100?-.575:.575;
     hardware.box(.042,.033,.008,MAT.darkSteel,center,2.327,managerZ+(h100?.012:-.012));
-    // Open-sided vertical managers support the bundle without hiding motion.
-    hardware.box(.004,2.16,.055,MAT.darkSteel,side*.397,1.22,managerZ);
+    // Managers and fibers stay inside the 600 mm rack width; front/rear
+    // service clearance remains outside the face, not outside the side posts.
+    hardware.box(.004,2.16,.055,MAT.darkSteel,side*.284,1.22,managerZ);
     for(let y=.22;y<2.31;y+=.18) {
-      hardware.box(.043,.006,.004,shell,side*.377,y,managerZ+(h100?.031:-.013));
-      hardware.box(.004,.016,.055,MAT.darkSteel,side*.351,y,managerZ+.008);
+      hardware.box(.043,.006,.004,shell,side*.264,y,managerZ+(h100?.031:-.013));
+      hardware.box(.004,.016,.055,MAT.darkSteel,side*.238,y,managerZ+.008);
     }
     // Each patch strip's outgoing multifiber loom continues into the overhead
     // runway. This is a cable bundle, not an optical combiner or active switch.
