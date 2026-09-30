@@ -10,7 +10,9 @@ export function frameCompute(built, kind, accel) {
     built.camera = { ...built.camera, ...componentView([0, h100 ? 1.6 : .4, -.1], [7, 7, 9], [4.9, h100 ? 3.7 : 1.3, 10.0]) };
   } else if (kind === 'chip') {
     built.camera = { ...built.camera, ...componentView([0, 2.5, 0], [9, 6, 11], [9.2, 5.0, 9.2]) };
-    built.cameraByMode.power = { ...componentView([0, 2.35, 0], [10, 3.4, 12], [9.2, 4.7, 9.2]) };
+    // The fit box stops just above the HBM tops (about 3.5 cm), so the exploded
+    // stack fills the frame instead of leaving a band of empty space above it.
+    built.cameraByMode.power = { ...componentView([0, 2.0, 0], [10, 3.4, 12], [9.2, 4.0, 9.2]) };
   }
   const rackSizes = {
     feed: [.55,.7,.45], shelves: [.55,.18,.30], busbar: [.18,1.15,.15],
