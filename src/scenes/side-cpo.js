@@ -214,7 +214,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   };
   return {
     scene, flows, dataFlows, heatFlows, coolingHardware,
-    camera: { pos: [-0.5, 22, 25], target: [-0.5, 1.0, -1.5], near: 0.05, far: 500, min: 2, max: 90, portrait: { pos: [-3, 33, 35], target: [-3, 0.5, -1.5] } },
+    camera: { pos: [-0.5, 22, 25], target: [-0.5, 1.0, -1.5], near: 0.05, far: 500, min: 2, max: 90, portrait: { pos: [14.5, 29.5, 25.5], target: [-1.5, 1.2, -2.5] } },
     hotspots: { asic: hs.asic, engine: hs.engine, els: hs.els },
     dataHotspots: { asic: hs.asic, serdes: hs.serdes, eic: hs.eic, rings: hs.rings, pd: hs.pd, els: hs.els, fiberout: hs.fiberout },
     // Heat looks in under the lifted plate: the die glows below, its heat rises into the channels above.
