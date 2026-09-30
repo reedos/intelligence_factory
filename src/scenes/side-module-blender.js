@@ -331,7 +331,7 @@ export function build({ quality, state }) {
     scene, flows, dataFlows, heatFlows, look,
     housingBounds: hardwareBounds(model),
     camera: { pos: quality.mobile ? [1.6, 13.5, 20.5] : [1.6, 12, 17.5], target: [0.5, 2.1, 0], near: 0.05, far: 300, min: 1.2, max: 40,
-      portrait: { pos: [1.2, 14.5, 19], target: [0.7, 2.3, 0.3] } },
+      portrait: { pos: [6.2, 11.5, 10], target: [1.1, 2.1, 0.2] } },
     hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers },
     dataHotspots: { fingers: hs.fingers, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers, mzm: hs.mzm, mpo: hs.mpo, pd: hs.pd, tia: hs.tia },
     heatHotspots: { dsp: hs.dsp, shell: hs.shell },
