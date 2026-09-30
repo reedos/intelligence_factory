@@ -555,7 +555,7 @@ function buildHGX({ quality, state }) {
       uplinks: { pos: [fx, H + 0.2, fz], view: { pos: [1.3, 2.9, -1.6], target: [0.2, 2.2, fz] } },
       // The rear cage rows, the combed fiber manager and its patch strip: the
       // scale-out optics this card contrasts with scale-up copper.
-      optical: { pos: [0.259, 1.62, ZB - 0.06], view: componentView([0.16, 1.3, ZB + 0.06], [0.75, 0.3, -0.95], [0.46, 0.8, 0.3]) },
+      optical: { pos: [0.259, 1.62, ZB - 0.06], view: componentView([0.02, 1.28, ZB + 0.06], [0.75, 0.3, -0.95], [0.6, 1.0, 0.4]) },
       mgmt: { pos: [0.22, topY + U / 2, ZF - 0.03], view: componentView([0.02, topY + U / 2, ZF - 0.02], [0.32, 0.16, 0.9], [0.5, 0.12, 0.2]) },
     },
     look: LOOK,
@@ -871,7 +871,7 @@ function buildNVL({ quality, model, state }) {
       uplinks: { pos: [fx, H + 0.2, fz], view: { pos: [1.3, 2.9, 2.2], target: [0.2, 2.2, fz] } },
       // Front cage rows, fiber managers and the patch strip, with the opened
       // tray's seated modules in frame: scale-out optics, set against copper.
-      optical: { pos: [0.259, 1.72, ZF + 0.06], view: componentView([0.16, 1.5, ZF - 0.06], [0.75, 0.3, 0.95], [0.46, 0.8, 0.3]) },
+      optical: { pos: [-0.195, trayY(27) - 0.009, ZF - 0.02], view: componentView([0.06, 1.4, ZF - 0.06], [0.75, 0.3, 0.95], [0.62, 1.05, 0.4]) },
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
       mgmt: { pos: [0.22, trayY(34), ZF - 0.03], view: componentView([0.02, trayY(33) + U / 2, ZF - 0.02], [0.32, 0.16, 0.9], [0.5, 0.15, 0.2]) },
     },
