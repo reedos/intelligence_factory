@@ -82,7 +82,8 @@ export function build({ quality, state, authoredHardware = false }) {
       for (const y of [cardTop + 0.00125, cardBottom - 0.00125]) N.box(0.045, 0.0045, front - padRear, padGold, copperPadX(hx, j), y, (front + padRear) / 2);
     }
     // the ID memory every plug carries, on the power line between the transmit and receive halves
-    S.box(0.18, 0.05, 0.16, MAT.pcbBlack, hx, cardTop + 0.025, zc + 1.95);
+    // (Blender authors it as a leaded SOT-23-class package at the same place)
+    if (!authoredHardware) S.box(0.18, 0.05, 0.16, MAT.pcbBlack, hx, cardTop + 0.025, zc + 1.95);
     // four pairs each way: transmit on the left half, receive on the right
     const lane = (i, rx) => copperLane(hx, i, rx);
     const chipZ = zc, chip = copperChip(kind, hx);
@@ -128,7 +129,7 @@ export function build({ quality, state, authoredHardware = false }) {
     if (chip) {
       if (!authoredHardware) S.box(chip.w, chip.h, chip.d, MAT.silicon, chip.x, cardTop + chip.h / 2, chipZ);
       // AEC: power inductors on the supply line ahead of the retimer (representative placement)
-      if (kind === 'aec') for (let i = 0; i < 3; i++) S.box(0.2, 0.16, 0.2, MAT.inductor, hx, cardTop + 0.08, zc + 0.78 + i * 0.26);
+      if (kind === 'aec' && !authoredHardware) for (let i = 0; i < 3; i++) S.box(0.2, 0.16, 0.2, MAT.inductor, hx, cardTop + 0.08, zc + 0.78 + i * 0.26);
     }
     if (!authoredHardware) lidBox(scene, M, HW, HL, [hx, 2.3, zc]);
     // flows: transmit from the host into the cable, receive from the cable to the host, through the chip if there is one

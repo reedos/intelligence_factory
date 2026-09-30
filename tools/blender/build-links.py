@@ -371,19 +371,19 @@ def copper_active_package(kind, x, zc, m):
     top=.94
     if kind=='ACC':
         cx,cw,cd,h=x+.39,.62,.6,.085
-        box('ACC active QFN body',(cx,top+h/2,zc),(cw-.05,h,cd-.05),m['package'],.012)
+        box('ACC active QFN body',(cx,top+h/2-.001,zc),(cw-.05,h,cd-.05),m['package'],.012)
         for i in range(8):
             t=(i-3.5)*.062
             for s in [-1,1]:
-                box('ACC active QFN lead',(cx+s*(cw/2-.03),top+.006,zc+t),(.05,.012,.026),m['lead'],0)
-                box('ACC active QFN lead',(cx+t,top+.006,zc+s*(cd/2-.03)),(.026,.012,.05),m['lead'],0)
+                box('ACC active QFN lead',(cx+s*(cw/2-.03),top+.005,zc+t),(.05,.012,.026),m['lead'],0)
+                box('ACC active QFN lead',(cx+t,top+.005,zc+s*(cd/2-.03)),(.026,.012,.05),m['lead'],0)
         box('ACC active pin one mark',(cx-cw/2+.1,top+h+.0006,zc+cd/2-.1),(.045,.001,.045),m['etch'],.02)
         for j,w in enumerate([.16,.11,.2]):
             box('ACC active laser etch',(cx-.02,top+h+.0006,zc-.1+j*.075),(w,.001,.022),m['etch'],0)
         return
     cx,cw,cd=x,1.42,.95
     sub=.1; lw,ld,lh=1.08,.72,.07
-    box('AEC active BGA shadow',(cx,top+.012,zc),(cw-.06,.024,cd-.06),m['dark'],.004)
+    box('AEC active BGA shadow',(cx,top+.011,zc),(cw-.06,.024,cd-.06),m['dark'],.004)
     box('AEC active FCBGA substrate',(cx,top+.024+sub/2,zc),(cw,sub,cd),m['substrate'],.01)
     y=top+.024+sub
     box('AEC active nickel lid',(cx,y+lh/2,zc),(lw,lh,ld),m['nickel'],.02)
@@ -400,6 +400,47 @@ def copper_active_package(kind, x, zc, m):
         t=(i-1)*.2
         for s in [-1,1]:
             copper_cap('AEC active decoupling',cx+s*(lw/2+.08),y,zc+t,False,m)
+
+def copper_card_detail(kind, x, zc, m):
+    # Paddle-card finish (representative): the ID memory as a leaded SOT-23-
+    # class package, the AEC's molded power inductors with end terminations,
+    # ground stitching vias between the pairs and plain silkscreen outlines and
+    # reference designators (no logos). Positions match the native layout.
+    top=.94
+    ez=zc+1.95
+    box(kind+' ID memory body',(x,top+.045,ez),(.15,.08,.26),m['package'],.012)
+    for s in [-1,1]:
+        for dz in ([-.09,0,.09] if s<0 else [-.09,.09]):
+            box(kind+' ID memory lead',(x+s*.095,top+.005,ez+dz),(.04,.012,.035),m['lead'],0)
+    box(kind+' ID memory pin one',(x-.045,top+.0855,ez+.09),(.025,.001,.025),m['etch'],0)
+    silk_outline(kind+' silkscreen',x,ez,.2,.34,m)
+    if kind=='AEC':
+        for i in range(3):
+            iz=zc+.78+i*.26
+            box(kind+' power inductor body',(x,top+.079,iz),(.2,.16,.17),m['inductor'],.02)
+            for s in [-1,1]:
+                box(kind+' power inductor termination',(x,top+.059,iz+s*.09),(.18,.12,.022),m['lead'],.006)
+    # ground stitching vias: rows midway between neighbouring pairs, clear of
+    # the breakout, the packages and the rear termination
+    lanes=[-.63+i*.16 for i in range(4)]+[.15+i*.16 for i in range(4)]
+    rows=[-.71]+[(lanes[i]+lanes[i+1])/2 for i in range(7) if i!=3]+[.71]
+    chip={'ACC':(x+.08,x+.70,zc-.35,zc+.35),'AEC':(x-.76,x+.76,zc-.52,zc+.52)}.get(kind)
+    k=0
+    for rx in rows:
+        for j in range(15):
+            vz=2.05-j*.25
+            vx=x+rx
+            if chip and chip[0]-.04<vx<chip[1]+.04 and chip[2]<vz<chip[3]:continue
+            bpy.ops.mesh.primitive_cylinder_add(vertices=6,radius=.018*.01,depth=.004*.01,location=xyz((vx,top+.0015,vz)))
+            o=bpy.context.object;o.name=kind+' stitching via';o.data.materials.append(m['via'])
+            k+=1
+    return k
+
+def silk_outline(name, x, z, w, d, m):
+    t=.008
+    for s in [-1,1]:
+        box(name+' outline',(x+s*w/2,.9415,z),(t,.004,d),m['silk'],0)
+        box(name+' outline',(x,.9415,z+s*d/2),(w,.004,t),m['silk'],0)
 
 def copper_cap(name, x, y, z, along_x, m):
     L,Wd,H=.06,.03,.03
@@ -499,11 +540,15 @@ def copper():
     m['etch']=mat('Laser etched package mark',(.2,.22,.24),.1,.62)
     m['substrate']=mat('Dark BGA substrate',(.03,.05,.04),.05,.5)
     m['nickel']=mat('Nickel plated package lid',(.62,.63,.64),1,.24)
+    m['inductor']=mat('Molded power inductor',(.15,.15,.16),.1,.6)
+    m['via']=mat('ENIG via ring',(.85,.66,.36),.7,.3)
+    m['silk']=mat('White silkscreen',(.8,.82,.8),0,.7)
     for kind,x in [('DAC',-4.6),('ACC',0),('AEC',4.6)]:
         copper_shell(kind,x,zc,W,m)
         cable_cutaway(kind+' sectioned jacket',x,m)
         if kind!='DAC':
             copper_active_package(kind,x,zc,m)
+        copper_card_detail(kind,x,zc,m)
         copper_pull(kind+' release pull',x,m)
     internals('copper')
     export('copper-hardware',m,[W,L])
