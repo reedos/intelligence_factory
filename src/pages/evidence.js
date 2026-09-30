@@ -51,6 +51,8 @@ function render() {
   const q = $('ev-q').value.trim().toLowerCase();
   const bases = new Set([...document.querySelectorAll('[data-basis][aria-pressed="true"]')].map(b => b.dataset.basis));
   const layers = new Set([...document.querySelectorAll('[data-layer][aria-pressed="true"]')].map(b => b.dataset.layer));
+  // a search or a filter in use: the page's head steps aside so the matching claims sit right under the tools
+  document.body.classList.toggle('ev-searching', !!q || !!document.querySelector('[data-basis][aria-pressed="false"], [data-layer][aria-pressed="false"]'));
   const text = c => `${c.label} ${c.value} ${c.part?.title || ''} ${c.scene?.title || ''} ${(c.ev?.refs || []).map(([id, at]) => `${SOURCES[id]?.publisher} ${SOURCES[id]?.title} ${at}`).join(' ')}`.toLowerCase();
   const hit = c => bases.has(c.basis) && (!c.mode || layers.has(c.mode)) && (!q || text(c).includes(q));
   const shown = claims.filter(hit);

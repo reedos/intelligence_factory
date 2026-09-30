@@ -41,6 +41,9 @@ body.page .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--line
 .ev-filter button[aria-pressed="true"] { color: var(--ink); background: var(--surface); }
 .ev-filter button[aria-pressed="true"] i { opacity: 1; box-shadow: 0 0 8px currentColor; }
 .ev-filter button:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
+.embedded .ev-tools { top: 0; }
+.ev-searching .page-head { display: none; }
+@media (pointer: coarse) { .ev-filter button { height: 44px; } .ev-search input { height: 44px; } }
 .ev-count { margin: 0 0 0 auto; font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 #ev-claims { display: grid; gap: 48px; }
 .ev-level { display: grid; gap: 14px; }
@@ -75,6 +78,7 @@ body.page .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--line
 .ev-pub a { color: var(--ink); text-underline-offset: 3px; text-decoration-color: var(--line-2); }
 .ev-pub a:hover { text-decoration-color: var(--accent); }
 .ev-cites { font: 400 10.5px/1.6 var(--mono); color: var(--faint); white-space: nowrap; }
+@media (max-width: 760px) { .ev-cites { white-space: normal; } }   /* one long line widened the whole page on a phone and pushed the menu off screen */
 @media (max-width: 760px) {
   .page-wrap { padding-top: calc(var(--bar) + 32px); gap: 40px; }
   /* filters wrap into a grid of cells instead of running off the screen */
