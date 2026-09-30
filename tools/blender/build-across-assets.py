@@ -18,7 +18,7 @@ dark=mat('Graphite recess',(.035,.055,.075),.4,.4)
 steel=mat('Brushed structural steel',(.3,.38,.45),.75,.34)
 concrete=mat('Satin concrete',(.38,.40,.42),.05,.72)
 glass=mat('Photovoltaic glazing',(.015,.07,.12),.55,.22)
-names=['MAP_SURFACE','GAS_PLANT','NUCLEAR_PLANT','WIND_MAST','WIND_ROTOR','SOLAR_ROW','GRID_PYLON','MAP_SUBSTATION']
+names=['MAP_SURFACE','GAS_PLANT','NUCLEAR_PLANT','WIND_MAST','WIND_ROTOR','SOLAR_ROW','GRID_PYLON','MAP_SUBSTATION','HUT_SITE']
 groups={}
 for n in names:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
@@ -237,6 +237,24 @@ for z in [-4.2,4.2]:
  for dz in [-.9,0,.9]:cyl('HV bushing',(1.2,4.45,z+dz*.9),.16,1.9,porcelain,g,10)
 box('Control house',(4.4,1.3,0),(2.6,2.2,4.6),pearl,g,.12)
 box('Control house roof',(4.4,2.5,0),(2.9,.2,4.9),steel,g,.05)
+# Amplifier hut site dressing, placed with each shared MAP_HUT shelter: a gravel
+# apron and a chain-link fence around it, a wall-pack HVAC unit on the -x end, a
+# door lamp and a small roof beacon. Representative, not one carrier's standard.
+g='HUT_SITE'
+hutLamp=mat('Hut door lamp',(1,.83,.36),0,.5,3)
+for c,d in [((0,.08,3.1),(9,.12,.9)),((0,.08,-3.1),(9,.12,.9)),((4,.08,0),(1,.12,5.3)),((-4,.08,0),(1,.12,5.3))]:box('Gravel apron',c,d,gravel,g,0)
+for i in range(10):
+ for z in [-3.5,3.5]:box('Fence post',(-4.5+i,.5,z),(.07,1,.07),steel,g,0)
+for i in range(8):
+ for x in [-4.5,4.5]:box('Fence post',(x,.5,-3.5+i),(.07,1,.07),steel,g,0)
+for y in [.35,.95]:
+ for z in [-3.5,3.5]:box('Fence rail',(0,y,z),(9,.04,.04),steel,g,0)
+ for x in [-4.5,4.5]:box('Fence rail',(x,y,0),(.04,.04,7),steel,g,0)
+box('Wall-pack HVAC',(-3.28,1.7,0),(.5,1.4,1.2),pearl,g,.05)
+o=lathe('HVAC fan grille',[(0,.42),(.04,.42)],dark,g,16);o.rotation_euler.y=math.pi/2;o.location=pt((-3.55,1.7,0))
+box('Door lamp',(1.5,2.92,2.1),(1.1,.09,.12),hutLamp,g,0)
+cyl('Roof beacon mast',(2.4,3.5,1.5),.1,.35,steel,g,8)
+cyl('Roof beacon',(2.4,3.74,1.5),.16,.14,hutLamp,g,10)
 # Bake modifiers, merge by semantic asset/material, then write reusable assets.
 for o in list(S.objects):
  if o.type=='MESH':

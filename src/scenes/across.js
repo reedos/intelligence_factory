@@ -470,7 +470,8 @@ export function build({ quality, model, state = {} }) {
   let longest = null;
   near.forEach(({ p, km }, i) => {
     const B = world(p.site.lon, p.site.lat);
-    const pts = route(H, B, Math.min(160, km * 0.12), 7 + i * 10);
+    // near the ground: long-haul fiber runs in buried conduit and enters each amplifier hut, rather than overhead
+    const pts = route(H, B, Math.min(160, km * 0.12), 7 + i * 10).map(q => [q[0], 1.2, q[2]]);
     const L = polyLen(pts);
     // Screen-width cartographic overlay, not a physical cable diameter. The public geographic
     // endpoints, representative wandering path and directional elevations stay unchanged.
@@ -500,8 +501,10 @@ export function build({ quality, model, state = {} }) {
     lab.position.set(mid[0], 40, mid[2]); lab.visible = false; data.add(lab); caption(lab, data, { route: true, priority: 2 - i });   // the nearer route places first
     if (!longest || L > longest.L) longest = { L, mid, B };
   });
-  if (authored) data.add(campusCatalogInstances('MAP_HUT', huts.map(p => mtx(p[0], 0, p[2]))));
-  else {
+  if (authored) {
+    data.add(campusCatalogInstances('MAP_HUT', huts.map(p => mtx(p[0], 0, p[2]))));
+    data.add(acrossAssetInstances('HUT_SITE', huts.map(p => mtx(p[0], 0, p[2]))));
+  } else {
   const hut = new Builder();
   // Representative shelter envelope, raised plinth and service door: no extra amplifier stages.
   rbox(hut, 6, 3, 4, MAT.beige, 0, 1.5, 0, { r: .16 });
@@ -511,10 +514,9 @@ export function build({ quality, model, state = {} }) {
   hut.box(.1, .45, .08, iconTrim, 1.88, 1.45, 2.08);
   for (let y = .65; y < 2.5; y += .25) hut.box(1.9, .09, .1, iconRoof, -1.35, y, 2.02);
   hut.cyl(.3, 8, MAT.galv, 3.5, 4, 0, 6);
+  hut.cyl(.16, .14, glowMat('#ffd35c', 1.4), 2.4, 3.3, 1.5, 10);
   data.add(hut.instance(huts.map(p => mtx(p[0], 0, p[2]))));
   }
-  const hutGlow = new THREE.InstancedMesh(new THREE.SphereGeometry(0.65, 10, 8), glowMat('#ffd35c', 1.4), huts.length);
-  huts.forEach((p, i) => hutGlow.setMatrixAt(i, mtx(p[0], 3.8, p[2]))); data.add(hutGlow);
   const terminalMatrices = [H, ...near.map(({ p }) => world(p.site.lon, p.site.lat))].map(([x, z]) => mtx(x + 20, 0, z - 16));
   if (authored) data.add(campusCatalogInstances('MAP_TERMINAL', terminalMatrices));
   else {
