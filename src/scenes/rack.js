@@ -44,27 +44,62 @@ function mgmtFace(g, w, h) {
   g.fillStyle = '#d7dbe0'; g.fillRect(990 * sx, 60 * sy, 22 * sx, 10 * sy);              // label pull-tab
 }
 
+// 1U tray faces at 0.43 mm per texel (1024 x 96 over 0.44 m). Sourced content
+// only: four E1.S sleds per compute tray (NVIDIA DGX GB hardware guide), six
+// supplies per power shelf (Flex/LITEON shelf pages). The network cages are
+// real geometry drawn by rack-optics.js, so none are painted here. Vent
+// perforation, labels, latches and light pipes are representative
+// (ASSUMPTIONS 'nvl72-tray-faces'); Rubin uses the same graphite finish.
+function perforate(g, x0, y0, x1, y1, step, rad, color = '#0a0c0f') {
+  g.fillStyle = color;
+  for (let y = y0, row = 0; y < y1; y += step * 0.87, row++) for (let x = x0 + (row % 2) * step / 2; x < x1; x += step) { g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill(); }
+}
+function labelStrip(g, x, y, w, h, seed) {
+  const r = rng(seed);
+  g.fillStyle = '#c9ced3'; g.fillRect(x, y, w, h);
+  g.fillStyle = '#1b1e22'; for (let bx = x + 3; bx < x + w - 3; bx += 1 + Math.floor(r() * 3)) if (r() < 0.55) g.fillRect(bx, y + 3, 1, h - 6);
+}
 function trayTex(kind, generation) {
-  const big = kind === 'mgmt';
-  return canvasTex(big ? 1024 : 512, big ? 96 : 48, (g, w, h) => {
-    g.fillStyle = kind === 'ps' ? '#3c444d' : '#303944'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#0d0e10'; g.fillRect(0, 0, w, 2); g.fillRect(0, h - 2, w, 2);
-    if (generation === 'rubin' && (kind === 'compute' || kind === 'switch')) {
-      g.fillStyle='#85765c';g.fillRect(4,4,w-8,h-8);
-      if(kind==='compute')for(const x0 of [24,350])for(let r=0;r<2;r++)for(let c=0;c<2;c++){g.fillStyle='#080c10';g.fillRect(x0+c*48,8+r*17,40,12);}
-      for(const x of [210,232,254,276]){g.fillStyle='#151b21';g.fillRect(x,12,15,10);}
-    } else if (kind === 'compute') {
-      // Four central E1.S sleds; cluster cages are real hollow geometry at the
-      // two outer bays. Do not paint six fictitious network ports underneath.
-      for (let i = 0; i < 4; i++) { g.fillStyle = '#596166'; g.fillRect(166 + i * 40, 5, 33, h - 10); g.fillStyle = '#12191c'; g.fillRect(171 + i * 40, 9, 7, h - 18); g.fillStyle = '#5cf29a'; g.fillRect(188 + i * 40, 12, 3, 3); }
-      g.fillStyle = '#101216'; for (let x = 12; x < w - 12; x += 7) if(x<155||x>329) for (let y = 6; y < 20; y += 6) g.fillRect(x, y, 3, 3);
-      g.fillStyle = '#47cfff'; g.fillRect(w - 18, h / 2 - 2, 5, 4);
+  return canvasTex(1024, 96, (g, w, h) => {
+    g.fillStyle = kind === 'ps' ? '#3b424a' : '#2f363e'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#0d0e10'; g.fillRect(0, 0, w, 4); g.fillRect(0, h - 4, w, 4);
+    g.fillStyle = '#4a525b'; g.fillRect(0, 4, w, 2);                                  // folded top edge catches light
+    if (kind === 'compute') {
+      const rubin = generation === 'rubin';
+      // vent fields either side of the drive bay, clear of the cage mouths
+      perforate(g, 16, 16, rubin ? 300 : 330, 84, 9, 3);
+      perforate(g, rubin ? 724 : 694, 16, 1008, 84, 9, 3);
+      // four E1.S sleds: carrier, latch, light pipe, pull tab
+      const x0 = rubin ? 360 : 352;
+      for (let k = 0; k < 4; k++) {
+        const x = x0 + k * 80;
+        g.fillStyle = '#545c64'; g.fillRect(x, 10, 72, 76);
+        g.fillStyle = '#1a1f24'; g.fillRect(x + 6, 16, 16, 64);
+        perforate(g, x + 30, 18, x + 68, 70, 6, 1.8, '#20262c');
+        g.fillStyle = '#7d858d'; g.fillRect(x + 28, 74, 38, 8);
+        g.fillStyle = '#5cf29a'; g.fillRect(x + 10, 20, 8, 5);
+      }
+      labelStrip(g, rubin ? 660 : 682, 66, 60, 18, 3);
+      g.fillStyle = '#47cfff'; g.fillRect(w - 26, h / 2 - 4, 8, 8);
     } else if (kind === 'switch') {
-      g.fillStyle = '#101216'; for (let x = 14; x < 380; x += 7) for (let y = 8; y < h - 8; y += 7) g.fillRect(x, y, 4, 4);
-      g.fillStyle = '#76b900'; g.fillRect(400, 18, 60, 12);
-      g.fillStyle = '#5cf29a'; g.fillRect(w - 20, h / 2 - 2, 5, 4); g.fillRect(w - 32, h / 2 - 2, 5, 4);
+      perforate(g, 380, 16, 900, 84, 9, 3);
+      labelStrip(g, 916, 20, 80, 22, 9);
+      g.fillStyle = '#5cf29a'; g.fillRect(930, 60, 8, 6); g.fillRect(948, 60, 8, 6);
     } else if (kind === 'ps') {
-      for (let i = 0; i < 6; i++) { const x = 6 + i * 84; g.fillStyle = '#353a42'; g.fillRect(x, 5, 78, h - 10); g.fillStyle = '#101216'; for (let gx = x + 6; gx < x + 50; gx += 5) g.fillRect(gx, 10, 3, h - 20); g.fillStyle = '#c9ccd0'; g.fillRect(x + 56, 12, 14, h - 24); g.fillStyle = '#5cf29a'; g.fillRect(x + 72, 12, 3, 3); }
+      for (let k = 0; k < 6; k++) {
+        const x = 8 + k * 168;
+        g.fillStyle = '#4a525b'; g.fillRect(x, 10, 160, 76);
+        g.fillStyle = '#0d1013'; g.fillRect(x, 10, 160, 2); g.fillRect(x, 10, 2, 76);
+        // fan grille: dark disc, guard rings and spokes
+        const cx = x + 44, cy = 48;
+        g.fillStyle = '#0b0d10'; g.beginPath(); g.arc(cx, cy, 33, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = '#59616a'; g.lineWidth = 2;
+        for (const rr of [12, 21, 30]) { g.beginPath(); g.arc(cx, cy, rr, 0, Math.PI * 2); g.stroke(); }
+        for (let a = 0; a < 4; a++) { g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a * Math.PI / 2 + 0.4) * 32, cy + Math.sin(a * Math.PI / 2 + 0.4) * 32); g.stroke(); }
+        perforate(g, x + 90, 20, x + 128, 80, 7, 2.2);
+        g.fillStyle = '#5cf29a'; g.fillRect(x + 136, 20, 8, 6);
+        g.fillStyle = '#f2b84a'; g.fillRect(x + 136, 32, 8, 6);
+      }
     } else if (kind === 'mgmt') {
       mgmtFace(g, w, h);
     } else {
@@ -177,7 +212,7 @@ function mgmtHardware(N, y, z, heavy, seed = 3) {
   leads.forEach((c, i) => {
     const b = Math.floor(c / 6), x = -0.22 + (140 + b * 170 + (c % 6) * 26 + 11) / 1024 * 0.44, yy = y + (i % 2 ? -0.0085 : 0.0065);
     N.box(0.0095, 0.0085, 0.02, CAT6, x, yy, z + 0.01);                                                      // plug boot
-    bundle(N, [x, yy, z + 0.02], [0.268, y - 0.09 - i * 0.012, z + 0.03], { n: 1, r: 0.0028, sag: 0.03, mats: [CAT6], seed: seed + i, seg: 5 });
+    bundle(N, [x, yy, z + 0.02], [0.268, y + (i % 2 ? -0.012 : 0.012), z + 0.034], { n: 1, r: 0.0028, sag: 0.008, mats: [CAT6], seed: seed + i, seg: 5 });
   });
 }
 
@@ -275,7 +310,14 @@ function serviceFace(B, y, z, heavy, kind) {
     B.box(0.147, U * 0.58, 0.002, MAT.black, -0.126, y, z + 0.0015);
     if (heavy) for (let i = 0; i < 20; i++) B.box(0.0015, U * 0.48, 0.0025, MAT.darkSteel, -0.195 + i * 0.0073, y, z + 0.0035);
   }
+  const gold = kind === 'switch';
   for (const x of [-0.204, 0.194]) {
+    if (gold) {
+      // bent pull handle: two standoffs and a proud grip bar
+      for (const dy of [-0.013, 0.013]) B.box(0.008, 0.005, 0.014, TRIM, x, y + dy, z + 0.007);
+      rbox(B, 0.011, U * 0.72, 0.006, TRIM, x, y, z + 0.016, { r: 0.35 });
+      continue;
+    }
     rbox(B, 0.009, U * 0.57, 0.004, COLLAR, x, y, z + 0.004, { r: 0.22 });
     // The black grip sits on the collar front; its rear must not coincide
     // with the collar rear (which caused a second, overlapping back face).
@@ -481,7 +523,8 @@ function buildNVL({ quality, model, state }) {
     serviceFace(N, trayY(i), ZF - 0.07, !quality.mobile, k);
     N.box(0.03, U * 0.9, 0.01, MAT.galv, -0.245, trayY(i), ZF - 0.065); N.box(0.03, U * 0.9, 0.01, MAT.galv, 0.245, trayY(i), ZF - 0.065);
     if (!quality.mobile) earFasteners(N, trayY(i), ZF - 0.0585);
-    rbox(N, 0.05, U * 0.5, 0.01, k === 'ps' ? COLLAR : TRIM, X - 0.09, trayY(i), ZF - 0.07 + 0.006, { r: 0.3 });
+    if (k === 'compute') rbox(N, 0.05, U * 0.5, 0.01, rubin ? TRIM : COLLAR, X - 0.09, trayY(i), ZF - 0.07 + 0.006, { r: 0.3 });
+    if (k === 'ps') for (let s = 0; s < 6; s++) rbox(N, 0.006, U * 0.52, 0.008, COLLAR, -0.22 + (8 + s * 168 + 150) / 1024 * 0.44, trayY(i), ZF - 0.07 + 0.004, { r: 0.4 });
   });
 
   // pulled-out compute tray with its lid off
