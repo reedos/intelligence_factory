@@ -208,11 +208,16 @@ function mgmtHardware(N, y, z, heavy, seed = 3) {
   for (const x of [-0.245, 0.245]) N.box(0.03, U * 0.9, 0.01, MAT.galv, x, y, z + 0.005);
   if (heavy) earFasteners(N, y, z + 0.0115);
   // port x positions follow mgmtFace(): 0.44 m face, 1024 px texture
-  const leads = heavy ? [0, 3, 7, 12, 14] : [0, 7];
+  // Dressed, not draped: each lead leaves its lower-row port, turns down to a
+  // harness line under the port field and runs level to the side manager.
+  // Every lead has its own depth so no two runs share a surface.
+  const leads = heavy ? [2, 5, 9, 16, 21] : [5, 16];
   leads.forEach((c, i) => {
-    const b = Math.floor(c / 6), x = -0.22 + (140 + b * 170 + (c % 6) * 26 + 11) / 1024 * 0.44, yy = y + (i % 2 ? -0.0085 : 0.0065);
+    const b = Math.floor(c / 6), x = -0.22 + (140 + b * 170 + (c % 6) * 26 + 11) / 1024 * 0.44, yy = y - 0.0085;
+    const zr = z + 0.026 + i * 0.006, yh = y - U * 0.36;
     N.box(0.0095, 0.0085, 0.02, CAT6, x, yy, z + 0.01);                                                      // plug boot
-    bundle(N, [x, yy, z + 0.02], [0.268, y + (i % 2 ? -0.012 : 0.012), z + 0.034], { n: 1, r: 0.0028, sag: 0.008, mats: [CAT6], seed: seed + i, seg: 5 });
+    const path = [[x, yy, z + 0.02], [x, yy - 0.003, zr - 0.002], [x + 0.004, yh, zr], [0.228, yh, zr], [0.25, yh + 0.004, zr + 0.004], [0.262, yh + 0.012, z + 0.032]];
+    for (let k = 1; k < path.length; k++) N.strut(path[k - 1], path[k], 0.0026, CAT6, 6);
   });
 }
 
