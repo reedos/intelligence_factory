@@ -256,6 +256,32 @@ def tray_specular_finish():
             elif metal.default_value>=.35 and rough.default_value<.45:
                 rough.default_value=.45
 
+def dedupe_materials():
+    # The reference import creates one material per native mesh ("Physical 10",
+    # "Physical 10.001" ...), so identical surfaces never shared a batch. Map
+    # every slot to one canonical material per visible look, then the export
+    # join groups them: fewer draw calls, identical pixels.
+    def key(mat):
+        if not mat or not mat.use_nodes:return ('raw',mat.name if mat else '')
+        p=mat.node_tree.nodes.get('Principled BSDF')
+        if not p:return ('custom',mat.name)
+        def val(name):
+            i=p.inputs[name]
+            if i.is_linked:
+                n=i.links[0].from_node
+                return ('tex',getattr(getattr(n,'image',None),'name',n.name))
+            v=i.default_value
+            return tuple(round(x,4) for x in v) if hasattr(v,'__len__') else round(v,4)
+        return (val('Base Color'),val('Metallic'),val('Roughness'),val('Emission Color'),val('Emission Strength'),val('Alpha'),mat.blend_method,tuple(sorted(mat.keys())))
+    canon={}
+    for o in bpy.context.scene.objects:
+        if o.type!='MESH':continue
+        for slot in o.material_slots:
+            if not slot.material:continue
+            k=key(slot.material)
+            canon.setdefault(k,slot.material)
+            if canon[k]!=slot.material:slot.material=canon[k]
+
 def rack_hardware(accel,m):
     u=1
     # Contoured external stiles and repeating vent relief: no extra chassis or port.
@@ -319,7 +345,7 @@ def export_variant(kind,accel):
     spec=importlib.util.spec_from_file_location('compute_hero',HERE/'compute-hero-detail.py')
     hero=importlib.util.module_from_spec(spec);spec.loader.exec_module(hero)
     hero.enhance(kind,accel,m,box,cylinder,p3,material)
-    if kind=='tray':tray_specular_finish()
+    if kind=='tray':tray_specular_finish();dedupe_materials()
     if kind=='rack':
         spec=importlib.util.spec_from_file_location('rack_inspection',HERE/'rack-inspection-detail.py')
         inspection=importlib.util.module_from_spec(spec);spec.loader.exec_module(inspection)
