@@ -30,6 +30,14 @@ describe('batched engineering motion ribbons',()=>{
     for(const layer of effect.batches){expect(layer.group.children).toHaveLength(2);for(const line of layer.group.children){expect((line as any).material.depthTest).toBe(true);expect((line as any).material.depthWrite).toBe(false);}}
     expect(attachFlowRibbons(built)).toBe(effect);
   });
+  it('animates zero-core routes at an independent ribbon density',()=>{
+    const {built,dataFlows}=fixture();Object.assign(dataFlows[0],{count:0,ribbonCount:20});
+    const effect=attachFlowRibbons(built),batch=effect.batches.find((b:any)=>b.key==='dataFlows')!;
+    expect(batch.entries[0].period).toBeCloseTo(dataFlows[0].len/10);
+    const phase=batch.phase.getX(0);dataFlows[0].acc=.05;effect.update();
+    expect(batch.phase.getX(0)).not.toBe(phase);expect(batch.alpha.getX(0)).toBe(1);
+    effect.setQuality({halo:false});expect(batch.group.children[1].visible).toBe(true);
+  });
   it('follows the source clock and individual route visibility without connecting unrelated paths',()=>{
     const {built,flows,dataFlows}=fixture(),effect=attachFlowRibbons(built),batch=effect.batches[0];
     const before=batch.phase.getX(0);flows[0].acc=.1;expect(built.update(1,.1)).toBe(1);

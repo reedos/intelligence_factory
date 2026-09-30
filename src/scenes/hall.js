@@ -158,18 +158,28 @@ export function build({ quality, model }) {
   }
   // Physical jackets and particles use one route definition. Network and rack
   // drops rise beside the face, then pass over the raceway rim before landing.
-  function fiberPath(points,kind,{count=6,size=.035,animated=true,radius=.006}={}) {
+  function fiberPath(points,kind,{count=6,size=.035,particles=true,radius=.006}={}) {
     const pts=managedRoute(points,.075);
     for(let i=1;i<pts.length;i++)N.strut(pts[i-1],pts[i],radius,fiberJacket,6);
-    // Preserve every physical connection at every quality level. Only moving
-    // particles are sampled; unanimated links allocate no flow objects.
-    if(animated){
-      const f=flow(pts,'eth',{count,speed:1.6,size,k:1.4,trail:false});
-      f.group.userData.fiberRoute=kind;
-      if(kind==='rack-to-leaf')f.group.userData.rackFiberUplink=true;
-      dataFlows.push(f);
+    const rackLink=kind==='rack-to-leaf';
+    const f=flow(pts,'eth',{count:particles?count:0,speed:rackLink?2.4:1.6,size,k:1.4,trail:false});
+    f.group.userData.fiberRoute=kind;
+    if(rackLink){
+      f.group.userData.rackFiberUplink=true;
+      // All bundles carry moving ribbons. Sample only the extra 3D particle
+      // cores; a zero-count Flow contributes no individual particle draw.
+      const ribbonCount=Math.ceil(f.len/(quality.mobile?2.3:1.6))*2;
+      f.ribbonCount=ribbonCount;f.ribbonIntensity=.65;
+      // The hall line represents a fiber bundle with separate Tx/Rx strands,
+      // not a claim that a parallel-optics strand carries both directions.
+      const back=flow([...pts].reverse(),'eth',{count:0,speed:2.4,size,k:1.4,trail:false});
+      back.ribbonCount=ribbonCount;back.ribbonIntensity=.55;
+      back.group.userData.rackFiberReturn=true;
+      back.group.userData.fiberRoute='rack-return';
+      dataFlows.push(back);
     }
-    const route={kind,points:pts,start:pts[0],end:pts.at(-1),animated};
+    dataFlows.push(f);
+    const route={kind,points:pts,start:pts[0],end:pts.at(-1),animated:true,particleCores:particles};
     fiberRoutes.push(route);return route;
   }
   function portDrop(port,rowZ) {
@@ -495,7 +505,7 @@ export function build({ quality, model }) {
     row.forEach((k,i)=>{
       const rise=rackDrop(k),drop=portDrop(ports[i],z);
       const route=fiberPath([...rise,[drop.at(-1)[0],HALL_RUNWAY.cableY,z],...drop.slice(0,-1).reverse()],
-        'rack-to-leaf',{animated:i%(quality.mobile?8:4)===0||i===10});
+        'rack-to-leaf',{count:10,particles:i%(quality.mobile?8:4)===0||i===10});
       route.rack={x:k.x,z:k.z,f:k.f};
     });
     const leaf=portDrop(ports.at(-1),z),spineRack=netItems[r],spinePort=networkPorts.get(`${spineRack.x}:10.5`)[0];
@@ -816,6 +826,6 @@ export function build({ quality, model }) {
     f.setMotionStyle({ density: 1.5, brightness: 1.25, radius: 1,
       pixels: quality.mobile ? 1 : 1.2, stretch: 2.2 });
   }
-  attachFlowRibbons(built, { width: 2.2, glow: 4.4, brightness: 2.65, mobile: quality.mobile });
+  attachFlowRibbons(built, { width: 2.2, glow: 4.4, brightness: 2.65, mobile: quality.mobile, layers: { dataFlows: { haloOpacity: .20 } } });
   return built;
 }

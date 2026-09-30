@@ -266,12 +266,26 @@ describe('readable connected site activity',()=>{
   }
   expect(thermal.length).toBe(services.cool.length+services.warm.length);
  });
- it('keeps all compute racks connected on desktop and phone while sampling only motion',()=>{
+ it('animates every rack in both directions while sampling only extra particle cores',()=>{
   for(const [mobile,accel,expectedMotion]of [[false,'gb200',54],[true,'h100',30]] as const){
    const scene=hall.build({quality:{mobile,shadows:false},model:compute({...DEFAULT_SCENARIO,accel})});
    const links=scene.scene.userData.hallFiber.routes.filter((r:any)=>r.kind==='rack-to-leaf');
    expect(links).toHaveLength(192);
-   expect(links.filter((r:any)=>r.animated)).toHaveLength(expectedMotion);
+   expect(links.every((r:any)=>r.animated)).toBe(true);
+   expect(links.filter((r:any)=>r.particleCores)).toHaveLength(expectedMotion);
+   const outbound=scene.dataFlows.filter((f:any)=>f.group.userData.rackFiberUplink);
+   const inbound=scene.dataFlows.filter((f:any)=>f.group.userData.rackFiberReturn);
+   expect(outbound).toHaveLength(192);expect(inbound).toHaveLength(192);
+   expect(outbound.filter((f:any)=>f.mesh.count>0)).toHaveLength(expectedMotion);
+   expect(inbound.every((f:any)=>f.mesh.count===0)).toBe(true);
+   for(let i=0;i<192;i++){
+    expect(outbound[i].path.getPoint(0).distanceTo(inbound[i].path.getPoint(1))).toBeLessThan(1e-6);
+    expect(outbound[i].path.getPoint(1).distanceTo(inbound[i].path.getPoint(0))).toBeLessThan(1e-6);
+   }
+   const batch=scene.flowRibbons.batches.find((b:any)=>b.key==='dataFlows');
+   expect(batch.entries.filter((e:any)=>e.flow.group.userData.rackFiberUplink||e.flow.group.userData.rackFiberReturn)).toHaveLength(384);
+   scene.flowRibbons.setQuality({halo:false});
+   expect(scene.flowRibbons.drawCallsPerVisibleLayer).toBe(1);
    for(const r of links)expect(Math.sign(r.start[2]-r.rack.z)).toBe(accel==='h100'?-r.rack.f:r.rack.f);
    scene.scene.traverse((o:any)=>{if(o.geometry)o.geometry.dispose();});
   }

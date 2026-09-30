@@ -46,7 +46,7 @@ export function attachFlowRibbons(built, { width = 2.3, glow = 5.5, brightness =
       const c = flow.base.color.clone(); c.multiplyScalar(1 / Math.max(c.r, c.g, c.b, .001));
       c.multiplyScalar(flow.ribbonIntensity ?? 1);
       // Denser luminous packets communicate activity, not physical lane counts.
-      const cycles = Math.min(20, Math.max(3, flow.count / 2));
+      const cycles = Math.min(20, Math.max(3, (flow.ribbonCount ?? flow.count) / 2));
       const period = flow.len / cycles;
       let distance = 0;
       for (const curve of flow.path.curves) {
