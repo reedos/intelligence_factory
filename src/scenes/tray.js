@@ -247,7 +247,9 @@ function buildHGX({ quality }) {
   // Inspect through the open gap below the lifted sink, from inside the front
   // fan wall. The old external view looked directly into the fan cartridges.
   const hsGpu = { pos: [g0x, fy + 0.4, g0z], view: { pos: [g0x + .1, 1.05, g0z + .8], target: [g0x, 0.3, g0z] } };
-  const hsSink = { pos: [g5x, 1.3, g5z], view: { pos: [g5x + 2.5, 3.6, g5z + 3.5], target: [g5x, 0.6, g5z] } };
+  // From the cut-away side, level with the fin tops: both rows of sinks, the
+  // lifted one included, stay in frame (the old view sat over the fan wall).
+  const hsSink = { pos: [g5x, 1.3, g5z], view: { pos: [g5x + 3.6, 2.05, g5z + 1.1], target: [g5x - 0.2, 0.75, g5z + 0.7] } };
   finishCompute(scene, finish);
   scene.userData.computeGeneration = { id: 'h100', gpus: 8, cpus: 2, fans: 12, dpuCount: 0, nicCount: 8, storageNicCount: 2, opticalPorts: 4, representative: true };
   return {
