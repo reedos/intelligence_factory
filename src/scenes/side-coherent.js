@@ -288,12 +288,17 @@ export function build({ quality, state, authoredHardware = false }) {
     cdsp: [[-.9, 1.4, 2.9], [2.2, .5, 2.1]],
     itla: [[-.9, 1.45, 3.0], [3.2, .9, 2.15]],
     driver: [[-.55, 1.0, -2.4], [1.45, .45, 1.2]],
-    cdm: [[.65, 1.0, -2.4], [1.8, .4, 1.2]],
+    // Aim a little host-side of the modulator so the LC receptacle stays a
+    // small block at the frame edge instead of a dark mass beside the die.
+    cdm: [[.65, 1.3, -2.3], [1.5, .4, 1.1], [-.25, 0, -.05]],
     icr: [[.65, 1.0, 2.4], [1.8, .4, 1.2]],
     tia: [[-.55, 1.0, 2.4], [1.45, .45, 1.2]],
-    lc: [[2.2, 1.05, 1.6], [1.6, .8, 1.9]],
+    // From the transmit side and above the board: the receptacle sits beside
+    // the IQ modulator, not in front of it, so each pin lands on its own part.
+    lc: [[1.8, 1.6, -2.2], [1.8, .8, 1.9]],
   };
-  for (const [id, [offset, size]] of Object.entries(detail)) hs[id].view = componentView(hs[id].pos, offset, size);
+  for (const [id, [offset, size, shift = [0, 0, 0]]] of Object.entries(detail))
+    hs[id].view = componentView(hs[id].pos.map((v, i) => v + shift[i]), offset, size);
   return {
     scene, flows, dataFlows, heatFlows,
     camera: { pos: [1.2, 10.5, 14.5], target: [0, 1.3, 0], near: 0.05, far: 300, min: 1.2, max: 40, portrait: { pos: [0.6, 12.5, 16.5], target: [0, 0.9, 0.4] } },
