@@ -455,7 +455,7 @@ export function content(M) {
       drill: 3 },
     { id: 'containment', title: 'Hot aisle containment', kicker: air ? 'Keeps hot and cold air apart' : 'For the heat water misses',
       body: 'Glass roofs and doors close the aisle between rack backs, so the warm air goes straight back to the coolers instead of mixing into the room.',
-      specs: [['Air share of heat', `≈${Math.round((1 - liq) * 100)}%`, 'derived', { calc: 'hall-air-heat-share' }]] },
+      specs: [['Air share of heat', `≈${Math.round((1 - liq) * 100)}%`, 'derived', { calc: 'hall-air-heat-share' }], ['Doors and roof as drawn', 'representative', 'assumed', { assume: 'hall-containment-doors' }]] },
     air
       ? { id: 'inrow', title: 'In-row cooling units', kicker: 'Chilled water, cold air',
         body: 'Cabinets the size of a rack sit in each row. Fans pull hot-aisle air through chilled-water coils and blow it out cold into the room at the rack fronts.',
@@ -1059,7 +1059,7 @@ export function content(M) {
         specs: [['Rise', '≈10 °C', 'assumed', { assume: 'hall-water-rise-10c' }], ['Supply → return', `≈${TT.fwsSupply} → ${TT.fwsReturn} °C`, 'assumed', { assume: 'loop-temps' }], ['Pipework as drawn', 'representative', 'assumed', { assume: 'hall-pipework-detail' }]] },
       { id: 'hotaisle', title: 'Hot aisle', kicker: air ? 'All the heat, as air' : 'The air-side heat',
         body: 'Rack backs face each other across a sealed aisle, so hot air rises and flows to the coolers instead of warming the room.',
-        specs: [['Air share of rack heat', `≈${Math.round((1 - liq) * 100)}%`, 'derived', { calc: 'hall-air-heat-share' }]] },
+        specs: [['Air share of rack heat', `≈${Math.round((1 - liq) * 100)}%`, 'derived', { calc: 'hall-air-heat-share' }], ['Doors and roof as drawn', 'representative', 'assumed', { assume: 'hall-containment-doors' }]] },
       { id: 'fanwall', title: 'Fan wall', kicker: 'Air back to cool',
         body: 'Fans pull hot-aisle air through water coils and blow it back into the room cool, closing the air loop.',
         specs: [air

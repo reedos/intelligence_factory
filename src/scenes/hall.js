@@ -430,7 +430,7 @@ export function build({ quality, model }) {
   }
   // hot aisle containment: glass roof and end doors per pod
   const containmentTrim = new THREE.MeshStandardMaterial({ color: 0x8799a6, roughness: .3, metalness: .72 });
-  const glass = new THREE.MeshPhysicalMaterial({ color: 0xa8c4dd, roughness: 0.22, metalness: 0, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide });
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0xa8c4dd, roughness: 0.22, metalness: 0, ior: 1.5, specularIntensity: 1, envMapIntensity: 1.3, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide });
   for (let p = 0; p < 3; p++) {
     const za = rowZs[p * 2], zb = rowZs[p * 2 + 1], zc = (za + zb) / 2, aisle = Math.abs(zb - za) - 1.2;
     const roofM = new THREE.Mesh(new THREE.BoxGeometry(rowX1 - rowX0, 0.04, aisle), glass); roofM.position.set((rowX0 + rowX1) / 2, 2.35, zc); scene.add(roofM);
@@ -439,6 +439,16 @@ export function build({ quality, model }) {
       N.box(0.06, 2.3, 0.06, MAT.darkSteel, x, 1.15, zc - aisle / 2); N.box(0.06, 2.3, 0.06, MAT.darkSteel, x, 1.15, zc + aisle / 2); N.box(0.06, 0.06, aisle, MAT.darkSteel, x, 2.33, zc);
       N.box(0.05, 2.24, 0.05, MAT.darkSteel, x, 1.15, zc);                                // center mullion: two door leaves, not one sheet of glass
       N.box(0.03, 0.22, 0.05, MAT.black, x, 1.05, zc - aisle / 4); N.box(0.03, 0.22, 0.05, MAT.black, x, 1.05, zc + aisle / 4); // door handles
+      // Representative sliding end doors: an aluminium frame round each leaf (top and bottom rails, a
+      // kick plate) and an overhead track the leaves hang from, so the doors read as doors, not glass sheets.
+      const out = x < rowX0 ? -1 : 1;
+      for (const lz of [zc - aisle / 4, zc + aisle / 4]) {
+        N.box(.045, .04, aisle / 2 - .07, MAT.alu, x + out * .004, 2.23, lz);
+        N.box(.045, .16, aisle / 2 - .07, MAT.alu, x + out * .004, .1, lz);
+        for (const e of [-1, 1]) N.box(.045, 2.1, .04, MAT.alu, x + out * .004, 1.16, lz + e * (aisle / 4 - .055));
+      }
+      N.box(.07, .05, aisle + .1, MAT.darkSteel, x + out * .07, 2.285, zc);                       // top track
+      for (const lz of [zc - aisle / 4, zc + aisle / 4]) for (const e of [-1, 1]) N.box(.03, .07, .03, MAT.darkSteel, x + out * .045, 2.25, lz + e * aisle / 8); // hangers
     }
     for (let x = rowX0; x <= rowX1; x += 1.2) N.box(0.04, 0.05, aisle, containmentTrim, x, 2.37, zc);
     for (const z of [zc - aisle / 2, zc + aisle / 2]) N.box(rowX1 - rowX0, .05, .04, containmentTrim, (rowX0 + rowX1) / 2, 2.37, z);
@@ -988,7 +998,7 @@ export function build({ quality, model }) {
       batt: { pos: [-30, 2.4, 3.5], view: { pos: [-22, 5, 10], target: [-30, 1, 3.5] } },
       busway: { pos: [0, 3.9, -8.0], view: { pos: [-6, 7, 8], target: [2, 3.2, -8] } },
       racks: { pos: [front[18].x, 2.6, rowZs[5]], view: { pos: [front[18].x + 1.6, 3.5, 12], target: [front[18].x, 1.25, rowZs[5]] } },
-      containment: { pos: [6, 2.5, -9.7], view: { pos: [-11, 5, -9.2], target: [4, 1.5, -9.7] } },
+      containment: { pos: [rowX0 + 2.5, 1.7, -9.7], view: { pos: [rowX0 - 4.4, 2.5, -7.2], target: [rowX0 + 2.5, 1.3, -9.7] } },   // through the pod's end doors, down the contained aisle
       [air ? 'inrow' : 'cdu']: cduSpot,
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
       fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
@@ -999,7 +1009,7 @@ export function build({ quality, model }) {
       cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.1, 2.0, 13.45], target: [netItems[CPO_I].x, 1.7, 11.1] } },
       [air ? 'inrow' : 'cdu']: cduSpot,
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
-      hotaisle: { pos: [6, 2.5, -9.7], view: { pos: [-11, 5, -9.2], target: [4, 1.5, -9.7] } },
+      hotaisle: { pos: [rowX0 + 2.5, 1.7, -9.7], view: { pos: [rowX0 - 4.4, 2.5, -7.2], target: [rowX0 + 2.5, 1.3, -9.7] } },   // through the pod's end doors, down the contained aisle
       fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
       riser: { pos: [X0 + 2.4, hdrY + 1.4, -16.4], view: { pos: [X0 + 10, 10, -4], target: [X0 + 2.4, 5, -16.4] } },
       fire: { pos: [asdX, 2.9, asdZ], view: { pos: [-7.5, 2.2, -5.2], target: [-10.8, 3.4, -9] } },   // the detector box and its sampling pipe rising to the ceiling
