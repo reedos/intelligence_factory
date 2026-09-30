@@ -415,7 +415,8 @@ function buildPackage({ quality, state, model }) {
   }
 
   const d0 = dieX[0], [hx, hz] = live[live.length - 1], hy = hb + stackH + 0.03;
-  const hbmHS = { pos: [hx, hy, hz], view: { pos: [hx + 3.5, hy + 4.5, hz + 4.2], target: [hx * 0.8, Y.dies + 0.5, hz * 0.9] } };
+  // the pin sits on the stack's outer corner, clear of the dies pin in the overview and interposer views
+  const hbmHS = { pos: [hx + Math.sign(hx) * 0.42, hy, hz + Math.sign(hz) * 0.4], view: { pos: [hx + 3.5, hy + 4.5, hz + 4.2], target: [hx * 0.8, Y.dies + 0.5, hz * 0.9] } };
   // Tokens: frame the top of the package and the live readout above it, so the
   // generated text is legible; the pin sits beside the rows, never on them.
   const TOKEN_ROWS = [2.2, 7.6, -1];
