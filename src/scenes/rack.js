@@ -295,7 +295,7 @@ function buildHGX({ quality, state }) {
   // An exploded service position exposes the complete server instead of
   // burying the CPU board under the next chassis. Not an operating position.
   const PULLED = 2, out = 1.0;
-  const side = new THREE.MeshStandardMaterial({ color: 0x2a2e34, roughness: 0.45, metalness: 0.6 });
+  const side = new THREE.MeshStandardMaterial({ color: 0x454c55, roughness: 0.5, metalness: 0.5 });
   const rear = new THREE.MeshStandardMaterial({ map: serverRearTex(), roughness: 0.6, metalness: 0.25 });
   const foam = foamMaps();
   const inRack = [0, 1, 3];
@@ -466,7 +466,7 @@ function buildNVL({ quality, model, state }) {
   for (const [k, idxs] of Object.entries(kinds)) {
     const items = idxs.filter(i => i !== PULLED && i !== SWITCH_PULLED);
     const front = new THREE.MeshStandardMaterial({ map: TEX[k], roughness: 0.5, metalness: 0.35 });
-    const side = new THREE.MeshStandardMaterial({ color: k === 'ps' ? 0x3a3f46 : 0x2a2e34, roughness: 0.45, metalness: 0.6 });
+    const side = new THREE.MeshStandardMaterial({ color: k === 'ps' ? 0x4a5058 : 0x434a53, roughness: 0.5, metalness: 0.5 });
     const m = new THREE.InstancedMesh(new THREE.BoxGeometry(trayW, U * 0.94, trayD), [side, side, side, side, front, side], items.length);
     items.forEach((i, n) => m.setMatrixAt(n, mtx(0, trayY(i), ZF - 0.07 - trayD / 2)));
     m.castShadow = m.receiveShadow = true; scene.add(m);

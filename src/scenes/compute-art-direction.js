@@ -20,10 +20,13 @@ export function applyComputeArtDirection({ built, level, quality = {}, matched =
   const scene = built.scene, center = new THREE.Vector3(...p.target);
   const hemisphere = scene.children.find(o => o.isHemisphereLight);
   if (hemisphere) {
-    hemisphere.color.set(0xcbd6e6); hemisphere.groundColor.set(0x171e27); hemisphere.intensity = .64;
+    hemisphere.color.set(0xcbd6e6); hemisphere.groundColor.set(0x171e27);
+    // The rack is mostly dark graphite: a little more sky and rim keeps its
+    // closed faces legible without lifting the emissive flows.
+    hemisphere.intensity = level === 3 ? .92 : .64;
   }
   const lights = scene.children.filter(o => o.isDirectionalLight && !o.userData.computeStudioFill);
-  [[lights[0], [-.65, 1.2, .8], 0xfff4e6, 2.15], [lights[1], [.7, .9, -.85], 0xa9c9f5, 1.35]].forEach(([light, offset, color, intensity]) => {
+  [[lights[0], [-.65, 1.2, .8], 0xfff4e6, 2.15], [lights[1], [.7, .9, -.85], 0xa9c9f5, level === 3 ? 1.75 : 1.35]].forEach(([light, offset, color, intensity]) => {
     if (!light) return;
     light.color.set(color); light.intensity = intensity;
     light.position.copy(center).addScaledVector(new THREE.Vector3(offset[0], offset[1], offset[2] * (level === 3 ? -1 : 1)), p.span);
@@ -36,14 +39,14 @@ export function applyComputeArtDirection({ built, level, quality = {}, matched =
   }
   let fill = scene.children.find(o => o.userData.computeStudioFill);
   if (!fill) {
-    fill = new THREE.DirectionalLight(0xd7e5f3, level === 3 ? .85 : .42);
+    fill = new THREE.DirectionalLight(0xd7e5f3, level === 3 ? 1.15 : .42);
     fill.name = 'Compute studio front fill'; fill.userData.computeStudioFill = true;
     fill.position.copy(center).addScaledVector(new THREE.Vector3(.8, .3, level === 3 ? -1 : 1), p.span);
     fill.target.position.copy(center); fill.castShadow = false;
     scene.add(fill, fill.target);
   }
   scene.background = new THREE.Color(0x070b12);
-  built.look = { ...built.look, env: 'studio', envIntensity: quality.mobile ? .65 : level === 3 ? .9 : .82,
+  built.look = { ...built.look, env: 'studio', envIntensity: quality.mobile ? (level === 3 ? .78 : .65) : level === 3 ? 1.12 : .82,
     exposure: 1, bloom: quality.mobile ? .33 : .44, threshold: 1.25, ao: p.ao,
     bloomByMode: level === 5 ? { heat: quality.mobile ? .20 : .26 }
       : level === 4 ? { power: quality.mobile ? .26 : .34, data: quality.mobile ? .26 : .34 } : undefined,
