@@ -8,26 +8,37 @@ import { computeMaterials, finishCompute, coldPlateDetail, boardFinish } from '.
 import { frameCompute } from './compute-framing.js';
 import { componentView } from '../app/housing-frame.js';
 
+// Package top: dark molded substrate, a laser-etched field and a generic name
+// (no logos or part numbers). 512 px so the text stays crisp at part cameras.
 export function pkgTex(label) {
-  return canvasTex(256, 256, (g, w, h) => {
-    g.fillStyle = '#1a1c20'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#23262c'; g.fillRect(10, 10, w - 20, h - 20);
-    g.fillStyle = '#8b939e'; g.font = '600 20px system-ui, sans-serif'; g.fillText(label, 22, h - 26);
+  return canvasTex(512, 512, (g, w, h) => {
+    g.fillStyle = '#16181c'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#1f2227'; g.fillRect(18, 18, w - 36, h - 36);
+    g.strokeStyle = 'rgba(160,170,182,0.35)'; g.lineWidth = 2; g.strokeRect(34, 34, w - 68, h - 68);
+    g.fillStyle = 'rgba(150,160,172,0.18)'; for (let i = 0; i < 3; i++) g.fillRect(48, h - 150 + i * 16, 150 - i * 30, 5);
+    g.fillStyle = '#9aa3ae'; g.font = '600 40px system-ui, sans-serif'; g.fillText(label, 48, h - 52);
   });
 }
+// Bare die backside: near-black polished silicon with a faint thin-film tint
+// that shifts across the face, and a thin seal-ring border. Representative
+// appearance, matching published package photos (dark and specular, not blue).
 function dieTex() {
-  return canvasTex(256, 320, (g, w, h) => {
-    const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#3c3f70'); gr.addColorStop(0.5, '#56628a'); gr.addColorStop(1, '#343a60');
+  return canvasTex(512, 640, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, w, h);
+    gr.addColorStop(0, '#121419'); gr.addColorStop(0.42, '#1b1e2a'); gr.addColorStop(0.58, '#1f1c2b'); gr.addColorStop(1, '#101216');
     g.fillStyle = gr; g.fillRect(0, 0, w, h);
-    for (let y = 10; y < h - 10; y += 30) for (let x = 10; x < w - 10; x += 30) { g.fillStyle = 'rgba(210,220,255,0.12)'; g.fillRect(x, y, 26, 26); g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(x + 3, y + 3, 9, 9); }
-    g.fillStyle = 'rgba(255,215,150,0.18)'; g.fillRect(0, h / 2 - 12, w, 24);
+    const sheen = g.createLinearGradient(0, h, w, 0);
+    sheen.addColorStop(0.2, 'rgba(90,110,190,0)'); sheen.addColorStop(0.5, 'rgba(120,100,200,0.10)'); sheen.addColorStop(0.8, 'rgba(90,150,170,0)');
+    g.fillStyle = sheen; g.fillRect(0, 0, w, h);
+    g.strokeStyle = 'rgba(170,176,196,0.28)'; g.lineWidth = 3; g.strokeRect(6, 6, w - 12, h - 12);
+    g.strokeStyle = 'rgba(170,176,196,0.08)'; g.lineWidth = 1; g.strokeRect(16, 16, w - 32, h - 32);
   });
 }
 
 // ---------- shared decoration helpers (product-shot detail; no logos, no invented numbers) ----------
-// integrated heat spreader / stiffener lid over a GPU package, with corner screws
+// stiffener frame around a package (the die and memory stay visible), with corner screws
 function ihsLid(S, N, x, y, z, w, d, heavy) {
-  rbox(S, w, 0.022, d, MAT.nickel, x, y, z, { r: 0.12 });
+  for (const s of [-1, 1]) { S.box(w, 0.022, 0.035, MAT.nickel, x, y, z + s * (d / 2 - 0.0175)); S.box(0.035, 0.022, d - 0.07, MAT.nickel, x + s * (w / 2 - 0.0175), y, z); }
   if (heavy) for (const sx of [-1, 1]) for (const sz of [-1, 1]) N.cyl(0.014, 0.01, MAT.black, x + sx * (w / 2 - 0.03), y + 0.014, z + sz * (d / 2 - 0.03), 8);
 }
 // a ring of small decoupling capacitors around a package footprint
@@ -122,7 +133,7 @@ function buildHGX({ quality }) {
   const gpus = [];
   gpuZ.forEach(z => gpuX.forEach(x => gpus.push([x, z])));
   const LIFT = 1.5;                                  // the front-left heat sink is lifted to show the package
-  const dieM = texMat(dieTex(), { rough: 0.25, metal: 0.6 });
+  const dieM = texMat(dieTex(), { rough: 0.22, metal: 0.3 });
   const heavy = !quality.mobile;
   const hotTops = [], nicLeds = [];
   gpus.forEach(([x, z], i) => {
@@ -337,7 +348,7 @@ function buildNVL({ quality, model }) {
 
   // ---------- two superchip boards ----------
   const gpus = [], cpus = [];
-  const dieM = texMat(dieTex(), { rough: 0.25, metal: 0.6 }), cpuTex = texMat(pkgTex(cpuLabel), { rough: 0.5 });
+  const dieM = texMat(dieTex(), { rough: 0.22, metal: 0.3 }), cpuTex = texMat(pkgTex(cpuLabel), { rough: 0.5 });
   for (const bx of [-1.1, 1.1]) {
     S.box(2.0, 0.02, 5.8, MAT.pcb, bx, floorY + 0.01, -0.35);
     boardFinish(N, finish, bx, floorY + 0.014, -0.35, 2.0, 5.8);

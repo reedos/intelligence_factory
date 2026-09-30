@@ -21,7 +21,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex}) {
   for(const sx of [-1,1])N.cyl(.012,.06,MAT.nickel,x+sx*.215,.19,1.1,8,Math.PI/2);}
  const midplane=new THREE.Mesh(new THREE.BoxGeometry(4.1,.24,.04),MAT.pcbBlack);midplane.name='Rubin PCIe Gen6 midplane';midplane.position.set(0,.23,1.12);scene.add(midplane);
  for(const x of [-1.1,1.1]){S.box(2.02,.025,4.9,MAT.pcb,x,.075,-1.52);boardFinish(N,finish,x,.087,-1.52,2.02,4.9);}
- const top=texMat(dieTex(),{rough:.3,metal:.55}),labels=new Map();
+ const top=texMat(dieTex(),{rough:.22,metal:.3}),labels=new Map();
  // One material per label: the eight CX9 packages share one texture.
  const labelMat=label=>{if(!labels.has(label))labels.set(label,texMat(pkgTex(label),{rough:.4}));return labels.get(label);};
  const packageAt=(name,x,z,w,d,label,lid)=>{
@@ -34,7 +34,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex}) {
  // Representative VRM row: inductors with bright caps and power stages beside them.
  const vrmRow=(x0,z,n,pitch,inward)=>{for(let k=0;k<n;k++){const x=x0+k*pitch;S.box(.1,.07,.09,MAT.inductor,x,.124,z);N.box(.072,.012,.065,MAT.alu,x,.163,z);N.box(.06,.012,.05,MAT.black,x,.094,z+inward*.085);}};
  const capRing=(x,z,w,d)=>{for(let k=0;k<8;k++){const u=-w/2+(k+.5)*w/8;for(const s of [-1,1])N.box(.018,.014,.012,MAT.beige,x+u,.095,z+s*d/2);}};
- gp.forEach(([x,z],i)=>{packageAt(`Rubin GPU ${i+1}`,x,z,.83,.95);for(const dx of [-.29,.29])for(const dz of [-.32,-.11,.11,.32]){N.box(.13,.05,.13,MAT.hbm,x+dx,.21,z+dz);N.box(.135,.006,.135,MAT.alu,x+dx,.236,z+dz);}
+ gp.forEach(([x,z],i)=>{packageAt(`Rubin GPU ${i+1}`,x,z,.83,.95);for(const dx of [-.29,.29])for(const dz of [-.32,-.11,.11,.32]){N.box(.13,.05,.13,MAT.hbm,x+dx,.21,z+dz);}
   vrmRow(x-.36,z-.66,7,.12,1);vrmRow(x-.36,z+.66,7,.12,-1);capRing(x,z,.9,1.08);});
  cp.forEach(([x,z],i)=>{
   packageAt(`Vera CPU ${i+1}`,x,z,.75,.77,'VERA',true);
