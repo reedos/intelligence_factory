@@ -420,7 +420,7 @@ export function content(M) {
       body: dc
         ? 'Outside the wall, a pad-mounted transformer still makes 480 V for pumps, fans and lights. The racks no longer need it.'
         : 'Outside the wall, a pad-mounted transformer takes one campus feeder and makes 480 V three-phase. Its secondary runs a few meters through the wall into the switchgear.',
-      specs: [['Rating', '2.5 MVA', 'assumed', { assume: 'unitsub-mva' }], ['Secondary current', '≈3,000 A at full load', 'derived', { calc: 'hall-unitsub-current' }], ['Efficiency', '≈99%', 'assumed', { assume: 'unitsub-cooling-side-eff-99', refs: [['doe-transformer-standards-2024', "DOE's 04/04/2024 final rule updating distribution-transformer efficiency standards, which supersedes the 2013 rule"]] }]] },
+      specs: [['Rating', '2.5 MVA', 'assumed', { assume: 'unitsub-mva' }], ['Secondary current', '≈3,000 A at full load', 'derived', { calc: 'hall-unitsub-current' }], ['Efficiency', '≈99%', 'assumed', { assume: 'unitsub-cooling-side-eff-99', refs: [['doe-transformer-standards-2024', "DOE's 04/04/2024 final rule updating distribution-transformer efficiency standards, which supersedes the 2013 rule"]] }], ['Enclosure as drawn', 'representative', 'assumed', { assume: 'hall-unitsub-detail' }]] },
     { id: 'swgr', title: dc ? 'Medium-voltage switchgear' : '480 V switchgear', kicker: 'Breakers and transfer',
       body: dc
         ? `Breakers protect each 34.5 kV feed into the solid-state transformers and switch between utility and ${bat ? 'the site batteries' : 'generator power'} when the grid drops.`

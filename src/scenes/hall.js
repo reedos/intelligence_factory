@@ -266,12 +266,21 @@ export function build({ quality, model }) {
   // ---------- unit substation outside the west wall ----------
   const usX = -42, usZ = -10;
   S.slab(6, 0.3, 6, MAT.concrete, usX, 0, usZ);
-  S.slab(2.6, 2.3, 2.4, MAT.ansi61, usX, 0.3, usZ);
-  for (let f = 0; f < 9; f++) { N.slab(0.05, 1.6, 0.7, MAT.ansi61, usX - 1.1 + f * 0.27, 0.6, usZ - 1.55); N.slab(0.05, 1.6, 0.7, MAT.ansi61, usX - 1.1 + f * 0.27, 0.6, usZ + 1.55); }
-  for (const dz of [-0.7, 0, 0.7]) insulator(N, usX - 0.9, 2.6, usZ + dz, 0.6, 0.08, MAT.porcelain, { sheds: 4 });
-  S.slab(1.2, 0.8, 1.6, MAT.ansi61, usX + 1.6, 1.4, usZ);                            // LV throat
-  S.box(5.6, 0.5, 0.6, MAT.alu, usX + 4.6, 2.2, usZ);                                   // bus duct to the wall
-  flows.push(flow([[usX - 3, -0.2, usZ], [usX - 0.9, 0.5, usZ], [usX - 0.9, 2.9, usZ]], 'mv', { count: 6, speed: 1.5, size: 0.11, trailR: 0.03 }));
+  if (hasHallFinish()) {
+    // Close-coupled secondary unit substation (representative; see build-hall-finish.py): enclosed MV
+    // primary cabinet, liquid-filled tank with four radiator banks, enclosed LV throat flanged to the duct.
+    scene.add(hallFinishInstances('HALL_UNITSUB', [mtx(usX, 0, usZ)]));
+    S.box(5.67, 0.5, 0.6, MAT.alu, usX + 4.565, 2.2, usZ);                              // bus duct, throat flange to the wall
+    // the 34.5 kV feeder arrives underground and rises through the conduit into the primary cabinet
+    flows.push(flow([[usX - 4.2, -0.2, usZ + .4], [usX - 2.35, -0.2, usZ + .4], [usX - 2.35, 1.1, usZ + .4], [usX - 1.7, 1.1, usZ + .4]], 'mv', { count: 6, speed: 1.5, size: 0.11, trailR: 0.03 }));
+  } else {
+    S.slab(2.6, 2.3, 2.4, MAT.ansi61, usX, 0.3, usZ);
+    for (let f = 0; f < 9; f++) { N.slab(0.05, 1.6, 0.7, MAT.ansi61, usX - 1.1 + f * 0.27, 0.6, usZ - 1.55); N.slab(0.05, 1.6, 0.7, MAT.ansi61, usX - 1.1 + f * 0.27, 0.6, usZ + 1.55); }
+    for (const dz of [-0.7, 0, 0.7]) insulator(N, usX - 0.9, 2.6, usZ + dz, 0.6, 0.08, MAT.porcelain, { sheds: 4 });
+    S.slab(1.2, 0.8, 1.6, MAT.ansi61, usX + 1.6, 1.4, usZ);                            // LV throat
+    S.box(5.6, 0.5, 0.6, MAT.alu, usX + 4.6, 2.2, usZ);                                   // bus duct to the wall
+    flows.push(flow([[usX - 3, -0.2, usZ], [usX - 0.9, 0.5, usZ], [usX - 0.9, 2.9, usZ]], 'mv', { count: 6, speed: 1.5, size: 0.11, trailR: 0.03 }));
+  }
 
   // ---------- electrical room ----------
   // rounded cabinet: a smooth painted body (merged into S, one draw call per material) plus a flat
@@ -836,7 +845,7 @@ export function build({ quality, model }) {
     hotspots: {
       optics: { pos: [leafX, 2.6, -8.2], view: { pos: [leafX + 2.2, 4.8, -3.8], target: [leafX, 2.45, -8.2] } },
       cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.1, 2.0, 13.45], target: [netItems[CPO_I].x, 1.7, 11.1] } },
-      unitsub: { pos: [usX, 3.3, usZ], view: { pos: [-52, 8, 2], target: [usX, 1.5, usZ] } },
+      unitsub: { pos: [usX, 3.3, usZ], view: { pos: [usX - 6.6, 5.0, usZ + 6.4], target: [usX + 1.2, 1.3, usZ] } },
       swgr: { pos: [-27, 2.8, -15.6], view: { pos: [-25, 6, -4], target: [-27, 1.3, -15.6] } },
       [dc ? 'sst' : 'ups']: { pos: [-28, 2.8, -6.5], view: { pos: [-27, 5, 2.5], target: [-28, 1, -6.5] } },
       batt: { pos: [-30, 2.4, 3.5], view: { pos: [-22, 5, 10], target: [-30, 1, 3.5] } },

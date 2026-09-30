@@ -4,7 +4,7 @@ let source,pending;
 export const hasHallFinish=()=>!!source;
 export function preloadHallFinish(){
  if(source)return Promise.resolve(source);
- return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/hall-finish.glb?v=7`).then(g=>{source=g.scene;source.updateMatrixWorld(true);return source;}).catch(e=>{pending=undefined;throw e;});
+ return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/hall-finish.glb?v=8`).then(g=>{source=g.scene;source.updateMatrixWorld(true);return source;}).catch(e=>{pending=undefined;throw e;});
 }
 export function hallFinishInstances(name,matrices){
  const asset=source?.getObjectByName(name);if(!asset)throw new Error(`Missing authored hall finish ${name}`);

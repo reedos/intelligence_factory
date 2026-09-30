@@ -6,7 +6,7 @@ HERE=pathlib.Path(__file__).resolve().parent
 exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque building envelope.')[0])
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT','STORAGE_FACE']:
+for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT','STORAGE_FACE','HALL_UNITSUB']:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
 ceramic=mat('Soft satin architectural panel',(.30,.38,.43),.25,.45)
 alloy=mat('Anodized champagne edge',(.31,.29,.23),.8,.3)
@@ -101,6 +101,64 @@ cyl('Upper flange',(0,.21,0),.115,.03,steel,g,'y',24)
 cyl('Valve stem',(0,.13,.12),.018,.07,steel,g,'z',10)
 box('Lever',(0,.13,.26),(.03,.018,.22),steel,g,0)
 box('Lever grip',(0,.13,.33),(.036,.026,.09),lever,g,.004)
+# ---- Secondary unit substation, close-coupled (Eaton design guide: enclosed primary equipment,
+# transformer, enclosed secondary equipment). Liquid-filled tank with four radiator banks (a 2500 kVA
+# example lists "4 radiators and 1 liquid level indicator"). Origin = site slab top under the tank
+# centre; the 6 x 6 m pad top is at y .3. Dimensions, door, gauge and support positions representative.
+g='HALL_UNITSUB'
+ansi=mat('ANSI 61 grey enamel',(.27,.30,.31),.2,.5)
+ansiDark=mat('ANSI 61 grey, shaded seams',(.12,.135,.14),.2,.55)
+glassDark=mat('Viewing window, smoked',(.02,.03,.035),.3,.12)
+copperM=mat('Bare copper ground',(.55,.27,.13),1,.35)
+greenLead=mat('Green ground lead jacket',(.05,.28,.09),0,.6)
+dial=mat('Gauge dial face',(.8,.8,.76),0,.4)
+unistrut=mat('Galvanised strut',(.42,.44,.45),.85,.45)
+P=.3
+box('Oil containment curb',(0,P+.077,-2.8),(5.6,.15,.12),ansiDark,g,.01)
+box('Oil containment curb',(0,P+.077,2.8),(5.6,.15,.12),ansiDark,g,.01)
+box('Oil containment curb',(-2.8,P+.077,0),(.12,.15,5.48),ansiDark,g,.01)
+box('Oil containment curb',(2.8,P+.077,0),(.12,.15,5.48),ansiDark,g,.01)
+box('Base skid',(0,P+.052,0),(2.3,.1,2.1),ansiDark,g,.01)
+box('Liquid-filled tank',(0,P+.1+1.1,0),(2.2,2.2,2.0),ansi,g,.03)
+box('Welded cover',(0,P+2.327,0),(2.3,.05,2.1),ansi,g,.012)
+for sx in [-1,1]:
+ for sz in [-1,1]:box('Lifting lug',(sx*1.02,P+2.43,sz*.93),(.03,.16,.12),ansi,g,.008)
+# four radiator banks, two per side, each fourteen pressed-steel panels on top/bottom headers
+for sz in [-1,1]:
+ for bx in [-.55,.55]:
+  for i in range(14):box('Radiator panel',(bx-.39+i*.06,P+1.3,sz*(1.0+.3)),(.022,1.5,.52),ansi,g,0)
+  for y in [P+.62,P+1.98]:
+   cyl('Radiator header',(bx,y,sz*1.12),.05,.86,ansi,g,'x',12)
+   cyl('Radiator header stub',(bx,y,sz*1.05),.045,.12,ansi,g,'z',12)
+# gauges and drain between the +z radiator banks
+cyl('Liquid-level gauge body',(0,P+2.0,1.035),.065,.05,ansiDark,g,'z',20)
+cyl('Liquid-level gauge dial',(0,P+2.0,1.066),.055,.006,dial,g,'z',20)
+cyl('Pressure-vacuum gauge body',(0,P+1.72,1.035),.055,.05,ansiDark,g,'z',20)
+cyl('Pressure-vacuum gauge dial',(0,P+1.72,1.066),.046,.006,dial,g,'z',20)
+box('Nameplate',(0,P+1.35,1.005),(.2,.13,.006),steel,g,0)
+cyl('Drain valve',(0,P+.38,1.065),.035,.12,steel,g,'z',12)
+box('Drain valve handle',(0,P+.38,1.13),(.12,.02,.02),ansiDark,g,0)
+# enclosed primary: MV load-break switch cabinet on the -x end, cable in from below
+box('Primary air-terminal cabinet',(-1.59,P+.1+1.075,0),(1.0,2.15,1.8),ansi,g,.02)
+box('Primary door',(-2.098,P+1.2,0),(.012,1.9,1.5),ansi,g,.004)
+box('Door viewing window',(-2.108,P+1.55,.1),(.004,.3,.42),glassDark,g,0)
+box('Door handle',(-2.116,P+1.1,-.6),(.02,.24,.035),steel,g,.004)
+for z in [-.5,.5]:box('Door hinge',(-2.11,P+z*1.2+1.2,.76),(.03,.12,.04),ansiDark,g,0)
+cyl('MV conduit stub',(-2.35,P-.05+.42,.4),.075,.84,ansiDark,g,'y',16)
+cyl('MV conduit elbow entry',(-2.2,P+.8,.4),.075,.3,ansiDark,g,'x',16)
+# enclosed secondary throat on +x, flanged to the bus duct at its outer face
+box('Secondary throat',(1.4,P+1.6+.45,0),(.62,.9,1.4),ansi,g,.02)
+box('Throat flange',(1.72,P+1.95,0),(.04,.66,.76),ansiDark,g,.005)
+# bus duct supports (duct itself drawn by hall.js at y 1.95-2.45) and the wall sleeve flange
+for u in [3.4,5.4]:
+ for dz in [-.35,.35]:box('Strut post',(u,.976,dz),(.05,1.94,.05),unistrut,g,0)
+ box('Strut trapeze',(u,1.92,0),(.08,.05,.84),unistrut,g,0)
+ box('Strut base plate',(u,.008,0),(.2,.012,.9),unistrut,g,0)
+box('Wall sleeve flange',(6.685,2.2,0),(.04,.8,.9),ansiDark,g,.006)
+# ground pads with a green lead to the pad
+for sx in [-1,1]:
+ box('Tank ground pad',(sx*.9,P+.3,1.008),(.1,.08,.01),copperM,g,0)
+ cyl('Ground lead',(sx*.9,P+.132,1.03),.012,.26,greenLead,g,'y',8)
 # Face relief follows existing rack texture rows, not an invented tray count.
 # Canonical cabinet envelope .58 wide x2.3 high, front z=.6.
 def drawer(g,top,height,pull=False):
