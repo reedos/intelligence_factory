@@ -697,7 +697,35 @@ for (let i = 0; i < BUILDERS.length; i++) {
   b.addEventListener('click', () => go(i));
   stepsEl.appendChild(b);
 }
+// phones: one level picker in place of the six tabs; its menu lists the four levels inside the links as well
+const levelPick = $('level-pick'), levelMenu = $('level-menu'), levelItems = [];
+if (levelMenu) {
+  const main = document.createElement('div'), side = document.createElement('div');
+  main.className = 'lm-group'; side.className = 'lm-group'; side.innerHTML = '<p class="mm-h">Inside the links</p>';
+  for (let i = 0; i < BUILDERS.length; i++) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'lm-item'; b.dataset.level = String(i);
+    b.addEventListener('click', () => go(i));
+    (isSide(i) ? side : main).append(b); levelItems.push(b);
+  }
+  levelMenu.append(main, side);
+}
+function renderLevelPick() {
+  if (!levelPick) return;
+  const cur = ui.scene >= 0 ? ui.scene : 0, s = SCENES()[cur];
+  const where = isSide(cur) ? 'Inside the links' : `Level ${s.n} of ${MAIN_LEVELS}`;
+  $('lp-k').textContent = where; $('lp-t').textContent = s.title;
+  levelPick.style.setProperty('--c', voltFor(s).css);
+  levelPick.setAttribute('aria-label', `${where}: ${s.title}. Choose a level`);
+  levelItems.forEach((b, i) => {
+    const t = SCENES()[i], v = voltFor(t);
+    b.style.setProperty('--c', v.css);
+    b.innerHTML = `<span class="n">${t.side ? '+' : t.n}</span><span class="t">${t.title}</span><span class="meta"><span class="dot"></span><span>${v.short} · ${t.scale}</span></span>`;
+    if (i === cur) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+  });
+}
 function renderSteps() {
+  renderLevelPick();
   [...stepsEl.children].forEach((b, i) => {
     const s = SCENES()[i], v = voltFor(s);
     b.style.setProperty('--c', v.css);

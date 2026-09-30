@@ -12,6 +12,7 @@ import { THREE } from './kit.js';
 import './app/scenario.js';
 import './app/site.js';
 import './app/campus-presentation.js';
+import './app/toprow.js';
 import { setGo } from './app/links.js';
 import { moreCue } from './app/more-cue.js';
 

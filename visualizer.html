@@ -26,7 +26,19 @@
 </header>
 <main class="app-main">
   <section class="stage" aria-label="Power chain in 3D">
-    <nav class="steps" id="steps" aria-label="Scale"></nav>
+    <!-- one top row: the six levels (a picker on phones), the layer switch on phones, and one menu for the rest -->
+    <div class="toprow" id="toprow">
+      <nav class="steps" id="steps" aria-label="Scale"></nav>
+      <button type="button" class="level-pick" id="level-pick" aria-haspopup="true" aria-expanded="false" aria-controls="level-menu"><span class="lp-k" id="lp-k">Level 1 of 6</span><span class="lp-t" id="lp-t">Scale across</span><i aria-hidden="true"></i></button>
+      <div class="pop level-menu" id="level-menu" role="group" aria-label="Levels" hidden></div>
+      <div class="mode-slot" id="mode-slot"></div>
+      <button type="button" class="more-btn" id="more-btn" aria-haspopup="true" aria-expanded="false" aria-controls="more-menu" aria-label="More: share, quality, present, hide details"><span aria-hidden="true">⋯</span></button>
+      <div class="pop more-menu" id="more-menu" role="group" aria-label="More" hidden>
+        <div class="mm-view" id="mm-view"><p class="mm-h">This view</p></div>
+        <div class="mm-tools" id="mm-tools"><button type="button" class="mm-item" id="share-btn">Share this view</button></div>
+        <p class="mm-note">Personal educational project based on cited public sources. Not an official publication of my employer or the companies discussed.</p>
+      </div>
+    </div>
     <div class="body">
       <!-- the viewer stacks the 3D view over its controls (on phones the buttons),
            so nothing docked to the view can land on top of anything else -->
@@ -49,7 +61,7 @@
           <div class="veil" id="veil">Building the region…</div>
         </div>
         <div class="hud-btns" id="hud-btns">
-          <div class="hud-row"><button type="button" class="btn story-btn" id="back-out" hidden>← Back outside</button><button type="button" class="btn story-btn" id="share-btn">Share</button></div>
+          <div class="hud-row"><button type="button" class="btn story-btn" id="back-out" hidden>← Back outside</button></div>
           <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>With the view focused or the pointer over it: 1–6 jumps scale · P D H switch layers · ← → steps parts</p>
         </div>
       </div>
