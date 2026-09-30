@@ -170,6 +170,7 @@ export const ASSUMPTIONS = {
   'inference-daily-shape': { title: 'Inference day peak-to-trough ratio and idle/peak power', value: '2.5× peak:trough; idle GPUs at 30% of full power; busiest hour at 90%', why: 'No provider publishes a peak-to-trough demand ratio or an idle-power fraction for a production GPU fleet; these are illustrative choices consistent with general utilization discussions, not measured figures for a specific service.' },
 
   // ---- visual pass 09/30/2026, level 2 (campus): drawn detail no source pins down ----
+  'campus-heat-reuse-illustration': { title: 'Heat-export tie-in drawn in the heat layer', value: 'illustration, not built here', why: 'This campus exports no heat. The heat layer draws a ghosted supply/return pipe pair, a plate heat exchanger and a heat-pump skid only to show where a district-heating connection would attach; sizes, routing and placement are representative. The cited real schemes (Odense, Fortum, Stockholm) are separate facilities.' },
   'campus-prefab-buildings': { title: 'Prefab e-house, control house and shelter drawings', value: 'representative', why: 'Prefabricated switchgear buildings, control houses and telecom shelters are real and common, but their layouts vary by vendor and no source here documents this campus. The ribbed wall panels, standing-seam roofs, door, landing and wall-pack HVAC positions, and the glazed gatehouse are drawn as a typical kit, not one product or site.' },
 
   // ---- traced 09/27/2026: level 3, the data hall, the ledger and the inventory ----

@@ -1,7 +1,7 @@
 import { attachFlowRibbons } from '../flow-ribbons.js';
 import { SiteBuilder as Builder, preloadSiteConstruction, finalizeSiteGeometry, hasSiteConstruction } from './site-blender-construction.js';
 // Scene 1: grid & campus. Units are meters. x runs east, z runs south, y up.
-import { THREE, MAT, mtx, flow, insulator, latticeTower, catenary, wires, canvasTex, sky, person, glowMat, spinners, surfaceDetail } from '../kit.js';
+import { THREE, MAT, mtx, flow, insulator, latticeTower, catenary, wires, canvasTex, sky, person, glowMat, spinners, surfaceDetail, textSprite } from '../kit.js';
 import { rbox, lamps, plumes, movers } from '../fx.js';
 import { terrainTexture, clouds, treeMatrices, carBuild, truckBuild, walkerBuild } from './campus-detail.js';
 import { campusRoadPlan, addCampusRoads, containsPlan } from './campus-roads.js';
@@ -463,6 +463,31 @@ export function build({ quality, model }) {
     S.slab(18, 5, 12, MAT.beige, 190, 0.15, -280); // evaporative makeup-water treatment
   }
 
+  // ---------- heat reuse: an illustrative export tie-in, drawn only in the heat layer ----------
+  // This campus exports no heat (the card says so). To show what reuse would add, the heat layer draws a ghosted
+  // supply/return pair from the last hall to a plate heat-exchanger and heat-pump skid and on toward the site edge,
+  // labeled as an illustration. Representative arrangement, not a modeled facility (ASSUMPTIONS campus-heat-reuse-illustration).
+  const reuse = new Builder(), hR = hallList[hallList.length - 1];
+  const ghost = (color, emissive) => new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: .6, roughness: .5, transparent: true, opacity: .62, depthWrite: false });
+  const gWarm = ghost(0xd9793f, 0x6a2a0a), gCool = ghost(0x4f86d8, 0x0e2a5a), gSkid = ghost(0xb9c2c6, 0x1c2226);
+  const reuseSkid = [hallX0 - 42, hR.z1 + 10], reuseEnd = hallX0 - 70;
+  for (const [dz, mat, y] of [[-0.7, gWarm, 1.6], [0.7, gCool, 1.6]]) {
+    const run = [[hallX0 + 4, y, hR.z1 + 0.6], [hallX0 + 4, y, reuseSkid[1] + dz], [reuseEnd, y, reuseSkid[1] + dz]];
+    for (let i = 1; i < run.length; i++) reuse.strut(run[i - 1], run[i], 0.32, mat, 12);
+  }
+  for (let x = hallX0 - 4; x > reuseEnd; x -= 8) reuse.slab(0.4, 1.2, 2.6, gSkid, x, 0.15, reuseSkid[1]);   // pipe sleepers
+  reuse.slab(8, 0.3, 4.2, gSkid, reuseSkid[0], 0.15, reuseSkid[1] + 4);
+  reuse.slab(1.3, 2.3, 0.9, gSkid, reuseSkid[0] - 2.4, 0.45, reuseSkid[1] + 4);                             // plate heat exchanger frame
+  for (let i = 0; i < 9; i++) reuse.slab(0.07, 1.9, 0.8, gWarm, reuseSkid[0] - 2.95 + i * 0.13, 0.6, reuseSkid[1] + 4);
+  reuse.slab(3.6, 2.4, 2.6, gSkid, reuseSkid[0] + 1.6, 0.45, reuseSkid[1] + 4);                              // heat-pump package
+  for (const dx of [-2.4, 1.6]) reuse.strut([reuseSkid[0] + dx, 1.6, reuseSkid[1] - 0.7], [reuseSkid[0] + dx, 1.6, reuseSkid[1] + 2.9], 0.18, gWarm, 8);
+  const reuseGroup = reuse.build({ cast: false, receive: false }); reuseGroup.name = 'Illustrative heat-export tie-in (heat layer only)';
+  const reuseTag = textSprite('ILLUSTRATIVE TIE-IN, NOT BUILT', '#ffb27a', 1.3);
+  reuseTag.position.set(reuseSkid[0] + 2, 11, reuseSkid[1] + 4); reuseGroup.add(reuseTag);
+  reuseGroup.visible = false; scene.add(reuseGroup);
+  heatFlows.push(flow([[hallX0 + 4, 1.6, hR.z1 + 0.6], [hallX0 + 4, 1.6, reuseSkid[1] - 0.7], [reuseEnd, 1.6, reuseSkid[1] - 0.7]], 'warm', { count: 16, speed: 12, size: 0.7, k: 2.2, trailR: 0.24 }));
+  heatFlows.push(flow([[reuseEnd, 1.6, reuseSkid[1] + 0.7], [hallX0 + 4, 1.6, reuseSkid[1] + 0.7], [hallX0 + 4, 1.6, hR.z1 + 0.6]], 'cool', { count: 12, speed: 10, size: 0.6, k: 2, trailR: 0.2 }));
+
   // ---------- fiber vaults ----------
   const fiberA = [-150, 238], fiberB = [455, -300];
   // fiber vaults: flush concrete box with a steel lid, and orange route-marker posts where the cable enters
@@ -811,7 +836,7 @@ export function build({ quality, model }) {
         towers: { pos: [45, 13, -275], view: { pos: [110, 60, -200], target: [70, 20, -275] } },
       } : {}),
       plume: { pos: [hcx, 70, -170], view: { pos: [hcx + 220, 160, 80], target: [hcx, 40, -110] } },
-      reuse: { pos: [hallX0 - 28, 18, 60], view: { pos: [-160, 80, 180], target: [-40, 10, 60] } },
+      reuse: { pos: [reuseSkid[0], 7, reuseSkid[1] + 4], view: { pos: [reuseSkid[0] - 30, 20, reuseSkid[1] + 40], target: [reuseSkid[0] + 4, 3, reuseSkid[1]] } },
     },
     dataHotspots: {
       fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-163, 9, 260], target: [-150, 0.8, 239] } },
@@ -825,6 +850,7 @@ export function build({ quality, model }) {
     look: { env: 'sky', envIntensity: 0.75, exposure: 1.08, bloom: 0.7, threshold: 1.4, ao: 0, grain: 0.006, vignette: 0.18, dof: true },
     update(t, dt) {
       woodlandMotion(t); gardenMotion(t);
+      reuseGroup.visible = globalThis.document?.body?.dataset.mode === 'heat';
       if (cloudDrift && !quality.reduced) cloudDrift.position.x = Math.sin(t * .008) * 35;
       fans.update(t);
       moverGroups.forEach(m => m.update(t));

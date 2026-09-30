@@ -1045,6 +1045,7 @@ export function content(M) {
           ['Meta Odense, Denmark', '≈165,000 MWh a year, ≈11,000 homes', 'reported', evRefs([['munters-odense', 'case study: Meta’s Odense heat reuse provides "up to 165,000 MWh of energy a year" to warm "11,000 homes and businesses"']])],
           ['Microsoft + Fortum, Finland', 'up to 180 MW of district heat', 'reported', evRefs([['fortum-finland-heat', 'press release: "72 units, producing up to 180 megawatts of district heating"']])],
           ['Stockholm Data Parks', '30+ data centers selling heat', 'reported', evRefs([['stockholm-data-parks', 'program site'], ['eurelectric-stockholm-data-parks', '"The platform now connects 30+ DCs across 16 providers."']])],
+          ['Tie-in drawn here', 'an illustration, not built', 'assumed', evAssume('campus-heat-reuse-illustration')],
         ] },
     ],
     hall: [
