@@ -17,7 +17,7 @@ const EXPLODED = {
 // front-left corner (clear of its DRV marking) and the laser pin at the back of the
 // laser row, so the two no longer touch at overview distance.
 const PIN_OFFSET = {
-  driver: [-0.22, 0, 0.24], lasers: [0.04, 0, -0.2],
+  driver: [-0.22, 0, 0.24], lasers: [0.04, 0, -0.2], tia: [0.14, 0, -0.23],
 };
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
@@ -341,8 +341,8 @@ export function build({ quality, state }) {
       lasers: [[-.65, .9, 2.2], [1.2, .45, 1.15]],
       mzm: [[.85, 1.1, 2.4], [2.0, .35, 1.4]],
       mpo: [[2.7, .75, 1.15], [1.2, .95, 2.3]],
-      pd: [[1.25, 1.15, -1.0], [.55, .25, .8]],
-      tia: [[-.75, 1.3, -1.35], [.75, .3, .8]],
+      pd: [[.35, 1.7, 1.2], [.55, .25, .8]],
+      tia: [[-.45, 1.6, 1.25], [.75, .3, .8]],
       shell: [[-2.5, 2.0, 4.0], [7.5, .7, 2.5]],
     })[name];
     // A pin marks its part without sitting on the part's printed marking, and neighbouring
