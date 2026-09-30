@@ -641,21 +641,50 @@ function buildNVL({ quality, model, state }) {
     if (k === 'mgmt') return;
     for (const dx of [-0.018, 0.018]) N.box(0.0236, U * 0.45, 0.012, TIN, dx, trayY(i), bbZ - 0.012);
   });
-  // manifolds with quick disconnects to each liquid-cooled tray
+  // Coolant manifolds on either side of the rear (ServeTheHome/LITEON OCP 2024),
+  // with blind-mate nozzles on every liquid-cooled tray instead of loose hoses.
+  // Stainless body; supply/return color only on a band at each coupler, the
+  // top label and the floor valve handles so the legend stays readable. The
+  // coupler type, brackets, bleed valve and floor valves are representative
+  // (ASSUMPTIONS 'nvl72-manifold-hardware').
   const mX = [-0.255, 0.255], mZ = ZB + 0.05;
-  S.box(0.045, bbTop - bbBot + 0.2, 0.045, MAT.pipeBlue, mX[0], (bbTop + bbBot) / 2, mZ);
-  S.box(0.045, bbTop - bbBot + 0.2, 0.045, MAT.pipeRed, mX[1], (bbTop + bbBot) / 2, mZ);
+  const STAINLESS = new THREE.MeshStandardMaterial({ color: 0xb9c0c7, roughness: 0.42, metalness: 0.72 }); STAINLESS.name = 'Manifold brushed stainless';
+  const KNURL = new THREE.MeshStandardMaterial({ color: 0x5d646c, roughness: 0.55, metalness: 0.8 }); KNURL.name = 'Coupler knurled sleeve';
+  const HOSE = new THREE.MeshStandardMaterial({ color: 0x16181b, roughness: 0.7, metalness: 0.05 }); HOSE.name = 'EPDM coolant hose';
+  const mTop = bbTop + 0.1, mBot = trayY(3) - 0.08, mMid = (mTop + mBot) / 2, mLen = mTop - mBot;
+  mX.forEach((x, side) => {
+    const band = side ? MAT.pipeRed : MAT.pipeBlue, out = Math.sign(x);
+    rbox(S, 0.05, mLen, 0.05, STAINLESS, x, mMid, mZ, { r: 0.12 });
+    for (const y of [mTop, mBot]) rbox(N, 0.056, 0.012, 0.056, STAINLESS, x, y, mZ, { r: 0.3 });              // welded end caps
+    N.cyl(0.006, 0.02, MAT.galv, x, mTop + 0.016, mZ, 10); N.cyl(0.009, 0.008, band, x, mTop + 0.03, mZ, 12);   // bleed valve
+    N.box(0.052, 0.07, 0.002, band, x, mTop - 0.06, mZ + 0.0265);                                               // supply / return label
+    for (const y of [mBot + 0.06, mTop - 0.14]) N.box(0.0525, 0.018, 0.0525, band, x, y, mZ);                  // colored identification bands
+    for (let y = mBot + 0.12; y < mTop - 0.05; y += 0.5) N.box(0.03, 0.022, 0.04, MAT.darkSteel, x + out * 0.035, y, mZ);  // mounting bracket to the post
+  });
   layout.forEach((k, i) => {
     if (k !== 'compute' && k !== 'switch') return;
     const y = trayY(i);
-    N.cylZ(0.009, 0.04, MAT.galv, mX[0], y, mZ + 0.04, 8); N.cylZ(0.009, 0.04, MAT.galv, mX[1], y, mZ + 0.04, 8);
-    N.cylZ(0.014, 0.012, COLLAR, mX[0], y, mZ + 0.066, 10); N.cylZ(0.014, 0.012, COLLAR, mX[1], y, mZ + 0.066, 10);   // quick-disconnect collar
-    N.strut([mX[0], y, mZ + 0.06], [-0.16, y, ZB + 0.18], 0.005, MAT.pipeBlue, 6);
-    N.strut([mX[1], y, mZ + 0.06], [0.16, y, ZB + 0.18], 0.005, MAT.pipeRed, 6);
+    mX.forEach((x, side) => {
+      const band = side ? MAT.pipeRed : MAT.pipeBlue;
+      N.cylZ(0.008, 0.03, STAINLESS, x, y, mZ + 0.04, 12);            // coupler body
+      N.cylZ(0.0105, 0.012, KNURL, x, y, mZ + 0.046, 12);              // knurled sleeve
+      N.cylZ(0.0112, 0.003, COLLAR, x, y, mZ + 0.054, 12);             // latch ring
+      N.cylZ(0.0118, 0.009, band, x, y, mZ + 0.033, 12);               // anodized color band
+      // rigid stub to the tray's blind-mate nozzle at its rear corner
+      N.strut([x, y, mZ + 0.057], [x * 0.82, y, mZ + 0.057], 0.0045, STAINLESS, 8);
+      N.box(0.012, 0.012, 0.016, MAT.darkSteel, x * 0.8, y, ZB + 0.103);
+    });
   });
-  // supply and return hoses leave through the floor to the CDU
-  N.strut([mX[0], bbBot - 0.1, mZ], [mX[0], 0.0, mZ - 0.1], 0.02, MAT.pipeBlue, 10);
-  N.strut([mX[1], bbBot - 0.1, mZ], [mX[1], 0.0, mZ - 0.1], 0.02, MAT.pipeRed, 10);
+  // Supply and return leave through the floor to the CDU: hose, crimped
+  // ferrule and a lever ball valve at the manifold foot.
+  mX.forEach((x, side) => {
+    const band = side ? MAT.pipeRed : MAT.pipeBlue;
+    N.strut([x, mBot - 0.07, mZ], [x, 0.0, mZ - 0.1], 0.019, HOSE, 12);
+    N.cyl(0.022, 0.03, MAT.galv, x, mBot - 0.075, mZ, 12);                          // crimped ferrule
+    N.box(0.05, 0.05, 0.05, STAINLESS, x, mBot - 0.031, mZ);                        // ball valve body
+    N.box(0.09, 0.012, 0.012, band, x - Math.sign(x) * 0.05, mBot - 0.031, mZ + 0.03);   // lever handle
+  });
+
 
   // ---------- feed from the busway above ----------
   busway(scene, S, N, [-0.12, 0.12], glowMat(feedV === 'hvdc' ? '#d8f04a' : '#ff8a3d', 0.9), H);
