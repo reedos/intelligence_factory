@@ -247,15 +247,19 @@ export function build({ quality, state, authoredHardware = false }) {
       warm.intensity = on ? 1.4 : 0;
       // Heat layer: the package top glows and a warm haze rises off it toward the lifted case.
       const heat = state?.mode === 'heat';
+      // In a part close-up the camera sits low over one package, so the full plume would climb behind the level
+      // title and wash out the pin caption: there the haze stays short and faint and the package glow dims.
+      const close = !!state?.selected;
+      const rise = close ? 0.75 : 2.1, hazeK = close ? 0.06 : 0.15, grow = close ? 0.6 : 1.3;
       for (const g of heatGlows) {
         g.visible = heat; if (!heat) continue;
         const { glow, haze, x, z, top, w } = g.userData;
-        glow.material.opacity = 0.3 + 0.1 * Math.sin(t * 2.1);
+        glow.material.opacity = close ? 0.16 + 0.05 * Math.sin(t * 2.1) : 0.3 + 0.1 * Math.sin(t * 2.1);
         for (const sp of haze) {
           const p = (t * 0.32 + sp.userData.phase) % 1;
-          sp.position.set(x, top + 0.15 + p * 2.1, z - p * 0.2);
-          sp.scale.setScalar(w * (0.7 + p * 1.3));
-          sp.material.opacity = 0.15 * Math.sin(Math.PI * p);
+          sp.position.set(x, top + 0.15 + p * rise, z - p * 0.2);
+          sp.scale.setScalar(w * (0.7 + p * grow));
+          sp.material.opacity = hazeK * Math.sin(Math.PI * p);
         }
       }
       return on || heat;
