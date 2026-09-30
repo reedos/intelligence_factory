@@ -50,9 +50,19 @@ def beam(n,a,b,w,d,m,g):
  q=o.modifiers.new('Rounded structural edge','BEVEL');q.width=min(w,d)*.18;q.segments=3;o.modifiers.new('Weighted normals','WEIGHTED_NORMAL')
  return o
 # Full opaque building envelope. No transparent server-hall walls.
-box('Opaque compute hall envelope',(0,11.15,0),(260,22,90),shadow,'HALL',.18)
+# Hall-only materials: the graphite panels are lifted so the sun-away faces keep their form, and the roof
+# reads as a single-ply membrane (seams, walkway pads, drains) rather than one flat plate.
+hallGraphite=mat('Hall graphite wall panels',(.075,.1,.12),.35,.45)
+membrane=mat('Hall roof membrane',(.26,.29,.3),0,.72)
+seamMat=mat('Hall membrane seam',(.36,.39,.4),0,.6)
+padMat=mat('Hall roof walkway pad',(.46,.46,.44),0,.85)
+box('Opaque compute hall envelope',(0,11.15,0),(260,22,90),hallGraphite,'HALL',.18)
 box('Continuous concrete plinth',(0,1.0,0),(260.5,1.7,90.5),base,'HALL',.12)
-box('Visible roof deck',(0,22.23,0),(259,.16,89),roof,'HALL',.04)
+box('Visible roof deck',(0,22.23,0),(259,.16,89),membrane,'HALL',.04)
+for i in range(129):box('Membrane seam',(-129+2*i+.5,22.32,0),(.06,.02,88.6),seamMat,'HALL',0)
+for z in [-11.5,11.5]:box('Roof walkway pad',(0,22.34,z),(252,.06,1.2),padMat,'HALL',0)
+for x in range(-104,105,26):
+ for z in [-34,34]:box('Roof drain',(x,22.32,z),(.6,.02,.6),black,'HALL',0)
 # Long facade: deep structural blade portals and faceted folded shells. Intentionally
 # dramatic silhouette, yet every crown remains below the existing 25.12m fan outlet.
 for sign in [-1,1]:
@@ -66,7 +76,12 @@ for sign in [-1,1]:
   mesh('Folded structural portal',v,f,pearl,'HALL',.13)
   beam('Champagne portal reveal',(x+2.9,2.5,z+sign*.58),(x+7.5,18.2,z+sign*2.17),.17,.2,bronze,'HALL')
   # Upper dark ventilation screen stays recessed; no new cooling-capacity assertion.
-  for y in [14.7+j*.75 for j in range(7)]:box('Recessed facade louver',(x+15.5,y,z-.06*sign),(17,.13,.3),roof,'HALL',.025)
+  for y in [14.7+j*.75 for j in range(7)]:box('Recessed facade louver',(x+15.5,y,z-.06*sign),(17,.13,.3),roof,'HALL',0)
+  if i in (1,5,8):
+   # recessed personnel door with a small canopy and a door light
+   box('Personnel door',(x+15.2,1.1+1.15,z+.2*sign),(1.1,2.3,.06),black,'HALL',0)
+   box('Door canopy',(x+15.2,3.75,z+.75*sign),(1.9,.12,1.1),pearl,'HALL',.03)
+   box('Door light',(x+15.2,3.62,z+.45*sign),(.4,.06,.14),lamp,'HALL',0)
   box('Ground-level insulated facade bay',(x+15.2,7.4,z+.03*sign),(17.2,10.8,.18),pearl,'HALL',.035)
   for xx in [x+10,x+15.5,x+21]:box('Panel expansion reveal',(xx,7.4,z+.14*sign),(.045,10.6,.035),shadow,'HALL',.008)
   # Warm luminaires contained under the folded overhang, not signal traces.
