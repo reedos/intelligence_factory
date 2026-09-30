@@ -196,12 +196,43 @@ const METROS = [
   [-81.69, 41.50, 2.0], [-121.89, 37.34, 2.0], [-86.78, 36.16, 2.0], [-76.29, 36.85, 1.8],
   [-81.66, 30.33, 1.6], [-87.91, 43.04, 1.6], [-97.52, 35.47, 1.4], [-78.64, 35.78, 1.5],
 ];
+// a soft radial falloff, white so instance colors tint it: ground light pools for metros and campuses
+let radial = null;
+function radialTex() {
+  if (radial) return radial;
+  radial = canvasTex(128, 128, (g, w) => {
+    const r = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+    r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.18, 'rgba(255,255,255,.55)'); r.addColorStop(0.5, 'rgba(255,255,255,.16)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = r; g.fillRect(0, 0, w, w);
+  });
+  radial.wrapS = radial.wrapT = THREE.ClampToEdgeWrapping;
+  return radial;
+}
+// Metro light as it looks from orbit: a warm pool on the ground (20-60 km across by population weight), a scatter
+// of street-light points inside it, and a small bright core so bloom still gives a pinpoint from the overview.
 function cityLights(quality) {
   const list = quality.mobile ? METROS.slice(0, 18) : METROS;
-  const m = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6), glowMat('#ffd7a0', 2.4), list.length);
-  list.forEach(([lon, lat, w], i) => { const [x, z] = world(lon, lat); m.setMatrixAt(i, mtx(x, 5, z, 0, 1.0 + Math.sqrt(w) * 0.5)); });
-  m.instanceMatrix.needsUpdate = true;
-  return m;
+  const group = new THREE.Group(); group.name = 'Metro night light';
+  const pool = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ map: radialTex(), color: new THREE.Color('#ffc27a').multiplyScalar(1.1), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }), list.length);
+  const core = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6), glowMat('#ffd7a0', 2.4), list.length);
+  const M = new THREE.Matrix4(), dots = [];
+  let s = 12345; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  list.forEach(([lon, lat, w], i) => {
+    const [x, z] = world(lon, lat), size = 20 + Math.min(40, Math.sqrt(w) * 9);
+    pool.setMatrixAt(i, M.makeScale(size, 1, size).setPosition(x, 0.25, z));
+    core.setMatrixAt(i, mtx(x, 2.5, z, 0, (1.0 + Math.sqrt(w) * 0.5) * 0.4));
+    const n = Math.round((quality.mobile ? 18 : 36) * Math.min(1.6, 0.6 + w / 8));
+    for (let k = 0; k < n; k++) {                                    // clustered toward the center, like a street grid thinning out
+      const a = rnd() * Math.PI * 2, r = size * 0.42 * Math.pow(rnd(), 0.8);
+      dots.push(x + Math.cos(a) * r, 0.6, z + Math.sin(a) * r);
+    }
+  });
+  const pts = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(dots, 3)),
+    new THREE.PointsMaterial({ color: new THREE.Color('#ffd49a').multiplyScalar(1.6), size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0.85, depthWrite: false, fog: false }));
+  pool.renderOrder = 1; pool.userData.runtimeOverlay = true; pts.userData.runtimeOverlay = true;
+  group.add(pool, core, pts);
+  return group;
 }
 
 
@@ -284,12 +315,7 @@ export function build({ quality, model, state = {} }) {
   scene.add(S.build({ cast: false }));
   if (authored) power.add(acrossAssetInstances('MAP_SUBSTATION', substations));
   {
-    const tex = canvasTex(128, 128, (g, w) => {
-      const r = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
-      r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.18, 'rgba(255,255,255,.55)'); r.addColorStop(0.5, 'rgba(255,255,255,.16)'); r.addColorStop(1, 'rgba(255,255,255,0)');
-      g.fillStyle = r; g.fillRect(0, 0, w, w);
-    });
-    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+    const tex = radialTex();
     const halo = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color('#ff9a3c').multiplyScalar(0.55), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }), halos.length);
     const hm = new THREE.Matrix4();
