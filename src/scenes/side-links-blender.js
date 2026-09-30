@@ -81,7 +81,7 @@ function build(name, nativeBuilder, options) {
     // The three raised covers span more width than the exposed boards. Preserve
     // their outer edges through the compact and tall-phone aspect ranges.
     built.camera.compact = { pos: [0, 16, 19.5], target: [0, .9, 0] };
-    built.camera.portrait = { pos: [0, 16.6, 19.5], target: [0, .9, 0], fit: { aspect: 1, fov: 35, minScale: .7 } };
+    built.camera.portrait = { pos: [0, 19, 12.5], target: [0, .9, -1.2], fit: { aspect: 1, fov: 35, minScale: .7 } };
   }
   model.scale.setScalar(100); // GLB metres -> scene centimetres.
   model.name = `Blender ${name} complete hardware`;
