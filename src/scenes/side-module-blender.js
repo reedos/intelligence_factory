@@ -124,8 +124,10 @@ export function build({ quality, state }) {
     // materials and high bloom threshold. Smaller cores preserve lane separation.
     const finish = matched ? {} : { size: style.size * (kind === 'cw' ? 0.7 : 0.8), k: style.k * 1.35, trailR: 0.0045, trailK: 0.25 };
     // Power rails read as dimly as the light paths once did: give them a lit trace and
-    // brighter, more frequent pulses so the power layer carries the same visual weight.
-    if (!matched && kind === 'power') Object.assign(finish, { size: style.size * 0.95, k: style.k * 2.3, count: 6, trail: true, trailR: 0.009, trailK: 0.8 });
+    // more frequent pulses so the power layer carries the same visual weight. The pulse
+    // gain is capped below bloom blow-out where the white sub-volt rails converge on the
+    // converters and the DSP.
+    if (!matched && kind === 'power') Object.assign(finish, { size: style.size * 0.9, k: style.k * 1.55, count: 6, trail: true, trailR: 0.009, trailK: 0.5 });
     const f = flow(path, cls, { ...style, ...finish, ...options });
     // Diagnostics describe real runtime paths, including their physical source.
     f.route = { id, source, assembly, mode, kind, variant, from, to,
