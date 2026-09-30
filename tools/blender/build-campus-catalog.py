@@ -178,11 +178,43 @@ prism('Glazed passenger cabin',[(-1.4,-.65),(.75,-.65),(1.1,-.4),(1.1,.4),(.75,.
 for x in [-1.35,1.35]:
  for z in [-.95,.95]:cyl('Road tire',(x,.36,z),.34,.22,rubber,g,'z');cyl('Alloy wheel',(x,.36,z+math.copysign(.115,z)),.23,.018,steel,g,'z',16)
 for z in [-.6,.6]:box('Vehicle headlamp',(2.19,.72,z),(.055,.12,.34),lamp,g,.03)
-g='TRUCK';box('Truck cab',(-3.7,1.5,0),(2.5,2.5,2.4),pearl,g,.24);box('Cab windscreen',(-4.965,2.15,0),(.04,1.06,2.05),glass,g,.08);box('Box trailer',(2,1.8,0),(7.6,3,2.5),white,g,.1)
-for z in [-1.27,1.27]:
- for x in [-1.5+i*.7 for i in range(11)]:box('Trailer rib',(x,1.8,z),(.04,2.74,.06),steel,g,.015)
-for x in [-3.7,-1.2,1.4,4.6]:
- for z in [-1.25,1.25]:cyl('Truck tire',(x,.46,z),.46,.3,rubber,g,'z');cyl('Truck wheel',(x,.46,z+math.copysign(.16,z)),.3,.03,steel,g,'z',16)
+# Generic freight truck, cab facing -X (the viewer turns it to drive cab-first): a conventional day-cab
+# tractor with hood, grille, bumper, mirrors, side fuel tanks, a steer axle and a tandem drive axle on duals,
+# then a 12 m box trailer on the fifth wheel with landing gear, a tandem axle on duals, side skirts and a
+# rear underride guard. Representative, no make.
+g='TRUCK'
+def wheelset(x,z,r=.5,w=.3):
+ cyl('Truck tire',(x,r,z),r,w,rubber,g,'z',16);cyl('Truck wheel',(x,r,z+math.copysign(w/2+.005,z)),r*.62,.02,steel,g,'z',12)
+box('Tractor frame rails',(-6.1,.95,0),(6.2,.3,1.0),shadow,g,0)
+box('Hood',(-8.4,1.55,0),(1.6,1.2,2.2),pearl,g,.12)
+box('Grille',(-9.21,1.5,0),(.04,.9,1.2),shadow,g,0)
+box('Front bumper',(-9.15,.62,0),(.3,.35,2.45),steel,g,.04)
+for z in [-.8,.8]:box('Headlamp',(-9.12,1.25,z),(.06,.18,.34),lamp,g,0)
+box('Day cab',(-6.5,2.15,0),(2.2,2.1,2.45),pearl,g,.14)
+box('Windscreen',(-7.61,2.7,0),(.04,.8,2.1),glass,g,0)
+for z in [-1.23,1.23]:
+ box('Side window',(-7.0,2.65,z),(1.0,.75,.03),glass,g,0)
+ box('Mirror arm',(-7.55,2.4,z*1.12),(.05,.05,.35),steel,g,0);box('Mirror head',(-7.6,2.35,z*1.24),(.12,.45,.14),shadow,g,0)
+ cyl('Side fuel tank',(-6.4,.85,z*.9),.33,1.4,steel,g,'x',16)
+ box('Cab step',(-7.1,.72,z*1.02),(.5,.06,.3),steel,g,0)
+cyl('Exhaust stack',(-5.25,3.0,1.0),.09,2.2,steel,g,'y',10)
+box('Fifth wheel plate',(-4.3,1.2,0),(1.1,.12,1.0),shadow,g,0)
+for z in [-1.0,1.0]:wheelset(-8.3,z)
+for x in [-4.9,-3.6]:
+ for z in [-1.1,-.78,.78,1.1]:wheelset(x,z,.5,.28)
+box('Box trailer',(1.4,2.6,0),(12.0,2.75,2.55),white,g,.05)
+for x in [-4.2+i*1.2 for i in range(10)]:
+ for z in [-1.28,1.28]:box('Trailer post',(x,2.6,z),(.06,2.7,.04),steel,g,0)
+box('Trailer floor rail',(1.4,1.2,0),(12.0,.14,2.5),shadow,g,0)
+for z in [-.9,.9]:box('Landing gear leg',(-2.6,.75,z),(.12,.9,.12),steel,g,0)
+box('Landing gear foot',(-2.6,.3,0),(.3,.06,2.0),steel,g,0)
+for z in [-1.27,1.27]:box('Side skirt',(1.2,.8,z),(5.6,.7,.03),shadow,g,0)
+for x in [4.9,6.1]:
+ for z in [-1.1,-.78,.78,1.1]:wheelset(x,z,.5,.28)
+box('Rear underride guard',(7.25,.6,0),(.12,.15,2.3),steel,g,0)
+for z in [-.3,.3]:box('Guard strut',(7.05,.95,z),(.4,.55,.08),steel,g,0)
+box('Rear door seam',(7.41,2.6,0),(.02,2.6,.03),shadow,g,0)
+for z in [-1.1,1.1]:box('Tail light',(7.42,1.45,z),(.03,.12,.22),lamp,g,0)
 # Three authored trees with branches and tapered clusters, low-poly enough for instancing.
 for k in range(3):
  g='TREE'+str(k);rng=random.Random(71+k);cyl('Tapered trunk',(0,2.9,0),.22,5.8,wood,g,segments=8)
