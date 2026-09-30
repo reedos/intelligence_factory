@@ -1,5 +1,6 @@
 import { on, store } from './store.js';
-import { setCampusView, setCampusFocus, campusFocusInfo, setInspectionView, built, qualityInfo, setQualityPreference } from './stage.js';
+import { setCampusView, setCampusFocus, campusFocusInfo, built, qualityInfo, setQualityPreference, partsFor, select, show, onTick, isCameraMoving } from './stage.js';
+import { createPartCycle } from './part-cycle.js';
 import './campus-presentation.css';
 
 const panel = document.createElement('section');
@@ -13,7 +14,8 @@ panel.innerHTML = `<div class="campus-view-buttons" role="group" aria-label="Cam
   <button type="button" id="campus-focus" aria-pressed="true" aria-describedby="campus-focus-note">Soft focus</button>
   <span id="campus-focus-note" class="view-sr-only">Gentle depth of field; labels stay crisp.</span>
   <button type="button" id="link-annotations" aria-pressed="false" hidden>Annotations</button>
-  <select id="link-view" aria-label="Closeup camera view" hidden></select>
+  <select id="link-view" aria-label="Selected part" hidden></select>
+  <button type="button" id="part-cycle" aria-pressed="false" title="Cycle through this level's parts in order. Each part holds for 8 seconds after the camera arrives.">▶ Auto cycle</button>
   <button type="button" id="link-covers" aria-pressed="false" hidden>Show covers</button>
   <div class="view-tools"><select id="render-quality" aria-label="Rendering quality"><option value="auto">Auto quality</option><option value="laptop">Laptop mode</option></select><button type="button" id="presentation-view" aria-pressed="false">Present</button>
   <button type="button" id="inspector-toggle" aria-expanded="true" aria-controls="inspector">Hide details</button></div>`;
@@ -59,6 +61,25 @@ on('select', () => {
   });
 });
 const focusButton = panel.querySelector('#campus-focus');
+const currentParts = () => store.ui.scene < 0 ? [] : partsFor(store.ui.scene);
+const cycleButton = panel.querySelector('#part-cycle');
+function syncCycle() {
+  cycleButton.textContent = partCycle.playing ? 'Ⅱ Pause cycle' : '▶ Auto cycle';
+  cycleButton.setAttribute('aria-pressed', String(partCycle.playing));
+  cycleButton.disabled = currentParts().length < 2;
+}
+const partCycle = createPartCycle({
+  parts: () => currentParts().map(p => p.id),
+  selected: () => store.ui.selected,
+  select: id => select(id, true),
+  ready: () => !document.hidden && !isCameraMoving() && document.getElementById('src-pop')?.hidden !== false,
+  changed: syncCycle,
+});
+cycleButton.addEventListener('click', () => partCycle.toggle());
+onTick(dt => partCycle.tick(dt));
+for (const event of ['scene', 'mode', 'scenario', 'module-variant', 'user-camera']) on(event, () => partCycle.stop());
+on('select', () => { if (!partCycle.selecting) partCycle.stop(); });
+addEventListener('keydown', event => { if (event.key === 'Escape' && partCycle.playing) partCycle.stop(); });
 panel.querySelector('#render-quality').addEventListener('change', e => setQualityPreference(e.target.value));
 function sync() {
   panel.querySelector('#render-quality').value = qualityInfo().preference;
@@ -72,15 +93,16 @@ function sync() {
       : 'Representative plug ends and internal routing. Moving marks explain flow, not speed or watts.';
   if (scope.dataset.scene !== String(store.ui.scene)) { scopeDetails.open = false; scope.dataset.scene = String(store.ui.scene); }
   const viewSelect = panel.querySelector('#link-view');
-  viewSelect.hidden = !inspection?.views;
-  const viewKey = `${store.ui.scene}:${Object.keys(inspection?.views || {}).join(',')}`;
+  const parts = currentParts();
+  viewSelect.hidden = store.ui.scene < 0;
+  const viewKey = JSON.stringify([store.ui.scene, store.ui.mode, parts.map(p => [p.id, p.title])]);
   if (viewSelect.dataset.scene !== viewKey) {
-    const selectedPart = new Option('Selected part', ''); selectedPart.disabled = true;
-    const custom = new Option('Custom view', 'custom'); custom.disabled = true;
-    viewSelect.replaceChildren(selectedPart, custom, ...Object.entries(inspection?.views || {}).map(([key, view]) => new Option(view.label, key)));
+    viewSelect.replaceChildren(new Option('0. Overview', ''), ...parts.map((part, i) => new Option(`${i + 1}. ${part.title}`, part.id)));
     viewSelect.dataset.scene = viewKey;
   }
-  viewSelect.value = inspection?.currentView ?? 'diagram';
+  viewSelect.value = store.ui.selected || '';
+  viewSelect.title = viewSelect.selectedOptions[0]?.textContent || 'Selected part';
+  syncCycle();
   const annotations = panel.querySelector('#link-annotations'), covers = panel.querySelector('#link-covers');
   annotations.hidden = !inspection;
   annotations.setAttribute('aria-pressed', String(!!inspection?.annotations));
@@ -110,6 +132,10 @@ panel.querySelector('#link-annotations').addEventListener('click', () => {
 panel.querySelector('#link-covers').addEventListener('click', () => {
   const api = built[store.ui.scene]?.inspection; api?.setCovers(!api.covers); sync();
 });
-panel.querySelector('#link-view').addEventListener('change', event => setInspectionView(event.target.value));
-for (const event of ['scene', 'scenario', 'mode', 'select', 'campus-presentation', 'render-quality']) on(event, sync);
+panel.querySelector('#link-view').addEventListener('change', event => {
+  partCycle.stop();
+  if (event.target.value) select(event.target.value, true);
+  else show({ scene: store.ui.scene, mode: store.ui.mode, part: null }, { scroll: false });
+});
+for (const event of ['scene', 'scenario', 'mode', 'module-variant', 'select', 'campus-presentation', 'render-quality']) on(event, sync);
 sync();

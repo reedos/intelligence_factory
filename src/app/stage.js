@@ -81,6 +81,7 @@ function applyVariant() {
   if (ui.scene === MODULE_LEVEL && built[MODULE_LEVEL]) {
     buildPanel(MODULE_LEVEL);
     if (ui.selected) select(ui.selected, false);
+    emit('module-variant');
   }
 }
 document.querySelectorAll('[data-variant]').forEach(b => b.addEventListener('click', () => { lpoOn = b.dataset.variant === 'lpo'; applyVariant(); }));
@@ -154,7 +155,7 @@ const ui = store.ui;
 const SCENES = () => store.C.SCENES;
 const PARTS_BY = () => ({ power: store.C.PARTS, data: store.C.PARTS_DATA, heat: store.C.PARTS_HEAT });
 // a scene variant may not draw every part (an air-cooled hall has no CDUs), so list only parts the scene placed
-const partsFor = (i, mode = ui.mode) => {
+export const partsFor = (i, mode = ui.mode) => {
   const list = PARTS_BY()[mode][SCENES()[i].id] || [];
   if (!built[i]) return list;
   const hs = hotspotsFor(i, mode);
@@ -1043,6 +1044,7 @@ export async function backOut() {
 }
 $('back-out')?.addEventListener('click', () => backOut());
 export const isBusy = () => busy;
+export const isCameraMoving = () => busy || !!tween;
 // the level the view is on or on its way to: a switch in flight assigns ui.scene only partway through (after the
 // level is built, which can take seconds on a slow device), and a switch queued behind it lands after that
 export const destination = () => queued && queued[0] >= 0 && queued[0] < BUILDERS.length ? queued[0] : busy ? goingTo : ui.scene;

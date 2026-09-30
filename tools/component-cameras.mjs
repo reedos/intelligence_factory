@@ -56,11 +56,11 @@ try {
     });
     assert.ok(landingError < .01, 'a resize in flight lands on the responsive preset');
     if (scene !== 6) {
-      const names = await page.evaluate(() => Object.keys(ifx.built[ifx.state.scene].inspection.views).filter(name => name !== 'diagram'));
+      const names = await page.locator('#link-view option').evaluateAll(options => options.map(option => option.value).filter(Boolean));
       for (const name of names) {
         await page.locator('#link-view').selectOption(name);
         await page.evaluate(() => ifx.settle());
-        const named = await page.evaluate(() => ({ name: ifx.built[ifx.state.scene].inspection.currentView, distance: ifx.camera.position.distanceTo(ifx.controls.target) }));
+        const named = await page.evaluate(() => ({ name: ifx.state.selected, distance: ifx.camera.position.distanceTo(ifx.controls.target) }));
         assert.equal(named.name, name);
         assert.ok(named.distance < 9, `named preset ${name} stays close`);
       }
