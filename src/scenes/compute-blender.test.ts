@@ -137,25 +137,31 @@ describe('complete Blender compute hardware',()=>{
       expect(f.group.parent===b.scene).toBe(true);
     }
   });
-  it('token inspection alone shows bounded live text while other engineering views stay clear',()=>{
+  it('token inspection shows bounded live text in power and data while other engineering views stay clear',()=>{
     const opts:any=options('rubin');opts.state.selected='tokens';const b=wrappers[2].build(opts);
     let now=performance.now();const clock=vi.spyOn(performance,'now').mockImplementation(()=>now);
     let sawReadout=false;const sequences=new Set<number>();
     const visible=()=>{const chunks:any[]=[];b.scene.traverse((o:any)=>{if(o.isSprite&&o.userData.tokenChunk&&o.visible)chunks.push(o);});return chunks;};
+    // The readout rows are the pinned, fully opaque chunks; answer chunks still in
+    // flight out of the package stay faint and never reach readout opacity.
+    const rows=(chunks:any[])=>chunks.filter(o=>o.material.opacity>=.9);
     try {
       for(let frame=0;frame<180;frame++){
         now+=50;b.update(frame*.05,.05);
-        const chunks=visible();expect(chunks.length).toBeLessThanOrEqual(3);
-        if(chunks.length){sawReadout=true;
-          const ys=chunks.map(o=>o.position.y).sort((a,b)=>a-b);
-          for(let j=1;j<ys.length;j++)expect(ys[j]-ys[j-1]).toBeGreaterThan(.45);
-          for(const sp of chunks){expect(sp.scale.x).toBeLessThanOrEqual(7.00001);expect(sp.scale.y).toBeLessThanOrEqual(.32001);expect(sp.userData.tokenChunk.words.length).toBeGreaterThan(0);expect(sp.material.opacity).toBeGreaterThanOrEqual(.9);expect(sp.material.toneMapped).toBe(false);sequences.add(sp.userData.tokenChunk.sequence);}
+        const chunks=visible(),pinned=rows(chunks);expect(pinned.length).toBeLessThanOrEqual(3);
+        for(const sp of chunks)if(!pinned.includes(sp)){expect(sp.userData.tokenChunk.lane).toBe('answer');expect(sp.material.opacity).toBeLessThan(.61);}
+        if(pinned.length){sawReadout=true;
+          const ys=pinned.map(o=>o.position.y).sort((a,b)=>a-b);
+          for(let j=1;j<ys.length;j++)expect(ys[j]-ys[j-1]).toBeGreaterThan(.6);
+          for(const sp of pinned){expect(sp.scale.x).toBeLessThanOrEqual(9.00001);expect(sp.scale.y).toBeLessThanOrEqual(.50001);expect(sp.userData.tokenChunk.words.length).toBeGreaterThan(0);expect(sp.material.toneMapped).toBe(false);sequences.add(sp.userData.tokenChunk.sequence);}
         }
-        for(const [mode,selected]of [['heat','tokens'],['power','tokens'],['data',null],['data','hbm']]){
+        for(const [mode,selected]of [['heat','tokens'],['data',null],['data','hbm'],['power',null]]){
           opts.state.mode=mode;opts.state.selected=selected;b.update(frame*.05,0);expect(visible()).toHaveLength(0);
         }
-        opts.state.mode='data';opts.state.selected='tokens';b.update(frame*.05,0);
-        expect(visible().map(o=>o.userData.tokenChunk.sequence)).toEqual(chunks.map(o=>o.userData.tokenChunk.sequence));
+        for(const mode of ['power','data']){
+          opts.state.mode=mode;opts.state.selected='tokens';b.update(frame*.05,0);
+          expect(rows(visible()).map(o=>o.userData.tokenChunk.sequence)).toEqual(pinned.map(o=>o.userData.tokenChunk.sequence));
+        }
       }
       expect(sawReadout).toBe(true);expect(sequences.size).toBeGreaterThan(3);
     }finally{clock.mockRestore();}

@@ -5,6 +5,7 @@ import { rbox } from '../fx.js';
 import { computeMaterials, finishCompute, boardFinish } from './compute-finish.js';
 import { STREAM_TPS, buildCycle, sampleAt, tick } from '../model/token-script.js';
 import { frameCompute } from './compute-framing.js';
+import { componentView } from '../app/housing-frame.js';
 
 function dieTexture() {
   return canvasTex(640, 800, (g, w, h) => {
@@ -239,7 +240,7 @@ function buildPackage({ quality, state, model }) {
     const arr = pools[lane], s = arr[nextI[lane]++ % arr.length];
     const { tex, aspect } = texFor(lane, words, startIdx);
     s.sp.material.map = tex; s.sp.material.needsUpdate = true;
-    s.aspect = aspect; s.live = true; s.t = 0; s.sequence = tokenSequence++;
+    s.aspect = aspect; s.live = true; s.t = 0; s.sequence = tokenSequence++; s.lane = lane;
     s.sp.userData.tokenChunk = { lane, words: [...words], sequence: s.sequence };
     s.x0 = (rnd() - 0.5) * (twin ? 4.2 : 2.2); s.z0 = (rnd() - 0.5) * 2.4; s.sp.visible = true;
     if (lane === 'answer') pulse.v = 1;
@@ -292,6 +293,10 @@ function buildPackage({ quality, state, model }) {
 
   const d0 = dieX[0], [hx, hz] = live[live.length - 1], hy = Y.dies + 0.07 + stackH;
   const hbmHS = { pos: [hx, hy, hz], view: { pos: [hx + 3.5, hy + 4.5, hz + 4.2], target: [hx * 0.8, Y.dies + 0.5, hz * 0.9] } };
+  // Tokens: frame the top of the package and the live readout above it, so the
+  // generated text is legible; the pin sits beside the rows, never on them.
+  const TOKEN_ROWS = [2.2, 7.6, -1];
+  const tokensHS = { pos: [TOKEN_ROWS[0] + 4.1, TOKEN_ROWS[1] - 1.3, TOKEN_ROWS[2]], view: componentView([2.0, 5.7, -0.5], [6, 4.6, 11], [9.4, 5.2, 5.0]) };
   const nvphyHS = twin ? { pos: [2.62, Y.dies + 0.1, -1.2], view: { pos: [8, 5, 1], target: [3, 2.6, 0] } } : { pos: [0.9, Y.dies + 0.1, 1.62], view: { pos: [2, 5.5, 8], target: [0, 2.6, 2.2] } };
   return {
     scene, flows,
@@ -305,7 +310,7 @@ function buildPackage({ quality, state, model }) {
       interposer: { pos: [3.1, Y.inter, 0], view: { pos: [7.5, 4.2, 4.5], target: [1.5, 2.2, 0] } },
       dies: { pos: [d0, Y.dies + 0.1, 0.4], view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
       hbm: hbmHS,
-      tokens: { pos: [4.8, 5.6, -2.0], view: { pos: [11, 8.5, 8], target: [2.5, 5.5, -1] } },
+      tokens: tokensHS,
     },
     dataFlows, heatFlows,
     heatHotspots: {
@@ -319,7 +324,7 @@ function buildPackage({ quality, state, model }) {
       ...(twin ? { hbi: { pos: [0, Y.dies + 0.12, 1.3], view: { pos: [.2, 7.5, 1.2], target: [0, 3.1, .8] } } } : {}),
       nvphy: nvphyHS,
       cpo: { pos: [-4.2, Y.sub + 0.3, 3.8], view: { pos: [-8, 5, 9], target: [-2.5, 1.5, 2] } },
-      tokens: { pos: [3.8, 7.2, -1.0], view: { pos: [11, 8.5, 8], target: [2.5, 5.5, -1] } },
+      tokens: tokensHS,
     },
     dispose() { cache.forEach(({ tex }) => tex.dispose()); },
     update(t, dt) {
@@ -353,22 +358,25 @@ function buildPackage({ quality, state, model }) {
         const sz = 0.2 + g * 0.08; item.sp.scale.set(sz * item.aspect, sz, 1);
         item.sp.material.opacity = Math.min(1, u * 6) * (1 - Math.max(0, (u - 0.7) / 0.3));
       });
-      if (state.mode === 'data' && state.selected === 'tokens') {
-        // Tokens inspection alone gets a compact three-row readout. Heat and
-        // package views retain clear engineering overlays. The generation clock,
-        // transcript and numeric token/energy values remain unchanged.
-        const recent = Object.values(pools).flat().filter(item => item.live && item.sp.material.opacity > 0.04)
+      if (state.selected === 'tokens' && state.mode !== 'heat') {
+        // The Tokens part shows the live generation in every layer: the three
+        // newest chunks settle into a compact readout while the rest stay on
+        // their flight paths out of the package, fading before they reach it.
+        const all = Object.values(pools).flat();
+        const recent = all.filter(item => item.live && item.sp.material.opacity > 0.04)
           .sort((a, b) => b.sequence - a.sequence).slice(0, 3).reverse();
         const shown = new Set(recent);
-        for (const item of Object.values(pools).flat()) item.sp.visible = shown.has(item);
+        for (const item of all) {
+          item.sp.visible = item.live && (shown.has(item) || item.lane === 'answer');
+          if (item.live && !shown.has(item)) item.sp.material.opacity *= Math.max(0, 1 - Math.max(0, item.t - 0.45) / 0.3) * 0.6;
+        }
         recent.forEach((item, row) => {
-          const h = Math.min(0.32, 7.0 / item.aspect);
-          item.sp.position.set(2.5, 6.02 - row * 0.48, -1);
+          const h = Math.min(0.5, 9.0 / item.aspect);
+          item.sp.position.set(TOKEN_ROWS[0], TOKEN_ROWS[1] - row * 0.72, TOKEN_ROWS[2]);
           item.sp.scale.set(h * item.aspect, h, 1);
           item.sp.material.opacity = Math.max(.9, item.sp.material.opacity); // selected, still-live text stays readable
         });
-      }
-      if (state.mode !== 'data' || state.selected !== 'tokens') {
+      } else {
         for (const item of Object.values(pools).flat()) item.sp.visible = false;
       }
       live.forEach(([x, z], i) => {
