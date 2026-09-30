@@ -17,6 +17,9 @@ export function allClaims(M, C) {
   C.SCENES.forEach((sc, level) => {
     for (const [mode, key] of LAYERS) for (const p of C[key][sc.id] || []) (p.specs || []).forEach((row, i) =>
       out.push({ key: `card:${mode}:${sc.id}:${p.id}:${i}`, group: 'card', level, mode, scene: sc, part: p, label: row[0], value: row[1], basis: row[2], ev: evOf(row) }));
+    // the rows a part shows only on request (the Tokens part's "Show the math"), keyed apart from its spec rows
+    for (const [mode, key] of LAYERS) for (const p of C[key][sc.id] || []) (p.math || []).forEach((row, i) =>
+      out.push({ key: `card:${mode}:${sc.id}:${p.id}:math:${i}`, group: 'card', level, mode, scene: sc, part: p, label: row[0], value: row[1], basis: row[2], ev: evOf(row) }));
   });
   M.ledger.forEach((r, i) => out.push({ key: `ledger:${i}`, group: 'ledger', label: r.label, value: `${r.mw.toFixed(1)} MW`, basis: r.basis, ev: evOf(r), row: r }));
   C.BOM.forEach((g, gi) => g.rows.forEach((row, ri) =>

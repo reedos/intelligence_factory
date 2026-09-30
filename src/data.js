@@ -3,6 +3,7 @@
 // report cites its sources, a calculation names how the model makes it, an assumption says why.
 // The page shows the basis beside the figure; the chip opens its evidence.
 import { BASIS } from './evidence.js';
+import { tokenMathRows } from './model/token-math.js';
 export { BASIS };
 
 // Voltage classes: one color per class, used by every flow, chip and chart.
@@ -705,7 +706,7 @@ export function content(M) {
       body: `Each stack, from suppliers such as SK hynix, Micron and Samsung, is ${A.hbm.layers} DRAM dies thinned and stacked with through-silicon vias. Moving model weights out of HBM for every token is a large share of inference energy.`,
       specs: [['Capacity', `${A.hbm.gb} GB${A.id === 'gb200' ? ' nominal; rack total implies ≈186 GB' : A.id === 'gb300' ? ' nominal; rounded rack total implies ≈278 GB' : ''}`, EV6.hbm.basis, EV6.hbm.ev], ['Bandwidth', hbmTB, EV6.hbm.basis, EV6.hbm.ev],
         ['Layers per stack', `${A.hbm.layers}`, EV6.layers.basis, EV6.layers.ev], ['Share of GPU power', '≈8–15%', 'assumed', { assume: 'hbm-power-share' }], ['Stack height, as drawn', 'about 3× real', 'assumed', { assume: 'hbm-stack-drawing' }]] },
-    { id: 'tokens', title: 'Tokens', kicker: 'What leaves',
+    { id: 'tokens', title: 'Tokens', kicker: 'What leaves', math: tokenMathRows(M),
       body: 'Every token a model writes is a pass through billions of weights. Run the numbers below to see how many a kilowatt-hour buys.',
       specs: [
         ['Google, median Gemini text prompt', '0.24 Wh, all-in', 'spec', { refs: [['google-inference-impact', 'body text: "the median Gemini Apps text prompt uses 0.24 watt-hours (Wh) of energy"']] }],
@@ -1002,7 +1003,7 @@ export function content(M) {
       { id: 'cpo', title: 'Light on the package', kicker: 'What comes next',
         body: 'Today the GPU speaks copper and a module turns it into light. Switches already carry optical engines on the package; bringing them to the GPU would let scale-up reach beyond one rack.',
         specs: [[A.short, 'electrical I/O only', 'reported', { refs: [['nvidia-dgx-gb200-user-guide', 'hardware overview: "connected by NVLink through the NVLink passive copper cable cartridge backplane"']] }]] },
-      { id: 'tokens', title: 'Tokens', kicker: 'What leaves',
+      { id: 'tokens', title: 'Tokens', kicker: 'What leaves', math: tokenMathRows(M),
         body: 'After all those links, the output is small: a few bytes per token, sent back out the front-end network to whoever asked.',
         specs: [['Per token of text', 'a few bytes', 'assumed', { assume: 'token-byte-size' }]] },
     ],
