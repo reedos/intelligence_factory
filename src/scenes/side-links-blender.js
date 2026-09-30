@@ -153,7 +153,7 @@ function build(name, nativeBuilder, options) {
     r.addColorStop(0, '#fff'); r.addColorStop(0.55, '#8a8a8a'); r.addColorStop(1, '#000');
     g.fillStyle = r; g.fillRect(0, 0, 256, 256);
     const bench = new THREE.Mesh(new THREE.CircleGeometry(12, 64), new THREE.MeshStandardMaterial({
-      name: 'Copper bench', color: 0x18202b, metalness: 0.35, roughness: 0.4, envMapIntensity: 0.7,
+      name: 'Copper bench', color: 0x2a3648, metalness: 0.35, roughness: 0.34, envMapIntensity: 0.9,
       transparent: true, alphaMap: new THREE.CanvasTexture(fade), depthWrite: false }));
     bench.name = 'Copper bench'; bench.rotation.x = -Math.PI / 2; bench.position.set(0, -0.08, -1.6);
     bench.scale.set(1, 0.72, 1); bench.receiveShadow = !!options.quality.shadows; bench.raycast = () => {};
