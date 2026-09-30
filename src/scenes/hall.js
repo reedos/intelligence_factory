@@ -279,7 +279,7 @@ export function build({ quality, model }) {
     for (const dz of [-0.7, 0, 0.7]) insulator(N, usX - 0.9, 2.6, usZ + dz, 0.6, 0.08, MAT.porcelain, { sheds: 4 });
     S.slab(1.2, 0.8, 1.6, MAT.ansi61, usX + 1.6, 1.4, usZ);                            // LV throat
     S.box(5.6, 0.5, 0.6, MAT.alu, usX + 4.6, 2.2, usZ);                                   // bus duct to the wall
-    flows.push(flow([[usX - 3, -0.2, usZ], [usX - 0.9, 0.5, usZ], [usX - 0.9, 2.9, usZ]], 'mv', { count: 6, speed: 1.5, size: 0.11, trailR: 0.03 }));
+    flows.push(flow([[usX - 4.2, -0.2, usZ + .4], [usX - 2.35, -0.2, usZ + .4], [usX - 2.35, 1.1, usZ + .4], [usX - 1.7, 1.1, usZ + .4]], 'mv', { count: 6, speed: 1.5, size: 0.11, trailR: 0.03 }));
   }
 
   // ---------- electrical room ----------
@@ -594,16 +594,79 @@ export function build({ quality, model }) {
   const facilitySupplyX=X0+2,facilityReturnX=X0+2.8,headerEndX=rowX1+3;
   const coolantAudit={facility:[],secondary:[],rackDrops:[],representative:true};
   const coolantPipe=(pts,mat,r=.035,kind='secondary')=>{for(let i=1;i<pts.length;i++)N.strut(pts[i-1],pts[i],r,mat,8);coolantAudit[kind].push(pts);};
-  S.cylX(0.26, headerEndX-facilitySupplyX, MAT.pipeBlue, (headerEndX+facilitySupplyX)/2, hdrY, -16.4, 16);
   coolantAudit.facility.push([[facilitySupplyX,hdrY,-16.4],[headerEndX,hdrY,-16.4]]);
-  S.cylX(0.26, headerEndX-facilityReturnX, MAT.pipeRed, (headerEndX+facilityReturnX)/2, hdrY-.7, -16.4, 16);
   coolantAudit.facility.push([[facilityReturnX,hdrY-.7,-16.4],[headerEndX,hdrY-.7,-16.4]]);
-  for (let x = rowX0 - 9; x < rowX1 + 3; x += 5) N.strut([x, hdrY + 0.2, -16.4], [x, WALL_H - 0.9, -16.4], 0.03, MAT.darkSteel, 4);
-  cduMx.forEach(c => {
-    N.strut([c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], 0.07, MAT.pipeBlue, 8); N.strut([c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z], 0.07, MAT.pipeBlue, 8);
-    N.strut([c.x + 0.15, hdrY - 0.7, -16.4], [c.x + 0.15, hdrY - 0.7, c.z], 0.07, MAT.pipeRed, 8); N.strut([c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, 2.3, c.z], 0.07, MAT.pipeRed, 8);
-    N.cylZ(0.12, 0.08, MAT.orange, c.x - 0.15, hdrY - 0.35, c.z, 12);                      // valve handwheel
-  });
+  // Where the return riser rises: it jogs toward the room so it never crosses the supply header.
+  const returnRiserZ = -14.8;
+  if (hasHallFinish()) {
+    // Authored pipework: smooth runs, long-radius elbows (R = 1.5 D), weld-neck flanges every 6 m,
+    // trapeze hangers every 3 m, a flanged take-off and a geared butterfly valve on every CDU branch,
+    // and risers leaving through a roof curb. Fittings, spacing and valve positions are representative.
+    const V3 = (a) => new THREE.Vector3(...a), runs = new Map(), bends = new Map(), flanges = [], valves = [], bands = [];
+    const frame = (dir, hint = [0, 1, 0]) => {
+      const x = V3(dir).normalize(); let h = V3(hint); if (Math.abs(h.dot(x)) > .9) h = V3([1, 0, 0]);
+      const z = new THREE.Vector3().crossVectors(x, h).normalize(), y = new THREE.Vector3().crossVectors(z, x);
+      return [x, y, z];
+    };
+    const place = ([x, y, z], at, sx, sy, sz) => new THREE.Matrix4().makeBasis(x.multiplyScalar(sx), y.multiplyScalar(sy), z.multiplyScalar(sz)).setPosition(V3(at));
+    const add = (map, mat, m) => { if (!map.has(mat)) map.set(mat, []); map.get(mat).push(m); };
+    const run = (a, b, r, mat) => { const d = V3(b).sub(V3(a)), len = d.length(); if (len < .01) return; add(runs, mat, place(frame(d.toArray()), V3(a).add(V3(b)).multiplyScalar(.5).toArray(), len, r, r)); };
+    const bend = (corner, din, dout, r, mat) => {
+      const X = V3(din), Y = V3(dout), Z = new THREE.Vector3().crossVectors(X, Y);
+      add(bends, mat, place([X, Y, Z], V3(corner).addScaledVector(X, -3 * r).addScaledVector(Y, 3 * r).toArray(), r, r, r));
+    };
+    const rH = .26, eH = 3 * rH, rD = .07, eD = 3 * rD;
+    // supply: header west end turns up into its riser
+    bend([X0 + 2, hdrY, -16.4], [-1, 0, 0], [0, 1, 0], rH, MAT.pipeBlue);
+    run([X0 + 2 + eH, hdrY, -16.4], [headerEndX, hdrY, -16.4], rH, MAT.pipeBlue);
+    run([X0 + 2, hdrY + eH, -16.4], [X0 + 2, 8.9, -16.4], rH, MAT.pipeBlue);
+    // return: header, a jog toward the room, then its riser
+    run([X0 + 2.8 + eH, hdrY - .7, -16.4], [headerEndX, hdrY - .7, -16.4], rH, MAT.pipeRed);
+    bend([X0 + 2.8, hdrY - .7, -16.4], [-1, 0, 0], [0, 0, 1], rH, MAT.pipeRed);
+    run([X0 + 2.8, hdrY - .7, -16.4 + eH], [X0 + 2.8, hdrY - .7, returnRiserZ - eH], rH, MAT.pipeRed);
+    bend([X0 + 2.8, hdrY - .7, returnRiserZ], [0, 0, 1], [0, 1, 0], rH, MAT.pipeRed);
+    run([X0 + 2.8, hdrY - .7 + eH, returnRiserZ], [X0 + 2.8, 8.9, returnRiserZ], rH, MAT.pipeRed);
+    for (let x = X0 + 6; x < headerEndX - 1; x += 6) for (const y of [hdrY, hdrY - .7]) flanges.push(place(frame([1, 0, 0]), [x, y, -16.4], rH, rH, rH));
+    // trapeze hangers: two rods from under the wall crown, a strut under each header, a band on each pipe
+    for (let x = X0 + 4.5; x < headerEndX - .5; x += 3) {
+      for (const dz of [-.42, .42]) N.strut([x, 7.35, -16.4 + dz], [x, hdrY - .7 - rH - .07, -16.4 + dz], .011, MAT.galv, 6);
+      for (const y of [hdrY, hdrY - .7]) { N.box(.05, .05, .95, MAT.galv, x, y - rH - .035, -16.4); bands.push(place(frame([1, 0, 0]), [x, y, -16.4], rH, rH, rH)); }
+    }
+    // CDU branches: one flanged take-off per column of CDUs, a branch main out to the farthest row, a
+    // long-radius bend there and a tee (collar) at each nearer row; every drop carries a geared butterfly valve.
+    const columns = new Map(); cduMx.forEach(c => { const k = c.x.toFixed(3); if (!columns.has(k)) columns.set(k, []); columns.get(k).push(c); });
+    for (const list of columns.values()) {
+      const far = list.reduce((a, b) => (b.z > a.z ? b : a));
+      for (const [dx, y, mat, side, valveDrop] of [[-.15, hdrY, MAT.pipeBlue, -1, .6], [.15, hdrY - .7, MAT.pipeRed, 1, .6]]) {
+        const x = far.x + dx;
+        flanges.push(place(frame([0, 0, 1]), [x, y, -16.4 + rH + .01], rD, rD, rD));
+        run([x, y, -16.4], [x, y, far.z - eD], rD, mat);
+        bend([x, y, far.z], [0, 0, 1], [0, -1, 0], rD, mat);
+        for (const c of list) {
+          if (c !== far) flanges.push(place(frame([0, 0, 1]), [x, y, c.z], rD, rD, rD));
+          run([x, c === far ? y - eD : y, c.z], [x, 2.3, c.z], rD, mat);
+          valves.push(place(frame([0, -1, 0], [side, 0, 0]), [x, y - valveDrop, c.z], rD, rD, rD));
+        }
+      }
+    }
+    const inst = (name, list, mat) => { if (!list.length) return; const g = hallFinishInstances(name, list); if (mat) g.traverse(o => { if (o.isMesh) o.material = mat; }); scene.add(g); };
+    for (const [mat, list] of runs) inst('PIPE_UNIT', list, mat);
+    for (const [mat, list] of bends) inst('PIPE_ELBOW', list, mat);
+    inst('PIPE_FLANGE', flanges); inst('BUTTERFLY_VALVE', valves); inst('PIPE_HANGER', bands);
+    // roof curb where the risers leave the building: a short cut section of roof deck with flashing collars
+    S.box(3.0, .25, 3.7, MAT.concrete, X0 + 2.4, 7.675, -16.05);
+    N.box(3.0, .02, 3.7, cutTop, X0 + 2.4, 7.812, -16.05);
+    for (const [x, z] of [[X0 + 2, -16.4], [X0 + 2.8, returnRiserZ]]) N.cyl(.34, .14, MAT.galv, x, 7.9, z, 24);
+  } else {
+    S.cylX(0.26, headerEndX-facilitySupplyX, MAT.pipeBlue, (headerEndX+facilitySupplyX)/2, hdrY, -16.4, 16);
+    S.cylX(0.26, headerEndX-facilityReturnX, MAT.pipeRed, (headerEndX+facilityReturnX)/2, hdrY-.7, -16.4, 16);
+    for (let x = rowX0 - 9; x < rowX1 + 3; x += 5) N.strut([x, hdrY + 0.2, -16.4], [x, WALL_H - 0.9, -16.4], 0.03, MAT.darkSteel, 4);
+    cduMx.forEach(c => {
+      N.strut([c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], 0.07, MAT.pipeBlue, 8); N.strut([c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z], 0.07, MAT.pipeBlue, 8);
+      N.strut([c.x + 0.15, hdrY - 0.7, -16.4], [c.x + 0.15, hdrY - 0.7, c.z], 0.07, MAT.pipeRed, 8); N.strut([c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, 2.3, c.z], 0.07, MAT.pipeRed, 8);
+      N.cylZ(0.12, 0.08, MAT.orange, c.x - 0.15, hdrY - 0.35, c.z, 12);                      // valve handwheel
+    });
+  }
   // rack loop from each CDU along its rack group, over the rack tops (liquid-cooled racks only)
   if (!air) rowZs.forEach((z, r) => {
     const lz = z - facing[r] * 0.35;
@@ -631,7 +694,7 @@ export function build({ quality, model }) {
   flows.push(flow([[rowX1 + 2, hdrY - 0.7, -16.4], [facilityReturnX, hdrY - 0.7, -16.4]], 'warm', { count: 24, speed: 3, size: 0.12, k: 1.6, trail: false }));
   // ---------- heat layer ----------
   heatFlows.push(flow([[X0 + 2, hdrY + 3, -16.4], [X0 + 2, hdrY, -16.4], [rowX1 + 2, hdrY, -16.4]], 'cool', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 }));
-  heatFlows.push(flow([[rowX1 + 2, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY + 2.8, -16.4]], 'warm', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 }));
+  heatFlows.push(flow([[rowX1 + 2, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY - 0.7, returnRiserZ], [X0 + 2.8, hdrY + 2.8, returnRiserZ]], 'warm', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 }));
   cduMx.forEach(c => {
     heatFlows.push(flow([[c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z]], 'cool', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false }));
     heatFlows.push(flow([[c.x + 0.15, 2.3, c.z], [c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, hdrY - 0.7, -16.4]], 'warm', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false }));
@@ -675,7 +738,7 @@ export function build({ quality, model }) {
   scene.add(par);
   scene.userData.hallCoolant=coolantAudit;
   // headers leave through the roof to the facility cooling plant
-  S.cyl(0.26, 3, MAT.pipeBlue, X0 + 2, hdrY + 1.4, -16.4, 16); S.cyl(0.26, 3.6, MAT.pipeRed, X0 + 2.8, hdrY + 1.1, -16.4, 16);
+  if (!hasHallFinish()) { S.cyl(0.26, 3, MAT.pipeBlue, X0 + 2, hdrY + 1.4, -16.4, 16); S.cylZ(0.26, 1.6, MAT.pipeRed, X0 + 2.8, hdrY - .7, -15.6, 16); S.cyl(0.26, 3.6, MAT.pipeRed, X0 + 2.8, hdrY + 1.1, returnRiserZ, 16); }
 
   // ---------- lighting fixtures, activity and finishing detail ----------
   // ceiling fixtures: warm pools over the power room, cool white rows over the data hall aisles

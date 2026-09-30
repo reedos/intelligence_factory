@@ -6,7 +6,7 @@ HERE=pathlib.Path(__file__).resolve().parent
 exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque building envelope.')[0])
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT','STORAGE_FACE','HALL_UNITSUB']:
+for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT','STORAGE_FACE','HALL_UNITSUB','PIPE_UNIT','PIPE_ELBOW','PIPE_FLANGE','BUTTERFLY_VALVE','PIPE_HANGER']:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
 ceramic=mat('Soft satin architectural panel',(.30,.38,.43),.25,.45)
 alloy=mat('Anodized champagne edge',(.31,.29,.23),.8,.3)
@@ -159,6 +159,48 @@ box('Wall sleeve flange',(6.685,2.2,0),(.04,.8,.9),ansiDark,g,.006)
 for sx in [-1,1]:
  box('Tank ground pad',(sx*.9,P+.3,1.008),(.1,.08,.01),copperM,g,0)
  cyl('Ground lead',(sx*.9,P+.132,1.03),.012,.26,greenLead,g,'y',8)
+# ---- Facility pipework modules, unit pipe radius 1 (the viewer scales each instance by the real radius
+# and recolours the pipe body to the legend's supply/return colour). Representative fittings.
+pipeBody=mat('Painted pipe body (recoloured in viewer)',(.3,.3,.3),.1,.42)
+g='PIPE_UNIT'
+cyl('Straight pipe, unit length along x',(0,0,0),1,1,pipeBody,g,'x',32)
+g='PIPE_ELBOW'
+def elbow(n,m,g,R=3.0,a=16,b=32):
+ # quarter torus, tube radius 1, bend radius R: enters along +x at (0,-R,0), leaves along +y at (R,0,0)
+ v=[];f=[]
+ for i in range(a+1):
+  t=math.radians(-90+90*i/a);c=(R*math.cos(t),R*math.sin(t));n1=(math.cos(t),math.sin(t))
+  for j in range(b):
+   p_=2*math.pi*j/b
+   v.append((c[0]+math.cos(p_)*n1[0],c[1]+math.cos(p_)*n1[1],math.sin(p_)))
+ for i in range(a):
+  for j in range(b):f.append((i*b+j,i*b+(j+1)%b,(i+1)*b+(j+1)%b,(i+1)*b+j))
+ o=mesh(n,v,f,m,g)
+ for poly in o.data.polygons:poly.use_smooth=True
+ return o
+elbow('Long-radius 90 degree elbow',pipeBody,g)
+g='PIPE_FLANGE'
+cyl('Weld-neck flange pair',(0,0,0),1.5,.34,steel,g,'x',32)
+cyl('Weld-neck hub',(.25,0,0),1.18,.18,steel,g,'x',32)
+cyl('Weld-neck hub',(-.25,0,0),1.18,.18,steel,g,'x',32)
+for k in range(8):
+ a_=2*math.pi*k/8;cyl('Flange bolt',(0,1.3*math.cos(a_),1.3*math.sin(a_)),.09,.5,steel,g,'x',8)
+g='BUTTERFLY_VALVE'
+valveBody=mat('Butterfly valve body, epoxy grey',(.16,.18,.2),.3,.45)
+wheel=mat('Handwheel, safety red',(.55,.05,.04),.1,.45)
+cyl('Wafer valve body',(0,0,0),1.45,.7,valveBody,g,'x',32)
+box('Gear operator neck',(0,1.9,0),(.5,1.0,.5),valveBody,g,.04)
+box('Gear operator',(0,2.65,0),(.9,.7,.9),valveBody,g,.06)
+cyl('Handwheel stem',(0,2.65,.75),.12,.7,steel,g,'z',12)
+bpy.ops.mesh.primitive_torus_add(major_radius=.85,minor_radius=.09,major_segments=32,minor_segments=8,location=pt((0,2.65,1.12)),rotation=(math.pi/2,0,0))
+o=bpy.context.object;o.name='Handwheel rim';o.parent=groups[g];o.data.materials.append(wheel);bpy.ops.object.shade_smooth()
+for k in range(4):
+ a_=math.pi*k/4;beam('Handwheel spoke',(-.8*math.cos(a_),2.65-.8*math.sin(a_),1.12),(.8*math.cos(a_),2.65+.8*math.sin(a_),1.12),.08,.08,wheel,g)
+g='PIPE_HANGER'
+# clevis hanger band around a unit pipe, rod socket on top (the rod is drawn to the right length in the viewer)
+bpy.ops.mesh.primitive_torus_add(major_radius=1.1,minor_radius=.1,major_segments=32,minor_segments=8,location=(0,0,0),rotation=(0,math.pi/2,0))
+o=bpy.context.object;o.name='Clevis band';o.parent=groups[g];o.data.materials.append(unistrut);bpy.ops.object.shade_smooth()
+box('Clevis yoke',(0,1.3,0),(.14,.4,.5),unistrut,g,.02)
 # Face relief follows existing rack texture rows, not an invented tray count.
 # Canonical cabinet envelope .58 wide x2.3 high, front z=.6.
 def drawer(g,top,height,pull=False):
