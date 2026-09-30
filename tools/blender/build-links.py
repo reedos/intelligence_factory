@@ -123,8 +123,8 @@ def copper_pull(name, cx, mats):
     # Low, rounded rectangular pull surrounding the cable, connected to the two
     # side release rails. Photo-inspired thermoplastic, not a finned metal lid.
     for s in [-1,1]:
-        box(name+' side arm',(cx+s*.93,.24,-3.61),(.18,.12,2.6),mats['boot'],.055)
-        box(name+' latch linkage',(cx+s*1.055,.29,-1.58),(.08,.16,1.6),mats['edge'],.02)
+        box(name+' side arm',(cx+s*.99,.2,-3.61),(.1,.12,2.6),mats['boot'],.04)
+        box(name+' latch linkage',(cx+s*.965,.2,-1.58),(.03,.14,1.6),mats['edge'],.01)
     box(name+' grip',(cx,.24,-4.93),(2.04,.12,.26),mats['boot'],.085)
     for i in range(7):box(name+' grip texture',(cx-.60+i*.2,.307,-4.94),(.065,.012,.15),mats['dark'],.01)
 
@@ -308,8 +308,8 @@ def copper_active_package(kind, x, zc, m):
         for j,w in enumerate([.16,.11,.2]):
             box('ACC active laser etch',(cx-.02,top+h+.0006,zc-.1+j*.075),(w,.001,.022),m['etch'],0)
         return
-    cx,cw,cd=x,1.6,.95
-    sub=.1; lw,ld,lh=1.2,.72,.07
+    cx,cw,cd=x,1.42,.95
+    sub=.1; lw,ld,lh=1.08,.72,.07
     box('AEC active BGA shadow',(cx,top+.012,zc),(cw-.06,.024,cd-.06),m['dark'],.004)
     box('AEC active FCBGA substrate',(cx,top+.024+sub/2,zc),(cw,sub,cd),m['substrate'],.01)
     y=top+.024+sub
@@ -320,7 +320,7 @@ def copper_active_package(kind, x, zc, m):
     box('AEC active pin one mark',(cx-lw/2+.09,y+lh+.0006,zc+ld/2-.09),(.05,.001,.05),m['etch'],.025)
     # 0201-size decoupling capacitors on the substrate margin (0.6 x 0.3 mm).
     for i in range(7):
-        t=(i-3)*.17
+        t=(i-3)*.15
         for s in [-1,1]:
             copper_cap('AEC active decoupling',cx+t,y,zc+s*(ld/2+.06),True,m)
     for i in range(3):
@@ -336,35 +336,95 @@ def copper_cap(name, x, y, z, along_x, m):
         off=(s*(L/2-.008),0) if along_x else (0,s*(L/2-.008))
         box(name+' termination',(x+off[0],y+H/2,z+off[1]),(.016,H+.002,Wd+.002) if along_x else (Wd+.002,H+.002,.016),m['lead'],0)
 
+def loft_u(name, cx, stations, y0, t, f, material, flip=False, bevel=.018):
+    # One closed U-channel section lofted along z through (z, outer width,
+    # height) stations: a die-cast half shell with its floor and both walls in
+    # one watertight mesh (no coincident faces between separate boxes).
+    # flip=True opens it downward: the upper half of the clamshell.
+    rings=[]
+    for z,w,h in stations:
+        prof=[(-w/2,h),(-w/2,0),(w/2,0),(w/2,h),(w/2-t,h),(w/2-t,f),(-w/2+t,f),(-w/2+t,h)]
+        rings.append([xyz((cx+u,y0+(h-v if flip else v),z)) for u,v in prof])
+    verts=[v for r in rings for v in r];faces=[]
+    for j in range(len(rings)-1):
+        a0,b0=j*8,(j+1)*8
+        for i in range(8):
+            k=(i+1)%8;faces.append((a0+i,a0+k,b0+k,b0+i))
+    for base in [0,(len(rings)-1)*8]:
+        for q in [(7,0,1,6),(6,1,2,5),(5,2,3,4)]:faces.append(tuple(base+i for i in q))
+    mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
+    o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o);mesh.materials.append(material)
+    bpy.ops.object.select_all(action='DESELECT');bpy.context.view_layer.objects.active=o;o.select_set(True)
+    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT')
+    if bevel:
+        b=o.modifiers.new('Die-cast edge radius','BEVEL');b.width=bevel*.01;b.segments=3;b.limit_method='ANGLE'
+        bpy.ops.object.modifier_apply(modifier=b.name)
+        w=o.modifiers.new('Face weighted normals','WEIGHTED_NORMAL');w.keep_sharp=True
+        bpy.ops.object.modifier_apply(modifier=w.name)
+    for p in mesh.polygons:p.use_smooth=True
+    o.select_set(False)
+    return o
+
+def copper_shell(kind, x, zc, W, m):
+    # Two-piece die-cast clamshell at QSFP112 width (about 18.4 mm) and height
+    # (8.5 mm), split at a parting line. Length is shortened for the diagram
+    # (Type 1 bodies run to 72.4 mm); nose, ledges, bosses, neck, latch and EMI
+    # details are representative, informed by exterior photographs.
+    zn,zb,zr=zc+3.0,zc-2.2,zc-3.0          # host nose, start of the rear neck, neck end
+    lower,upper=.42,.43                     # the two halves meet at 8.5 mm total
+    body=[(zn,W,lower),(zb,W,lower),(zb-.35,1.5,lower*.92),(zr,1.12,lower*.86)]
+    loft_u(kind+' lower half',x,body,0,.12,.1,m['shell'])
+    # closed host nose: a chamfered lip under the card slot and cheeks either side
+    box(kind+' nose lip',(x,.18,zn-.07),(W-.26,.18,.14),m['shell'],.05)
+    for s in [-1,1]:
+        box(kind+' nose cheek',(x+s*(W/2-.2),.295,zn-.06),(.18,.22,.12),m['shell'],.04)
+    # card support ledges on both walls and four bosses the card rests on
+    for s in [-1,1]:
+        box(kind+' card ledge',(x+s*(W/2-.15),.34,zc+.45),(.08,.05,4.4),m['edge'],.012)
+        for dz in [-1.75,2.05]:
+            bpy.ops.mesh.primitive_cylinder_add(vertices=20,radius=.075*.01,depth=.26*.01,location=xyz((x+s*.56,.225,zc+dz)))
+            o=bpy.context.object;o.name=kind+' card boss';o.data.materials.append(m['shell'])
+            box(kind+' boss insert',(x+s*.56,.356,zc+dz),(.06,.006,.06),m['dark'],0)
+    # floor ribs and fasteners
+    for dz in [-1.4,-.35,.7,1.5]:
+        box(kind+' tray rib',(x,.108,zc+dz),(W-.36,.02,.06),m['edge'],.006)
+    for s in [-1,1]:
+        for dz in [-1.95,2.45]:
+            screw(kind+' fastener',x+s*.42,.1+.0095,zc+dz,m,.06)
+    # parting-line groove and the stamped de-latch slider on each side wall
+    for s in [-1,1]:
+        box(kind+' parting groove',(x+s*(W/2-.004),lower-.05,zc+.4),(.014,.018,5.0),m['dark'],0)
+        box(kind+' delatch slider',(x+s*(W/2+.018),.2,zc+.65),(.03,.2,2.7),m['edge'],.01)
+        box(kind+' delatch ramp',(x+s*(W/2+.03),.2,zc+2.1),(.05,.12,.26),m['edge'],.018)
+        box(kind+' slider window',(x+s*(W/2+.034),.2,zc+.6),(.006,.08,.8),m['dark'],0)
+    # EMI grounding band behind the nose: spring fingers on walls and floor
+    for s in [-1,1]:
+        for i in range(4):
+            box(kind+' EMI finger',(x+s*(W/2+.012),.06+i*.09,zn-.45),(.02,.06,.16),m['edge'],0)
+    for i in range(9):
+        box(kind+' EMI finger',(x+(i-4)*.19,-.008,zn-.45),(.12,.02,.16),m['edge'],0)
+    # upper half, lifted straight up for inspection: same outline, recessed label field
+    top=2.0
+    up=loft_u(kind+' lifted cover upper half',x,body,top,.12,.1,m['lid'],True)
+    cut=box('Temporary label pocket',(x,top+lower+.01,zc+.3),(W-.5,.06,2.6),m['lid'],.02)
+    pocket=up.modifiers.new('Recessed label field','BOOLEAN');pocket.operation='DIFFERENCE';pocket.object=cut
+    bpy.context.view_layer.objects.active=up;bpy.ops.object.modifier_apply(modifier=pocket.name)
+    bpy.data.objects.remove(cut,do_unlink=True)
+    for s in [-1,1]:
+        box(kind+' lifted cover parting edge',(x+s*(W/2-.06),top+.008,zc+.4),(.1,.02,5.2),m['edge'],.006)
+
 def copper():
-    m=reset(); W=2.2; L=6; zc=-.2
+    m=reset(); W=1.84; L=6; zc=-.2
+    m['shell']=mat('Satin die-cast zinc',(.5,.53,.56),.9,.36)
     m['lead']=mat('Tinned package leads',(.72,.73,.74),1,.28)
     m['etch']=mat('Laser etched package mark',(.2,.22,.24),.1,.62)
     m['substrate']=mat('Dark BGA substrate',(.03,.05,.04),.05,.5)
     m['nickel']=mat('Nickel plated package lid',(.62,.63,.64),1,.24)
     for kind,x in [('DAC',-4.6),('ACC',0),('AEC',4.6)]:
-        box(kind+' lower tray',(x,0,zc),(W,.12,L),m['shell'],.065)
-        for sign in [-1,1]:
-            dx=sign*(W/2-.055)
-            box(kind+' sidewall',(x+dx,.205,zc),(.11,.35,L-.15),m['shell'],.028)
-            box(kind+' machined lip',(x+dx,.39,zc),(.07,.025,L-.2),m['edge'],.009)
-            box(kind+' housing seam',(x+dx-sign*.06,.15,zc),(.016,.03,L-.45),m['dark'],.005)
-            for dz in [-2.55,2.55]:
-                box(kind+' fixing boss',(x+sign*.87,.08,zc+dz),(.24,.045,.28),m['shell'],.035)
-                screw(kind+' fastener',x+sign*.87,.112,zc+dz,m,.067)
-            for dz in [-1.8,.8]:
-                box(kind+' latch rail',(x+dx-sign*.027,.265,zc+dz),(.055,.13,.7),m['edge'],.018)
-                box(kind+' latch recess',(x+dx-sign*.06,.265,zc+dz),(.01,.055,.4),m['dark'],.003)
-        for dz in [-1.8,-.8,.3,1.4]:
-            box(kind+' tray rib',(x,.069,zc+dz),(W-.3,.019,.07),m['edge'],.005)
-        # Rectangular metal shoulders transition into the molded cable boot;
-        # there is no unsupported free-standing circular clamp.
-        for s in [-1,1]:
-            box(kind+' rear shoulder',(x+s*.90,.27,-2.94),(.34,.42,.44),m['shell'],.065)
+        copper_shell(kind,x,zc,W,m)
         cable_cutaway(kind+' sectioned jacket',x,m)
         if kind!='DAC':
             copper_active_package(kind,x,zc,m)
-        lid(kind+' lifted cover',x,2.3,zc,L,W,False,m)
         copper_pull(kind+' release pull',x,m)
     internals('copper')
     export('copper-hardware',m,[W,L])

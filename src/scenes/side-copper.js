@@ -11,7 +11,8 @@ export function build({ quality, state, authoredHardware = false }) {
   const scene = setup(quality, 12), M = materials();
   const S = new Builder(), N = new Builder();
   const flows = [], dataFlows = [], heatFlows = [];
-  const HL = 6.0, HW = 2.2, z0 = 2.8, zc = z0 - HL / 2, cardY = 0.9, cardTop = 0.94, back = z0 - HL + 1.0;
+  // HW: QSFP112 width, about 18.4 mm; HL is shortened for the diagram (Type 1 bodies run to 72.4 mm).
+  const HL = 6.0, HW = 1.84, z0 = 2.8, zc = z0 - HL / 2, cardY = 0.9, cardTop = 0.94, back = z0 - HL + 1.0;
   const housingEdge = new THREE.MeshStandardMaterial({ color: 0x8997a5, metalness: 0.78, roughness: 0.33 });
   const foil = new THREE.MeshStandardMaterial({ color: 0x8a919c, metalness: 0.8, roughness: 0.4, side: THREE.DoubleSide });
   // Named so the Blender pass can give the plating its own finish.
@@ -27,7 +28,7 @@ export function build({ quality, state, authoredHardware = false }) {
       S.box(0.11, 0.35, HL - 0.15, MAT.darkSteel, hx + dx, 0.205, zc);
       N.box(0.07, 0.025, HL - 0.2, housingEdge, hx + dx, 0.39, zc);
     }
-    for (const dx of [-0.87, 0.87]) for (const dz of [-2.55, 2.55]) {
+    for (const dx of [-0.6, 0.6]) for (const dz of [-2.55, 2.55]) {
       N.cyl(0.09, 0.04, housingEdge, hx + dx, 0.085, zc + dz, 10);
       N.box(0.105, 0.012, 0.025, MAT.pcbBlack, hx + dx, 0.111, zc + dz);
     }

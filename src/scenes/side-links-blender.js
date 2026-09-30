@@ -11,7 +11,7 @@ let pending;
 export function preloadLinks() {
   if (cached.size === 2) return Promise.resolve();
   if (!pending) pending = Promise.all(['coherent', 'copper'].map(async name => {
-    const gltf = await new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 13 : 10}`);
+    const gltf = await new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 14 : 10}`);
     cached.set(name, gltf.scene);
   })).catch(error => { pending = null; throw error; });
   return pending;
@@ -96,7 +96,7 @@ function build(name, nativeBuilder, options) {
   directLink({ built, model, kind: name, quality: options.quality, state: options.state });
   built.inspection.scope = name === 'coherent'
     ? 'Discrete board-level design: the driver and TIA are each in their own electronic package, physically separate from the IQ modulator and receiver optical assemblies. No shared package or substrate joins electronics to optics here. This packaging choice, dimensions and RF routing are representative assumptions, not a teardown of a shipping 800ZR. Exact die placement varies. OSFP shell footprint and the nano-ITLA case envelope are to scale; the remaining layout is representative. The release loop is representative and extends beyond the shell. Layers are separated for inspection; transfer across display gaps is schematic. The same tunable laser supplies the transmit carrier and receive local oscillator. Heat paths are qualitative; pulse counts do not represent power ratios.'
-    : 'Representative DAC, ACC and AEC circuits in a flat-top, QSFP-style enclosure, informed by public exterior photographs rather than a teardown. Mechanical dimensions and internal placement are illustrative. Four transmit and four receive pairs are shown. Layers, pair shields and the upper half of the cable jacket are opened for inspection. Every signal path is electrical. The ACC redriver handles receive; the AEC retimer handles both directions. Heat motion shows qualitative transfer from active chips to the case and surroundings across exploded gaps; it does not encode watts or a power ratio. Release hardware adds no signal connections.';
+    : 'Representative DAC, ACC and AEC circuits in a two-piece die-cast clamshell at QSFP112 width and height (about 18.4 by 8.5 mm), informed by public exterior photographs rather than a teardown. The body is drawn shorter than a 72.4 mm Type 1 module; the nose, card supports, latch sliders, grounding fingers and internal placement are illustrative. Four transmit and four receive pairs are shown. Layers, pair shields and the upper half of the cable jacket are opened for inspection. Every signal path is electrical. The ACC redriver handles receive; the AEC retimer handles both directions. Heat motion shows qualitative transfer from active chips to the case and surroundings across exploded gaps; it does not encode watts or a power ratio. Release hardware adds no signal connections.';
   built.inspection.scope += ' Lids lift straight above their bodies without lateral displacement. Their surfaces use an x-ray inspection treatment to keep internal paths visible; this is not transparent metal. In Heat, each lid is an x-ray thermal target.';
   const view = (label, hotspot) => ({ label, ...hotspot.view });
   built.inspection.views = name === 'coherent' ? {
