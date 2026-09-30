@@ -194,6 +194,11 @@ def rubin_hardware(m):
 
 def rack_hardware(accel,m):
     u=1
+    # Rack scale only: satin nickel faces up at the studio softbox and bloomed
+    # to white on the pulled trays. A duller satin keeps the parts readable.
+    for key,rough,color in [('shell',.56,(.36,.42,.47)),('bright',.42,(.55,.6,.64))]:
+        p=m[key].node_tree.nodes.get('Principled BSDF');p.inputs['Roughness'].default_value=rough
+        p.inputs['Base Color'].default_value=(*color,1);m[key].diffuse_color=(*color,1)
     # Contoured external stiles and repeating vent relief: no extra chassis or port.
     for x in [-.289,.289]:
         box('Extruded cabinet stile',(x,1.15,.526),(.016,2.12,.04),m['graphite'],u,.005)

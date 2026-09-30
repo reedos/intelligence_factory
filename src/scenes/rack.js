@@ -487,11 +487,15 @@ function buildNVL({ quality, model, state }) {
   // pulled-out compute tray with its lid off
   const py = trayY(PULLED), out = 0.95, pz = ZF - 0.07 - trayD / 2 + out;
   const pulled = new Builder();
-  pulled.box(trayW, 0.004, trayD, MAT.galv, 0, py - U / 2 + 0.004, pz);
-  pulled.box(0.004, U * 0.9, trayD, MAT.galv, -trayW / 2, py, pz); pulled.box(0.004, U * 0.9, trayD, MAT.galv, trayW / 2, py, pz);
+  // Satin pre-galvanized pan: the polished finish mirrored the studio key into white blocks at the compute camera.
+  const PAN = new THREE.MeshStandardMaterial({ color: 0x7a828a, roughness: 0.62, metalness: 0.5 }); PAN.name = 'Tray pan satin steel';
+  pulled.box(trayW, 0.004, trayD, PAN, 0, py - U / 2 + 0.004, pz);
+  pulled.box(0.004, U * 0.9, trayD, PAN, -trayW / 2, py, pz); pulled.box(0.004, U * 0.9, trayD, PAN, trayW / 2, py, pz);
   for (const x of [-.108,.108]) pulled.box(.202, 0.003, trayD * 0.62, MAT.pcb, x, py - U / 2 + 0.008, pz - 0.05);
   const plates = rubin ? [[-.165,-.23],[-.06,-.23],[.06,-.23],[.165,-.23]] : [[-0.11,-0.2],[0.11,-0.2],[-0.11,0.08],[0.11,0.08]];
-  plates.forEach(([x, z]) => { pulled.box(0.1, 0.018, 0.12, MAT.copper, x, py - U / 2 + 0.02, pz + z); pulled.box(0.07, 0.006, 0.09, MAT.nickel, x, py - U / 2 + 0.032, pz + z); });
+  // Brushed lids, not mirror nickel: upward-facing polished slabs bloomed to white under the studio softbox.
+  const LID = new THREE.MeshStandardMaterial({ color: 0x6b7178, roughness: 0.72, metalness: 0.3 }); LID.name = 'Brushed cold plate lid';
+  plates.forEach(([x, z]) => { pulled.box(0.1, 0.018, 0.12, MAT.copper, x, py - U / 2 + 0.02, pz + z); pulled.box(0.07, 0.006, 0.09, LID, x, py - U / 2 + 0.032, pz + z); });
   for (const x of [-0.11, 0.11]) { pulled.box(0.07, 0.014, 0.07, MAT.copper, x, py - U / 2 + 0.018, pz + 0.26); }
   if (!rubin) for (const x of [-0.11, 0.11]) { pulled.strut([x - 0.02, py - U / 2 + 0.03, pz + 0.26], [x - 0.02, py - U / 2 + 0.03, pz - 0.44], 0.005, MAT.pipeBlue, 6); pulled.strut([x + 0.02, py - U / 2 + 0.03, pz + 0.26], [x + 0.02, py - U / 2 + 0.03, pz - 0.44], 0.005, MAT.pipeRed, 6); }
   const fanItems = [];
@@ -499,8 +503,8 @@ function buildNVL({ quality, model, state }) {
   if (model.accel.id === 'gb300') for (const x of [-.11,.11]) for (const dx of [-.045,.045]) pulled.box(.025,.006,.105,MAT.pcbBlack,x+dx,py+.01,pz+.26);
   if (rubin) {
     pulled.box(.42,.026,.022,MAT.darkSteel,0,py,pz+.14);
-    for(const x of [-.20,.20])pulled.box(.012,.014,.82,MAT.nickel,x,py+.005,pz);
-    for(const x of [-.13,0,.13])pulled.box(.10,.016,.18,MAT.nickel,x,py+.01,pz+.30);
+    for(const x of [-.20,.20])pulled.box(.012,.014,.82,LID,x,py+.005,pz);
+    for(const x of [-.13,0,.13])pulled.box(.10,.016,.18,LID,x,py+.01,pz+.30);
   }
   const pFront = new THREE.Mesh(new THREE.BoxGeometry(trayW, U * 0.94, 0.02), [MAT.rackFace, MAT.rackFace, MAT.rackFace, MAT.rackFace, new THREE.MeshStandardMaterial({ map: TEX.compute, roughness: 0.5, metalness: 0.35 }), MAT.rackFace]);
   pFront.position.set(0, py, pz + trayD / 2); scene.add(pFront);
@@ -520,9 +524,9 @@ function buildNVL({ quality, model, state }) {
   // Its rear remains connected to the illustrative spine through schematic
   // motion only; the service displacement is not extra production cabling.
   const sy = trayY(SWITCH_PULLED), sz = .615;
-  S.box(trayW,.004,trayD,MAT.galv,0,sy-U/2+.004,sz);
+  S.box(trayW,.004,trayD,PAN,0,sy-U/2+.004,sz);
   S.box(.405,.003,.68,MAT.pcbBlack,0,sy-U/2+.009,sz-.02);
-  for(const x of [-.22,.22])S.box(.004,U*.90,trayD,MAT.galv,x,sy,sz);
+  for(const x of [-.22,.22])S.box(.004,U*.90,trayD,PAN,x,sy,sz);
   const switchPositions = rubin ? [[-.10,-.12],[.10,-.12],[-.10,.06],[.10,.06]] : [[-.11,-.08],[.11,-.08]];
   switchPositions.forEach(([x,z],i)=>{
     const silicon=MAT.silicon.clone();silicon.name=`NVLink ${rubin ? 6 : 5} switch silicon`;

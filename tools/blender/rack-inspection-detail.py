@@ -17,6 +17,9 @@ def enhance(accel,m,box,cylinder,material):
     ink=material('Service PCB silkscreen',(.54,.62,.57),.0,.68)
     hose=material('Service coolant hose',(.042,.054,.060),.05,.6)
     power=material('Service insulated DC harness',(.44,.105,.026),.0,.5)
+    # Brushed, less mirror-like lids: flat polished nickel facing the studio
+    # softbox bloomed to white blocks at the compute and tp cameras.
+    lid=material('Inspection brushed cold plate lid',(.30,.33,.36),.35,.72)
     def b(name,p,d,mat,bevel=.0005):return box('Inspection '+name,p,d,mat,1,bevel)
     def screw(x,y,z,r=.002):
         cylinder('Inspection captive fastener',(x,y,z),r,.0013,m['bright'],1)
@@ -28,8 +31,9 @@ def enhance(accel,m,box,cylinder,material):
     def passives(x,y,z,span,n):
         for i in range(n):
             px=x+(i-(n-1)/2)*span/n
-            b('decoupling body',(px,y,z),(.0032,.0015,.0021),cap,.00025)
-            for s in [-1,1]:b('solder termination',(px+s*.00145,y,z),(.0005,.0016,.00215),m['bright'],0)
+            # 3.2 x 2.1 mm parts cover a pixel or two at the closest camera:
+            # one unbeveled 12-triangle body each (no separate terminations).
+            b('decoupling body',(px,y,z),(.0032,.0015,.0021),cap,0)
     def tube(name,points,r,mat):
         curve=bpy.data.curves.new('Inspection '+name,'CURVE');curve.dimensions='3D'
         curve.resolution_u=6;curve.bevel_depth=r;curve.bevel_resolution=2
@@ -115,7 +119,7 @@ def enhance(accel,m,box,cylinder,material):
         for x,dz,w,d,y in [(x,z,.10,.12,yb+.035) for x,z in plates]+[(x,.26,.07,.07,yb+.026) for x in [-.11,.11]]:
             z=pz+dz
             b('cold plate perimeter seal',(x,y,z),(w*.86,.0016,d*.86),m['dark'])
-            b('milled cold plate crown',(x,y+.0025,z),(w*.80,.0035,d*.80),m['shell'],.0013)
+            b('milled cold plate crown',(x,y+.0025,z),(w*.80,.0035,d*.80),lid,.0013)
             # The original coolant lines at x +/- .02 retain clear space.
             for sx in [-1,1]:
                 for sz in [-1,1]:screw(x+sx*w*.39,y+.0048,z+sz*d*.37,.0022)
