@@ -1028,7 +1028,7 @@ export function build({ quality, model }) {
     // Phones only: with cameraByMode set, a layer switch re-opens that layer's overview, which desktop keeps as is.
     ...(quality.mobile ? { cameraByMode: { data: { portrait: { pos: [5, 58, 36], target: [5, 1, 3] } } } } : {}),
     hotspots: {
-      optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .62, 1.9, -6.25], target: [leafX + .02, 1.6, -7.6] } },   // close enough to read true-size OSFP modules
+      optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .37, 1.74, -6.72], target: [leafX + .02, 1.57, -7.6] } },   // ~0.9 m off the cages so the true-size OSFP modules and their jumpers fill the frame
       cpo: cpoSpot,
       unitsub: { pos: [usX, 3.3, usZ], view: { pos: [usX - 6.6, 5.0, usZ + 6.4], target: [usX + 1.2, 1.3, usZ] } },
       swgr: { pos: [-27, 2.8, -15.6], view: { pos: [-25, 6, -4], target: [-27, 1.3, -15.6] } },
@@ -1063,10 +1063,12 @@ export function build({ quality, model }) {
       pp: { pos: [front[0].x - 0.3, 2.6, rowZs[5]], view: { pos: [front[4].x, 7.5, rowZs[5] + 7.5], target: [front[4].x, 2.3, rowZs[5] - 1.5] } },
       dp: { pos: [front[6].x, 2.6, rowZs[5]], view: { pos: [front[10].x, 9, rowZs[5] + 10], target: [front[12].x, 2, rowZs[3]] } },
       uplinks: { pos: [rackMx.filter(k => k.z === -4.6)[10].x, 3.4, -4.6], view: { pos: [-1.2, 2.9, -7.0], target: [4.5, 3.2, -4.9] } },
-      leaf: { pos: [rowX1 + 0.45, 2.7, -1.6], view: { pos: [rowX1 - 5, 5, 8], target: [rowX1 + 0.4, 1.5, -1.6] } },
+      // At true size a 1U QM9700 is 44 mm tall, so the view stands in the aisle ~1.6 m from the row-end
+      // network rack, level with its switch pair; the pin sits on that rack's face, not its roof.
+      leaf: { pos: [leafX, 1.8, -.95], view: { pos: [leafX - .65, 1.85, .4], target: [leafX, 1.5, -1.0] } },
       spine: { pos: [rowX0 + 4, 2.7, 10.5], view: { pos: [rowX0 + 5, 5, 18], target: [rowX0 + 5, 1.2, 10.5] } },
       runways: { pos: [rowX1 + 0.45, 4.7, 4], view: { pos: [rowX1 - 6, 8, 12], target: [rowX1, 4, 2] } },
-      optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .62, 1.9, -6.25], target: [leafX + .02, 1.6, -7.6] } },   // close enough to read true-size OSFP modules
+      optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .37, 1.74, -6.72], target: [leafX + .02, 1.57, -7.6] } },   // ~0.9 m off the cages so the true-size OSFP modules and their jumpers fill the frame
       cpo: cpoSpot,
       racks: { pos: [front[18].x, 2.6, rowZs[5]], view: { pos: [front[18].x + 1.6, 3.5, 12], target: [front[18].x, 1.25, rowZs[5]] } },
     },
