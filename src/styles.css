@@ -516,6 +516,8 @@ body.looked .hint, body.story .hint { display: none; }
 /* ...and fade on their own after ten seconds, so they stop covering hotspot labels in part close-ups */
 .hud-btns .hint { animation: hint-out .8s ease 10s forwards; }
 @keyframes hint-out { to { opacity: 0; visibility: hidden; } }
+/* the layer legend gets the same dark backing, so it reads over busy fiber ribbons and board corners */
+.hud.br:has(.legend-item) { padding: 5px 9px; border-radius: 6px; background: rgba(0,0,0,.55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 /* in a tour, the transport's × leaves it and the tour picker holds every layer's tour */
 body.story #story-btn, body.story #layer-play { display: none; }
 
