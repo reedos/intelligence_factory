@@ -70,7 +70,9 @@ function build(kind, native, options) {
     const materials = Array.isArray(o.material) ? o.material : [o.material];
     const transparent = materials.some(m => m.transparent || m.opacity < 1);
     if (materials.some(m => m.userData.ifxCoverSurface === 'ihs')) covers.push(o);
-    o.castShadow = !!options.quality.shadows && !transparent;
+    // Millimetre-scale SMD parts cast no visible shadow; skipping the shadow pass saves draw calls.
+    const tiny = materials.some(m => /^PCB passive/.test(m.name));
+    o.castShadow = !!options.quality.shadows && !transparent && !tiny;
     o.receiveShadow = !!options.quality.shadows;
     for (const material of materials) {
       if (transparent) material.depthWrite = false;
