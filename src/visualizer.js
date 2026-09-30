@@ -1,6 +1,6 @@
 // The contained visualizer (visualizer.html): the 3D stage and its side pane fill one screen, and nothing scrolls but
 // the pane. Exploration uses numbered parts, layers and scenario controls.
-import { store, setScenario, pin } from './app/store.js';
+import { store, setScenario, pin, on } from './app/store.js';
 import * as stage from './app/stage.js';
 import './app/sources-ui.js';
 // Tours and simulation clocks are deferred. Keep their modules for future work,
@@ -50,11 +50,15 @@ const scroller = document.querySelector('.panel-scroll');
 const moreLabel = () => {
   if (!sc.hidden) return 'More';
   const fold = scroller.getBoundingClientRect().bottom - 24;
-  const below = [...document.querySelectorAll('#parts li')].filter(li => li.getBoundingClientRect().top > fold).length;
+  const below = [...document.querySelectorAll('#parts button[data-id]')].filter(b => b.getBoundingClientRect().top > fold).length;
   return below ? `${below} more part${below === 1 ? '' : 's'}` : 'More';
 };
 moreCue(scroller, { host: document.querySelector('.panel'), label: moreLabel,
   press: () => { if (phoneSheet() && !document.body.classList.contains('sheet-open')) { setSheet(true); return true; } return false; } });
+document.getElementById('card-more').addEventListener('click', () => setSheet(true));
+// a part picked (a pin, a row, a link) shows on the parts tab: on a phone whose sheet is down, that is the peek, with
+// the part's name, its key figure and its door
+on('select', () => { if (sc.hidden) return; showPane('parts'); });
 let sheetDrag = null, dragged = false;
 sheetBtn.addEventListener('pointerdown', e => {
   if (!matchMedia('(max-width: 1100px)').matches) return;

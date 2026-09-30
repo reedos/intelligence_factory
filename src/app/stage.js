@@ -779,9 +779,11 @@ function buildPanel(i) {
   }
   $('hud-title').textContent = s.side ? s.title : `${s.n}. ${s.title}`;
   $('optics-variant').hidden = i !== MODULE_LEVEL;
-  const back = $('back-out'); back.hidden = !isSide(i);
-  if (isSide(i)) {
-    const t = SCENES()[backTarget()].title;
+  // Back outside on every level below the top: a side level goes back the way the reader came in, a main level to
+  // the one above it
+  const back = $('back-out'); back.hidden = i <= 0;
+  if (i > 0) {
+    const t = SCENES()[isSide(i) ? backTarget() : i - 1].title;
     back.innerHTML = `<span class="bo-action">← Back outside</span><span class="bo-destination">${t}</span>`;
     back.setAttribute('aria-label', `Back outside to ${t}`);
   }
@@ -1059,10 +1061,18 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   else if (built[ui.scene]?.model !== store.M) go(ui.scene, null, { force: true, keepCamera: true });   // the scenario changed mid-switch
 }
 export const sceneCount = BUILDERS.length;
-// Back out of a side level to the level, layer and door part the reader came in by
+// Back out of a side level to the level, layer and door part the reader came in by; out of a main level to the one
+// above it, at the part whose door leads here
 export async function backOut() {
-  if (!isSide(ui.scene)) return;
+  if (ui.scene <= 0) return;
   const restoreFocus = document.activeElement === $('back-out');
+  if (!isSide(ui.scene)) {
+    const from = ui.scene, to = from - 1, door = partsFor(to).find(p => p.drill === from)?.id;
+    await go(to, null);
+    if (door && hasPart(to, door)) select(door, true);
+    if (restoreFocus) (document.querySelector(`#parts button[data-id="${door}"]`) || document.querySelector('#parts button[data-overview]'))?.focus({ preventScroll: true });
+    return;
+  }
   const to = backTarget(), via = sideEntered ? sideVia : null, mode = sideEntered ? sideMode : null;
   if (mode && mode !== ui.mode) setMode(mode);
   await go(to, null);

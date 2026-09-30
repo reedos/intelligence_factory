@@ -41,7 +41,24 @@ body.app:not(.story) .sheet-toggle { display: grid; touch-action: none; user-sel
   .mm-view .campus-presentation button { width: 100%; min-height: 44px; white-space: normal; }
 }
 @media (max-width: 760px) {
-  body.app:not(.story) .panel { flex-basis: var(--inspector-size, 150px); }
+  /* The sheet rests at a peek: about two thirds of the screen stays the view. A part picked shows its name, its key
+     figure with the label that backs it, and its door; Details (or the handle, or More) pulls the sheet up. */
+  body.app:not(.story) .panel { flex-basis: var(--inspector-size, 198px); }
+  body.app:not(.story):not(.sheet-open) #card { gap: 4px; padding: 8px 12px; }
+  body.app:not(.story):not(.sheet-open) .panel:has(#card:not([hidden])) > .panel-scroll { -webkit-mask-image: none; mask-image: none; }
+  body.app:not(.story):not(.sheet-open) #card :is(.k, #card-b, .card-links, .card-navigation),
+  body.app:not(.story):not(.sheet-open) #card-s > div:nth-child(n + 2) { display: none; }
+  body.app:not(.story):not(.sheet-open) #card h3 { font-size: 23px; }
+  body.app:not(.story):not(.sheet-open) #card-s > div { padding: 3px 0; border-bottom: 0; }
+  body.app:not(.story):not(.sheet-open) #card .card-actions { padding-top: 2px; flex-wrap: nowrap; gap: 6px; }
+  body.app:not(.story):not(.sheet-open) #card .card-actions .btn { min-height: 44px; }
+  body.app:not(.story):not(.sheet-open) #card #card-go { flex: 1 1 auto; min-width: 0; white-space: normal; line-height: 1.2; font-size: 11px; }
+  body.app:not(.story):not(.sheet-open) #card .card-more { display: inline-flex; flex: none; margin-left: auto; }
+  body.app:not(.story):not(.sheet-open) .panel-scroll { padding-top: 8px; }
+  body.app:not(.story):not(.sheet-open) .panel:has(#card:not([hidden])) .more-cue { display: none; }   /* Details says it */
+  /* the handle reads as one: a chevron up to pull the sheet up, down to push it back */
+  body.app:not(.story) .sheet-toggle i { width: 10px; height: 10px; background: none; border-left: 2px solid var(--ink); border-top: 2px solid var(--ink); border-radius: 0; transform: translateY(3px) rotate(45deg); }
+  body.app.sheet-open:not(.story) .sheet-toggle i { transform: translateY(-3px) rotate(225deg); }
   body.app.sheet-open:not(.story) .panel { flex-basis: var(--inspector-size, 52dvh); }
   body.app .panel-scroll { padding: 14px 16px 22px; }
   /* Phones spend the screen on the view: its controls live in the top row's menu, so no row sits under it, and
