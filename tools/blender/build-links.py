@@ -119,45 +119,110 @@ def lid(name, cx, cy, cz, length, width, along_x, mats):
     box(name+'_rear shoulder', (cx,cy+.065,cz-length/2+.58), (width-.14,.13,1.0), mats['lid'], .065)
     box(name+'_label landing', (cx,cy+.048,cz+.35), (width-.65,.008,2.3), mats['shell'], .045)
 
+def boot_stations():
+    # Tapered strain-relief overmold (representative: no dimensioned source),
+    # 12.4 mm across at the neck collar, easing to the jacket over 25 mm with
+    # five flex-relief grooves, then the jacket itself to the end of the cutaway.
+    st=[(-3.2,.62),(-3.55,.62)]
+    for k in range(5):
+        zg=-3.85-k*.4; r=.62-(k+1)*.028
+        st+= [(zg+.05,r),(zg+.03,r-.05),(zg-.03,r-.05),(zg-.05,r)]
+    st+= [(-5.75,.47),(-5.82,.43),(-6.0,.43)]
+    return st
+
 def cable_cutaway(name, cx, mats):
     # Lower half-shell of the boot and jacket: sectioned through the upper half
-    # so the modeled conductors remain visible. Not transparent polymer.
-    stations=[(-3.18,.68),(-3.42,.68),(-3.58,.59),(-4.12,.55),(-4.30,.52),(-6.22,.52)]
+    # so the modeled conductors remain visible. Not transparent polymer. The
+    # section faces carry their own lighter "cut" finish so the cut reads as
+    # intentional.
+    stations=boot_stations()
     n=32;verts=[]
     for z,r in stations:
-        for radius in [r,r-.08]:
+        t=.08 if r>.45 else .06
+        for radius in [r,r-t]:
             for i in range(n+1):
                 a=math.pi+i*math.pi/n
                 verts.append(xyz((cx+radius*math.cos(a),.9+radius*math.sin(a),z)))
-    faces=[];stride=2*(n+1)
+    faces=[];cut=[];stride=2*(n+1)
     for j in range(len(stations)-1):
         for i in range(n):
             a=j*stride+i;b=a+stride
             faces.extend([(a,a+1,b+1,b),(a+n+1,b+n+1,b+n+2,a+n+2)])
         for i in [0,n]:
             a=j*stride+i;b=a+stride
-            faces.append((a,b,b+n+1,a+n+1))
+            cut.append(len(faces));faces.append((a,b,b+n+1,a+n+1))
     for j in [0,len(stations)-1]:
         for i in range(n):
-            a=j*stride+i;faces.append((a,a+n+1,a+n+2,a+1))
+            a=j*stride+i;cut.append(len(faces));faces.append((a,a+n+1,a+n+2,a+1))
     mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
-    o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o);mesh.materials.append(mats['boot'])
+    o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o)
+    mesh.materials.append(mats['boot']);mesh.materials.append(mats['cut'])
+    for f in cut:mesh.polygons[f].material_index=1
     # Recalculate outward normals on this closed, physically thick section.
-    bpy.context.view_layer.objects.active=o;o.select_set(True)
-    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT');o.select_set(False)
-    for p in mesh.polygons:p.use_smooth=True
-    # Narrow molded grip lands belong to the remaining side walls only.
-    for z in [-3.6,-3.82,-4.04]:
-        for s in [-1,1]:box(name+' side grip',(cx+s*.565,.68,z),(.07,.22,.075),mats['boot'],.028)
+    bpy.ops.object.select_all(action='DESELECT');bpy.context.view_layer.objects.active=o;o.select_set(True)
+    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False)
+    # one material per object: the export joins by first material
+    bpy.ops.mesh.separate(type='MATERIAL');bpy.ops.object.mode_set(mode='OBJECT')
+    for part in bpy.context.selected_objects:
+        part.data.materials[0]=part.data.materials[part.data.polygons[0].material_index]
+        for p in part.data.polygons:p.material_index=0;p.use_smooth=True
+        while len(part.data.materials)>1:part.data.materials.pop(index=1)
+    bpy.ops.object.select_all(action='DESELECT')
+    # Crimp collar where the overmold grips the housing neck (lower half).
+    n2=24;cv=[]
+    for z in [-3.12,-3.32]:
+        for r in [.6,.52]:
+            for i in range(n2+1):
+                a=math.pi+.04+i*(math.pi-.08)/n2;cv.append(xyz((cx+r*math.cos(a),.9+r*math.sin(a),z)))
+    cf=[];st=2*(n2+1)
+    for i in range(n2):
+        cf+=[(i,i+1,st+i+1,st+i),(n2+1+i,st+n2+1+i,st+n2+2+i,n2+2+i),(i,n2+1+i,n2+2+i,i+1),(st+i,st+i+1,st+n2+2+i,st+n2+1+i)]
+    for i in [0,n2]:cf.append((i,st+i,st+n2+1+i,n2+1+i))
+    cm=bpy.data.meshes.new(name+' collar');cm.from_pydata(cv,[],cf);cm.update()
+    co=bpy.data.objects.new(name+' crimp collar',cm);bpy.context.collection.objects.link(co);cm.materials.append(mats['edge'])
+    bpy.context.view_layer.objects.active=co;co.select_set(True)
+    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT');co.select_set(False)
+    # Beyond the cutaway the jacket is whole: a closed round cable whose cut
+    # end faces the viewer, so the pairs run into the cable, not into air.
+    bpy.ops.mesh.primitive_cylinder_add(vertices=40,radius=.43*.01,depth=.9*.01,location=xyz((cx,.9,-6.45)),rotation=(math.pi/2,0,0))
+    j=bpy.context.object;j.name=name+' closed jacket';j.data.materials.append(mats['boot'])
+    b=j.modifiers.new('Jacket edge','BEVEL');b.width=.00012;b.segments=2;b.limit_method='ANGLE'
+    bpy.ops.object.modifier_apply(modifier=b.name)
+    for p in j.data.polygons:p.use_smooth=len(p.vertices)<=4
+    # the cut end facing the cutaway, a hair proud of the cap
+    bpy.ops.mesh.primitive_circle_add(vertices=40,radius=.41*.01,fill_type='NGON',location=xyz((cx,.9,-5.994)),rotation=(math.pi/2,0,0))
+    c=bpy.context.object;c.name=name+' jacket cut face';c.data.materials.append(mats['cut'])
 
 def copper_pull(name, cx, mats):
-    # Low, rounded rectangular pull surrounding the cable, connected to the two
-    # side release rails. Photo-inspired thermoplastic, not a finned metal lid.
-    for s in [-1,1]:
-        box(name+' side arm',(cx+s*.93,.24,-3.61),(.18,.12,2.6),mats['boot'],.055)
-        box(name+' latch linkage',(cx+s*1.055,.29,-1.58),(.08,.16,1.6),mats['edge'],.02)
-    box(name+' grip',(cx,.24,-4.93),(2.04,.12,.26),mats['boot'],.085)
-    for i in range(7):box(name+' grip texture',(cx-.60+i*.2,.307,-4.94),(.065,.012,.15),mats['dark'],.01)
+    # Flat molded pull tab (representative, photo-inspired): two straps from
+    # the stamped de-latch sliders on the housing sides, joining into one
+    # 1.2 mm polymer tab that runs back under the boot to a rounded grip.
+    import bmesh
+    outer=[(-.975,-.9),(-.975,-2.95),(-.62,-3.6),(-.62,-6.05)]
+    for k in range(9):
+        a=math.pi+k*math.pi/8;outer.append((.62*math.cos(a),-6.05+.3*math.sin(a)))
+    outer+=[(.62,-3.6),(.975,-2.95),(.975,-.9),(.94,-.9),(.94,-2.97),(.56,-3.55),(-.56,-3.55),(-.94,-2.97),(-.94,-.9)]
+    y0,h=.14,.12
+    bm=bmesh.new()
+    vb=[bm.verts.new(xyz((cx+u,y0,z))) for u,z in outer]
+    face=bm.faces.new(vb)
+    ext=bmesh.ops.extrude_face_region(bm,geom=[face])
+    for v in [e for e in ext['geom'] if isinstance(e,bmesh.types.BMVert)]:v.co.z+=h*.01
+    bmesh.ops.recalc_face_normals(bm,faces=bm.faces)
+    bmesh.ops.triangulate(bm,faces=[f for f in bm.faces if len(f.verts)>4])
+    mesh=bpy.data.meshes.new(name);bm.to_mesh(mesh);bm.free()
+    o=bpy.data.objects.new(name+' tab',mesh);bpy.context.collection.objects.link(o);mesh.materials.append(mats['pull'])
+    bpy.ops.object.select_all(action='DESELECT');bpy.context.view_layer.objects.active=o;o.select_set(True)
+    b=o.modifiers.new('Molded edge','BEVEL');b.width=.00018;b.segments=2;b.limit_method='ANGLE'
+    bpy.ops.object.modifier_apply(modifier=b.name)
+    o.select_set(False)
+    # debossed chevrons on the grip
+    for k in range(3):
+        for sgn in [-1,1]:
+            bpy.ops.mesh.primitive_cube_add(size=1,location=xyz((cx+sgn*.14,y0+h-.004,-5.7-k*.16)))
+            c=bpy.context.object;c.name=name+' grip chevron';c.dimensions=(.3*.01,.05*.01,.01*.01)
+            c.rotation_euler=(0,0,sgn*math.radians(35));c.data.materials.append(mats['dark'])
+            bpy.ops.object.transform_apply(location=False,rotation=True,scale=True)
 
 def annulus(name, center, outer, inner, depth, axis, material):
     # A real opening, never a solid cylinder laid across an optical/electrical path.
@@ -191,15 +256,28 @@ def internals(kind):
         o['authoredStatic']=True
         # Sub-pixel edge radii refine box-built packages without moving any
         # conductor centerline or touching the active circuit topology.
-        b=o.modifiers.new('Manufactured micro edge','BEVEL');b.width=.000015;b.segments=2;b.limit_method='ANGLE'
-        bpy.ops.object.modifier_apply(modifier=b.name)
-        w=o.modifiers.new('Weighted manufactured normals','WEIGHTED_NORMAL');w.keep_sharp=True
-        bpy.ops.object.modifier_apply(modifier=w.name)
+        # Swept round conductors (copper twinax) are already smooth tubes: no bevel.
+        swept=any(m and m.name.startswith(('Twinax','Tinned drain','Solder fillet')) for m in o.data.materials)
+        if not swept:
+            b=o.modifiers.new('Manufactured micro edge','BEVEL');b.width=.000015;b.segments=2;b.limit_method='ANGLE'
+            bpy.ops.object.modifier_apply(modifier=b.name)
+            w=o.modifiers.new('Weighted manufactured normals','WEIGHTED_NORMAL');w.keep_sharp=True
+            bpy.ops.object.modifier_apply(modifier=w.name)
+        else:
+            # The reference arrives unindexed; weld its seams so the tubes shade smooth and export compact.
+            bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
+            bpy.ops.mesh.remove_doubles(threshold=.0000005);bpy.ops.object.mode_set(mode='OBJECT')
+            for p in o.data.polygons:p.use_smooth=True
         for m in o.data.materials:
             if not m or not m.use_nodes:continue
             p=m.node_tree.nodes.get('Principled BSDF')
             if not p:continue
             c=p.inputs['Base Color'].default_value
+            if m.name.startswith('Gold contact pads'):
+                # Hard gold plating. Partly dielectric response keeps the gold legible where the
+                # dark studio surround would otherwise mirror as black.
+                p.inputs['Base Color'].default_value=(1.0,.72,.3,1);p.inputs['Metallic'].default_value=.72;p.inputs['Roughness'].default_value=.3
+                continue
             # Solder mask has a restrained deep-green finish; signal metals and
             # the separately colored optical fibers retain their identity.
             if c[1]>c[0]*1.12 and c[1]>c[2]*1.05 and p.inputs['Metallic'].default_value<.3:
@@ -517,54 +595,192 @@ def coherent():
     dsp_gap_pad(m)
     export('coherent-hardware',m,[L,W])
 
-def copper_package_mark(name, text, x, z, width, material):
-    # Printed package identification: real flat Blender geometry on the molded
-    # top, not a floating caption. Align to the connector's host-facing edge.
-    curve=bpy.data.curves.new(name, 'FONT');curve.body=text
-    curve.align_x='CENTER';curve.align_y='CENTER';curve.size=.001
-    curve.space_line=1.12;curve.extrude=0;curve.resolution_u=3
-    font=Path('C:/Windows/Fonts/consolab.ttf')
-    if font.exists(): curve.font=bpy.data.fonts.load(str(font),check_existing=True)
-    obj=bpy.data.objects.new(name,curve);bpy.context.collection.objects.link(obj)
-    obj.location=xyz((x,1.014,z));obj.data.materials.append(material)
-    bpy.context.view_layer.update()
-    factor=width*.01/max(obj.dimensions.x,1e-6);obj.scale=(factor,factor,factor)
-    bpy.ops.object.select_all(action='DESELECT');obj.select_set(True)
-    bpy.context.view_layer.objects.active=obj;bpy.ops.object.convert(target='MESH')
-    obj['packageMark']=text.replace('\n',' ')
+def copper_active_package(kind, x, zc, m):
+    # Package styles are representative (no teardown of a named cable is
+    # public): the AEC DSP as a lidded flip-chip BGA with decoupling
+    # capacitors, the ACC redriver as a small leaded QFN. Marks are quiet
+    # laser-etch bars and a pin-1 dot; the UI caption carries the function.
+    top=.94
+    if kind=='ACC':
+        cx,cw,cd,h=x+.39,.62,.6,.085
+        box('ACC active QFN body',(cx,top+h/2-.001,zc),(cw-.05,h,cd-.05),m['package'],.012)
+        for i in range(8):
+            t=(i-3.5)*.062
+            for s in [-1,1]:
+                box('ACC active QFN lead',(cx+s*(cw/2-.03),top+.005,zc+t),(.05,.012,.026),m['lead'],0)
+                box('ACC active QFN lead',(cx+t,top+.005,zc+s*(cd/2-.03)),(.026,.012,.05),m['lead'],0)
+        box('ACC active pin one mark',(cx-cw/2+.1,top+h+.0006,zc+cd/2-.1),(.045,.001,.045),m['etch'],.02)
+        for j,w in enumerate([.16,.11,.2]):
+            box('ACC active laser etch',(cx-.02,top+h+.0006,zc-.1+j*.075),(w,.001,.022),m['etch'],0)
+        return
+    cx,cw,cd=x,1.42,.95
+    sub=.1; lw,ld,lh=1.08,.72,.07
+    box('AEC active BGA shadow',(cx,top+.011,zc),(cw-.06,.024,cd-.06),m['dark'],.004)
+    box('AEC active FCBGA substrate',(cx,top+.024+sub/2,zc),(cw,sub,cd),m['substrate'],.01)
+    y=top+.024+sub
+    box('AEC active nickel lid',(cx,y+lh/2,zc),(lw,lh,ld),m['nickel'],.02)
+    box('AEC active lid sealant',(cx,y+.004,zc),(lw+.025,.008,ld+.025),m['dark'],.003)
+    for j,w in enumerate([.3,.2,.36]):
+        box('AEC active laser etch',(cx-.15,y+lh+.0006,zc-.12+j*.09),(w,.001,.03),m['etch'],0)
+    box('AEC active pin one mark',(cx-lw/2+.09,y+lh+.0006,zc+ld/2-.09),(.05,.001,.05),m['etch'],.025)
+    # 0201-size decoupling capacitors on the substrate margin (0.6 x 0.3 mm).
+    for i in range(7):
+        t=(i-3)*.15
+        for s in [-1,1]:
+            copper_cap('AEC active decoupling',cx+t,y,zc+s*(ld/2+.06),True,m)
+    for i in range(3):
+        t=(i-1)*.2
+        for s in [-1,1]:
+            copper_cap('AEC active decoupling',cx+s*(lw/2+.08),y,zc+t,False,m)
+
+def copper_card_detail(kind, x, zc, m):
+    # Paddle-card finish (representative): the ID memory as a leaded SOT-23-
+    # class package, the AEC's molded power inductors with end terminations,
+    # ground stitching vias between the pairs and plain silkscreen outlines and
+    # reference designators (no logos). Positions match the native layout.
+    top=.94
+    ez=zc+1.95
+    box(kind+' ID memory body',(x,top+.045,ez),(.15,.08,.26),m['package'],.012)
+    for s in [-1,1]:
+        for dz in ([-.09,0,.09] if s<0 else [-.09,.09]):
+            box(kind+' ID memory lead',(x+s*.095,top+.005,ez+dz),(.04,.012,.035),m['lead'],0)
+    box(kind+' ID memory pin one',(x-.045,top+.0855,ez+.09),(.025,.001,.025),m['etch'],0)
+    silk_outline(kind+' silkscreen',x,ez,.2,.34,m)
+    if kind=='AEC':
+        for i in range(3):
+            iz=zc+.78+i*.26
+            box(kind+' power inductor body',(x,top+.079,iz),(.2,.16,.17),m['inductor'],.02)
+            for s in [-1,1]:
+                box(kind+' power inductor termination',(x,top+.059,iz+s*.09),(.18,.12,.022),m['lead'],.006)
+    # ground stitching vias: rows midway between neighbouring pairs, clear of
+    # the breakout, the packages and the rear termination
+    lanes=[-.63+i*.16 for i in range(4)]+[.15+i*.16 for i in range(4)]
+    rows=[-.71]+[(lanes[i]+lanes[i+1])/2 for i in range(7) if i!=3]+[.71]
+    chip={'ACC':(x+.08,x+.70,zc-.35,zc+.35),'AEC':(x-.76,x+.76,zc-.52,zc+.52)}.get(kind)
+    k=0
+    for rx in rows:
+        for j in range(15):
+            vz=2.05-j*.25
+            vx=x+rx
+            if chip and chip[0]-.04<vx<chip[1]+.04 and chip[2]<vz<chip[3]:continue
+            bpy.ops.mesh.primitive_cylinder_add(vertices=6,radius=.018*.01,depth=.004*.01,location=xyz((vx,top+.0015,vz)))
+            o=bpy.context.object;o.name=kind+' stitching via';o.data.materials.append(m['via'])
+            k+=1
+    return k
+
+def silk_outline(name, x, z, w, d, m):
+    t=.008
+    for s in [-1,1]:
+        box(name+' outline',(x+s*w/2,.9415,z),(t,.004,d),m['silk'],0)
+        box(name+' outline',(x,.9415,z+s*d/2),(w,.004,t),m['silk'],0)
+
+def copper_cap(name, x, y, z, along_x, m):
+    L,Wd,H=.06,.03,.03
+    dims=(L,H,Wd) if along_x else (Wd,H,L)
+    box(name+' body',(x,y+H/2,z),dims,m['ceramic'],0)
+    for s in [-1,1]:
+        off=(s*(L/2-.008),0) if along_x else (0,s*(L/2-.008))
+        box(name+' termination',(x+off[0],y+H/2,z+off[1]),(.016,H+.002,Wd+.002) if along_x else (Wd+.002,H+.002,.016),m['lead'],0)
+
+def loft_u(name, cx, stations, y0, t, f, material, flip=False, bevel=.018):
+    # One closed U-channel section lofted along z through (z, outer width,
+    # height) stations: a die-cast half shell with its floor and both walls in
+    # one watertight mesh (no coincident faces between separate boxes).
+    # flip=True opens it downward: the upper half of the clamshell.
+    rings=[]
+    for z,w,h in stations:
+        prof=[(-w/2,h),(-w/2,0),(w/2,0),(w/2,h),(w/2-t,h),(w/2-t,f),(-w/2+t,f),(-w/2+t,h)]
+        rings.append([xyz((cx+u,y0+(h-v if flip else v),z)) for u,v in prof])
+    verts=[v for r in rings for v in r];faces=[]
+    for j in range(len(rings)-1):
+        a0,b0=j*8,(j+1)*8
+        for i in range(8):
+            k=(i+1)%8;faces.append((a0+i,a0+k,b0+k,b0+i))
+    for base in [0,(len(rings)-1)*8]:
+        for q in [(7,0,1,6),(6,1,2,5),(5,2,3,4)]:faces.append(tuple(base+i for i in q))
+    mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
+    o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o);mesh.materials.append(material)
+    bpy.ops.object.select_all(action='DESELECT');bpy.context.view_layer.objects.active=o;o.select_set(True)
+    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT')
+    if bevel:
+        b=o.modifiers.new('Die-cast edge radius','BEVEL');b.width=bevel*.01;b.segments=3;b.limit_method='ANGLE'
+        bpy.ops.object.modifier_apply(modifier=b.name)
+        w=o.modifiers.new('Face weighted normals','WEIGHTED_NORMAL');w.keep_sharp=True
+        bpy.ops.object.modifier_apply(modifier=w.name)
+    for p in mesh.polygons:p.use_smooth=True
+    o.select_set(False)
+    return o
+
+def copper_shell(kind, x, zc, W, m):
+    # Two-piece die-cast clamshell at QSFP112 width (about 18.4 mm) and height
+    # (8.5 mm), split at a parting line. Length is shortened for the diagram
+    # (Type 1 bodies run to 72.4 mm); nose, ledges, bosses, neck, latch and EMI
+    # details are representative, informed by exterior photographs.
+    zn,zb,zr=zc+3.0,zc-2.2,zc-3.0          # host nose, start of the rear neck, neck end
+    lower,upper=.42,.43                     # the two halves meet at 8.5 mm total
+    body=[(zn,W,lower),(zb,W,lower),(zb-.35,1.5,lower*.92),(zr,1.12,lower*.86)]
+    loft_u(kind+' lower half',x,body,0,.12,.1,m['shell'])
+    # closed host nose: a chamfered lip under the card slot and cheeks either side
+    box(kind+' nose lip',(x,.18,zn-.07),(W-.26,.18,.14),m['shell'],.05)
+    for s in [-1,1]:
+        box(kind+' nose cheek',(x+s*(W/2-.2),.295,zn-.06),(.18,.22,.12),m['shell'],.04)
+    # card support ledges on both walls and four bosses the card rests on
+    for s in [-1,1]:
+        box(kind+' card ledge',(x+s*(W/2-.15),.34,zc+.45),(.08,.05,4.4),m['edge'],.012)
+        for dz in [-1.75,2.05]:
+            bpy.ops.mesh.primitive_cylinder_add(vertices=20,radius=.075*.01,depth=.26*.01,location=xyz((x+s*.56,.225,zc+dz)))
+            o=bpy.context.object;o.name=kind+' card boss';o.data.materials.append(m['shell'])
+            box(kind+' boss insert',(x+s*.56,.356,zc+dz),(.06,.006,.06),m['dark'],0)
+    # floor ribs and fasteners
+    for dz in [-1.4,-.35,.7,1.5]:
+        box(kind+' tray rib',(x,.108,zc+dz),(W-.36,.02,.06),m['edge'],.006)
+    for s in [-1,1]:
+        for dz in [-1.95,2.45]:
+            screw(kind+' fastener',x+s*.42,.1+.0095,zc+dz,m,.06)
+    # parting-line groove and the stamped de-latch slider on each side wall
+    for s in [-1,1]:
+        box(kind+' parting groove',(x+s*(W/2-.004),lower-.05,zc+.4),(.014,.018,5.0),m['dark'],0)
+        box(kind+' delatch slider',(x+s*(W/2+.018),.2,zc+.65),(.03,.2,2.7),m['edge'],.01)
+        box(kind+' delatch ramp',(x+s*(W/2+.03),.2,zc+2.1),(.05,.12,.26),m['edge'],.018)
+        box(kind+' slider window',(x+s*(W/2+.034),.2,zc+.6),(.006,.08,.8),m['dark'],0)
+    # EMI grounding band behind the nose: spring fingers on walls and floor
+    for s in [-1,1]:
+        for i in range(4):
+            box(kind+' EMI finger',(x+s*(W/2+.012),.06+i*.09,zn-.45),(.02,.06,.16),m['edge'],0)
+    for i in range(9):
+        box(kind+' EMI finger',(x+(i-4)*.19,-.008,zn-.45),(.12,.02,.16),m['edge'],0)
+    # upper half, lifted straight up for inspection: same outline, recessed label field
+    top=2.0
+    up=loft_u(kind+' lifted cover upper half',x,body,top,.12,.1,m['lid'],True)
+    cut=box('Temporary label pocket',(x,top+lower+.01,zc+.3),(W-.5,.06,2.6),m['lid'],.02)
+    pocket=up.modifiers.new('Recessed label field','BOOLEAN');pocket.operation='DIFFERENCE';pocket.object=cut
+    bpy.context.view_layer.objects.active=up;bpy.ops.object.modifier_apply(modifier=pocket.name)
+    bpy.data.objects.remove(cut,do_unlink=True)
+    for s in [-1,1]:
+        box(kind+' lifted cover parting edge',(x+s*(W/2-.06),top+.008,zc+.4),(.1,.02,5.2),m['edge'],.006)
 
 def copper():
-    m=reset(); W=2.2; L=6; zc=-.2
-    m['ink']=mat('Copper IC printed identification',(.94,.96,.93),0,.75)
+    m=reset(); W=1.84; L=6; zc=-.2
+    m['shell']=mat('Satin die-cast zinc',(.5,.53,.56),.9,.36)
+    m['cut']=mat('Sectioned overmold face',(.2,.21,.22),0,.7)
+    m['pull']=mat('Molded copper pull tab',(.1,.12,.15),0,.72)
+    # Matte polymer: a low specular level keeps the broad studio softbox from
+    # sheeting across these flat molded faces.
+    for k in ['pull','boot','cut']:
+        m[k].node_tree.nodes.get('Principled BSDF').inputs['Specular IOR Level'].default_value=.15
+    m['lead']=mat('Tinned package leads',(.72,.73,.74),1,.28)
+    m['etch']=mat('Laser etched package mark',(.2,.22,.24),.1,.62)
+    m['substrate']=mat('Dark BGA substrate',(.03,.05,.04),.05,.5)
+    m['nickel']=mat('Nickel plated package lid',(.62,.63,.64),1,.24)
+    m['inductor']=mat('Molded power inductor',(.15,.15,.16),.1,.6)
+    m['via']=mat('ENIG via ring',(.85,.66,.36),.7,.3)
+    m['silk']=mat('White silkscreen',(.8,.82,.8),0,.7)
     for kind,x in [('DAC',-4.6),('ACC',0),('AEC',4.6)]:
-        box(kind+' lower tray',(x,0,zc),(W,.12,L),m['shell'],.065)
-        for sign in [-1,1]:
-            dx=sign*(W/2-.055)
-            box(kind+' sidewall',(x+dx,.205,zc),(.11,.35,L-.15),m['shell'],.028)
-            box(kind+' machined lip',(x+dx,.39,zc),(.07,.025,L-.2),m['edge'],.009)
-            box(kind+' housing seam',(x+dx-sign*.06,.15,zc),(.016,.03,L-.45),m['dark'],.005)
-            for dz in [-2.55,2.55]:
-                box(kind+' fixing boss',(x+sign*.87,.08,zc+dz),(.24,.045,.28),m['shell'],.035)
-                screw(kind+' fastener',x+sign*.87,.112,zc+dz,m,.067)
-            for dz in [-1.8,.8]:
-                box(kind+' latch rail',(x+dx-sign*.027,.265,zc+dz),(.055,.13,.7),m['edge'],.018)
-                box(kind+' latch recess',(x+dx-sign*.06,.265,zc+dz),(.01,.055,.4),m['dark'],.003)
-        for dz in [-1.8,-.8,.3,1.4]:
-            box(kind+' tray rib',(x,.069,zc+dz),(W-.3,.019,.07),m['edge'],.005)
-        # Rectangular metal shoulders transition into the molded cable boot;
-        # there is no unsupported free-standing circular clamp.
-        for s in [-1,1]:
-            box(kind+' rear shoulder',(x+s*.90,.27,-2.94),(.34,.42,.44),m['shell'],.065)
+        copper_shell(kind,x,zc,W,m)
         cable_cutaway(kind+' sectioned jacket',x,m)
         if kind!='DAC':
-            chipx=x+.39 if kind=='ACC' else x
-            cw,cd=(.62,.6) if kind=='ACC' else (1.6,.95)
-            box(kind+' active package',(chipx,.975,zc),(cw,.07,cd),m['package'],.018)
-            # Function first, with a quieter second line. These are printed on
-            # the molded chip, independent of floating annotations and layers.
-            copper_package_mark(kind+' active function label', 'REDRIVER' if kind=='ACC' else 'RETIMER',chipx,zc-cd*.13,cw*.91,m['ink'])
-            copper_package_mark(kind+' active identifier label', 'ACC / RX' if kind=='ACC' else 'AEC DSP',chipx,zc+cd*.22,cw*.56,m['ink'])
-        lid(kind+' lifted cover',x,2.3,zc,L,W,False,m)
+            copper_active_package(kind,x,zc,m)
+        copper_card_detail(kind,x,zc,m)
         copper_pull(kind+' release pull',x,m)
     internals('copper')
     export('copper-hardware',m,[W,L])

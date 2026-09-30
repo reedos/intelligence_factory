@@ -5,13 +5,14 @@ import { build as buildCopper } from './side-copper.js';
 import { directLink } from './link-art-direction.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
 import { hardwareBounds } from '../app/housing-frame.js';
+import { THREE } from './side-kit.js';
 
 const cached = new Map();
 let pending;
 export function preloadLinks() {
   if (cached.size === 2) return Promise.resolve();
   if (!pending) pending = Promise.all(['coherent', 'copper'].map(async name => {
-    const gltf = await new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 11 : 12}`);
+    const gltf = await new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 17 : 12}`);
     cached.set(name, gltf.scene);
   })).catch(error => { pending = null; throw error; });
   return pending;
@@ -80,7 +81,7 @@ function build(name, nativeBuilder, options) {
     // The three raised covers span more width than the exposed boards. Preserve
     // their outer edges through the compact and tall-phone aspect ranges.
     built.camera.compact = { pos: [0, 16, 19.5], target: [0, .9, 0] };
-    built.camera.portrait = { pos: [0, 16.6, 19.5], target: [0, .9, 0], fit: { aspect: 1, fov: 35, minScale: .7 } };
+    built.camera.portrait = { pos: [0, 19, 12.5], target: [0, .9, -1.2], fit: { aspect: 1, fov: 35, minScale: .7 } };
   }
   model.scale.setScalar(100); // GLB metres -> scene centimetres.
   model.name = `Blender ${name} complete hardware`;
@@ -94,9 +95,28 @@ function build(name, nativeBuilder, options) {
   });
   built.scene.add(model);
   directLink({ built, model, kind: name, quality: options.quality, state: options.state });
+  if (name === 'copper') {
+    // A cool rim from camera-right, low and slightly behind, so the die-cast
+    // shell edges, lids and twinax foils catch a highlight in every layer.
+    const rim = new THREE.DirectionalLight(0xa9ccff, 1.3);
+    rim.name = 'Copper cool rim'; rim.position.set(11, 6, -3); rim.target.position.set(0, 0.8, -0.5);
+    built.scene.add(rim, rim.target);
+    // A dark satin bench under the three plugs: it catches their contact shadows and a soft studio streak, then
+    // fades to the background so the plugs sit somewhere instead of floating in a void.
+    const fade = document.createElement('canvas'); fade.width = fade.height = 256;
+    const g = fade.getContext('2d'), r = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+    r.addColorStop(0, '#fff'); r.addColorStop(0.55, '#8a8a8a'); r.addColorStop(1, '#000');
+    g.fillStyle = r; g.fillRect(0, 0, 256, 256);
+    const bench = new THREE.Mesh(new THREE.CircleGeometry(12, 64), new THREE.MeshStandardMaterial({
+      name: 'Copper bench', color: 0x18202b, metalness: 0.35, roughness: 0.4, envMapIntensity: 0.7,
+      transparent: true, alphaMap: new THREE.CanvasTexture(fade), depthWrite: false }));
+    bench.name = 'Copper bench'; bench.rotation.x = -Math.PI / 2; bench.position.set(0, -0.08, -1.6);
+    bench.scale.set(1, 0.72, 1); bench.receiveShadow = !!options.quality.shadows; bench.raycast = () => {};
+    built.scene.add(bench);
+  }
   built.inspection.scope = name === 'coherent'
     ? 'Discrete board-level design: the driver and TIA are each in their own electronic package, physically separate from the IQ modulator and receiver optical assemblies. No shared package or substrate joins electronics to optics here. This packaging choice, dimensions and RF routing are representative assumptions, not a teardown of a shipping 800ZR. Exact die placement varies. OSFP shell footprint and the nano-ITLA case envelope are to scale; the remaining layout is representative. The pull tab is representative; with it the model stays within the 116 mm maximum length Cisco lists for its OSFP 800G modules with pull tab. Layers are separated for inspection; transfer across display gaps is schematic. The same tunable laser supplies the transmit carrier and receive local oscillator. Heat paths are qualitative; pulse counts do not represent power ratios.'
-    : 'Representative DAC, ACC and AEC circuits in a flat-top, QSFP-style enclosure, informed by public exterior photographs rather than a teardown. Mechanical dimensions and internal placement are illustrative. Four transmit and four receive pairs are shown. Layers, pair shields and the upper half of the cable jacket are opened for inspection. Every signal path is electrical. The ACC redriver handles receive; the AEC retimer handles both directions. Heat motion shows qualitative transfer from active chips to the case and surroundings across exploded gaps; it does not encode watts or a power ratio. Release hardware adds no signal connections.';
+    : 'Representative DAC, ACC and AEC circuits in a two-piece die-cast clamshell at QSFP112 width and height (about 18.4 by 8.5 mm), informed by public exterior photographs rather than a teardown. The body is drawn shorter than a 72.4 mm Type 1 module; the nose, card supports, latch sliders, grounding fingers and internal placement are illustrative. Four transmit and four receive pairs are shown. Layers, pair shields and the upper half of the cable jacket are opened for inspection. Every signal path is electrical. The ACC redriver handles receive; the AEC retimer handles both directions. Heat motion shows qualitative transfer from active chips to the case and surroundings across exploded gaps; it does not encode watts or a power ratio. Release hardware adds no signal connections.';
   built.inspection.scope += ' Lids lift straight above their bodies without lateral displacement. Their surfaces use an x-ray inspection treatment to keep internal paths visible; this is not transparent metal. In Heat, each lid is an x-ray thermal target.';
   const view = (label, hotspot) => ({ label, ...hotspot.view });
   built.inspection.views = name === 'coherent' ? {
@@ -122,8 +142,18 @@ function build(name, nativeBuilder, options) {
     return lidCopies.get(material);
   };
   for (const cover of covers) cover.material = Array.isArray(cover.material) ? cover.material.map(lidMaterial) : lidMaterial(cover.material);
+  // Copper: an edge-only outline keeps each lifted upper half reading as a metal part, not a pane of glass.
+  if (name === 'copper') for (const cover of covers) if (/lifted cover/i.test(cover.material.name)) {
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(cover.geometry, 29),
+      new THREE.LineBasicMaterial({ color: 0xd3dde8, transparent: true, opacity: .5, depthWrite: false }));
+    edges.name = 'Copper lifted cover outline'; edges.raycast = () => {}; cover.add(edges);
+  }
   const coverPositions = new Map(covers.map(cover => [cover, cover.position.clone()]));
   const coverMaterials = new Set(covers.flatMap(cover => Array.isArray(cover.material) ? cover.material : [cover.material]));
+  // Copper: the twinax shield, insulation and drain are solid in Power and Heat. In Data they take the same x-ray
+  // inspection treatment as the lids, so the pulses stay visible running between the two conductors of each pair.
+  const sheath = new Set();
+  if (name === 'copper') model.traverse(o => { if (o.isMesh) for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (/Twinax dielectric|Twinax foil shield|Tinned drain wire/i.test(m.name)) sheath.add(m); });
   built.housingBounds = hardwareBounds(model);
   Object.defineProperties(built.inspection, {
     covers: { value: true },
@@ -148,6 +178,11 @@ function build(name, nativeBuilder, options) {
       const rest = coverPositions.get(cover);
       moved ||= !cover.position.equals(rest);
       cover.position.copy(rest);
+    }
+    const xray = options.state.mode === 'data';
+    for (const material of sheath) {
+      const opacity = xray ? (/foil/i.test(material.name) ? .16 : .3) : 1;
+      if (material.opacity !== opacity) { material.transparent = xray; material.opacity = opacity; material.depthWrite = !xray; material.needsUpdate = true; moved = true; }
     }
     for (const material of coverMaterials) {
       if (!material.transparent) { material.transparent = true; material.needsUpdate = true; moved = true; }
