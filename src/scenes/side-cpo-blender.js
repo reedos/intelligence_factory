@@ -3,17 +3,87 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { build as buildDiagram } from './side-cpo.js';
 import { engineLayout } from './side-geometry.js';
-import { label, note } from './side-kit.js';
+import { THREE, label, note } from './side-kit.js';
 import { directLink } from './link-art-direction.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
 
 let source, pending;
 export function preload() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=5`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=16`)
     .then(gltf => { source = gltf.scene; return source; })
     .catch(error => { pending = undefined; throw error; });
 }
+
+// Representative die faces painted at runtime onto the GLB's 0-1 top-face UVs.
+// Not floorplans: dark silicon, a seal ring, faint cell rows, and for the EIC a
+// 20% tint marking the transmit (driver) and receive (TIA) halves.
+const srgb = v => Math.round(255 * Math.min(1, Math.max(0, v)) ** (1 / 2.2));
+function paintFace(W, H, shade) {
+  const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d'), img = ctx.createImageData(W, H);
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const blocks = Array.from({ length: (H >> 4) + 1 }, () => Array.from({ length: (W >> 4) + 1 }, rnd));
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const c = shade(x / W, y / H, Math.min(x, W - 1 - x, y, H - 1 - y), blocks[y >> 4][x >> 4], x, y), i = (y * W + x) * 4;
+    img.data[i] = srgb(c[0]); img.data[i + 1] = srgb(c[1]); img.data[i + 2] = srgb(c[2]); img.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false; tex.anisotropy = 4;
+  return tex;
+}
+const mix = (a, b, k) => a.map((v, i) => v * (1 - k) + b[i] * k);
+function eicFace() {
+  return paintFace(512, 384, (u, v, e, block, x, y) => {
+    if (e <= 7) return [.022, .03, .042];
+    if (e < 10.5) return [.16, .18, .20];
+    const grain = (y % 6 < 1 ? .010 : 0) + ((x + Math.floor(y / 6) * 37) % 29 < 1 ? .006 : 0) + (block - .5) * .012;
+    let c = [.030 + grain, .045 + grain, .070 + grain];
+    if (e > 14 && v > .53) c = mix(c, [.05, .19, .24], .2);       // transmit drivers
+    if (e > 14 && v < .47) c = mix(c, [.20, .07, .15], .2);       // receive TIAs
+    return c;
+  });
+}
+
+// Bare switch die back: ground-silicon sheen, faint grind arcs and a seal ring.
+// No part mark: nothing published identifies the die face.
+function asicFace() {
+  return paintFace(512, 512, (u, v, e) => {
+    if (e <= 6) return [.02, .03, .045];
+    if (e < 10) return [.15, .17, .19];
+    const r = Math.hypot(u - 1.6, v + .4), grind = .011 * Math.sin(r * 900) * Math.sin(r * 37);
+    const sheen = .05 * Math.max(0, 1 - Math.hypot(u - .3, v - .3) * 1.3);
+    return [.024 + sheen + grind, .042 + sheen + grind, .07 + sheen * 1.2 + grind];
+  });
+}
+// Motherboard soldermask, tiled at about 1 cm: grain, faint generic trace
+// relief and via dots. Generic board texture, not a routing drawing.
+function boardFace() {
+  let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const vias = Array.from({ length: 22 }, () => [rnd() * 256, rnd() * 256]);
+  const rows = Array.from({ length: 9 }, () => [Math.floor(rnd() * 256), rnd() * 256, rnd() * 256]);
+  const tex = paintFace(256, 256, (u, v, e, block, x, y) => {
+    let k = (block - .5) * .012;
+    for (const [ry, a, b] of rows) if (Math.abs(y - ry) < 1.5 && x > Math.min(a, b) && x < Math.max(a, b)) k += .03;
+    for (const [vx, vy] of vias) { const d = Math.hypot(x - vx, y - vy); if (d < 4) k += d < 2 ? -.012 : .09; }
+    return [.018 + k * .6, .061 + k, .054 + k * .9];
+  });
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(13.6, 13.6);
+  return tex;
+}
+// One stripe per fiber across a data ribbon: a rounded coated core, dark seams.
+function ribbonStripes(color) {
+  const tex = paintFace(64, 4, (u, v, e, block, x) => {
+    const f = ((x % 8) + .5) / 8;
+    if (x % 8 === 0) return color.map(c => c * .08);
+    const k = .12 + .38 * Math.sqrt(Math.max(0, 1 - (2 * f - 1) ** 2));
+    return color.map(c => c * k);
+  });
+  tex.wrapT = THREE.RepeatWrapping; tex.magFilter = THREE.LinearFilter;
+  return tex;
+}
+const RIBBONS = { 'Transmit ribbon': [.37, .80, .90], 'Receive ribbon': [.82, .37, .66] };
 
 export function build(args) {
   if (!source) throw new Error('CPO hardware preload required');
@@ -49,6 +119,22 @@ export function build(args) {
   asset.traverse(node => { if (node.isMesh && node.material.name === 'Switch ASIC silicon') asicMaterial = node.material; });
   if (!asicMaterial) throw new Error('CPO asset is missing its authored switch ASIC');
   asicMaterial.emissive.set(0xff6a1a);
+  if (!asicMaterial.map) { asicMaterial.map = asicFace(); asicMaterial.needsUpdate = true; }
+  asset.traverse(node => {
+    if (node.isMesh && node.material.name === 'Midnight laminate' && !node.material.map) {
+      const m = node.material; m.map = boardFace(); m.bumpMap = m.map; m.bumpScale = .6; m.color.set(0xffffff); m.needsUpdate = true;
+    }
+  });
+  asset.traverse(node => {
+    if (node.isMesh && node.material.name === 'Electronic die face' && !node.material.map) {
+      node.material.map = eicFace(); node.material.color.set(0xffffff); node.material.needsUpdate = true;
+    }
+    const lane = node.isMesh && RIBBONS[node.material.name];
+    if (lane && !node.material.map) {
+      const m = node.material, tex = ribbonStripes(lane);
+      m.map = tex; m.emissiveMap = tex; m.color.set(0xffffff); m.emissive.set(0xffffff); m.emissiveIntensity = .35; m.needsUpdate = true;
+    }
+  });
   const built = buildDiagram({ ...args, authoredHardware: true, authoredAsicMaterial: asicMaterial });
   // Include the entire off-package callout and its fiber ends at desktop widths.
   built.camera.pos = [-1, 27, 32];
@@ -59,6 +145,19 @@ export function build(args) {
   directLink({ built, model: asset, kind: 'cpo', quality: args.quality, state: args.state });
   // Keep machined highlights crisp while the animated signal cores still bloom.
   Object.assign(built.look, { bloom: .54, threshold: 1.7, envIntensity: .7, exposure: 1.0 });
+  // X-ray plate: a view-angle rim keeps the translucent sheet readable face-on
+  // and under bloom, instead of vanishing over the glowing die.
+  asset.traverse(node => {
+    if (!node.isMesh || node.material.name !== 'Cutaway cold plate') return;
+    const m = node.material;
+    m.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>',
+        `float ifxRim = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.0);
+        diffuseColor.a = clamp(diffuseColor.a + ifxRim * 0.3, 0.0, 1.0);
+        #include <opaque_fragment>`);
+    };
+    m.customProgramCacheKey = () => 'ifx-cpo-plate-rim';
+  });
   const plate = asset.getObjectByName('CPO_COLDPLATE');
   if (!plate) throw new Error('CPO mechanical asset is missing its cold-plate assembly');
   const interposer = asset.getObjectByName('CPO_PACKAGE__Photonic_die_passivation');
@@ -127,7 +226,7 @@ export function build(args) {
     hasCovers: { value: true }, coverLabel: { value: 'cold plate' },
   });
   built.inspection.setCovers = value => { showPlate = !!value; syncPlate(); };
-  built.inspection.scope = 'Representative package and mechanics; six groups of three engines. Package layers and the cold plate are separated for inspection. Data and Power show the interposer in x-ray to expose buried electrical routes; it is not transparent silicon. Power shows the board and package ceramic in x-ray, with the ASIC partially translucent so its footprint and the schematic supply paths from below remain visible. TX/RX fibers continue outward to front-panel ports outside this diagram; separate lower amber fibers supply laser light. Fiber routing is representative, with surface coupling unfolded for clarity rather than a literal edge-coupled NVIDIA die. Heat view shows the cold plate and coolant pipes in x-ray so their internal flow is visible. Moving marks show direction, not lane counts, speed or watts. Electrical and heat motion across display gaps is schematic. The separate engine detail is enlarged 2.5×: its EIC/PIC faces are bonded in hardware, and its dashed leader identifies the enlarged engine.';
+  built.inspection.scope = 'Representative package and mechanics; six groups of three engines. Package layers and the cold plate are separated for inspection. Data and Power show the interposer in x-ray to expose buried electrical routes; it is not transparent silicon. Power shows the board and package ceramic in x-ray, with the ASIC partially translucent so its footprint and the schematic supply paths from below remain visible. TX/RX fibers continue outward to front-panel ports outside this diagram; separate lower amber fibers supply laser light. Fiber routing is representative, with surface coupling unfolded for clarity rather than a literal edge-coupled NVIDIA die. Heat view shows the cold plate and coolant pipes in x-ray so their internal flow is visible; the fin channels inside the plate are representative. Moving marks show direction, not lane counts, speed or watts. Electrical and heat motion across display gaps is schematic. The separate engine detail is enlarged 2.5×: its EIC/PIC faces are bonded in hardware, and its dashed leader identifies the enlarged engine.';
   built.inspection.views = {
     diagram: { label: 'Complete diagram', ...built.camera },
     package: { label: 'Package', pos: [14, 18, 27], target: [1, 1.1, 0],

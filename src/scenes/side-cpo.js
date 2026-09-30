@@ -10,6 +10,26 @@ import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, label,
 
 import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes } from './side-geometry.js';
 
+// Fiber cannot fold at a point. The route contract (side-geometry.js) stays a
+// reviewed polyline; the drawn fiber and its moving light follow the same path
+// with each interior corner rounded by a short quadratic arc (up to 3 mm,
+// representative bend radius). build-cpo.py applies the identical rounding.
+export function roundCorners(pts, keep = () => false, radius = .3, steps = 6) {
+  const out = [pts[0]];
+  for (let k = 1; k < pts.length - 1; k++) {
+    const p = pts[k], a = pts[k - 1], b = pts[k + 1];
+    if (keep(k, pts.length)) { out.push(p); continue; }
+    const la = Math.hypot(...a.map((v, j) => v - p[j])), lb = Math.hypot(...b.map((v, j) => v - p[j]));
+    const d = Math.min(radius, la * .45, lb * .45);
+    const p1 = p.map((v, j) => v + (a[j] - v) / la * d), p2 = p.map((v, j) => v + (b[j] - v) / lb * d);
+    for (let s = 0; s <= steps; s++) { const t = s / steps, u = 1 - t; out.push(p.map((v, j) => u * u * p1[j] + 2 * u * t * v + t * t * p2[j])); }
+  }
+  out.push(pts.at(-1));
+  return out;
+}
+// Laser feeds keep the sharp drop from the module aperture and the final lift onto the engine.
+export const keepCwCorner = (k, n) => k === 1 || k === n - 2;
+
 export function build({ quality, state, authoredHardware = false, authoredAsicMaterial = null }) {
   const scene = setup(quality, 14), M = materials();
   // Blender owns every physical mesh in the authored variant. Keep this layout
@@ -67,7 +87,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   engines.forEach(({ out }, i) => {
     const [ex, ez] = edgeConn[i];
     for (const [kind, material] of [['tx', M.fiberTx], ['rx', M.fiberRx], ['cw', M.fiberCw]])
-      for (const points of fiberRoutes[i][kind]) strand(N, points, material, kind === 'cw' ? .008 : .007);
+      for (const points of fiberRoutes[i][kind]) strand(N, kind === 'cw' ? roundCorners(points, keepCwCorner, .25) : roundCorners(points), material, kind === 'cw' ? .008 : .007);
     S.box(out[0] !== 0 ? .3 : .7, .3, out[0] !== 0 ? .7 : .3, MAT.polymer, ex, 1.2, ez);
   });
   // the laser modules at the front panel, and each engine's two laser fibers, run round the outside of the package
@@ -128,8 +148,17 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   // the electrical side: a stub of package trace from the switch chip into the electronic chip
   for (let j = 0; j < 6; j++) N.box(1.6, 0.01, 0.05, MAT.copper, ...w(electricalEdge - 0.8, 0.95, -0.55 + j * 0.22));
   const EQ = engines[6];                                 // a back-side engine, the one nearest the detail
-  const eqGeo = new THREE.BoxGeometry(1.55, 0.34, 1.15);
-  outline(scene, eqGeo, [EQ.x, Y.eng + 0.08, EQ.z], 0x62e6ff, 0.9, -EQ.rot);
+  // Corner brackets, the same drawn language as the detail's corner marks, pick
+  // out the enlarged engine instead of a full wireframe box.
+  const eqTicks = [], eqHW = 1.55 / 2, eqHD = 1.15 / 2, eqY0 = Y.eng + 0.08 - 0.17, eqY1 = Y.eng + 0.08 + 0.17, tick = 0.34;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const x = sx * eqHW, z = sz * eqHD;
+    eqTicks.push(x, eqY1, z, x - sx * tick, eqY1, z, x, eqY1, z, x, eqY1, z - sz * tick * 0.8, x, eqY1, z, x, eqY0, z);
+    eqTicks.push(x, eqY0, z, x - sx * tick, eqY0, z, x, eqY0, z, x, eqY0, z - sz * tick * 0.8);
+  }
+  const eqMark = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(eqTicks, 3)),
+    new THREE.LineBasicMaterial({ color: 0x62e6ff, transparent: true, opacity: 0.9 }));
+  eqMark.position.set(EQ.x, 0, EQ.z); eqMark.rotation.y = -EQ.rot; scene.add(eqMark);
   // a dotted leader from the detail to the engine it shows
   const eqTop = Y.eng + 0.08 + 0.17;
   const leader = new THREE.Line(new THREE.BufferGeometry().setFromPoints([
@@ -153,9 +182,9 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     // bundle; they are not a count of fibers or a bandwidth scale.
     {
       const routes = fiberRoutes[i];
-      dataFlows.push(flow(routes.tx[3], 'tx', FLOW.light));
-      dataFlows.push(flow([...routes.rx[3]].reverse(), 'rx', FLOW.light));
-      dataFlows.push(flow(routes.cw[0], 'cw', FLOW.cw));
+      dataFlows.push(flow(roundCorners(routes.tx[3]), 'tx', FLOW.light));
+      dataFlows.push(flow(roundCorners([...routes.rx[3]].reverse()), 'rx', FLOW.light));
+      dataFlows.push(flow(roundCorners(routes.cw[0], keepCwCorner, .25), 'cw', FLOW.cw));
     }
   });
   // in the detail: electrical in to the drivers, down to the rings; laser light along the bus; light out; light in to
@@ -195,24 +224,30 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   label(scene, 'Five shown · allocation illustrative · 18 serve the four-package switch', [ELSX, Y.sub + 1.25, els[nEls - 1][1]], note, 0.13);
 
   const view = (p, v, t) => ({ pos: p, view: { pos: v, target: t } });
+  // Fitted views: the whole subject box (not just the pin) is kept inside the
+  // area left clear by the page title, layer switch and buttons at any aspect.
+  const fitted = (p, v, t, size) => ({ pos: p, view: { pos: v, target: t, focus: p, detailSize: size } });
+  const stack = w(0.1, 0.55, 0), stackSize = [3.5, 1.2, 2.5];
   const [r3x, r3z] = ringAt(3);
   const hs = {
-    asic: view([0, Y.die + 0.1, 0], [-1, 8.5, 7], [0, Y.die, 0]),
+    asic: fitted([0, Y.die + 0.1, 0], [-1, 8.5, 7], [0, Y.die, 0], [3.6, 0.5, 3.6]),
     serdes: view([asicEdge(engines[1])[0], Y.subTop + 0.1, asicEdge(engines[1])[1] + 0.3], [engines[1].x + 1.5, 5, engines[1].z + 3.2], [engines[1].x * 0.7, Y.subTop, engines[1].z * 0.7]),
     engine: view([EQ.x, Y.eng + 0.15, EQ.z], [EQ.x + 2.5, 5, EQ.z + 3.2], [EQ.x, Y.eng, EQ.z]),
-    eic: view(w(-0.9, 1.1, 0.4), [DX + 1.5, DY + 4.2, DZ + 4.2], w(-0.6, 0.6, 0)),
-    rings: view(w(r3x, 0.12, r3z), [DX + 0.5, DY + 3.6, DZ + 3.8], w(r3x, 0.1, r3z)),
-    pd: view(w(pdX, 0.12, rxRowZ(4)), [DX + 1.2, DY + 2.3, DZ - 4.0], w(pdX, 0.1, rxRowZ(4))),
+    eic: fitted(w(-0.9, 1.1, 0.4), [DX + 1.5, DY + 4.2, DZ + 4.2], stack, stackSize),
+    rings: fitted(w(r3x, 0.12, r3z), [DX + 0.5, DY + 3.6, DZ + 3.8], stack, stackSize),
+    pd: fitted(w(pdX, 0.12, rxRowZ(4)), [DX + 1.2, DY + 2.3, DZ - 4.0], stack, stackSize),
     els: view([ELSX, Y.sub + 1.0, 0], [ELSX + 3.2, 5, 5.5], [ELSX - 1, Y.sub, 0]),
-    fiberout: view([edgeConn[1][0], 1.45, edgeConn[1][1]], [edgeConn[1][0] + 4, 7.5, 10.7], [edgeConn[1][0], 1.5, 5.5]),
-    coldplate: view([2.5, Y.plate + 0.3, 2.5], [6, 10, 11], [0, 2.4, 0]),
+    fiberout: fitted([edgeConn[1][0], 1.45, edgeConn[1][1]], [edgeConn[1][0] + 4, 7.5, 10.7], [edgeConn[1][0], 1.6, 5.9], [4.2, 1.6, 3.4]),
+    // Pinned on the plate's return-leg microchannels, visible from the ASIC view too.
+    coldplate: view([1.65, Y.plate + 0.14, 1.0], [6, 10, 11], [0, 2.4, 0]),
   };
   return {
     scene, flows, dataFlows, heatFlows, coolingHardware,
-    camera: { pos: [-0.5, 22, 25], target: [-0.5, 1.0, -1.5], near: 0.05, far: 500, min: 2, max: 90, portrait: { pos: [-3, 33, 35], target: [-3, 0.5, -1.5] } },
+    camera: { pos: [-0.5, 22, 25], target: [-0.5, 1.0, -1.5], near: 0.05, far: 500, min: 2, max: 90, portrait: { pos: [14.5, 29.5, 25.5], target: [-1.5, 1.2, -2.5] } },
     hotspots: { asic: hs.asic, engine: hs.engine, els: hs.els },
     dataHotspots: { asic: hs.asic, serdes: hs.serdes, eic: hs.eic, rings: hs.rings, pd: hs.pd, els: hs.els, fiberout: hs.fiberout },
-    heatHotspots: { asic: hs.asic, coldplate: hs.coldplate },
-    update(t) { if (asicTop) asicTop.emissiveIntensity = state.mode === 'heat' ? 0.5 + 0.08 * Math.sin(t * 2) : 0; },
+    // Heat looks in under the lifted plate: the die glows below, its heat rises into the channels above.
+    heatHotspots: { asic: view(hs.asic.pos, [1.2, 3.55, 10.5], [0, 2.75, 0]), coldplate: hs.coldplate },
+    update(t) { eqMark.material.opacity = 0.62 + 0.3 * Math.sin(t * 1.6); if (asicTop) asicTop.emissiveIntensity = state.mode === 'heat' ? 0.5 + 0.08 * Math.sin(t * 2) : 0; },
   };
 }
