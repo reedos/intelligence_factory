@@ -485,13 +485,20 @@ export function build({ quality, model }) {
       f.group.userData.rackPowerDrop=true;flows.push(f);
     });
   });
-  // yellow fiber runway over the rows and a trunk to the network spine
-  rowZs.forEach(z => { N.box(rowX1 - rowX0, 0.04, 0.3, MAT.yellowTray, (rowX0 + rowX1) / 2, 4.3, z); N.box(rowX1 - rowX0, 0.1, 0.02, MAT.yellowTray, (rowX0 + rowX1) / 2, 4.35, z - 0.15); N.box(rowX1 - rowX0, 0.1, 0.02, MAT.yellowTray, (rowX0 + rowX1) / 2, 4.35, z + 0.15); });
-  N.box(0.3, 0.04, 23, MAT.yellowTray, rowX0 - 1.3, 4.3, -1.6);
+  // yellow fiber runway over the rows and a trunk to the network spine. A slightly muted safety yellow
+  // (representative) so the moving fiber ribbons, not the tray, stay the brightest thing in the data view.
+  const runwayMat = new THREE.MeshStandardMaterial({ color: 0xc9a431, roughness: 0.5, metalness: 0.05 });
+  rowZs.forEach(z => { N.box(rowX1 - rowX0, 0.04, 0.3, runwayMat, (rowX0 + rowX1) / 2, 4.3, z); N.box(rowX1 - rowX0, 0.1, 0.02, runwayMat, (rowX0 + rowX1) / 2, 4.35, z - 0.15); N.box(rowX1 - rowX0, 0.1, 0.02, runwayMat, (rowX0 + rowX1) / 2, 4.35, z + 0.15); });
+  // rolled lips on the channel walls and a joint splice every 1.8 m, so the runway reads as a formed U-channel
+  rowZs.forEach(z => {
+    for (const dz of [-0.155, 0.155]) N.cylX(.013, rowX1 - rowX0, runwayMat, (rowX0 + rowX1) / 2, 4.405, z + dz, 8);
+    for (let x = rowX0 + 1.8; x < rowX1 - .3; x += 1.8) N.box(.05, .1, .336, runwayMat, x, 4.343, z);
+  });
+  N.box(0.3, 0.04, 23, runwayMat, rowX0 - 1.3, 4.3, -1.6);
   // Short connectors join each row runway to the cross-hall trunks.
   rowZs.forEach(z=>{
-    N.box(1.3,.04,.3,MAT.yellowTray,rowX0-.65,4.3,z);
-    N.box(.45,.04,.3,MAT.yellowTray,rowX1+.225,4.3,z);
+    N.box(1.3,.04,.3,runwayMat,rowX0-.65,4.3,z);
+    N.box(.45,.04,.3,runwayMat,rowX1+.225,4.3,z);
   });
   // network spine racks along the front
   // ten pluggable spine switches, then the CPO comparison unit set apart past the end of the row: a fabric that
@@ -530,7 +537,7 @@ export function build({ quality, model }) {
   const cpoTag = textSprite('CPO alternative · disconnected', '#8fe4ff', 0.065);
   cpoTag.position.set(netItems[CPO_I].x, 2.42, netItems[CPO_I].z + netItems[CPO_I].f * 0.85);
   scene.add(cpoTag);
-  N.box(.3,.04,.6,MAT.yellowTray,rowX0-1.3,4.3,10.2);
+  N.box(.3,.04,.6,runwayMat,rowX0-1.3,4.3,10.2);
   // fiber distribution frames: every fabric link is patched here, between the spine row and the cross-hall sleeve
   const odfTex = canvasTex(256, 512, (g, w, h) => {
     g.fillStyle = '#d7dadd'; g.fillRect(0, 0, w, h);
@@ -547,13 +554,13 @@ export function build({ quality, model }) {
     odfItems.forEach((it, i) => odf.setMatrixAt(i, mtx(it.x, 0, it.z)));
     odf.castShadow = odf.receiveShadow = true; scene.add(odf);
   }
-  N.box(0.3, 0.04, 3.7, MAT.yellowTray, rowX0 + 4.8, 4.3, 12.35);                         // runway spine row → frames
-  N.box(7.8, 0.04, 0.3, MAT.yellowTray, rowX0 + 4.4, 4.3, 14.2);
+  N.box(0.3, 0.04, 3.7, runwayMat, rowX0 + 4.8, 4.3, 12.35);                         // runway spine row → frames
+  N.box(7.8, 0.04, 0.3, runwayMat, rowX0 + 4.4, 4.3, 14.2);
   // floor sleeve where the cross-hall cables drop into the duct bank
   const sleeveX = rowX0 + 9.4, sleeveZ = 14.2;
   S.cyl(0.36, 0.12, MAT.darkSteel, sleeveX, 0.2, sleeveZ, 20);
-  for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; N.strut([sleeveX + Math.cos(a) * 0.16, 4.3, sleeveZ + Math.sin(a) * 0.16], [sleeveX + Math.cos(a) * 0.16, 0.1, sleeveZ + Math.sin(a) * 0.16], 0.045, MAT.yellowTray, 8); }
-  N.box(1.4, 0.04, 0.3, MAT.yellowTray, sleeveX - 0.6, 4.3, sleeveZ);
+  for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; N.strut([sleeveX + Math.cos(a) * 0.16, 4.3, sleeveZ + Math.sin(a) * 0.16], [sleeveX + Math.cos(a) * 0.16, 0.1, sleeveZ + Math.sin(a) * 0.16], 0.045, runwayMat, 8); }
+  N.box(1.4, 0.04, 0.3, runwayMat, sleeveX - 0.6, 4.3, sleeveZ);
   // ---------- storage & control racks: patched via the ODF runway ----------
   // storage: short 2U drive-shelf racks (dense drive-bay grid, no NVLink gear, no coolant manifolds) plus a
   // pair of storage/front-end Ethernet switches on top of the last one; control: head/login/scheduler nodes
@@ -562,20 +569,20 @@ export function build({ quality, model }) {
   instanced(RW - 0.02, 2.3, 1.2, TEX.storage, 0x131519, storageMx).name = 'Storage rack faces';
   const storLast = storageMx[3];
   pluggableFace(storLast.x, storLast.z, storLast.f, { forms: ['tor', 'tor'], y0: 2.02 });   // representative storage/front-end pair
-  N.box(2.0, 0.04, 0.3, MAT.yellowTray, storLast.x, 4.3, svcZ);                             // short local runway stub
-  N.box(2.0, 0.1, 0.02, MAT.yellowTray, storLast.x, 4.35, svcZ - 0.15);
+  N.box(2.0, 0.04, 0.3, runwayMat, storLast.x, 4.3, svcZ);                             // short local runway stub
+  N.box(2.0, 0.1, 0.02, runwayMat, storLast.x, 4.35, svcZ - 0.15);
   // Rear wall leaves a T-junction into the storage-to-ODF spur.
-  for(const side of [-1,1])N.box(.8,.1,.02,MAT.yellowTray,storLast.x+side*.6,4.35,svcZ+.15);
+  for(const side of [-1,1])N.box(.8,.1,.02,runwayMat,storLast.x+side*.6,4.35,svcZ+.15);
 
   const controlX0 = storageX0 + 4 * RW + svcGap;
   const controlMx = []; for (let i = 0; i < 2; i++) controlMx.push({ x: controlX0 + i * RW + RW / 2, z: svcZ, f: 1 });
   instanced(RW - 0.02, 2.3, 1.2, TEX.cpu, 0x131519, controlMx).name = 'Control rack faces';
   scene.userData.supportRacks = { storage: storageMx.length, control: controlMx.length, representative: true };
   const ctrlFirst = controlMx[0];
-  N.box(ctrlFirst.x-sleeveX,.04,.3,MAT.yellowTray,(ctrlFirst.x+sleeveX)/2,4.3,14.2);
+  N.box(ctrlFirst.x-sleeveX,.04,.3,runwayMat,(ctrlFirst.x+sleeveX)/2,4.3,14.2);
   for(const it of [storLast,ctrlFirst]){
-    N.box(.3,.04,2.2,MAT.yellowTray,it.x,4.3,13.1);
-    N.box(.6,.04,.3,MAT.yellowTray,it.x,4.3,svcZ);
+    N.box(.3,.04,2.2,runwayMat,it.x,4.3,13.1);
+    N.box(.6,.04,.3,runwayMat,it.x,4.3,svcZ);
   }
   pluggableFace(ctrlFirst.x, ctrlFirst.z, ctrlFirst.f, { forms: ['tor'], y0: 2.06 }); // small ToR management switch, representative
   // scale-out: a leaf-switch rack at the end of every row, a cross runway to the spine row
@@ -594,16 +601,16 @@ export function build({ quality, model }) {
   }
   // leaf faceplates: pluggable OSFP modules, fiber pigtails rising into the runway overhead
   rowZs.forEach((z, r) => { pluggableFace(leafX, z, facing[r], { forms: bigSwitch ? ['q3400'] : ['qm9700', 'qm9700'], y0: 1.52 }); });
-  N.box(.3,.04,23,MAT.yellowTray,leafX,HALL_RUNWAY.floorY,-.8);
+  N.box(.3,.04,23,runwayMat,leafX,HALL_RUNWAY.floorY,-.8);
   // Open T-junctions: the row fibers must not pass through a solid tray wall.
   const runwayOpenings=[...rowZs,10.5];let wallStart=-12.3;
   for(const junction of runwayOpenings){
     const end=junction-.2;
-    if(end>wallStart)N.box(.02,.1,end-wallStart,MAT.yellowTray,leafX-.15,4.35,(wallStart+end)/2);
+    if(end>wallStart)N.box(.02,.1,end-wallStart,runwayMat,leafX-.15,4.35,(wallStart+end)/2);
     wallStart=junction+.2;
   }
-  N.box(.02,.1,23,MAT.yellowTray,leafX+.15,4.35,-.8);
-  N.box(leafX-(rowX0-1.3),.04,.3,MAT.yellowTray,(leafX+rowX0-1.3)/2,4.3,10.5);
+  N.box(.02,.1,23,runwayMat,leafX+.15,4.35,-.8);
+  N.box(leafX-(rowX0-1.3),.04,.3,runwayMat,(leafX+rowX0-1.3)/2,4.3,10.5);
   // patch panels on the spine row
   // 1U MPO patch panel in each spine rack's top units (was a block sitting on the roof): 12 cassette ports
   for (let i = 0; i < 10; i++) {
