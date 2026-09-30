@@ -205,6 +205,7 @@ export class PulseMaterial extends THREE.MeshBasicMaterial {
   }
   customProgramCacheKey() { return 'ifx-pulse-droplet-v1'; }
 }
+export const PULSE_MAX_PX = 7;   // pulse radius ceiling in CSS pixels
 export class Flow {
   constructor(points, css, { count = 24, speed = 1, size = 1, k = 2.2, opacity = 1, trail = true, trailK = 0.35, trailR, role } = {}) {
     this.role = role; this.gain = 1; this.bright = 1; this.acc = 0; this.lastT = undefined;
@@ -261,9 +262,12 @@ export class Flow {
       this.path.getPointAt(u, this.v);
       const style = this.motionStyle;
       let radius = this.size * (style?.radius || 1);
-      if (style?.pixels && projection) {
+      if (projection) {
         const perPixel = this.v.distanceTo(projection.position) * projection.worldPerPixelAtUnit;
-        radius = Math.max(radius, Math.min(this.size * 1.6, perPixel * style.pixels));
+        if (style?.pixels) radius = Math.max(radius, Math.min(this.size * 1.6, perPixel * style.pixels));
+        // Screen-size ceiling: a pulse passing close to the camera stays a droplet about 14 px across instead of
+        // swelling into a blob that covers the part it sits on (additive pulses also pile up less).
+        radius = Math.min(radius, perPixel * PULSE_MAX_PX);
       }
       // Keep a visible gap even on legacy rails whose original pulse count is
       // already high. Preserve that count instead of turning it into a bar.
