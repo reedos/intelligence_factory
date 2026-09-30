@@ -87,16 +87,72 @@ function room(scene, quality, S, N, W, H, D) {
   rbox(N, W - 0.04, 0.008, D - 0.025, MAT.darkSteel, 0, H + 0.004, 0, { r: 0.28 });
 }
 
-function serverTex() {
-  return canvasTex(512, 180, (g, w, h) => {
-    g.fillStyle = '#17191d'; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#b39a6a'; g.fillRect(0, 0, w, 6); g.fillRect(0, h - 6, w, 6);                 // champagne trim
-    for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) {                                      // two rows of fan modules
-      const cx = 44 + i * 84, cy = 50 + r * 80;
-      g.fillStyle = '#0c0d0f'; g.beginPath(); g.arc(cx, cy, 34, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = '#2c3037'; g.lineWidth = 2; for (let k = 18; k < 34; k += 6) { g.beginPath(); g.arc(cx, cy, k, 0, Math.PI * 2); g.stroke(); }
+// Seeded generator: every build, and the Blender export, draws identical surface detail.
+function rng(seed) { let s = seed >>> 0; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296; }
+
+// DGX H100 front bezel: NVIDIA describes it as decorative metal foam with
+// handles. Open-cell foam is drawn as a height field of overlapping pores,
+// giving a matching color map and tangent-space normal map. Cell size is
+// representative (ASSUMPTIONS 'dgx-h100-bezel-rear').
+function foamMaps(w = 512, h = 400, seed = 7) {
+  const r = rng(seed), H = new Float32Array(w * h).fill(1);
+  for (let n = 0, count = Math.round(w * h / 32); n < count; n++) {
+    const cx = r() * w, cy = r() * h, rad = 1.3 + r() * r() * 3.0, depth = 0.6 + r() * 0.4;
+    for (let y = Math.floor(cy - rad); y <= Math.ceil(cy + rad); y++) for (let x = Math.floor(cx - rad); x <= Math.ceil(cx + rad); x++) {
+      const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy) / rad; if (d >= 1) continue;
+      const i = ((y + h) % h) * w + ((x + w) % w), v = 1 - depth * (1 - d * d);
+      if (v < H[i]) H[i] = v;
     }
-    g.fillStyle = '#5cf29a'; g.fillRect(w - 16, 12, 5, 5);
+  }
+  const at = (x, y) => H[((y + h) % h) * w + ((x + w) % w)];
+  const map = canvasTex(w, h, (g) => {
+    const img = g.createImageData(w, h), d = img.data;
+    for (let i = 0; i < w * h; i++) {
+      const k = 0.1 + 0.98 * Math.pow(H[i], 2.2), j = 0.94 + 0.12 * ((i * 2654435761 >>> 0) / 4294967296);
+      d[i * 4] = Math.min(255, 186 * k * j); d[i * 4 + 1] = Math.min(255, 160 * k * j); d[i * 4 + 2] = Math.min(255, 110 * k * j); d[i * 4 + 3] = 255;
+    }
+    g.putImageData?.(img, 0, 0);
+  });
+  const normalMap = canvasTex(w, h, (g) => {
+    const img = g.createImageData(w, h), d = img.data;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const dx = (at(x - 1, y) - at(x + 1, y)) * 2.2, dy = (at(x, y + 1) - at(x, y - 1)) * 2.2, len = Math.hypot(dx, dy, 1), i = (y * w + x) * 4;
+      d[i] = 128 + 127 * dx / len; d[i + 1] = 128 + 127 * dy / len; d[i + 2] = 128 + 127 / len; d[i + 3] = 255;
+    }
+    g.putImageData?.(img, 0, 0);
+  }, { srgb: false });
+  const mat = new THREE.MeshStandardMaterial({ map, normalMap, normalScale: new THREE.Vector2(1, 1), roughness: 0.5, metalness: 0.82 });
+  mat.name = 'DGX bezel metal foam';
+  return mat;
+}
+
+// DGX H100 rear: six supplies across the bottom (the six-PSU count is published),
+// an exhaust field above them and a dark I/O band behind the real OSFP cages.
+// The arrangement is representative (ASSUMPTIONS 'dgx-h100-bezel-rear').
+function serverRearTex() {
+  return canvasTex(512, 406, (g, w, h) => {
+    g.fillStyle = '#4a515a'; g.fillRect(0, 0, w, h);
+    const r = rng(11);
+    const perforate = (x0, y0, x1, y1, step, rad) => {
+      g.fillStyle = '#07080a';
+      for (let y = y0, row = 0; y < y1; y += step * 0.87, row++) for (let x = x0 + (row % 2) * step / 2; x < x1; x += step) { g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill(); }
+    };
+    // exhaust fields, framed by folded sheet seams
+    for (const [y0, y1] of [[10, 118], [178, 300]]) { g.fillStyle = '#3a4048'; g.fillRect(8, y0 - 4, w - 16, y1 - y0 + 8); perforate(16, y0 + 4, w - 12, y1, 9, 3.1); }
+    // I/O band behind the cage row, with management ports and USB on one side
+    g.fillStyle = '#1c2026'; g.fillRect(8, 124, w - 16, 48);
+    for (let i = 0; i < 3; i++) { g.fillStyle = '#050607'; g.fillRect(214 + i * 30, 138, 22, 18); g.fillStyle = '#5a6068'; g.fillRect(214 + i * 30, 138, 22, 3); }
+    g.fillStyle = '#050607'; g.fillRect(308, 140, 10, 16); g.fillRect(324, 140, 10, 16);
+    // six supplies: grille, pull handle, C20 inlet, status window
+    for (let i = 0; i < 6; i++) {
+      const x = 10 + i * 82, y = 306;
+      g.fillStyle = '#5b626b'; g.fillRect(x, y, 78, h - y - 6);
+      g.fillStyle = '#0a0b0d'; g.fillRect(x, y, 78, 2); g.fillRect(x, y, 2, h - y - 6);
+      perforate(x + 8, y + 10, x + 44, h - 12, 6, 2.1);
+      g.fillStyle = '#090a0c'; g.fillRect(x + 50, y + 18, 20, 16); g.fillStyle = '#2b2f35'; g.fillRect(x + 53, y + 22, 3, 8); g.fillRect(x + 59, y + 22, 3, 8); g.fillRect(x + 65, y + 22, 3, 8);
+      g.fillStyle = '#b8bfc6'; g.fillRect(x + 52, y + 52, 16, 4);
+      g.fillStyle = r() < 2 ? '#1c3a2a' : '#000'; g.fillRect(x + 50, y + 42, 5, 5);
+    }
   });
 }
 
@@ -145,16 +201,35 @@ function buildHGX({ quality, state }) {
   // An exploded service position exposes the complete server instead of
   // burying the CPU board under the next chassis. Not an operating position.
   const PULLED = 2, out = 1.0;
-  const front = new THREE.MeshStandardMaterial({ map: serverTex(), roughness: 0.5, metalness: 0.35 });
   const side = new THREE.MeshStandardMaterial({ color: 0x2a2e34, roughness: 0.45, metalness: 0.6 });
+  const rear = new THREE.MeshStandardMaterial({ map: serverRearTex(), roughness: 0.6, metalness: 0.25 });
+  const foam = foamMaps();
   const inRack = [0, 1, 3];
-  const m = new THREE.InstancedMesh(new THREE.BoxGeometry(sw, SU * 0.98, sd), [side, side, side, side, front, side], inRack.length);
+  const m = new THREE.InstancedMesh(new THREE.BoxGeometry(sw, SU * 0.98, sd), [side, side, side, side, MAT.rackFace, rear], inRack.length);
   inRack.forEach((k, n) => m.setMatrixAt(n, mtx(0, sy(k), ZF - 0.07 - sd / 2)));
   m.castShadow = m.receiveShadow = true; scene.add(m);
   inRack.forEach(k => { N.box(0.03, SU * 0.9, 0.01, MAT.galv, -0.245, sy(k), ZF - 0.065); N.box(0.03, SU * 0.9, 0.01, MAT.galv, 0.245, sy(k), ZF - 0.065); });
   if (!quality.mobile) inRack.forEach(k => earFasteners(N, sy(k), ZF - 0.0585, [-SU * 0.36, SU * 0.36]));
-  // server bezels: a proud champagne trim bar top and bottom, and a handle nub, on every in-rack server
-  inRack.forEach(k => bezel(N, 0, sy(k), sw / 2, SU * 0.49, ZF - 0.07));
+  // Removable metal-foam bezel on every closed server: a proud plate inside the
+  // service perimeter, two carry handles, and the published front controls
+  // (power button, ID button, fault LED) on a small panel at the right.
+  const bz = ZF - 0.07 + 0.0075, bzFront = bz + 0.006;
+  // Instanced so the plate keeps its UVs (Builder geometry drops them).
+  const plates = new THREE.InstancedMesh(new THREE.BoxGeometry(sw - 0.016, SU * 0.89, 0.012), [side, side, side, side, foam, side], inRack.length);
+  inRack.forEach((k, n) => plates.setMatrixAt(n, mtx(0, sy(k), bz)));
+  plates.castShadow = plates.receiveShadow = true; scene.add(plates);
+  inRack.forEach(k => {
+    for (const x of [-0.19, 0.19]) {
+      rbox(N, 0.014, 0.13, 0.012, COLLAR, x, sy(k) - 0.02, bzFront + 0.007, { r: 0.35 });
+      for (const dy of [-0.055, 0.055]) N.box(0.01, 0.012, 0.008, MAT.darkSteel, x, sy(k) - 0.02 + dy, bzFront + 0.002);
+    }
+    rbox(N, 0.022, 0.078, 0.004, MAT.black, 0.155, sy(k) + SU * 0.3, bzFront + 0.0022, { r: 0.3 });
+    N.cylZ(0.0055, 0.004, COLLAR, 0.155, sy(k) + SU * 0.3 + 0.024, bzFront + 0.0048, 16);   // power button
+    N.cylZ(0.0045, 0.004, COLLAR, 0.155, sy(k) + SU * 0.3, bzFront + 0.0048, 16);          // ID button
+    N.box(0.005, 0.005, 0.002, new THREE.MeshStandardMaterial({ color: 0x3a2508, roughness: 0.3 }), 0.155, sy(k) + SU * 0.3 - 0.024, bzFront + 0.0048); // fault LED, dark
+  });
+  // Rear supplies: a pull handle proud of each of the six bays.
+  inRack.forEach(k => { for (let i = 0; i < 6; i++) rbox(N, 0.034, 0.006, 0.012, MAT.galv, 0.185 - i * 0.0705 - 0.005, sy(k) - SU * 0.49 + 0.012, ZF - 0.07 - sd - 0.006, { r: 0.4 }); });
   // management switch and blanking above
   const topY = sy(3) + SU / 2 + 0.01;
   const mg = trayTex('mgmt');
@@ -225,7 +300,14 @@ function buildHGX({ quality, state }) {
   // ---------- activity: status LEDs and warm exhaust shimmer (all four servers are air-cooled) ----------
   const ledStep = quality.mobile ? 2 : 1;
   const ledItems = [];
-  inRack.forEach((k, i) => { if (i % ledStep === 0) ledItems.push({ p: [X - 0.03, sy(k) + SU * 0.4, ZF - 0.07 + 0.006], color: '#5cf29a', rate: 0.35 + (k % 3) * 0.2, duty: 0.5 }); });
+  // Front: power LED (solid green when on) and the ID button's blue LED, which
+  // only some servers show, as an operator locating one would see. Rear: each
+  // supply's status light.
+  inRack.forEach((k, i) => {
+    ledItems.push({ p: [0.155, sy(k) + SU * 0.3 + 0.024, bzFront + 0.0075], color: '#5cf29a', rate: 0 });
+    if (i === 1) ledItems.push({ p: [0.155, sy(k) + SU * 0.3, bzFront + 0.0075], color: '#4aa8ff', rate: 0.5, duty: 0.5 });
+    if (!quality.mobile) for (let s = 0; s < 6; s++) ledItems.push({ p: [0.2 - s * 0.0705 - 0.03, sy(k) - SU * 0.49 + 0.052, ZF - 0.07 - sd - 0.003], color: '#5cf29a', rate: 0 });
+  });
   ledItems.push({ p: [X - 0.03, topY + U / 2, ZF - 0.07 + 0.006], color: '#e8c547', rate: 0.5, duty: 0.6 });
   const leds = blinkers(ledItems, { size: 0.008 });
   scene.add(leds.mesh);
