@@ -253,6 +253,22 @@ def chip_hardware(accel,m):
             cylinder('Registration pad opening',(x,1.24,z),.035,.002,m['dark'],u)
     # The heat layer's cooler base is authored natively in chip.js (no lid).
 
+def dedupe_reference_materials():
+    # The reference export clones every material per mesh (Physical N, .001 ...).
+    # Each clone carries the index of the native material it came from; share
+    # one Blender material per source so identical surfaces batch together.
+    canon={}
+    for o in bpy.context.scene.objects:
+        if o.type!='MESH':continue
+        for slot in o.material_slots:
+            m=slot.material
+            if m is None or m.get('ifxSourceMaterial') is None:continue
+            key=int(m['ifxSourceMaterial'])
+            if key not in canon:canon[key]=m
+            elif canon[key] is not m:slot.material=canon[key]
+    for m in list(bpy.data.materials):
+        if m.users==0:bpy.data.materials.remove(m)
+
 def export_variant(kind,accel):
     bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
     bpy.ops.import_scene.gltf(filepath=str(HERE/'references'/f'{kind}-{accel}.glb'))
@@ -260,6 +276,7 @@ def export_variant(kind,accel):
         if o.type=='MESH' and o.data.users>1:o.data=o.data.copy()
     # Imported parent scale is already meters; applying it makes bevel radius real.
     bpy.ops.object.select_all(action='SELECT');bpy.ops.object.transform_apply(location=False,rotation=False,scale=True)
+    if kind=='chip':dedupe_reference_materials()
     # GLTF instancing expands solder balls into hundreds of Blender objects.
     # Batch those reference instances before modifier evaluation; geometry and
     # world positions remain unchanged, avoiding quadratic scene-graph work.
