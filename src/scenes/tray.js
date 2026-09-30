@@ -189,7 +189,9 @@ function buildHGX({ quality }) {
     hotTops.push([x, y0 + 1.15, z]);
     // 12 V to the ring, core power into the package
     flows.push(flow([[x, fy + 0.07, -0.95], [x, fy + 0.07, z - 0.7], [x + 0.4, fy + 0.14, z - 0.56]], 'bus12', { count: 6, speed: 0.9, size: 0.03, trailR: 0.01 }));
-    if (i === 0) for (const s of [-1, 1]) for (const dz of [-0.3, 0, 0.3]) flows.push(flow([[x + s * 0.4, fy + 0.14, z + dz], [x + s * 0.1, fy + 0.13, z + dz * 0.4]], 'core', { count: 4, speed: 0.35, size: 0.018, trailR: 0.006, k: 2.6, trailK: 0.2 }));
+    // Core power leaves the VRM row at board level and enters the package
+    // through the substrate edge, so the die and HBM tops stay clear.
+    if (i === 0) for (const s of [-1, 1]) for (const dz of [-0.3, 0, 0.3]) flows.push(flow([[x + s * 0.36, fy + 0.08, z + dz], [x + s * 0.22, fy + 0.08, z + dz * 0.8]], 'core', { count: 3, speed: 0.35, size: 0.018, trailR: 0.006, k: 2.6, trailK: 0.2 }));
     // heat: up from the die into the sink, then swept back by the air
     heatFlows.push(flow([[x, fy + 0.12, z], [x, y0 + 0.1, z]], 'hot', { count: 3, speed: 0.4, size: 0.035, k: 2.6, trail: false }));
     for (const dx of [-0.25, 0.25]) heatFlows.push(flow([[x + dx, y0 + 0.6, z + 0.9], [x + dx, y0 + 0.6, z - 0.7], [x + dx * 1.1, y0 + 0.65, z - 2.0]], 'air', { count: 4, speed: 1.0, size: 0.045, k: 2.2, opacity: 0.85, trail: false }));
@@ -417,7 +419,8 @@ function buildNVL({ quality, model }) {
       N.box(0.08, 0.01, 0.08, MAT.black, bx + 0.6, floorY + 0.025, gz - 0.62);          // controller
       // 12 V into the ring, core power into the package
       flows.push(flow([[bx, floorY + 0.06, ZB + 1.3], [bx, floorY + 0.06, gz - 0.62], [bx - 0.36, floorY + 0.09, gz - 0.62]], 'bus12', { count: 10, speed: 0.9, size: 0.03, trailR: 0.01 }));
-      for (const side of [-1, 1]) for (const dz of [-0.3, 0, 0.3]) flows.push(flow([[bx + side * 0.72, floorY + 0.1, gz + dz], [bx + side * 0.2, floorY + 0.1, gz + dz * 0.4]], 'core', { count: 4, speed: 0.35, size: 0.018, trailR: 0.006, k: 2.6, trailK: 0.2 }));
+      // Core power runs from the ring into the substrate edge, below the die and HBM tops.
+      for (const side of [-1, 1]) for (const dz of [-0.3, 0, 0.3]) flows.push(flow([[bx + side * 0.64, floorY + 0.05, gz + dz], [bx + side * 0.42, floorY + 0.05, gz + dz * 0.8]], 'core', { count: 3, speed: 0.35, size: 0.018, trailR: 0.006, k: 2.6, trailK: 0.2 }));
     }
   }
   // clip to the converters, converters onto the 12 V runs
@@ -538,6 +541,9 @@ function buildNVL({ quality, model }) {
   if (shimmer) scene.add(shimmer.points);
 
   const [g0x, g0z] = gpus[1];
+  // GPU close-up: from the front, in the gap between the board and the lifted
+  // plates, looking down on the package (dies and HBM), as on H100 and Rubin.
+  const gpuClose = { pos: [gpus[3][0], 0.2, gpus[3][1]], view: componentView([gpus[3][0], 0.07, gpus[3][1]], [0.25, 0.4, 1.3], [0.6, 0.2, 0.6]) };
   finishCompute(scene, finish);
   scene.userData.computeGeneration = { id: model.accel.id, gpus: 4, cpus: 2, fans: 6, dpuCount: dpuX.length, nicCount: 4, nic: ultra ? 'ConnectX-8' : 'ConnectX-7', memoryModules: 'soldered LPDDR5X', nicBoards: ultra ? 2 : 4, representative: true };
   return {
@@ -549,7 +555,7 @@ function buildNVL({ quality, model }) {
       clip: { pos: [0, 0.4, ZB - 0.15], view: { pos: [2.4, 2.2, -7.5], target: [0, 0.2, ZB] } },
       ibc: { pos: [-1.5, 0.35, ZB + 0.85], view: { pos: [-2.8, 2.5, -1.6], target: [-1, 0.1, ZB + 0.9] } },
       vrm: { pos: [g0x + 0.72, 0.2, g0z + 0.1], view: { pos: [g0x + 2.2, 1.6, g0z + 1.4], target: [g0x, 0.05, g0z] } },
-      gpu: { pos: [gpus[3][0], 0.2, gpus[3][1]], view: { pos: [gpus[3][0] + 1.5, 2.0, gpus[3][1] + 1.8], target: [gpus[3][0], 0.05, gpus[3][1]] } },
+      gpu: gpuClose,
       grace: { pos: [cpus[0][0], 0.18, cpus[0][1]], view: { pos: [cpus[0][0] - 1.4, 1.8, cpus[0][1] + 1.8], target: [cpus[0][0], 0.05, cpus[0][1]] } },
       lpddr: { pos: [cpus[1][0] + 0.55, 0.14, cpus[1][1] + 0.36], view: { pos: [cpus[1][0] + 1.6, 1.4, cpus[1][1] + 1.4], target: [cpus[1][0] + 0.4, 0.05, cpus[1][1]] } },
       coldplates: { pos: [-1.1, 0.95, 0.2], view: { pos: [-3.6, 2.6, 2.4], target: [-1.1, 0.6, 0] } },
@@ -570,7 +576,7 @@ function buildNVL({ quality, model }) {
       cx: { pos: [1.2, 0.45, ZF - 1.1], view: { pos: [2.8, 2.4, 6.6], target: [0.8, 0.2, ZF - 1] } },
       osfp: { pos: [0.7, 0.4, ZF - 0.2], view: { pos: [1.6, 1.4, 6.8], target: [0.9, 0.2, ZF - 0.3] } },
       dpu: { pos: [-0.35, 0.5, ZF - 1.0], view: { pos: [-1.4, 2.0, 6.4], target: [-0.35, 0.2, ZF - 1.0] } },
-      gpu: { pos: [gpus[3][0], 0.2, gpus[3][1]], view: { pos: [gpus[3][0] + 1.5, 2.0, gpus[3][1] + 1.8], target: [gpus[3][0], 0.05, gpus[3][1]] } },
+      gpu: gpuClose,
     },
     update(t) { nvlFans.update(t); leds.update(t); if (shimmer) shimmer.update(t); },
   };

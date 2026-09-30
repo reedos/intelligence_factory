@@ -24,17 +24,20 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
  const top=texMat(dieTex(),{rough:.22,metal:.3}),labels=new Map();
  // One material per label: the eight CX9 packages share one texture.
  const labelMat=label=>{if(!labels.has(label))labels.set(label,texMat(pkgTex(label),{rough:.4}));return labels.get(label);};
- const packageAt=(name,x,z,w,d,label,lid)=>{
+ const packageAt=(name,x,z,w,d,label,lid,interposer)=>{
   N.box(w*.92,.024,d*.92,MAT.black,x,.1,z);                                   // ball field / socket under the substrate
   S.box(w,.055,d,MAT.pcbBlack,x,.14,z);
-  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w*.85,.025,d*.80),[MAT.silicon,MAT.silicon,label?labelMat(label):top,MAT.silicon,MAT.silicon,MAT.silicon]);
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w*.85,.025,d*.80),[MAT.silicon,MAT.silicon,label?labelMat(label):interposer?MAT.silicon:top,MAT.silicon,MAT.silicon,MAT.silicon]);
   mesh.name=name;mesh.position.set(x,.185,z);scene.add(mesh);
   if(lid)S.box(w*.46,.014,d*.44,MAT.nickel,x+w*.12,.205,z-d*.1);    // small stiffener lid; the label corner stays visible
  };
  // Representative VRM row: inductors with bright caps and power stages beside them.
  const vrmRow=(x0,z,n,pitch,inward)=>{for(let k=0;k<n;k++){const x=x0+k*pitch;S.box(.1,.07,.09,MAT.inductor,x,.124,z);N.box(.072,.012,.065,MAT.alu,x,.163,z);N.box(.06,.012,.05,MAT.black,x,.094,z+inward*.085);}};
  const capRing=(x,z,w,d)=>{for(let k=0;k<8;k++){const u=-w/2+(k+.5)*w/8;for(const s of [-1,1])N.box(.018,.014,.012,MAT.beige,x+u,.095,z+s*d/2);}};
- gp.forEach(([x,z],i)=>{packageAt(`Rubin GPU ${i+1}`,x,z,.83,.95);for(const dx of [-.29,.29])for(const dz of [-.32,-.11,.11,.32]){N.box(.13,.05,.13,MAT.hbm,x+dx,.21,z+dz);}
+ // Rubin GPU: two reticle-size compute dies side by side on the interposer,
+ // four HBM4 stacks along each long edge (die size and spacing representative).
+ gp.forEach(([x,z],i)=>{packageAt(`Rubin GPU ${i+1}`,x,z,.83,.95,null,false,true);
+  for(const dx of [-.105,.105]){const die=new THREE.Mesh(new THREE.BoxGeometry(.19,.02,.66),[MAT.silicon,MAT.silicon,top,MAT.silicon,MAT.silicon,MAT.silicon]);die.name=`Rubin GPU ${i+1} compute die`;die.position.set(x+dx,.2075,z);scene.add(die);}for(const dx of [-.29,.29])for(const dz of [-.32,-.11,.11,.32]){N.box(.13,.05,.13,MAT.hbm,x+dx,.21,z+dz);}
   vrmRow(x-.36,z-.66,7,.12,1);vrmRow(x-.36,z+.66,7,.12,-1);capRing(x,z,.9,1.08);});
  cp.forEach(([x,z],i)=>{
   packageAt(`Vera CPU ${i+1}`,x,z,.75,.77,'VERA',true);
@@ -106,8 +109,9 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
  // Small service IO remains visibly distinct from optical ports.
  for(const x of [-.28,-.10,.10,.28]){S.box(.12,.08,.10,MAT.darkSteel,x,.16,4.35);N.box(.09,.05,.018,MAT.black,x,.16,4.41);}
  gp.forEach(([x,z],i)=>{
+ // Core power runs from both VRM rows into the substrate edge, below the die and HBM tops.
   flows.push(flow([[Math.sign(x)*1.5,.28,-4.02],[x,.28,-3.35],[x,.25,z]],'bus12',{count:10,speed:.8,size:.028,trailR:.009}));
-  for(const side of [-1,1])flows.push(flow([[x+side*.40,.24,z],[x+side*.15,.24,z]],'core',{count:4,speed:.35,size:.018,trail:false}));
+  for(const side of [-1,1])for(const dx of [-.2,.2])flows.push(flow([[x+dx,.125,z+side*.6],[x+dx,.125,z+side*.4]],'core',{count:3,speed:.35,size:.018,trail:false}));
   dataFlows.push(flow([[x,.29,z-.25],[nvX[i],.31,-3.75],[nvX[i],.31,-4.35]],'nvl',{count:10,speed:.9,size:.03,trailR:.01}));
   // NVIDIA SuperPOD RA Figure 2: NIC PCIe is rooted at Vera, not a
   // direct GPU-to-NIC trace. Each CPU serves its four CX9 endpoints.
