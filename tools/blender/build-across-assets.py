@@ -18,7 +18,7 @@ dark=mat('Graphite recess',(.035,.055,.075),.4,.4)
 steel=mat('Brushed structural steel',(.3,.38,.45),.75,.34)
 concrete=mat('Satin concrete',(.38,.40,.42),.05,.72)
 glass=mat('Photovoltaic glazing',(.015,.07,.12),.55,.22)
-names=['MAP_SURFACE','GAS_PLANT','NUCLEAR_PLANT','WIND_MAST','WIND_ROTOR','SOLAR_ROW','SOLAR_SKID','SOLAR_ROAD','GRID_PYLON','MAP_SUBSTATION','HUT_SITE','TERMINAL_TRIM']
+names=['MAP_SURFACE','GAS_PLANT','NUCLEAR_PLANT','WIND_MAST','WIND_ROTOR','SOLAR_ROW','SOLAR_SKID','SOLAR_ROAD','GRID_PYLON','HUT_SITE','TERMINAL_TRIM']
 groups={}
 for n in names:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
@@ -215,39 +215,9 @@ for y,w in [(4.5,3.2),(6,4)]:
    if k==0 and w==4:x=sx*1.6
    beam('Insulator string',(x,y,0),(x,y-.7,0),.08,glassIns,g)
 for sx in [-1,1]:beam('Shield-wire peak',(sx*.22,6,0),(sx*.8,7.1,0),.06,galv,g)
-# Campus substation symbol: where the regional HV lines end, beside each campus
-# plinth. A representative yard (gantry, two step-down transformers, control
-# house, fence), not any one campus's single-line diagram. Origin = yard center;
-# the incoming lines land on the gantry at (-4.5, 6, 0).
-g='MAP_SUBSTATION'
+# The regional HV lines now end at the substation yard built into the campus
+# catalog's MAP_CAMPUS symbol, so this file no longer authors its own.
 gravel=mat('Crushed rock yard',(.13,.14,.15),0,.95)
-porcelain=mat('Bushing porcelain',(.5,.36,.26),.05,.35)
-tank=steel
-hvbus=mat('Energized bus glow',(.71,.61,1),0,.5,4.5)
-box('Substation gravel pad',(0,.1,0),(15,.2,17),gravel,g,.05)
-for z in [-8.3,8.3]:box('Yard fence rail',(0,1.05,z),(14.6,.08,.08),steel,g,.0)
-for x in [-7.3,7.3]:box('Yard fence rail',(x,1.05,0),(.08,.08,16.6),steel,g,.0)
-for i in range(8):
- for z in [-8.3,8.3]:box('Yard fence post',(-7.3+i*14.6/7,.6,z),(.1,1,.1),steel,g,.0)
- for x in [-7.3,7.3]:box('Yard fence post',(x,.6,-8.3+i*16.6/7),(.1,1,.1),steel,g,.0)
-# dead-end gantry: two lattice posts and a crossbeam carrying three phases
-for z in [-4,4]:
- for dx in [-.35,.35]:
-  for dz in [-.35,.35]:beam('Gantry leg',(-4.5+dx,.2,z+dz),(-4.5+dx*.5,7,z+dz*.5),.07,steel,g)
- for y in [3,6]:beam('Gantry lacing',(-4.85,y-1.3,z-.3),(-4.3,y,z+.3),.04,steel,g)
-box('Gantry crossbeam',(-4.5,7,0),(.4,.35,8.8),steel,g,.04)
-for z in [-2.6,0,2.6]:
- cyl('Strain insulator',(-4.5,6.45,z),.14,1,porcelain,g,10)
- beam('Phase conductor drop',(-4.5,5.9,z),(1.2,5.3,z),.06,hvbus,g)
-beam('Rigid HV bus',(1.2,5.3,-5.3),(1.2,5.3,5.3),.09,hvbus,g)
-# two step-down transformers with radiator banks and HV bushings
-for z in [-4.2,4.2]:
- box('Transformer tank',(2.2,1.85,z),(4.2,3.3,3.2),tank,g,.12)
- box('Conservator tank',(2.2,3.95,z-1),(3,.7,.7),tank,g,.25)
- for i in range(5):box('Radiator fin bank',(0.6+i*.8,1.7,z+1.95),(.5,2.6,.7),tank,g,0)
- for dz in [-.9,0,.9]:cyl('HV bushing',(1.2,4.45,z+dz*.9),.16,1.9,porcelain,g,10)
-box('Control house',(4.4,1.3,0),(2.6,2.2,4.6),pearl,g,.12)
-box('Control house roof',(4.4,2.5,0),(2.9,.2,4.9),steel,g,.05)
 # Amplifier hut site dressing, placed with each shared MAP_HUT shelter: a gravel
 # apron and a chain-link fence around it, a wall-pack HVAC unit on the -x end, a
 # door lamp and a small roof beacon. Representative, not one carrier's standard.

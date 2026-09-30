@@ -260,18 +260,17 @@ export function build({ quality, model, state = {} }) {
   const roofGlow = glowMat('#ffd49a', 1.35);
   const iconRoof = new THREE.MeshStandardMaterial({ color: 0x58687b, roughness: .42, metalness: .55 });
   const iconTrim = new THREE.MeshStandardMaterial({ color: 0xa5b6c4, roughness: .32, metalness: .7 });
-  // Night light on every campus symbol, home or remote: a warm apron at the plinth edge, lit roof edges and a
-  // clerestory band, and a soft ground halo like the light a large site throws in satellite night imagery.
-  // Lighting only; the hall count and footprint stay the shared representative symbol.
+  // Night light on every campus symbol, home or remote: a warm apron at the plinth edge and a soft ground halo
+  // like the light a large site throws in satellite night imagery. The authored MAP_CAMPUS symbol carries its own
+  // eave lamps, clerestory bands and substation yard, so only the apron and halo are added here.
   const apronHome = glowMat('#ffb14e', 0.5), apronOther = glowMat('#ffb14e', 0.32);
-  const clerestory = glowMat('#ffd49a', 1.2);
-  const halos = [], substations = [];
-  // where the regional HV lines land: the gantry of the substation symbol beside each campus plinth
-  const gantry = ([x, z], k) => [x - 30.5 * k, 6 * k, z];
+  const halos = [], campusSymbols = [];
+  // where the regional HV lines land: the gantry beam of the substation yard at the -X edge of each campus symbol
+  // (MAP_CAMPUS local x -23.6, beam top 4.9)
+  const gantry = ([x, z], k) => [x - 23.6 * k, 4.9 * k, z];
   const campus = ([x, z], main) => {
     const k = main ? 1 : 0.85;
     halos.push([x, z, (main ? 150 : 125) * k, main ? 1 : 0.8]);
-    substations.push(mtx(x - 26 * k, 0, z, 0, k));
     // Local heat rejection on exaggerated campus icons, not regional heat
     // transport, exhaust specifications or a quantified thermal simulation.
     for (const dz of [-6, 6]) {
@@ -281,12 +280,8 @@ export function build({ quality, model, state = {} }) {
       heatFlows.push(heat); scene.add(heat.group);
     }
     if (authored) {
-      scene.add(campusCatalogInstances('MAP_CAMPUS', [mtx(x, 0, z, 0, k)]));
+      campusSymbols.push(mtx(x, 0, z, 0, k));
       S.slab(40 * k, 0.3, 32 * k, main ? apronHome : apronOther, x, 0.05, z);
-      for (const dz of [-6, 6]) {
-        for (const edge of [-1, 1]) S.box(22 * k, .3 * k, .3 * k, roofGlow, x + 2 * k, 5.95 * k, z + (dz + edge * 4.05) * k);
-        S.box(22 * k, .45 * k, .1 * k, clerestory, x + 2 * k, 4.3 * k, z + (dz - 4.09) * k);
-      }
       return;
     }
     rbox(S, 34 * k, 0.6, 26 * k, MAT.concreteDark, x, 0.3, z, { r: 0.05 });
@@ -307,7 +302,8 @@ export function build({ quality, model, state = {} }) {
   campus(H, true);
   others.forEach(p => campus(world(p.site.lon, p.site.lat), false));
   scene.add(S.build({ cast: false }));
-  if (authored) power.add(acrossAssetInstances('MAP_SUBSTATION', substations));
+  // every campus symbol, home and remote, in one instanced mesh per material
+  if (authored) scene.add(campusCatalogInstances('MAP_CAMPUS', campusSymbols));
   {
     const tex = radialTex();
     const halo = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
