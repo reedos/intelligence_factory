@@ -193,7 +193,7 @@ describe('Blender optical module integration', () => {
       const hotspot = (hotspots as Record<string, any>)[id];
       // The camera frames the anchor; a pin may step to a free corner of its part.
       expectPoint(hotspot.view.focus, expected, id);
-      expect(new THREE.Vector3(...hotspot.pos).distanceTo(new THREE.Vector3(...expected)), id).toBeLessThan(0.4);
+      expect(new THREE.Vector3(...hotspot.pos).distanceTo(new THREE.Vector3(...expected)), id).toBeLessThan(0.75);
     }
   });
 

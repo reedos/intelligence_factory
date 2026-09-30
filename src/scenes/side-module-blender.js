@@ -15,9 +15,11 @@ const EXPLODED = {
 };
 // Pin offsets from each exported anchor, cm. The driver pin sits at the driver's
 // front-left corner (clear of its DRV marking) and the laser pin at the front of the
-// laser row, so the two no longer touch at overview distance.
+// laser row, so the two no longer touch at overview distance. The DSP pin sits on the
+// substrate margin in front of the die, off the die's printed marking.
 const PIN_OFFSET = {
   driver: [-0.22, 0, 0.24], lasers: [0.05, 0, 0.2], tia: [-0.2, 0, -0.23],
+  dsp: [0.3, -0.03, 0.63],
 };
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
@@ -350,6 +352,13 @@ export function build({ quality, state }) {
     const pin = PIN_OFFSET[name] || [0, 0, 0];
     hs[name] = { pos: p.map((v, i) => v + pin[i]), view: componentView(p, offset, size) };
   }
+  // Heat mode frames the DSP with its gap pad above it: the aim rises between the two
+  // so the pad sits in clear space below the HUD hint, not under it. The pin and the
+  // focus stay on the DSP.
+  const dspHeat = { ...hs.dsp, view: (() => {
+    const focus = hs.dsp.view.focus, target = [focus[0], focus[1] + 0.55, focus[2]];
+    return { pos: [target[0] - 1.0, target[1] + 1.1, target[2] + 3.4], target, focus: [...focus], detailSize: [2.35, 1.3, 1.8] };
+  })() };
   setLpo(false);
   scene.userData.blenderModule = { version: metadata.version, units: 'cm', source: 'osfp-module-runtime.glb',
     scope: 'Representative single-DSP implementation: eight 200G lanes per direction, split across two 800G optical ports. Exterior informed by public OSFP photographs. Exploded spacing; internals are illustrative.' };
@@ -360,7 +369,7 @@ export function build({ quality, state }) {
       portrait: { pos: [6.2, 11.5, 10], target: [1.1, 2.1, 0.2] } },
     hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers },
     dataHotspots: { fingers: hs.fingers, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers, mzm: hs.mzm, mpo: hs.mpo, pd: hs.pd, tia: hs.tia },
-    heatHotspots: { dsp: hs.dsp, shell: hs.shell },
+    heatHotspots: { dsp: dspHeat, shell: hs.shell },
     variant: {
       get lpo() { return lpo; }, setLpo,
       intro(mode) {
