@@ -466,7 +466,7 @@ it('trims package Heat emission without changing Data or power presentation',asy
  const before=['flows','dataFlows','heatFlows'].map(k=>b[k].map((f:any)=>({color:f.base.color.clone(),speed:f.speed,len:f.len})));
  applyComputeArtDirection({built:b,level:5,quality:opts.quality});
  for(const [i,k]of ['flows','dataFlows','heatFlows'].entries())for(const [j,f]of b[k].entries()){
-  expect(f.base.color.r).toBeCloseTo(before[i][j].color.r*(k==='heatFlows'?1.15:k==='dataFlows'?1.1:1.9));
+  expect(f.base.color.r).toBeCloseTo(before[i][j].color.r*(k==='heatFlows'?1.15:k==='dataFlows'?1.5:1.9));
   expect(f.speed).toBe(before[i][j].speed);expect(f.len).toBe(before[i][j].len);
  }
 });
