@@ -222,7 +222,9 @@ export function build({ quality, state, authoredHardware = false }) {
   for (const h of heads) {
     // On the package top: marks are small laser-etch bars, so the pin never sits over printed text.
     const focus = [h.chip?.x ?? h.x, h.chip ? cardTop + h.chip.h + 0.04 : 1.12, zc];
-    hs[h.kind] = { pos: focus };
+    // The middle pin sits on the card just ahead of its redriver, so in the overview its caption runs on its own
+    // baseline instead of into the AEC pin beside it. Views still frame the chip itself.
+    hs[h.kind] = { pos: h.kind === 'acc' ? [focus[0], cardTop + 0.02, zc + h.chip.d / 2 + 0.75] : focus };
     hs[h.kind].view = componentView(focus, [1.3, 1.55, 3.0], h.kind === 'dac' ? [2.25, .45, 3.1] : h.kind === 'acc' ? [1.8, .45, 1.9] : [2.4, .5, 2.0]);
     if (h.chip) heatHotspots[h.kind] = hs[h.kind];
   }
