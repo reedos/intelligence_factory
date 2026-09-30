@@ -817,8 +817,8 @@ function buildNVL({ quality, model, state }) {
   // Coolant runs as a thin line along the inboard edge of each manifold's rear
   // face (the NVLink cartridges leave no room beside it), so most of the
   // stainless body and its couplers stay visible behind the motion.
-  const mIn = [mX[0] + 0.015, mX[1] - 0.015], mFz = mZ - 0.03;
-  const coolRail = { count: 22, speed: 0.25, size: 0.005, k: 1.5, opacity: 0.8, trail: false };
+  const mIn = [mX[0] + 0.015, mX[1] - 0.015], mFz = mZ - 0.045;          // clear of the face by 1.6 x the heat core radius
+  const coolRail = { count: 26, speed: 0.25, size: 0.005, k: 1.5, opacity: 0.8, trail: false };
   flows.push(flow([[mIn[0], bbBot, mFz], [mIn[0], bbTop + 0.05, mFz]], 'cool', coolRail));
   flows.push(flow([[mIn[1], bbTop + 0.05, mFz], [mIn[1], bbBot, mFz]], 'warm', coolRail));
   // The illustrated system is floor-fed: supply rises, return falls in both layers.
@@ -859,11 +859,11 @@ function buildNVL({ quality, model, state }) {
     scene.add(haze.points);
   }
 
-  // Rear three-quarter on the cartridges: their side windows and blind-mate
-  // housings read beside the busbar instead of a flat rear elevation.
   // Rear three-quarter from inside the rack: the stainless body, its couplers
   // and the thin coolant line along its inboard edge, clear of the busbar.
   const manifoldHot = { pos: [mX[1], trayY(6), mZ], view: componentView([mX[1] - 0.01, trayY(5), mZ], [-0.3, 0.12, -0.62], [0.15, 0.36, 0.15]) };
+  // Rear three-quarter on the cartridges: their side windows and blind-mate
+  // housings read beside the busbar instead of a flat rear elevation.
   const spineHot = { pos: [0.2, trayY(18), cartZ], view: componentView([0.1, trayY(16), ZB + 0.06], [0.85, 0.3, -0.95], [0.5, 0.75, 0.25]) };
   return {
     scene, flows,
