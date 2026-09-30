@@ -92,6 +92,16 @@ function buildPackage({ quality, state, model }) {
   // layer heights (exploded)
   const Y = { balls: 0.068, sub: 1.1, bumps: 2.05, inter: 2.3, dies: 3.2, lid: 4.7 };   // lid: the lifted cooler base (no lid drawn)
   const SUB = 8.4;
+  const dots = (pitch, r, bg, dot) => canvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = bg; g.fillRect(0, 0, w, h); g.fillStyle = dot;
+    for (let y = pitch / 2; y < h; y += pitch) for (let x = pitch / 2; x < w; x += pitch) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
+  });
+  // Builder merges drop UVs, so textured slabs are their own meshes; UVs scale with size so the dot pitch stays fixed.
+  const texBox = (w, h, d, mat, x, y, z, cell) => {
+    const g = new THREE.BoxGeometry(w, h, d), uv = g.attributes.uv;
+    for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * w / cell, uv.getY(k) * d / cell);
+    const m = new THREE.Mesh(g, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; scene.add(m); return m;
+  };
 
   // board beneath, cut square
   S.box(12, 0.16, 12, MAT.pcb, 0, -0.08, 0);
@@ -106,19 +116,36 @@ function buildPackage({ quality, state, model }) {
   balls.castShadow = true; scene.add(balls);
   // organic substrate with decoupling capacitors
   S.box(SUB, 0.25, SUB, MAT.pcbBlack, 0, Y.sub, 0);
-  S.box(SUB - 0.1, 0.01, SUB - 0.1, MAT.pcb, 0, Y.sub + 0.13, 0);
-  // Four edge rows of representative surface-mount decoupling capacitors.
-  // Keep the original 90 count; the orthogonal placement and plated terminals
-  // read as assembled electronics rather than a decorative circular necklace.
-  for (let i = 0; i < 90; i++) {
-    const edge = Math.floor(i / 23), k = i % 23, a = (k - 11) * 0.29;
-    const x = edge < 2 ? a : (edge === 2 ? -3.64 : 3.64);
-    const z = edge < 2 ? (edge === 0 ? -3.64 : 3.64) : a;
-    const rotated = edge >= 2;
-    N.box(rotated ? 0.07 : 0.12, 0.06, rotated ? 0.12 : 0.07, MAT.beige, x, Y.sub + 0.16, z);
-    for (const s of [-1, 1]) N.box(rotated ? 0.075 : 0.025, 0.065, rotated ? 0.025 : 0.075, finish.satin,
-      x + (rotated ? 0 : s * 0.05), Y.sub + 0.16, z + (rotated ? s * 0.05 : 0));
-  }
+  // Solder-mask top: dark green-black with a faint via field and trace bundles, satin sheen.
+  const maskTex = canvasTex(512, 512, (g, w, h) => {
+    g.fillStyle = '#0f2420'; g.fillRect(0, 0, w, h);
+    let seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    g.strokeStyle = 'rgba(40,78,66,0.55)'; g.lineWidth = 3;
+    for (let k = 0; k < 7; k++) { const y0 = rnd() * h; g.beginPath(); g.moveTo(0, y0); g.lineTo(w * 0.4, y0); g.lineTo(w * 0.55, y0 + 60); g.lineTo(w, y0 + 60); g.stroke(); }
+    g.fillStyle = 'rgba(120,150,120,0.5)';
+    for (let k = 0; k < 900; k++) { g.beginPath(); g.arc(rnd() * w, rnd() * h, 1.6, 0, Math.PI * 2); g.fill(); }
+  });
+  const mask = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: maskTex, roughness: 0.45, metalness: 0.05, clearcoat: 0.3, clearcoatRoughness: 0.4 }); mask.name = 'Substrate solder mask';
+  texBox(SUB - 0.1, 0.01, SUB - 0.1, mask, 0, Y.sub + 0.13, 0, 2.8);
+  // Representative decoupling capacitors: clusters of two case sizes (drawn
+  // oversize) in the ring opening next to the dies and HBM,
+  // tan ceramic bodies with bright tin terminals (package-stiffener-drawing).
+  const mlcc = new THREE.MeshStandardMaterial({ color: 0xa58c6a, roughness: 0.6, metalness: 0.05 }); mlcc.name = 'MLCC ceramic body';
+  const tin = new THREE.MeshStandardMaterial({ color: 0xd8dde2, roughness: 0.28, metalness: 0.95 }); tin.name = 'MLCC tin terminal';
+  const cap = (x, z, big, alongX) => {
+    const L = big ? 0.13 : 0.085, W = big ? 0.07 : 0.045, H = big ? 0.06 : 0.04, t = L * 0.2;
+    N.box(alongX ? L - 2 * t : W, H, alongX ? W : L - 2 * t, mlcc, x, Y.sub + 0.135 + H / 2, z);
+    for (const sgn of [-1, 1]) N.box(alongX ? t : W + 0.004, H + 0.004, alongX ? W + 0.004 : t, tin,
+      x + (alongX ? sgn * (L / 2 - t / 2) : 0), Y.sub + 0.135 + H / 2, z + (alongX ? 0 : sgn * (L / 2 - t / 2)));
+  };
+  const cluster = (cx, cz, alongX) => {
+    for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) {
+      const big = r === 0, du = (c - 1.5) * (big ? 0.17 : 0.13), dv = (r - 0.5) * 0.19;
+      cap(cx + (alongX ? du : dv), cz + (alongX ? dv : du), big, !alongX);
+    }
+  };
+  for (const zs of [-1, 1]) for (const cx of [-2.2, 0, 2.2]) cluster(cx, zs * 3.38, true);
+  for (const xs of [-1, 1]) for (const cz of [-1.8, 0, 1.8]) cluster(xs * 3.4, cz, false);
   for (const side of [-1, 1]) for (const dy of [-0.08, 0, 0.08]) {
     N.box(SUB - 0.08, 0.008, 0.008, finish.laminate, 0, Y.sub + dy, side * (SUB / 2 + 0.004));
     N.box(0.008, 0.008, SUB - 0.08, finish.laminate, side * (SUB / 2 + 0.004), Y.sub + dy, 0);
@@ -137,16 +164,6 @@ function buildPackage({ quality, state, model }) {
   // and placement are representative (cowos-bridge-drawing).
   const cowosL = A.id !== 'h100';
   const IW = twin ? 6.2 : 6.0, ID = twin ? 5.9 : 4.0;
-  const dots = (pitch, r, bg, dot) => canvasTex(256, 256, (g, w, h) => {
-    g.fillStyle = bg; g.fillRect(0, 0, w, h); g.fillStyle = dot;
-    for (let y = pitch / 2; y < h; y += pitch) for (let x = pitch / 2; x < w; x += pitch) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
-  });
-  // Builder merges drop UVs, so textured slabs are their own meshes; UVs scale with size so the dot pitch stays fixed.
-  const texBox = (w, h, d, mat, x, y, z, cell) => {
-    const g = new THREE.BoxGeometry(w, h, d), uv = g.attributes.uv;
-    for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * w / cell, uv.getY(k) * d / cell);
-    const m = new THREE.Mesh(g, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; scene.add(m); return m;
-  };
   const interMat = cowosL
     ? new THREE.MeshStandardMaterial({ color: 0x1c1a1a, roughness: 0.5, metalness: 0.1 })
     : new THREE.MeshStandardMaterial({ color: 0x8e96a2, map: dots(16, 2.2, '#b8bec8', '#8a8f98'), roughness: 0.15, metalness: 0.55 });
