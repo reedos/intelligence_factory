@@ -216,6 +216,40 @@ function mgmtHardware(N, y, z, heavy, seed = 3) {
   });
 }
 
+// Unused rack units: one 1U brush-strip cable manager above the top switch,
+// then individual 1U snap-in blanking panels, not one tall sheet. Panel count
+// fills whatever space is left; styling is representative (ASSUMPTIONS
+// 'rack-elevation-fill').
+function blankTex(brush) {
+  return canvasTex(1024, 96, (g, w, h) => {
+    g.fillStyle = '#1b1f24'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#07080a'; g.fillRect(0, 0, w, 3); g.fillRect(0, h - 3, w, 3);
+    g.fillStyle = '#2a3037'; g.fillRect(0, 3, w, 2);
+    if (brush) {
+      g.fillStyle = '#050607'; g.fillRect(90, 30, w - 180, 36);
+      const r = rng(21); g.strokeStyle = '#2c3137'; g.lineWidth = 1;
+      for (let x = 92; x < w - 92; x += 2) { g.beginPath(); g.moveTo(x, 31); g.lineTo(x + (r() - 0.5) * 3, 48 - r() * 4); g.stroke(); g.beginPath(); g.moveTo(x, 65); g.lineTo(x + (r() - 0.5) * 3, 48 + r() * 4); g.stroke(); }
+    } else {
+      g.fillStyle = '#23282e'; for (const y of [30, 60]) g.fillRect(40, y, w - 80, 3);     // pressed stiffening ribs
+    }
+    for (const x of [14, w - 42]) { g.fillStyle = '#3a4149'; g.fillRect(x, 26, 28, 44); g.fillStyle = '#0c0e10'; g.fillRect(x + 8, 34, 12, 28); }   // snap tabs
+  });
+}
+function blanking(scene, N, y0, y1, z, w) {
+  const n = Math.floor((y1 - y0) / U + 0.001);
+  if (n < 1) return;
+  const side = new THREE.MeshStandardMaterial({ color: 0x15181c, roughness: 0.7, metalness: 0.2 });
+  const mats = [0, 1].map(k => new THREE.MeshStandardMaterial({ map: blankTex(k === 0), roughness: 0.68, metalness: 0.25 }));
+  mats[0].name = 'Brush-strip cable manager'; mats[1].name = 'Snap-in blanking panel';
+  const brush = new THREE.Mesh(new THREE.BoxGeometry(w, U * 0.97, 0.012), [side, side, side, side, mats[0], side]);
+  brush.position.set(0, y0 + U / 2, z); scene.add(brush);
+  const panels = new THREE.InstancedMesh(new THREE.BoxGeometry(w, U * 0.97, 0.008), [side, side, side, side, mats[1], side], n - 1);
+  for (let k = 1; k < n; k++) panels.setMatrixAt(k - 1, mtx(0, y0 + (k + 0.5) * U, z - 0.002));
+  panels.castShadow = panels.receiveShadow = true; scene.add(panels);
+  // back plate behind the panels closes any sliver left over at the top
+  N.box(w, y1 - y0, 0.004, MAT.black, 0, (y0 + y1) / 2, z - 0.012);
+}
+
 // Seeded generator: every build, and the Blender export, draws identical surface detail.
 function rng(seed) { let s = seed >>> 0; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296; }
 
@@ -371,7 +405,7 @@ function buildHGX({ quality, state }) {
   const mg = trayTex('mgmt');
   const mgm = new THREE.Mesh(new THREE.BoxGeometry(sw, U * 0.94, 0.5), [side, side, side, side, new THREE.MeshStandardMaterial({ map: mg, roughness: 0.5, metalness: 0.35 }), side]);
   mgm.position.set(0, topY + U / 2, ZF - 0.07 - 0.25); scene.add(mgm);
-  S.box(sw, H - 0.05 - topY - U, 0.01, MAT.rackFace, 0, (topY + U + H - 0.05) / 2, ZF - 0.07);
+  blanking(scene, N, topY + U, H - 0.05, ZF - 0.07 + 0.001, sw);
   mgmtHardware(N, topY + U / 2, ZF - 0.07, !quality.mobile);
 
   // the pulled server, lid off: fans at the front, eight heat sinks, the CPU tray behind
@@ -515,7 +549,7 @@ function buildNVL({ quality, model, state }) {
   }
   // blanking panels above
   const topUsed = trayY(layout.length - 1) + U / 2;
-  S.box(trayW, H - 0.05 - topUsed, 0.01, MAT.rackFace, 0, (topUsed + H - 0.05) / 2, ZF - 0.07);
+  blanking(scene, N, topUsed, H - 0.05, ZF - 0.07 + 0.001, trayW);
   // tray ears, and a proud handle nub on every real tray so the front reads as serviceable hardware, not a picture
   layout.forEach((k, i) => {
     if (i === PULLED || i === SWITCH_PULLED) return;
