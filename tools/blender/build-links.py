@@ -562,7 +562,10 @@ def coherent():
     bpy.context.view_layer.objects.active=cap; bpy.ops.object.modifier_apply(modifier=pocket.name)
     bpy.data.objects.remove(cut,do_unlink=True)
     reweight(cap)
-    box('Nano ITLA label recess',(ix-.05,1.982,0),(1.65,.002,.67),m['shell'],0)
+    # A matte printed label in the recess: a polished metal floor here caught a
+    # glassy specular hotspot. Ink bars are printed on it.
+    m['label']=mat('Matte identification label',(.40,.42,.43),0,.82)
+    box('Nano ITLA label recess',(ix-.05,1.982,0),(1.65,.002,.67),m['label'],0)
     for j,w in enumerate([.018,.03,.014,.035,.02,.014,.026,.02,.038,.015,.025]):
         box('Nano ITLA identification bar',(ix-.65+j*.065,1.9835,.13),(w,.001,.20),m['mark'],0)
     for x in [ix-1.11,ix+1.11]:
