@@ -119,18 +119,25 @@ function buildPackage({ quality, state, model }) {
   // Host board under the package: solder mask with the BGA land pattern (gold
   // pads on the ball grid), a via field and trace bundles fanning out, darkening
   // toward the cut edge. Representative host board.
-  const boardTex = canvasTex(1024, 1024, (g, w, h) => {
+  const boardTex = canvasTex(2048, 2048, (g, w, h) => {
     const px = w / 12, c = w / 2;
     g.fillStyle = '#0d2a26'; g.fillRect(0, 0, w, h);
     let seed = 9; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    g.strokeStyle = 'rgba(46,92,80,0.6)'; g.lineWidth = 2;
-    for (let k = 0; k < 64; k++) {                                     // trace bundles leaving the BGA field
-      const a = (Math.floor(k / 16) * Math.PI / 2) + (k % 16 - 7.5) * 0.035, r0 = 4.1 * px, r1 = 6.2 * px;
-      const ox = Math.cos(a), oz = Math.sin(a);
-      g.beginPath(); g.moveTo(c + ox * r0, c + oz * r0); g.lineTo(c + ox * (r0 + 0.5 * px) + oz * (k % 16 - 7.5) * 3, c + oz * (r0 + 0.5 * px) - ox * (k % 16 - 7.5) * 3); g.lineTo(c + ox * r1 + oz * (k % 16 - 7.5) * 9, c + oz * r1 - ox * (k % 16 - 7.5) * 9); g.stroke();
+    // Trace fan-out on every side of the BGA field, the outer rows jogging 45
+    // degrees toward the corners so the corners carry routing too.
+    // Copper under the green mask reads lighter than the bare laminate; each
+    // trace ends on a tented via, the escape pattern a BGA breakout uses.
+    g.strokeStyle = 'rgba(80,150,124,0.78)'; g.lineWidth = w / 560;
+    for (let side = 0; side < 4; side++) for (let k = 0; k < 24; k++) {
+      const t = (k - 11.5) / 11.5, along = t * 3.6 * px, r0 = 3.95 * px, r1 = 6.0 * px, jog = t * Math.abs(t) * 1.3 * px;
+      const pt = (r, a) => side === 0 ? [c + r, c + a] : side === 1 ? [c - r, c - a] : side === 2 ? [c - a, c + r] : [c + a, c - r];
+      g.beginPath(); g.moveTo(...pt(r0, along)); g.lineTo(...pt(r0 + 0.35 * px, along)); g.lineTo(...pt(r0 + 0.35 * px + Math.abs(jog), along + jog)); g.lineTo(...pt(r1, along + jog)); g.stroke();
+      const [vx, vy] = pt(r1, along + jog);
+      g.fillStyle = 'rgba(150,196,164,0.9)'; g.beginPath(); g.arc(vx, vy, 0.05 * px, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(12,30,26,1)'; g.beginPath(); g.arc(vx, vy, 0.022 * px, 0, Math.PI * 2); g.fill();
     }
     g.fillStyle = 'rgba(110,140,120,0.5)';
-    for (let k = 0; k < 500; k++) { const x = rnd() * w, y = rnd() * h; if (Math.max(Math.abs(x - c), Math.abs(y - c)) > 4.0 * px) { g.beginPath(); g.arc(x, y, 1.8, 0, Math.PI * 2); g.fill(); } }
+    for (let k = 0; k < 500; k++) { const x = rnd() * w, y = rnd() * h; if (Math.max(Math.abs(x - c), Math.abs(y - c)) > 4.0 * px) { g.beginPath(); g.arc(x, y, 0.018 * px, 0, Math.PI * 2); g.fill(); } }
     for (let i = 0; i < 26; i++) for (let j = 0; j < 26; j++) {          // BGA land pattern, ENIG gold, with a via beside each pad
       const x = c + (-3.75 + i * 0.3) * px, y = c + (-3.75 + j * 0.3) * px;
       g.fillStyle = '#c9a54f'; g.beginPath(); g.arc(x, y, 0.075 * px, 0, Math.PI * 2); g.fill();
@@ -140,7 +147,8 @@ function buildPackage({ quality, state, model }) {
     fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(1, 'rgba(4,8,10,0.92)');
     g.fillStyle = fade; g.fillRect(0, 0, w, h);
   });
-  const boardMat = new THREE.MeshStandardMaterial({ map: boardTex, roughness: 0.5, metalness: 0.12 }); boardMat.name = 'Host board solder mask';
+  boardTex.anisotropy = 8;                                            // the solder-ball camera looks across it at a low angle
+  const boardMat = new THREE.MeshStandardMaterial({ map: boardTex, roughness: 0.6, metalness: 0.08, envMapIntensity: 0.6 }); boardMat.name = 'Host board solder mask';
   texBox(12, 0.16, 12, boardMat, 0, -0.08, 0, 12);
   boardFinish(N, finish, 0, -0.01, 0, 12, 12, 3);
   // BGA balls
@@ -475,7 +483,9 @@ function buildPackage({ quality, state, model }) {
     // Data and heat retain their higher view of silicon and the heat spreader.
     cameraByMode: { power: { pos: [10.5, 4.4, 12], target: [0, 2.1, 0] } },
     hotspots: {
-      balls: { pos: [3.75, .20, 3.75], view: { pos: [7, .6, 7], target: [2.8, .15, 2.8] } },
+      // raised to about 13 degrees: the board's traces and via field read between
+      // the ball rows and the fan-out past the field, still under the substrate edge
+      balls: { pos: [3.75, .20, 3.75], view: { pos: [7.2, 1.6, 7.2], target: [2.8, .15, 2.8] } },
       interposer: { pos: [3.1, Y.inter, 0], view: { pos: [7.5, 4.2, 4.5], target: [1.5, 2.2, 0] } },
       dies: { pos: [d0, Y.dies + 0.1, 0.4], view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
       hbm: hbmHS,
