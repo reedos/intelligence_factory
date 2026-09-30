@@ -194,15 +194,20 @@ def rubin_hardware(m):
 
 def rack_hardware(accel,m):
     u=1
+    # Rack scale only: satin nickel faces up at the studio softbox and bloomed
+    # to white on the pulled trays. A duller satin keeps the parts readable.
+    for key,rough,color in [('shell',.56,(.36,.42,.47)),('bright',.42,(.55,.6,.64))]:
+        p=m[key].node_tree.nodes.get('Principled BSDF');p.inputs['Roughness'].default_value=rough
+        p.inputs['Base Color'].default_value=(*color,1);m[key].diffuse_color=(*color,1)
     # Contoured external stiles and repeating vent relief: no extra chassis or port.
     for x in [-.289,.289]:
         box('Extruded cabinet stile',(x,1.15,.526),(.016,2.12,.04),m['graphite'],u,.005)
         box('Stile polished inner edge',(x,1.15,.548),(.004,2.10,.008),m['bright'],u,.002)
     box('Cast cabinet base',(0,.042,0),(.62,.055,1.09),m['graphite'],u,.014)
-    box('Precision top cap',(0,2.258,0),(.598,.022,1.06),m['shell'],u,.007)
+    box('Black powder-coat top cap',(0,2.258,0),(.598,.022,1.06),m['graphite'],u,.007)
     if accel!='h100':
         for i in range(34):
-            if i in [15,24]:continue
+            if i in [15,24,33]:continue  # pulled trays; the management switch has no tray handles
             y=.12+i*.04445+.022225
             for x in [-.205,.185]:
                 box('Folded service handle',(x,y,.485),(.009,.026,.013),m['bright'],u,.003)

@@ -16,7 +16,14 @@ def enhance(accel,m,box,cylinder,material):
     cap=material('Service ceramic passives',(.12,.14,.15),.2,.56)
     ink=material('Service PCB silkscreen',(.54,.62,.57),.0,.68)
     hose=material('Service coolant hose',(.042,.054,.060),.05,.6)
-    power=material('Service insulated DC harness',(.44,.105,.026),.0,.5)
+    # Black-jacketed DC harness with red/black conductor sleeves at the ends:
+    # an orange jacket read as the 415 V AC legend color (and as coolant hose).
+    power=material('Service insulated DC harness',(.018,.019,.021),.0,.55)
+    pos=material('Service DC positive sleeve',(.42,.035,.03),.0,.5)
+    neg=material('Service DC negative sleeve',(.02,.02,.022),.0,.4)
+    # Brushed, less mirror-like lids: flat polished nickel facing the studio
+    # softbox bloomed to white blocks at the compute and tp cameras.
+    lid=material('Inspection brushed cold plate lid',(.30,.33,.36),.35,.72)
     def b(name,p,d,mat,bevel=.0005):return box('Inspection '+name,p,d,mat,1,bevel)
     def screw(x,y,z,r=.002):
         cylinder('Inspection captive fastener',(x,y,z),r,.0013,m['bright'],1)
@@ -28,8 +35,9 @@ def enhance(accel,m,box,cylinder,material):
     def passives(x,y,z,span,n):
         for i in range(n):
             px=x+(i-(n-1)/2)*span/n
-            b('decoupling body',(px,y,z),(.0032,.0015,.0021),cap,.00025)
-            for s in [-1,1]:b('solder termination',(px+s*.00145,y,z),(.0005,.0016,.00215),m['bright'],0)
+            # 3.2 x 2.1 mm parts cover a pixel or two at the closest camera:
+            # one unbeveled 12-triangle body each (no separate terminations).
+            b('decoupling body',(px,y,z),(.0032,.0015,.0021),cap,0)
     def tube(name,points,r,mat):
         curve=bpy.data.curves.new('Inspection '+name,'CURVE');curve.dimensions='3D'
         curve.resolution_u=6;curve.bevel_depth=r;curve.bevel_resolution=2
@@ -115,7 +123,7 @@ def enhance(accel,m,box,cylinder,material):
         for x,dz,w,d,y in [(x,z,.10,.12,yb+.035) for x,z in plates]+[(x,.26,.07,.07,yb+.026) for x in [-.11,.11]]:
             z=pz+dz
             b('cold plate perimeter seal',(x,y,z),(w*.86,.0016,d*.86),m['dark'])
-            b('milled cold plate crown',(x,y+.0025,z),(w*.80,.0035,d*.80),m['shell'],.0013)
+            b('milled cold plate crown',(x,y+.0025,z),(w*.80,.0035,d*.80),lid,.0013)
             # The original coolant lines at x +/- .02 retain clear space.
             for sx in [-1,1]:
                 for sz in [-1,1]:screw(x+sx*w*.39,y+.0048,z+sz*d*.37,.0022)
@@ -191,5 +199,6 @@ def enhance(accel,m,box,cylinder,material):
                 for k in range(9):b('rear electrical contact',(x-.016+k*.004,sy-.001,sz-.365),(.0015,.009,.004),m['bright'],0)
             tube('switch power harness',[(side*.012,sy+.013,sz-.45),(side*.020,sy+.018,sz-.29),
                 (side*.023,sy+.022,sz+.08),(side*.05,sy+.011,sz+.16)],.004,power)
+            for z,y in [(sz-.43,sy+.015),(sz+.15,sy+.012)]:cylinder('Inspection DC conductor sleeve',(side*.012 if z<sz else side*.048,y,z),.0048,.012,pos if side>0 else neg,1,'z')
             b('switch power input',(side*.012,sy+.008,sz-.45),(.021,.017,.025),m['graphite'])
             b('switch QD block',(side*.185,sy+.019,sz-.445),(.032,.026,.023),m['shell'])
