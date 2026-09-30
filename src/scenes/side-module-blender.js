@@ -10,7 +10,7 @@ import { hardwareBounds, componentView } from '../app/housing-frame.js';
 let cached, pending;
 const CM = 100;
 const EXPLODED = {
-  '01_BASE': [0, 0, 0], '02_BOARD': [0, 1.5, 0], '03_THERMAL': [0, 2.6, 0],
+  '01_BASE': [0, 0, 0], '02_BOARD': [0, 1.5, 0], '03_THERMAL': [0, 2.8, 0],
   '04_COVER': [0, 4, 0], '05_PULL_TAB': [0, 0, 0],
 };
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
@@ -194,7 +194,7 @@ export function build({ quality, state }) {
       mode: 'power', kind: 'power', from: 'dcdc', to: target });
   }
   const dspAnchor = anchorWorld('dsp'), shellAnchor = anchorWorld('shell');
-  const padY = EXPLODED['03_THERMAL'][1] + 0.518;
+  const padY = EXPLODED['03_THERMAL'][1] + 0.456;
   const coverY = EXPLODED['04_COVER'][1] + 0.675, exhaustY = Math.max(shellAnchor[1] + 0.3, 5.6);
   for (let i = 0; i < 6; i++) {
     const x = dspAnchor[0] + (i % 3 - 1) * 0.22, z = dspAnchor[2] + (Math.floor(i / 3) - 0.5) * 0.4;

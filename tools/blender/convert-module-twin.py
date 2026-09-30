@@ -242,6 +242,14 @@ print('FINS REMOVED FACES',removed)
 for k in range(16):
  fin=box('Heat sink fin',(-.0095,.01016,-.00975+k*.0013),(.069,.00568,.0005),M[1],cover,0)
  bevel(fin,.00015,2)
+# Gap pad: one 1.0 mm silicone slab with rounded edges over the 10.3 mm die, replacing
+# the reference's 2.24 mm two-tone block. Thickness and colour are representative.
+pad_group=bpy.data.objects['SHARED_03_THERMAL']
+for o in [c for c in pad_group.children if c.type=='MESH']:bpy.data.objects.remove(o,do_unlink=True)
+pad_mat=M[16];pm=pad_mat.node_tree.nodes.get('Principled BSDF')
+pm.inputs['Base Color'].default_value=(.105,.115,.16,1);pm.inputs['Roughness'].default_value=.85;pad_mat.diffuse_color=(.105,.115,.16,1)
+pad=box('Thermal gap pad',(-.016,.00456,0),(.0108,.0010,.0108),pad_mat,pad_group,0);bevel(pad,.0002,3)
+for f in pad.data.polygons:f.use_smooth=True
 # Receptacles, ferrules and bezel ride with the board, where the old ports sat.
 mpo=bpy.data.objects['PART_MPO']
 for o in [c for c in mpo.children if c.type=='MESH']:

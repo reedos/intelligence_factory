@@ -32,8 +32,36 @@ const FINISHES = [
   [/TX optical paths/i, { metalness: 0, roughness: 0.29, envMapIntensity: 0.6, emissiveIntensity: 0.12 }],
   [/RX optical paths/i, { metalness: 0, roughness: 0.29, envMapIntensity: 0.6, emissiveIntensity: 0.12 }],
   [/Laser carrier paths/i, { metalness: 0, roughness: 0.29, envMapIntensity: 0.6, emissiveIntensity: 0.14 }],
-  [/Thermal interface pad/i, { metalness: 0, roughness: 0.8, envMapIntensity: 0.3 }],
+  [/Thermal interface pad/i, { metalness: 0, roughness: 0.85, envMapIntensity: 0.35 }],
 ];
+
+// Silicone gap pads have a fine orange-peel surface. A tileable canvas normal
+// map adds it without textures in the asset; skipped where no DOM exists (tests).
+function orangePeelNormal() {
+  if (typeof document === 'undefined') return null;
+  const n = 128, h = new Float32Array(n * n);
+  let seed = 7;
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let k = 0; k < 260; k++) {
+    const cx = rand() * n, cy = rand() * n, r = 2 + rand() * 4, a = 0.4 + rand() * 0.6;
+    for (let y = -8; y <= 8; y++) for (let x = -8; x <= 8; x++) {
+      const d = (x * x + y * y) / (r * r);
+      if (d < 3) h[((Math.floor(cy) + y + n) % n) * n + ((Math.floor(cx) + x + n) % n)] += a * Math.exp(-d);
+    }
+  }
+  const c = document.createElement('canvas'); c.width = c.height = n;
+  const g = c.getContext('2d'), img = g.createImageData(n, n), at = (x, y) => h[((y + n) % n) * n + ((x + n) % n)];
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const dx = (at(x + 1, y) - at(x - 1, y)) * 0.9, dy = (at(x, y + 1) - at(x, y - 1)) * 0.9;
+    const l = Math.hypot(dx, dy, 1), i = (y * n + x) * 4;
+    img.data[i] = (-dx / l * 0.5 + 0.5) * 255; img.data[i + 1] = (-dy / l * 0.5 + 0.5) * 255;
+    img.data[i + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(6, 6); t.anisotropy = 4;
+  return t;
+}
 
 /** Apply only to a build-owned clone, never the cached glTF source. */
 export function applyArtDirection({ scene, model, quality = {} }) {
@@ -45,6 +73,10 @@ export function applyArtDirection({ scene, model, quality = {} }) {
       seen.add(material);
       const finish = FINISHES.find(([pattern]) => pattern.test(material.name));
       if (finish) Object.assign(material, finish[1]);
+      if (/Thermal interface pad/i.test(material.name) && !material.normalMap) {
+        const peel = orangePeelNormal();
+        if (peel) { material.normalMap = peel; material.normalScale.set(0.3, 0.3); material.needsUpdate = true; }
+      }
       if (quality.mobile && /Satin nickel aluminium|Machined edge highlights/i.test(material.name)) material.roughness = Math.max(material.roughness, 0.42);
     }
   });
