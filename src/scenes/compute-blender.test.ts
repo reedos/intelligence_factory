@@ -376,6 +376,10 @@ it('rack optics seat on compute units, retain generation port counts and termina
   const links=b.dataFlows.filter((f:any)=>f.rackOpticalLink);
   expect(links).toHaveLength(count*(id==='h100'||id==='gb300'?4:2));
   const hardware=b.scene.getObjectByName('Blender complete rack hardware');hardware.updateMatrixWorld(true);
+  // Limit intersections to the connector boots. Testing every screw, chassis
+  // face and cable triangle for every lead needlessly scales with rack detail.
+  const connectors=meshes(hardware).filter(o=>(Array.isArray(o.material)?o.material:[o.material]).some((m:any)=>m.name.startsWith('MPO APC connector boot')));
+  expect(connectors.length).toBeGreaterThan(0);
   const ray=new THREE.Raycaster();
   for(const f of links){
    expect(f.path.getPoint(0).toArray()).toEqual(f.rackOpticalLink.start);
@@ -383,7 +387,7 @@ it('rack optics seat on compute units, retain generation port counts and termina
    expect(f.ribbonIntensity).toBeLessThan(.4);
    // A connector must actually exist in the shipped Blender asset behind the fiber.
    ray.set(new THREE.Vector3(...f.rackOpticalLink.start),new THREE.Vector3(0,0,id==='h100'?1:-1));
-   const hit=ray.intersectObject(hardware,true).find((h:any)=>h.distance<.035);
+   const hit=ray.intersectObjects(connectors,false).find((h:any)=>h.distance<.035);
    expect(hit,`${id} row ${f.rackOpticalLink.row} seated fiber connector`).toBeDefined();
   }
  }
