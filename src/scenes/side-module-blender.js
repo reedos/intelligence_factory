@@ -231,6 +231,32 @@ export function build({ quality, state }) {
     };
     if (node.material) node.material = Array.isArray(node.material) ? node.material.map(isolate) : isolate(node.material);
   });
+  // Heat mode warms the finned cover itself, brightest over the DSP and toward
+  // the fin roots: a qualitative cue, not a temperature map.
+  const cover = object('04_COVER'), shellHeat = { value: 0 }, coverBase = { value: 0 }, heatX = { value: dspAnchor[0] };
+  const shellMaterials = new Map();
+  cover.traverse(node => {
+    if (!node.isMesh || !/Satin nickel aluminium/i.test(node.material?.name || '')) return;
+    if (!shellMaterials.has(node.material)) {
+      const m = node.material.clone();
+      m.emissive.set(0xff6a1a); m.emissiveIntensity = 1;
+      m.onBeforeCompile = shader => {
+        Object.assign(shader.uniforms, { ifxShellHeat: shellHeat, ifxCoverBase: coverBase,
+          ifxHeatX: heatX });
+        shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vIfxWorld;')
+          .replace('#include <project_vertex>', '#include <project_vertex>\nvIfxWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+        shader.fragmentShader = shader.fragmentShader.replace('#include <common>',
+          '#include <common>\nvarying vec3 vIfxWorld;\nuniform float ifxShellHeat, ifxCoverBase, ifxHeatX;')
+          .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+          float ifxDx = (vIfxWorld.x - ifxHeatX) / 2.6;
+          float ifxRise = clamp((vIfxWorld.y - ifxCoverBase) / 0.7, 0.0, 1.0);
+          totalEmissiveRadiance *= ifxShellHeat * (0.18 + 0.82 * exp(-ifxDx * ifxDx)) * (1.0 - 0.6 * ifxRise);`);
+      };
+      m.customProgramCacheKey = () => 'ifx-module-shell-heat';
+      shellMaterials.set(node.material, m);
+    }
+    node.material = shellMaterials.get(node.material);
+  });
   const ghost = new THREE.Group(); boardOverlay.add(ghost);
   {
     const outline = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.015, 1.5),
@@ -342,6 +368,10 @@ export function build({ quality, state }) {
         applyAssembly();
       }
       syncFlows();
+      // Without the DSP (LPO) the analog chips remain the sources, so the warm band moves and dims.
+      shellHeat.value = state.mode === 'heat' && amount === 1 ? (lpo ? 0.15 : 0.26) + 0.04 * Math.sin(t * 2) : 0;
+      heatX.value = lpo ? anchorWorld('driver')[0] : dspAnchor[0];
+      coverBase.value = cover.position.y * CM + 0.615;
       for (const material of heatMaterials) material.emissiveIntensity = state.mode === 'heat' && !lpo
         ? 0.5 + 0.08 * Math.sin(t * 2) : 0;
       return moving;

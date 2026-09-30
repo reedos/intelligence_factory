@@ -16,8 +16,9 @@ export const MODULE_LOOK = Object.freeze({
 // Unknown materials keep their original appearance so additions fail visibly
 // rather than silently inheriting the wrong physical treatment.
 const FINISHES = [
-  [/Satin nickel aluminium/i, { metalness: 0.84, roughness: 0.34, envMapIntensity: 0.9 }],
-  [/Machined edge highlights/i, { metalness: 0.94, roughness: 0.23, envMapIntensity: 1.0 }],
+  [/Satin nickel aluminium/i, { metalness: 0.84, roughness: 0.58, envMapIntensity: 0.9 }],
+  // Studio light panels mirrored in glossier shell chamfers read as rows of glowing beads.
+  [/Machined edge highlights/i, { metalness: 0.94, roughness: 0.42, envMapIntensity: 0.7 }],
   [/Dark anodized metal/i, { metalness: 0.75, roughness: 0.34, envMapIntensity: 0.85 }],
   [/Midnight green solder mask/i, { metalness: 0.06, roughness: 0.4, envMapIntensity: 0.55 }],
   [/Gold contacts and wire bonds/i, { metalness: 0.86, roughness: 0.27, envMapIntensity: 0.85 }],

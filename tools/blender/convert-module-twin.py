@@ -227,6 +227,21 @@ nose=extrude_profile('04_COVER optical nose',profile,-HALF,HALF,M[1],cover)
 cut(nose,(.0445,TOP,0),(.0164,.0003,.0134))  # label recess, 0.15 mm deep
 cut(nose,((SADDLE_END+.0005+.056)/2,.0085,0),(.056-SADDLE_END-.0005,.0066,2*(HALF-.0007)))
 bevel(nose,.00022)
+# Fin field: the reference's 21 fins at 0.96 mm pitch alias into moire at the
+# overview distance. Re-cut 16 fins at 1.3 mm pitch, 0.5 mm thick, rounded tips,
+# rooted 7.32 mm up like the reference fins, on the same 13.0 mm envelope.
+# Fin count and pitch are representative (not published).
+removed=0
+for fins_src in [c for c in cover.children if c.type=='MESH' and c.data.materials[0].name.startswith('01 |')]:
+ bm=bmesh.new();bm.from_mesh(fins_src.data);mw=fins_src.matrix_world;doomed=[]
+ for f in bm.faces:
+  ps=[G(mw@q.co) for q in f.verts]
+  if all(abs(p[2])<=.009805 and -.04402<=p[0]<=.02502 for p in ps) and max(p[1] for p in ps)>.01005:doomed.append(f)
+ bmesh.ops.delete(bm,geom=doomed,context='FACES');bm.to_mesh(fins_src.data);bm.free();removed+=len(doomed)
+print('FINS REMOVED FACES',removed)
+for k in range(16):
+ fin=box('Heat sink fin',(-.0095,.01016,-.00975+k*.0013),(.069,.00568,.0005),M[1],cover,0)
+ bevel(fin,.00015,2)
 # Receptacles, ferrules and bezel ride with the board, where the old ports sat.
 mpo=bpy.data.objects['PART_MPO']
 for o in [c for c in mpo.children if c.type=='MESH']:
