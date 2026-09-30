@@ -771,6 +771,7 @@ const pinsEl = $('pins');
 let pins = [];
 let expandedPins = null;          // ids of a pin group the reader opened (small screens)
 const pinGroups = new Map();
+let groupCued = false;   // the first group badge of a visit pulses, once, to say it opens
 function buildPanel(i) {
   const s = SCENES()[i], parts = partsFor(i);
   $('intro').textContent = built[i]?.variant?.intro?.(ui.mode) || { power: s.intro, data: s.dataIntro, heat: s.heatIntro }[ui.mode];
@@ -1157,6 +1158,7 @@ function syncPinGroups(groups, w, h) {
       el.setAttribute('aria-label', `${nums.length} parts here: ${nums.join(', ')}. Show them`);
       el.addEventListener('click', e => { e.stopPropagation(); expandedPins = new Set(g.ids); });
       pinsEl.appendChild(el); pinGroups.set(g.key, el);
+      if (!groupCued) { groupCued = true; el.classList.add('cue'); el.addEventListener('animationend', () => el.classList.remove('cue'), { once: true }); }
     }
     el.style.transform = `translate(${(Math.max(20, Math.min(w - 20, g.x))).toFixed(1)}px, ${(Math.max(14, Math.min(h - 14, g.y))).toFixed(1)}px) translate(-50%, -50%)`;
   }
