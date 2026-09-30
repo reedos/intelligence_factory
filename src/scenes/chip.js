@@ -354,8 +354,10 @@ function buildPackage({ quality, state, model }) {
   let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   // Sample inside actual silicon, never in the visible seam between twin dies.
   const dieSampleX = () => twin ? ((rnd() < 0.5 ? -1 : 1) * 1.36 + (rnd() - 0.5) * 2.4) : (rnd() - 0.5) * 2.4;
+  // Current columns stay a few millimeters inside each die's edge: columns that
+  // ended right at the exposed front corner stacked into one bloom hot spot there.
   for (let i = 0; i < 28; i++) {
-    const x = dieSampleX(), z = (rnd() - 0.5) * 3.0;
+    const x = dieSampleX() * 0.9, z = (rnd() - 0.5) * 2.6;
     flows.push(flow([[x, -1.4, z], [x, Y.balls, z], [x, Y.sub, z], [x, Y.bumps, z], [x, Y.inter, z], [x, Y.dies, z]], 'core', { count: 3, speed: 1.6 + rnd(), size: 0.03, k: 2.8, trail: false }));
   }
   // die-to-die traffic across NV-HBI
