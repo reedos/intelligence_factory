@@ -612,7 +612,12 @@ function buildNVL({ quality, model, state }) {
     N.box(.099,.003,.099,MAT.nickel,x,sy-.003,sz+z);
     dataFlows.push(flow([[x,sy+.022,sz+z],[x,sy+.022,sz-.43],[x,sy+.022,ZB+.16]],'nvl',{count:8,speed:.55,size:.006,trailR:.002}));
   });
-  bezel(N,0,sy,trayW/2,U*.45,sz+trayD/2+.01);
+  // Gold removal handles as bent rod (ServeTheHome: the gold features on the
+  // NVLink switch shelves are handles), not full-width trim slabs.
+  for (const x of [-0.204, 0.194]) {
+    for (const dy of [-0.013, 0.013]) N.box(0.008, 0.005, 0.016, TRIM, x, sy + dy, sz + trayD / 2 + 0.021);
+    rbox(N, 0.011, U * 0.72, 0.006, TRIM, x, sy, sz + trayD / 2 + 0.031, { r: 0.35 });
+  }
   const sf=new THREE.Mesh(new THREE.PlaneGeometry(trayW,U*.90),new THREE.MeshStandardMaterial({map:TEX.switch,roughness:.45,metalness:.45}));sf.position.set(0,sy,sz+trayD/2+.013);scene.add(sf);
   for(const x of [-.25,.25])S.box(.01,.01,1.38,MAT.galv,x,sy-U/2+.003,sz-.26);
   scene.userData.computeGeneration={id:model.accel.id,computeTrays:18,switchTrays:9,switchChipsPerTray:switchChips,openedSwitchChips:switchPositions.length,computeFans:rubin?0:6,representative:true};

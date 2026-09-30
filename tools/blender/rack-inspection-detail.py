@@ -16,7 +16,11 @@ def enhance(accel,m,box,cylinder,material):
     cap=material('Service ceramic passives',(.12,.14,.15),.2,.56)
     ink=material('Service PCB silkscreen',(.54,.62,.57),.0,.68)
     hose=material('Service coolant hose',(.042,.054,.060),.05,.6)
-    power=material('Service insulated DC harness',(.44,.105,.026),.0,.5)
+    # Black-jacketed DC harness with red/black conductor sleeves at the ends:
+    # an orange jacket read as the 415 V AC legend color (and as coolant hose).
+    power=material('Service insulated DC harness',(.018,.019,.021),.0,.55)
+    pos=material('Service DC positive sleeve',(.42,.035,.03),.0,.5)
+    neg=material('Service DC negative sleeve',(.02,.02,.022),.0,.4)
     # Brushed, less mirror-like lids: flat polished nickel facing the studio
     # softbox bloomed to white blocks at the compute and tp cameras.
     lid=material('Inspection brushed cold plate lid',(.30,.33,.36),.35,.72)
@@ -195,5 +199,6 @@ def enhance(accel,m,box,cylinder,material):
                 for k in range(9):b('rear electrical contact',(x-.016+k*.004,sy-.001,sz-.365),(.0015,.009,.004),m['bright'],0)
             tube('switch power harness',[(side*.012,sy+.013,sz-.45),(side*.020,sy+.018,sz-.29),
                 (side*.023,sy+.022,sz+.08),(side*.05,sy+.011,sz+.16)],.004,power)
+            for z,y in [(sz-.43,sy+.015),(sz+.15,sy+.012)]:cylinder('Inspection DC conductor sleeve',(side*.012 if z<sz else side*.048,y,z),.0048,.012,pos if side>0 else neg,1,'z')
             b('switch power input',(side*.012,sy+.008,sz-.45),(.021,.017,.025),m['graphite'])
             b('switch QD block',(side*.185,sy+.019,sz-.445),(.032,.026,.023),m['shell'])
