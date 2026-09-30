@@ -213,9 +213,12 @@ let timerExt = glx.getExtension('EXT_disjoint_timer_query_webgl2');
 const forced = /^[0-6]$/.test(params.get('quality') || '') ? +params.get('quality') : null;
 const governing = forced === null && (!navigator.webdriver || params.has('govern'));   // test browsers opt in
 let qualityPreference = 'auto';
-try { if (localStorage.getItem('ifx-render-preference') === 'laptop') qualityPreference = 'laptop'; } catch { /* private browsing */ }
-let bestTier = qualityPreference === 'laptop' ? 4 : mobile ? 3 : 0;
-const tiers = BUILDERS.map(() => forced ?? (Math.max(bestTier, integrated && governing ? 1 : 0)));   // test browsers: full quality
+try { const saved = localStorage.getItem('ifx-render-preference'); if (saved === 'laptop' || saved === 'max') qualityPreference = saved; } catch { /* private browsing */ }
+// Max quality (Reed, 09/30): every effect on at every level, and the governor never sheds; the reader's call, for
+// strong GPUs, screenshots and recordings. Battery saver ('laptop') caps at tier 4; Auto starts high and adapts.
+const bestFor = pref => pref === 'laptop' ? 4 : pref === 'max' ? 0 : mobile ? 3 : 0;
+let bestTier = bestFor(qualityPreference);
+const tiers = BUILDERS.map(() => forced ?? (qualityPreference === 'max' ? 0 : Math.max(bestTier, integrated && governing ? 1 : 0)));   // test browsers: full quality
 const ceilings = BUILDERS.map(() => bestTier);            // the best tier each level may try for now
 // when a failed tier may be tried again; the wait doubles each time a level climbs back and fails straight away
 const retryAt = BUILDERS.map(() => 0), backoff = BUILDERS.map(() => 30000), climbedAt = BUILDERS.map(() => -Infinity);
@@ -223,7 +226,7 @@ const retryAt = BUILDERS.map(() => 0), backoff = BUILDERS.map(() => 30000), clim
 const QKEY = 'ifx-quality-2';
 if (timerExt && governing) try {
   const s = JSON.parse(localStorage.getItem(QKEY) || 'null');
-  if (s?.gpu === gpuName && s.tiers?.length === tiers.length) s.tiers.forEach((v, i) => { if (Number.isInteger(v) && v >= bestTier && v < TIERS.length) tiers[i] = v; });
+  if (qualityPreference !== 'max' && s?.gpu === gpuName && s.tiers?.length === tiers.length) s.tiers.forEach((v, i) => { if (Number.isInteger(v) && v >= bestTier && v < TIERS.length) tiers[i] = v; });
 } catch { /* start from the guess */ }
 const tierOf = i => TIERS[tiers[i]];
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -412,7 +415,7 @@ const felt = a => { const s = a.slice().sort((x, y) => x - y); s.length -= Math.
 // failed-tier cooldown, preventing rapid quality oscillation.
 function govern(raw) {
   const now = performance.now();
-  if (!governing || now < gov.quietUntil) return;
+  if (!governing || qualityPreference === 'max' || now < gov.quietUntil) return;
   if (!gov.frames.length) gov.t0 = now;
   gov.frames.push(raw * 1000); gov.cpu.push(gov.workMs);
   if (gov.frames.length < 90 && !(now - gov.t0 > 1800 && gov.frames.length >= 12)) return;
@@ -440,13 +443,14 @@ export const qualityInfo = () => ({ gpu: gpuName, integrated, timers: !!timerExt
   composerRatio: composers[ui.scene]?.tierRatio ?? null, ao: aos[ui.scene] ? aos[ui.scene].enabled : null, judged: gov.judged ?? null, pending: gov.q.length, quietFor: Math.max(0, gov.quietUntil - performance.now()), window: gov.frames.length });
 // Laptop is a conservative starting floor, never a fixed quality lock.
 export function setQualityPreference(value) {
-  if (!['auto', 'laptop'].includes(value)) return;
-  qualityPreference = value; bestTier = value === 'laptop' ? 4 : mobile ? 3 : 0;
+  if (!['auto', 'laptop', 'max'].includes(value)) return;
+  qualityPreference = value; bestTier = bestFor(value);
   try { localStorage.setItem('ifx-render-preference', value); } catch { /* optional */ }
   for (let i = 0; i < tiers.length; i++) {
     ceilings[i] = bestTier; retryAt[i] = 0; backoff[i] = 30000;
     // Returning to Auto permits measured recovery; avoid a sudden expensive jump.
-    if (forced === null && value === 'auto' && !timerExt) tiers[i] = Math.max(bestTier, integrated ? 1 : 0);
+    if (forced === null && value === 'max') tiers[i] = 0;
+    else if (forced === null && value === 'auto' && !timerExt) tiers[i] = Math.max(bestTier, integrated ? 1 : 0);
     else if (forced === null && tiers[i] < bestTier) tiers[i] = bestTier;
     if (built[i]) applyTier(i);
   }
