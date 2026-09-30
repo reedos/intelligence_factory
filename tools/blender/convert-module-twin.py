@@ -214,8 +214,11 @@ for o in [c for c in cover.children if c.type=='MESH']:
   bmesh.ops.delete(bm,geom=[v for v in bm.verts if not v.link_faces],context='VERTS')
   bmesh.ops.remove_doubles(bm,verts=bm.verts,dist=1e-7)
   bmesh.ops.dissolve_degenerate(bm,edges=bm.edges,dist=1e-7);bm.to_mesh(o.data);bm.free()
-# Label and its printing move onto the raised nose (A5 re-sets the text).
-for o in [c for c in cover.children if c.type=='MESH' and any(m.name.startswith(('07 |','17 |')) for m in c.data.materials)]:
+# The label's printing is drawn at runtime as a texture (module-art-direction.js);
+# the reference's geometry text and barcode (about 6k triangles) are removed.
+for o in [c for c in cover.children if c.type=='MESH' and any(m.name.startswith('07 |') for m in c.data.materials)]:bpy.data.objects.remove(o,do_unlink=True)
+# The label plate moves onto the raised nose.
+for o in [c for c in cover.children if c.type=='MESH' and any(m.name.startswith('17 |') for m in c.data.materials)]:
  inv=o.matrix_world.inverted()
  for v in o.data.vertices:
   q=list(G(o.matrix_world@v.co));q=[.0445+(q[0]-.0413)*.8,TOP-.00013+(q[1]-.00837),q[2]*.8];v.co=inv@B(q)

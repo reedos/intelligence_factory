@@ -63,6 +63,46 @@ function orangePeelNormal() {
   return t;
 }
 
+// Representative cover label, printed as a texture on the authored label plate:
+// the rate names the same 2 × DR4 configuration as every caption. Not a vendor label.
+function labelTexture() {
+  if (typeof document === 'undefined') return null;
+  const w = 1024, h = 840, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.fillStyle = '#e9e8e2'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#16181c'; g.textBaseline = 'alphabetic';
+  g.font = '600 150px "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif'; g.fillText('OSFP', 70, 200);
+  g.font = '500 92px "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif'; g.fillText('1.6T  2×DR4', 70, 330);
+  g.font = '500 44px "IBM Plex Mono", Menlo, Consolas, monospace'; g.fillText('DESIGN STUDY · REPRESENTATIVE', 72, 410);
+  // Evenly weighted bars from a fixed sequence; no encoded data.
+  let x = 70, seed = 11;
+  const rand = () => (seed = (seed * 48271) % 2147483647) / 2147483647;
+  while (x < 690) { const bar = 5 + Math.floor(rand() * 3) * 5; g.fillRect(x, 480, bar, 250); x += bar + 5 + Math.floor(rand() * 3) * 5; }
+  // A 2D code block: a finder square in three corners plus a fixed pattern.
+  const cx = 740, cy = 480, cell = 12, n = 21;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const finder = (a, b) => i >= a && i < a + 7 && j >= b && j < b + 7;
+    const f = finder(0, 0) || finder(0, n - 7) || finder(n - 7, 0);
+    const ring = f && ((i % (n - 7)) === 1 || (j % (n - 7)) === 1 || (i % (n - 7)) === 5 || (j % (n - 7)) === 5) && !((i % (n - 7)) >= 2 && (i % (n - 7)) <= 4 && (j % (n - 7)) >= 2 && (j % (n - 7)) <= 4);
+    if (f ? !ring : rand() < 0.48) g.fillRect(cx + i * cell, cy + j * cell, cell, cell);
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  return t;
+}
+function printLabel(mesh) {
+  const tex = labelTexture();
+  if (!tex) return;
+  const geometry = mesh.geometry, position = geometry.attributes.position;
+  geometry.computeBoundingBox();
+  const { min, max } = geometry.boundingBox, uv = new Float32Array(position.count * 2);
+  for (let i = 0; i < position.count; i++) {
+    uv[i * 2] = (position.getX(i) - min.x) / (max.x - min.x);
+    uv[i * 2 + 1] = 1 - (position.getZ(i) - min.z) / (max.z - min.z);
+  }
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  mesh.material.map = tex; mesh.material.color.set(0xffffff); mesh.material.needsUpdate = true;
+}
+
 /** Apply only to a build-owned clone, never the cached glTF source. */
 export function applyArtDirection({ scene, model, quality = {} }) {
   const seen = new Set();
@@ -80,6 +120,8 @@ export function applyArtDirection({ scene, model, quality = {} }) {
       if (quality.mobile && /Satin nickel aluminium|Machined edge highlights/i.test(material.name)) material.roughness = Math.max(material.roughness, 0.42);
     }
   });
+
+  model.traverse(object => { if (object.isMesh && /Label stock/i.test(object.material?.name || '')) printLabel(object); });
 
   // Preserve setup()'s one shadow map. The studio environment supplies broad
   // softbox reflections; these lights illuminate the board and expose bevels.
