@@ -151,10 +151,39 @@ def tray_hardware(accel,m):
             for z in [-4.2,-2.1,0,2.1,4.2]:
                 box('Folded service edge',(x,.035,z),(.1,.045,.52),m['bright'],u,.015)
                 screw((x,.065,z),.032,m,u)
+        h100_chassis_detail(m,u)
     # Actual manufactured heat-sink fins over existing NIC footprints (not new NICs).
     if accel!='h100':
         for x in [.2,.7,1.2,1.7]:
             for j in range(7):box('NIC precision fin',(x-.126+j*.042,.40,3.3),(.015,.11,.47),m['shell'],u,.004)
+
+def h100_chassis_detail(m,u):
+    # DGX H100 (8U): detail on the large plain sheet-metal planes. Pressed
+    # stiffening ribs, rack-rail fastener rows and a blank service-label field
+    # on the intact far wall; no logos, part numbers or extra I/O.
+    xi=-2.2+.015
+    for y in [1.22,2.42]:box('Pressed wall stiffener rib',(xi+.008,y,0),(.018,.05,8.3),m['shell'],u,.022)
+    for y in [.2,3.3]:
+        for i in range(17):box('Rack rail fastener hole',(xi+.0015,y,-4.0+i*.5),(.004,.045,.07),m['dark'],u,0)
+    box('Service label field',(xi+.0025,1.82,2.9),(.004,.42,.95),m['etch'],u,.004)
+    for k in range(4):box('Service label rule',(xi+.0035,1.72+k*.07,2.9),(.003,.012,.8),m['graphite'],u,0)
+    # Six rear power supplies (3.3 kW each, NVIDIA DGX H100 user guide): square
+    # perforated fan grille, pull handle, release latch and a framed inlet.
+    ZB=-4.5
+    for i in range(6):
+        px=-1.83+i*.73
+        for r in range(6):
+            for c in range(6):box('PSU grille perforation',(px-.2+c*.08,.2+r*.08,ZB-.0335),(.052,.052,.004),m['dark'],u,0)
+        for sy in [-1,1]:box('PSU handle standoff',(px-.3,.4+sy*.2,ZB-.064),(.04,.04,.11),m['graphite'],u,.01)
+        box('PSU pull handle',(px-.3,.4,ZB-.12),(.035,.44,.035),m['graphite'],u,.014)
+        box('PSU release latch',(px+.29,.1,ZB-.022),(.05,.07,.03),m['bright'],u,.008)
+        for sy in [-1,1]:box('PSU inlet frame',(px+.2,.62+sy*.062,ZB-.08),(.18,.016,.02),m['graphite'],u,.004)
+        for sx in [-1,1]:box('PSU inlet frame',(px+.2+sx*.082,.62,ZB-.08),(.016,.11,.02),m['graphite'],u,.004)
+    # Folded mouths on the four rear OSFP cages; the optical aperture stays open.
+    ty=1.95
+    for x in [-1.65,-1.05,1.05,1.65]:
+        for sy in [-1,1]:box('OSFP cage folded mouth',(x,ty+.35+sy*.085,ZB-.005),(.25,.014,.03),m['bright'],u,.005)
+        for sx in [-1,1]:box('OSFP cage folded mouth',(x+sx*.118,ty+.35,ZB-.005),(.014,.156,.03),m['bright'],u,.005)
 
 def rubin_hardware(m):
     # NVIDIA public Figure18: independent compute/rear and networking/front bays.

@@ -1113,13 +1113,13 @@ export function content(M) {
     ] : [
       { id: 'heatsinks', title: 'Heat sinks', kicker: 'Fins and vapor chambers',
         body: 'Each GPU’s heat spreads through a vapor chamber into a tall stack of fins. Air carries it away; nothing here is water.',
-        specs: [['Heat per GPU', '700 W', 'spec', { refs: [ref('nvidia-h100-product-page', 'spec table: "Max thermal design power (TDP) | Up to 700W (configurable)"')] }]] },
+        specs: [['Heat per GPU', '700 W', 'spec', { refs: [ref('nvidia-h100-product-page', 'spec table: "Max thermal design power (TDP) | Up to 700W (configurable)"')] }], ['Heat-pipe count and routing', 'representative', 'assumed', { assume: 'tray-mechanical-detail' }]] },
       { id: 'gpuheat', title: 'The heat source', kicker: 'Eight GPUs', drill: 5,
         body: 'Most of the server’s ten kilowatts is made here, under the heat sinks.',
         specs: [['GPUs', '8 × 700 W', 'spec', { refs: [ref('nvidia-dgxh100-user-guide', 'Component Descriptions: "8 x NVIDIA H100 GPUs"'), ref('nvidia-h100-product-page', 'spec table: "Max thermal design power (TDP) | Up to 700W (configurable)"')] }]] },
       { id: 'fans', title: 'Fans', kicker: 'Front to back',
         body: 'A wall of fans at the front pulls air through the whole server. At full load they are a noticeable share of its power.',
-        specs: [['Fans', '12', 'assumed', { assume: 'dgx-h100-fan-count' }], ['Airflow at a 15 °C rise', '≈1,200 CFM per server', 'derived', { calc: 'fan-airflow' }]] },
+        specs: [['Fan modules', '12', 'assumed', { assume: 'dgx-h100-fan-count' }], ['Fans per module', '2, front and rear', 'spec', { refs: [ref('nvidia-dgxh100-service-manual-fans', 'body text: "There are two fans in the fan module, identified by SPD_FAN_SYSn_F and SPD_FAN_SYSn_R"')] }], ['Airflow at a 15 °C rise', '≈1,200 CFM per server', 'derived', { calc: 'fan-airflow' }]] },
     ],
     chip: [
       { id: 'junction', title: A.dies > 1 ? 'The dies' : 'The die', kicker: 'Hottest point in the building',
