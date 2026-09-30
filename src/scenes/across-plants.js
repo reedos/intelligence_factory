@@ -26,16 +26,17 @@ export const plantAvoid = (world, sites) => [
 
 // ---- wind: rows of turbines, staggered, rotors facing +z ----
 // The authored turbine (R = 10 on a 16.5 hub, rotor diameter about 1.2x hub height) is set at 0.6 scale, R = 6 on
-// a 9.9 hub, so a dense farm fits inside one state near any campus. Rows sit 2.4 rotor diameters apart across the
-// wind and 4 downwind, each row offset half a spacing, with a small fixed jitter so the farm reads as sited
-// turbines rather than a printed grid. Compressed from real spacing (about 3-5 D across, 5-10 D downwind) so the
-// farm reads as dense at map scale; the rotors still never overlap.
+// a 9.9 hub. Turbines stand just over one rotor diameter apart along a row (one diameter plus a 3 km gap) and rows
+// sit 1.5 diameters apart downwind, each row offset a quarter spacing, with a small fixed jitter so the farm reads
+// as sited turbines rather than a printed grid. Far tighter than real spacing (about 3-5 D across, 5-10 D downwind)
+// so the farm reads as one compact, dense farm at map scale; the rotors still never overlap. `size` ([columns, rows])
+// gives a smaller farm for a remote campus.
 export const WIND_SCALE = 0.6, WIND_R = 10 * WIND_SCALE, WIND_HUB = 16.5 * WIND_SCALE;
-export function windLayout(mobile) {
-  const cols = mobile ? 5 : 6, rows = mobile ? 3 : 4, D = 2 * WIND_R, across = 2.4 * D, down = 4 * D;
+export function windLayout(mobile, size = mobile ? [6, 3] : [7, 4]) {
+  const [cols, rows] = size, D = 2 * WIND_R, across = D + 3, down = 1.5 * D;
   const out = [];
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-    const k = r * cols + c, jx = Math.sin(k * 12.9898) * 0.18 * D, jz = Math.sin(k * 78.233) * 0.3 * D;
+    const k = r * cols + c, jx = Math.sin(k * 12.9898) * 0.5, jz = Math.sin(k * 78.233) * 0.1 * D;
     out.push([(c - (cols - 1) / 2 + (r % 2 ? 0.25 : -0.25)) * across + jx, (r - (rows - 1) / 2) * down + jz]);
   }
   return out;

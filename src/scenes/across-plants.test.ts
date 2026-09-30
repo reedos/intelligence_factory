@@ -37,11 +37,16 @@ it('the wind farm is dense and its rotors never overlap', () => {
   for (const mobile of [false, true]) {
     const t = windLayout(mobile);
     expect(t.length).toBeGreaterThanOrEqual(mobile ? 15 : 24);
+    let nearest = Infinity;
     for (let i = 0; i < t.length; i++) for (let j = i + 1; j < t.length; j++) {
       const dx = Math.abs(t[i][0] - t[j][0]), dz = Math.abs(t[i][1] - t[j][1]);
-      // rotor disks face +z: two overlap only if they sit side by side closer than a diameter
-      expect(dx >= 2 * WIND_R + 4 || dz >= 3 * 2 * WIND_R).toBe(true);
+      // rotor disks face +z: two overlap only if they sit side by side closer than a diameter; rows keep a gap of
+      // at least one diameter so no row's blades reach into the next from above
+      expect(dx >= 2 * WIND_R + 2 || dz >= 2 * WIND_R).toBe(true);
+      if (dz < 2 * WIND_R) nearest = Math.min(nearest, dx);
     }
+    // compact: neighbours along a row stand just over one rotor diameter apart
+    expect(nearest).toBeLessThan(2 * WIND_R + 5);
   }
 });
 
