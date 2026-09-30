@@ -250,6 +250,10 @@ pad_mat=M[16];pm=pad_mat.node_tree.nodes.get('Principled BSDF')
 pm.inputs['Base Color'].default_value=(.105,.115,.16,1);pm.inputs['Roughness'].default_value=.85;pad_mat.diffuse_color=(.105,.115,.16,1)
 pad=box('Thermal gap pad',(-.016,.00456,0),(.0108,.0010,.0108),pad_mat,pad_group,0);bevel(pad,.0002,3)
 for f in pad.data.polygons:f.use_smooth=True
+# Flip-chip underfill: a thin darker fillet around the 10.3 mm die (representative).
+underfill=bpy.data.materials.new('19 | Underfill epoxy');underfill.use_nodes=True
+un=underfill.node_tree.nodes.get('Principled BSDF');un.inputs['Base Color'].default_value=(.018,.02,.024,1);un.inputs['Roughness'].default_value=.5;underfill.diffuse_color=(.018,.02,.024,1)
+fillet=box('DSP underfill fillet',(-.016,.00342,0),(.0107,.00024,.0107),underfill,bpy.data.objects['SHARED_PART_DSP'],0);bevel(fillet,.00008,2)
 # Receptacles, ferrules and bezel ride with the board, where the old ports sat.
 mpo=bpy.data.objects['PART_MPO']
 for o in [c for c in mpo.children if c.type=='MESH']:
@@ -322,9 +326,10 @@ for parent in [o for o in list(bpy.data.objects) if o.type=='EMPTY']:
   bpy.context.view_layer.objects.active=same[0];bpy.ops.object.join();bpy.context.object.name=parent.name+' '+mat.name
 marking='DSP\n8 × 200G\n1.6T'
 curve=bpy.data.curves.new('Shared DSP capacity marking','FONT')
-curve.body=marking;curve.align_x='CENTER';curve.align_y='CENTER';curve.size=.0013;curve.space_line=1.15;curve.extrude=.000002
+curve.body=marking;curve.align_x='CENTER';curve.align_y='CENTER';curve.size=.0009;curve.space_line=1.15;curve.extrude=.000002
 obj=bpy.data.objects.new('SHARED_DSP_CAPACITY',curve);bpy.context.collection.objects.link(obj)
-obj.location=B((-.016,.004075,0));obj.data.materials.append(M[9])
+# Set toward the die's -Z edge, clear of the part pin that marks the die centre.
+obj.location=B((-.016,.004075,-.0029));obj.data.materials.append(M[9])
 bpy.ops.object.select_all(action='DESELECT');obj.select_set(True);bpy.context.view_layer.objects.active=obj;bpy.ops.object.convert(target='MESH')
 world=obj.matrix_world.copy();obj.parent=bpy.data.objects['SHARED_PART_DSP'];obj.matrix_world=world
 obj['authoredStatic']=True;obj['capacityMarking']=marking;obj['lanesPerDirection']=8;obj['nominalLaneGbps']=200

@@ -257,6 +257,20 @@ export function build({ quality, state }) {
     }
     node.material = shellMaterials.get(node.material);
   });
+  // The driver, TIA and laser sources get their own, dimmer heat glow so every
+  // heat arrow starts at a warm source; their silicon is shared with the PIC otherwise.
+  const analogHeat = [];
+  for (const [name, pattern] of [['PART_DRIVER', /silicon/i], ['PART_TIA', /silicon/i], ['PART_LASERS', /Molded packages/i]]) {
+    const isolated = new Map();
+    object(name).traverse(node => {
+      if (!node.isMesh || !pattern.test(node.material?.name || '')) return;
+      if (!isolated.has(node.material)) {
+        const copy = node.material.clone(); copy.emissive.set(0xff6a1a); copy.emissiveIntensity = 0;
+        isolated.set(node.material, copy); analogHeat.push(copy);
+      }
+      node.material = isolated.get(node.material);
+    });
+  }
   const ghost = new THREE.Group(); boardOverlay.add(ghost);
   {
     const outline = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.015, 1.5),
@@ -372,6 +386,7 @@ export function build({ quality, state }) {
       shellHeat.value = state.mode === 'heat' && amount === 1 ? (lpo ? 0.15 : 0.26) + 0.04 * Math.sin(t * 2) : 0;
       heatX.value = lpo ? anchorWorld('driver')[0] : dspAnchor[0];
       coverBase.value = cover.position.y * CM + 0.615;
+      for (const material of analogHeat) material.emissiveIntensity = state.mode === 'heat' ? 0.25 + 0.05 * Math.sin(t * 2 + 1) : 0;
       for (const material of heatMaterials) material.emissiveIntensity = state.mode === 'heat' && !lpo
         ? 0.5 + 0.08 * Math.sin(t * 2) : 0;
       return moving;
