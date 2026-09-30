@@ -251,7 +251,7 @@ def chip_hardware(accel,m):
         for z in [-3.52,3.52]:
             cylinder('Substrate registration pad',(x,1.237,z),.065,.004,m['copper'],u)
             cylinder('Registration pad opening',(x,1.24,z),.035,.002,m['dark'],u)
-    # The heat layer's cooler base is authored natively in chip.js (no lid).
+    # The heat layer's heat spreader (or, on H100, heat sink base) is authored natively in chip.js.
 
 def dedupe_reference_materials():
     # The reference export clones every material per mesh (Physical N, .001 ...).
