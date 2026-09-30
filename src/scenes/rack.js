@@ -208,11 +208,16 @@ function mgmtHardware(N, y, z, heavy, seed = 3) {
   for (const x of [-0.245, 0.245]) N.box(0.03, U * 0.9, 0.01, MAT.galv, x, y, z + 0.005);
   if (heavy) earFasteners(N, y, z + 0.0115);
   // port x positions follow mgmtFace(): 0.44 m face, 1024 px texture
-  const leads = heavy ? [0, 3, 7, 12, 14] : [0, 7];
+  // Dressed, not draped: each lead leaves its lower-row port, turns down to a
+  // harness line under the port field and runs level to the side manager.
+  // Every lead has its own depth so no two runs share a surface.
+  const leads = heavy ? [2, 5, 9, 16, 21] : [5, 16];
   leads.forEach((c, i) => {
-    const b = Math.floor(c / 6), x = -0.22 + (140 + b * 170 + (c % 6) * 26 + 11) / 1024 * 0.44, yy = y + (i % 2 ? -0.0085 : 0.0065);
+    const b = Math.floor(c / 6), x = -0.22 + (140 + b * 170 + (c % 6) * 26 + 11) / 1024 * 0.44, yy = y - 0.0085;
+    const zr = z + 0.026 + i * 0.006, yh = y - U * 0.36;
     N.box(0.0095, 0.0085, 0.02, CAT6, x, yy, z + 0.01);                                                      // plug boot
-    bundle(N, [x, yy, z + 0.02], [0.268, y + (i % 2 ? -0.012 : 0.012), z + 0.034], { n: 1, r: 0.0028, sag: 0.008, mats: [CAT6], seed: seed + i, seg: 5 });
+    const path = [[x, yy, z + 0.02], [x, yy - 0.003, zr - 0.002], [x + 0.004, yh, zr], [0.228, yh, zr], [0.25, yh + 0.004, zr + 0.004], [0.262, yh + 0.012, z + 0.032]];
+    for (let k = 1; k < path.length; k++) N.strut(path[k - 1], path[k], 0.0026, CAT6, 6);
   });
 }
 
@@ -256,16 +261,17 @@ function blanking(scene, N, y0, y1, z, w) {
 // 'h100-pdu-cords').
 function pduTex(banks) {
   return canvasTex(64, 1024, (g, w, h) => {
-    g.fillStyle = '#2c3036'; g.fillRect(0, 0, w, h);
-    const colors = ['#3f6fa8', '#b88a2e', '#6e4a9e'];
+    g.fillStyle = '#4a5058'; g.fillRect(0, 0, w, h);
+    const colors = ['#4f8fd6', '#e0a83a', '#9a6fd6'];
     for (let b = 0; b < banks; b++) {
       const y0 = 40 + b * (h - 80) / banks, bh = (h - 80) / banks - 12;
-      g.fillStyle = '#1b1e22'; g.fillRect(6, y0, w - 12, bh);
-      g.fillStyle = colors[b % 3]; g.fillRect(6, y0, 5, bh);
+      g.fillStyle = '#2a2f35'; g.fillRect(6, y0, w - 12, bh);
+      g.fillStyle = colors[b % 3]; g.fillRect(6, y0, 8, bh);
       for (let o = 0; o < 5; o++) {
         const oy = y0 + 10 + o * (bh - 20) / 5;
+        g.fillStyle = '#6a717a'; g.fillRect(18, oy - 2, 34, 24);
         g.fillStyle = '#0a0b0d'; g.fillRect(20, oy, 30, 20);
-        g.fillStyle = '#4b5159'; g.fillRect(25, oy + 5, 20, 3); g.fillRect(25, oy + 12, 20, 3);
+        g.fillStyle = '#5b626b'; g.fillRect(25, oy + 5, 20, 3); g.fillRect(25, oy + 12, 20, 3);
       }
     }
   });
@@ -279,9 +285,11 @@ function rng(seed) { let s = seed >>> 0; return () => (s = (Math.imul(s, 1664525
 // giving a matching color map and tangent-space normal map. Cell size is
 // representative (ASSUMPTIONS 'dgx-h100-bezel-rear').
 function foamMaps(w = 512, h = 400, seed = 7) {
+  // Dense, overlapping shallow pores leave a web of struts rather than isolated
+  // dark holes on a flat plate; the tile repeats 2 x 2 so a cell is about 1-2 mm.
   const r = rng(seed), H = new Float32Array(w * h).fill(1);
-  for (let n = 0, count = Math.round(w * h / 32); n < count; n++) {
-    const cx = r() * w, cy = r() * h, rad = 1.3 + r() * r() * 3.0, depth = 0.6 + r() * 0.4;
+  for (let n = 0, count = Math.round(w * h / 7); n < count; n++) {
+    const cx = r() * w, cy = r() * h, rad = 1.6 + r() * r() * 2.4, depth = 0.3 + r() * 0.3;
     for (let y = Math.floor(cy - rad); y <= Math.ceil(cy + rad); y++) for (let x = Math.floor(cx - rad); x <= Math.ceil(cx + rad); x++) {
       const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy) / rad; if (d >= 1) continue;
       const i = ((y + h) % h) * w + ((x + w) % w), v = 1 - depth * (1 - d * d);
@@ -289,23 +297,24 @@ function foamMaps(w = 512, h = 400, seed = 7) {
     }
   }
   const at = (x, y) => H[((y + h) % h) * w + ((x + w) % w)];
+  const repeat = [2, 2];
   const map = canvasTex(w, h, (g) => {
     const img = g.createImageData(w, h), d = img.data;
     for (let i = 0; i < w * h; i++) {
-      const k = 0.1 + 0.98 * Math.pow(H[i], 2.2), j = 0.94 + 0.12 * ((i * 2654435761 >>> 0) / 4294967296);
-      d[i * 4] = Math.min(255, 186 * k * j); d[i * 4 + 1] = Math.min(255, 160 * k * j); d[i * 4 + 2] = Math.min(255, 110 * k * j); d[i * 4 + 3] = 255;
+      const k = 0.46 + 0.62 * Math.pow(H[i], 1.6), j = 0.96 + 0.08 * ((i * 2654435761 >>> 0) / 4294967296);
+      d[i * 4] = Math.min(255, 204 * k * j); d[i * 4 + 1] = Math.min(255, 178 * k * j); d[i * 4 + 2] = Math.min(255, 128 * k * j); d[i * 4 + 3] = 255;
     }
     g.putImageData?.(img, 0, 0);
-  });
+  }, { repeat });
   const normalMap = canvasTex(w, h, (g) => {
     const img = g.createImageData(w, h), d = img.data;
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const dx = (at(x - 1, y) - at(x + 1, y)) * 2.2, dy = (at(x, y + 1) - at(x, y - 1)) * 2.2, len = Math.hypot(dx, dy, 1), i = (y * w + x) * 4;
+      const dx = (at(x - 1, y) - at(x + 1, y)) * 1.6, dy = (at(x, y + 1) - at(x, y - 1)) * 1.6, len = Math.hypot(dx, dy, 1), i = (y * w + x) * 4;
       d[i] = 128 + 127 * dx / len; d[i + 1] = 128 + 127 * dy / len; d[i + 2] = 128 + 127 / len; d[i + 3] = 255;
     }
     g.putImageData?.(img, 0, 0);
-  }, { srgb: false });
-  const mat = new THREE.MeshStandardMaterial({ map, normalMap, normalScale: new THREE.Vector2(1, 1), roughness: 0.5, metalness: 0.82 });
+  }, { srgb: false, repeat });
+  const mat = new THREE.MeshStandardMaterial({ map, normalMap, normalScale: new THREE.Vector2(0.55, 0.55), roughness: 0.55, metalness: 0.8 });
   mat.name = 'DGX bezel metal foam';
   return mat;
 }
@@ -463,7 +472,7 @@ function buildHGX({ quality, state }) {
   // of each server's rear panel. Supply inlet positions follow serverRearTex().
   const pduX = [-0.22, 0.22], pduZ = ZB + 0.105, pTop = sy(3) + SU / 2, pBot = sy(0) - SU / 2;
   const psuX = i => 0.1598 - 0.0705 * i, psuY = k => sy(k) - 0.111, psuZ = ZF - 0.07 - sd - 0.0105;
-  const PDUBODY = new THREE.MeshStandardMaterial({ color: 0x2b2e33, roughness: 0.5, metalness: 0.4 }); PDUBODY.name = 'PDU extrusion';
+  const PDUBODY = new THREE.MeshStandardMaterial({ color: 0x454b53, roughness: 0.46, metalness: 0.45 }); PDUBODY.name = 'PDU extrusion';
   const PLUG = new THREE.MeshStandardMaterial({ color: 0x121316, roughness: 0.55, metalness: 0.05 }); PLUG.name = 'Molded C19/C20 plug';
   const outletFace = new THREE.MeshStandardMaterial({ map: pduTex(8), roughness: 0.55, metalness: 0.3 });
   const cordEnds = [];
@@ -479,8 +488,8 @@ function buildHGX({ quality, state }) {
     N.cyl(0.014, 0.02, GLAND, x, pTop + 0.078, pduZ, 12);
     [0, 1, 3].forEach(k => [0, 1, 2].forEach(o => {
       const oy = sy(k) - 0.035 + o * 0.035, px = x + inward * 0.036, psu = side ? o : 3 + o;
-      N.box(0.022, 0.026, 0.03, PLUG, px, oy, pduZ);                                          // C19 plug in the strip
-      N.box(0.03, 0.03, 0.022, PLUG, psuX(psu), psuY(k), psuZ);                                 // C20 plug in the supply
+      N.box(0.022, 0.026, 0.03, PLUG, px, oy, pduZ);                                          // cord's C20 plug in a C19 strip outlet
+      N.box(0.03, 0.03, 0.022, PLUG, psuX(psu), psuY(k), psuZ);                                 // cord's C19 connector on the supply's C20 inlet
       bundle(N, [px + inward * 0.012, oy, pduZ], [psuX(psu), psuY(k), psuZ - 0.01], { n: 1, r: 0.0042, sag: 0.05 + o * 0.012, mats: [MAT.black], seed: k * 7 + o + side * 3, seg: 6 });
       if (o === 1) cordEnds.push({ k, from: [px + inward * 0.012, oy, pduZ], to: [psuX(psu), psuY(k), psuZ - 0.01] });
     }));
@@ -534,7 +543,9 @@ function buildHGX({ quality, state }) {
     camera: { pos: [3.1, 2.3, -3.7], target: [0, 1.0, -0.1], near: 0.01, far: 200, min: 0.4, max: 9 },
     hotspots: {
       feed: { pos: [0.12, 3.03, -0.165], view: { pos: [1.2, 3.1, 1.0], target: [0, 2.7, -0.25] } },
-      pdu: { pos: [pduX[1], sy(1), pduZ], view: { pos: [0.9, 1.3, -1.4], target: [0, 0.9, ZB] } },
+      // From the rear on the far side, so the strip's outlet face (it faces
+      // into the rack) and its plugged cords are in view, not its blank back.
+      pdu: { pos: [pduX[1] - 0.03, sy(1) + 0.1, pduZ], view: componentView([pduX[1] - 0.03, sy(1) + 0.05, pduZ], [-0.62, 0.2, -0.72], [0.22, 0.62, 0.22]) },
       servers: srv,
       psus: { pos: [0.15, yb + 0.1, pz - sd / 2 + 0.07], view: { pos: [0.9, 1.5, -0.9], target: [0, yb, pz - 0.4] } },
       cabling: { pos: [pduX[0] * 0.7, sy(0), ZB + 0.15], view: { pos: [-0.8, 0.9, -1.5], target: [0, 0.6, ZB] } },
@@ -552,7 +563,7 @@ function buildHGX({ quality, state }) {
       uplinks: { pos: [fx, H + 0.2, fz], view: { pos: [1.3, 2.9, -1.6], target: [0.2, 2.2, fz] } },
       // The rear cage rows, the combed fiber manager and its patch strip: the
       // scale-out optics this card contrasts with scale-up copper.
-      optical: { pos: [0.259, 1.62, ZB - 0.06], view: componentView([0.16, 1.3, ZB + 0.06], [0.75, 0.3, -0.95], [0.46, 0.8, 0.3]) },
+      optical: { pos: [0.259, 1.62, ZB - 0.06], view: componentView([0.02, 1.28, ZB + 0.06], [0.75, 0.3, -0.95], [0.6, 1.0, 0.4]) },
       mgmt: { pos: [0.22, topY + U / 2, ZF - 0.03], view: componentView([0.02, topY + U / 2, ZF - 0.02], [0.32, 0.16, 0.9], [0.5, 0.12, 0.2]) },
     },
     look: LOOK,
@@ -795,16 +806,24 @@ function buildNVL({ quality, model, state }) {
   for (const x of [-0.12, 0.12]) flows.push(flow([[x, TAP.glandY, -0.25], [x, H + 0.02, -0.25], [x * 0.8, trayY(TOP_SHELF), ZB + 0.16]], feedV, { count: 8, speed: 0.35, size: 0.012, trailR: 0.004 }));
   flows.push(flow([[0.1, H, -0.3], [0.1, trayY(1), ZB + 0.16]], feedV, { count: 10, speed: 0.35, size: 0.012, trailR: 0.004 }));
   // DC: from shelves onto the busbar, up and down the bar
-  flows.push(flow([[-0.018, trayY(31), bbZ - 0.045], [-0.018, bbBot + 0.1, bbZ - 0.045]], 'dc', { count: 42, speed: 0.22, size: 0.011, trailR: 0.004, k: 2.4 }));
-  flows.push(flow([[0.018, trayY(1), bbZ - 0.045], [0.018, bbTop - 0.1, bbZ - 0.045]], 'dc', { count: 42, speed: 0.22, size: 0.011, trailR: 0.004, k: 2.4 }));
+  // Close rear views sit at the pulse screen-size ceiling, so these rails are
+  // dimmed rather than shrunk: the bars, contact lands and cartridges stay readable.
+  const busDC = { count: 42, speed: 0.22, size: 0.009, trailR: 0.003, k: 1.5, opacity: 0.72 };
+  flows.push(flow([[-0.018, trayY(31), bbZ - 0.045], [-0.018, bbBot + 0.1, bbZ - 0.045]], 'dc', busDC));
+  flows.push(flow([[0.018, trayY(1), bbZ - 0.045], [0.018, bbTop - 0.1, bbZ - 0.045]], 'dc', busDC));
   // DC into the pulled tray
   flows.push(flow([[0, py, bbZ + 0.06], [0, py, ZB + 0.3], [0, py - U / 2 + 0.03, pz - 0.2]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
   // coolant
-  flows.push(flow([[mX[0], bbBot, mZ - 0.068], [mX[0], bbTop + 0.05, mZ - 0.068]], 'cool', { count: 26, speed: 0.25, size: 0.012, trail: false }));
-  flows.push(flow([[mX[1], bbTop + 0.05, mZ - 0.068], [mX[1], bbBot, mZ - 0.068]], 'warm', { count: 26, speed: 0.25, size: 0.012, trail: false }));
+  // Coolant runs as a thin line along the inboard edge of each manifold's rear
+  // face (the NVLink cartridges leave no room beside it), so most of the
+  // stainless body and its couplers stay visible behind the motion.
+  const mIn = [mX[0] + 0.015, mX[1] - 0.015], mFz = mZ - 0.045;          // clear of the face by 1.6 x the heat core radius
+  const coolRail = { count: 26, speed: 0.25, size: 0.005, k: 1.5, opacity: 0.8, trail: false };
+  flows.push(flow([[mIn[0], bbBot, mFz], [mIn[0], bbTop + 0.05, mFz]], 'cool', coolRail));
+  flows.push(flow([[mIn[1], bbTop + 0.05, mFz], [mIn[1], bbBot, mFz]], 'warm', coolRail));
   // The illustrated system is floor-fed: supply rises, return falls in both layers.
-  heatFlows.push(flow([[mX[0], 0.0, mZ - 0.1], [mX[0], bbBot - 0.1, mZ - 0.068], [mX[0], bbTop + 0.05, mZ - 0.068]], 'cool', { count: 34, speed: 0.3, size: 0.024, k: 2.6, trailR: 0.014, trailK: 0.5 }));
-  heatFlows.push(flow([[mX[1], bbTop + 0.05, mZ - 0.068], [mX[1], bbBot - 0.1, mZ - 0.068], [mX[1], 0.0, mZ - 0.1]], 'warm', { count: 34, speed: 0.3, size: 0.024, k: 2.6, trailR: 0.014, trailK: 0.5 }));
+  heatFlows.push(flow([[mX[0], 0.0, mZ - 0.1], [mIn[0], bbBot - 0.1, mFz], [mIn[0], bbTop + 0.05, mFz]], 'cool', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 }));
+  heatFlows.push(flow([[mIn[1], bbTop + 0.05, mFz], [mIn[1], bbBot - 0.1, mFz], [mX[1], 0.0, mZ - 0.1]], 'warm', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 }));
   [4, 9, 14, 18, 22, 27].forEach(i => {
     heatFlows.push(flow([[mX[0], trayY(i), mZ + 0.06], [-0.16, trayY(i), ZB + 0.18], [-0.1, trayY(i), 0]], 'cool', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false }));
     heatFlows.push(flow([[0.1, trayY(i), 0], [0.16, trayY(i), ZB + 0.18], [mX[1], trayY(i), mZ + 0.06]], 'warm', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false }));
@@ -840,6 +859,9 @@ function buildNVL({ quality, model, state }) {
     scene.add(haze.points);
   }
 
+  // Rear three-quarter from inside the rack: the stainless body, its couplers
+  // and the thin coolant line along its inboard edge, clear of the busbar.
+  const manifoldHot = { pos: [mX[1], trayY(6), mZ], view: componentView([mX[1] - 0.01, trayY(5), mZ], [-0.3, 0.12, -0.62], [0.15, 0.36, 0.15]) };
   // Rear three-quarter on the cartridges: their side windows and blind-mate
   // housings read beside the busbar instead of a flat rear elevation.
   const spineHot = { pos: [0.2, trayY(18), cartZ], view: componentView([0.1, trayY(16), ZB + 0.06], [0.85, 0.3, -0.95], [0.5, 0.75, 0.25]) };
@@ -849,26 +871,26 @@ function buildNVL({ quality, model, state }) {
     hotspots: {
       feed: { pos: [0.12, 3.03, -0.165], view: { pos: [1.2, 3.1, 1.0], target: [0, 2.7, -0.25] } },
       shelves: { pos: [0.25, trayY(31), ZF - 0.05], view: { pos: [0.7, 1.9, 1.5], target: [0, trayY(31), ZF] } },
-      busbar: { pos: [0.03, trayY(14), bbZ], view: { pos: [0.9, 1.3, -1.3], target: [0, 0.9, bbZ] } },
+      busbar: { pos: [0.03, trayY(10), bbZ], view: { pos: [0.9, 1.3, -1.3], target: [0, 0.9, bbZ] } },
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
-      nvswitch: { pos: [.1, sy + .04, sz], view: { pos: [.65, sy + .75, sz + 1.0], target: [0, sy, sz] } },
+      nvswitch: { pos: [-.12, sy + .04, sz], view: { pos: [.65, sy + .75, sz + 1.0], target: [0, sy, sz] } },
       spine: spineHot,
-      manifold: { pos: [mX[1], trayY(6), mZ], view: { pos: [1.03, 0.55, -0.9], target: [mX[1], trayY(6), mZ + 0.1] } },
+      manifold: manifoldHot,
     },
     dataFlows, heatFlows,
     heatHotspots: {
-      manifold: { pos: [mX[1], trayY(6), mZ], view: { pos: [1.03, 0.55, -0.9], target: [mX[1], trayY(6), mZ + 0.1] } },
+      manifold: manifoldHot,
       rearair: { pos: [0.05, trayY(20), ZB - 0.4], view: { pos: [1.6, 1.6, -2.0], target: [0, 1.0, ZB - 0.3] } },
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
     },
     dataHotspots: {
       tp: { pos: [-0.2, trayY(15), ZF - 0.05], view: { pos: [1.2, 1.4, 2.2], target: [0, 1.0, 0] } },
-      nvswitch: { pos: [.1, sy + .04, sz], view: { pos: [.65, sy + .75, sz + 1.0], target: [0, sy, sz] } },
+      nvswitch: { pos: [-.12, sy + .04, sz], view: { pos: [.65, sy + .75, sz + 1.0], target: [0, sy, sz] } },
       spine: spineHot,
       uplinks: { pos: [fx, H + 0.2, fz], view: { pos: [1.3, 2.9, 2.2], target: [0.2, 2.2, fz] } },
       // Front cage rows, fiber managers and the patch strip, with the opened
       // tray's seated modules in frame: scale-out optics, set against copper.
-      optical: { pos: [0.259, 1.72, ZF + 0.06], view: componentView([0.16, 1.5, ZF - 0.06], [0.75, 0.3, 0.95], [0.46, 0.8, 0.3]) },
+      optical: { pos: [-0.195, trayY(27) - 0.009, ZF - 0.02], view: componentView([0.06, 1.4, ZF - 0.06], [0.75, 0.3, 0.95], [0.62, 1.05, 0.4]) },
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
       mgmt: { pos: [0.22, trayY(34), ZF - 0.03], view: componentView([0.02, trayY(33) + U / 2, ZF - 0.02], [0.32, 0.16, 0.9], [0.5, 0.15, 0.2]) },
     },
