@@ -104,9 +104,33 @@ function buildPackage({ quality, state, model }) {
   };
 
   // board beneath, cut square
-  S.box(12, 0.16, 12, MAT.pcb, 0, -0.08, 0);
+  // Host board under the package: solder mask with the BGA land pattern (gold
+  // pads on the ball grid), a via field and trace bundles fanning out, darkening
+  // toward the cut edge. Representative host board.
+  const boardTex = canvasTex(1024, 1024, (g, w, h) => {
+    const px = w / 12, c = w / 2;
+    g.fillStyle = '#0d2a26'; g.fillRect(0, 0, w, h);
+    let seed = 9; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    g.strokeStyle = 'rgba(46,92,80,0.6)'; g.lineWidth = 2;
+    for (let k = 0; k < 64; k++) {                                     // trace bundles leaving the BGA field
+      const a = (Math.floor(k / 16) * Math.PI / 2) + (k % 16 - 7.5) * 0.035, r0 = 4.1 * px, r1 = 6.2 * px;
+      const ox = Math.cos(a), oz = Math.sin(a);
+      g.beginPath(); g.moveTo(c + ox * r0, c + oz * r0); g.lineTo(c + ox * (r0 + 0.5 * px) + oz * (k % 16 - 7.5) * 3, c + oz * (r0 + 0.5 * px) - ox * (k % 16 - 7.5) * 3); g.lineTo(c + ox * r1 + oz * (k % 16 - 7.5) * 9, c + oz * r1 - ox * (k % 16 - 7.5) * 9); g.stroke();
+    }
+    g.fillStyle = 'rgba(110,140,120,0.5)';
+    for (let k = 0; k < 500; k++) { const x = rnd() * w, y = rnd() * h; if (Math.max(Math.abs(x - c), Math.abs(y - c)) > 4.0 * px) { g.beginPath(); g.arc(x, y, 1.8, 0, Math.PI * 2); g.fill(); } }
+    for (let i = 0; i < 26; i++) for (let j = 0; j < 26; j++) {          // BGA land pattern, ENIG gold, with a via beside each pad
+      const x = c + (-3.75 + i * 0.3) * px, y = c + (-3.75 + j * 0.3) * px;
+      g.fillStyle = '#c9a54f'; g.beginPath(); g.arc(x, y, 0.075 * px, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(20,40,34,0.9)'; g.beginPath(); g.arc(x + 0.15 * px, y + 0.15 * px, 0.025 * px, 0, Math.PI * 2); g.fill();
+    }
+    const fade = g.createRadialGradient(c, c, 4.6 * px, c, c, 8.4 * px);
+    fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(1, 'rgba(4,8,10,0.92)');
+    g.fillStyle = fade; g.fillRect(0, 0, w, h);
+  });
+  const boardMat = new THREE.MeshStandardMaterial({ map: boardTex, roughness: 0.5, metalness: 0.12 }); boardMat.name = 'Host board solder mask';
+  texBox(12, 0.16, 12, boardMat, 0, -0.08, 0, 12);
   boardFinish(N, finish, 0, -0.01, 0, 12, 12, 3);
-  for (let i = 0; i < 26; i++) N.box(0.06, 0.004, 11.6, MAT.copper, -5.6 + i * 0.45, 0.002, 0);
   // BGA balls
   const ball = new THREE.SphereGeometry(0.1, 10, 8);
   const pitch = 0.3, nB = 26, balls = new THREE.InstancedMesh(ball, MAT.nickel, nB * nB);
