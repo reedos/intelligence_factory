@@ -6,6 +6,7 @@ import { rbox, tube, bundle, blinkers, plumes } from '../fx.js';
 import { buildRubin } from './tray-rubin.js';
 import { computeMaterials, finishCompute, coldPlateDetail, boardFinish } from './compute-finish.js';
 import { frameCompute } from './compute-framing.js';
+import { componentView } from '../app/housing-frame.js';
 
 export function pkgTex(label) {
   return canvasTex(256, 256, (g, w, h) => {
@@ -246,7 +247,9 @@ function buildHGX({ quality }) {
   const [g0x, g0z] = gpus[0], [g5x, g5z] = gpus[5];
   // Inspect through the open gap below the lifted sink, from inside the front
   // fan wall. The old external view looked directly into the fan cartridges.
-  const hsGpu = { pos: [g0x, fy + 0.4, g0z], view: { pos: [g0x + .1, 1.05, g0z + .8], target: [g0x, 0.3, g0z] } };
+  // A fitted close view (detailSize) so generic reframing cannot pull the
+  // camera back out through the fan wall: the package is the subject.
+  const hsGpu = { pos: [g0x, fy + 0.4, g0z], view: componentView([g0x, fy + 0.13, g0z - 0.05], [0.22, 0.72, 0.8], [0.8, 0.3, 0.75]) };
   // From the cut-away side, level with the fin tops: both rows of sinks, the
   // lifted one included, stay in frame (the old view sat over the fan wall).
   const hsSink = { pos: [g5x, 1.3, g5z], view: { pos: [g5x + 3.6, 2.05, g5z + 1.1], target: [g5x - 0.2, 0.75, g5z + 0.7] } };
