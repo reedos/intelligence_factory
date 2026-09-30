@@ -326,7 +326,7 @@ it('exported GPU packages have the expected live HBM sites and stack heights',()
   expect(m.gpuDies).toBe(id==='h100'?1:2);expect(m.liveHbmStacks).toBe(model.accel.hbm.stacks);expect(m.hbmDramLayers).toBe(model.accel.hbm.layers);
   expect(m.nvlinkLinks).toBe(model.accel.nvlink.linksPerGpu);
   expect(b.heatFlows.filter((f:any)=>f.thermalOrigin==='hbm').every((f:any)=>f.cls==='hot')).toBe(true);
-  const tops=meshes(b.scene).filter(o=>(Array.isArray(o.material)?o.material:[o.material]).some((mat:any)=>mat.name.startsWith('HBM bare silicon top')));
+  const tops=meshes(b.scene).filter(o=>(Array.isArray(o.material)?o.material:[o.material]).some((mat:any)=>mat.name.startsWith('HBM printed top')));
   expect(tops.length).toBeGreaterThan(0);b.scene.updateMatrixWorld(true);
   const sites=id==='h100'?[-2.05,2.05].flatMap(x=>[-1.12,0,1.12].map(z=>[x,z])):[-2.02,-.7,.7,2.02].flatMap(x=>[-2.3,2.3].map(z=>[x,z]));
   const ray=new THREE.Raycaster();let hits=0;

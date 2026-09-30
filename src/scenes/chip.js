@@ -1,6 +1,7 @@
 // Scene 5: the GPU package, exploded, and the tokens that leave it. World unit = 1 cm.
 // Blackwell and Rubin: two dies, HBM above and below. H100: one die, HBM sites left and right.
 import { THREE, MAT, Builder, flow, canvasTex, glowMat } from '../kit.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { computeMaterials, finishCompute, boardFinish } from './compute-finish.js';
 import { STREAM_TPS, buildCycle, sampleAt, tick } from '../model/token-script.js';
 import { frameCompute } from './compute-framing.js';
@@ -229,12 +230,19 @@ function buildPackage({ quality, state, model }) {
   const hbiMat = glowMat('#6fd8ff', 1.0);
   if (twin) { const hbi = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.02, 3.0), hbiMat); hbi.position.set(0, Y.dies + 0.03, 0); scene.add(hbi); }
   // HBM stacks: one molded block per stack (logic base die plus DRAM dies in
-  // epoxy mold compound) with a bare silicon top. The layer count reads as a
-  // striped band on the cut face that carries the TSVs. Real stacks are about
-  // 0.72 mm tall, level with the GPU die; the height here is drawn about 3x
-  // (representative) so the layers stay visible.
+  // epoxy mold compound) with the memory type printed on its top, as a label
+  // for the reader. The layer count reads as a striped band on the cut face
+  // that carries the TSVs. Real stacks are about 0.72 mm tall, level with the
+  // GPU die; the height here is drawn about 3x (representative) so the layers
+  // stay visible.
   const mold = new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.55, metalness: 0.05 }); mold.name = 'HBM epoxy mold compound';
-  const hbmTopMat = new THREE.MeshPhysicalMaterial({ color: 0x6c737c, roughness: 0.18, metalness: 0.0, clearcoat: 0.6, clearcoatRoughness: 0.2 }); hbmTopMat.name = 'HBM bare silicon top';
+  const hbmPrint = canvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = '#2b2e35'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#8b939e'; g.font = '600 44px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(A.hbm.type, w / 2, h / 2);
+  });
+  const hbmTopMat = new THREE.MeshStandardMaterial({ map: hbmPrint, roughness: 0.4, metalness: 0.3 }); hbmTopMat.name = `HBM printed top ${A.hbm.type}`;
+  const hbmTops = [];                                    // one textured mesh for all tops (the Builder would drop the UVs)
   const dramMat = new THREE.MeshStandardMaterial({ color: 0x59616c, roughness: 0.3, metalness: 0.35 }); dramMat.name = 'HBM DRAM die edge';
   const baseDieMat = new THREE.MeshStandardMaterial({ color: 0x7a6a52, roughness: 0.34, metalness: 0.4 }); baseDieMat.name = 'HBM logic base die edge';
   const spacerMat = new THREE.MeshPhysicalMaterial({ color: 0x8a929c, roughness: 0.12, metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.08 }); spacerMat.name = 'Blank silicon spacer';
@@ -254,7 +262,7 @@ function buildPackage({ quality, state, model }) {
       return;
     }
     S.box(HW, stackH - 0.012, HD, mold, x, hb + (stackH - 0.012) / 2, z);
-    S.box(HW - 0.04, 0.012, HD - 0.04, hbmTopMat, x, hb + stackH - 0.006, z);
+    hbmTops.push(new THREE.BoxGeometry(HW - 0.04, 0.012, HD - 0.04).translate(x, hb + stackH - 0.006, z));
     // the cut face on the package-edge side: base die, then one band per DRAM die, then TSVs
     const n = layers + 1, band = (stackH - 0.03) / n;
     const fx = twin ? 0 : Math.sign(x), fz = twin ? Math.sign(z) : 0;            // outward normal of the cut face
@@ -301,6 +309,7 @@ function buildPackage({ quality, state, model }) {
     S.box(finT, finH, len, finCu, x, Y.lid + PT / 2 + finH / 2, cz);
   }
   scene.add(S.build()); scene.add(N.build({ cast: false }));
+  if (hbmTops.length) { const tops = new THREE.Mesh(mergeGeometries(hbmTops, false), hbmTopMat); tops.name = 'HBM printed tops'; tops.castShadow = tops.receiveShadow = true; scene.add(tops); }
   for (const [x, z] of spacerOutlines) {
     const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(HW + 0.04, stackH + 0.02, HD + 0.04)),
       new THREE.LineDashedMaterial({ color: 0xdfe6ee, dashSize: 0.06, gapSize: 0.045, transparent: true, opacity: 0.85 }));
