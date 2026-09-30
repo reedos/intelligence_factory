@@ -161,8 +161,12 @@ export function build({ quality, model }) {
     S.strut([x, 0, z], [x, 34, z], 0.35, MAT.galv, 8); N.strut([x, 34, z], [x, 40, z], 0.08, MAT.galv, 6);
   });
   // control house
+  // (Blender prefab-building kit when the catalog is loaded: ribbed panels, doors, landings, wall-pack HVAC)
+  if (authoredCampus) scene.add(campusCatalogInstances('CTRL_HOUSE', [mtx(-525, 0.4, -82, Math.PI / 2)], { cast: true }));
+  else {
   S.slab(22, 5, 10, MAT.beige, -525, 0, -82); S.slab(23, 0.5, 11, MAT.roof, -525, 5, -82);
   for (let i = 0; i < 3; i++) N.slab(1.4, 0.8, 0.4, MAT.darkSteel, -532 + i * 7, 5.5, -82);
+  }
 
   // main power transformers ×3 with radiators, conservator, bushings, fire walls
   const mptX = -418, mptZ = [-195, -150, -105];
@@ -191,7 +195,8 @@ export function build({ quality, model }) {
   });
   [-172.5, -127.5].forEach(z => S.slab(16, 11, 0.6, MAT.concrete, mptX, 0, z));  // fire walls
   // 34.5 kV switchgear e-houses
-  [[-378, -178], [-378, -122]].forEach(([x, z]) => {
+  if (authoredCampus) scene.add(campusCatalogInstances('EHOUSE', [[-378, -178], [-378, -122]].map(([x, z]) => mtx(x, 0.4, z)), { cast: true }));
+  else [[-378, -178], [-378, -122]].forEach(([x, z]) => {
     rslab(S, 8, 4.2, 34, MAT.white, x, 0.4, z, 0, 0.03); S.slab(8.4, 0.4, 34.4, MAT.roof, x, 4.6, z);
     for (let i = 0; i < 4; i++) N.slab(0.9, 0.9, 2.2, MAT.darkSteel, x + 4.3, 3.2, z - 12 + i * 8);
     for (let i = 0; i < 6; i++) N.slab(0.05, 2.1, 1, MAT.darkSteel, x - 4.02, 0.4, z - 14 + i * 5.6);
@@ -464,14 +469,20 @@ export function build({ quality, model }) {
   // data: long-haul fiber in, through the line-terminal huts, to the halls; hall-to-hall fabric fiber
   const hutA = [-215, 196], hutB = [430, -276];
   for (const [x, z] of [hutA, hutB]) {
+    if (!authoredCampus) {
     S.slab(12, 3.6, 7, MAT.white, x, 0.15, z); S.slab(12.6, 0.4, 7.6, MAT.roof, x, 3.75, z);
     N.slab(1.4, 1.2, 0.6, MAT.darkSteel, x + 6.5, 1.2, z); N.slab(1.4, 1.2, 0.6, MAT.darkSteel, x + 6.5, 1.2, z - 2);
+    }
     N.cyl(0.15, 9, MAT.galv, x - 5, 4.5, z + 3, 6);
   }
   // Representative meet-me/border-router annex at the existing fiber landing.
   const borderX=hallX1+6,borderZ=-210;
+  // Line-terminal huts and the annex share the Blender prefab kit (HVAC end toward the old wall-pack side).
+  if (authoredCampus) scene.add(campusCatalogInstances('SHELTER', [...[hutA, hutB].map(([x, z]) => mtx(x, 0.15, z, Math.PI / 2)), mtx(borderX, 0.15, borderZ, -Math.PI / 2)], { cast: true }));
+  else {
   S.slab(12,3.6,7,MAT.white,borderX,.15,borderZ);S.slab(12.6,.4,7.6,MAT.roof,borderX,3.75,borderZ);
   N.slab(1.4,1.2,.6,MAT.darkSteel,borderX-6.5,1.2,borderZ);N.slab(1.4,1.2,.6,MAT.darkSteel,borderX-6.5,1.2,borderZ-2);
+  }
   N.cyl(.15,9,MAT.galv,borderX-1,4.5,borderZ+3,6);
   const dci = (pts, n) => dataFlows.push(flow(pts, 'dci', { count: n, speed: 45, size: 0.9, k: 2.2, trailK: 0.35, trailR: 0.3 }));
   dci([[fiberA[0], 0.7, 900], [fiberA[0], 0.7, fiberA[1]]], 40);
@@ -589,7 +600,8 @@ export function build({ quality, model }) {
   } else scene.add(car.instance(carMx));
   const gardenMotion = addCampusArchitecture({ scene, hallList, hallX0, hallX1, extra, quality, materials: architectureMaterials, authoredHall: authoredCampus });
   if (authoredCampus) addBlenderCampusArchitecture(scene, hallList, hallX0, hallX1, quality);
-  S.slab(8, 3.6, 5, MAT.beige, -96, 0.15, 232); S.slab(10, 0.4, 7, MAT.roof, -96, 3.75, 232);
+  if (authoredCampus) scene.add(campusCatalogInstances('GATEHOUSE', [mtx(-96, 0.15, 232)], { cast: true }));
+  else { S.slab(8, 3.6, 5, MAT.beige, -96, 0.15, 232); S.slab(10, 0.4, 7, MAT.roof, -96, 3.75, 232); }
   // Barrier arm on the inbound lane beside the gatehouse: an operator housing at the lane edge and a
   // 6 m red/white boom raised about 75 degrees, so the checkpoint reads as open and staffed (generic, representative).
   const boomRed = new THREE.MeshStandardMaterial({ color: 0xc8322a, roughness: 0.45 });

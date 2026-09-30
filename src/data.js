@@ -302,6 +302,7 @@ export function content(M) {
         ['Feeders', `≈${n0(L.feeders)}, each ≈10 MW`, 'derived', evCalc('campus-feeder-count')],
         ['Voltage', '34.5 kV (some campuses use 13.8 kV)', 'reported', evRefs([['mv-distribution-atk', 'blog: "On a large campus, 34.5 kV has become the standard distribution voltage because it carries more power with fewer and smaller feeders than 13.8 kV"']])],
         ['Loss, cables + gear', lossTxt('Campus cables'), 'derived', evCalc('campus-cable-loss')],
+        ['Buildings drawn', 'a typical prefab kit, representative', 'assumed', evAssume('campus-prefab-buildings')],
       ] },
     ...(bat ? [] : [
     { id: 'gensets', title: 'Standby generator yard', kicker: 'Diesel, 480 V stepped up to 34.5 kV',

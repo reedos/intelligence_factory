@@ -5,7 +5,7 @@ exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque buil
 import random
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for name in ['COOLER','UNITSUB','GENSET','BESS','CAR','TRUCK','TREE0','TREE1','TREE2','FAN','HALL_RACK','HALL_CABINET','MAP_CAMPUS','MAP_HUT','MAP_TERMINAL','WALKER']:
+for name in ['COOLER','UNITSUB','GENSET','BESS','CAR','TRUCK','TREE0','TREE1','TREE2','FAN','HALL_RACK','HALL_CABINET','MAP_CAMPUS','MAP_HUT','MAP_TERMINAL','WALKER','EHOUSE','CTRL_HOUSE','SHELTER','GATEHOUSE']:
  g=bpy.data.objects.new(name,None);S.collection.objects.link(g);groups[name]=g
 steel=mat('Mechanical brushed steel',(.34,.42,.46),.8,.35)
 white=mat('Equipment ceramic white',(.72,.77,.76),.3,.39)
@@ -172,6 +172,62 @@ tube('Walker neck',(0,1.49,0),(0,1.57,0),.048,skin,g)
 blob('Walker head',(0,1.645,0),(.1,.095,.118),skin,g)
 blob('Walker hard hat shell',(.01,1.715,0),(.13,.12,.075),hat,g)
 tube('Walker hard hat brim',(.02,1.675,0),(.02,1.69,0),.155,hat,g,.15,16)
+# Prefabricated equipment buildings (e-houses, control house, telecom shelters): one representative kit,
+# length along Z, width along X, origin at the bottom of the steel skid. Ribbed steel wall panels, a
+# standing-seam roof, double personnel doors with landings and handrails at the ends, wall-pack HVAC on one
+# long side, a cable-entry skirt and door lights. Layouts vary by vendor; nothing here is a product.
+panel=mat('Prefab ribbed wall panel',(.5,.53,.53),.3,.52)
+rib=mat('Prefab panel rib',(.42,.45,.45),.35,.48)
+seam=mat('Prefab standing-seam roof',(.3,.33,.34),.45,.5)
+skid=mat('Prefab steel skid',(.05,.055,.06),.6,.55)
+door=mat('Prefab door leaf',(.16,.2,.23),.35,.45)
+hvac=mat('Prefab HVAC casing',(.62,.64,.62),.2,.5)
+grille=mat('Prefab HVAC grille',(.02,.025,.03),.3,.7)
+def prefab(g,L,W,H,hvac_side=1,hvac_n=4,end_doors=(1,-1),side_doors=0):
+ box('Steel skid',(0,.2,0),(W+.25,.4,L+.25),skid,g,0)
+ box('Wall panel body',(0,.4+H/2,0),(W,H,L),panel,g,0)
+ n=int(L/.3)
+ for sx in [-1,1]:
+  for i in range(n):box('Wall panel rib',(sx*(W/2+.02),.4+H/2,-L/2+.15+i*L/n),(.04,H-.1,.07),rib,g,0)
+ for sz in [-1,1]:
+  for i in range(int(W/.3)):box('Wall panel rib',(-W/2+.15+i*W/int(W/.3),.4+H/2,sz*(L/2+.02)),(.07,H-.1,.04),rib,g,0)
+ box('Roof deck',(0,.4+H+.1,0),(W+.5,.2,L+.5),seam,g,.03)
+ for i in range(int((L+.4)/.6)):box('Standing seam',(0,.4+H+.24,-L/2-.2+.3+i*.6),(W+.46,.08,.04),seam,g,0)
+ box('Cable entry skirt',(-hvac_side*(W/2+.07),.62,0),(.14,.45,L-1),skid,g,0)
+ for sz in end_doors:
+  z=sz*(L/2+.03)
+  for dx in [-.52,.52]:box('Personnel door leaf',(dx,.4+1.15,z),(1.0,2.2,.05),door,g,0)
+  box('Door light',(0,.4+2.55,sz*(L/2+.12)),(.4,.12,.16),lamp,g,.02)
+  box('Steel landing',(0,.36,sz*(L/2+.8)),(2.4,.08,1.5),rib,g,0)
+  for k in range(3):box('Landing step',(0,.3-k*.12,sz*(L/2+1.8+k*.28)),(1.2,.05,.28),rib,g,0)
+  for dx in [-1.2,1.2]:
+   for zz in [L/2+.1,L/2+1.5]:box('Handrail post',(dx,.8,sz*zz),(.05,.9,.05),rib,g,0)
+   box('Handrail',(dx,1.25,sz*(L/2+.8)),(.05,.05,1.45),rib,g,0)
+ for i in range(side_doors):
+  z=-L/2+L*(i+.5)/side_doors
+  box('Side door leaf',(-hvac_side*(W/2+.03),.4+1.15,z),(.05,2.2,1.0),door,g,0)
+ for i in range(hvac_n):
+  z=-L/2+L*(i+.5)/hvac_n;x=hvac_side*(W/2+.38)
+  box('Wall-pack HVAC',(x,.4+H*.6,z),(.7,1.5,1.1),hvac,g,.03)
+  for k in range(5):box('HVAC grille slat',(x+hvac_side*.36,.4+H*.6-.5+k*.25,z),(.02,.06,.9),grille,g,0)
+g='EHOUSE';prefab(g,34,8,4.2,hvac_side=1,hvac_n=4,side_doors=6)
+g='CTRL_HOUSE';prefab(g,22,10,4.6,hvac_side=1,hvac_n=3,side_doors=2)
+g='SHELTER';prefab(g,12,7,3.2,hvac_side=1,hvac_n=2,end_doors=(-1,))
+# Staffed gatehouse: glazed on all four sides above a 1 m sill, a door on the lane side, a roof with overhang.
+g='GATEHOUSE'
+booth=mat('Gatehouse glazing',(.07,.11,.13),.1,.06)
+box('Gatehouse skid',(0,.15,0),(8.2,.3,5.2),skid,g,0)
+box('Gatehouse sill wall',(0,.3+.5,0),(8,1.0,5),panel,g,.02)
+box('Gatehouse glazing band',(0,1.3+.95,0),(7.9,1.9,4.9),booth,g,0)
+box('Warm interior ceiling glow',(0,3.05,0),(7.7,.08,4.7),lamp,g,0)
+for x in [-4,-1.33,1.33,4]:
+ for z in [-2.5,2.5]:box('Gatehouse mullion',(x,2.25,z),(.12,1.9,.12),rib,g,0)
+for z in [-2.5,-.8,.8,2.5]:
+ for x in [-4,4]:box('Gatehouse mullion',(x,2.25,z),(.12,1.9,.12),rib,g,0)
+box('Gatehouse head band',(0,3.35,0),(8,.5,5),panel,g,.02)
+box('Gatehouse roof',(0,3.7,0),(9.4,.2,6.4),seam,g,.04)
+box('Gatehouse door',(-4.03,1.4,1.4),(.05,2.2,1.0),door,g,0)
+box('Gatehouse door light',(-4.12,2.95,1.4),(.12,.1,.4),lamp,g,.02)
 # Bake modifiers/transforms and one mesh per material within each asset.
 bpy.ops.object.select_all(action='DESELECT')
 for o in list(S.objects):
