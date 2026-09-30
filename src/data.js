@@ -595,7 +595,7 @@ export function content(M) {
       specs: (() => { const p = gpuPowerEv(); return [['Heat per GPU', `≈${(A.gpuW / 1000).toFixed(1)} kW`, p.basis, p.ev], ['Plate, fitting and screw shapes', 'representative', 'assumed', { assume: 'tray-mechanical-detail' }]]; })() },
     { id: 'nic', title: 'NICs, DPU and SSDs', kicker: 'The front of the tray',
       body: `${X.nic} cards carry scale-out traffic to the spine, ${A.dpusPerTray} BlueField ${A.dpusPerTray === 1 ? 'DPU handles' : 'DPUs handle'} storage and security, and E1.S drives hold local data.`,
-      specs: (() => { const n = nicPerGpuEv(); return [['Scale-out', `${nicTxt} per GPU`, n.basis, n.ev]]; })() },
+      specs: (() => { const n = nicPerGpuEv(); return [['Scale-out', `${nicTxt} per GPU`, n.basis, n.ev], ...(A.id === 'gb300' ? [['NIC boards', '2 mezzanine boards × 2 ConnectX-8', 'spec', { refs: [ref('nvidia-nvl72-reference-arch', 'GB300 compute tray list: "2 Mezzanine Network Boards with 2 ConnectX-8 silicon chips in each, for a total of 4 ConnectX-8 Host Channel Adapters (HCA)"')] }]] : [])]; })() },
     { id: 'nvconn', title: 'NVLink connectors', kicker: 'To the spine',
       body: 'High-density connectors at the rear mate with the copper spine when the tray is pushed home.',
       specs: (() => { const b = nvlPerGpuEv(); return [['Per GPU', `${A.nvlink.gen}, ${nvlTB}`, b.basis, b.ev]]; })() },

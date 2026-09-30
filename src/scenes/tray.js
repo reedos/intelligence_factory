@@ -371,11 +371,9 @@ function buildNVL({ quality, model }) {
     const cz = 1.75; cpus.push([bx, cz]);
     const cp = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.05, 0.62), [MAT.hbm, MAT.hbm, cpuTex, MAT.hbm, MAT.hbm, MAT.hbm]); cp.position.set(bx, floorY + 0.045, cz); cp.castShadow = true; scene.add(cp);
     if (heavy) ihsLid(S, N, bx, floorY + 0.071, cz, 0.66, 0.66, heavy);
-    if (ultra) for (const side of [-1, 1]) {
-      S.box(0.24, 0.045, 1.02, MAT.pcbBlack, bx + side * .58, .14, cz);
-      for (let i = 0; i < 4; i++) N.box(.19, .025, .18, MAT.black, bx + side * .58, .175, cz - .33 + i * .22);
-    }
-    else for (const side of [-1, 1]) for (let i = 0; i < 4; i++) {
+    // Soldered LPDDR5X beside Grace on both GB200 and GB300 (NVIDIA's GB300
+    // reference architecture lists LPDDR5 CPU memory; SOCAMM on GB300 is disputed).
+    for (const side of [-1, 1]) for (let i = 0; i < 4; i++) {
       const lx = bx + side * 0.55, lz = cz - 0.36 + i * 0.24;
       S.box(0.16, 0.025, 0.2, MAT.black, lx, floorY + 0.03, lz);                                            // LPDDR5X package
       if (heavy) N.box(0.1, 0.008, 0.13, MAT.hbm, lx, floorY + 0.043, lz);                                   // die-side detail, one shade lighter
@@ -446,9 +444,17 @@ function buildNVL({ quality, model }) {
   for (let i = 0; i < 4; i++) {
     const x = -1.7 + i * 0.5, ncx = x + 1.9;
     nicCardX.push(ncx);
-    S.box(0.42, 0.02, 1.3, MAT.pcb, ncx, floorY + 0.2, ZF - 1.0);
+    if (!ultra) S.box(0.42, 0.02, 1.3, MAT.pcb, ncx, floorY + 0.2, ZF - 1.0);
     S.box(0.3, 0.12, 0.5, MAT.alu, ncx, floorY + 0.28, ZF - 1.2);
     statusLeds.push({ p: [ncx - 0.09, floorY + 0.35, ZF - 0.98], color: '#5cf29a', rate: 0.5 }, { p: [ncx + 0.09, floorY + 0.35, ZF - 0.98], color: '#3fa8ff', rate: 1.8 });
+  }
+  // GB300: NVIDIA's reference architecture lists two mezzanine network boards
+  // with two ConnectX-8 chips each. Each board carries both chip sinks under
+  // one shared top plate; the board-to-board connector sits at its rear edge.
+  if (ultra) for (const cx of [(nicCardX[0] + nicCardX[1]) / 2, (nicCardX[2] + nicCardX[3]) / 2]) {
+    S.box(0.92, 0.02, 1.3, MAT.pcb, cx, floorY + 0.2, ZF - 1.0);
+    S.box(0.6, 0.03, 0.06, MAT.black, cx, floorY + 0.18, ZF - 1.6);
+    S.box(0.8, 0.012, 0.5, MAT.alu, cx, 0.466, ZF - 1.2);
   }
   const dpuX = ultra ? [-.35] : [-.8,-.3];
   for (const x of dpuX) {
@@ -505,7 +511,7 @@ function buildNVL({ quality, model }) {
 
   const [g0x, g0z] = gpus[1];
   finishCompute(scene, finish);
-  scene.userData.computeGeneration = { id: model.accel.id, gpus: 4, cpus: 2, fans: 6, dpuCount: dpuX.length, nicCount: 4, nic: ultra ? 'ConnectX-8' : 'ConnectX-7', memoryModules: ultra ? 'SOCAMM' : 'soldered LPDDR5X', representative: true };
+  scene.userData.computeGeneration = { id: model.accel.id, gpus: 4, cpus: 2, fans: 6, dpuCount: dpuX.length, nicCount: 4, nic: ultra ? 'ConnectX-8' : 'ConnectX-7', memoryModules: 'soldered LPDDR5X', nicBoards: ultra ? 2 : 4, representative: true };
   return {
     scene, flows,
     look: { env: 'studio', envIntensity: 0.5, exposure: 0.98, bloom: 0.36, threshold: 2.0, ao: 0.12, dof: true },
