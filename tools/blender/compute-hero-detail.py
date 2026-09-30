@@ -92,9 +92,3 @@ def enhance(kind,accel,m,box,cylinder,p3,material):
     else:
         u=.01
         # The package stiffener is one ring authored in build-compute.py.
-        # Physical chamfered edge on the existing lifted IHS; center remains the
-        # explicitly labeled x-ray surface supplied by the teaching diagram.
-        cover=titanium.copy();cover.name='IHS removable flange';cover['ifxCoverSurface']='ihs'
-        for s in [-1,1]:
-            box('IHS formed peripheral flange',(0,4.69,s*3.43),(7.12,.17,.12),cover,u,.045)
-            box('IHS formed peripheral flange',(s*3.53,4.69,0),(.12,.17,6.77),cover,u,.045)

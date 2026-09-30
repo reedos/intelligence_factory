@@ -191,7 +191,7 @@ export function content(M) {
     },
     {
       id: 'chip', n: 6, title: 'GPU package & tokens', scale: '10 cm across', unit: 0.01, volt: 'core', dataVolt: 'hbm', heatVolt: 'hot', heatShort: 'die, hottest',
-      heatIntro: `Every watt that arrives turns into heat inside ${A.dies > 1 ? 'two dies' : 'one die'} smaller than a postcard. It climbs through a thermal interface and the lid into ${nvl ? 'the cold plate' : 'the heat sink'}; the hard part is getting it out of the silicon fast enough.`,
+      heatIntro: `Every watt that arrives turns into heat inside ${A.dies > 1 ? 'two dies' : 'one die'} smaller than a postcard. It climbs through a thin thermal interface into ${nvl ? 'the cold plate' : 'the heat sink'}; the hard part is getting it out of the silicon fast enough.`,
       dataIntro: A.dies > 1
         ? `The fastest links are the shortest. HBM feeds the dies at ${hbmTB} over millimeters, the two dies talk at 10 TB/s across their seam, and ${A.nvlink.gen} leaves the package edge at ${nvlTB}.`
         : `The fastest links are the shortest. HBM feeds the die at ${hbmTB} over millimeters, and 18 ${A.nvlink.gen} links leave the package edge at ${nvlTB}.`,
@@ -1127,9 +1127,10 @@ export function content(M) {
       { id: 'flux', title: 'Heat flux', kicker: 'Like a stovetop, but denser',
         body: `About ${n0(A.gpuW * (1 - A.hbmShare))} W through ${A.dies > 1 ? 'two reticle-size dies' : 'one reticle-size die'} averages about ${flux} watts per square centimeter, several times a stove burner. Hot spots on the die run far higher, and those set the ${nvl ? 'cold plate' : 'heat sink'} design.`,
         specs: [[A.dies > 1 ? 'Die area, two dies' : 'Die area', `≈${X.dieCm2} cm²`, EV6.fluxDie.basis, EV6.fluxDie.ev], ['Average flux', `≈${flux} W/cm²`, 'derived', { calc: 'heat-flux' }], ['Hot spots, cooling trade press', '500+ W/cm²', 'reported', { refs: [['alliance-chemical-gpu-thermal', 'body text: "At 1,000 W TDP with an active die area of approximately 1.5–2 cm², the resulting heat flux at the cold-plate interface reaches 500–600 W/cm²" (B200)']] }]] },
-      { id: 'tim', title: 'Thermal interface and lid', kicker: 'The first hop out',
-        body: `A thin thermal interface material carries heat from the ${A.dies > 1 ? 'dies' : 'die'} into the lid, and a second one into the ${nvl ? 'cold plate' : 'heat sink'}. Each layer costs a few degrees.`,
-        specs: [['Layers to coolant', `die, interface, lid, interface, ${nvl ? 'plate' : 'heat sink'}`, 'assumed', { assume: 'thermal-stack-layers' }]] },
+      { id: 'tim', title: `Thermal interface and ${nvl ? 'cold plate' : 'heat sink'}`, kicker: 'The first hop out',
+        body: `A thin thermal interface material carries heat from the ${A.dies > 1 ? 'dies' : 'die'} and the HBM into the copper base of the ${nvl ? 'cold plate' : 'heat sink'}, drawn lifted with a quarter cut away. Each layer costs a few degrees.`,
+        specs: [...(A.id === 'h100' ? [['Lid on the package', 'none: bare die', 'reported', { refs: [['tes-h100-sxm5-module', 'product listing: "Package: bare die, no heat spreader" and "Thermal: bare-die — heatsink mates directly to silicon"']] }]] : []),
+          ['Layers to coolant', `die, interface, ${nvl ? 'cold plate' : 'heat sink'}`, 'assumed', { assume: 'thermal-stack-layers' }]] },
       { id: 'hbm', title: 'HBM stacks', kicker: 'Heat in layers',
         body: `Stacked DRAM traps heat between its ${A.hbm.layers} layers, and DRAM leaks more as it warms, so memory often sets the temperature limit before the GPU does.`,
         specs: [['Share of package power', '≈8–15%', 'assumed', { assume: 'hbm-power-share' }],

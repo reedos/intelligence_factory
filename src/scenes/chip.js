@@ -1,7 +1,6 @@
 // Scene 5: the GPU package, exploded, and the tokens that leave it. World unit = 1 cm.
 // Blackwell and Rubin: two dies, HBM above and below. H100: one die, HBM sites left and right.
 import { THREE, MAT, Builder, flow, canvasTex, glowMat } from '../kit.js';
-import { rbox } from '../fx.js';
 import { computeMaterials, finishCompute, boardFinish } from './compute-finish.js';
 import { STREAM_TPS, buildCycle, sampleAt, tick } from '../model/token-script.js';
 import { frameCompute } from './compute-framing.js';
@@ -73,7 +72,7 @@ function buildPackage({ quality, state, model }) {
   const S = new Builder(), N = new Builder();
   const finish = computeMaterials();
   // layer heights (exploded)
-  const Y = { balls: 0.12, sub: 1.1, bumps: 2.05, inter: 2.3, dies: 3.2, lid: 4.7 };
+  const Y = { balls: 0.12, sub: 1.1, bumps: 2.05, inter: 2.3, dies: 3.2, lid: 4.7 };   // lid: the lifted cooler base (no lid drawn)
   const SUB = 8.4;
 
   // board beneath, cut square
@@ -172,21 +171,29 @@ function buildPackage({ quality, state, model }) {
     }
   });
   const live = hbmPos.filter((_, i) => i !== spare);
-  // lid, lifted, translucent so the dies read through it
-  const lid = new THREE.Mesh(new THREE.BoxGeometry(7.2, 0.2, 7.0), new THREE.MeshPhysicalMaterial({ color: 0xc1cbd6, metalness: 0.6, roughness: 0.36, envMapIntensity: 0.4, transparent: true, opacity: 0.085, depthWrite: false }));
-  lid.material.userData.ifxCoverSurface = 'ihs';
-  lid.position.set(0, Y.lid, 0); scene.add(lid);
-  const lidEdge = new THREE.LineSegments(new THREE.EdgesGeometry(lid.geometry), new THREE.LineBasicMaterial({ color: 0xc8d2df, transparent: true, opacity: 0.4 }));
-  lidEdge.position.copy(lid.position); scene.add(lidEdge);
-  lidEdge.userData.computeCoverOutline = 'ihs';
-  // Opaque machined perimeter keeps the illustrative x-ray lid legible as metal.
-  const lidRim = finish.satin.clone();
-  lidRim.userData.ifxCoverSurface = 'ihs';
-  for (const side of [-1, 1]) {
-    rbox(N, 7.2, 0.035, 0.07, lidRim, 0, Y.lid + 0.075, side * 3.465, { r: 0.22 });
-    rbox(N, 0.07, 0.035, 6.86, lidRim, side * 3.565, Y.lid + 0.075, 0, { r: 0.22 });
+  // Heat layer only: what sits above the silicon. A thin thermal interface
+  // sheet on each die and stack, then the lifted copper base of the cooler
+  // (cold plate or heat sink) with its underside pedestal and one quarter cut
+  // away to expose the fins and the silicon below. H100 SXM5 is a bare-die
+  // module; no lid is drawn for any package (thermal-stack-layers).
+  const cover = m => { m.userData.ifxCoverSurface = 'ihs'; return m; };
+  const tim = cover(new THREE.MeshPhysicalMaterial({ color: 0x5b5f70, roughness: 0.7, metalness: 0.1, transparent: true, opacity: 0.45 })); tim.name = 'Thermal interface sheet';
+  const plateCu = cover(new THREE.MeshStandardMaterial({ color: 0xd49c70, roughness: 0.28, metalness: 0.9 })); plateCu.name = 'Nickel-flashed copper cooler base';
+  const finCu = cover(new THREE.MeshStandardMaterial({ color: 0xdc9262, roughness: 0.32, metalness: 0.92 })); finCu.name = 'Skived copper fins';
+  for (const dx of dieX) S.box(2.6, 0.02, 3.3, tim, dx, Y.dies + 0.05, 0);
+  hbmPos.forEach(([x, z], i) => { if (i !== spare) S.box(HW - 0.04, 0.02, HD - 0.04, tim, x, hb + stackH + 0.01, z); });
+  const PW = 7.2, PD = 7.0, PT = 0.3, pedW = twin ? 6.2 : 6.4, pedD = twin ? 5.9 : 3.6, finH = 0.45, finT = 0.035, finP = 0.15;
+  // the L-shaped remainder once the +x/+z quarter is cut away
+  const lBox = (w, d, h, m, y, cx, cz) => {
+    S.box(w, h, d / 2, m, cx, y, cz - d / 4);                  // the -z half, full width
+    S.box(w / 2, h, d / 2, m, cx - w / 4, y, cz + d / 4);      // the -x quarter of the +z half
+  };
+  lBox(PW, PD, PT, plateCu, Y.lid, 0, 0);
+  lBox(pedW, pedD, 0.1, plateCu, Y.lid - PT / 2 - 0.05, 0, 0);
+  for (let x = -PW / 2 + 0.25; x < PW / 2 - 0.2; x += finP) {
+    const len = x < 0 ? PD - 0.3 : PD / 2 - 0.15, cz = x < 0 ? 0 : -PD / 4 - 0.075;
+    S.box(finT, finH, len, finCu, x, Y.lid + PT / 2 + finH / 2, cz);
   }
-
   scene.add(S.build()); scene.add(N.build({ cast: false }));
   for (const [x, z] of spacerOutlines) {
     const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(HW + 0.04, stackH + 0.02, HD + 0.04)),
@@ -222,7 +229,7 @@ function buildPackage({ quality, state, model }) {
     }
   }
   dataFlows.forEach(f => scene.add(f.group));
-  // ---------- heat: up out of the dies and HBM, through the lid ----------
+  // ---------- heat: up out of the dies and HBM, into the cooler base ----------
   for (let i = 0; i < 30; i++) {
     const x = dieSampleX(), z = (rnd() - 0.5) * 3.0;
     heatFlows.push(flow([[x, Y.dies + 0.06, z], [x, Y.lid - 0.12, z], [x * 1.05, Y.lid + 1.4, z * 1.05]], 'hot', { count: 3, speed: 1.1 + rnd() * 0.6, size: 0.045, k: 2.6, trail: false }));
@@ -337,7 +344,7 @@ function buildPackage({ quality, state, model }) {
     heatHotspots: {
       junction: { pos: [d0, Y.dies + 0.1, 0.4], view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
       flux: { pos: [dieX[dieX.length - 1], Y.dies + 0.1, -0.8], view: { pos: [4, 6.5, 4], target: [1, 3.1, 0] } },
-      tim: { pos: [3.2, Y.lid + 0.1, 3.0], view: { pos: [9, 7.5, 9], target: [0, 4, 0] } },
+      tim: { pos: [-2.9, Y.lid + 0.25, 3.3], view: { pos: [9, 7.5, 9], target: [0, 4, 0] } },
       hbm: hbmHS,
     },
     dataHotspots: {

@@ -241,7 +241,6 @@ def stiffener_ring(name,y,outer,band,thick,r_out,r_in,mat,u):
 
 def chip_hardware(accel,m):
     u=.01
-    cover=m['shell'].copy();cover.name='IHS removable perimeter';cover['ifxCoverSurface']='ihs'
     # One flat nickel-plated steel stiffener ring bonded to the substrate top,
     # the usual lidless large flip-chip arrangement; the laminate edge stays
     # exposed. Ring width, thickness and radii are representative.
@@ -252,10 +251,7 @@ def chip_hardware(accel,m):
         for z in [-3.52,3.52]:
             cylinder('Substrate registration pad',(x,1.237,z),.065,.004,m['copper'],u)
             cylinder('Registration pad opening',(x,1.24,z),.035,.002,m['dark'],u)
-    # A chamfered plate outline supplements the teaching x-ray heat-spreader.
-    for side in [-1,1]:
-        box('IHS machined perimeter',(0,4.79,side*3.47),(7.16,.035,.055),cover,u,.015)
-        box('IHS machined perimeter',(side*3.57,4.79,0),(.055,.035,6.92),cover,u,.015)
+    # The heat layer's cooler base is authored natively in chip.js (no lid).
 
 def export_variant(kind,accel):
     bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
