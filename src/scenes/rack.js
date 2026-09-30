@@ -806,11 +806,16 @@ function buildNVL({ quality, model, state }) {
   // DC into the pulled tray
   flows.push(flow([[0, py, bbZ + 0.06], [0, py, ZB + 0.3], [0, py - U / 2 + 0.03, pz - 0.2]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
   // coolant
-  flows.push(flow([[mX[0], bbBot, mZ - 0.068], [mX[0], bbTop + 0.05, mZ - 0.068]], 'cool', { count: 26, speed: 0.25, size: 0.012, trail: false }));
-  flows.push(flow([[mX[1], bbTop + 0.05, mZ - 0.068], [mX[1], bbBot, mZ - 0.068]], 'warm', { count: 26, speed: 0.25, size: 0.012, trail: false }));
+  // Coolant runs as a thin line along the inboard edge of each manifold's rear
+  // face (the NVLink cartridges leave no room beside it), so most of the
+  // stainless body and its couplers stay visible behind the motion.
+  const mIn = [mX[0] + 0.015, mX[1] - 0.015], mFz = mZ - 0.03;
+  const coolRail = { count: 22, speed: 0.25, size: 0.005, k: 1.5, opacity: 0.8, trail: false };
+  flows.push(flow([[mIn[0], bbBot, mFz], [mIn[0], bbTop + 0.05, mFz]], 'cool', coolRail));
+  flows.push(flow([[mIn[1], bbTop + 0.05, mFz], [mIn[1], bbBot, mFz]], 'warm', coolRail));
   // The illustrated system is floor-fed: supply rises, return falls in both layers.
-  heatFlows.push(flow([[mX[0], 0.0, mZ - 0.1], [mX[0], bbBot - 0.1, mZ - 0.068], [mX[0], bbTop + 0.05, mZ - 0.068]], 'cool', { count: 34, speed: 0.3, size: 0.024, k: 2.6, trailR: 0.014, trailK: 0.5 }));
-  heatFlows.push(flow([[mX[1], bbTop + 0.05, mZ - 0.068], [mX[1], bbBot - 0.1, mZ - 0.068], [mX[1], 0.0, mZ - 0.1]], 'warm', { count: 34, speed: 0.3, size: 0.024, k: 2.6, trailR: 0.014, trailK: 0.5 }));
+  heatFlows.push(flow([[mX[0], 0.0, mZ - 0.1], [mIn[0], bbBot - 0.1, mFz], [mIn[0], bbTop + 0.05, mFz]], 'cool', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 }));
+  heatFlows.push(flow([[mIn[1], bbTop + 0.05, mFz], [mIn[1], bbBot - 0.1, mFz], [mX[1], 0.0, mZ - 0.1]], 'warm', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 }));
   [4, 9, 14, 18, 22, 27].forEach(i => {
     heatFlows.push(flow([[mX[0], trayY(i), mZ + 0.06], [-0.16, trayY(i), ZB + 0.18], [-0.1, trayY(i), 0]], 'cool', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false }));
     heatFlows.push(flow([[0.1, trayY(i), 0], [0.16, trayY(i), ZB + 0.18], [mX[1], trayY(i), mZ + 0.06]], 'warm', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false }));
@@ -848,6 +853,9 @@ function buildNVL({ quality, model, state }) {
 
   // Rear three-quarter on the cartridges: their side windows and blind-mate
   // housings read beside the busbar instead of a flat rear elevation.
+  // Rear three-quarter from inside the rack: the stainless body, its couplers
+  // and the thin coolant line along its inboard edge, clear of the busbar.
+  const manifoldHot = { pos: [mX[1], trayY(6), mZ], view: componentView([mX[1] - 0.01, trayY(5), mZ], [-0.3, 0.12, -0.62], [0.15, 0.36, 0.15]) };
   const spineHot = { pos: [0.2, trayY(18), cartZ], view: componentView([0.1, trayY(16), ZB + 0.06], [0.85, 0.3, -0.95], [0.5, 0.75, 0.25]) };
   return {
     scene, flows,
@@ -859,11 +867,11 @@ function buildNVL({ quality, model, state }) {
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
       nvswitch: { pos: [.1, sy + .04, sz], view: { pos: [.65, sy + .75, sz + 1.0], target: [0, sy, sz] } },
       spine: spineHot,
-      manifold: { pos: [mX[1], trayY(6), mZ], view: { pos: [1.03, 0.55, -0.9], target: [mX[1], trayY(6), mZ + 0.1] } },
+      manifold: manifoldHot,
     },
     dataFlows, heatFlows,
     heatHotspots: {
-      manifold: { pos: [mX[1], trayY(6), mZ], view: { pos: [1.03, 0.55, -0.9], target: [mX[1], trayY(6), mZ + 0.1] } },
+      manifold: manifoldHot,
       rearair: { pos: [0.05, trayY(20), ZB - 0.4], view: { pos: [1.6, 1.6, -2.0], target: [0, 1.0, ZB - 0.3] } },
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
     },
