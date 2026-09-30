@@ -12,7 +12,7 @@ let pending;
 export function preloadLinks() {
   if (cached.size === 2) return Promise.resolve();
   if (!pending) pending = Promise.all(['coherent', 'copper'].map(async name => {
-    const gltf = await new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 17 : 12}`);
+    const gltf = await new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 17 : 14}`);
     cached.set(name, gltf.scene);
   })).catch(error => { pending = null; throw error; });
   return pending;
@@ -75,13 +75,15 @@ function build(name, nativeBuilder, options) {
     built.camera.pos = [3.2, 16, 11];
     built.camera.target = [1.3, 1.6, -1];
     built.camera.compact = { pos: [3.5, 24.2, 15.8], target: [1.3, 1.6, -1] };
-    built.camera.portrait = { pos: [1.3, 23.2, 14.12], target: [1.3, 1.6, -1], fit: { aspect: 1, fov: 35, minScale: .60 } };
+    // Phones: look down from the fiber-end corner so the 10.8 cm module runs
+    // diagonally up the tall frame instead of across its narrow width.
+    built.camera.portrait = { pos: [11.5, 15.2, 4.1], target: [1.3, 1.6, -1], fit: { aspect: 1, fov: 35, minScale: 1.2 } };
   }
   if (name === 'copper') {
     // The three raised covers span more width than the exposed boards. Preserve
     // their outer edges through the compact and tall-phone aspect ranges.
     built.camera.compact = { pos: [0, 16, 19.5], target: [0, .9, 0] };
-    built.camera.portrait = { pos: [0, 19, 12.5], target: [0, .9, -1.2], fit: { aspect: 1, fov: 35, minScale: .7 } };
+    built.camera.portrait = { pos: [0, 19, 12.5], target: [0, .9, -1.2], fit: { aspect: 1, fov: 35, minScale: 1.2 } };
   }
   model.scale.setScalar(100); // GLB metres -> scene centimetres.
   model.name = `Blender ${name} complete hardware`;
@@ -161,6 +163,24 @@ function build(name, nativeBuilder, options) {
     coversAlwaysVisible: { value: true },
     hasCovers: { value: covers.length > 0 },
   });
+  // Keep a readable enclosure outline without layering a bright sheet over
+  // the electronics. This is an inspection treatment, not clear metal.
+  const baseOpacity = material => options.state.mode === 'heat' ? .18 : /edge highlights/i.test(material.name) ? .32 : .07;
+  let coverFade = 1, coverOpacity = baseOpacity;
+  if (name === 'coherent' && covers.length) {
+    // Coherent part close-ups sit just beside or under the raised finned lid,
+    // where its bright fin edges would crowd the view and the page title. Fade
+    // the x-ray lid as the camera nears it; in Heat it stays a visible target.
+    const coverBox = new THREE.Box3();
+    for (const cover of covers) coverBox.expandByObject(cover);
+    coverOpacity = material => baseOpacity(material) * (options.state.mode === 'heat' ? .5 + .5 * coverFade : .1 + .9 * coverFade);
+    const fade = (renderer, scene, camera, geometry, material) => {
+      if (!coverMaterials.has(material)) return;
+      coverFade = THREE.MathUtils.smoothstep(coverBox.distanceToPoint(camera.position), 4, 10);
+      material.opacity = coverOpacity(material);
+    };
+    for (const cover of covers) cover.onBeforeRender = fade;
+  }
   let coversDirty = false;
   built.inspection.setCovers = () => {
     const visible = true;
@@ -186,9 +206,7 @@ function build(name, nativeBuilder, options) {
     }
     for (const material of coverMaterials) {
       if (!material.transparent) { material.transparent = true; material.needsUpdate = true; moved = true; }
-      // Keep a readable enclosure outline without layering a bright sheet over
-      // the electronics. This is an inspection treatment, not clear metal.
-      material.opacity = options.state.mode === 'heat' ? .18 : /edge highlights/i.test(material.name) ? .32 : .07;
+      material.opacity = coverOpacity(material);
       material.depthWrite = false;
     }
     return moved || changed;

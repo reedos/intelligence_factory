@@ -49,6 +49,28 @@ describe('coherent packaging qualifications remain visible in the interactive sc
       expect(blockers.map(hit=>({name:hit.object.name,point:hit.point.toArray()})),id).toEqual([]);
     }
   });
+  it('laser pigtail, snout and boot clear the driver and TIA packages by at least 1 mm',()=>{
+    const b=build(1),asset=b.scene.children.find((o:THREE.Object3D)=>o.name.startsWith('Blender'));
+    asset.updateMatrixWorld(true);
+    const islands=['driver','tia'].map(id=>new THREE.Box3().setFromObject(asset.getObjectByName(`coherent-hardware_${id}_ceramic`)).expandByVector(new THREE.Vector3(.1,0,.1)));
+    const hitsXZ=(p:THREE.Vector3)=>islands.some(box=>p.x>=box.min.x&&p.x<=box.max.x&&p.z>=box.min.z&&p.z<=box.max.z);
+    // Boot and snout surfaces (x < 4 cm keeps the LC strain reliefs out).
+    const pigtail:THREE.Vector3[]=[];
+    for(const m of meshes(asset)) {
+      const names=(Array.isArray(m.material)?m.material:[m.material]).map(x=>x.name).join();
+      if(!/Molded black cable boot|Kovar fiber feedthrough/.test(names)) continue;
+      const pos=m.geometry.attributes.position;
+      for(let j=0;j<pos.count;j++){const p=new THREE.Vector3().fromBufferAttribute(pos,j).applyMatrix4(m.matrixWorld);if(p.x<4)pigtail.push(p);}
+    }
+    expect(pigtail.length).toBeGreaterThan(0);
+    expect(pigtail.filter(hitsXZ)).toEqual([]);
+    // The fiber from the boot to the tap, as a 0.12 mm-radius tube.
+    const trunk=b.scene.userData.coherentRouting.laserTrunk.map((p:number[])=>new THREE.Vector3(...p));
+    for(let i=1;i<trunk.length;i++) for(let t=0;t<=1;t+=.05) {
+      const p=trunk[i-1].clone().lerp(trunk[i],t);
+      for(const dz of [-.012,.012]) expect(hitsXZ(p.clone().setZ(p.z+dz)),`trunk ${i}`).toBe(false);
+    }
+  });
   it('keeps analog IC mounting islands separate from optics and optical paths outside electronics',()=>{
     const b=build(1),asset=b.scene.children.find((o:THREE.Object3D)=>o.name.startsWith('Blender'));
     asset.updateMatrixWorld(true);
@@ -323,13 +345,14 @@ describe('complete link housings',()=>{
     opts.state.mode=mode;b.update(1,1/60);asset.updateMatrixWorld(true);
     const aspect=width/height,preset=cameraPresetFor(b.camera,width,height),camera=new THREE.PerspectiveCamera(aspect<.9?48:35,aspect,.05,300);
     camera.position.fromArray(preset.pos);camera.lookAt(new THREE.Vector3().fromArray(preset.target));camera.updateMatrixWorld();
-    let edge=0,minX=Infinity,maxX=-Infinity;
+    let edge=0,minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
     for(const m of meshes(asset)) {
      const positions=m.geometry.attributes.position,p=new THREE.Vector3();
-     for(let j=0;j<positions.count;j++) {p.fromBufferAttribute(positions,j).applyMatrix4(m.matrixWorld).project(camera);edge=Math.max(edge,Math.abs(p.x),Math.abs(p.y));minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);}
+     for(let j=0;j<positions.count;j++) {p.fromBufferAttribute(positions,j).applyMatrix4(m.matrixWorld).project(camera);edge=Math.max(edge,Math.abs(p.x),Math.abs(p.y));minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y);}
     }
     expect(edge,`${mode} ${width}×${height}`).toBeLessThan(.96);
-    if(width===390 && height===445)expect((maxX-minX)/2,`${mode}: useful mobile canvas width`).toBeGreaterThan(.75);
+    // A phone view may lay the module across the canvas or diagonally up it; either way it must fill one axis.
+    if(width===390 && height===445)expect(Math.max(maxX-minX,maxY-minY)/2,`${mode}: useful mobile canvas span`).toBeGreaterThan(.75);
    }
   });
  }

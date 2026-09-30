@@ -398,11 +398,13 @@ def coherent_board_detail(m):
                 box('RF edge bond pad',(3.37+.035,1.4615,cz+o+g),(.04,.003,wd),m['gold'],0)
     for x,z,size in [(4.49,-.55,(.04,.07,.10)),(3.92,-.205,(.10,.07,.03)),(4.49,.55,(.04,.07,.10)),(3.92,.205,(.10,.07,.03))]:
         box('Fiber attach block',(x,1.435,z),size,m['attach'],.005)
-    # Hard gold on the card-edge pads and bond lands.
+    # Hard gold on the card-edge pads and bond lands. Plated contacts are not
+    # mirror-polished: roughness .55 keeps a gold sheen without the pads near
+    # the key light blooming into a white patch in the card-edge close-up.
     for o in by_source('Coherent gold contacts'):
         for mt in o.data.materials:
             p=mt.node_tree.nodes.get('Principled BSDF')
-            p.inputs['Base Color'].default_value=(1,.78,.35,1);p.inputs['Metallic'].default_value=1;p.inputs['Roughness'].default_value=.3
+            p.inputs['Base Color'].default_value=(.95,.74,.33,1);p.inputs['Metallic'].default_value=1;p.inputs['Roughness'].default_value=.55
     # Fused tap on a small ceramic mount; fibers get a glossy acrylate coat.
     box('Fused tap mount',(3.5,1.44,0),(.24,.18,.14),m['ceramic'],.01)
     for name in ['Coherent CW fiber','Coherent TX fiber','Coherent RX fiber']:
@@ -562,7 +564,10 @@ def coherent():
     bpy.context.view_layer.objects.active=cap; bpy.ops.object.modifier_apply(modifier=pocket.name)
     bpy.data.objects.remove(cut,do_unlink=True)
     reweight(cap)
-    box('Nano ITLA label recess',(ix-.05,1.982,0),(1.65,.002,.67),m['shell'],0)
+    # A matte printed label in the recess: a polished metal floor here caught a
+    # glassy specular hotspot. Ink bars are printed on it.
+    m['label']=mat('Matte identification label',(.40,.42,.43),0,.82)
+    box('Nano ITLA label recess',(ix-.05,1.982,0),(1.65,.002,.67),m['label'],0)
     for j,w in enumerate([.018,.03,.014,.035,.02,.014,.026,.02,.038,.015,.025]):
         box('Nano ITLA identification bar',(ix-.65+j*.065,1.9835,.13),(w,.001,.20),m['mark'],0)
     for x in [ix-1.11,ix+1.11]:
