@@ -59,6 +59,19 @@ document.getElementById('card-more').addEventListener('click', () => setSheet(tr
 // a part picked (a pin, a row, a link) shows on the parts tab: on a phone whose sheet is down, that is the peek, with
 // the part's name, its key figure and its door
 on('select', () => { if (sc.hidden) return; showPane('parts'); });
+// the level's intro keeps to three lines so the part list starts high in the pane; Read more opens the rest
+const intro = document.getElementById('intro'), introMore = document.getElementById('intro-more');
+function fitIntro() {
+  intro.classList.remove('open'); introMore.textContent = 'Read more'; introMore.setAttribute('aria-expanded', 'false');
+  requestAnimationFrame(() => { if (intro.getClientRects().length) introMore.hidden = intro.scrollHeight <= intro.clientHeight + 2; });
+}
+new MutationObserver(fitIntro).observe(intro, { childList: true, characterData: true, subtree: true });
+addEventListener('resize', () => { if (!intro.classList.contains('open')) fitIntro(); });
+introMore.addEventListener('click', () => {
+  const open = !intro.classList.contains('open');
+  intro.classList.toggle('open', open); introMore.textContent = open ? 'Less' : 'Read more'; introMore.setAttribute('aria-expanded', String(open));
+});
+tabs.forEach(b => b.addEventListener('click', () => { if (b.dataset.pane === 'parts') fitIntro(); }));
 let sheetDrag = null, dragged = false;
 sheetBtn.addEventListener('pointerdown', e => {
   if (!matchMedia('(max-width: 1100px)').matches) return;

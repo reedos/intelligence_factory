@@ -158,7 +158,11 @@ img { max-width: 100%; }
   .chip.spec { color: var(--spec); } .chip.typical { color: var(--typical); } .chip.est { color: var(--est); border-style: dashed; }
   .chip.vendor { color: var(--vendor); } .chip.reported { color: var(--reported); } .chip.derived { color: var(--derived); } .chip.assumed { color: var(--assumed); border-style: dashed; }
   .card-actions { display: flex; gap: 10px; flex-wrap: wrap; padding-top: 4px; }
-  .card-more { display: none; }
+  .card-door .card-more { display: none; }
+  .card-door { display: flex; gap: 8px; }
+  .card-door:has(#card-go[hidden]) { display: none; }
+  .card-door #card-go { flex: 0 1 auto; min-width: 0; white-space: normal; line-height: 1.25; padding-block: 8px; background: var(--accent); border-color: var(--accent); color: #000; }
+  .card-door #card-go:hover { background: #f0cc9c; border-color: #f0cc9c; }
   .card-navigation { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; }
   .card-navigation .btn { min-width: 0; min-height: 44px; padding: 8px; justify-content: center; text-align: center; white-space: normal; font-size: 11px; }
   .btn { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 20px; border: 1px solid var(--line-2); font: 600 12px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); background: transparent; transition: background .2s, color .2s, border-color .2s; }
@@ -909,6 +913,30 @@ body.story .pane-tabs { display: none; }
   .hud.vl { top: 10px; }   /* the layer switch no longer sits over the view */
 }
 @media (max-width: 379px) { .hud.vl { top: 64px; } }   /* too narrow to share the top with Back outside */
+
+/* ---------- the part list: a level's parts in view at once ---------- */
+body.app #intro:not(.open) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.intro-more { all: unset; box-sizing: border-box; justify-self: start; margin-top: -8px; padding: 4px 0; cursor: pointer; font: 600 11px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.intro-more[hidden] { display: none; }
+.intro-more:hover { color: var(--ink); }
+.intro-more:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+@media (pointer: coarse) { .intro-more { min-height: 44px; margin-top: -12px; } }
+/* with a mouse on a wide screen the rows are dense, so every part of a level fits at 1280 x 720; the part picked
+   opens its card right under the list. Touch keeps 44 px rows. */
+@media (min-width: 1101px) and (pointer: fine) {
+  body.app .panel-scroll { padding: 16px 20px 20px; gap: 12px; }
+  body.app .parts-head { margin-bottom: -4px; }
+  #inspector .parts button { grid-template-columns: 20px minmax(0, 1fr) auto; gap: 10px; min-height: 26px; padding: 3px 4px; }
+  body.app .parts .pn { width: 18px; height: 18px; font-size: 10px; }
+  body.app .parts .pt { font-size: 13px; line-height: 1.2; }
+  body.app .parts .pk { font-size: 10px; }
+  body.app #intro { font-size: 13.5px; line-height: 1.55; }
+  body.app .card { padding: 14px 16px 14px; gap: 10px; }
+  body.app .card h3 { font-size: 26px; }
+  body.app .card p { font-size: 13.5px; line-height: 1.55; }
+  body.app .specs div { padding: 6px 0; }
+  body.app .card-actions .btn { min-height: 36px; }
+}
 
 /* ---------- more below: the pane fades at its foot and a strip under it says there is more ---------- */
 /* a strip of its own, not an overlay, so it never sits on a button in the pane */

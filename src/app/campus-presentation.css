@@ -46,13 +46,15 @@ body.app:not(.story) .sheet-toggle { display: grid; touch-action: none; user-sel
   body.app:not(.story) .panel { flex-basis: var(--inspector-size, 198px); }
   body.app:not(.story):not(.sheet-open) #card { gap: 4px; padding: 8px 12px; }
   body.app:not(.story):not(.sheet-open) .panel:has(#card:not([hidden])) > .panel-scroll { -webkit-mask-image: none; mask-image: none; }
-  body.app:not(.story):not(.sheet-open) #card :is(.k, #card-b, .card-links, .card-navigation),
+  body.app:not(.story):not(.sheet-open) #card :is(.k, #card-b, .card-links, .card-actions),
   body.app:not(.story):not(.sheet-open) #card-s > div:nth-child(n + 2) { display: none; }
   body.app:not(.story):not(.sheet-open) #card h3 { font-size: 23px; }
   body.app:not(.story):not(.sheet-open) #card-s > div { padding: 3px 0; border-bottom: 0; }
-  body.app:not(.story):not(.sheet-open) #card .card-actions { padding-top: 2px; flex-wrap: nowrap; gap: 6px; }
-  body.app:not(.story):not(.sheet-open) #card .card-actions .btn { min-height: 44px; }
-  body.app:not(.story):not(.sheet-open) #card #card-go { flex: 1 1 auto; min-width: 0; white-space: normal; line-height: 1.2; font-size: 11px; }
+  /* in the peek: the name, the key figure, then the door and Details */
+  body.app:not(.story):not(.sheet-open) #card-s { order: 1; }
+  body.app:not(.story):not(.sheet-open) #card .card-door { order: 2; display: flex; padding-top: 2px; gap: 6px; }
+  body.app:not(.story):not(.sheet-open) #card .card-door .btn { min-height: 44px; }
+  body.app:not(.story):not(.sheet-open) #card #card-go { flex: 1 1 auto; font-size: 11px; line-height: 1.2; }
   body.app:not(.story):not(.sheet-open) #card .card-more { display: inline-flex; flex: none; margin-left: auto; }
   body.app:not(.story):not(.sheet-open) .panel-scroll { padding-top: 8px; }
   body.app:not(.story):not(.sheet-open) .panel:has(#card:not([hidden])) .more-cue { display: none; }   /* Details says it */
