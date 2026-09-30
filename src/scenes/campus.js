@@ -874,7 +874,7 @@ export function build({ quality, model }) {
       ...(towerRows.length ? {
         towers: { pos: [45, 13, -275], view: { pos: [110, 60, -200], target: [70, 5, -275] } },
       } : {}),
-      fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-163, 9, 260], target: [-150, 0.8, 239] } },
+      fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-171, 14, 273], target: [-150, 0.8, 239] } },
       security:{pos:[-96,4.2,232],view:{pos:[-140,20,290],target:[-103,3,241]}},
       ops:{pos:[opsAnt.x,opsAnt.roofY+3,opsAnt.z],view:{pos:[hallX0-89,42,hallAz+85],target:[hallX0-14,8,hallAz]}},
     },
@@ -888,7 +888,7 @@ export function build({ quality, model }) {
       reuse: { pos: [reuseSkid[0], 7, reuseSkid[1] + 4], view: { pos: [reuseSkid[0] - 30, 20, reuseSkid[1] + 40], target: [reuseSkid[0] + 4, 3, reuseSkid[1]] } },
     },
     dataHotspots: {
-      fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-163, 9, 260], target: [-150, 0.8, 239] } },
+      fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-171, 14, 273], target: [-150, 0.8, 239] } },
       dci: { pos: [hutA[0], 6, hutA[1]], view: { pos: [-130, 40, 290], target: [hutA[0], 0, hutA[1]] } },
       ...(nHalls > 1 ? { interhall: { pos: [-45, 3, -58], view: { pos: [40, 70, 60], target: [-45, 0, -58] } } } : {}),
       ...(nHalls > 1 ? { ductbank: { pos: [-54, 1.1, -90], view: { pos: [-57.2, 1.9, -87.4], target: [-54, 0.45, -89.2] } } } : {}),
