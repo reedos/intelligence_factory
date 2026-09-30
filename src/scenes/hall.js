@@ -314,8 +314,20 @@ export function build({ quality, model }) {
   // ---------- electrical room ----------
   // rounded cabinet: a smooth painted body (merged into S, one draw call per material) plus a flat
   // textured front panel held a hair proud of the body so the two never go coplanar.
+  // With the campus catalog loaded, switchgear, UPS and battery rows use its true-size sections (front +Z, origin
+  // at the floor centre), which carry their own doors, cubicles, displays, plinths and handles, so nothing is
+  // stretched and no painted panel or seam trim is needed. Other sizes (the taller DC solid-state transformer)
+  // keep the stretched cabinet with its textured front.
+  const TRUE_SIZE = { swgr: ['HALL_SWGR_SECTION', .9, 2.3, 1.5], ups: ['HALL_UPS', 1.1, 2.0, 1.0], batt: ['HALL_BATT', .6, 2.0, .8] };
   const cabinetRow = (n, w, h, d, tex, x0, z, facing = 1) => {
     const bw = n * w;
+    const kind = tex === TEX.swgr ? 'swgr' : tex === TEX.ups && !dc ? 'ups' : tex === TEX.batt ? 'batt' : null;
+    const section = kind && TRUE_SIZE[kind];
+    if (hasCampusCatalog() && section && section[1] === w && section[2] === h && section[3] === d) {
+      const g = campusCatalogInstances(section[0], Array.from({ length: n }, (_, i) => mtx(x0 + (i + .5) * w, 0, z, facing < 0 ? Math.PI : 0)));
+      g.userData.trueSizeSection = kind; scene.add(g);
+      return { x0, bw, h, z };
+    }
     const sideColor = tex === TEX.swgr || (tex === TEX.cdu && !air) || (tex === TEX.ups && dc) ? 0xc3c7ca : 0x2b2f35;
     const bodyMat = new THREE.MeshStandardMaterial({ color: sideColor, roughness: 0.55, metalness: 0.22 });
     if(hasCampusCatalog()) {
