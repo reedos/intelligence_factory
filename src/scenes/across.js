@@ -393,7 +393,13 @@ export function build({ quality, model, state = {} }) {
   const HG = gantry(H, 1);
   plants.forEach(([px, pz, kind], i) => {
     const from = kind === 'gas' ? [px + 16 * Math.cos(GAS_RY) + 3 * Math.sin(GAS_RY), pz - 16 * Math.sin(GAS_RY) + 3 * Math.cos(GAS_RY)] : [px, pz];      // a gas plant's line leaves from its step-up gantry
-    const pts = route(from, [HG[0], HG[2]], 60, 100 + i).map(p => [p[0], 6, p[2]]);
+    let pts = route(from, [HG[0], HG[2]], 60, 100 + i).map(p => [p[0], 6, p[2]]);
+    // a line arriving from the far side swings around the plinth to the gantry instead of crossing the roofs
+    const overCampus = pts.some(([x, , z]) => Math.abs(x - H[0]) < 19 && Math.abs(z - H[1]) < 16);
+    if (overCampus) {
+      const side = Math.sign(from[1] - H[1]) || 1, via = [H[0] - 22, H[1] + side * 26];
+      pts = [...route(from, via, 60, 100 + i).map(p => [p[0], 6, p[2]]), [HG[0] - 4, 6, HG[2] + side * 10], [HG[0], 6, HG[2]]];
+    }
     const f = flow(pts, 'hv', { count: 18, speed: 160, size: 1.4, trailR: .38, trailK: 0.45 });
     flows.push(f); power.add(f.group);
     const L = polyLen(pts); for (let d = 0; d < L; d += 30) towerPts.push(pointAt(pts, d));
