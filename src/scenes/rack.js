@@ -452,22 +452,55 @@ function buildNVL({ quality, model, state }) {
     N.box(0.07, U * 0.6, 0.04, MAT.copper, 0, trayY(i), bbZ + 0.06);
     rbox(N, 0.09, U * 0.16, 0.05, MAT.darkSteel, 0, trayY(i) + U * 0.34, bbZ + 0.06, { r: 0.3 });   // busbar clip
   });
-  // NVLink cable cartridges and copper links
+  // NVLink spine: four rear cable cartridges that every compute and switch tray
+  // blind-mates into when pushed home (ServeTheHome, DGX GB200 NVL72 tour), so
+  // no loose cables run from tray to cartridge. Each cartridge is drawn as a
+  // folded sheet-steel cassette; its side windows, the twinax bundle behind
+  // them and the connector housings are representative (ASSUMPTIONS
+  // 'nvl72-spine-mechanics'). cartZ keeps the audited flow plane (cartZ - 0.067).
   const cartX = [-0.2, -0.12, 0.12, 0.2], cartZ = ZB + 0.08;
-  const spanLo = trayY(3) - U / 2, spanHi = trayY(29) + U / 2;
-  cartX.forEach(x => rbox(S, 0.06, spanHi - spanLo, 0.1, MAT.black, x, (spanLo + spanHi) / 2, cartZ, { r: 0.06 }));
+  const spanLo = trayY(3) - U / 2, spanHi = trayY(29) + U / 2, spanMid = (spanLo + spanHi) / 2, spanH = spanHi - spanLo;
+  const cartD = 0.05, cartC = ZB + 0.055;                                   // rear face stays at ZB + 0.03
+  const CART = new THREE.MeshStandardMaterial({ color: 0x20262d, roughness: 0.46, metalness: 0.62 }); CART.name = 'NVLink cartridge sheet steel';
+  const TWINAX = new THREE.MeshStandardMaterial({ color: 0x0b0c0e, roughness: 0.55, metalness: 0.1 }); TWINAX.name = 'Twinax cable jacket';
+  const FOIL = new THREE.MeshStandardMaterial({ color: 0x9aa3ab, roughness: 0.35, metalness: 0.85 }); FOIL.name = 'Twinax shield foil';
+  const CONTACT = new THREE.MeshStandardMaterial({ color: 0xd9b25a, roughness: 0.3, metalness: 1 }); CONTACT.name = 'Blind-mate gold contacts';
+  const heavy = !quality.mobile;
+  cartX.forEach(x => {
+    rbox(S, 0.06, spanH, cartD, CART, x, spanMid, cartC, { r: 0.05 });
+    for (const s of [-1, 1]) {
+      // folded rear flange and riveted spine rail on each side
+      N.box(0.003, spanH - 0.01, 0.014, COLLAR, x + s * 0.0315, spanMid, cartC - cartD / 2 + 0.008);
+      if (heavy) for (let y = spanLo + 0.04; y < spanHi - 0.02; y += 0.09) N.cylX(0.0022, 0.004, MAT.galv, x + s * 0.0332, y, cartC - cartD / 2 + 0.008, 8);
+    }
+    // A slotted window every four units shows the packed cable bundle. It is
+    // flush with the rear face so the depth-tested NVLink cores stay clear.
+    const face = cartC - cartD / 2;
+    for (let y = spanLo + 0.07; y < spanHi - 0.05; y += 4 * U) {
+      N.box(0.042, 0.112, 0.001, MAT.black, x, y, face - 0.0004);
+      if (heavy) for (let j = 0; j < 8; j++) N.cyl(0.0021, 0.106, j % 3 === 1 ? FOIL : TWINAX, x - 0.0165 + j * 0.0047, y, face + 0.0005, 6);
+    }
+    // captive thumbscrews on the end caps
+    for (const [y, dir] of [[spanHi, 1], [spanLo, -1]]) {
+      rbox(N, 0.05, 0.008, 0.04, COLLAR, x, y + dir * 0.004, cartC, { r: 0.3 });
+      N.cyl(0.0065, 0.012, MAT.galv, x, y + dir * 0.013, cartC, 12);
+    }
+  });
+  // Blind-mate connector housings bridge the tray rear and the cartridge face.
   layout.forEach((k, i) => {
     if (k !== 'compute' && k !== 'switch') return;
     const y = trayY(i);
-    cartX.forEach((cx, c) => {
-      for (let j = 0; j < 3; j++) {
-        const ty = y + (j - 1) * 0.008, x0 = -0.08 + j * 0.08;
-        N.strut([x0, ty, ZB + 0.16], [cx, ty + (c - 1.5) * 0.004, cartZ + 0.05], 0.0022, j === 1 ? MAT.copper : MAT.black, 4);
-      }
+    cartX.forEach(cx => {
+      N.box(0.044, U * 0.5, 0.016, MAT.darkSteel, cx, y, ZB + 0.09);
+      N.box(0.036, 0.002, 0.012, CONTACT, cx, y + U * 0.25 + 0.001, ZB + 0.09);
     });
   });
-  // a few hero cable bundles off the spine, visible sag, for the close-up hotspots
-  if (!quality.mobile) [15, 18, 22].forEach(i => cartX.forEach((cx, c) => bundle(N, [c % 2 ? -0.16 : 0.16, trayY(i), ZB + 0.16], [cx, trayY(i) + (c - 1.5) * 0.004, cartZ + 0.05], { n: 2, r: 0.003, spread: 0.02, sag: 0.02, mats: [MAT.black, MAT.copper], seed: i * 7 + c, seg: 4 })));
+  // Busbar: a tin-plated contact land on each bar where every tray's clip grabs it.
+  const TIN = new THREE.MeshStandardMaterial({ color: 0xc9ccd0, roughness: 0.42, metalness: 0.9 }); TIN.name = 'Busbar tin-plated contact';
+  layout.forEach((k, i) => {
+    if (k === 'mgmt') return;
+    for (const dx of [-0.018, 0.018]) N.box(0.0236, U * 0.45, 0.012, TIN, dx, trayY(i), bbZ - 0.012);
+  });
   // manifolds with quick disconnects to each liquid-cooled tray
   const mX = [-0.255, 0.255], mZ = ZB + 0.05;
   S.box(0.045, bbTop - bbBot + 0.2, 0.045, MAT.pipeBlue, mX[0], (bbTop + bbBot) / 2, mZ);
@@ -559,6 +592,9 @@ function buildNVL({ quality, model, state }) {
     scene.add(haze.points);
   }
 
+  // Rear three-quarter on the cartridges: their side windows and blind-mate
+  // housings read beside the busbar instead of a flat rear elevation.
+  const spineHot = { pos: [0.2, trayY(18), cartZ], view: componentView([0.1, trayY(16), ZB + 0.06], [0.85, 0.3, -0.95], [0.5, 0.75, 0.25]) };
   return {
     scene, flows,
     camera: { pos: [3.1, 2.3, -3.7], target: [0, 1.1, -0.1], near: 0.01, far: 200, min: 0.4, max: 9 },
@@ -568,7 +604,7 @@ function buildNVL({ quality, model, state }) {
       busbar: { pos: [0.03, trayY(14), bbZ], view: { pos: [0.9, 1.3, -1.3], target: [0, 0.9, bbZ] } },
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
       nvswitch: { pos: [.1, sy + .04, sz], view: { pos: [.65, sy + .75, sz + 1.0], target: [0, sy, sz] } },
-      spine: { pos: [0.2, trayY(18), cartZ], view: { pos: [0.4, 1.1, -1.6], target: [0, 0.9, ZB] } },
+      spine: spineHot,
       manifold: { pos: [mX[1], trayY(6), mZ], view: { pos: [1.03, 0.55, -0.9], target: [mX[1], trayY(6), mZ + 0.1] } },
     },
     dataFlows, heatFlows,
@@ -580,7 +616,7 @@ function buildNVL({ quality, model, state }) {
     dataHotspots: {
       tp: { pos: [-0.2, trayY(15), ZF - 0.05], view: { pos: [1.2, 1.4, 2.2], target: [0, 1.0, 0] } },
       nvswitch: { pos: [.1, sy + .04, sz], view: { pos: [.65, sy + .75, sz + 1.0], target: [0, sy, sz] } },
-      spine: { pos: [0.2, trayY(18), cartZ], view: { pos: [0.4, 1.1, -1.6], target: [0, 0.9, ZB] } },
+      spine: spineHot,
       uplinks: { pos: [fx, H + 0.2, fz], view: { pos: [1.3, 2.9, 2.2], target: [0.2, 2.2, fz] } },
       // Front cage rows, fiber managers and the patch strip, with the opened
       // tray's seated modules in frame: scale-out optics, set against copper.
