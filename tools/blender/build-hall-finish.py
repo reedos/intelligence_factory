@@ -6,7 +6,7 @@ HERE=pathlib.Path(__file__).resolve().parent
 exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque building envelope.')[0])
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT']:
+for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT','STORAGE_FACE']:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
 ceramic=mat('Soft satin architectural panel',(.30,.38,.43),.25,.45)
 alloy=mat('Anodized champagne edge',(.31,.29,.23),.8,.3)
@@ -123,13 +123,20 @@ for i in range(4):
  y=.05+(3+i*8.2+4)*2.2/48
  for yy in [y-8*2.2/96,y+8*2.2/96]:box('HGX drawer rolled edge',(0,yy,.622),(.48,.014,.023),steel,g,.004)
  for x in [-.228,.228]:box('HGX captive pull',(x,y,.641),(.018,.18,.036),alloy,g,.006)
+g='STORAGE_FACE'
+# Twelve 4U drive shelves, matching the storage face texture rows top-down (face spans y .05-2.25).
+# Representative JBOD-style bezels: a rolled top lip and two bezel ears per shelf, no bay count claimed.
+for i in range(12):
+ top=2.25-i*2.2/12
+ box('Drive shelf rolled lip',(0,top-.006,.613),(.47,.008,.014),steel,g,.002)
+ for x in [-.229,.229]:box('Drive shelf bezel ear',(x,top-2.2/24,.618),(.016,.15,.024),alloy,g,.004)
 # The center of every face remains open to retain original status/vent graphics.
 # The native graphics will be relocated a few millimetres beyond the relief base.
 for o in list(S.objects):
  if o.type!='MESH':continue
  bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o
  for mod in list(o.modifiers):
-  if o.parent and o.parent.name in ['NVL_FACE','H100_FACE'] and mod.type=='BEVEL':mod.segments=1
+  if o.parent and o.parent.name in ['NVL_FACE','H100_FACE','STORAGE_FACE'] and mod.type=='BEVEL':mod.segments=1
   bpy.ops.object.modifier_apply(modifier=mod.name)
  bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
 for g in groups.values():

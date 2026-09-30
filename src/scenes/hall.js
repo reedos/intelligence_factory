@@ -359,6 +359,7 @@ export function build({ quality, model }) {
     const computeFace=tex===TEX.rack&&hasHallFinish();
     const geo = new THREE.PlaneGeometry(w - .06, h - .1); geo.translate(0, h / 2, d / 2 + (computeFace ? .032 : .003));
     if(computeFace)scene.add(hallFinishInstances(nvl?'NVL_FACE':'H100_FACE',matrices));
+    else if(tex===TEX.storage&&hasHallFinish())scene.add(hallFinishInstances('STORAGE_FACE',matrices)); // representative shelf bezels over the drive-bay rows
     const m = new THREE.InstancedMesh(geo, front, items.length);
     items.forEach((it, i) => m.setMatrixAt(i, mtx(it.x, 0.0, it.z, it.f > 0 ? 0 : Math.PI)));
     m.castShadow = m.receiveShadow = true; scene.add(m); return m;
@@ -850,7 +851,7 @@ export function build({ quality, model }) {
       fire: { pos: [asdX, 2.9, asdZ], view: { pos: [-7.5, 2.2, -5.2], target: [-10.8, 3.4, -9] } },   // the detector box and its sampling pipe rising to the ceiling
     },
     dataHotspots: {
-      storage: { pos: [storageMx[0].x, 3.3, svcZ], view: { pos: [(storageMx[0].x + storLast.x) / 2, 5, 19], target: [(storageMx[0].x + storLast.x) / 2, 1.3, svcZ] } },
+      storage: { pos: [storageMx[1].x, 2.5, svcZ + .6], view: { pos: [(storageMx[0].x + storLast.x) / 2 - 1.2, 1.9, svcZ + 4.7], target: [(storageMx[0].x + storLast.x) / 2 - .2, 1.3, svcZ + .6] } },   // eye level, near head-on: the drive shelves must read as storage, not compute
       control: { pos: [(controlMx[0].x + controlMx[1].x) / 2, 2.6, svcZ], view: { pos: [(controlMx[0].x + controlMx[1].x) / 2, 5, 19], target: [(controlMx[0].x + controlMx[1].x) / 2, 1.3, svcZ] } },
       odf: { pos: [rowX0 + 4.4, 2.5, 14.5], view: { pos: [rowX0 + 11, 5.2, 23], target: [rowX0 + 5, 1.6, 12.5] } },
       crosshall: { pos: [rowX0 + 9.4, 1.2, 14.2], view: { pos: [rowX0 + 12, 3.2, 18.5], target: [rowX0 + 9.4, 1.2, 14.2] }, drill: 1 },
