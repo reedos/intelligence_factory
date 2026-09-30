@@ -465,7 +465,11 @@ export function build({ quality, model }) {
 
   // ---------- fiber vaults ----------
   const fiberA = [-150, 238], fiberB = [455, -300];
-  for (const [x, z] of [fiberA, fiberB]) { S.slab(3, 0.6, 3, MAT.concrete, x, 0.15, z); N.slab(1.2, 0.05, 1.2, MAT.darkSteel, x, 0.76, z); }
+  // fiber vaults: flush concrete box with a steel lid, and orange route-marker posts where the cable enters
+  for (const [x, z] of [fiberA, fiberB]) {
+    S.slab(3, 0.6, 3, MAT.concrete, x, 0.15, z); N.slab(1.2, 0.05, 1.2, MAT.darkSteel, x, 0.76, z);
+    for (const dz of [2.6, 6.5]) { N.cyl(0.05, 1.5, MAT.orange, x + 1.9, 0.9, z + dz, 8); N.cyl(0.055, 0.2, MAT.white, x + 1.9, 1.45, z + dz, 8); }
+  }
   // data: long-haul fiber in, through the line-terminal huts, to the halls; hall-to-hall fabric fiber
   const hutA = [-215, 196], hutB = [430, -276];
   for (const [x, z] of [hutA, hutB]) {
@@ -796,7 +800,7 @@ export function build({ quality, model }) {
       ...(towerRows.length ? {
         towers: { pos: [45, 13, -275], view: { pos: [110, 60, -200], target: [70, 5, -275] } },
       } : {}),
-      fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-60, 60, 330], target: [-120, 0, 200] } },
+      fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-163, 9, 260], target: [-150, 0.8, 239] } },
       security:{pos:[-96,4.2,232],view:{pos:[-140,20,290],target:[-103,3,241]}},
       ops:{pos:[opsAnt.x,opsAnt.roofY+3,opsAnt.z],view:{pos:[hallX0-89,42,hallAz+85],target:[hallX0-14,8,hallAz]}},
     },
@@ -810,7 +814,7 @@ export function build({ quality, model }) {
       reuse: { pos: [hallX0 - 28, 18, 60], view: { pos: [-160, 80, 180], target: [-40, 10, 60] } },
     },
     dataHotspots: {
-      fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-60, 60, 330], target: [-120, 0, 200] } },
+      fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-163, 9, 260], target: [-150, 0.8, 239] } },
       dci: { pos: [hutA[0], 6, hutA[1]], view: { pos: [-130, 40, 290], target: [hutA[0], 0, hutA[1]] } },
       ...(nHalls > 1 ? { interhall: { pos: [-45, 3, -58], view: { pos: [40, 70, 60], target: [-45, 0, -58] } } } : {}),
       ...(nHalls > 1 ? { ductbank: { pos: [-54, 1.1, -90], view: { pos: [-57.2, 1.9, -87.4], target: [-54, 0.45, -89.2] } } } : {}),
