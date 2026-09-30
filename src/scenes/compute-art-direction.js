@@ -13,9 +13,13 @@ export function applyComputeArtDirection({ built, level, quality = {}, matched =
   const p = PROFILES[level];
   if (!p || !built.scene.userData.blenderCompute) return;
   const restrained = { glow: 4.4, brightness: 2.65, haloOpacity: .28 };
+  // Package data streams run on top of emissive silicon at close range: a
+  // slightly thinner, dimmer halo keeps the die readable while the streams
+  // still glow (set halfway between the original look and the restrained one).
+  const packageData = { width: 2.35, glow: 4.35, brightness: 2.5, haloOpacity: .28 };
   attachFlowRibbons(built, { width: level === 3 ? 2.8 : 2.5, glow: level === 3 ? 6.5 : 5.5,
     brightness: 3.1, mobile: quality.mobile,
-    layers: level === 4 ? { flows: restrained, dataFlows: restrained } : level === 5 ? { heatFlows: restrained } : {} });
+    layers: level === 4 ? { flows: restrained, dataFlows: restrained } : level === 5 ? { heatFlows: restrained, dataFlows: packageData } : {} });
   if (matched) return;
   const scene = built.scene, center = new THREE.Vector3(...p.target);
   const hemisphere = scene.children.find(o => o.isHemisphereLight);
@@ -48,7 +52,7 @@ export function applyComputeArtDirection({ built, level, quality = {}, matched =
   scene.background = new THREE.Color(0x070b12);
   built.look = { ...built.look, env: 'studio', envIntensity: quality.mobile ? (level === 3 ? .78 : .65) : level === 3 ? 1.12 : .82,
     exposure: 1, bloom: quality.mobile ? .33 : .44, threshold: 1.25, ao: p.ao,
-    bloomByMode: level === 5 ? { heat: quality.mobile ? .20 : .26 }
+    bloomByMode: level === 5 ? { heat: quality.mobile ? .20 : .26, data: quality.mobile ? .255 : .33 }
       : level === 4 ? { power: quality.mobile ? .26 : .34, data: quality.mobile ? .26 : .34 } : undefined,
     grain: .004, vignette: .17, dof: !quality.mobile && quality.dof !== false };
   scene.userData.computeArtDirection = 'studio-streams-v2';
@@ -58,8 +62,9 @@ export function applyComputeArtDirection({ built, level, quality = {}, matched =
     for (const f of list || []) {
       const rackExhaust = level === 3 && f.cls === 'air';
       const packageHeat = level === 5 && list === built.heatFlows;
+      const packageSignals = level === 5 && list === built.dataFlows;
       const traySignals = level === 4 && list !== built.heatFlows;
-      f.setMotionStyle({ density: 1.8, brightness: rackExhaust ? .85 : packageHeat ? 1.15 : traySignals ? 1.45 : 1.9,
+      f.setMotionStyle({ density: 1.8, brightness: rackExhaust ? .85 : packageHeat ? 1.15 : packageSignals ? 1.5 : traySignals ? 1.45 : 1.9,
         radius: rackExhaust ? .55 : 1.15, pixels: rackExhaust ? .75 : quality.mobile ? 1.25 : 1.15,
         stretch: rackExhaust ? 3.2 : 2.6 });
     }

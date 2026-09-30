@@ -137,25 +137,31 @@ describe('complete Blender compute hardware',()=>{
       expect(f.group.parent===b.scene).toBe(true);
     }
   });
-  it('token inspection alone shows bounded live text while other engineering views stay clear',()=>{
+  it('token inspection shows bounded live text in power and data while other engineering views stay clear',()=>{
     const opts:any=options('rubin');opts.state.selected='tokens';const b=wrappers[2].build(opts);
     let now=performance.now();const clock=vi.spyOn(performance,'now').mockImplementation(()=>now);
     let sawReadout=false;const sequences=new Set<number>();
     const visible=()=>{const chunks:any[]=[];b.scene.traverse((o:any)=>{if(o.isSprite&&o.userData.tokenChunk&&o.visible)chunks.push(o);});return chunks;};
+    // The readout rows are the pinned, fully opaque chunks; answer chunks still in
+    // flight out of the package stay faint and never reach readout opacity.
+    const rows=(chunks:any[])=>chunks.filter(o=>o.material.opacity>=.9);
     try {
       for(let frame=0;frame<180;frame++){
         now+=50;b.update(frame*.05,.05);
-        const chunks=visible();expect(chunks.length).toBeLessThanOrEqual(3);
-        if(chunks.length){sawReadout=true;
-          const ys=chunks.map(o=>o.position.y).sort((a,b)=>a-b);
-          for(let j=1;j<ys.length;j++)expect(ys[j]-ys[j-1]).toBeGreaterThan(.45);
-          for(const sp of chunks){expect(sp.scale.x).toBeLessThanOrEqual(7.00001);expect(sp.scale.y).toBeLessThanOrEqual(.32001);expect(sp.userData.tokenChunk.words.length).toBeGreaterThan(0);expect(sp.material.opacity).toBeGreaterThanOrEqual(.9);expect(sp.material.toneMapped).toBe(false);sequences.add(sp.userData.tokenChunk.sequence);}
+        const chunks=visible(),pinned=rows(chunks);expect(pinned.length).toBeLessThanOrEqual(3);
+        for(const sp of chunks)if(!pinned.includes(sp)){expect(sp.userData.tokenChunk.lane).toBe('answer');expect(sp.material.opacity).toBeLessThan(.61);}
+        if(pinned.length){sawReadout=true;
+          const ys=pinned.map(o=>o.position.y).sort((a,b)=>a-b);
+          for(let j=1;j<ys.length;j++)expect(ys[j]-ys[j-1]).toBeGreaterThan(.6);
+          for(const sp of pinned){expect(sp.scale.x).toBeLessThanOrEqual(9.00001);expect(sp.scale.y).toBeLessThanOrEqual(.50001);expect(sp.userData.tokenChunk.words.length).toBeGreaterThan(0);expect(sp.material.toneMapped).toBe(false);sequences.add(sp.userData.tokenChunk.sequence);}
         }
-        for(const [mode,selected]of [['heat','tokens'],['power','tokens'],['data',null],['data','hbm']]){
+        for(const [mode,selected]of [['heat','tokens'],['data',null],['data','hbm'],['power',null]]){
           opts.state.mode=mode;opts.state.selected=selected;b.update(frame*.05,0);expect(visible()).toHaveLength(0);
         }
-        opts.state.mode='data';opts.state.selected='tokens';b.update(frame*.05,0);
-        expect(visible().map(o=>o.userData.tokenChunk.sequence)).toEqual(chunks.map(o=>o.userData.tokenChunk.sequence));
+        for(const mode of ['power','data']){
+          opts.state.mode=mode;opts.state.selected='tokens';b.update(frame*.05,0);
+          expect(rows(visible()).map(o=>o.userData.tokenChunk.sequence)).toEqual(pinned.map(o=>o.userData.tokenChunk.sequence));
+        }
       }
       expect(sawReadout).toBe(true);expect(sequences.size).toBeGreaterThan(3);
     }finally{clock.mockRestore();}
@@ -320,14 +326,15 @@ it('exported GPU packages have the expected live HBM sites and stack heights',()
   expect(m.gpuDies).toBe(id==='h100'?1:2);expect(m.liveHbmStacks).toBe(model.accel.hbm.stacks);expect(m.hbmDramLayers).toBe(model.accel.hbm.layers);
   expect(m.nvlinkLinks).toBe(model.accel.nvlink.linksPerGpu);
   expect(b.heatFlows.filter((f:any)=>f.thermalOrigin==='hbm').every((f:any)=>f.cls==='hot')).toBe(true);
-  const tops=meshes(b.scene).filter(o=>(Array.isArray(o.material)?o.material:[o.material]).some((mat:any)=>mat.name.startsWith('HBM top cap')));
+  const tops=meshes(b.scene).filter(o=>(Array.isArray(o.material)?o.material:[o.material]).some((mat:any)=>mat.name.startsWith('HBM printed top')));
   expect(tops.length).toBeGreaterThan(0);b.scene.updateMatrixWorld(true);
   const sites=id==='h100'?[-2.05,2.05].flatMap(x=>[-1.12,0,1.12].map(z=>[x,z])):[-2.02,-.7,.7,2.02].flatMap(x=>[-2.3,2.3].map(z=>[x,z]));
   const ray=new THREE.Raycaster();let hits=0;
   for(const [i,[x,z]]of sites.entries()){
    ray.set(new THREE.Vector3(x,5,z),new THREE.Vector3(0,-1,0));const hit=ray.intersectObjects(tops,true)[0];
    if(id==='h100'&&i===5){expect(hit).toBeUndefined();continue;}
-   expect(hit).toBeDefined();expect(hit.point.y).toBeCloseTo(3.25+model.accel.hbm.layers*.055,4);hits++;
+   // one molded block per stack, drawn about 3x its real height (hbm-stack-drawing)
+   expect(hit).toBeDefined();expect(hit.point.y).toBeCloseTo(3.40,3);hits++;
   }
   expect(hits).toBe(model.accel.hbm.stacks);
  }
@@ -459,7 +466,7 @@ it('trims package Heat emission without changing Data or power presentation',asy
  const before=['flows','dataFlows','heatFlows'].map(k=>b[k].map((f:any)=>({color:f.base.color.clone(),speed:f.speed,len:f.len})));
  applyComputeArtDirection({built:b,level:5,quality:opts.quality});
  for(const [i,k]of ['flows','dataFlows','heatFlows'].entries())for(const [j,f]of b[k].entries()){
-  expect(f.base.color.r).toBeCloseTo(before[i][j].color.r*(k==='heatFlows'?1.15:1.9));
+  expect(f.base.color.r).toBeCloseTo(before[i][j].color.r*(k==='heatFlows'?1.15:k==='dataFlows'?1.5:1.9));
   expect(f.speed).toBe(before[i][j].speed);expect(f.len).toBe(before[i][j].len);
  }
 });

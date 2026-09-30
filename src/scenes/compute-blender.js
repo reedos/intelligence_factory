@@ -79,10 +79,14 @@ function build(kind, native, options) {
   });
   for (const o of obsolete) { o.removeFromParent(); o.geometry.dispose(); }
   if (rotors.length) {
-    let rotor;
-    cache.get(kind === 'chip' ? 'compute-solder' : 'compute-rotor').traverse(o => { if (o.isMesh) rotor = o; });
-    if (!rotor) throw new Error('Blender fan rotor asset has no mesh.');
+    // compute-solder carries a reflowed BGA ball and a lighter C4 bump mesh.
+    const shapes = [];
+    cache.get(kind === 'chip' ? 'compute-solder' : 'compute-rotor').traverse(o => { if (o.isMesh) shapes.push(o); });
+    if (!shapes.length) throw new Error('Blender fan rotor asset has no mesh.');
+    const shapeFor = dynamic => (dynamic === 'c4' && shapes.find(o => /C4 bump/.test(o.name)))
+      || shapes.find(o => !/C4 bump/.test(o.name)) || shapes[0];
     for (const target of rotors) {
+      const rotor = shapeFor(target.userData.computeDynamic);
       target.geometry.dispose(); target.geometry = rotor.geometry.clone(); target.material = rotor.material.clone();
       const radius = target.userData.computeDynamic === 'bga' ? .1 : target.userData.computeDynamic === 'c4' ? .045 : 1;
       target.geometry.scale(radius, radius, radius);
