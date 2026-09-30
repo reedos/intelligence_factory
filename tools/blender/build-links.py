@@ -164,28 +164,6 @@ def annulus(name, center, outer, inner, depth, axis, material):
     o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o);mesh.materials.append(material)
     return o
 
-def pull_loop(name, origin, along_x, material):
-    # Photo-inspired open release loop. It is a mechanical handle, never a
-    # signal path. Dimensions beyond the shell are representative.
-    outer=[(0,-1.04),(2.45,-1.04),(2.78,-.72),(2.92,0),(2.78,.72),(2.45,1.04),(0,1.04)]
-    inner=[(.18,-.86),(2.35,-.86),(2.59,-.59),(2.70,0),(2.59,.59),(2.35,.86),(.18,.86)]
-    verts=[]
-    for y in [-.055,.055]:
-        for ring in [outer,inner]:
-            for u,v in ring:
-                x,z=(origin[0]+u,origin[2]+v) if along_x else (origin[0]+v,origin[2]-u)
-                verts.append(xyz((x,origin[1]+y,z)))
-    n=len(outer);faces=[]
-    for i in range(n):
-        j=(i+1)%n
-        faces += [(i,j,n+j,n+i),(2*n+j,2*n+i,3*n+i,3*n+j),(i,2*n+i,2*n+j,j),(n+j,3*n+j,3*n+i,n+i)]
-    mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
-    o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o);mesh.materials.append(material)
-    bpy.context.view_layer.objects.active=o
-    b=o.modifiers.new('Soft molded release edges','BEVEL');b.width=.00012;b.segments=3
-    bpy.ops.object.modifier_apply(modifier=b.name)
-    return o
-
 def internals(kind):
     source=ROOT/'tools'/'blender'/'references'/(kind+'-internals.glb')
     before=set(bpy.context.scene.objects)
@@ -384,6 +362,35 @@ def duplex_lc_receptacle(m):
     box('LC receptacle bracket',(4.83,1.23,0),(1.06,.04,1.3),m['edge'],.008)
     for z in [-.45,.45]:screw('LC bracket screw',4.66,1.25,z,m,.04)
 
+def osfp_pull_tab(m, x_nose=5.39, reach=.8):
+    # Molded pull tab: a rounded tongue with an oval finger hole reaching
+    # about 8 mm past the nose, joined by a crossbar to two thin arms that run
+    # back along the side walls to the latch. With it the model stays within
+    # the 116 mm maximum Cisco lists for its OSFP 800G modules with pull tab.
+    # Shape, arm routing and the neutral colour are representative.
+    m['tab']=mat('Molded release pull tab',(.085,.09,.10),0,.5)
+    y,t=.30,.15; hw=.55; cx=x_nose+reach-hw
+    outline=[(x_nose-.06,-1.14),(x_nose+.12,-1.14),(x_nose+.28,-hw)]
+    outline+=[(cx+hw*math.cos(a),hw*math.sin(a)) for a in [-math.pi/2+i*math.pi/20 for i in range(21)]]
+    outline+=[(x_nose+.28,hw),(x_nose+.12,1.14),(x_nose-.06,1.14)]
+    verts=[xyz((x,y+d,z)) for d in [-t/2,t/2] for x,z in outline]
+    n=len(outline)
+    faces=[tuple(range(n))[::-1],tuple(range(n,2*n))]+[(i,(i+1)%n,n+(i+1)%n,n+i) for i in range(n)]
+    mesh=bpy.data.meshes.new('OSFP release pull tab');mesh.from_pydata(verts,[],faces);mesh.update()
+    tab=bpy.data.objects.new('OSFP release pull tab',mesh);bpy.context.collection.objects.link(tab);mesh.materials.append(m['tab'])
+    bpy.ops.object.select_all(action='DESELECT');tab.select_set(True);bpy.context.view_layer.objects.active=tab
+    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.mesh.primitive_cylinder_add(vertices=32,radius=.01,depth=.01,location=xyz((cx+.02,y,0)))
+    hole=bpy.context.object;hole.scale=(.24,.34,t*3)
+    mod=tab.modifiers.new('Finger hole','BOOLEAN');mod.operation='DIFFERENCE';mod.object=hole
+    bpy.context.view_layer.objects.active=tab;bpy.ops.object.modifier_apply(modifier=mod.name)
+    bpy.data.objects.remove(hole,do_unlink=True)
+    b=tab.modifiers.new('Molded edge','BEVEL');b.width=.0003;b.segments=2;b.limit_method='ANGLE'
+    bpy.ops.object.modifier_apply(modifier=b.name)
+    for p in tab.data.polygons:p.use_smooth=False
+    for s in [-1,1]:
+        box('OSFP release pull arm',((1.85+x_nose)/2,y,s*1.12),(x_nose-1.85,.12,.04),m['tab'],.012)
+
 def dsp_gap_pad(m, lid_y=3.4, lid_half=.045):
     # The native layout carries a loose pad halfway between board and lid.
     # Replace it with a lid-mounted stack that travels with the cover: a
@@ -440,7 +447,7 @@ def coherent():
         box(name+' carrier',(cx,1.375,cz),(length,.05,width),m['ceramic'],.012)
     duplex_lc_receptacle(m)
     lid('OSFP lifted cover',0,3.4,0,L,W,True,m)
-    pull_loop('OSFP release pull',(5.20,.29,0),True,m['pull'])
+    osfp_pull_tab(m)
     internals('coherent')
     coherent_board_detail(m)
     dsp_gap_pad(m)
