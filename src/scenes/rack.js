@@ -261,16 +261,17 @@ function blanking(scene, N, y0, y1, z, w) {
 // 'h100-pdu-cords').
 function pduTex(banks) {
   return canvasTex(64, 1024, (g, w, h) => {
-    g.fillStyle = '#2c3036'; g.fillRect(0, 0, w, h);
-    const colors = ['#3f6fa8', '#b88a2e', '#6e4a9e'];
+    g.fillStyle = '#4a5058'; g.fillRect(0, 0, w, h);
+    const colors = ['#4f8fd6', '#e0a83a', '#9a6fd6'];
     for (let b = 0; b < banks; b++) {
       const y0 = 40 + b * (h - 80) / banks, bh = (h - 80) / banks - 12;
-      g.fillStyle = '#1b1e22'; g.fillRect(6, y0, w - 12, bh);
-      g.fillStyle = colors[b % 3]; g.fillRect(6, y0, 5, bh);
+      g.fillStyle = '#2a2f35'; g.fillRect(6, y0, w - 12, bh);
+      g.fillStyle = colors[b % 3]; g.fillRect(6, y0, 8, bh);
       for (let o = 0; o < 5; o++) {
         const oy = y0 + 10 + o * (bh - 20) / 5;
+        g.fillStyle = '#6a717a'; g.fillRect(18, oy - 2, 34, 24);
         g.fillStyle = '#0a0b0d'; g.fillRect(20, oy, 30, 20);
-        g.fillStyle = '#4b5159'; g.fillRect(25, oy + 5, 20, 3); g.fillRect(25, oy + 12, 20, 3);
+        g.fillStyle = '#5b626b'; g.fillRect(25, oy + 5, 20, 3); g.fillRect(25, oy + 12, 20, 3);
       }
     }
   });
@@ -471,7 +472,7 @@ function buildHGX({ quality, state }) {
   // of each server's rear panel. Supply inlet positions follow serverRearTex().
   const pduX = [-0.22, 0.22], pduZ = ZB + 0.105, pTop = sy(3) + SU / 2, pBot = sy(0) - SU / 2;
   const psuX = i => 0.1598 - 0.0705 * i, psuY = k => sy(k) - 0.111, psuZ = ZF - 0.07 - sd - 0.0105;
-  const PDUBODY = new THREE.MeshStandardMaterial({ color: 0x2b2e33, roughness: 0.5, metalness: 0.4 }); PDUBODY.name = 'PDU extrusion';
+  const PDUBODY = new THREE.MeshStandardMaterial({ color: 0x454b53, roughness: 0.46, metalness: 0.45 }); PDUBODY.name = 'PDU extrusion';
   const PLUG = new THREE.MeshStandardMaterial({ color: 0x121316, roughness: 0.55, metalness: 0.05 }); PLUG.name = 'Molded C19/C20 plug';
   const outletFace = new THREE.MeshStandardMaterial({ map: pduTex(8), roughness: 0.55, metalness: 0.3 });
   const cordEnds = [];
@@ -487,8 +488,8 @@ function buildHGX({ quality, state }) {
     N.cyl(0.014, 0.02, GLAND, x, pTop + 0.078, pduZ, 12);
     [0, 1, 3].forEach(k => [0, 1, 2].forEach(o => {
       const oy = sy(k) - 0.035 + o * 0.035, px = x + inward * 0.036, psu = side ? o : 3 + o;
-      N.box(0.022, 0.026, 0.03, PLUG, px, oy, pduZ);                                          // C19 plug in the strip
-      N.box(0.03, 0.03, 0.022, PLUG, psuX(psu), psuY(k), psuZ);                                 // C20 plug in the supply
+      N.box(0.022, 0.026, 0.03, PLUG, px, oy, pduZ);                                          // cord's C20 plug in a C19 strip outlet
+      N.box(0.03, 0.03, 0.022, PLUG, psuX(psu), psuY(k), psuZ);                                 // cord's C19 connector on the supply's C20 inlet
       bundle(N, [px + inward * 0.012, oy, pduZ], [psuX(psu), psuY(k), psuZ - 0.01], { n: 1, r: 0.0042, sag: 0.05 + o * 0.012, mats: [MAT.black], seed: k * 7 + o + side * 3, seg: 6 });
       if (o === 1) cordEnds.push({ k, from: [px + inward * 0.012, oy, pduZ], to: [psuX(psu), psuY(k), psuZ - 0.01] });
     }));
@@ -542,7 +543,9 @@ function buildHGX({ quality, state }) {
     camera: { pos: [3.1, 2.3, -3.7], target: [0, 1.0, -0.1], near: 0.01, far: 200, min: 0.4, max: 9 },
     hotspots: {
       feed: { pos: [0.12, 3.03, -0.165], view: { pos: [1.2, 3.1, 1.0], target: [0, 2.7, -0.25] } },
-      pdu: { pos: [pduX[1], sy(1), pduZ], view: { pos: [0.9, 1.3, -1.4], target: [0, 0.9, ZB] } },
+      // From the rear on the far side, so the strip's outlet face (it faces
+      // into the rack) and its plugged cords are in view, not its blank back.
+      pdu: { pos: [pduX[1] - 0.03, sy(1) + 0.1, pduZ], view: componentView([pduX[1] - 0.03, sy(1) + 0.05, pduZ], [-0.62, 0.2, -0.72], [0.22, 0.62, 0.22]) },
       servers: srv,
       psus: { pos: [0.15, yb + 0.1, pz - sd / 2 + 0.07], view: { pos: [0.9, 1.5, -0.9], target: [0, yb, pz - 0.4] } },
       cabling: { pos: [pduX[0] * 0.7, sy(0), ZB + 0.15], view: { pos: [-0.8, 0.9, -1.5], target: [0, 0.6, ZB] } },
