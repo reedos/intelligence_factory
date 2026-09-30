@@ -51,9 +51,11 @@ export function applyComputeArtDirection({ built, level, quality = {}, matched =
   }
   scene.background = new THREE.Color(0x070b12);
   built.look = { ...built.look, env: 'studio', envIntensity: quality.mobile ? (level === 3 ? .78 : .65) : level === 3 ? 1.12 : .82,
-    exposure: 1, bloom: quality.mobile ? .33 : .44, threshold: 1.25, ao: p.ao,
+    // Level 4: a higher threshold keeps the key light's reflections in the satin tray metal out of the bloom,
+    // so power and data can bloom closer to heat without the rails and lids clipping to white.
+    exposure: 1, bloom: quality.mobile ? .33 : .44, threshold: level === 4 ? 1.6 : 1.25, ao: p.ao,
     bloomByMode: level === 5 ? { heat: quality.mobile ? .20 : .26, data: quality.mobile ? .255 : .33 }
-      : level === 4 ? { power: quality.mobile ? .26 : .34, data: quality.mobile ? .26 : .34 } : undefined,
+      : level === 4 ? { power: quality.mobile ? .3 : .4, data: quality.mobile ? .3 : .4 } : undefined,
     grain: .004, vignette: .17, dof: !quality.mobile && quality.dof !== false };
   scene.userData.computeArtDirection = 'studio-streams-v2';
   // Keep the polished enclosure treatment while restoring conspicuous moving
