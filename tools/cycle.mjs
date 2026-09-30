@@ -29,21 +29,23 @@ for (const s of scenarios) {
     await p.waitForFunction(i => window.ifx.state.scene === i, sc, { timeout: 90000 });
     for (const mode of ['power', 'data', 'heat']) {
       await p.evaluate(m => { window.ifx.setMode(m); window.ifx.settle(); }, mode);
-      const n = await p.evaluate(() => document.querySelectorAll('#parts button').length);
+      const n = await p.evaluate(() => document.querySelectorAll('#parts button[data-id]').length);
       const pins = await p.evaluate(() => document.querySelectorAll('.pin').length);
       if (!n || n !== pins) errors.push(`${s.accel}/${s.meterMW} scene ${sc} ${mode}: ${n} parts, ${pins} pins`);
       // select every part once
       await p.evaluate(() => { for (const b of document.querySelectorAll('#parts button')) b.click(); });
     }
   }
-  // play each clock for a moment on the current scene, in every layer
-  for (const sim of ['training', 'outage', 'hotday', 'inference']) {
+  // play each clock for a moment on the current scene, in every layer (the visualizer page defers the clocks:
+  // no clock buttons and no ifx.openClock, so there is nothing to play there)
+  const clocks = await p.evaluate(() => !!document.querySelector('[data-play]') || typeof window.ifx.openClock === 'function');
+  for (const sim of clocks ? ['training', 'outage', 'hotday', 'inference'] : []) {
     // the story page's Four clocks buttons, or on the visualizer page (no charts) the clock strip's own tab
     await p.evaluate(id => { const b = document.querySelector(`[data-play="${id}"]`); if (b) b.click(); else { window.ifx.openClock(id); document.querySelector(`#clock [data-sim="${id}"]`).click(); } }, sim);
     await p.waitForTimeout(1500);
     for (const mode of ['data', 'heat', 'power']) { await p.evaluate(m => window.ifx.setMode(m), mode); await p.waitForTimeout(300); }
   }
-  await p.evaluate(() => document.getElementById('ck-x').click());
+  if (clocks) await p.evaluate(() => document.getElementById('ck-x')?.click());
   console.log(`${s.accel} ${s.power || ''} ${s.cooling} ${s.meterMW} MW: ok so far (${errors.length} errors)`);
 }
 console.log(errors.length ? `errors:\n  ${[...new Set(errors)].join('\n  ')}` : 'no page errors');
