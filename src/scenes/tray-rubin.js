@@ -95,6 +95,9 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex}) {
  }
  // Spine connectors remain at the back; eight front 800G port positions are
  // represented as four pairs so each GPU has 1.6T of scale-out capacity.
+ // One continuous cable-like run over the midplane (it passes through every
+ // original control point), instead of straight segments that read as a zigzag.
+ const smooth=pts=>new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)),false,'centripetal').getPoints(pts.length*8).map(v=>v.toArray());
  const nvX=[-1.75,-.7,.7,1.75],ports=[-1.66,-1.04,1.04,1.66];
  for(const x of nvX){S.box(.50,.22,.26,MAT.black,x,.18,-4.35);N.box(.44,.018,.20,MAT.gold,x,.30,-4.35);}
  for(const x of ports)for(const y of [.16,.34]){
@@ -111,7 +114,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex}) {
   const cpu=cp[Math.floor(i/2)];
   const lane=ports[i],route=[[cpu[0],.30,cpu[1]+.385],[lane,.29,.50],[lane,.29,.75],[lane,.50,.90],[lane,.50,1.32],[lane,.29,1.55],[lane,.29,2.12]];
   // Midplane connector crossing is electrical; no exposed trace penetrates its body.
-  const input=flow(route,'pcie',{count:10,speed:.9,size:.026,trailR:.009});input.rubinPcieRoot=Math.floor(i/2);dataFlows.push(input);
+  const input=flow(smooth(route),'pcie',{count:10,speed:.9,size:.026,trailR:.009});input.rubinPcieRoot=Math.floor(i/2);dataFlows.push(input);
   // Each GPU is represented by two CX9 packages on one column. The branch
   // placement is illustrative; both ends touch actual package regions.
   const flank=lane+(i%2===0?-.23:.23);
