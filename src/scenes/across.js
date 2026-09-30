@@ -373,9 +373,11 @@ export function build({ quality, model, state = {} }) {
         turbineItems.push({ p: [tx, 16.5, tz + 1.05], axis: 'z', r: R });
       }
     }
+    // single-axis trackers: rows run north-south, 11 apart for a 4.4-wide module plane (ground coverage about 0.4)
     if (kind === 'solar') for (let i = 0; i < 10; i++) {
-      if (authored) placePlant('SOLAR_ROW', new THREE.Matrix4().makeRotationX(-.35).setPosition(x, 1.2, z - 20 + i * 4.5));
-      else P.box(60, 0.4, 3, solarGlass, x, 1.2, z - 20 + i * 4.5, 0, -0.35);
+      if (!onLand(x - 49.5 + i * 11, z - 30) || !onLand(x - 49.5 + i * 11, z + 30)) continue;   // no rows offshore
+      if (authored) placePlant('SOLAR_ROW', mtx(x - 49.5 + i * 11, 0, z));
+      else P.box(4.4, 0.2, 60, solarGlass, x - 49.5 + i * 11, 1.6, z, 0, 0, 0.26);
     }
   });
   for (const [name, matrices] of plantMatrices) power.add(acrossAssetInstances(name, matrices));

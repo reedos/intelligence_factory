@@ -155,10 +155,31 @@ for i in range(3):
    v.append((x*math.cos(a)-z2*math.sin(a),t+x*cone,x*math.sin(a)+z2*math.cos(a)))
  l=len(poly);f=[tuple(range(l-1,-1,-1)),tuple(range(l,l*2))]+[(j,(j+1)%l,(j+1)%l+l,j+l) for j in range(l)]
  mesh('Slender turbine blade',v,f,bladeWhite,g,.004)
-# One tilted solar row. Scenario repeats it without changing the row count.
-g='SOLAR_ROW';box('PV row',(0,0,0),(60,.4,3),glass,g,.045)
-for x in [-30+i*3 for i in range(21)]:box('PV panel divider',(x,.215,0),(.055,.035,3),steel,g,.007)
-for z in [-1.49,1.49]:box('PV frame',(0,.21,z),(60,.06,.07),pearl,g,.012)
+# One single-axis tracker row, running north-south (runtime z) with its modules
+# turned about the row axis toward the west. Nearly all new US utility-scale PV
+# tracks on one axis (LBNL). Two modules in portrait across a torque tube on
+# driven piles, one slew drive at mid-row. Runtime repeats the row at a ground
+# coverage ratio of about 0.4.
+g='SOLAR_ROW'
+pvGlass=mat('Tracker module glass',(.02,.07,.13),.3,.08,.3)
+pvFrame=mat('Module frame aluminum',(.62,.66,.7),.8,.3)
+TILT=math.radians(15);AX=1.55
+def tbox(n,c,d,m,g):
+ # a box turned about the row axis (z) through (0, AX)
+ v=[]
+ for z in [-1,1]:
+  for y in [-1,1]:
+   for x in [-1,1]:
+    px,py=c[0]+x*d[0]/2,c[1]+y*d[1]/2-AX
+    v.append((px*math.cos(TILT)-py*math.sin(TILT),AX+px*math.sin(TILT)+py*math.cos(TILT),c[2]+z*d[2]/2))
+ return mesh(n,v,[(0,4,6,2),(1,3,7,5),(0,1,5,4),(2,6,7,3),(0,2,3,1),(4,5,7,6)],m,g)
+tbox('Module plane',(0,AX+.18,0),(4.4,.06,60),pvGlass,g)
+for z in [-30+i*1.1 for i in range(1,55)]:tbox('Module seam',(0,AX+.215,z),(4.4,.012,.05),pvFrame,g)
+tbox('Portrait gap',(0,AX+.215,0),(.04,.012,60),pvFrame,g)
+for x in [-2.2,2.2]:tbox('Module frame edge',(x,AX+.2,0),(.07,.05,60),pvFrame,g)
+beam('Torque tube',(0,AX,-30),(0,AX,30),.09,steel,g)
+for z in [-30+i*6 for i in range(11)]:box('Driven pile',(0,AX/2,z),(.14,AX,.14),steel,g,0)
+box('Slew drive',(0,AX-.05,0),(.45,.45,.5),dark,g,.05)
 # Transmission pylon symbol: tapered four-leg truss with two crossarms.
 g='GRID_PYLON'
 for x in [-1,1]:
