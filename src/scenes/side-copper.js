@@ -4,8 +4,41 @@
 // or a DSP retimer handling both directions, one in each end (AEC). Transmit pairs on the left half of each card,
 // receive pairs on the right. Plugs and cards are representative (no labeled teardown is public).
 import { THREE, MAT, Builder, flow, setup, materials, strand, trace, label, lidBox, FLOW, COL, note, unitCol } from './side-kit.js';
-import { COPPER_HEADS, copperLane, copperChip, copperPad, copperPadX, COPPER_PADS, PAIR_HALF } from './side-geometry.js';
+import { COPPER_HEADS, copperLane, copperChip, copperPad, copperPadX, COPPER_PADS, PAIR_HALF, copperPairRoute } from './side-geometry.js';
 import { componentView } from '../app/housing-frame.js';
+
+// A swept elliptical tube along a curve: offset (ox, oy) and radii (rx, ry) in the curve's own frame, which stays
+// level (right = tangent x up). arc = [start, length] leaves a window open; cap closes the start end.
+function sweep(curve, u0, u1, { ox = 0, oy = 0, rx, ry = rx, seg = 8, steps = 16, arc = [0, Math.PI * 2], cap = false }) {
+  const pos = [], idx = [], up = new THREE.Vector3(0, 1, 0), closed = arc[1] >= Math.PI * 2 - 1e-6, ring = closed ? seg : seg + 1;
+  const frame = u => {
+    const c = curve.getPointAt(u), t = curve.getTangentAt(u);
+    const right = new THREE.Vector3().crossVectors(t, up).normalize(), v = new THREE.Vector3().crossVectors(right, t).normalize();
+    return [c, right, v];
+  };
+  for (let s = 0; s <= steps; s++) {
+    const [c, right, v] = frame(u0 + (u1 - u0) * s / steps);
+    for (let k = 0; k < ring; k++) {
+      const a = arc[0] + arc[1] * k / seg;
+      const p = c.clone().addScaledVector(right, ox + rx * Math.cos(a)).addScaledVector(v, oy + ry * Math.sin(a));
+      pos.push(p.x, p.y, p.z);
+    }
+  }
+  for (let s = 0; s < steps; s++) for (let k = 0; k < seg; k++) {
+    const a = s * ring + k, b = s * ring + (k + 1) % ring, c = a + ring, d = b + ring;
+    idx.push(a, c, b, b, c, d);
+  }
+  if (cap) {
+    const [c, right, v] = frame(u0), centre = c.clone().addScaledVector(right, ox).addScaledVector(v, oy), n = pos.length / 3;
+    pos.push(centre.x, centre.y, centre.z);
+    for (let k = 0; k < seg; k++) idx.push(n, (k + 1) % ring, k);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+// curve parameter where the pair crosses depth z (the route only ever moves toward -z)
+const uAtZ = (curve, z) => { let lo = 0, hi = 1; for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (curve.getPointAt(m).z > z) lo = m; else hi = m; } return (lo + hi) / 2; };
 
 export function build({ quality, state, authoredHardware = false }) {
   const scene = setup(quality, 12), M = materials();
@@ -13,11 +46,18 @@ export function build({ quality, state, authoredHardware = false }) {
   const flows = [], dataFlows = [], heatFlows = [];
   // HW: QSFP112 width, about 18.4 mm; HL is shortened for the diagram (Type 1 bodies run to 72.4 mm).
   const HL = 6.0, HW = 1.84, z0 = 2.8, zc = z0 - HL / 2, cardY = 0.9, cardTop = 0.94, back = z0 - HL + 1.0;
+  // rear termination: traces end on solder pads just inside the card's back edge
+  const cardRear = zc + 0.5 - (HL - 1.4) / 2, term = cardRear + 0.14, DIEL = 0.036, COND = 0.013;
   const housingEdge = new THREE.MeshStandardMaterial({ color: 0x8997a5, metalness: 0.78, roughness: 0.33 });
-  const foil = new THREE.MeshStandardMaterial({ color: 0x8a919c, metalness: 0.8, roughness: 0.4, side: THREE.DoubleSide });
+  const foil = new THREE.MeshStandardMaterial({ name: 'Twinax foil shield', color: 0xb4bcc6, metalness: 0.85, roughness: 0.36, side: THREE.DoubleSide });
   // Named so the Blender pass can give the plating its own finish.
   const padGold = new THREE.MeshStandardMaterial({ name: 'Gold contact pads', color: 0xffc56e, metalness: 0.72, roughness: 0.3 });
-  const dielectric = new THREE.MeshStandardMaterial({ color: 0xd5decc, roughness: 0.45, transparent: true, opacity: 0.38, depthWrite: false });
+  // Twinax construction (US20160073559A1: a signal pair of two conductors and an insulating layer, covered by a shield
+  // tape and a drain wire). Sizes are representative: 30 AWG-class conductors, 0.72 mm dielectric, oval foil.
+  const dielectric = new THREE.MeshStandardMaterial({ name: 'Twinax dielectric', color: 0xe9e5d8, roughness: 0.5, metalness: 0, side: THREE.DoubleSide });
+  const conductor = new THREE.MeshStandardMaterial({ name: 'Twinax conductor copper', color: 0xe0a080, metalness: 0.75, roughness: 0.32 });
+  const drain = new THREE.MeshStandardMaterial({ name: 'Tinned drain wire', color: 0xc9ccd0, metalness: 0.85, roughness: 0.3 });
+  const solder = new THREE.MeshStandardMaterial({ name: 'Solder fillet', color: 0xd9dbde, metalness: 0.85, roughness: 0.22 });
   const heads = [];
   COPPER_HEADS.forEach(([kind, hx]) => {
     if (!authoredHardware) {
@@ -55,21 +95,29 @@ export function build({ quality, state, authoredHardware = false }) {
           N.cyl(0.011, cardTop - cardBottom + 0.004, MAT.copper, x + d, cardY, z0 - 0.55, 10);
           for (const y of [cardTop + 0.0025, cardBottom - 0.0025]) N.cyl(0.022, 0.005, MAT.copper, x + d, y, z0 - 0.55, 14);
         }
-        if (through) { trace(N, [x + d, z0 - 0.55], [x + d, chipZ + chip.d / 2], cardTop + 0.002, 0.016); trace(N, [x + d, chipZ - chip.d / 2], [x + d, back], cardTop + 0.002, 0.016); }
-        else trace(N, [x + d, z0 - 0.55], [x + d, back], cardTop + 0.002, 0.016);
-        // the twinax pair soldered at the back of the card and into the cable
-        N.strut([x + d, cardTop, back], [hx + (x - hx) * 0.35 + d, cardY, back - 4.0], 0.016, MAT.copper, 5);
-        const start = [x + d, cardTop, back], end = [hx + (x - hx) * 0.35 + d, cardY, back - 4.0];
-        const at = t => start.map((v, k) => v + (end[k] - v) * t);
-        N.strut(at(0.025), at(0.24), 0.019, dielectric, 8);
+        if (through) { trace(N, [x + d, z0 - 0.55], [x + d, chipZ + chip.d / 2], cardTop + 0.002, 0.016); trace(N, [x + d, chipZ - chip.d / 2], [x + d, term], cardTop + 0.002, 0.016); }
+        else trace(N, [x + d, z0 - 0.55], [x + d, term], cardTop + 0.002, 0.016);
+        // solder termination: the stripped conductor steps down from its insulation onto its pad, under a fillet
+        N.strut([x + Math.sign(d) * DIEL, cardTop + DIEL, cardRear - 0.02], [x + d, cardTop + 0.014, term - 0.02], COND, conductor, 6);
+        N.add(new THREE.SphereGeometry(1, 8, 5), solder, x + d, cardTop + 0.006, term - 0.01, 0, 0, 0, 0.022, 0.011, 0.07);
       }
-      // A partial shield around each pair shows twinax construction without
-      // pretending the cable consists of uninsulated exposed signal wires.
-      const a = new THREE.Vector3(x + (hx - x) * 0.65 * 0.06, cardTop + (cardY - cardTop) * 0.06, back - 0.24);
-      const b = new THREE.Vector3(x + (hx - x) * 0.65 * 0.23, cardTop + (cardY - cardTop) * 0.23, back - 0.92);
-      const dir = b.clone().sub(a), mid = a.clone().add(b).multiplyScalar(0.5);
-      const rot = new THREE.Euler().setFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize()));
-      N.add(new THREE.CylinderGeometry(0.054, 0.054, dir.length(), 10, 1, true, Math.PI * 0.3, Math.PI * 1.4), foil, mid.x, mid.y, mid.z, rot.x, rot.y, rot.z);
+      // the twinax pair: two insulated conductors and a drain wire in an oval foil shield, into the round pack
+      const curve = new THREE.CatmullRomCurve3(copperPairRoute(hx, i, rx, { cardTop, cardY, start: cardRear - 0.02 }).map(p => new THREE.Vector3(...p)), false, 'centripetal');
+      for (const sx of [-1, 1]) {
+        N.add(sweep(curve, 0, 1, { ox: sx * DIEL, rx: DIEL, seg: 8, steps: 12, cap: true }), dielectric);
+        N.add(sweep(curve, 0, 1, { ox: sx * DIEL, rx: COND, seg: 5, steps: 10 }), conductor);
+      }
+      const drainY = Math.sqrt((DIEL + 0.0175) ** 2 - DIEL ** 2);
+      N.add(sweep(curve, 0, 1, { oy: drainY, rx: 0.0175, seg: 5, steps: 10 }), drain);
+      // drain wire down to its ground pad beside the pair
+      const gx = x + 0.08;
+      N.strut([x, cardTop + DIEL + drainY, cardRear - 0.02], [gx, cardTop + 0.012, term - 0.03], 0.0175, drain, 6);
+      N.box(0.05, 0.005, 0.13, MAT.copper, gx, cardTop + 0.0025, term - 0.02);
+      N.add(new THREE.SphereGeometry(1, 8, 5), solder, gx, cardTop + 0.007, term - 0.03, 0, 0, 0, 0.026, 0.011, 0.06);
+      // foil: stripped back 1 mm, then opened across the top for 6 mm (illustration), then closed into the jacket
+      const uFoil = uAtZ(curve, cardRear - 0.12), uOpen = uAtZ(curve, cardRear - 0.72), foilShape = { oy: 0.01, rx: 0.078, ry: 0.062, seg: 12 };
+      N.add(sweep(curve, uFoil, uOpen, { ...foilShape, steps: 6, arc: [Math.PI * 0.89, Math.PI * 1.22] }), foil);
+      N.add(sweep(curve, uOpen, 1, { ...foilShape, steps: 12 }), foil);
     }
     // The jacket cutaway begins only after all fanned pairs fit its bore.
     // The widened entry clamp leaves the exposed pair shields unobstructed.
@@ -90,7 +138,8 @@ export function build({ quality, state, authoredHardware = false }) {
       const via = chip && (kind === 'aec' || rx) ? [[x, cardTop + 0.035, chipZ + chip.d / 2], [x, cardTop + 0.035, chipZ - chip.d / 2]] : [];
       // host contact -> pad pair -> breakout (and up a via for bottom-face pairs) -> routed pair
       const edge = [[pad.x, yP, z0 + 1.0], [pad.x, yP, padRear + 0.02], [x, yP, z0 - 0.55], ...(pad.top ? [] : [[x, yF, z0 - 0.55]])];
-      const pts = [...edge, ...via, [x, yF, back], [hx + (x - hx) * 0.35, cardY, back - 4.0]];
+      const route = new THREE.CatmullRomCurve3(copperPairRoute(hx, i, rx, { cardTop, cardY, start: cardRear - 0.02 }).map(p => new THREE.Vector3(...p)), false, 'centripetal');
+      const pts = [...edge, ...via, [x, yF, term], ...route.getSpacedPoints(12).map(p => p.toArray())];
       dataFlows.push(flow(rx ? pts.reverse() : pts, 'eth', { ...FLOW.elec, count: 5, size: .018, k: 3.6 }));
     }
     // Port power enters on the centre power pad and runs down the supply trace between the halves to the chip.
@@ -120,7 +169,7 @@ export function build({ quality, state, authoredHardware = false }) {
   label(scene, 'AEC · bidirectional retimer', [4.6, 0.4, z0 + 0.6], '#e8ecf2', 0.2);
   for (const hx of [-4.6, 0, 4.6]) { label(scene, 'TX', [hx - 0.45, 1.35, z0 + 0.35], COL.tx, 0.14); label(scene, 'RX', [hx + 0.4, 1.35, z0 + 0.35], COL.rx, 0.14); }
   label(scene, 'Electrical · traces, then twinax pairs', [0, 1.6, back - 3.2], COL.elec, 0.16);
-  label(scene, 'Pair shields opened for illustration', [0, 0.35, back - 1.05], note, 0.13);
+  label(scene, 'Pair shields opened for illustration', [0, 0.35, cardRear - 0.5], note, 0.13);
 
   const hs = {}, heatHotspots = {};
   for (const h of heads) {

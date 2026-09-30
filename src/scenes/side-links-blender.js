@@ -11,7 +11,7 @@ let pending;
 export function preloadLinks() {
   if (cached.size === 2) return Promise.resolve();
   if (!pending) pending = Promise.all(['coherent', 'copper'].map(async name => {
-    const gltf = await new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 15 : 10}`);
+    const gltf = await new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 16 : 10}`);
     cached.set(name, gltf.scene);
   })).catch(error => { pending = null; throw error; });
   return pending;
@@ -124,6 +124,10 @@ function build(name, nativeBuilder, options) {
   for (const cover of covers) cover.material = Array.isArray(cover.material) ? cover.material.map(lidMaterial) : lidMaterial(cover.material);
   const coverPositions = new Map(covers.map(cover => [cover, cover.position.clone()]));
   const coverMaterials = new Set(covers.flatMap(cover => Array.isArray(cover.material) ? cover.material : [cover.material]));
+  // Copper: the twinax shield, insulation and drain are solid in Power and Heat. In Data they take the same x-ray
+  // inspection treatment as the lids, so the pulses stay visible running between the two conductors of each pair.
+  const sheath = new Set();
+  if (name === 'copper') model.traverse(o => { if (o.isMesh) for (const m of Array.isArray(o.material) ? o.material : [o.material]) if (/Twinax dielectric|Twinax foil shield|Tinned drain wire/i.test(m.name)) sheath.add(m); });
   built.housingBounds = hardwareBounds(model);
   Object.defineProperties(built.inspection, {
     covers: { value: true },
@@ -148,6 +152,11 @@ function build(name, nativeBuilder, options) {
       const rest = coverPositions.get(cover);
       moved ||= !cover.position.equals(rest);
       cover.position.copy(rest);
+    }
+    const xray = options.state.mode === 'data';
+    for (const material of sheath) {
+      const opacity = xray ? (/foil/i.test(material.name) ? .16 : .3) : 1;
+      if (material.opacity !== opacity) { material.transparent = xray; material.opacity = opacity; material.depthWrite = !xray; material.needsUpdate = true; moved = true; }
     }
     for (const material of coverMaterials) {
       if (!material.transparent) { material.transparent = true; material.needsUpdate = true; moved = true; }

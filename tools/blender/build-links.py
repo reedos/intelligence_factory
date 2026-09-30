@@ -247,10 +247,18 @@ def internals(kind):
         o['authoredStatic']=True
         # Sub-pixel edge radii refine box-built packages without moving any
         # conductor centerline or touching the active circuit topology.
-        b=o.modifiers.new('Manufactured micro edge','BEVEL');b.width=.000015;b.segments=2;b.limit_method='ANGLE'
-        bpy.ops.object.modifier_apply(modifier=b.name)
-        w=o.modifiers.new('Weighted manufactured normals','WEIGHTED_NORMAL');w.keep_sharp=True
-        bpy.ops.object.modifier_apply(modifier=w.name)
+        # Swept round conductors (copper twinax) are already smooth tubes: no bevel.
+        swept=any(m and m.name.startswith(('Twinax','Tinned drain','Solder fillet')) for m in o.data.materials)
+        if not swept:
+            b=o.modifiers.new('Manufactured micro edge','BEVEL');b.width=.000015;b.segments=2;b.limit_method='ANGLE'
+            bpy.ops.object.modifier_apply(modifier=b.name)
+            w=o.modifiers.new('Weighted manufactured normals','WEIGHTED_NORMAL');w.keep_sharp=True
+            bpy.ops.object.modifier_apply(modifier=w.name)
+        else:
+            # The reference arrives unindexed; weld its seams so the tubes shade smooth and export compact.
+            bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
+            bpy.ops.mesh.remove_doubles(threshold=.0000005);bpy.ops.object.mode_set(mode='OBJECT')
+            for p in o.data.polygons:p.use_smooth=True
         for m in o.data.materials:
             if not m or not m.use_nodes:continue
             p=m.node_tree.nodes.get('Principled BSDF')
