@@ -18,7 +18,7 @@ dark=mat('Graphite recess',(.035,.055,.075),.4,.4)
 steel=mat('Brushed structural steel',(.3,.38,.45),.75,.34)
 concrete=mat('Satin concrete',(.38,.40,.42),.05,.72)
 glass=mat('Photovoltaic glazing',(.015,.07,.12),.55,.22)
-names=['MAP_SURFACE','GAS_PLANT','NUCLEAR_PLANT','WIND_MAST','WIND_ROTOR','SOLAR_ROW','SOLAR_SKID','SOLAR_ROAD','GRID_PYLON','HUT_SITE','TERMINAL_TRIM']
+names=['MAP_SURFACE','GAS_PLANT','NUCLEAR_PLANT','WIND_MAST','WIND_ROTOR','SOLAR_ROW','SOLAR_SKID','SOLAR_ROAD','GRID_PYLON','HUT_SITE','TERMINAL_TRIM','GRID_SUBSTATION','COAL_PLANT']
 groups={}
 for n in names:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
@@ -243,6 +243,70 @@ g='TERMINAL_TRIM'
 goldLamp=mat('Fiber gold lamp',(1,.83,.36),0,.5,4)
 box('Fiber entrance vault',(5.3,.18,0),(.9,.36,1.1),dark,g,.04)
 box('Vault gold rim',(5.3,.39,0),(1.0,.08,1.2),goldLamp,g,0)
+# Grid substation: a utility transmission switchyard where a remote campus takes
+# its grid supply. A fenced yard, a line gantry at each end (lines
+# from the plants land on the -x gantry, the campus line leaves from the +x one),
+# a rigid bus on post insulators between them, a row of dead-tank breakers, two
+# power transformers and a control house, with a few yard lights so it reads at
+# night. Two materials (galvanized steel, yard lights) keep it to two draws; the
+# map shows through as the yard floor. Runtime turns +x toward the campus.
+# Representative, not any real station.
+g='GRID_SUBSTATION'
+yardLamp=mat('Substation yard light',(1,.86,.6),0,.5,3)
+for i in range(12):
+ for z in [-8,8]:box('Yard fence post',(-11+i*2,1.1,z),(.12,1.6,.12),galv,g,0)
+for i in range(9):
+ for x in [-11,11]:box('Yard fence post',(x,1.1,-8+i*2),(.12,1.6,.12),galv,g,0)
+for y in [.8,1.8]:
+ for z in [-8,8]:box('Yard fence rail',(0,y,z),(22,.06,.06),galv,g,0)
+ for x in [-11,11]:box('Yard fence rail',(x,y,0),(.06,.06,16),galv,g,0)
+for x in [-9.5,9.5]:
+ for z in [-3.4,3.4]:beam('Line gantry column',(x,0,z),(x,7,z),.16,galv,g)
+ box('Line gantry beam',(x,7,0),(.34,.34,7.2),galv,g,.02)
+ for z in [-2.2,0,2.2]:beam('Gantry insulator string',(x,7,z),(x,5.9,z),.1,galv,g)
+for x in [-6.5,-2,2.5,7]:
+ for z in [-2.2,0,2.2]:
+  beam('Bus support post',(x,0,z),(x,3.6,z),.1,galv,g)
+  beam('Bus post insulator',(x,3.6,z),(x,5,z),.13,galv,g)
+for z in [-2.2,0,2.2]:beam('Rigid bus tube',(-9.5,5.05,z),(9.5,5.05,z),.08,galv,g)
+for z in [-2.2,0,2.2]:
+ box('Dead-tank breaker',(-4.2,1.3,z),(1.6,.9,.9),galv,g,.08)
+ for dx in [-.5,.5]:beam('Breaker bushing',(-4.2+dx,1.7,z),(-4.2+dx*1.8,3.4,z),.11,galv,g)
+for z in [-5.2,5.2]:
+ box('Power transformer tank',(4.2,1.9,z),(4.4,3.2,2.8),galv,g,.12)
+ for i in range(5):box('Transformer radiator',(2.4+i*.9,1.7,z+(1.75 if z>0 else -1.75)),(.35,2.4,.7),galv,g,0)
+ for dz in [-.8,0,.8]:beam('Transformer bushing',(5.2,3.5,z+dz),(5.2,5,z+dz),.14,galv,g)
+box('Control house',(-7.6,1.6,5.6),(4,2.6,3),galv,g,.1)
+box('Control house roof',(-7.6,3,5.6),(4.3,.2,3.3),galv,g,.03)
+box('Control house door lamp',(-6.6,2.55,4.02),(.8,.1,.12),yardLamp,g,0)
+for x,z in [(-10.4,-7.4),(10.4,7.4),(10.4,-7.4),(-10.4,7.4)]:
+ beam('Yard light pole',(x,0,z),(x,4.2,z),.08,galv,g)
+ box('Yard floodlight',(x,4.3,z),(.6,.22,.6),yardLamp,g,0)
+# Coal generation: a tall boiler house beside a lower turbine hall, a flue-gas
+# scrubber and one tall concrete chimney, a coal pile fed to the boiler by an
+# inclined conveyor, and generator step-up transformers and a line gantry on +x
+# like the gas plant's. Representative proportions (chimney exaggerated), not any
+# one plant.
+g='COAL_PLANT'
+chimney=mat('Coal plant concrete and steel',(.5,.5,.48),.2,.7)
+box('Boiler house',(-2,10.3,-3),(9,20,9),chimney,g,.2)
+box('Boiler house roof',(-2,20.45,-3),(9.4,.3,9.4),chimney,g,.05)
+box('Turbine hall',(1,4.2,5),(18,8,7),chimney,g,.2)
+box('Turbine hall roof',(1,8.35,5),(18.4,.3,7.4),chimney,g,.05)
+box('Flue gas scrubber',(-9,4.3,-9),(5,8.2,5),chimney,g,.15)
+box('Flue duct',(-5.2,12,-6.2),(4,2.2,2.2),chimney,g,.05)
+box('Scrubber outlet duct',(-11.6,7.5,-10.5),(2.6,1.8,1.8),chimney,g,.05)
+o=lathe('Concrete chimney',[(0,2.1),(33.4,1.3),(34,1.3)],chimney,g,20);o.location=pt((-14,0,-12))
+o=lathe('Chimney soot band',[(33,1.33),(34.02,1.33)],dark,g,20);o.location=pt((-14,0,-12))
+v=[(-9,0,-21),(9,0,-21),(9,0,-15),(-9,0,-15),(-6.5,3.2,-18),(6.5,3.2,-18)]
+mesh('Coal pile',[(x,y,z) for x,y,z in v],[(0,1,2,3),(4,5,1,0),(5,4,3,2),(4,0,3),(5,2,1)],dark,g)
+beam('Coal conveyor',(0,.5,-16),(-.5,16,-7.6),.45,chimney,g)
+beam('Conveyor trestle',(-.25,0,-12),(-.25,8.3,-12),.15,chimney,g)
+for z in [1,5]:
+ box('GSU transformer',(13,1.6,z),(3,3.2,2.6),chimney,g,.12)
+ for dz in [-.7,0,.7]:beam('GSU bushing',(13.5,3.2,z+dz),(13.5,4.6,z+dz),.13,chimney,g)
+for z in [.6,5.4]:beam('Line gantry post',(16,0,z),(16,7,z),.14,chimney,g)
+box('Line gantry beam',(16,7,3),(.3,.3,5.4),chimney,g,.02)
 # Bake modifiers, merge by semantic asset/material, then write reusable assets.
 for o in list(S.objects):
  if o.type=='MESH':

@@ -3,7 +3,7 @@ import { it, expect } from 'vitest';
 import { feature } from 'topojson-client';
 import us from 'us-atlas/states-10m.json';
 import { SITES, STATE_CARBON, DEFAULT_PLACE, albers } from '../model/sites';
-import { WIND_R, windLayout, windFootprint, solarLayout, solarFootprint, SOLAR, placePlants, plantAvoid } from './across-plants.js';
+import { WIND_R, windLayout, windFootprint, solarLayout, solarFootprint, SOLAR, placePlants, plantAvoid, siteSupply, SITE_SUPPLY, STATE_LEAD } from './across-plants.js';
 
 // the same projection and state rings as across.js
 const ORIGIN = albers(-92, 37);
@@ -90,4 +90,17 @@ it('every campus sets its whole solar array down on carbon-shaded land, clear of
     const [wx, wz] = plants[2];
     expect(Math.hypot(x - wx, z - wz), `${name} solar clear of wind`).toBeGreaterThan(Math.hypot(a.W, a.L) / 2);
   }
+});
+
+it('every real campus draws its power from at least one named kind of source', () => {
+  for (const site of Object.values(SITES)) {
+    const s = siteSupply(site.id, site.state);
+    expect(s.onsite.length + s.grid.length, site.name).toBeGreaterThan(0);
+    // a grid supply with no reported source comes from the state's leading sources, which the table must hold
+    if ((SITE_SUPPLY as any)[site.id]?.grid === 'state') expect((STATE_LEAD as any)[site.state], site.name).toBeDefined();
+    for (const kind of [...s.onsite, ...s.grid]) expect(['gas', 'coal', 'nuclear', 'wind']).toContain(kind);
+  }
+  // Prometheus is fed only by its two off-grid plants; Fairwater Atlanta reports no on-site generation
+  expect(siteSupply('prometheus', '39')).toEqual({ onsite: ['gas', 'gas'], grid: [] });
+  expect(siteSupply('fairwater-atl', '13').onsite).toEqual([]);
 });

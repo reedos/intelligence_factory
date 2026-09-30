@@ -99,3 +99,14 @@ it('map captions keep the main campus visible and avoid overlap on desktop and p
  b.scene.onBeforeRender({getSize:(v:any)=>v.set(1440,1000)},b.scene,camera);
  let shown=0;b.scene.traverse((o:any)=>{if(o.name==='Map route distance caption'&&o.visible)shown++;});expect(shown).toBeGreaterThan(0);
 });
+it('every power line starts at a drawn source and ends at a campus or a substation, never in empty space',()=>{
+ const at=(names:string[])=>{const out:number[][]=[];built.scene.traverse((o:any)=>{if(!o.isInstancedMesh||!names.some(n=>(o.parent?.name||'')===`Blender ${n}`))return;const m=new Matrix4(),v=new Vector3();for(let i=0;i<o.count;i++){o.getMatrixAt(i,m);v.setFromMatrixPosition(m);out.push([v.x,v.z]);}});return out;};
+ const sources=at(['GAS_PLANT','COAL_PLANT','NUCLEAR_PLANT','WIND_MAST','SOLAR_SKID','GRID_SUBSTATION']),ends=at(['MAP_CAMPUS','GRID_SUBSTATION']);
+ const near=(list:number[][],p:any,r:number)=>list.some(([x,z])=>Math.hypot(x-p.x,z-p.z)<r);
+ expect(built.flows.length).toBeGreaterThan(10);
+ for(const f of built.flows){
+  const a=f.path.curves[0].getPoint(0),b=f.path.curves.at(-1).getPoint(1);
+  expect(near(sources,a,60),`line starts at ${a.x.toFixed(0)},${a.z.toFixed(0)}`).toBe(true);
+  expect(near(ends,b,30),`line ends at ${b.x.toFixed(0)},${b.z.toFixed(0)}`).toBe(true);
+ }
+});

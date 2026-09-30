@@ -11,7 +11,7 @@ import { rbox, plumes } from '../fx.js';
 import { SITES, STATE_CARBON, DEFAULT_PLACE, PLACES, placeKey, albers, greatCircleKm } from '../model/sites.ts';
 import { preloadCampusCatalog, campusCatalogInstances } from './campus-blender-catalog.js';
 import { preloadAcrossAssets, hasAcrossAssets, acrossAssetInstances, acrossSurfaceGeometry, replaceWindRotor } from './across-blender-assets.js';
-import { WIND_R, WIND_SCALE, WIND_HUB, windLayout, windFootprint, solarLayout, solarFootprint, SOLAR, placePlants, plantAvoid, METROS } from './across-plants.js';
+import { WIND_R, WIND_SCALE, WIND_HUB, windLayout, windFootprint, solarLayout, solarFootprint, SOLAR, placePlants, plantAvoid, METROS, siteSupply, REMOTE_SCALE, compactFootprint } from './across-plants.js';
 export const preload = () => Promise.all([preloadCampusCatalog(), preloadAcrossAssets()]);
 
 const ORIGIN = albers(-92, 37);
@@ -403,6 +403,63 @@ export function build({ quality, model, state = {} }) {
       }
     }
   });
+  // ---------- each remote campus's own supply ----------
+  // Every remote campus draws its power from something drawn on the map: generation its site facts report beside it,
+  // wired straight to its gantry, and where it takes grid power, a utility substation near it fed by the reported
+  // grid source or else the state's leading sources (across-plants.js, siteSupply). Smaller symbols than the home
+  // campus's plants, set on land clear of every campus, city glow and the home plants.
+  const remoteWind = windLayout(quality.mobile, [4, 2]);
+  const remoteFoot = { gas: compactFootprint('gas'), coal: compactFootprint('coal'), nuclear: compactFootprint('nuclear'), sub: compactFootprint('sub'), wind: windFootprint(remoteWind) };
+  const reach = kind => Math.max(...remoteFoot[kind].map(([a, b]) => Math.hypot(a, b)));
+  const occupied = [[...H, 45], ...PLACES.map(p => [...world(p.site.lon, p.site.lat), 45]), ...plantAvoid(world, []),
+    ...[...SHADED].filter(id => CENTROID[id]).map(id => [...CENTROID[id], 30]),                 // the state carbon labels
+    ...plants.map(([x, z, kind]) => [x, z, kind === 'nuclear' ? 90 : kind === 'gas' ? 45 : Math.max(...footprints[kind].map(([a, b]) => Math.hypot(a, b)))])];
+  const facing = (from, to) => Math.atan2(-(to[1] - from[1]), to[0] - from[0]);   // turns a symbol's +x toward `to`
+  const local = (x, z, ry, s) => (lx, lz) => [x + s * (lx * Math.cos(ry) + lz * Math.sin(ry)), z + s * (-lx * Math.sin(ry) + lz * Math.cos(ry))];
+  const remote = others.map(p => {
+    const C = world(p.site.lon, p.site.lat), G = gantry(C, 0.85), supply = siteSupply(p.ids[0], p.site.state);
+    // keep clear of the campus's pin label too, which reads to the right (+x) of the campus
+    const avoid = [...occupied.filter(([x, z]) => Math.hypot(x - C[0], z - C[1]) > 1), [C[0] + 40, C[1] - 6, 24], [C[0] + 85, C[1] - 6, 24]];
+    const put = (at, around, clear) => placePlants({ H: at, around, footprints: remoteFoot, stateAt, shaded: SHADED, avoid, clear })
+      .map(([x, z, kind]) => { avoid.push([x, z, reach(kind)]); occupied.push([x, z, reach(kind)]); return { kind, x, z }; });
+    // on-site plants stand just off the campus's gantry side (-x), one a little north and one south
+    const onsite = put(C, supply.onsite.map((kind, j) => [-44, (j ? -1 : 1) * 30, kind]), 18);
+    let sub = null, grid = [];
+    if (supply.grid.length) {
+      const side = onsite.length === 1 ? -Math.sign(onsite[0].z - C[1]) || 1 : 1;
+      [sub] = put(C, [[-70, side * 20, 'sub']], 20);
+      const u = [sub.x - C[0], sub.z - C[1]], L = Math.hypot(...u), ux = u[0] / L, uz = u[1] / L;
+      // the grid plants stand beyond the substation, away from the campus, fanned when there are two
+      grid = put([sub.x, sub.z], supply.grid.map((kind, j, all) => {
+        const a = all.length > 1 ? (j ? -0.55 : 0.55) : 0, d = kind === 'wind' ? 95 : kind === 'nuclear' ? 85 : 70;
+        return [d * (ux * Math.cos(a) - uz * Math.sin(a)), d * (ux * Math.sin(a) + uz * Math.cos(a)), kind];
+      }), 16);
+      sub.ry = facing([sub.x, sub.z], [G[0], G[2]]);
+      grid.forEach(q => { q.ry = facing([q.x, q.z], [sub.x, sub.z]); });
+    }
+    onsite.forEach(q => { q.ry = facing([q.x, q.z], [G[0], G[2]]); });
+    return { p, C, G, onsite, sub, grid };
+  });
+  for (const { onsite, sub, grid } of remote) for (const q of [...onsite, ...grid, ...(sub ? [sub] : [])]) {
+    const s = REMOTE_SCALE[q.kind] ?? 1, at = local(q.x, q.z, q.ry, s);
+    if (q.kind === 'wind') {
+      for (const [ox, oz] of remoteWind) {
+        const tx = q.x + ox, tz = q.z + oz;
+        if (!onLand(tx, tz)) continue;
+        if (authored) placePlant('WIND_MAST', mtx(tx, 0, tz, 0, WIND_SCALE));
+        else P.cyl(0.3 * WIND_SCALE, WIND_HUB, MAT.white, tx, WIND_HUB / 2, tz, 8);
+        turbineItems.push({ p: [tx, WIND_HUB, tz + 1.05 * WIND_SCALE], axis: 'z', r: WIND_R });
+      }
+      continue;
+    }
+    const asset = { gas: 'GAS_PLANT', coal: 'COAL_PLANT', nuclear: 'NUCLEAR_PLANT', sub: 'GRID_SUBSTATION' }[q.kind];
+    if (authored) placePlant(asset, mtx(q.x, 0, q.z, q.ry, s));
+    else if (q.kind === 'sub') P.box(22 * s, 0.3, 16 * s, MAT.concreteDark, q.x, 0.16, q.z, q.ry);
+    else P.box(18 * s, (q.kind === 'coal' ? 20 : 8.5) * s, 9 * s, MAT.steel, q.x, (q.kind === 'coal' ? 10 : 4.25) * s, q.z, q.ry);
+    if (q.kind === 'gas') for (const lx of [-5, 5]) { const [ex, ez] = at(lx, -13.6); gasEmitters.push({ p: [ex, 18.2 * s, ez], dir: [0.1, 1, 0] }); }
+    if (q.kind === 'coal') { const [ex, ez] = at(-14, -12); gasEmitters.push({ p: [ex, 34 * s, ez], dir: [0.1, 1, 0] }); }
+    if (q.kind === 'nuclear') for (const lx of [-17, 17]) { const [ex, ez] = at(lx, 0); nuclearEmitters.push({ p: [ex, 34 * s, ez], dir: [0.1, 1, 0] }); }
+  }
   for (const [name, matrices] of plantMatrices) power.add(acrossAssetInstances(name, matrices));
   // red aviation lights on nacelles and stacks flash together, about 30 times a minute
   const beacons = [];
@@ -418,26 +475,31 @@ export function build({ quality, model, state = {} }) {
   // Towers every 30 along a line, crossarms square to it. The line hangs from an insulator tip on one side of each
   // tower (1.6 off the centerline at 5.3 up) and sags between towers, instead of threading the tower tops.
   const towerMatrices = [];
-  const hvLine = (pts, count) => {
-    const L = polyLen(pts), anchors = [pts[0]];
-    for (let d = 20; d < L - 12; d += 30) {
-      const a = pointAt(pts, d), b = pointAt(pts, d + 1), ry = Math.atan2(b[0] - a[0], b[2] - a[2]);
-      towerMatrices.push(mtx(a[0], 0, a[2], ry));
-      anchors.push([a[0] + Math.cos(ry) * 1.6, 5.3, a[2] - Math.sin(ry) * 1.6]);
+  // A line is one or more legs: a line through a substation runs plant -> in-gantry, across the yard, then
+  // out-gantry -> campus, with towers along each leg long enough to need them (none inside the yard).
+  const hvLine = (pts, count, { legs = [pts], trail = true } = {}) => {
+    const anchors = [legs[0][0]];
+    for (const leg of legs) {
+      const L = polyLen(leg);
+      for (let d = 20; d < L - 12; d += 30) {
+        const a = pointAt(leg, d), b = pointAt(leg, d + 1), ry = Math.atan2(b[0] - a[0], b[2] - a[2]);
+        towerMatrices.push(mtx(a[0], 0, a[2], ry));
+        anchors.push([a[0] + Math.cos(ry) * 1.6, 5.3, a[2] - Math.sin(ry) * 1.6]);
+      }
+      anchors.push(leg[leg.length - 1]);
     }
-    anchors.push(pts[pts.length - 1]);
     const path = [anchors[0]];
     for (let j = 1; j < anchors.length; j++) {
       const p = anchors[j - 1], q = anchors[j];
       for (let k = 1; k <= 4; k++) { const u = k / 4; path.push([p[0] + (q[0] - p[0]) * u, p[1] + (q[1] - p[1]) * u - 0.8 * Math.sin(u * Math.PI), p[2] + (q[2] - p[2]) * u]); }
     }
-    const f = flow(path, 'hv', { count, speed: 160, size: 1.4, trailR: .38, trailK: 0.45 });
+    const f = flow(path, 'hv', { count, speed: 160, size: 1.4, trailR: .38, trailK: 0.45, trail });
     flows.push(f); power.add(f.group);
   };
-  const farmEdge = (px, pz, pts) => {
+  const farmEdge = (px, pz, pts, to = H) => {
     let best = null, d = Infinity;
-    for (const [ox, oz] of pts) { const e = Math.hypot(px + ox - H[0], pz + oz - H[1]); if (e < d) { d = e; best = [px + ox, pz + oz]; } }
-    const ux = (H[0] - best[0]) / d, uz = (H[1] - best[1]) / d;
+    for (const [ox, oz] of pts) { const e = Math.hypot(px + ox - to[0], pz + oz - to[1]); if (e < d) { d = e; best = [px + ox, pz + oz]; } }
+    const ux = (to[0] - best[0]) / d, uz = (to[1] - best[1]) / d;
     return [best[0] + ux * (WIND_R + 4), best[1] + uz * (WIND_R + 4)]; // just outside the rotor, toward the campus
   };
   // the array's line leaves from the inverter skid nearest the campus, out through the ring road
@@ -462,14 +524,33 @@ export function build({ quality, model, state = {} }) {
     }
     hvLine(pts, 18);
   });
-  // each remote campus gets a short representative tie-in from its own substation toward the regional grid, so a
-  // close view of it shows where its power comes from; the path is illustrative, not a surveyed line
-  others.forEach((p, i) => {
-    const [x, z] = world(p.site.lon, p.site.lat), G = gantry([x, z], 0.85);
-    const a = Math.PI + (i % 2 ? 0.55 : -0.55) + (i - 3) * 0.12;
-    const pts = route([G[0] - 3, G[2]], [G[0] + Math.cos(a) * 150, G[2] + Math.sin(a) * 150], 18, 300 + i).map(q => [q[0], 6, q[2]]).reverse();
-    pts[pts.length - 1] = [G[0], G[1], G[2]];
-    hvLine(pts, 7);
+  // Remote campus lines: each leaves a drawn source's line gantry and lands on a campus gantry, through the
+  // substation's two gantries when it comes from the grid. Their paths are illustrative, not surveyed lines. The
+  // ribbon overlay already draws each route, so these short lines skip the tube trail (one draw each, not two).
+  const lift = ([x, z], y = 6) => [x, y, z];
+  const leaves = (q, s) => {                                           // where a source's line leaves it
+    if (q.kind === 'wind') return null;
+    const at = local(q.x, q.z, q.ry, s);
+    return q.kind === 'nuclear' ? at(55, 12) : at(16, 3);             // the switchyard gantry of each plant symbol
+  };
+  remote.forEach(({ G, onsite, sub, grid }, i) => {
+    const end = [G[0], G[1], G[2]], gz = [G[0], G[2]];
+    onsite.forEach((q, j) => {
+      const from = leaves(q, REMOTE_SCALE[q.kind]);
+      const pts = route(from, gz, 8, 300 + i * 7 + j).map(r => [r[0], 6, r[2]]);
+      pts[pts.length - 1] = end;
+      hvLine(pts, 5, { trail: false });
+    });
+    if (!sub) return;
+    const ss = REMOTE_SCALE.sub, at = local(sub.x, sub.z, sub.ry, ss), gIn = lift(at(-9.5, 0), 7 * ss), gOut = lift(at(9.5, 0), 7 * ss);
+    const out = route([gOut[0], gOut[2]], gz, 10, 340 + i).map(r => [r[0], 6, r[2]]); out[0] = gOut; out[out.length - 1] = end;
+    grid.forEach((q, j) => {
+      const from = q.kind === 'wind' ? farmEdge(q.x, q.z, remoteWind, [gIn[0], gIn[2]]) : leaves(q, REMOTE_SCALE[q.kind]);
+      const inn = route(from, [gIn[0], gIn[2]], 14, 320 + i * 7 + j).map(r => [r[0], 6, r[2]]); inn[inn.length - 1] = gIn;
+      // the first plant's line runs on through the yard to the campus; a second one ends at the substation
+      if (j === 0) hvLine(null, 7, { legs: [inn, [gIn, gOut], out], trail: false });
+      else hvLine(inn, 5, { trail: false });
+    });
   });
   if (authored) power.add(acrossAssetInstances('GRID_PYLON', towerMatrices));
   else {

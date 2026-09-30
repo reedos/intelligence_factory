@@ -103,8 +103,9 @@ export function sitePlant({ H, offset, samples, radius, stateAt, shaded, taken =
 // Place every plant: the compact ones (gas, nuclear) turned about the campus until their center stands on land,
 // then the wide ones (those with a footprint) set down whole by sitePlant, clear of the rest. Keeps the order of
 // `around`, since the grid lines seed their routes by it. `avoid` lists [x, z, r] circles the wide plants keep out
-// of as well: city light pools and the other campuses, whose glow would otherwise spill over an array.
-export function placePlants({ H, around, footprints, stateAt, shaded, avoid = /** @type {number[][]} */ ([]) }) {
+// of as well: city light pools and the other campuses, whose glow would otherwise spill over an array. `clear` is
+// the gap kept between a plant's footprint and H.
+export function placePlants({ H, around, footprints, stateAt, shaded, avoid = /** @type {number[][]} */ ([]), clear = 60 }) {
   const turnToLand = ([dx, dz, kind]) => {
     for (let k = 0; k < 24; k++) {
       const a = k * Math.PI / 12, x = H[0] + dx * Math.cos(a) - dz * Math.sin(a), z = H[1] + dx * Math.sin(a) + dz * Math.cos(a);
@@ -117,7 +118,7 @@ export function placePlants({ H, around, footprints, stateAt, shaded, avoid = /*
   around.forEach(([dx, dz, kind], i) => {
     if (plants[i]) return;
     const samples = footprints[kind], radius = Math.max(...samples.map(([x, z]) => Math.hypot(x, z)));
-    const at = sitePlant({ H, offset: [dx, dz], samples, radius, stateAt, shaded, taken });
+    const at = sitePlant({ H, offset: [dx, dz], samples, radius, stateAt, shaded, taken, clearOfCampus: clear });
     plants[i] = at ? [at[0], at[1], kind] : turnToLand([dx, dz, kind]);
     taken.push([plants[i][0], plants[i][1], radius]);
   });
@@ -132,3 +133,36 @@ export const windFootprint = pts => {
   return footprintSamples((x1 - x0) / 2, (z1 - z0) / 2).map(([x, z]) => [x + (x0 + x1) / 2, z + (z0 + z1) / 2]);
 };
 export const solarFootprint = a => footprintSamples(a.W / 2 + SHORE, a.L / 2 + SHORE);
+
+// ---- where each remote campus draws its power ----
+// Every HV line on the map starts at a drawn source and ends at a campus. A remote campus's supply follows what its
+// own site facts report (src/model/sites.ts) where they name a source; otherwise it is the state's grid, drawn as a
+// utility substation near the campus fed by the state's leading sources of generation. Representative symbols at
+// illustrative spots, not surveyed plants or lines (evidence.js, 'across-map-symbols').
+//   onsite: generation the site itself reports, each plant wired straight to the campus
+//   grid:   plant kinds behind the utility substation ('state' = STATE_LEAD for the campus's state)
+// The leading sources of in-state generation, from the EIA State Electricity Profiles for 2024 (the eia-state-*
+// sources): the two largest where they stand clearly ahead of the rest, only the largest where second place is
+// close (Tennessee: nuclear first, then gas and coal near each other). Only states a remote campus draws from.
+export const STATE_LEAD = { '47': ['nuclear'], '13': ['gas', 'nuclear'], '55': ['gas', 'coal'], '18': ['coal', 'gas'] };
+export const SITE_SUPPLY = {
+  abilene: { onsite: ['gas'], grid: ['wind'] },         // Epoch: on-site natural gas plus grid power "which includes local wind power"
+  colossus1: { onsite: ['gas'], grid: 'state' },        // Colossus 1's gas turbines (Compute Atlas) and MLGW/TVA grid supply
+  'fairwater-atl': { grid: 'state' },                   // grid-only design, no on-site generation
+  'fairwater-wi': { grid: 'state' },                    // on-site generation not disclosed
+  hyperion: { grid: ['gas', 'gas'] },                   // Entergy's new gas plants for the site (IEEE Spectrum: three, 2.26 GW)
+  rainier: { grid: 'state' },                           // "All operating power comes from the utility grid"
+  prometheus: { onsite: ['gas', 'gas'] },               // Socrates North and South, ≈400 MW, fully off-grid
+};
+export function siteSupply(id, state) {
+  const s = SITE_SUPPLY[id] || { grid: 'state' };
+  return { onsite: s.onsite || [], grid: s.grid === 'state' ? (STATE_LEAD[state] || ['gas']) : (s.grid || []) };
+}
+// remote plants and substations are drawn smaller than the home campus's plants, so they sit beside a campus
+export const REMOTE_SCALE = { gas: 0.75, coal: 0.75, nuclear: 0.55, sub: 1.3 };
+// footprint samples for the compact symbols at their remote scale: a disk of the symbol's reach about its origin
+export const compactFootprint = kind => {
+  const r = { gas: 24, coal: 26, nuclear: 60, sub: 14 }[kind] * REMOTE_SCALE[kind], pts = [[0, 0]];
+  for (let k = 0; k < 12; k++) pts.push([r * Math.cos(k * Math.PI / 6), r * Math.sin(k * Math.PI / 6)]);
+  return pts;
+};
