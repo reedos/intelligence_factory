@@ -64,11 +64,12 @@ const check = () => {
 
 const rows = [];
 for (const [label, s] of scenarios) {
-  await p.evaluate(s => { ifx.exitStory(); ifx.closeClock(); ifx.setScenario({ site: undefined, ...s }); }, s);
+  await p.evaluate(s => { ifx.exitStory?.(); ifx.closeClock?.(); ifx.setScenario({ site: undefined, ...s }); }, s);
   await p.waitForTimeout(500);
   const stops = await p.evaluate(all => {
     const M = ifx.store.M, J = ifx.journeys;
-    if (all) {
+    // the visualizer no longer runs tours (Reed, 09/2026): every part in every layer is the set of stops
+    if (all || !J || typeof ifx.enterStory !== 'function') {
       const out = [];
       ifx.store.C.SCENES.forEach((sc, i) => [['power', ifx.store.C.PARTS], ['data', ifx.store.C.PARTS_DATA], ['heat', ifx.store.C.PARTS_HEAT]].forEach(([mode, P]) => (P[sc.id] || []).forEach(pt => out.push({ tour: 'explore', i: out.length, link: { scene: i, mode, part: pt.id } }))));
       return out;
@@ -78,10 +79,10 @@ for (const [label, s] of scenarios) {
     ifx.store.C.SCENES.forEach((sc, side) => { if (sc.side) [['power', ifx.store.C.PARTS], ['data', ifx.store.C.PARTS_DATA], ['heat', ifx.store.C.PARTS_HEAT]].forEach(([mode, P]) => (P[sc.id] || []).forEach(pt => extra.push({ tour: sc.id, i: extra.length, link: { scene: side, mode, part: pt.id } }))); });
     return ['story', 'watt', 'request', 'heat'].flatMap(t => J[t](M).map((bt, i) => ({ tour: t, i, link: bt.link, sim: bt.sim || null, title: bt.title }))).concat(extra);
   }, everything);
-  if (!everything) await p.evaluate(() => ifx.enterStory('story'));
+  if (!everything) await p.evaluate(() => ifx.enterStory?.('story'));
   for (const st of stops) {
     await p.evaluate(async ({ link, sim }) => {
-      if (sim) ifx.openClock(sim); else ifx.closeClock();
+      if (sim) ifx.openClock?.(sim); else ifx.closeClock?.();
       document.querySelector('.view').scrollIntoView({ block: 'start' });
       for (let k = 0; k < 3; k++) {                        // a tour's own first jump can race ours; land for sure
         await ifx.show(link, { scroll: false });

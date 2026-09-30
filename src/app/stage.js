@@ -29,7 +29,7 @@ import { applyVisualDirection } from '../scenes/visual-direction.js';
 import { applyComputeArtDirection } from '../scenes/compute-art-direction.js';
 import { cameraPresetFor } from './camera-presets.js';
 import { fitHousing, fitComponent } from './housing-frame.js';
-import { overlapsRect, pinLabelBox } from './pin-layout.js';
+import { overlapsRect, pinLabelBox, declutterPins } from './pin-layout.js';
 
 // six levels in a line, outermost first, then the side levels inside the links, each its own diagram: the module, the
 // CPO package, the coherent module, the copper cables. Each is entered from the part that holds it and left back to
@@ -741,6 +741,8 @@ document.querySelectorAll('[data-mode]').forEach(x => x.addEventListener('click'
 
 const pinsEl = $('pins');
 let pins = [];
+let expandedPins = null;          // ids of a pin group the reader opened (small screens)
+const pinGroups = new Map();
 function buildPanel(i) {
   const s = SCENES()[i], parts = partsFor(i);
   $('intro').textContent = built[i]?.variant?.intro?.(ui.mode) || { power: s.intro, data: s.dataIntro, heat: s.heatIntro }[ui.mode];
@@ -773,7 +775,7 @@ function buildPanel(i) {
     b.addEventListener('click', () => select(p.id, true));
     li.appendChild(b); list.appendChild(li);
   });
-  pinsEl.innerHTML = '';
+  pinsEl.innerHTML = ''; pinGroups.clear(); expandedPins = null;
   const hs = hotspotsFor(i);
   pins = parts.filter(p => hs[p.id]).map((p) => {
     const el = document.createElement('button');
@@ -1103,6 +1105,26 @@ function updateScale() {
 
 // ---------- pins ----------
 const pv = new THREE.Vector3();
+// group badges for piled-up pins on small screens: "2 +4" is pin 2 and four more; a tap fans them all out
+function syncPinGroups(groups, w, h) {
+  const live = new Set();
+  for (const g of groups) {
+    live.add(g.key);
+    let el = pinGroups.get(g.key);
+    if (!el || !el.isConnected) {
+      el = document.createElement('button'); el.type = 'button'; el.className = 'pin-group';
+      const nums = g.ids.map(id => pins.find(p => p.id === id)?.el.querySelector('.num')?.textContent).filter(Boolean);
+      el.innerHTML = `<b>${nums[0]}</b><span>+${nums.length - 1}</span>`;
+      el.setAttribute('aria-label', `${nums.length} parts here: ${nums.join(', ')}. Show them`);
+      el.addEventListener('click', e => { e.stopPropagation(); expandedPins = new Set(g.ids); });
+      pinsEl.appendChild(el); pinGroups.set(g.key, el);
+    }
+    el.style.transform = `translate(${(Math.max(20, Math.min(w - 20, g.x))).toFixed(1)}px, ${(Math.max(14, Math.min(h - 14, g.y))).toFixed(1)}px) translate(-50%, -50%)`;
+  }
+  for (const [key, el] of pinGroups) if (!live.has(key)) { el.remove(); pinGroups.delete(key); }
+}
+// a tap anywhere else in the view folds an opened group back up
+view.addEventListener('pointerdown', e => { if (expandedPins && !e.target.closest?.('.pin, .pin-group')) expandedPins = null; });
 function updatePins() {
   const w = view.clientWidth, h = view.clientHeight, placed = [];
   const vr = view.getBoundingClientRect(), reserved = [];
@@ -1119,14 +1141,38 @@ function updatePins() {
     pv.copy(p.pos).project(camera);
     return { id: p.id, x: (pv.x + 1) / 2 * w, y: (1 - pv.y) / 2 * h, z: pv.z };
   });
+  // Small screens: pins that pile up are fanned out or gathered into a group badge (declutterPins) instead of
+  // overlapping or being dropped. The selected pin never joins a cluster.
+  const small = w < 640;
+  let clutter = null;
+  if (small && !presentation?.hidePins) {
+    const cands = [];
+    for (const q of pinPoints) {
+      if (q.id === ui.selected || q.z > 1 || q.x < 6 || q.x > w - 6 || q.y < 6 || q.y > h - 6) continue;
+      if (reserved.some(r => overlapsRect({ left: q.x - 13, right: q.x + 13, top: q.y - 13, bottom: q.y + 13 }, r, 4))) continue;
+      cands.push(q);
+    }
+    cands.sort((a, b) => pins.findIndex(p => p.id === a.id) - pins.findIndex(p => p.id === b.id));
+    clutter = declutterPins(cands, { expanded: expandedPins });
+  }
+  syncPinGroups(clutter?.groups || [], w, h);
   for (const p of ordered) {
     pv.copy(p.pos).project(camera);
-    const x = (pv.x + 1) / 2 * w, y = (1 - pv.y) / 2 * h;
+    let x = (pv.x + 1) / 2 * w, y = (1 - pv.y) / 2 * h;
+    const spot = clutter?.placements.get(p.id);
+    const fanned = !!spot && (Math.abs(spot.x - x) > .5 || Math.abs(spot.y - y) > .5);
+    if (spot) { x = Math.max(12, Math.min(w - 12, spot.x)); y = Math.max(12, Math.min(h - 12, spot.y)); }
+    p.el.classList.toggle('fanned', fanned);
+    if (fanned) {
+      const dx = spot.ax - x, dy = spot.ay - y;
+      const lead = Math.hypot(dx, dy) - 14; p.el.style.setProperty('--lead-len', `${lead > 8 ? lead.toFixed(1) : 0}px`);
+      p.el.style.setProperty('--lead-a', `${Math.atan2(dy, dx).toFixed(3)}rad`);
+    }
     // Nearby optical elements share a small footprint. Keep their buttons from
     // intercepting each other; every part remains selectable in the inspector.
-    const overlaps = compact && p.id !== ui.selected && placed.some(q => Math.hypot(q[0] - x, q[1] - y) < 28);
-    const markerBlocked = reserved.some(r => overlapsRect({ left: x - 13, right: x + 13, top: y - 13, bottom: y + 13 }, r, 4));
-    const off = presentation?.hidePins || overlaps || (markerBlocked && p.id !== ui.selected) || pv.z > 1 || x < 6 || x > w - 6 || y < 6 || y > h - 6;
+    const overlaps = !clutter && compact && p.id !== ui.selected && placed.some(q => Math.hypot(q[0] - x, q[1] - y) < 28);
+    const markerBlocked = !spot && reserved.some(r => overlapsRect({ left: x - 13, right: x + 13, top: y - 13, bottom: y + 13 }, r, 4));
+    const off = presentation?.hidePins || overlaps || !!clutter?.hidden.has(p.id) || (markerBlocked && p.id !== ui.selected) || pv.z > 1 || x < 6 || x > w - 6 || y < 6 || y > h - 6;
     p.el.classList.toggle('off', off);
     if (off) continue;
     p.el.style.transform = `translate(${(x - 11).toFixed(1)}px, ${(y - 11).toFixed(1)}px)`;
