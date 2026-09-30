@@ -109,8 +109,9 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
  // Small service IO remains visibly distinct from optical ports.
  for(const x of [-.28,-.10,.10,.28]){S.box(.12,.08,.10,MAT.darkSteel,x,.16,4.35);N.box(.09,.05,.018,MAT.black,x,.16,4.41);}
  gp.forEach(([x,z],i)=>{
- // Core power runs from both VRM rows into the substrate edge, below the die and HBM tops.
-  flows.push(flow([[Math.sign(x)*1.5,.28,-4.02],[x,.28,-3.35],[x,.25,z]],'bus12',{count:10,speed:.8,size:.028,trailR:.009}));
+ // 12 V ends at the rear VRM row (not on the package); core power runs from
+ // both VRM rows into the substrate edge, below the die and HBM tops.
+  flows.push(flow([[Math.sign(x)*1.5,.28,-4.02],[x,.26,-3.62],[x,.2,z-.74]],'bus12',{count:6,speed:.8,size:.028,trailR:.009}));
   for(const side of [-1,1])for(const dx of [-.2,.2])flows.push(flow([[x+dx,.125,z+side*.6],[x+dx,.125,z+side*.4]],'core',{count:3,speed:.35,size:.018,trail:false}));
   dataFlows.push(flow([[x,.29,z-.25],[nvX[i],.31,-3.75],[nvX[i],.31,-4.35]],'nvl',{count:10,speed:.9,size:.03,trailR:.01}));
   // NVIDIA SuperPOD RA Figure 2: NIC PCIe is rooted at Vera, not a
@@ -132,7 +133,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
  cp.forEach(([x,z],i)=>{for(const gpu of gp.slice(i*2,i*2+2))for(const reverse of [false,true]){const pts=[[x,.30,z-.32],[gpu[0],.30,gpu[1]+.38]];if(reverse)pts.reverse();dataFlows.push(flow(pts,'c2c',{count:5,speed:.6,size:.025,trailR:.008}));}});
  dataFlows.push(flow([[0,.28,3.3],[0,.28,4.38]],'serdes',{count:5,speed:.6,size:.024,trail:false}));
  flows.push(flow([[0,.25,-4.75],[0,.28,-4.05],[-1.5,.28,-4.02]],'dc',{count:12,speed:.9,size:.03,trail:false}));
- for(const x of [-1.1,1.1])flows.push(flow([[Math.sign(x)*1.5,.28,-4.02],[x,.3,-3.55],[x,.3,-.65]],'bus12',{count:14,speed:.7,size:.025,trail:false}));
+ for(const x of [-1.1,1.1])flows.push(flow([[Math.sign(x)*1.5,.28,-4.02],[x,.3,-3.55],[x,.22,-1.24]],'bus12',{count:14,speed:.7,size:.025,trail:false}));
  for(const [x,z] of [...nic,dpu])flows.push(flow([[x,.18,1.45],[x,.18,z]],'bus12',{count:8,speed:.8,size:.022,trail:false}));
  scene.add(S.build(),N.build({cast:false}));for(const list of [flows,dataFlows,heatFlows])for(const f of list)scene.add(f.group);
  const hs=(p,off=[2.2,2.8,3.5])=>({pos:p,view:{pos:p.map((v,i)=>v+off[i]),target:p}});
