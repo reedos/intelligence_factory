@@ -193,12 +193,14 @@ for e,conn in zip(LAYOUT['engines'],LAYOUT['connectors']):
 # factor). Each slim body stands in a front-panel bezel, heat-sink fins on its
 # rear half, a pull tab and label outside, and a receptacle frame around the
 # laser exit on its inward (-X) face. Nothing crosses that exit.
-elsBody = material('Laser module anodized body', (.2,.21,.23), .8,.34)
+# Lighter satin anodize and a wider edge radius: the bodies must separate from
+# the black ground in the overview, where a dark mirror finish reflected only it.
+elsBody = material('Laser module anodized body', (.30,.33,.37), .6,.38)
 elsFin = material('Laser module heat-sink fins', (.42,.44,.47), .85,.3)
-bezel = material('Front panel bezel', (.1,.11,.12), .7,.4)
+bezel = material('Front panel bezel', (.15,.16,.18), .6,.42)
 for i in range(5):
     z=-4.4+i*2.2
-    box('External laser case',(8.48,1.5,z),(2.4,.6,1.0),elsBody,'CPO_ELS',.04)
+    box('External laser case',(8.48,1.5,z),(2.4,.6,1.0),elsBody,'CPO_ELS',.07)
     for k in range(7): box('Laser heat-sink fin',(9.05,1.86,z-.39+k*.13),(1.15,.12,.035),elsFin,'CPO_ELS',0)
     box('Laser module seam',(7.75,1.5,z),(.02,.605,1.005),dark,'CPO_ELS',0)
     # Pull tab (bail) and label plate on the outward face.
