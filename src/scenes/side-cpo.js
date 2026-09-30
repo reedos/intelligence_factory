@@ -202,7 +202,8 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   for (let i = 0; i < 24; i++) { const x = (rnd() - 0.5) * activeDieSpan, z = (rnd() - 0.5) * activeDieSpan; flows.push(flow([[x, -1.2, z], [x, Y.sub, z], [x, Y.die, z]], 'core', FLOW.power)); }
   engines.forEach(({ x, z }) => flows.push(flow([[x, -1.0, z], [x, Y.sub, z], [x, Y.eng, z]], 'v33', FLOW.power)));
   els.forEach(([x, z]) => flows.push(flow([[x + 2.3, Y.sub + 0.45, z], [x + 0.9, Y.sub + 0.45, z]], 'v33', FLOW.power)));
-  for (let i = 0; i < 26; i++) { const x = (rnd() - 0.5) * activeDieSpan, z = (rnd() - 0.5) * activeDieSpan; heatFlows.push(flow([[x, Y.die + 0.06, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat)); }
+  // A few sampled columns read as rising heat; a dense sheet hid the die and the plate behind it.
+  for (let i = 0; i < 14; i++) { const x = (rnd() - 0.5) * activeDieSpan, z = (rnd() - 0.5) * activeDieSpan; heatFlows.push(flow([[x, Y.die + 0.06, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat)); }
   engines.forEach(({ x, z }) => heatFlows.push(flow([[x, Y.eng + 0.1, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat)));
   heatFlows.push(flow([[-1.4, pipeTop, pipeZ], [-1.4, Y.plate, pipeZ], [-1.4, Y.plate, 3], [1.4, Y.plate, 3], [1.4, Y.plate, pipeZ], [1.4, pipeTop, pipeZ]], 'cool', { count: 10, speed: 1.6, size: 0.06, k: 2.2, trail: false }));
   [flows, dataFlows, heatFlows].forEach(a => a.forEach(f => scene.add(f.group)));

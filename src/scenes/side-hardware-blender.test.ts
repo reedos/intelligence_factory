@@ -265,7 +265,7 @@ describe('Blender mechanical layers preserve native technical diagrams',()=>{
       const end=f.path.getPoint(1);expect(Math.abs(end.x)).toBeLessThan(ASIC_HALF);expect(Math.abs(end.z)).toBeLessThan(ASIC_HALF);
     }
     const dieHeat=b.heatFlows.filter((f:any)=>Math.abs(f.path.getPoint(0).y-1.68)<1e-5);
-    expect(dieHeat.length).toBe(26);
+    expect(dieHeat.length).toBe(14);
     for(const f of dieHeat) {
       const start=f.path.getPoint(0);expect(Math.abs(start.x)).toBeLessThan(ASIC_HALF);expect(Math.abs(start.z)).toBeLessThan(ASIC_HALF);
     }
