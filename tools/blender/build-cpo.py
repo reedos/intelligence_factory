@@ -1,5 +1,6 @@
 """Representative CPO mechanics, aligned to the existing cm-scale technical diagram.
 Run: blender --background --python tools/blender/build-cpo.py
+(needs node/npx on PATH: the export is quantized with @gltf-transform/cli)
 Reference: NVIDIA's public Quantum-X Photonics package imagery, not a production CAD model.
 All static hardware is authored here. Runtime JS retains only animated signals,
 labels, selection guides, and the reviewed path/anchor contract.
@@ -28,8 +29,9 @@ def material(name, color, metal=0, rough=.4, alpha=1):
     if alpha < 1: m.surface_render_method = 'DITHERED'
     return m
 
-# Face textures (materials with a 0-1 top-face UV) are painted at runtime by
-# side-cpo-blender.js; the GLB embeds no images.
+# Materials named in UV_MATERIALS keep a 0-1 top-face UV; side-cpo-blender.js
+# paints their face textures at runtime (no embedded images in the GLB).
+UV_MATERIALS={'Electronic die face'}
 
 nickel = material('Satin nickel retainers', (.5,.57,.62), .82,.29)
 edge = material('Polished screw heads', (.68,.73,.76), .9,.22)
@@ -89,8 +91,10 @@ def box(name, p, d, mat, role, bevel=.02, angle=0, uv_top=False):
                 vi=mesh.loops[li].vertex_index
                 uv.data[li].uv=((vi&1),(vi>>2)&1) if poly.index==3 else (.002,.002)
     o=bpy.data.objects.new(name,mesh); S.collection.objects.link(o); o.parent=groups[role]; mesh.materials.append(mat)
-    if bevel:
-        mod=o.modifiers.new('Manufactured edge radius','BEVEL'); mod.width=bevel*CM; mod.segments=3
+    # Sub-0.15 mm parts get no bevel and thin parts a single chamfer: their
+    # rounding is sub-pixel at every app camera but tripled the triangle count.
+    if bevel and min(d)>=.015:
+        mod=o.modifiers.new('Manufactured edge radius','BEVEL'); mod.width=min(bevel,min(d)*.45)*CM; mod.segments=1 if min(d)<.05 else 3
         mod=o.modifiers.new('Weighted normals','WEIGHTED_NORMAL'); mod.keep_sharp=True
     return o
 
@@ -100,10 +104,12 @@ def screw(x,y,z,role,r=.08):
     box('Fastener recess',(x,y+.014,z),(r*1.2,.005,r*.22),dark,role,.002)
 
 def cylinder(name, p, radius, height, mat, role, segments=24):
-    bpy.ops.mesh.primitive_cylinder_add(vertices=segments,radius=radius*CM,depth=height*CM,location=world(p))
+    small=radius<.05
+    bpy.ops.mesh.primitive_cylinder_add(vertices=min(segments,8) if small else segments,radius=radius*CM,depth=height*CM,location=world(p))
     o=bpy.context.object; o.name=name; o.parent=groups[role]; o.data.materials.append(mat)
-    b=o.modifiers.new('Turned edge radius','BEVEL'); b.width=.015*CM; b.segments=3
-    o.modifiers.new('Weighted normals','WEIGHTED_NORMAL')
+    if not small:
+        b=o.modifiers.new('Turned edge radius','BEVEL'); b.width=.015*CM; b.segments=2
+        o.modifiers.new('Weighted normals','WEIGHTED_NORMAL')
     return o
 
 # Board and lower stiffener remain underneath the existing package substrate.
@@ -301,6 +307,10 @@ bpy.context.view_layer.update(); deps=bpy.context.evaluated_depsgraph_get()
 for o in list(S.objects):
     if o.type=='MESH':
         baked=bpy.data.meshes.new_from_object(o.evaluated_get(deps)); o.modifiers.clear(); o.data=baked
+# Only textured materials keep UVs; the rest export position + normal only.
+for o in S.objects:
+    if o.type=='MESH' and not any(m and m.name in UV_MATERIALS for m in o.data.materials):
+        while o.data.uv_layers: o.data.uv_layers.remove(o.data.uv_layers[0])
 for parent in groups.values():
     batches={}
     for o in list(parent.children):
@@ -321,4 +331,9 @@ root['ifx']=json.dumps({'version':5,'units':'m','coordinates':'gltf-root-rest','
 out=ROOT/'public/models/cpo-hardware.glb'; out.parent.mkdir(parents=True,exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=str(HERE/'cpo-hardware.blend'))
 bpy.ops.export_scene.gltf(filepath=str(out),export_format='GLB',export_extras=True,export_yup=True,export_cameras=False,export_lights=False)
+# Quantize positions/normals (KHR_mesh_quantization, decoded natively by three's
+# GLTFLoader; no decoder library needed). Extras, names and materials survive.
+import subprocess
+subprocess.run(f'npx -y @gltf-transform/cli@4.5.1 quantize "{out}" "{out}" --quantize-position 16 --quantize-normal 10',
+    shell=True, check=True, cwd=str(ROOT))
 print('IFX_CPO_EXPORTED',out, out.stat().st_size)
