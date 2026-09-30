@@ -85,6 +85,11 @@ function buildPackage({ quality, state, model }) {
   if (quality.shadows) { key.castShadow = true; key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 1, far: 40 }); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.01; }
   scene.add(key);
   const rim = new THREE.DirectionalLight(0x7aa6ff, 1.2); rim.position.set(-8, 5, -8); scene.add(rim);
+  // A soft fill from the side opposite the key, so the second die and its HBM
+  // cluster read with the same specular pop as the first. Studio art direction
+  // repositions only the key and rim; this third light keeps its place.
+  const balance = new THREE.DirectionalLight(0xe4ecf7, 0.6); balance.name = 'Package balance fill';
+  balance.position.set(5.6, 11.1, -5.2); balance.target.position.set(0, 2.3, 0); scene.add(balance, balance.target);
 
   const flows = [], dataFlows = [], heatFlows = [];
   const S = new Builder(), N = new Builder();
