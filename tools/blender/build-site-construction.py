@@ -27,10 +27,12 @@ for name,v in faces:
  for poly in m.polygons:
   for li in poly.loop_indices:m.uv_layers.active.data[li].uv=[(0,0),(0,1),(1,1),(1,0)][m.loops[li].vertex_index]
 bpy.ops.mesh.primitive_cylinder_add(vertices=24,radius=1,depth=1);finish(bpy.context.object,'CYLINDER')
+# Segment variants: the viewer picks the one nearest the segment count the code asked for (large tanks get 48).
+for n in [12,48]:bpy.ops.mesh.primitive_cylinder_add(vertices=n,radius=1,depth=1);finish(bpy.context.object,f'CYLINDER_{n}')
 bpy.ops.mesh.primitive_cone_add(vertices=24,radius1=1,radius2=1.3/1.85,depth=1);finish(bpy.context.object,'TAPERED_CYLINDER')
 bpy.ops.mesh.primitive_cone_add(vertices=24,radius1=1,radius2=0,depth=1);finish(bpy.context.object,'CONE')
 # Authored cable topology, deformed along scenario cable curves in the viewer.
-v=[];f=[];N=8
+v=[];f=[];N=12
 for j in range(33):
  for i in range(N):a=i/N*2*math.pi;v.append((math.cos(a),-math.sin(a),j/32))
 for j in range(32):
@@ -70,6 +72,9 @@ for o in S.objects:
  bm=bmesh.new();bm.from_mesh(o.data);bmesh.ops.recalc_face_normals(bm,faces=bm.faces);bm.to_mesh(o.data);bm.free()
  if o.name in ['SPHERE','DOME','COOLING_TOWER']:
   for p in o.data.polygons:p.use_smooth=True
+ # turned modules: smooth sides, flat caps (a cap's normal is along the axis), so glTF keeps a crisp rim
+ if o.name.startswith('CYLINDER') or o.name in ['TAPERED_CYLINDER','CONE','TUBE']:
+  for p in o.data.polygons:p.use_smooth=abs(p.normal.z)<.99
  o['ifxConstructionModule']=o.name
 bpy.ops.wm.save_as_mainfile(filepath=str(HERE/'site-construction.blend'))
 bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/site-construction.glb'),export_format='GLB',export_yup=True,export_extras=True)
