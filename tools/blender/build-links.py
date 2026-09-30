@@ -142,7 +142,7 @@ def cable_cutaway(name, cx, mats):
     for z in [-3.12,-3.32]:
         for r in [.6,.52]:
             for i in range(n2+1):
-                a=math.pi+i*math.pi/n2;cv.append(xyz((cx+r*math.cos(a),.9+r*math.sin(a),z)))
+                a=math.pi+.04+i*(math.pi-.08)/n2;cv.append(xyz((cx+r*math.cos(a),.9+r*math.sin(a),z)))
     cf=[];st=2*(n2+1)
     for i in range(n2):
         cf+=[(i,i+1,st+i+1,st+i),(n2+1+i,st+n2+1+i,st+n2+2+i,n2+2+i),(i,n2+1+i,n2+2+i,i+1),(st+i,st+i+1,st+n2+2+i,st+n2+1+i)]
