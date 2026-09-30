@@ -180,16 +180,30 @@ for x in [-2.2,2.2]:tbox('Module frame edge',(x,AX+.2,0),(.07,.05,60),pvFrame,g)
 beam('Torque tube',(0,AX,-30),(0,AX,30),.09,steel,g)
 for z in [-30+i*6 for i in range(11)]:box('Driven pile',(0,AX/2,z),(.14,AX,.14),steel,g,0)
 box('Slew drive',(0,AX-.05,0),(.45,.45,.5),dark,g,.05)
-# Transmission pylon symbol: tapered four-leg truss with two crossarms.
+# Transmission pylon symbol: tapered four-leg lattice braced on all four faces,
+# two crossarms with three insulator strings a side, shield-wire peaks. Runtime
+# turns each tower square to its line and hangs the line from an insulator tip.
 g='GRID_PYLON'
+galv=mat('Galvanized lattice',(.45,.48,.5),.6,.55)
+glassIns=mat('Insulator glass',(.36,.5,.46),.1,.25)
 for x in [-1,1]:
- for z in [-1,1]:beam('Pylon leg',(x*.9,0,z*.7),(x*.22,6,z*.22),.09,steel,g)
+ for z in [-1,1]:beam('Pylon leg',(x*.9,0,z*.7),(x*.22,6,z*.22),.09,galv,g)
+hx=lambda y:.9-(.9-.22)*y/6;hz=lambda y:.7-(.7-.22)*y/6
 for y in [0,1.5,3,4.5]:
- w0=.9*(1-y/8);w1=.9*(1-(y+1.5)/8)
- for z in [-1,1]:
-  beam('Pylon diagonal',(-w0,y,z*w0*.8),(w1,y+1.5,z*w1*.8),.055,steel,g)
-  beam('Pylon diagonal',(w0,y,z*w0*.8),(-w1,y+1.5,z*w1*.8),.055,steel,g)
-for y,w in [(4.5,3.2),(6,4)]:box('Pylon crossarm',(0,y,0),(w,.18,.25),steel,g,.035)
+ y1=y+1.5
+ for s2 in [-1,1]:
+  beam('Pylon diagonal',(-hx(y),y,s2*hz(y)),(hx(y1),y1,s2*hz(y1)),.05,galv,g)
+  beam('Pylon diagonal',(hx(y),y,s2*hz(y)),(-hx(y1),y1,s2*hz(y1)),.05,galv,g)
+  beam('Pylon diagonal',(s2*hx(y),y,-hz(y)),(s2*hx(y1),y1,hz(y1)),.05,galv,g)
+  beam('Pylon diagonal',(s2*hx(y),y,hz(y)),(s2*hx(y1),y1,-hz(y1)),.05,galv,g)
+for y,w in [(4.5,3.2),(6,4)]:
+ box('Pylon crossarm',(0,y,0),(w,.18,.25),galv,g,.035)
+ for sx in [-1,1]:
+  for k in range(3):
+   x=sx*(w/2-.12-k*.52)
+   if k==0 and w==4:x=sx*1.6
+   o=lathe('Insulator string',[(-.7,.06),(-.62,.12),(-.54,.06),(-.3,.06),(-.22,.12),(-.14,.06),(0,.06)],glassIns,g,6);o.location=pt((x,y,0))
+for sx in [-1,1]:beam('Shield-wire peak',(sx*.22,6,0),(sx*.8,7.1,0),.06,galv,g)
 # Campus substation symbol: where the regional HV lines end, beside each campus
 # plinth. A representative yard (gantry, two step-down transformers, control
 # house, fence), not any one campus's single-line diagram. Origin = yard center;

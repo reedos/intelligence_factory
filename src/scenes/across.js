@@ -417,11 +417,29 @@ export function build({ quality, model, state = {} }) {
   const turbines = turbineItems.length ? spinners(turbineItems, MAT.white, { blades: 3, speed: 1.8 }) : null;
   if (authored && turbines) replaceWindRotor(turbines.mesh);
   if (turbines) power.add(turbines.mesh);
-  const towerPts = [];
   const HG = gantry(H, 1);
+  // Towers every 30 along a line, crossarms square to it. The line hangs from an insulator tip on one side of each
+  // tower (1.6 off the centerline at 5.3 up) and sags between towers, instead of threading the tower tops.
+  const towerMatrices = [];
+  const hvLine = (pts, count) => {
+    const L = polyLen(pts), anchors = [pts[0]];
+    for (let d = 20; d < L - 12; d += 30) {
+      const a = pointAt(pts, d), b = pointAt(pts, d + 1), ry = Math.atan2(b[0] - a[0], b[2] - a[2]);
+      towerMatrices.push(mtx(a[0], 0, a[2], ry));
+      anchors.push([a[0] + Math.cos(ry) * 1.6, 5.3, a[2] - Math.sin(ry) * 1.6]);
+    }
+    anchors.push(pts[pts.length - 1]);
+    const path = [anchors[0]];
+    for (let j = 1; j < anchors.length; j++) {
+      const p = anchors[j - 1], q = anchors[j];
+      for (let k = 1; k <= 4; k++) { const u = k / 4; path.push([p[0] + (q[0] - p[0]) * u, p[1] + (q[1] - p[1]) * u - 0.8 * Math.sin(u * Math.PI), p[2] + (q[2] - p[2]) * u]); }
+    }
+    const f = flow(path, 'hv', { count, speed: 160, size: 1.4, trailR: .38, trailK: 0.45 });
+    flows.push(f); power.add(f.group);
+  };
   plants.forEach(([px, pz, kind], i) => {
     const from = kind === 'gas' ? [px + 16 * Math.cos(GAS_RY) + 3 * Math.sin(GAS_RY), pz - 16 * Math.sin(GAS_RY) + 3 * Math.cos(GAS_RY)]
-      : kind === 'nuclear' ? [px + 55, pz + 12] : [px, pz];             // gas and nuclear lines leave from their switchyard gantries      // a gas plant's line leaves from its step-up gantry
+      : kind === 'nuclear' ? [px + 55, pz + 12] : [px, pz];             // gas and nuclear lines leave from their switchyard gantries
     let pts = route(from, [HG[0], HG[2]], 60, 100 + i).map(p => [p[0], 6, p[2]]);
     // a line arriving from the far side swings around the plinth to the gantry instead of crossing the roofs
     const overCampus = pts.some(([x, , z]) => Math.abs(x - H[0]) < 19 && Math.abs(z - H[1]) < 16);
@@ -429,9 +447,7 @@ export function build({ quality, model, state = {} }) {
       const side = Math.sign(from[1] - H[1]) || 1, via = [H[0] - 22, H[1] + side * 26];
       pts = [...route(from, via, 60, 100 + i).map(p => [p[0], 6, p[2]]), [HG[0] - 4, 6, HG[2] + side * 10], [HG[0], 6, HG[2]]];
     }
-    const f = flow(pts, 'hv', { count: 18, speed: 160, size: 1.4, trailR: .38, trailK: 0.45 });
-    flows.push(f); power.add(f.group);
-    const L = polyLen(pts); for (let d = 0; d < L; d += 30) towerPts.push(pointAt(pts, d));
+    hvLine(pts, 18);
   });
   // each remote campus gets a short representative tie-in from its own substation toward the regional grid, so a
   // close view of it shows where its power comes from; the path is illustrative, not a surveyed line
@@ -440,11 +456,8 @@ export function build({ quality, model, state = {} }) {
     const a = Math.PI + (i % 2 ? 0.55 : -0.55) + (i - 3) * 0.12;
     const pts = route([G[0] - 3, G[2]], [G[0] + Math.cos(a) * 150, G[2] + Math.sin(a) * 150], 18, 300 + i).map(q => [q[0], 6, q[2]]).reverse();
     pts[pts.length - 1] = [G[0], G[1], G[2]];
-    const f = flow(pts, 'hv', { count: 7, speed: 160, size: 1.4, trailR: .38, trailK: 0.45 });
-    flows.push(f); power.add(f.group);
-    const L = polyLen(pts); for (let d = 0; d < L - 20; d += 30) towerPts.push(pointAt(pts, d));
+    hvLine(pts, 7);
   });
-  const towerMatrices = towerPts.map((p, i) => mtx(p[0], 0, p[2], i * 1.3));
   if (authored) power.add(acrossAssetInstances('GRID_PYLON', towerMatrices));
   else {
     const tb = new Builder(); tb.cyl(0.6, 6, MAT.galv, 0, 3, 0, 5); tb.box(4, 0.4, 0.4, MAT.galv, 0, 6, 0);
