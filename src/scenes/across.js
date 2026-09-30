@@ -225,8 +225,18 @@ export function build({ quality, model, state = {} }) {
   const roofGlow = glowMat('#ffd49a', 1.35);
   const iconRoof = new THREE.MeshStandardMaterial({ color: 0x58687b, roughness: .42, metalness: .55 });
   const iconTrim = new THREE.MeshStandardMaterial({ color: 0xa5b6c4, roughness: .32, metalness: .7 });
+  // Night light on every campus symbol, home or remote: a warm apron at the plinth edge, lit roof edges and a
+  // clerestory band, and a soft ground halo like the light a large site throws in satellite night imagery.
+  // Lighting only; the hall count and footprint stay the shared representative symbol.
+  const apronHome = glowMat('#ffb14e', 0.5), apronOther = glowMat('#ffb14e', 0.32);
+  const clerestory = glowMat('#ffd49a', 1.2);
+  const halos = [], substations = [];
+  // where the regional HV lines land: the gantry of the substation symbol beside each campus plinth
+  const gantry = ([x, z], k) => [x - 30.5 * k, 6 * k, z];
   const campus = ([x, z], main) => {
-    const k = main ? 1 : 0.7;
+    const k = main ? 1 : 0.85;
+    halos.push([x, z, (main ? 150 : 125) * k, main ? 1 : 0.8]);
+    substations.push(mtx(x - 26 * k, 0, z, 0, k));
     // Local heat rejection on exaggerated campus icons, not regional heat
     // transport, exhaust specifications or a quantified thermal simulation.
     for (const dz of [-6, 6]) {
@@ -237,6 +247,11 @@ export function build({ quality, model, state = {} }) {
     }
     if (authored) {
       scene.add(campusCatalogInstances('MAP_CAMPUS', [mtx(x, 0, z, 0, k)]));
+      S.slab(40 * k, 0.3, 32 * k, main ? apronHome : apronOther, x, 0.05, z);
+      for (const dz of [-6, 6]) {
+        for (const edge of [-1, 1]) S.box(22 * k, .3 * k, .3 * k, roofGlow, x + 2 * k, 5.95 * k, z + (dz + edge * 4.05) * k);
+        S.box(22 * k, .45 * k, .1 * k, clerestory, x + 2 * k, 4.3 * k, z + (dz - 4.09) * k);
+      }
       return;
     }
     rbox(S, 34 * k, 0.6, 26 * k, MAT.concreteDark, x, 0.3, z, { r: 0.05 });
@@ -257,6 +272,21 @@ export function build({ quality, model, state = {} }) {
   campus(H, true);
   others.forEach(p => campus(world(p.site.lon, p.site.lat), false));
   scene.add(S.build({ cast: false }));
+  if (authored) power.add(acrossAssetInstances('MAP_SUBSTATION', substations));
+  {
+    const tex = canvasTex(128, 128, (g, w) => {
+      const r = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+      r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.18, 'rgba(255,255,255,.55)'); r.addColorStop(0.5, 'rgba(255,255,255,.16)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = r; g.fillRect(0, 0, w, w);
+    });
+    tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+    const halo = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color('#ff9a3c').multiplyScalar(0.55), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }), halos.length);
+    const hm = new THREE.Matrix4();
+    halos.forEach(([x, z, size, a], i) => { hm.makeScale(size, 1, size).setPosition(x, 0.2, z); halo.setMatrixAt(i, hm); halo.setColorAt(i, new THREE.Color(a, a, a)); });
+    halo.name = 'Campus night-light halo'; halo.renderOrder = 1; halo.userData.runtimeOverlay = true;
+    scene.add(halo);
+  }
   const mapCaptions = [];
   const caption = (sprite, parent, options = {}) => {
     const leader = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: options.main ? 0xffb14e : 0x91a3b7, transparent: true, opacity: .65, depthTest: false, depthWrite: false }));
@@ -336,11 +366,23 @@ export function build({ quality, model, state = {} }) {
   if (authored && turbines) replaceWindRotor(turbines.mesh);
   if (turbines) power.add(turbines.mesh);
   const towerPts = [];
+  const HG = gantry(H, 1);
   plants.forEach(([px, pz], i) => {
-    const pts = route([px, pz], H, 60, 100 + i).map(p => [p[0], 6, p[2]]);
+    const pts = route([px, pz], [HG[0], HG[2]], 60, 100 + i).map(p => [p[0], 6, p[2]]);
     const f = flow(pts, 'hv', { count: 18, speed: 160, size: 1.4, trailR: .38, trailK: 0.45 });
     flows.push(f); power.add(f.group);
     const L = polyLen(pts); for (let d = 0; d < L; d += 30) towerPts.push(pointAt(pts, d));
+  });
+  // each remote campus gets a short representative tie-in from its own substation toward the regional grid, so a
+  // close view of it shows where its power comes from; the path is illustrative, not a surveyed line
+  others.forEach((p, i) => {
+    const [x, z] = world(p.site.lon, p.site.lat), G = gantry([x, z], 0.85);
+    const a = Math.PI + (i % 2 ? 0.55 : -0.55) + (i - 3) * 0.12;
+    const pts = route([G[0] - 3, G[2]], [G[0] + Math.cos(a) * 150, G[2] + Math.sin(a) * 150], 18, 300 + i).map(q => [q[0], 6, q[2]]).reverse();
+    pts[pts.length - 1] = [G[0], G[1], G[2]];
+    const f = flow(pts, 'hv', { count: 7, speed: 160, size: 1.4, trailR: .38, trailK: 0.45 });
+    flows.push(f); power.add(f.group);
+    const L = polyLen(pts); for (let d = 0; d < L - 20; d += 30) towerPts.push(pointAt(pts, d));
   });
   const towerMatrices = towerPts.map((p, i) => mtx(p[0], 0, p[2], i * 1.3));
   if (authored) power.add(acrossAssetInstances('GRID_PYLON', towerMatrices));
@@ -421,7 +463,7 @@ export function build({ quality, model, state = {} }) {
 
   const [hx, hz] = H, h0 = huts[3] || huts[0] || [hx, 3, hz], R0 = near[0] ? world(near[0].p.site.lon, near[0].p.site.lat) : [hx + 300, hz];
   const view = (x, z, d = 200) => ({ pos: [x + d * 0.3, d * 0.9, z + d * 1.1], target: [x, 0, z] });
-  const siteSpots = Object.fromEntries(others.map(p => { const [x, z] = world(p.site.lon, p.site.lat); return [placeKey(p), { pos: [x, 12, z], view: view(x, z, 240) }]; }));
+  const siteSpots = Object.fromEntries(others.map(p => { const [x, z] = world(p.site.lon, p.site.lat); return [placeKey(p), { pos: [x, 12, z], view: view(x - 15, z, 300) }]; }));
   const built = {
     scene, flows, dataFlows, heatFlows, layers: { power, data },
     look: { exposure: 1.0, bloom: 0.85, threshold: 0.92, ao: 0, env: 'night', envIntensity: 0.5 },
@@ -441,7 +483,7 @@ export function build({ quality, model, state = {} }) {
       dci: { pos: [hx + 20, 8, hz - 16], view: view(hx + 10, hz - 10, 200) },
       ila: { pos: [h0[0], 9, h0[2]], view: view(h0[0], h0[2], 60) },
       route: { pos: [longest?.mid[0] ?? hx, 60, longest?.mid[2] ?? hz], view: { pos: [(longest?.mid[0] ?? hx) - 100, 900, (longest?.mid[2] ?? hz) + 900], target: [longest?.mid[0] ?? hx, 0, longest?.mid[2] ?? hz] } },
-      remote: { pos: [R0[0], 10, R0[1]], view: view(R0[0], R0[1], 260) },
+      remote: { pos: [R0[0], 10, R0[1]], view: view(R0[0] - 10, R0[1], 340) },
       home: { pos: [hx - 40, 10, hz + 40], view: view(hx, hz, 220) },
     },
     update(t) { plumeUpdates.forEach(u => u(t)); if (turbines) turbines.update(t); },
