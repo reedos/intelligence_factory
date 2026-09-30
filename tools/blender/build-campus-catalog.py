@@ -49,12 +49,33 @@ for i in range(5):
  for dy in [-.015,.015]:
   for x,y,z in outline:v.append((x*math.cos(a)-z*math.sin(a),y+dy,x*math.sin(a)+z*math.cos(a)))
  mesh('Swept axial blade',v,[(0,1,2,3,4),(5,9,8,7,6)]+[(j,(j+1)%5,(j+1)%5+5,j+5) for j in range(5)],steel,g,.012)
-# Pad-mounted unit substation: enclosure, radiator, plinth, flush doors.
-g='UNITSUB';box('Concrete foundation',(0,.15,0),(4,.3,4),base,g,.08);box('Transformer tank',(0,1.35,-.3),(2.3,2.1,1.9),white,g,.09)
-for i in range(8):box('Radiator panel',(-1+i*.28,1.3,.95),(.06,1.4,.6),steel,g,.02)
-box('Cable compartment',(.6,2.7,-.3),(.8,.6,.6),shadow,g,.07)
-for x in [-.55,.55]:
- box('Service door',(x,1.3,-1.263),(1.02,1.88,.025),white,g,.03);box('Door pull',(x+.35,1.3,-1.31),(.04,.3,.06),steel,g,.012)
+# Pad-mounted unit substation, 2500 kVA class, local +Z faces the road. Proportions follow published
+# 2500 kVA pad-mount data (about 72 in W x 99 in D x 73 in H): a 1.85 m wide tank with the HV (left) and
+# LV (right) compartments in front behind lockable doors, radiators on the sides and back projecting no
+# more than 0.6 m, lifting lugs, a nameplate and a hazard label. ANSI 70 light grey enamel.
+g='UNITSUB'
+a61=mat('Pad-mount ANSI 70 light grey enamel',(.45,.49,.5),.15,.5)
+rad=mat('Pad-mount radiator steel',(.2,.23,.24),.35,.55)
+warn=mat('Hazard label yellow',(.8,.62,.04),0,.5)
+box('Concrete foundation',(0,.15,0),(3.4,.3,4.0),base,g,.05)
+box('Transformer tank',(0,.3+.925,-.3),(1.85,1.85,1.9),a61,g,.04)
+box('Front terminal compartment',(0,.3+.85,.95),(1.85,1.7,.6),a61,g,.03)
+box('Tank cover',(0,2.19,-.3),(1.95,.08,2.0),a61,g,.02)
+for x in [-.8,.8]:
+ for z in [-1.18,.58]:box('Lifting lug',(x,2.3,z),(.06,.16,.14),a61,g,0)
+for x,label in [(-.46,'HV'),(.46,'LV')]:
+ box('Compartment door '+label,(x,1.12,1.262),(.88,1.55,.03),a61,g,.01)
+ box('Door latch handle',(x+math.copysign(.34,x),1.1,1.285),(.05,.26,.04),steel,g,0)
+ cyl('Pentahead bolt',(x+math.copysign(.34,x),1.36,1.285),.025,.03,steel,g,'z',8)
+ box('Hazard label',(x,1.55,1.279),(.24,.16,.005),warn,g,0)
+box('Door parting seam',(0,1.12,1.265),(.02,1.55,.03),shadow,g,0)
+box('Nameplate',(-.6,1.55,-1.262),(.3,.2,.01),bronze,g,0)
+# tube-and-fin style radiator panels welded to headers, sides and back
+for sx in [-1,1]:
+ for i in range(4):box('Radiator panel',(sx*(.925+.27),1.15,-1.0+i*.3),(.52,1.3,.05),rad,g,0)
+ for y in [.55,1.75]:cyl('Radiator header',(sx*(.925+.27),y,-.55),.04,1.05,rad,g,'z',8)
+for i in range(4):box('Radiator panel',(-.45+i*.3,1.15,-1.25-.27),(.05,1.3,.52),rad,g,0)
+for y in [.55,1.75]:cyl('Radiator header',(0,y,-1.25-.27),.04,1.05,rad,g,'x',8)
 # Standby generators: same footprint, two radiator fans and stack anchors.
 g='GENSET';box('Generator foundation',(0,.2,0),(13,.4,3.8),base,g,.1);box('Acoustic enclosure',(0,1.85,0),(12.2,2.9,3),white,g,.16)
 for z in [-1.52,1.52]:
