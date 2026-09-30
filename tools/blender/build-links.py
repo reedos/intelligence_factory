@@ -285,25 +285,58 @@ def coherent():
     internals('coherent')
     export('coherent-hardware',m,[L,W])
 
-def copper_package_mark(name, text, x, z, width, material):
-    # Printed package identification: real flat Blender geometry on the molded
-    # top, not a floating caption. Align to the connector's host-facing edge.
-    curve=bpy.data.curves.new(name, 'FONT');curve.body=text
-    curve.align_x='CENTER';curve.align_y='CENTER';curve.size=.001
-    curve.space_line=1.12;curve.extrude=0;curve.resolution_u=3
-    font=Path('C:/Windows/Fonts/consolab.ttf')
-    if font.exists(): curve.font=bpy.data.fonts.load(str(font),check_existing=True)
-    obj=bpy.data.objects.new(name,curve);bpy.context.collection.objects.link(obj)
-    obj.location=xyz((x,1.014,z));obj.data.materials.append(material)
-    bpy.context.view_layer.update()
-    factor=width*.01/max(obj.dimensions.x,1e-6);obj.scale=(factor,factor,factor)
-    bpy.ops.object.select_all(action='DESELECT');obj.select_set(True)
-    bpy.context.view_layer.objects.active=obj;bpy.ops.object.convert(target='MESH')
-    obj['packageMark']=text.replace('\n',' ')
+def copper_active_package(kind, x, zc, m):
+    # Package styles are representative (no teardown of a named cable is
+    # public): the AEC DSP as a lidded flip-chip BGA with decoupling
+    # capacitors, the ACC redriver as a small leaded QFN. Marks are quiet
+    # laser-etch bars and a pin-1 dot; the UI caption carries the function.
+    top=.94
+    if kind=='ACC':
+        cx,cw,cd,h=x+.39,.62,.6,.085
+        box('ACC active QFN body',(cx,top+h/2,zc),(cw-.05,h,cd-.05),m['package'],.012)
+        for i in range(8):
+            t=(i-3.5)*.062
+            for s in [-1,1]:
+                box('ACC active QFN lead',(cx+s*(cw/2-.03),top+.006,zc+t),(.05,.012,.026),m['lead'],0)
+                box('ACC active QFN lead',(cx+t,top+.006,zc+s*(cd/2-.03)),(.026,.012,.05),m['lead'],0)
+        box('ACC active pin one mark',(cx-cw/2+.1,top+h+.0006,zc+cd/2-.1),(.045,.001,.045),m['etch'],.02)
+        for j,w in enumerate([.16,.11,.2]):
+            box('ACC active laser etch',(cx-.02,top+h+.0006,zc-.1+j*.075),(w,.001,.022),m['etch'],0)
+        return
+    cx,cw,cd=x,1.6,.95
+    sub=.1; lw,ld,lh=1.2,.72,.07
+    box('AEC active BGA shadow',(cx,top+.012,zc),(cw-.06,.024,cd-.06),m['dark'],.004)
+    box('AEC active FCBGA substrate',(cx,top+.024+sub/2,zc),(cw,sub,cd),m['substrate'],.01)
+    y=top+.024+sub
+    box('AEC active nickel lid',(cx,y+lh/2,zc),(lw,lh,ld),m['nickel'],.02)
+    box('AEC active lid sealant',(cx,y+.004,zc),(lw+.025,.008,ld+.025),m['dark'],.003)
+    for j,w in enumerate([.3,.2,.36]):
+        box('AEC active laser etch',(cx-.15,y+lh+.0006,zc-.12+j*.09),(w,.001,.03),m['etch'],0)
+    box('AEC active pin one mark',(cx-lw/2+.09,y+lh+.0006,zc+ld/2-.09),(.05,.001,.05),m['etch'],.025)
+    # 0201-size decoupling capacitors on the substrate margin (0.6 x 0.3 mm).
+    for i in range(7):
+        t=(i-3)*.17
+        for s in [-1,1]:
+            copper_cap('AEC active decoupling',cx+t,y,zc+s*(ld/2+.06),True,m)
+    for i in range(3):
+        t=(i-1)*.2
+        for s in [-1,1]:
+            copper_cap('AEC active decoupling',cx+s*(lw/2+.08),y,zc+t,False,m)
+
+def copper_cap(name, x, y, z, along_x, m):
+    L,Wd,H=.06,.03,.03
+    dims=(L,H,Wd) if along_x else (Wd,H,L)
+    box(name+' body',(x,y+H/2,z),dims,m['ceramic'],0)
+    for s in [-1,1]:
+        off=(s*(L/2-.008),0) if along_x else (0,s*(L/2-.008))
+        box(name+' termination',(x+off[0],y+H/2,z+off[1]),(.016,H+.002,Wd+.002) if along_x else (Wd+.002,H+.002,.016),m['lead'],0)
 
 def copper():
     m=reset(); W=2.2; L=6; zc=-.2
-    m['ink']=mat('Copper IC printed identification',(.94,.96,.93),0,.75)
+    m['lead']=mat('Tinned package leads',(.72,.73,.74),1,.28)
+    m['etch']=mat('Laser etched package mark',(.2,.22,.24),.1,.62)
+    m['substrate']=mat('Dark BGA substrate',(.03,.05,.04),.05,.5)
+    m['nickel']=mat('Nickel plated package lid',(.62,.63,.64),1,.24)
     for kind,x in [('DAC',-4.6),('ACC',0),('AEC',4.6)]:
         box(kind+' lower tray',(x,0,zc),(W,.12,L),m['shell'],.065)
         for sign in [-1,1]:
@@ -325,13 +358,7 @@ def copper():
             box(kind+' rear shoulder',(x+s*.90,.27,-2.94),(.34,.42,.44),m['shell'],.065)
         cable_cutaway(kind+' sectioned jacket',x,m)
         if kind!='DAC':
-            chipx=x+.39 if kind=='ACC' else x
-            cw,cd=(.62,.6) if kind=='ACC' else (1.6,.95)
-            box(kind+' active package',(chipx,.975,zc),(cw,.07,cd),m['package'],.018)
-            # Function first, with a quieter second line. These are printed on
-            # the molded chip, independent of floating annotations and layers.
-            copper_package_mark(kind+' active function label', 'REDRIVER' if kind=='ACC' else 'RETIMER',chipx,zc-cd*.13,cw*.91,m['ink'])
-            copper_package_mark(kind+' active identifier label', 'ACC / RX' if kind=='ACC' else 'AEC DSP',chipx,zc+cd*.22,cw*.56,m['ink'])
+            copper_active_package(kind,x,zc,m)
         lid(kind+' lifted cover',x,2.3,zc,L,W,False,m)
         copper_pull(kind+' release pull',x,m)
     internals('copper')

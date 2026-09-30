@@ -63,7 +63,7 @@ export function build({ quality, state, authoredHardware = false }) {
       for (let i = 0; i < 6; i++) N.cyl(0.555 - i * 0.004, 0.07, MAT.polymer, hx, cardY, -4.35 - i * 0.2, 32, Math.PI / 2, 0, 0);
     }
     if (chip) {
-      if (!authoredHardware) S.box(chip.w, 0.07, chip.d, MAT.silicon, chip.x, cardTop + 0.035, chipZ);
+      if (!authoredHardware) S.box(chip.w, chip.h, chip.d, MAT.silicon, chip.x, cardTop + chip.h / 2, chipZ);
       if (kind === 'aec') for (let i = 0; i < 3; i++) S.box(0.22, 0.16, 0.22, MAT.inductor, hx + 0.85, cardTop + 0.08, zc + 1.0 + i * 0.3);
     }
     if (!authoredHardware) lidBox(scene, M, HW, HL, [hx, 2.3, zc]);
@@ -80,7 +80,7 @@ export function build({ quality, state, authoredHardware = false }) {
     // construction. The display gap to the lifted cover is deliberately schematic.
     // Identical treatment avoids implying a numerical ACC/AEC power ratio.
     if (chip) for (const dx of [-chip.w * 0.22, chip.w * 0.22]) {
-      heatFlows.push(flow([[chip.x + dx, cardTop + 0.08, chipZ],
+      heatFlows.push(flow([[chip.x + dx, cardTop + chip.h, chipZ],
         [chip.x + dx, 2.44, chipZ], [chip.x + dx * 1.6, 3.3, chipZ - 0.25]], 'hot', FLOW.heat));
     }
     heads.push({ kind, x: hx, chip });
@@ -99,7 +99,8 @@ export function build({ quality, state, authoredHardware = false }) {
 
   const hs = {}, heatHotspots = {};
   for (const h of heads) {
-    const focus = [h.chip?.x ?? h.x, 1.12, zc];
+    // On the package top: marks are small laser-etch bars, so the pin never sits over printed text.
+    const focus = [h.chip?.x ?? h.x, h.chip ? cardTop + h.chip.h + 0.04 : 1.12, zc];
     hs[h.kind] = { pos: focus };
     hs[h.kind].view = componentView(focus, [1.3, 1.55, 3.0], h.kind === 'dac' ? [2.25, .45, 3.1] : h.kind === 'acc' ? [1.8, .45, 1.9] : [2.4, .5, 2.0]);
     if (h.chip) heatHotspots[h.kind] = hs[h.kind];

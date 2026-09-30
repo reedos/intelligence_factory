@@ -57,4 +57,5 @@ export const COPPER_HEADS = [['dac', -4.6], ['acc', 0], ['aec', 4.6]];
 export const copperLane = (hx, i, rx) => hx + (rx ? 0.12 : -0.72) + i * 0.18;
 export const PAIR_HALF = 0.02;                              // each pair's two traces sit this far either side of its centerline
 // the chip in each plug's path: none, a redriver on the receive side, or a retimer across both directions
-export const copperChip = (kind, hx) => kind === 'acc' ? { x: hx + 0.39, w: 0.62, d: 0.6, rxOnly: true } : kind === 'aec' ? { x: hx, w: 1.6, d: 0.95, rxOnly: false } : null;
+// h: package height above the card (representative: a leaded QFN redriver; a lidded flip-chip BGA retimer).
+export const copperChip = (kind, hx) => kind === 'acc' ? { x: hx + 0.39, w: 0.62, d: 0.6, h: 0.085, rxOnly: true } : kind === 'aec' ? { x: hx, w: 1.6, d: 0.95, h: 0.194, rxOnly: false } : null;
