@@ -17,7 +17,7 @@ export function preload() {
 
 // Representative die faces painted at runtime onto the GLB's 0-1 top-face UVs.
 // Not floorplans: dark silicon, a seal ring, faint cell rows, and for the EIC a
-// 20% tint marking the transmit (driver) and receive (TIA) halves.
+// 36% tint marking the transmit (driver) and receive (TIA) halves.
 const srgb = v => Math.round(255 * Math.min(1, Math.max(0, v)) ** (1 / 2.2));
 function paintFace(W, H, shade) {
   const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
@@ -40,8 +40,8 @@ function eicFace() {
     if (e < 10.5) return [.16, .18, .20];
     const grain = (y % 6 < 1 ? .010 : 0) + ((x + Math.floor(y / 6) * 37) % 29 < 1 ? .006 : 0) + (block - .5) * .012;
     let c = [.030 + grain, .045 + grain, .070 + grain];
-    if (e > 14 && v > .53) c = mix(c, [.05, .19, .24], .2);       // transmit drivers
-    if (e > 14 && v < .47) c = mix(c, [.20, .07, .15], .2);       // receive TIAs
+    if (e > 14 && v > .53) c = mix(c, [.05, .19, .24], .36);      // transmit drivers
+    if (e > 14 && v < .47) c = mix(c, [.20, .07, .15], .36);      // receive TIAs
     return c;
   });
 }
