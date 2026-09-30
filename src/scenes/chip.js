@@ -6,6 +6,7 @@ import { computeMaterials, finishCompute, boardFinish } from './compute-finish.j
 import { STREAM_TPS, buildCycle, sampleAt, tick } from '../model/token-script.js';
 import { frameCompute } from './compute-framing.js';
 import { componentView } from '../app/housing-frame.js';
+import { installTokenMath } from './token-math.js';
 
 // The visible top of a flip-chip die is its polished silicon backside. A faint
 // roughness pattern (a grayscale map) lets the key light break across it.
@@ -482,6 +483,10 @@ function buildPackage({ quality, state, model }) {
   // The pin rides just above the back of the package, where the answer tokens
   // leave the die, so in the overviews it marks a place rather than empty air.
   const tokensHS = { pos: [2.0, Y.dies + 1.5, -2.2], view: componentView([2.0, 5.7, -0.5], [6, 4.6, 11], [9.4, 5.2, 5.0]) };
+  // "Show the math" on the Tokens card: one decode step as a matrix-vector multiply, beside the readout (token-math.js)
+  const tokenMath = installTokenMath({ scene, state, quality, hotspot: tokensHS, liveHbm: live, hbmTopY: hy, dieX, dieY: Y.dies,
+    anchor: [-4.4, 6.95, 2.4], view: componentView([-1.8, 5.9, 0.9], [6, 4.6, 11], [7.8, 7.8, 3]),
+    mobileAnchor: [1.1, 12.5, -0.6], mobileScale: 0.85, mobileView: componentView([1.0, 9.2, -0.4], [6, 4.6, 11], [5.4, 12.4, 2.5]) });
   const nvphyHS = twin ? { pos: [2.62, Y.dies + 0.1, -1.2], view: { pos: [8, 5, 1], target: [3, 2.6, 0] } } : { pos: [0.9, Y.dies + 0.1, 1.62], view: { pos: [2, 5.5, 8], target: [0, 2.6, 2.2] } };
   return {
     scene, flows,
@@ -513,7 +518,7 @@ function buildPackage({ quality, state, model }) {
       cpo: { pos: [-4.2, Y.sub + 0.3, 3.8], view: { pos: [-8, 5, 9], target: [-2.5, 1.5, 2] } },
       tokens: tokensHS,
     },
-    dispose() { cache.forEach(({ tex }) => tex.dispose()); },
+    dispose() { cache.forEach(({ tex }) => tex.dispose()); tokenMath.dispose(); },
     update(t, dt) {
       const e = tick(genLen);
       if (e < genLastE) { genCycle = buildCycle(model); genLen = genCycle.timings.totalS; resetGen(); }
@@ -523,6 +528,7 @@ function buildPackage({ quality, state, model }) {
       feedLane('reasoning', genCycle.reasoning, s.reasoningOut);
       feedLane('answer', genCycle.answer, s.answerOut);
       genShown.prompt = s.promptOut; genShown.reasoning = s.reasoningOut; genShown.answer = s.answerOut;
+      tokenMath.update(t, dt, genCycle, s);
 
       animLane(pools.prompt, LIFE.prompt, dt, (item, u) => {
         const ez = u * u;                                                        // ease in: accelerates toward the die

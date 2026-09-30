@@ -5,6 +5,8 @@
 // is selected. Both this and chip.js sample the same shared clock (token-script.js's tick()), so the words match.
 import { store, on } from './store.js';
 import { STREAM_TPS, REPLY_TOKENS, buildCycle, sampleAt, tick } from '../model/token-script.js';
+import { chip as basisChip } from '../evidence.js';
+import { built, frame, flyTo } from './stage.js';
 
 const $ = id => document.getElementById(id);
 const n0 = v => Math.round(v).toLocaleString('en-US');
@@ -31,7 +33,15 @@ function build() {
   const el = document.createElement('div');
   el.className = 'tok-console'; el.id = 'tok-console';
   el.innerHTML =
-    `<div class="tok-head"><span class="eyebrow">Live generation</span><span class="tok-phase" id="tok-phase"></span></div>`
+    `<button type="button" class="btn tok-math-toggle" id="tok-math-toggle" aria-pressed="false" aria-controls="tok-math">`
+    + `<span class="tok-math-glyph" aria-hidden="true"><i></i><i></i><i></i></span><span class="tok-math-lbl">Show the math</span></button>`
+    + `<div class="tok-math" id="tok-math" hidden><p class="tok-math-lede">One decode step is one pass through every weight: `
+    + `the new token's vector times the model's weight matrices. In 3D, one 8 × 8 tile of one layer, schematic.</p>`
+    + `<dl class="specs tok-math-rows" id="tok-math-rows"></dl>`
+    + `<p class="tok-note">About 2 FLOPs for every byte read, while this GPU could do hundreds or more (the rows above): one stream waits on HBM, not on its math. `
+    + `That is why decode is called memory-bound, and why servers batch many streams onto each read of the weights. `
+    + `Weights only; the KV cache reads that grow with the context are not counted.</p></div>`
+    + `<div class="tok-head"><span class="eyebrow">Live generation</span><span class="tok-phase" id="tok-phase"></span></div>`
     + `<span class="tok-ctxbar" aria-hidden="true"><i></i></span>`
     + `<div class="tok-lane"><span class="tok-lbl">Prompt</span><span class="tok-line" id="tok-prompt-line"></span></div>`
     + `<details class="tok-reasoning" id="tok-reasoning" open><summary>Reasoning, the thinking tokens <span class="tok-count" id="tok-r-count"></span></summary>`
@@ -95,8 +105,36 @@ function mount(target) {
   else if (bar) target.insertBefore(el, bar);
   else target.appendChild(el);
   if (!cycle) rebuildCycle();
+  if (!el.dataset.wired) { el.dataset.wired = '1'; el.querySelector('#tok-math-toggle').addEventListener('click', () => setMath(!store.ui.tokenMath)); }
+  paintMath();
 }
-function unmount() { el?.remove(); host = null; }
+function unmount() { el?.remove(); host = null; setMath(false, false); }
+
+// ---------- "Show the math": the card's rows, and the 3D panel (src/scenes/token-math.js) via store.ui.tokenMath ----------
+function mathRows() {
+  const ui = store.ui, layer = { power: 'PARTS', data: 'PARTS_DATA' }[ui.mode], sc = store.C.SCENES[ui.scene];
+  const p = layer && sc && (store.C[layer][sc.id] || []).find(q => q.id === 'tokens');
+  if (!p?.math) return '';
+  const key = `card:${ui.mode}:${sc.id}:tokens:math`;
+  return p.math.map(([k, v, b], i) => `<div><dt>${k}</dt><dd>${v}</dd>${basisChip(b, `${key}:${i}`, k)}</div>`).join('');
+}
+function paintMath() {
+  if (!el) return;
+  const on = !!store.ui.tokenMath, btn = el.querySelector('#tok-math-toggle'), box = el.querySelector('#tok-math');
+  btn.setAttribute('aria-pressed', String(on));
+  btn.querySelector('.tok-math-lbl').textContent = on ? 'Hide the math' : 'Show the math';
+  btn.hidden = document.body.classList.contains('story') || store.ui.mode === 'heat';
+  box.hidden = !on;
+  if (on) el.querySelector('#tok-math-rows').innerHTML = mathRows();
+}
+function setMath(on, fly = true) {
+  if (!!store.ui.tokenMath === on) return;
+  store.ui.tokenMath = on;
+  paintMath();
+  // the Tokens pin's view switches with the flag (chip.js), so framing it again frames the math, or the readout
+  const b = built[store.ui.scene], h = b && (store.ui.mode === 'data' ? b.dataHotspots : b.hotspots)?.tokens;
+  if (fly && h?.view && store.ui.selected === 'tokens') { const f = frame(b, h); flyTo(f.pos, f.target, 1.1, { detail: !!h.view.detailSize }); }
+}
 
 function step() {
   const want = wantedHost();
@@ -110,6 +148,6 @@ function step() {
   raf = requestAnimationFrame(step);
 }
 
-on('select', ({ id }) => { if (id === 'tokens' && !raf) step(); else if (id !== 'tokens' && host) unmount(); });
-on('scenario', () => { cycle = null; });
+on('select', ({ id }) => { if (id === 'tokens' && !raf) step(); else if (id !== 'tokens' && host) unmount(); if (id === 'tokens') paintMath(); });
+on('scenario', () => { cycle = null; if (store.ui.tokenMath) requestAnimationFrame(paintMath); });
 on('tokens', () => { cycle = null; });

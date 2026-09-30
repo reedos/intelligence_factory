@@ -8,7 +8,7 @@ export const store = {
   scenario: { ...DEFAULT_SCENARIO },
   M: null, C: null,
   pinned: null,          // a model to compare against, or null
-  ui: { scene: -1, selected: null, mode: 'power' },
+  ui: { scene: -1, selected: null, mode: 'power', tokenMath: false },   // tokenMath: the Tokens card's "Show the math"
 };
 
 export function on(event, fn) {
