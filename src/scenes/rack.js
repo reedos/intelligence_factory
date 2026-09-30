@@ -859,9 +859,10 @@ function buildNVL({ quality, model, state }) {
     scene.add(haze.points);
   }
 
-  // Rear three-quarter from inside the rack: the stainless body, its couplers
-  // and the thin coolant line along its inboard edge, clear of the busbar.
-  const manifoldHot = { pos: [mX[1], trayY(6), mZ], view: componentView([mX[1] - 0.01, trayY(5), mZ], [-0.3, 0.12, -0.62], [0.15, 0.36, 0.15]) };
+  // Rear three-quarter across both manifolds: the card says "blue in, red out",
+  // so the supply and the return stand either side of the busbar in one frame,
+  // low enough that their colored bands, couplers and floor valves read.
+  const manifoldHot = { pos: [mX[1], trayY(6), mZ], view: componentView([0, trayY(4), mZ], [-0.22, 0.16, -0.9], [0.56, 0.3, 0.1]) };
   // Rear three-quarter on the cartridges: their side windows and blind-mate
   // housings read beside the busbar instead of a flat rear elevation.
   const spineHot = { pos: [0.2, trayY(18), cartZ], view: componentView([0.1, trayY(16), ZB + 0.06], [0.85, 0.3, -0.95], [0.5, 0.75, 0.25]) };
