@@ -486,7 +486,10 @@ function buildNVL({ quality, model }) {
   if (ultra) for (const cx of [(nicCardX[0] + nicCardX[1]) / 2, (nicCardX[2] + nicCardX[3]) / 2]) {
     S.box(0.92, 0.02, 1.3, MAT.pcb, cx, floorY + 0.2, ZF - 1.0);
     S.box(0.6, 0.03, 0.06, MAT.black, cx, floorY + 0.18, ZF - 1.6);
-    S.box(0.8, 0.012, 0.5, MAT.alu, cx, 0.466, ZF - 1.2);
+    // Dark anodized shared plate with milled grooves, so it reads as a machined
+    // part beside the finned sinks rather than a pale blank (finish representative).
+    S.box(0.8, 0.012, 0.5, finish.graphite, cx, 0.466, ZF - 1.2);
+    for (let k = 0; k < 7; k++) N.box(0.72, 0.008, 0.02, finish.recess, cx, 0.4725, ZF - 1.2 - 0.195 + k * 0.065);
   }
   const dpuX = ultra ? [-.35] : [-.8,-.3];
   for (const x of dpuX) {
@@ -558,7 +561,8 @@ function buildNVL({ quality, model }) {
       vrm: { pos: [g0x + 0.72, 0.2, g0z + 0.1], view: { pos: [g0x + 2.2, 1.6, g0z + 1.4], target: [g0x, 0.05, g0z] } },
       gpu: gpuClose,
       grace: { pos: [cpus[0][0], 0.18, cpus[0][1]], view: { pos: [cpus[0][0] - 1.4, 1.8, cpus[0][1] + 1.8], target: [cpus[0][0], 0.05, cpus[0][1]] } },
-      lpddr: { pos: [cpus[1][0] + 0.55, 0.14, cpus[1][1] + 0.36], view: { pos: [cpus[1][0] + 1.6, 1.4, cpus[1][1] + 1.4], target: [cpus[1][0] + 0.4, 0.05, cpus[1][1]] } },
+      // Close on the outboard LPDDR5X column beside Grace; the pin sits on a package, not bare board.
+      lpddr: { pos: [cpus[1][0] + 0.55, 0.12, cpus[1][1] - 0.12], view: { pos: [cpus[1][0] + 1.6, 1.4, cpus[1][1] + 1.4], target: [cpus[1][0] + 0.4, 0.05, cpus[1][1]] } },
       coldplates: { pos: [-1.1, 0.95, 0.2], view: { pos: [-3.6, 2.6, 2.4], target: [-1.1, 0.6, 0] } },
       nic: { pos: [1.2, 0.5, ZF - 1.0], view: { pos: [2.8, 2.4, 6.6], target: [0.8, 0.2, ZF - 1] } },
       nvconn: { pos: [1.9, 0.4, ZB + 0.2], view: { pos: [3.6, 2.2, -6.4], target: [1.6, 0.2, ZB] } },
