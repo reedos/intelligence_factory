@@ -178,30 +178,88 @@ prism('Glazed passenger cabin',[(-1.4,-.65),(.75,-.65),(1.1,-.4),(1.1,.4),(.75,.
 for x in [-1.35,1.35]:
  for z in [-.95,.95]:cyl('Road tire',(x,.36,z),.34,.22,rubber,g,'z');cyl('Alloy wheel',(x,.36,z+math.copysign(.115,z)),.23,.018,steel,g,'z',16)
 for z in [-.6,.6]:box('Vehicle headlamp',(2.19,.72,z),(.055,.12,.34),lamp,g,.03)
-# Generic freight truck, cab facing -X (the viewer turns it to drive cab-first): a conventional day-cab
-# tractor with hood, grille, bumper, mirrors, side fuel tanks, a steer axle and a tandem drive axle on duals,
-# then a 12 m box trailer on the fifth wheel with landing gear, a tandem axle on duals, side skirts and a
-# rear underride guard. Representative, no make.
+# Freight truck, cab facing -X (the viewer turns it to drive cab-first). The tractor is styled after the
+# Tesla Semi silhouette at the owner's request: one smooth aerodynamic cab lofted from a low rounded nose
+# up a steeply raked wraparound windshield to a roof fairing at trailer height, a full-width front light
+# bar, centered driver's seat behind the windshield, no sleeper box, no hood, no exhaust stack or fuel
+# tanks (battery electric), side skirts and aero wheel covers, a steer axle and a tandem drive axle on duals.
+# Stylized and unbranded (no logos or text); proportions are representative, not measured.
+# It pulls a 12 m box trailer on the fifth wheel with landing gear, a tandem axle on duals, side skirts
+# and a rear underride guard.
 g='TRUCK'
-def wheelset(x,z,r=.5,w=.3):
- cyl('Truck tire',(x,r,z),r,w,rubber,g,'z',16);cyl('Truck wheel',(x,r,z+math.copysign(w/2+.005,z)),r*.62,.02,steel,g,'z',12)
-box('Tractor frame rails',(-6.1,.95,0),(6.2,.3,1.0),shadow,g,0)
-box('Hood',(-8.4,1.55,0),(1.6,1.2,2.2),pearl,g,.12)
-box('Grille',(-9.21,1.5,0),(.04,.9,1.2),shadow,g,0)
-box('Front bumper',(-9.15,.62,0),(.3,.35,2.45),steel,g,.04)
-for z in [-.8,.8]:box('Headlamp',(-9.12,1.25,z),(.06,.18,.34),lamp,g,0)
-box('Day cab',(-6.5,2.15,0),(2.2,2.1,2.45),pearl,g,.14)
-box('Windscreen',(-7.61,2.7,0),(.04,.8,2.1),glass,g,0)
-for z in [-1.23,1.23]:
- box('Side window',(-7.0,2.65,z),(1.0,.75,.03),glass,g,0)
- box('Mirror arm',(-7.55,2.4,z*1.12),(.05,.05,.35),steel,g,0);box('Mirror head',(-7.6,2.35,z*1.24),(.12,.45,.14),shadow,g,0)
- cyl('Side fuel tank',(-6.4,.85,z*.9),.33,1.4,steel,g,'x',16)
- box('Cab step',(-7.1,.72,z*1.02),(.5,.06,.3),steel,g,0)
-cyl('Exhaust stack',(-5.25,3.0,1.0),.09,2.2,steel,g,'y',10)
-box('Fifth wheel plate',(-4.3,1.2,0),(1.1,.12,1.0),shadow,g,0)
-for z in [-1.0,1.0]:wheelset(-8.3,z)
-for x in [-4.9,-3.6]:
- for z in [-1.1,-.78,.78,1.1]:wheelset(x,z,.5,.28)
+semiPaint=mat('Semi tractor pearl white paint',(.8,.82,.83),.25,.28)
+semiGlass=mat('Semi tractor tinted glass',(.02,.035,.045),.6,.08)
+lightBar=mat('Semi tractor light bar',(1,.93,.82),0,.3,3.0)
+def wheelset(x,z,r=.5,w=.3,cover=False):
+ cyl('Truck tire',(x,r,z),r,w,rubber,g,'z',16)
+ cyl('Aero wheel cover' if cover else 'Truck wheel',(x,r,z+math.copysign(w/2+.005,z)),r*(.8 if cover else .62),.02,steel,g,'z',16 if cover else 12)
+# Cab loft: key stations (x, bottom y, top y, half width, top corner radius); linear between, sampled finely.
+K=[(-9.42,.55,1.0,.98,.2),(-9.36,.42,1.25,1.12,.3),(-9.24,.38,1.5,1.2,.4),(-9.05,.38,1.78,1.24,.5),(-8.8,.62,2.08,1.26,.6),
+   (-8.55,1.05,2.36,1.27,.66),(-8.1,1.05,2.8,1.275,.7),(-7.6,1.05,3.22,1.275,.72),(-7.05,1.05,3.58,1.27,.72),
+   (-6.45,1.05,3.84,1.265,.7),(-5.8,1.05,3.96,1.26,.62),(-5.1,1.05,3.98,1.26,.55),(-4.72,1.05,3.98,1.26,.5)]
+def station(x):
+ for a,b in zip(K,K[1:]):
+  if a[0]<=x<=b[0]:
+   t=(x-a[0])/(b[0]-a[0]);t=t*t*(3-2*t)*.35+t*.65
+   return tuple(a[i]+(b[i]-a[i])*t for i in range(1,5))
+ return K[-1][1:]
+def section(y0,y1,hw,rt,rb=.12,st=7,sb=3):
+ # rounded rectangle in (z,y), counterclockwise seen from -X: bottom edge, right side, top, left side
+ pts=[]
+ for cz,cy,r,a0,n in [(hw-rb,y0+rb,rb,-90,sb),(hw-rt,y1-rt,rt,0,st),(-(hw-rt),y1-rt,rt,90,st),(-(hw-rb),y0+rb,rb,180,sb)]:
+  for i in range(n+1):
+   a=math.radians(a0+90*i/n);pts.append((cz+r*math.cos(a),cy+r*math.sin(a)))
+ return pts
+xs=[];x=K[0][0]
+while x<K[-1][0]-1e-6:
+ xs.append(x);x+=.04 if x<-8.9 else .12
+xs.append(K[-1][0])
+V=[];rings=[]
+for x in xs:
+ y0,y1,hw,rt=station(x);sec=section(y0,y1,hw,min(rt,(y1-y0)/2-.13,hw-.13))
+ rings.append((len(V),len(sec)));V.extend((x,y,z) for z,y in sec)
+n=rings[0][1];F=[];M=[]
+# Glass follows the ring structure, so its edges are clean: the upper corner arcs and roof between the
+# windshield stations wrap around as one raked windshield, and the lower arc band behind it is the door glass.
+nt=7;TOP=range(4,5+2*nt)  # ring faces 4..18 span both top corner arcs and the roof between them
+def glassy(x,i):
+ if -8.45<=x<=-7.0:return i in TOP
+ if -6.95<=x<=-6.25:return i in (4,5,6,2*nt+2,2*nt+3,2*nt+4)
+ return False
+for (a,_),(b,_) in zip(rings,rings[1:]):
+ xm=(V[a][0]+V[b][0])/2
+ for i in range(n):
+  j=(i+1)%n;F.append((a+i,a+j,b+j,b+i));M.append(1 if glassy(xm,i) else 0)
+cf=len(V);V.append((K[0][0]-.01,(K[0][1]+K[0][2])/2,0));cb=len(V);V.append((K[-1][0],(K[-1][1]+K[-1][2])/2,0))
+for i in range(n):
+ j=(i+1)%n;F.append((cf,j,i));M.append(0);F.append((cb,rings[-1][0]+i,rings[-1][0]+j));M.append(0)
+cab=mesh('Aerodynamic day cab',V,F,semiPaint,g)
+cab.data.materials.append(semiGlass)
+for p,m in zip(cab.data.polygons,M):p.material_index=m;p.use_smooth=True
+import bmesh
+bm=bmesh.new();bm.from_mesh(cab.data);bmesh.ops.recalc_face_normals(bm,faces=bm.faces);bm.to_mesh(cab.data);bm.free()
+# full-width light bar following the nose surface at y = 1.5
+def nose_x(y,z):
+ for x in xs:
+  y0,y1,hw,rt=station(x);r=min(rt,(y1-y0)/2-.13,hw-.13)
+  if y0<=y<=y1 and abs(z)<=hw:
+   if y>y1-r and abs(z)>hw-r and math.hypot(abs(z)-(hw-r),y-(y1-r))>r:continue
+   return x
+ return xs[-1]
+# a thin light line set in a dark band so it reads against the white paint; each strip hugs the raked nose
+for nm,m_,y0,y1 in [('Light bar surround',shadow,1.40,1.47),('Front light bar',lightBar,1.47,1.53),('Light bar surround',shadow,1.53,1.60)]:
+ ob=[(nose_x(y0,z)-.012,z) for z in [-1.0+i*.1 for i in range(21)]]
+ o=prism(nm,[(x,z) for x,z in ob]+[(x+.07,z) for x,z in reversed(ob)],y0,y1,m_,g,0)
+ bm=bmesh.new();bm.from_mesh(o.data);bmesh.ops.recalc_face_normals(bm,faces=bm.faces);bm.to_mesh(o.data);bm.free()
+for z in [-1,1]:
+ beam('Mirror camera stalk',(-7.75,2.5,z*1.25),(-7.95,2.6,z*1.5),.06,.06,shadow,g)
+ box('Mirror camera head',(-7.98,2.6,z*1.54),(.14,.26,.08),shadow,g,.02)
+ box('Aero side skirt',(-6.45,.8,z*1.22),(1.9,.5,.04),semiPaint,g,.02)
+box('Tractor frame rails',(-5.6,.95,0),(5.2,.3,1.0),shadow,g,0)
+box('Fifth wheel plate',(-3.95,1.2,0),(1.1,.12,1.0),shadow,g,0)
+for z in [-1.0,1.0]:wheelset(-8.0,z,.5,.3,True)
+for x in [-4.95,-3.65]:
+ for z in [-1.1,-.78,.78,1.1]:wheelset(x,z,.5,.28,abs(z)>1)
 box('Box trailer',(1.4,2.6,0),(12.0,2.75,2.55),white,g,.05)
 for x in [-4.2+i*1.2 for i in range(10)]:
  for z in [-1.28,1.28]:box('Trailer post',(x,2.6,z),(.06,2.7,.04),steel,g,0)
