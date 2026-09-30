@@ -77,7 +77,10 @@ vgroove = material('Fiber array V-groove block', (.04,.05,.06), .1,.35)
 lidGlass = material('Fiber array lid glass', (.6,.8,.95), 0,.05,.25)
 epoxy = material('Fiber array epoxy', (.12,.07,.02), 0,.5)
 boot = material('Connector strain relief boot', (.02,.022,.025), 0,.7)
-pinSteel = material('Guide pin steel', (.5,.52,.55), 1,.32)
+pinSteel = material('Guide pin steel', (.42,.44,.47), .85,.5)
+# Small interface cheeks are bead-blasted: polished nickel at this size only
+# caught pin-point key-light glints that bloomed into white bars.
+cheek = material('Bead-blasted interface cheeks', (.36,.41,.45), .7,.55)
 driver = material('Driver schematic regions', (.05,.19,.24), .45,.32)
 tia = material('TIA schematic regions', (.20,.07,.15), .45,.32)
 blue = material('Supply coolant pipe', (.025,.20,.36), .38,.28)
@@ -179,11 +182,11 @@ for side,t0 in LAYOUT['subassemblies']:
 for e,conn in zip(LAYOUT['engines'],LAYOUT['connectors']):
     out=e['out']; tan=e['tan']; angle=e['side']*math.pi/2
     def ip(r,t,y): return (e['x']+out[0]*r+tan[0]*t,y+.15,e['z']+out[1]*r+tan[1]*t)
-    for t in [-.43,.43]: box('Ferrule side cheek',ip(.83,t,1.56),(.36,.23,.045),nickel,'CPO_INTERFACES',.012,angle)
+    for t in [-.43,.43]: box('Ferrule side cheek',ip(.83,t,1.56),(.36,.23,.045),cheek,'CPO_INTERFACES',.012,angle)
     box('Ferrule lower seat',ip(.83,0,1.375),(.37,.03,.82),black,'CPO_INTERFACES',.008,angle)
     for t in [-.5,.5]:
         p=(conn[0]+tan[0]*t,1.22,conn[1]+tan[1]*t)
-        box('Connector guide cheek',p,(.35,.27,.035),nickel,'CPO_INTERFACES',.009,angle)
+        box('Connector guide cheek',p,(.35,.27,.035),cheek,'CPO_INTERFACES',.009,angle)
 
 # External laser sources as front-panel pluggables (enclosure shape
 # representative: the sources give counts and serviceability, not a form
