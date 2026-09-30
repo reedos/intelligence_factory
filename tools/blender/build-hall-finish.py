@@ -6,7 +6,7 @@ HERE=pathlib.Path(__file__).resolve().parent
 exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque building envelope.')[0])
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE']:
+for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT']:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
 ceramic=mat('Soft satin architectural panel',(.30,.38,.43),.25,.45)
 alloy=mat('Anodized champagne edge',(.31,.29,.23),.8,.3)
@@ -38,6 +38,69 @@ box('Folded luminaire housing',(0,0,0),(1.3,.075,.19),graphite,g,.028)
 box('Anodized luminaire cap',(0,.027,0),(1.28,.026,.175),steel,g,.017)
 box('Recessed opal diffuser',(0,-.038,0),(1.16,.012,.09),fixture,g,.005)
 for x in [-.51,.51]:box('Luminaire suspension boss',(x,.058,0),(.07,.065,.055),steel,g,.01)
+def cyl(n,p,r,h,m,g,axis='y',v=20,r2=None):
+ # Viewer-space cylinder: axis 'y' is up, 'x' across, 'z' toward the viewer.
+ if r2 is None:bpy.ops.mesh.primitive_cylinder_add(vertices=v,radius=r,depth=h,location=pt(p))
+ else:bpy.ops.mesh.primitive_cone_add(vertices=v,radius1=r,radius2=r2,depth=h,location=pt(p))
+ o=bpy.context.object;o.name=n
+ if axis=='x':o.rotation_euler=(0,math.pi/2,0)
+ elif axis=='z':o.rotation_euler=(math.pi/2,0,0)
+ o.parent=groups[g];o.data.materials.append(m)
+ bpy.ops.object.shade_smooth_by_angle(angle=math.radians(40))
+ return o
+# ---- CDU / in-row cooler: representative cabinet, 0.8 m row slot x 1.2 m deep x 2.3 m ----
+# Real CDUs are larger (Vertiv CoolChip CDU 1350: 900 mm wide; CDU 2300: 1200 x 1200 x 2400 mm);
+# this keeps the hall's 0.8 m slot and is labelled representative. Door, HMI, louvre and port
+# positions are not published and are representative.
+powder=mat('RAL 9003-like white powder coat',(.66,.68,.68),0,.45)
+powderDark=mat('Graphite powder coat',(.05,.058,.066),.1,.5)
+hmi=mat('CDU touchscreen HMI',(.03,.16,.36),.05,.25,1.1)
+uiCyan=mat('HMI status bars cyan',(.25,.78,1.0),0,.4,2.4)
+uiGreen=mat('HMI status bars green',(.3,.95,.5),0,.4,2.4)
+brushed=mat('Brushed stainless handle',(.62,.64,.66),.9,.28)
+def cdu(g,body,full_louvre):
+ box('Recessed plinth',(0,.045,0),(.72,.09,1.1),graphite,g,.006)
+ box('Painted cabinet body',(0,1.18,0),(.76,2.18,1.15),body,g,.018)
+ box('Door-frame shadow recess',(0,1.18,.577),(.72,2.1,.006),powderDark,g,0)
+ for sx in [-1,1]:
+  x=sx*.181
+  box('Front door leaf',(x,1.18,.586),(.352,2.06,.014),body,g,.004)
+  y0,y1=(.24,2.02) if full_louvre else (.24,1.08)
+  box('Louvre recess',(x,(y0+y1)/2,.5935),(.3,y1-y0,.003),powderDark,g,0)
+  n=int((y1-y0)/.056)
+  for i in range(n):box('Formed door louvre',(x,y0+.03+i*.056,.597),(.29,.02,.01),body,g,0)
+  # rear service door: full-height louvres onto the hot aisle
+  box('Rear louvre recess',(x,1.13,-.5775),(.3,1.8,.003),powderDark,g,0)
+  for i in range(30):box('Rear door louvre',(x,.26+i*.06,-.582),(.29,.022,.01),body,g,0)
+  box('Side panel seam',(sx*.3815,1.18,.18),(.004,2.08,.006),powderDark,g,0)
+  box('Side panel seam',(sx*.3815,1.18,-.2),(.004,2.08,.006),powderDark,g,0)
+ box('Centre astragal',(0,1.18,.595),(.018,2.02,.01),powderDark,g,0)
+ # HMI at ~1.5 m on the right leaf
+ box('HMI bezel',(.181,1.53,.599),(.25,.17,.012),powderDark,g,.004)
+ box('HMI screen',(.181,1.53,.6055),(.215,.13,.002),hmi,g,0)
+ box('HMI flow bar',(.15,1.565,.607),(.1,.012,.002),uiCyan,g,0)
+ box('HMI temperature bar',(.13,1.54,.607),(.06,.012,.002),uiGreen,g,0)
+ box('HMI pump bar',(.2,1.51,.607),(.13,.008,.002),uiCyan,g,0)
+ # handle and keyed latch beside the astragal
+ box('Door handle',(.05,1.1,.607),(.022,.24,.018),brushed,g,.004)
+ for y in [.99,1.21]:box('Handle standoff',(.05,y,.597),(.018,.02,.012),brushed,g,0)
+ cyl('Keyed latch',(.05,.94,.597),.012,.012,brushed,g,'z',12)
+ box('Nameplate',(-.181,1.82,.5945),(.15,.045,.003),brushed,g,0)
+ box('Status lamp',(-.3,2.1,.5945),(.014,.014,.004),uiGreen,g,0)
+ box('Roof service plate',(0,2.2805,0),(.62,.021,.95),powderDark,g,.004)
+cdu('HALL_CDU',powder,False)
+cdu('HALL_INROW',powderDark,True)
+# One roof port at facility-pipe size (0.07 m pipe radius); secondary ports reuse it at half scale.
+g='CDU_PORT'
+valve=mat('Painted ductile-iron valve body',(.11,.13,.15),.35,.45)
+lever=mat('Safety-yellow valve lever grip',(.78,.55,.05),0,.55)
+cyl('Roof boss',(0,.012,0),.13,.024,graphite,g,'y',24)
+cyl('Weld-neck flange',(0,.045,0),.115,.03,steel,g,'y',24)
+cyl('Ball-valve body',(0,.13,0),.1,.13,valve,g,'y',24)
+cyl('Upper flange',(0,.21,0),.115,.03,steel,g,'y',24)
+cyl('Valve stem',(0,.13,.12),.018,.07,steel,g,'z',10)
+box('Lever',(0,.13,.26),(.03,.018,.22),steel,g,0)
+box('Lever grip',(0,.13,.33),(.036,.026,.09),lever,g,.004)
 # Face relief follows existing rack texture rows, not an invented tray count.
 # Canonical cabinet envelope .58 wide x2.3 high, front z=.6.
 def drawer(g,top,height,pull=False):
@@ -77,7 +140,7 @@ for g in groups.values():
    for o in obs:o.select_set(True)
    bpy.context.view_layer.objects.active=obs[0];bpy.ops.object.join();obs[0].name=g.name+' '+material.name
 root=bpy.data.objects.new('IFX_HALL_FINISH',None);S.collection.objects.link(root)
-root['representative']=True;root['purpose']='Physical architectural finish and existing cabinet face relief; no added equipment or services.'
+root['representative']=True;root['purpose']='Physical architectural finish, existing cabinet face relief and a representative CDU/in-row cabinet with roof valve ports; no added equipment or services.'
 for g in groups.values():g.parent=root
 bpy.ops.wm.save_as_mainfile(filepath=str(HERE/'hall-finish.blend'))
 bpy.ops.export_scene.gltf(filepath=str(ROOT/'public/models/hall-finish.glb'),export_format='GLB',export_yup=True,export_extras=True)

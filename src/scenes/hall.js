@@ -366,7 +366,17 @@ export function build({ quality, model }) {
   instanced(RW - 0.02, 2.3, 1.2, TEX.rack, 0x131519, rackMx);
   // CDU / in-row cooler cabinets: rounded bodies merge straight into S (no extra draw call), the shared
   // front graphic rides as one instanced panel held proud of every body by the same gap as the electrical room.
-  {
+  if (hasHallFinish()) {
+    // Authored cabinet (doors, astragal, louvres, HMI, handle, roof plate): representative, see
+    // build-hall-finish.py. Roof valve ports sit where the facility drops and secondary loops land.
+    scene.add(hallFinishInstances(air ? 'HALL_INROW' : 'HALL_CDU', cduMx.map(it => mtx(it.x, 0, it.z, it.f > 0 ? 0 : Math.PI))));
+    const ports = [];
+    rowZs.forEach((z, r) => cduMx.filter(c => c.z === z).forEach(c => {
+      for (const dx of [-.15, .15]) ports.push(mtx(c.x + dx, 2.3, c.z));
+      if (!air) for (const [dz, dx] of [[-.05, -.18], [.05, .18]]) ports.push(mtx(c.x + dx, 2.3, z - facing[r] * .35 + dz).scale(new THREE.Vector3(.5, .5, .5)));
+    }));
+    scene.add(hallFinishInstances('CDU_PORT', ports));
+  } else {
     const cduH = 2.3, cduBody = new THREE.MeshStandardMaterial({ color: 0xc9ccce, roughness: 0.55, metalness: 0.25 });
     cduMx.forEach(it => rbox(S, CW - 0.02 - 0.05, cduH - 0.02, 1.2 - 0.05, cduBody, it.x, cduH / 2, it.z, { r: 0.05, ry: it.f > 0 ? 0 : Math.PI }));
     const cduFront = new THREE.MeshStandardMaterial({ map: TEX.cdu, roughness: 0.5, metalness: 0.2 });
