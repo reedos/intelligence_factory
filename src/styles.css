@@ -513,6 +513,9 @@ body.looked .hint, body.story .hint { display: none; }
 /* the key hints sit over the scene until the reader first moves it: give them a dark backing so they read over bright hardware */
 .hud-btns .hint { padding: 5px 9px; color: var(--muted); background: rgba(0,0,0,.62); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 @media (pointer: coarse) { .hint { display: none; } }  /* mouse and key hints mean nothing on a touch screen */
+/* ...and fade on their own after ten seconds, so they stop covering hotspot labels in part close-ups */
+.hud-btns .hint { animation: hint-out .8s ease 10s forwards; }
+@keyframes hint-out { to { opacity: 0; visibility: hidden; } }
 /* in a tour, the transport's × leaves it and the tour picker holds every layer's tour */
 body.story #story-btn, body.story #layer-play { display: none; }
 
