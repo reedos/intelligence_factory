@@ -6,7 +6,7 @@ HERE=pathlib.Path(__file__).resolve().parent
 exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque building envelope.')[0])
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT','STORAGE_FACE','HALL_UNITSUB','PIPE_UNIT','PIPE_ELBOW','PIPE_FLANGE','BUTTERFLY_VALVE','PIPE_HANGER','FANWALL_CELL','TAPOFF','BUS_JOINT','HALL_ODF']:
+for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT','STORAGE_FACE','HALL_UNITSUB','PIPE_UNIT','PIPE_ELBOW','PIPE_FLANGE','BUTTERFLY_VALVE','PIPE_HANGER','FANWALL_CELL','TAPOFF','BUS_JOINT','HALL_ODF','HALL_ASD','SPRINKLER']:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
 ceramic=mat('Soft satin architectural panel',(.30,.38,.43),.25,.45)
 alloy=mat('Anodized champagne edge',(.31,.29,.23),.8,.3)
@@ -284,6 +284,36 @@ rnd=random.Random(7)
 for i in range(14):
  y=.3+rnd.random()*1.7;x=-.2+rnd.random()*.4;side=-1 if x<0 else 1;sag=.12+rnd.random()*.2
  jumper([(x,y,.28),(x+side*.04,y-sag*.6,.31),(side*.25,y-sag,.27),(side*.37,y-sag+.05,.2)])
+# ---- Aspirating smoke detector, representative (no product geometry published in the cited sources).
+# Origin at the back centre, front toward +z: white enclosure, rounded front cover, bar-graph window,
+# alarm/fault/power LEDs, a top inlet manifold where the red sampling pipe enters, a bottom exhaust.
+g='HALL_ASD'
+asdWhite=mat('Detector enclosure, white ABS',(.72,.73,.72),0,.4)
+asdGrey=mat('Detector cover trim, light grey',(.45,.47,.48),0,.45)
+win=mat('Detector display window',(.01,.015,.02),.2,.1)
+barG=mat('Bar graph, green',(.3,1,.45),0,.4,3)
+barA=mat('Bar graph, amber',(1,.62,.15),0,.4,3)
+ledR=mat('Alarm LED, red',(1,.12,.1),0,.4,4)
+pipeR=mat('Sampling pipe, red ABS',(.55,.06,.07),0,.45)
+box('Wall base plate',(0,0,.012),(.36,.46,.024),asdGrey,g,.004)
+box('Detector body',(0,0,.07),(.34,.44,.1),asdWhite,g,.02)
+box('Front cover',(0,-.01,.126),(.3,.36,.016),asdWhite,g,.02)
+box('Display window',(0,.07,.1355),(.2,.1,.004),win,g,.003)
+for i in range(10):box('Bar graph segment',(-.085+i*.019,.07,.138),(.014,.03+i*.004,.002),barG if i<7 else barA,g,0)
+for i,(m_,x) in enumerate([(ledR,-.08),(barA,-.03),(barG,.02)]):cyl('Status LED',(x,-.03,.136),.008,.004,m_,g,'z',12)
+box('Button panel',(0,-.11,.135),(.16,.05,.004),asdGrey,g,.002)
+cyl('Inlet manifold',(0,.25,.07),.03,.06,asdGrey,g,'y',16)
+cyl('Sampling pipe gland',(0,.29,.07),.026,.03,pipeR,g,'y',16)
+cyl('Exhaust port',(.08,-.245,.07),.018,.05,asdGrey,g,'y',12)
+# ---- Pendent sprinkler head, origin at the branch-drop end, hanging down: body, frame arms, red
+# 68 C glass bulb and deflector. Representative.
+g='SPRINKLER'
+brass=mat('Sprinkler brass body',(.55,.42,.2),1,.35)
+bulb=mat('Glass bulb, red fluid',(.8,.05,.05),0,.1,.6)
+cyl('Threaded body',(0,-.012,0),.011,.024,brass,g,'y',10)
+for sx in [-1,1]:box('Frame arm',(sx*.009,-.038,0),(.004,.03,.006),brass,g,0)
+cyl('Glass bulb',(0,-.036,0),.004,.022,bulb,g,'y',8)
+cyl('Deflector',(0,-.056,0),.022,.003,brass,g,'y',16)
 # Face relief follows existing rack texture rows, not an invented tray count.
 # Canonical cabinet envelope .58 wide x2.3 high, front z=.6.
 def drawer(g,top,height,pull=False):
@@ -327,7 +357,7 @@ for o in list(S.objects):
   # geometry at all (the canvas texture carries the edge detail); small repeated fittings get one segment.
   if parent in ['NVL_FACE','H100_FACE'] and mod.type in ['BEVEL','WEIGHTED_NORMAL']:
    o.modifiers.remove(mod);continue
-  if parent in ['STORAGE_FACE','FANWALL_CELL','TAPOFF','BUS_JOINT','CDU_PORT','BUTTERFLY_VALVE','PIPE_FLANGE','PIPE_HANGER','HALL_ODF','HALL_CDU','HALL_INROW'] and mod.type=='BEVEL':mod.segments=1
+  if parent in ['STORAGE_FACE','FANWALL_CELL','TAPOFF','BUS_JOINT','CDU_PORT','BUTTERFLY_VALVE','PIPE_FLANGE','PIPE_HANGER','HALL_ODF','HALL_CDU','HALL_INROW','HALL_ASD','SPRINKLER'] and mod.type=='BEVEL':mod.segments=1
   bpy.ops.object.modifier_apply(modifier=mod.name)
  bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
 for g in groups.values():

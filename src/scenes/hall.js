@@ -884,17 +884,21 @@ export function build({ quality, model }) {
   scene.userData.hallCutaway={roofRemoved:true,fixturesRetainedAtRear:true,slimAisleRails:lightZs.length,actualAreaLights:hasHallFinish()?4:2,engineeringServicesRetained:true};
 
   // sprinkler branch lines with pendant heads, over the aisles
+  const sprinklerMx = [];
   [-9, -2.4, 4.2].forEach(sz => {
     N.cylX(0.035, rowX1 - rowX0 + 2, MAT.galv, (rowX0 + rowX1) / 2, 6.7, sz, 8);
-    for (let x = rowX0 - 1; x <= rowX1 + 1; x += 3) { N.cyl(0.018, 0.12, MAT.darkSteel, x, 6.6, sz, 6); N.cyl(0.05, 0.02, MAT.orange, x, 6.53, sz, 8); }
+    for (let x = rowX0 - 1; x <= rowX1 + 1; x += 3) { N.cyl(0.018, 0.12, MAT.darkSteel, x, 6.6, sz, 6); if (hasHallFinish()) sprinklerMx.push(mtx(x, 6.54, sz)); else N.cyl(0.05, 0.02, MAT.orange, x, 6.53, sz, 8); }
   });
 
   // air-sampling smoke detection: a wall box on the partition, well clear of the doorway opening so it
   // reads against a solid wall face; a thin red sampling pipe along the ceiling with a few tiny sampling
   // points, offset from the -9 sprinkler main so the two never share a plane
   const asdX = -11.78, asdY = 2.3, asdZ = -9, asdPipeY = 6.6, asdPipeZ = -9.15;
-  N.box(0.14, 0.46, 0.36, MAT.white, asdX, asdY, asdZ);
-  N.box(0.03, 0.08, 0.1, glowMat('#ff5a5a', 1.4), asdX + 0.085, asdY + 0.12, asdZ);
+  if (hasHallFinish()) scene.add(hallFinishInstances('HALL_ASD', [mtx(asdX - .07, asdY, asdZ, Math.PI / 2)]), hallFinishInstances('SPRINKLER', sprinklerMx));
+  else {
+    N.box(0.14, 0.46, 0.36, MAT.white, asdX, asdY, asdZ);
+    N.box(0.03, 0.08, 0.1, glowMat('#ff5a5a', 1.4), asdX + 0.085, asdY + 0.12, asdZ);
+  }
   N.strut([asdX, asdY + 0.23, asdZ], [asdX, asdPipeY, asdZ], 0.022, MAT.pipeRed, 8);
   N.strut([asdX, asdPipeY, asdZ], [asdX, asdPipeY, asdPipeZ], 0.022, MAT.pipeRed, 8);
   N.strut([asdX, asdPipeY, asdPipeZ], [-2, asdPipeY, asdPipeZ], 0.022, MAT.pipeRed, 8);

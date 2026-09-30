@@ -1067,7 +1067,7 @@ export function content(M) {
           : ['Moves', `the ≈${Math.round((1 - liq) * 100)}% air share`, 'derived', { calc: 'hall-air-heat-share' }], ['Cells as drawn', 'representative', 'assumed', { assume: 'hall-fanwall-cells' }]] },
       { id: 'fire', title: 'Fire detection', kicker: 'Smoke found early',
         body: 'Air-sampling detectors pull air from the room through a pipe network and test it continuously, so they can find smoke before a fire grows. Sprinkler lines run above the aisles. NFPA 75 sets the minimum fire protection for rooms of IT equipment.',
-        specs: [['Air-sampling detection', 'continuous, the earliest warning', 'reported', evRefs([['xtralis-vesda', '"continuous air sampling provide the earliest possible warning of an impending fire hazard"']])],
+        specs: [['Air-sampling detection', 'continuous, the earliest warning', 'reported', evRefs([['xtralis-vesda', '"continuous air sampling provide the earliest possible warning of an impending fire hazard"']])], ['Devices as drawn', 'representative', 'assumed', { assume: 'hall-fire-devices' }],
           ['NFPA 75 covers', 'fire, smoke, corrosion, heat and water damage', 'reported', evRefs([['nfpa75-csemag', 'NFPA 75’s purpose: "minimum requirements for the protection of IT equipment and IT equipment areas from damage by fire or its associated effects"']])]] },
       { id: 'riser', title: warm ? 'Risers to the roof' : 'Risers to the plant', kicker: 'Heat leaves the building',
         body: `The headers turn up and out to the ${warm ? 'dry coolers' : 'chillers'}.`,
