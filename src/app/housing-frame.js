@@ -46,7 +46,7 @@ export function fitHousing(preset, bounds, width, height, safe = { x0: -.86, x1:
   return { ...preset, pos: camera.position.toArray(), target: target.toArray() };
 }
 
-// Sizes describe the component plus a little surrounding routing, in scene cm.
+// Sizes describe the component plus surrounding routing, in native scene units.
 export function componentView(focus, offset, detailSize) {
   return { pos: focus.map((v, i) => v + offset[i]), target: [...focus], focus: [...focus], detailSize };
 }

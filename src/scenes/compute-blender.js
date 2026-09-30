@@ -13,7 +13,7 @@ const assetKey = (kind, model) => `compute-${kind}-${variant(kind, model)}`;
 
 async function load(key) {
   if (cache.has(key)) return;
-  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=generations7`)
+  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=inspection8`)
     .then(gltf => { cache.set(key, gltf.scene); pending.delete(key); })
     .catch(error => { pending.delete(key); throw error; }));
   await pending.get(key);
@@ -94,14 +94,6 @@ function build(kind, native, options) {
   built.scene.traverse(o => { if (o.userData.computeCoverOutline === 'ihs') covers.push(o); });
   const showCovers = () => { for (const o of covers) o.visible = options.state.mode === 'heat'; };
   showCovers();
-  if (kind === 'tray' || kind === 'chip') {
-    // The long chassis needs more margin in a tall browser panel. Keep the
-    // established wide-screen composition and preserve manual orbit controls.
-    for (const c of [built.camera, ...Object.values(built.cameraByMode || {})]) {
-      const pulledBack = factor => ({ pos: c.pos.map((v, i) => c.target[i] + (v - c.target[i]) * factor), target: [...c.target] });
-      c.compact = pulledBack(kind === 'tray' ? 1.40 : c === built.cameraByMode?.power ? 1.6 : 1.3); c.portrait = pulledBack(kind === 'tray' ? 1.4 : 1.8);
-    }
-  }
   const update = built.update;
   built.update = (t, dt) => {
     const result = update?.(t, dt);

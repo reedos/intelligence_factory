@@ -5,6 +5,7 @@ import { THREE, MAT, Builder, flow, canvasTex, texMat, glowMat, spinners } from 
 import { rbox, tube, bundle, blinkers, plumes } from '../fx.js';
 import { buildRubin } from './tray-rubin.js';
 import { computeMaterials, finishCompute, coldPlateDetail, boardFinish } from './compute-finish.js';
+import { frameCompute } from './compute-framing.js';
 
 export function pkgTex(label) {
   return canvasTex(256, 256, (g, w, h) => {
@@ -60,7 +61,9 @@ function chassisLip(N, wallX, topY, depth, inward, heavy) {
 }
 
 export function build(opts) {
-  return opts.model.accel.id === 'rubin' ? buildRubin(opts, { lights, pkgTex, dieTex }) : opts.model.accel.gpusPerRack === 72 ? buildNVL(opts) : buildHGX(opts);
+  const result = opts.model.accel.id === 'rubin' ? buildRubin(opts, { lights, pkgTex, dieTex }) : opts.model.accel.gpusPerRack === 72 ? buildNVL(opts) : buildHGX(opts);
+  frameCompute(result, 'tray', opts.model.accel.id);
+  return result;
 }
 
 function lights(scene, quality) {

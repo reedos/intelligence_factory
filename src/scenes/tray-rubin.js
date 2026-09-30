@@ -75,21 +75,24 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex}) {
   flows.push(flow([[Math.sign(x)*1.5,.28,-4.02],[x,.28,-3.35],[x,.25,z]],'bus12',{count:10,speed:.8,size:.028,trailR:.009}));
   for(const side of [-1,1])flows.push(flow([[x+side*.40,.24,z],[x+side*.15,.24,z]],'core',{count:4,speed:.35,size:.018,trail:false}));
   dataFlows.push(flow([[x,.29,z-.25],[nvX[i],.31,-3.75],[nvX[i],.31,-4.35]],'nvl',{count:10,speed:.9,size:.03,trailR:.01}));
-  const lane=ports[i],route=[[x,.29,z+.4],[lane,.29,-1.65],[lane,.29,.75],[lane,.50,.90],[lane,.50,1.32],[lane,.29,1.55],[lane,.29,2.12]];
+  // NVIDIA SuperPOD RA Figure 2: NIC PCIe is rooted at Vera, not a
+  // direct GPU-to-NIC trace. Each CPU serves its four CX9 endpoints.
+  const cpu=cp[Math.floor(i/2)];
+  const lane=ports[i],route=[[cpu[0],.30,cpu[1]+.385],[lane,.29,.50],[lane,.29,.75],[lane,.50,.90],[lane,.50,1.32],[lane,.29,1.55],[lane,.29,2.12]];
   // Midplane connector crossing is electrical; no exposed trace penetrates its body.
-  dataFlows.push(flow(route,'eth',{count:10,speed:.9,size:.026,trailR:.009}));
+  const input=flow(route,'pcie',{count:10,speed:.9,size:.026,trailR:.009});input.rubinPcieRoot=Math.floor(i/2);dataFlows.push(input);
   // Each GPU is represented by two CX9 packages on one column. The branch
   // placement is illustrative; both ends touch actual package regions.
   const flank=lane+(i%2===0?-.23:.23);
-  dataFlows.push(flow([[lane,.29,1.85],[flank,.29,1.85],[flank,.29,3.06],[lane,.29,3.06]],'eth',{count:5,speed:.9,size:.02,trail:false}));
+  dataFlows.push(flow([[lane,.29,1.85],[flank,.29,1.85],[flank,.29,3.06],[lane,.29,3.06]],'pcie',{count:5,speed:.9,size:.02,trail:false}));
   for(const [j,y]of [.16,.34].entries()){
    const start=j===0?2.64:3.58;
    const path=j===0?[[lane,.29,start],[flank,.29,start],[flank,.29,3.78],[lane,y,3.95],[lane,y,4.50]]:[[lane,.29,start],[lane,y,3.95],[lane,y,4.50]];
-   const f=flow(path,'eth',{count:5,speed:.75,size:.02,trail:false});f.rubinNicOutput={gpu:i,nic:j,startZ:start};dataFlows.push(f);
+   const f=flow(path,'serdes',{count:5,speed:.75,size:.02,trail:false});f.rubinNicOutput={gpu:i,nic:j,startZ:start};dataFlows.push(f);
   }
  });
  cp.forEach(([x,z],i)=>{for(const gpu of gp.slice(i*2,i*2+2))for(const reverse of [false,true]){const pts=[[x,.30,z-.32],[gpu[0],.30,gpu[1]+.38]];if(reverse)pts.reverse();dataFlows.push(flow(pts,'c2c',{count:5,speed:.6,size:.025,trailR:.008}));}});
- dataFlows.push(flow([[0,.28,3.3],[0,.28,4.38]],'eth',{count:5,speed:.6,size:.024,trail:false}));
+ dataFlows.push(flow([[0,.28,3.3],[0,.28,4.38]],'serdes',{count:5,speed:.6,size:.024,trail:false}));
  flows.push(flow([[0,.25,-4.75],[0,.28,-4.05],[-1.5,.28,-4.02]],'dc',{count:12,speed:.9,size:.03,trail:false}));
  for(const x of [-1.1,1.1])flows.push(flow([[Math.sign(x)*1.5,.28,-4.02],[x,.3,-3.55],[x,.3,-.65]],'bus12',{count:14,speed:.7,size:.025,trail:false}));
  for(const [x,z] of [...nic,dpu])flows.push(flow([[x,.18,1.45],[x,.18,z]],'bus12',{count:8,speed:.8,size:.022,trail:false}));

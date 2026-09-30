@@ -37,7 +37,7 @@ def enhance(kind,accel,m,box,cylinder,p3,material):
                 y=.12+i*.04445+.022225
                 front_frame('Service tray machined bezel',0,y,.479,.444,.039,.0045,1)
                 # Offset embossed grille over the pre-existing vent half only.
-                if layout[i] in ['compute','switch'] and accel!='rubin':
+                if layout[i]=='switch' and accel!='rubin':
                     box('Service intake cavity',(-.128,y,.480),(.175,.027,.008),dark,1,.003)
                     for j in range(9):box('Pressed intake louver',(-.20+j*.018,y,.488),(.008,.022,.010),ceramic,1,.002)
                 for x in [-.24,.24]:
@@ -103,6 +103,7 @@ def enhance(kind,accel,m,box,cylinder,p3,material):
                 box('Stepped corner landing',(x,1.405,z),(.31,.075,.31),trim,u,.055)
         # Physical chamfered edge on the existing lifted IHS; center remains the
         # explicitly labeled x-ray surface supplied by the teaching diagram.
+        cover=titanium.copy();cover.name='IHS removable flange';cover['ifxCoverSurface']='ihs'
         for s in [-1,1]:
-            box('IHS formed peripheral flange',(0,4.69,s*3.43),(7.12,.17,.12),titanium,u,.045)
-            box('IHS formed peripheral flange',(s*3.53,4.69,0),(.12,.17,6.77),titanium,u,.045)
+            box('IHS formed peripheral flange',(0,4.69,s*3.43),(7.12,.17,.12),cover,u,.045)
+            box('IHS formed peripheral flange',(s*3.53,4.69,0),(.12,.17,6.77),cover,u,.045)

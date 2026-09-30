@@ -206,10 +206,11 @@ def rack_hardware(accel,m):
             y=.12+i*.04445+.022225
             for x in [-.205,.185]:
                 box('Folded service handle',(x,y,.485),(.009,.026,.013),m['bright'],u,.003)
-            for k in range(0 if accel=='rubin' else 17):box('Vent grille relief',(-.186+k*.0075,y,.469),(.002,.019,.005),m['graphite'],u,0)
+            for k in range(17 if accel!='rubin' and 11<=i<=19 else 0):box('Vent grille relief',(-.186+k*.0075,y,.469),(.002,.019,.005),m['graphite'],u,0)
 
 def chip_hardware(accel,m):
     u=.01
+    cover=m['shell'].copy();cover.name='IHS removable perimeter';cover['ifxCoverSurface']='ihs'
     # Precision package stiffener shoulders and substrate registration marks.
     for side in [-1,1]:
         box('Stiffener machined shoulder',(0,1.415,side*4.065),(8.14,.026,.055),m['bright'],u,.009)
@@ -220,8 +221,8 @@ def chip_hardware(accel,m):
             cylinder('Registration pad opening',(x,1.24,z),.035,.002,m['dark'],u)
     # A chamfered plate outline supplements the teaching x-ray heat-spreader.
     for side in [-1,1]:
-        box('IHS machined perimeter',(0,4.79,side*3.47),(7.16,.035,.055),m['shell'],u,.015)
-        box('IHS machined perimeter',(side*3.57,4.79,0),(.055,.035,6.92),m['shell'],u,.015)
+        box('IHS machined perimeter',(0,4.79,side*3.47),(7.16,.035,.055),cover,u,.015)
+        box('IHS machined perimeter',(side*3.57,4.79,0),(.055,.035,6.92),cover,u,.015)
 
 def export_variant(kind,accel):
     bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
@@ -254,6 +255,10 @@ def export_variant(kind,accel):
     spec=importlib.util.spec_from_file_location('compute_hero',HERE/'compute-hero-detail.py')
     hero=importlib.util.module_from_spec(spec);spec.loader.exec_module(hero)
     hero.enhance(kind,accel,m,box,cylinder,p3,material)
+    if kind=='rack':
+        spec=importlib.util.spec_from_file_location('rack_inspection',HERE/'rack-inspection-detail.py')
+        inspection=importlib.util.module_from_spec(spec);spec.loader.exec_module(inspection)
+        inspection.enhance(accel,m,box,cylinder,material)
     root=bpy.data.objects.new('IFX_BLENDER_COMPUTE',None);bpy.context.collection.objects.link(root)
     root['ifxCompute']=json.dumps({'scene':kind,'accel':accel,'units':'m','fullStaticHardware':True,'basis':'Representative authored mechanics; technical layout and overlays retained.'})
     bpy.ops.wm.save_as_mainfile(filepath=str(HERE/f'compute-{kind}-{accel}.blend'))

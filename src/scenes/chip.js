@@ -4,6 +4,7 @@ import { THREE, MAT, Builder, flow, canvasTex, glowMat } from '../kit.js';
 import { rbox } from '../fx.js';
 import { computeMaterials, finishCompute, boardFinish } from './compute-finish.js';
 import { STREAM_TPS, buildCycle, sampleAt, tick } from '../model/token-script.js';
+import { frameCompute } from './compute-framing.js';
 
 function dieTexture() {
   return canvasTex(640, 800, (g, w, h) => {
@@ -52,7 +53,12 @@ function chunkTexture(words, lane, startParity) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return { tex: t, aspect: tw / h };
 }
 
-export function build({ quality, state, model }) {
+export function build(options) {
+  const result = buildPackage(options);
+  frameCompute(result, 'chip', options.model.accel.id);
+  return result;
+}
+function buildPackage({ quality, state, model }) {
   const A = model.accel, twin = A.dies > 1, layers = A.hbm.layers;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x090c12);
@@ -156,9 +162,11 @@ export function build({ quality, state, model }) {
   lidEdge.position.copy(lid.position); scene.add(lidEdge);
   lidEdge.userData.computeCoverOutline = 'ihs';
   // Opaque machined perimeter keeps the illustrative x-ray lid legible as metal.
+  const lidRim = finish.satin.clone();
+  lidRim.userData.ifxCoverSurface = 'ihs';
   for (const side of [-1, 1]) {
-    rbox(N, 7.2, 0.035, 0.07, finish.satin, 0, Y.lid + 0.075, side * 3.465, { r: 0.22 });
-    rbox(N, 0.07, 0.035, 6.86, finish.satin, side * 3.565, Y.lid + 0.075, 0, { r: 0.22 });
+    rbox(N, 7.2, 0.035, 0.07, lidRim, 0, Y.lid + 0.075, side * 3.465, { r: 0.22 });
+    rbox(N, 0.07, 0.035, 6.86, lidRim, side * 3.565, Y.lid + 0.075, 0, { r: 0.22 });
   }
 
   scene.add(S.build()); scene.add(N.build({ cast: false }));

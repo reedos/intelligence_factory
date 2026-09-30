@@ -4,6 +4,7 @@
 // here appears verbatim in research/*.md or in the footer of index.html — never invented.
 
 export const SOURCES = {
+  'nvidia-rubin-superpod-topology': { title: 'DGX SuperPOD with Vera Rubin NVL72: compute tray topology', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx-superpod-reference-architecture-with-dgx-vera-rubin-nvl72.pdf', accessed: '09/29/2026', kind: 'primary' },
   'nvidia-dgx-gb300': { title: 'NVIDIA DGX GB300 specifications', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/dgx-gb300/', accessed: '09/29/2026', kind: 'primary', marketing: true },
   'nvidia-vera-rubin-system-blog': { title: 'Inside the NVIDIA Vera Rubin Platform: Six New Chips, One AI Supercomputer', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/?p=111036', published: '01/05/2026', accessed: '09/29/2026', kind: 'primary', marketing: true },
   'nvidia-vera-rubin-pod-blog': { title: 'NVIDIA Vera Rubin POD: Seven Chips, Five Rack-Scale Systems, One AI Supercomputer', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/?p=113993', accessed: '09/29/2026', kind: 'primary', marketing: true },

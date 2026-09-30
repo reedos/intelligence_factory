@@ -6,6 +6,7 @@ import { inflateSync } from 'node:zlib';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { compute, DEFAULT_SCENARIO } from '../model/engine';
+import { fitComponent } from '../app/housing-frame.js';
 
 const kinds=['rack','tray','chip'], ids=['gb200','gb300','rubin','h100'];
 const assets=new Map<string,any>(); let native:any[],wrappers:any[];
@@ -158,9 +159,10 @@ describe('complete Blender compute hardware',()=>{
     }finally{clock.mockRestore();}
   });
   it('compact Power view fits the context board and keeps the Tokens pin below the HUD band',()=>{
-    const b=wrappers[2].build(options('gb200')),preset=b.cameraByMode.power.compact;
+    const b=wrappers[2].build(options('gb200')),preset=fitComponent(b.cameraByMode.power,947,850);
     const c=new THREE.PerspectiveCamera(35,947/850,.05,500);c.position.fromArray(preset.pos);c.lookAt(new THREE.Vector3(...preset.target));c.updateMatrixWorld(true);
-    for(const x of [-6,6])for(const z of [-6,6]){const p=new THREE.Vector3(x,0,z).project(c);expect(Math.abs(p.x)).toBeLessThan(.96);expect(Math.abs(p.y)).toBeLessThan(.85);}
+    // The subject is the 9 cm package; the 12 cm board is supporting context.
+    for(const x of [-4.5,4.5])for(const z of [-4.5,4.5]){const p=new THREE.Vector3(x,0,z).project(c);expect(Math.abs(p.x)).toBeLessThan(.96);expect(Math.abs(p.y)).toBeLessThan(.85);}
     const pin=new THREE.Vector3(...b.hotspots.tokens.pos).project(c);expect(pin.y).toBeLessThan(.65);expect(Math.abs(pin.x)).toBeLessThan(.85);
     expect(c.position.distanceTo(new THREE.Vector3(...preset.target))).toBeLessThan(b.camera.max);
   });
@@ -344,6 +346,47 @@ it('Rubin scale-out overlays terminate on all eight NIC package regions',()=>{
  const outputs=b.dataFlows.filter((f:any)=>f.rubinNicOutput);
  expect(outputs.length).toBe(8);
  for(let gpu=0;gpu<4;gpu++)expect(outputs.filter((f:any)=>f.rubinNicOutput.gpu===gpu).map((f:any)=>f.rubinNicOutput.startZ)).toEqual([2.64,3.58]);
+});
+
+it('Rubin NIC PCIe starts at Vera; electrical SerDes reaches the optical cages',()=>{
+ const b=wrappers[1].build(options('rubin'));
+ const roots=b.dataFlows.filter((f:any)=>Number.isInteger(f.rubinPcieRoot));
+ expect(roots).toHaveLength(4);
+ for(const f of roots){
+  expect(f.cls).toBe('pcie');
+  expect(f.path.getPoint(0).x).toBeCloseTo(f.rubinPcieRoot===0?-1.1:1.1);
+  expect(f.path.getPoint(0).z).toBeCloseTo(-.65+.385);
+ }
+ expect(b.dataFlows.filter((f:any)=>f.rubinNicOutput).every((f:any)=>f.cls==='serdes')).toBe(true);
+});
+
+it('rack optics seat on compute units, retain generation port counts and terminate their patch leads',()=>{
+ for(const id of ids){
+  const b=wrappers[0].build(options(id)),info=b.scene.userData.rackOptics;
+  const count=id==='h100'?4:18;
+  expect(info.cagesPerTray).toBe(id==='rubin'?8:4);
+  expect(info.modules).toHaveLength(count*2);
+  expect(info.storageCages).toHaveLength(count*(id==='gb200'||id==='h100'?4:2));
+  expect(info.modules.filter((m:any)=>m.pulled)).toHaveLength(2);
+  for(const m of info.modules){
+   if(id!=='h100')expect(m.row<11||m.row>19).toBe(true); // no optics on NVLink switch trays
+   expect(m.capacityGbps).toBe(id==='gb200'?400:800);
+   expect(m.connectors).toBe(id==='h100'||id==='gb300'?2:1);
+  }
+  const links=b.dataFlows.filter((f:any)=>f.rackOpticalLink);
+  expect(links).toHaveLength(count*(id==='h100'||id==='gb300'?4:2));
+  const hardware=b.scene.getObjectByName('Blender complete rack hardware');hardware.updateMatrixWorld(true);
+  const ray=new THREE.Raycaster();
+  for(const f of links){
+   expect(f.path.getPoint(0).toArray()).toEqual(f.rackOpticalLink.start);
+   expect(f.path.getPoint(1).distanceTo(new THREE.Vector3(...f.rackOpticalLink.end))).toBeLessThan(1e-8);
+   expect(f.ribbonIntensity).toBeLessThan(.4);
+   // A connector must actually exist in the shipped Blender asset behind the fiber.
+   ray.set(new THREE.Vector3(...f.rackOpticalLink.start),new THREE.Vector3(0,0,id==='h100'?1:-1));
+   const hit=ray.intersectObject(hardware,true).find((h:any)=>h.distance<.035);
+   expect(hit,`${id} row ${f.rackOpticalLink.row} seated fiber connector`).toBeDefined();
+  }
+ }
 });
 
 it('compute studio adds exact-path batched motion to all three hardware scales',async()=>{

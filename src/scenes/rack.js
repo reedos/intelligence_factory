@@ -3,6 +3,8 @@
 import { THREE, MAT, Builder, mtx, flow, canvasTex, glowMat, spinners } from '../kit.js';
 import { rbox, bundle, blinkers, plumes, floorMirror } from '../fx.js';
 import { computeMaterials, finishCompute } from './compute-finish.js';
+import { frameCompute } from './compute-framing.js';
+import { addRackOptics } from './rack-optics.js';
 
 const U = 0.04445;
 // product-shot trim: the champagne bezel band from the server texture, in real geometry; and quick-disconnect collars
@@ -19,9 +21,10 @@ function trayTex(kind, generation) {
       if(kind==='compute')for(const x0 of [24,350])for(let r=0;r<2;r++)for(let c=0;c<2;c++){g.fillStyle='#080c10';g.fillRect(x0+c*48,8+r*17,40,12);}
       for(const x of [210,232,254,276]){g.fillStyle='#151b21';g.fillRect(x,12,15,10);}
     } else if (kind === 'compute') {
-      g.fillStyle = '#101216'; for (let x = 14; x < 200; x += 7) for (let y = 8; y < h - 8; y += 7) g.fillRect(x + (y % 14 ? 3 : 0), y, 4, 4);   // grille
-      for (let i = 0; i < 4; i++) { g.fillStyle = '#2d323a'; g.fillRect(212 + i * 30, 10, 24, h - 20); g.fillStyle = '#5cf29a'; g.fillRect(216 + i * 30, 14, 3, 3); }
-      for (let i = 0; i < 6; i++) { g.fillStyle = '#0b0c0e'; g.fillRect(340 + i * 26, 12, 20, h - 24); g.fillStyle = '#3a3f47'; g.fillRect(342 + i * 26, 14, 16, h - 28); }
+      // Four central E1.S sleds; cluster cages are real hollow geometry at the
+      // two outer bays. Do not paint six fictitious network ports underneath.
+      for (let i = 0; i < 4; i++) { g.fillStyle = '#596166'; g.fillRect(166 + i * 40, 5, 33, h - 10); g.fillStyle = '#12191c'; g.fillRect(171 + i * 40, 9, 7, h - 18); g.fillStyle = '#5cf29a'; g.fillRect(188 + i * 40, 12, 3, 3); }
+      g.fillStyle = '#101216'; for (let x = 12; x < w - 12; x += 7) if(x<155||x>329) for (let y = 6; y < 20; y += 6) g.fillRect(x, y, 3, 3);
       g.fillStyle = '#47cfff'; g.fillRect(w - 18, h / 2 - 2, 5, 4);
     } else if (kind === 'switch') {
       g.fillStyle = '#101216'; for (let x = 14; x < 380; x += 7) for (let y = 8; y < h - 8; y += 7) g.fillRect(x, y, 4, 4);
@@ -41,6 +44,8 @@ function trayTex(kind, generation) {
 export function build(opts) {
   const result = opts.model.accel.gpusPerRack === 72 ? buildNVL(opts) : buildHGX(opts);
   finishCompute(result.scene, computeMaterials());
+  addRackOptics(result, opts.model.accel.id);
+  frameCompute(result, 'rack', opts.model.accel.id);
   return result;
 }
 
@@ -115,7 +120,7 @@ function earFasteners(B, y, z, offsets = [0]) {
 // are ventilation, not additional I/O port counts.
 function serviceFace(B, y, z, heavy, kind) {
   rbox(B, 0.414, 0.003, 0.004, COLLAR, 0, y - U * 0.43, z + 0.002, { r: 0.3 });
-  if (kind === 'compute' || kind === 'switch') {
+  if (kind === 'switch') {
     B.box(0.147, U * 0.58, 0.002, MAT.black, -0.126, y, z + 0.0015);
     if (heavy) for (let i = 0; i < 20; i++) B.box(0.0015, U * 0.48, 0.0025, MAT.darkSteel, -0.195 + i * 0.0073, y, z + 0.0035);
   }
@@ -136,7 +141,9 @@ function buildHGX({ quality, state }) {
   room(scene, quality, S, N, W, H, D);
   const SU = 8 * U, sw = 0.44, sd = 0.84;
   const sy = k => base + 0.06 + k * (SU + 0.004) + SU / 2;                              // server centers, bottom up
-  const PULLED = 2, out = 0.46;
+  // An exploded service position exposes the complete server instead of
+  // burying the CPU board under the next chassis. Not an operating position.
+  const PULLED = 2, out = 1.0;
   const front = new THREE.MeshStandardMaterial({ map: serverTex(), roughness: 0.5, metalness: 0.35 });
   const side = new THREE.MeshStandardMaterial({ color: 0x2a2e34, roughness: 0.45, metalness: 0.6 });
   const inRack = [0, 1, 3];
@@ -159,7 +166,9 @@ function buildHGX({ quality, state }) {
   const py = sy(PULLED), pz = ZF - 0.07 - sd / 2 + out, yb = py - SU / 2;
   const pulled = new Builder();
   pulled.box(sw, 0.004, sd, MAT.galv, 0, yb + 0.004, pz);
-  pulled.box(0.004, SU * 0.95, sd, MAT.galv, -sw / 2, py, pz); pulled.box(0.004, SU * 0.95, sd, MAT.galv, sw / 2, py, pz);
+  pulled.box(0.004, SU * 0.95, sd, MAT.galv, -sw / 2, py, pz);
+  // Right wall is a teaching cutaway, matching the dedicated server view.
+  pulled.box(0.004, .035, sd, MAT.galv, sw / 2, yb + .0175, pz);
   pulled.box(sw - 0.02, 0.003, 0.5, MAT.pcb, 0, yb + 0.008, pz + 0.12);
   const fanItems = [];
   for (let i = 0; i < 6; i++) { const fx0 = -0.185 + i * 0.074; pulled.box(0.068, 0.15, 0.045, MAT.fan, fx0, yb + 0.1, pz + sd / 2 - 0.04); fanItems.push({ p: [fx0, yb + 0.065, pz + sd / 2 - 0.015], axis: 'z', r: 0.026 }, { p: [fx0, yb + 0.135, pz + sd / 2 - 0.015], axis: 'z', r: 0.026 }); }
@@ -170,13 +179,13 @@ function buildHGX({ quality, state }) {
   for (const z of [0.27, 0.1]) for (let i = 0; i < 4; i++) {
     const x = -0.162 + i * 0.108; sinks.push([x, pz + z]);
     pulled.box(0.086, 0.008, 0.13, MAT.copper, x, yb + 0.02, pz + z);
-    for (let f = 0; f < 8; f++) pulled.box(0.003, 0.1, 0.128, FIN, x - 0.038 + f * 0.0108, yb + 0.075, pz + z);
+    for (let f = 0; f < 24; f++) pulled.box(0.0012, 0.1, 0.128, FIN, x - 0.038 + f * (0.076 / 23), yb + 0.075, pz + z);
   }
   for (let i = 0; i < 4; i++) pulled.box(0.04, 0.045, 0.04, MAT.alu, -0.15 + i * 0.1, yb + 0.035, pz - 0.03);         // NVSwitch sinks
   pulled.box(sw - 0.02, 0.003, 0.38, MAT.pcb, 0, yb + 0.2, pz - 0.26);                                              // CPU tray, upper rear
   for (const x of [-0.1, 0.1]) { pulled.box(0.06, 0.05, 0.07, MAT.alu, x, yb + 0.23, pz - 0.24); for (const s of [-1, 1]) for (let k = 0; k < 4; k++) pulled.box(0.003, 0.03, 0.12, MAT.black, x + s * (0.045 + k * 0.007), yb + 0.22, pz - 0.24); }
   for (let i = 0; i < 6; i++) pulled.box(0.068, 0.07, 0.12, MAT.darkSteel, -0.185 + i * 0.074, yb + 0.045, pz - sd / 2 + 0.07);   // supplies
-  for (const x of [-0.26, 0.26]) pulled.box(0.012, 0.012, sd + 0.5, MAT.galv, x, yb + 0.006, pz - 0.25);
+  for (const x of [-0.26, 0.26]) pulled.box(0.012, 0.012, sd + out, MAT.galv, x, yb + 0.006, pz - out / 2);
   scene.add(pulled.build());
   const fans = spinners(fanItems, MAT.darkSteel, { blades: 7, speed: 7 });
   fans.mesh.userData.computeDynamic = 'rotor';
@@ -195,17 +204,13 @@ function buildHGX({ quality, state }) {
   N.strut([-0.25, 3.3, -0.25], [-0.25, 3.8, -0.25], 0.01, MAT.darkSteel, 4); N.strut([0.25, 3.3, -0.25], [0.25, 3.8, -0.25], 0.01, MAT.darkSteel, 4);
   // data: fiber from each server's rear cages up the back to the runway
   const fx = 0.12, fz = ZB + 0.06;
-  bundle(N, [fx, sy(0), fz], [fx, H + 0.28, fz], { n: 5, r: 0.0035, spread: 0.03, sag: 0.03, mats: [MAT.yellowTray, MAT.polymer], seed: 3, seg: 5 });
-  [0, 1, 3].forEach(k => { for (let c = 0; c < 4; c++) N.strut([-0.15 + c * 0.1, sy(k) + 0.05, ZF - 0.07 - sd], [fx, sy(k) + 0.08, fz], 0.003, MAT.yellowTray, 4); });
   S.box(0.3, 0.03, 3.2, MAT.yellowTray, 0.2, 3.62, 0); S.box(0.012, 0.1, 3.2, MAT.yellowTray, 0.06, 3.66, 0); S.box(0.012, 0.1, 3.2, MAT.yellowTray, 0.34, 3.66, 0);
-  N.strut([fx, H + 0.28, fz], [0.2, 3.6, fz], 0.012, MAT.yellowTray, 6);
   scene.add(S.build()); scene.add(N.build({ cast: false }));
 
   // ---------- flows ----------
   pduX.forEach(x => flows.push(flow([[x * 0.5, 3.0, -0.25], [x * 0.5, H + 0.02, -0.25], [x, pTop + 0.02, pduZ], [x, pBot, pduZ]], 'lv', { count: 16, speed: 0.35, size: 0.012, trailR: 0.004 })));
   [0, 1, 3].forEach(k => pduX.forEach(x => flows.push(flow([[x, sy(k), pduZ + 0.04], [x * 0.55, sy(k) - 0.04, ZF - 0.07 - sd]], 'lv', { count: 3, speed: 0.2, size: 0.009, trail: false }))));
   flows.push(flow([[0, yb + 0.06, pz - sd / 2 + 0.14], [0, yb + 0.03, pz - 0.05], [0, yb + 0.03, pz + 0.25]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
-  dataFlows.push(flow([[fx, sy(0), fz - 0.01], [fx, H + 0.28, fz - 0.01], [0.2, 3.6, fz], [0.2, 3.64, 1.5]], 'eth', { count: 22, speed: 0.4, size: 0.011, k: 2.3, trailR: 0.004 }));
   // scale-up: NVLink only inside the pulled server, GPUs to the switch row
   sinks.forEach(([x, z]) => dataFlows.push(flow([[x, yb + 0.03, z], [x * 0.9, yb + 0.03, pz - 0.03]], 'nvl', { count: 3, speed: 0.12, size: 0.006, k: 2.4, trail: false })));
   // heat: cold air in the front of every server, hot air out the back
@@ -301,11 +306,11 @@ function buildNVL({ quality, model, state }) {
   });
 
   // pulled-out compute tray with its lid off
-  const py = trayY(PULLED), out = 0.5, pz = ZF - 0.07 - trayD / 2 + out;
+  const py = trayY(PULLED), out = 0.95, pz = ZF - 0.07 - trayD / 2 + out;
   const pulled = new Builder();
   pulled.box(trayW, 0.004, trayD, MAT.galv, 0, py - U / 2 + 0.004, pz);
   pulled.box(0.004, U * 0.9, trayD, MAT.galv, -trayW / 2, py, pz); pulled.box(0.004, U * 0.9, trayD, MAT.galv, trayW / 2, py, pz);
-  pulled.box(trayW - 0.02, 0.003, trayD * 0.62, MAT.pcb, 0, py - U / 2 + 0.008, pz - 0.05);
+  for (const x of [-.108,.108]) pulled.box(.202, 0.003, trayD * 0.62, MAT.pcb, x, py - U / 2 + 0.008, pz - 0.05);
   const plates = rubin ? [[-.165,-.23],[-.06,-.23],[.06,-.23],[.165,-.23]] : [[-0.11,-0.2],[0.11,-0.2],[-0.11,0.08],[0.11,0.08]];
   plates.forEach(([x, z]) => { pulled.box(0.1, 0.018, 0.12, MAT.copper, x, py - U / 2 + 0.02, pz + z); pulled.box(0.07, 0.006, 0.09, MAT.nickel, x, py - U / 2 + 0.032, pz + z); });
   for (const x of [-0.11, 0.11]) { pulled.box(0.07, 0.014, 0.07, MAT.copper, x, py - U / 2 + 0.018, pz + 0.26); }
@@ -320,8 +325,13 @@ function buildNVL({ quality, model, state }) {
   }
   const pFront = new THREE.Mesh(new THREE.BoxGeometry(trayW, U * 0.94, 0.02), [MAT.rackFace, MAT.rackFace, MAT.rackFace, MAT.rackFace, new THREE.MeshStandardMaterial({ map: TEX.compute, roughness: 0.5, metalness: 0.35 }), MAT.rackFace]);
   pFront.position.set(0, py, pz + trayD / 2); scene.add(pFront);
-  bezel(N, 0, py, trayW / 2, U * 0.45, pz + trayD / 2 + 0.01);
-  for (const x of [-0.26, 0.26]) pulled.box(0.012, 0.012, trayD + 0.5, MAT.galv, x, py - U / 2 + 0.006, pz - 0.25); // slide rails
+  // Thin service-face returns leave both rows of optical cages accessible.
+  // The old full-width 10 mm trim crossed the upper storage ports.
+  for (const side of [-1,1]) {
+    N.box(trayW,.002,.005,MAT.nickel,0,py+side*U*.46,pz+trayD/2+.012);
+    N.box(.008,U*.9,.012,MAT.nickel,side*(trayW/2+.007),py,pz+trayD/2+.014);
+  }
+  for (const x of [-0.26, 0.26]) pulled.box(0.012, 0.012, trayD + out, MAT.galv, x, py - U / 2 + 0.006, pz - out / 2); // slide rails
   scene.add(pulled.build());
   const fans = spinners(fanItems, MAT.darkSteel, { blades: 7, speed: 8 });
   fans.mesh.userData.computeDynamic = 'rotor';
@@ -330,7 +340,7 @@ function buildNVL({ quality, model, state }) {
   // One of the nine existing switch trays is opened for service inspection.
   // Its rear remains connected to the illustrative spine through schematic
   // motion only; the service displacement is not extra production cabling.
-  const sy = trayY(SWITCH_PULLED), sz = pz + .10;
+  const sy = trayY(SWITCH_PULLED), sz = .615;
   S.box(trayW,.004,trayD,MAT.galv,0,sy-U/2+.004,sz);
   S.box(.405,.003,.68,MAT.pcbBlack,0,sy-U/2+.009,sz-.02);
   for(const x of [-.22,.22])S.box(.004,U*.90,trayD,MAT.galv,x,sy,sz);
@@ -402,14 +412,10 @@ function buildNVL({ quality, model, state }) {
 
   // ---------- data: scale-out fiber up the front, runway overhead ----------
   const fx = 0.27, fz = ZF - 0.03;
-  bundle(N, [fx, trayY(3), fz], [fx, H + 0.28, fz], { n: 5, r: 0.0035, spread: 0.028, sag: 0.025, mats: [MAT.yellowTray, MAT.polymer], seed: 9, seg: 5 });
-  layout.forEach((k, i) => { if (k === 'compute' && i !== PULLED) N.strut([0.17, trayY(i), ZF - 0.06], [fx, trayY(i) + 0.01, fz], 0.003, MAT.yellowTray, 4); });
   S.box(0.3, 0.03, 3.2, MAT.yellowTray, 0.2, 3.62, 0); S.box(0.012, 0.1, 3.2, MAT.yellowTray, 0.06, 3.66, 0); S.box(0.012, 0.1, 3.2, MAT.yellowTray, 0.34, 3.66, 0);
-  N.strut([fx, H + 0.28, fz], [0.2, 3.6, fz], 0.012, MAT.yellowTray, 6);
 
   scene.add(S.build()); scene.add(N.build({ cast: false }));
 
-  dataFlows.push(flow([[fx, trayY(3), fz + 0.01], [fx, H + 0.28, fz + 0.01], [0.2, 3.6, fz], [0.2, 3.64, -1.5]], 'eth', { count: 22, speed: 0.4, size: 0.011, k: 2.3, trailR: 0.004 }));
   // Rear-face teaching overlays remain depth-tested. Put the motion on the
   // exposed cartridge face so the opaque cartridge does not hide its own route.
   // Scale-up: NVLink up and down the cable cartridges, and out of a few trays.
