@@ -92,6 +92,37 @@ function frontTex(kind) {
     }
   });
 }
+// The shared Blender PLANE / BOX_SIX_FACES modules that finalizeSiteGeometry() swaps in carry V running
+// top-down while canvas textures keep flipY=true, so every front graphic rendered upside down (UPS/CDU
+// displays at knee height, switchgear rows inverted, NVL72 rows off the NVL_FACE relief). Re-orient V on
+// each vertical face so its top edge samples the top of the canvas. Idempotent: a face that already reads
+// top-up is left alone, so this stays correct if the shared module is fixed at the source.
+function uprightFaceUVs(scene) {
+  const seen = new Set();
+  scene.traverse(o => {
+    const module = o.isMesh && o.geometry.userData.blender?.module;
+    if ((module !== 'PLANE' && module !== 'BOX_SIX_FACES') || seen.has(o.geometry)) return;
+    seen.add(o.geometry);
+    const g = o.geometry, pos = g.attributes.position, uv = g.attributes.uv, idx = g.index;
+    if (!uv) return;
+    const total = idx ? idx.count : pos.count;
+    const groups = g.groups.length ? g.groups : [{ start: 0, count: total }];
+    for (const { start, count } of groups) {
+      const verts = new Set();
+      for (let i = start; i < start + count; i++) verts.add(idx ? idx.getX(i) : i);
+      let top = -1, bottom = -1, yMin = Infinity, yMax = -Infinity;
+      for (const v of verts) {
+        const y = pos.getY(v);
+        if (y > yMax) { yMax = y; top = v; }
+        if (y < yMin) { yMin = y; bottom = v; }
+      }
+      if (yMax - yMin < 1e-6) continue;                                                              // horizontal face
+      if (uv.getY(top) >= uv.getY(bottom)) continue;                                                 // already upright
+      for (const v of verts) uv.setY(v, 1 - uv.getY(v));
+    }
+    uv.needsUpdate = true;
+  });
+}
 export function build({ quality, model }) {
   const dc = model.power.id === 'dc800', air = model.cooling.id === 'air', nvl = model.accel.gpusPerRack === 72;
   const itV = dc ? 'hvdc' : 'lv';
@@ -768,6 +799,7 @@ export function build({ quality, model }) {
   scene.add(leds.mesh);
 
   finalizeSiteGeometry(scene);
+  uprightFaceUVs(scene);
   // CDU close-up: the first unit of the front row, whose front faces the open service aisle, seen from
   // below the light rails so no diffuser sits in the line of sight (the back-row unit faced the wall).
   const cduHero = cduMx[(rowZs.length - 1) * groups];
