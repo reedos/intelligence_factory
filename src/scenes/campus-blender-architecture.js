@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 let source, pending;
 export function preloadCampusArchitecture() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/campus-architecture.glb?v=5`).then(g => source = g.scene).catch(e => { pending = undefined; throw e; });
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/campus-architecture.glb?v=6`).then(g => source = g.scene).catch(e => { pending = undefined; throw e; });
 }
 export const hasCampusArchitecture = () => !!source;
 export function addBlenderCampusArchitecture(scene, hallList, x0, x1, quality) {

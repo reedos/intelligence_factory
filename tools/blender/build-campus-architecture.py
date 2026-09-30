@@ -59,10 +59,10 @@ padMat=mat('Hall roof walkway pad',(.46,.46,.44),0,.85)
 box('Opaque compute hall envelope',(0,11.15,0),(260,22,90),hallGraphite,'HALL',.18)
 box('Continuous concrete plinth',(0,1.0,0),(260.5,1.7,90.5),base,'HALL',.12)
 box('Visible roof deck',(0,22.23,0),(259,.16,89),membrane,'HALL',.04)
-for i in range(129):box('Membrane seam',(-129+2*i+.5,22.32,0),(.06,.02,88.6),seamMat,'HALL',0)
-for z in [-11.5,11.5]:box('Roof walkway pad',(0,22.34,z),(252,.06,1.2),padMat,'HALL',0)
+for i in range(129):box('Membrane seam',(-129+2*i+.5,22.335,0),(.06,.05,88.6),seamMat,'HALL',0)
+for z in [-11.5,11.5]:box('Roof walkway pad',(0,22.36,z),(252,.1,1.2),padMat,'HALL',0)
 for x in range(-104,105,26):
- for z in [-34,34]:box('Roof drain',(x,22.32,z),(.6,.02,.6),black,'HALL',0)
+ for z in [-34,34]:box('Roof drain',(x,22.345,z),(.6,.07,.6),black,'HALL',0)
 # Long facade: deep structural blade portals and faceted folded shells. Intentionally
 # dramatic silhouette, yet every crown remains below the existing 25.12m fan outlet.
 for sign in [-1,1]:
@@ -103,11 +103,11 @@ for row,(y0,y1) in enumerate([(.9,5.3),(6.15,10.55),(11.4,15.8)]):
  for col in range(16):
   if (col//3+row*2)%5<2:
    z=-22.5+col*3
-   for sx in [-1,1]:box('Lit office bay',(sx*14.03,(y0+y1)/2,z),(.02,y1-y0,2.6),roomLit,'OFFICE',0)
+   box('Lit office bay',(-14.06,(y0+y1)/2,z),(.02,y1-y0,2.6),roomLit,'OFFICE',0)
  for col in range(6):
   if (col+row)%3==0:
    x=-7.5+col*3
-   for sz in [-1,1]:box('Lit office bay',(x,(y0+y1)/2,sz*30.03),(2.6,y1-y0,.02),roomLit,'OFFICE',0)
+   for sz in [-1,1]:box('Lit office bay',(x,(y0+y1)/2,sz*30.06),(2.6,y1-y0,.02),roomLit,'OFFICE',0)
 for y in [.28,5.55,10.8,16.25]:
  prism('Office continuous floor fascia',roundrect(29.2,61.2,4.2),y,y+.38,pearl,'OFFICE',.09)
 # Roof canopy is supported, not a floating extra floor.

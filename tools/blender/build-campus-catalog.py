@@ -127,11 +127,11 @@ box('Acoustic enclosure',(0,2.55,0),(12.2,2.9,3),white,g,.06)
 for z in [-1.52,1.52]:
  for x in [-4.5,-1.5,1.5]:
   box('Flush acoustic door',(x,2.55,z),(2.84,2.63,.035),pearl,g,.02)
-  box('Recessed latch',(x+.9,2.5,z+math.copysign(.025,z)),(.06,.3,.035),shadow,g,0)
+  box('Recessed latch',(x+.9,2.5,z+math.copysign(.05,z)),(.06,.3,.035),shadow,g,0)
  # recessed louvered intake hood at the generator end
  box('Intake hood',(4.5,2.55,z+math.copysign(.12,z)),(2.6,2.2,.24),pearl,g,.02)
- box('Intake louver recess',(4.5,2.4,z+math.copysign(.245,z)),(2.3,1.7,.02),black,g,0)
- for y in [1.7+i*.2 for i in range(9)]:box('Intake louver blade',(4.5,y,z+math.copysign(.25,z)),(2.25,.05,.05),steel,g,0)
+ box('Intake louver recess',(4.5,2.4,z+math.copysign(.3,z)),(2.3,1.7,.02),black,g,0)
+ for y in [1.7+i*.2 for i in range(9)]:box('Intake louver blade',(4.5,y,z+math.copysign(.345,z)),(2.25,.05,.05),steel,g,0)
 box('Radiator discharge hood',(4.3,4.65,0),(3.2,1.3,2.8),steel,g,.06)
 for z in [-.7,.7]:ring('Radiator fan rim',(4.3,5.32,z),.62,.055,white,g,24,6);cyl('Radiator aperture',(4.3,5.32,z),.56,.04,black,g,'y',20)
 for x in [-5.9,5.9]:
@@ -241,7 +241,7 @@ box('Cabinet body',(0,.5,0),(1,1,1),white,g,.006)
 for x in [-.47,.47]:box('Folded door stile',(x,.51,.512),(.035,.93,.035),steel,g,.004)
 box('Cabinet plinth',(0,.025,0),(.96,.05,.94),shadow,g,0)
 for y in [.55+i*.06 for i in range(6)]:box('Rear louvre',(0,y,-.505),(.7,.022,.012),shadow,g,0)
-box('Rear rating label',(.3,.82,-.503),(.16,.08,.006),pearl,g,0)
+box('Rear rating label',(.3,.3,-.503),(.16,.08,.006),pearl,g,0)
 box('Top cable gland plate',(0,1.004,-.25),(.6,.008,.3),steel,g,0)
 # True-size lineup sections (front +Z, origin at floor centre) so nothing is stretched. Offered to the hall
 # level to replace the stretched HALL_CABINET; cubicle counts and face details are representative.
@@ -299,7 +299,7 @@ for z in [-6,6]:
   box('Symbol clerestory band',(2,4.95,z+sz*4.05),(23,.45,.08),clere,g,0)
   box('Symbol roof edge light',(2,5.98,z+sz*4.1),(22.5,.3,.3),lamp,g,.04)
  for i in range(6):
-  cyl('Symbol cooler fan',(-7.5+i*3.8,5.93,z),.9,.06,black,g,'y',16);ring('Symbol fan ring',(-7.5+i*3.8,5.96,z),.92,.08,steel,g,20,4)
+  cyl('Symbol cooler fan',(-7.5+i*3.8,6.03,z),.9,.06,black,g,'y',16);ring('Symbol fan ring',(-7.5+i*3.8,6.05,z),.92,.08,steel,g,20,4)
 box('Campus symbol service wing',(-14,2.1,0),(6,3,10),steel,g,.15)
 # substation yard at the plinth edge
 box('Symbol substation pad',(-21.5,.2,0),(8,.4,11),base,g,.05)

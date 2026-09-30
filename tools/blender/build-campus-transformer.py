@@ -46,7 +46,7 @@ for sx in [-1,1]:
   for i in range(9):
    z=bz-2.08+i*.52
    box('Pressed radiator panel',(sx*3.95,3.6,z),(1.1,4.0,.08),fin,g,0)
-   box('Panel rolled edge',(sx*4.5,3.6,z),(.035,3.9,.1),edge,g,0)
+   box('Panel rolled edge',(sx*4.52,3.6,z),(.035,3.9,.1),edge,g,0)
   for y in [1.45,5.75]:
    cyl('Radiator header',(sx*3.95,y,bz),.11,4.5,paint,'z',12)
    cyl('Flanged oil pipe',(sx*3.3,y,bz),.1,.62,paint,'x',12)
@@ -97,6 +97,7 @@ def lathe(n,prof,x,z,m,segments=12):
  for q in o.data.polygons:q.use_smooth=True
  return o
 def bushing(n,x,z,y0,h,r0,big,small,pitch,ring=False):
+ y0+=.06  # seat the base clear of the cover flange top
  prof=[(0,y0),(r0*2.6,y0),(r0*2.6,y0+.1),(r0*1.3,y0+.12)]
  y=y0+.3;k=0
  while y<y0+h-.35:
