@@ -363,12 +363,14 @@ export function build({ quality, model, state = {} }) {
       nuclearEmitters.push({ p: [x - 17, H2, z], dir: [0.1, 1, 0] }, { p: [x + 17, H2, z], dir: [-0.1, 1, 0] });
     }
     if (kind === 'wind') {                                             // three-blade rotors, turning in update()
-      const cols = quality.mobile ? 3 : 6, n = cols * (quality.mobile ? 3 : 3);
-      for (let i = 0; i < n; i++) {
-        const tx = x + (i % cols) * 14 - (cols - 1) * 7, tz = z + Math.floor(i / cols) * 16 - 16;
+      // R = 10 on a 16.5 hub; rows 2.5 rotor diameters apart across the wind and 5.5 downwind, each row staggered
+      const cols = quality.mobile ? 3 : 4, rows = 2, R = 10;
+      for (let i = 0; i < cols * rows; i++) {
+        const row = Math.floor(i / cols), tx = x + ((i % cols) - (cols - 1) / 2 + row * 0.5) * 2.5 * 2 * R, tz = z + (row - 0.5) * 5.5 * 2 * R;
+        if (!onLand(tx, tz)) continue;                                 // a land farm: drop any turbine the spread puts offshore
         if (authored) placePlant('WIND_MAST', mtx(tx, 0, tz));
-        else { P.cyl(0.5, 16, MAT.white, tx, 8, tz, 8); P.box(1.6, 1, 1.2, MAT.white, tx, 16.5, tz); }
-        turbineItems.push({ p: [tx, 16.5, tz], axis: 'z', r: 8 });
+        else { P.cyl(0.3, 16, MAT.white, tx, 8, tz, 8); P.box(1.2, 1, 2.4, MAT.white, tx, 16.5, tz - .35); }
+        turbineItems.push({ p: [tx, 16.5, tz + 1.05], axis: 'z', r: R });
       }
     }
     if (kind === 'solar') for (let i = 0; i < 10; i++) {
@@ -377,6 +379,9 @@ export function build({ quality, model, state = {} }) {
     }
   });
   for (const [name, matrices] of plantMatrices) power.add(acrossAssetInstances(name, matrices));
+  // red aviation lights on nacelles and stacks flash together, about 30 times a minute
+  const beacons = [];
+  power.traverse(o => { if (o.material && /Aviation light|Obstruction light/.test(o.material.name) && !beacons.some(b => b.m === o.material)) beacons.push({ m: o.material, k: o.material.emissiveIntensity }); });
   power.add(P.build({ cast: false }));
   const plumeUpdates = [];
   if (nuclearEmitters.length) { const pl = plumes(nuclearEmitters, { perEmitter: quality.mobile ? 10 : 22, size: 2.2, grow: 5, life: 9, rise: 2.1, drift: [0.4, 0, 0.15], spread: 0.6, color: '#eef3f8', opacity: 0.3 }); power.add(pl.points); plumeUpdates.push(pl.update); }
@@ -518,7 +523,10 @@ export function build({ quality, model, state = {} }) {
       remote: { pos: [R0[0], 10, R0[1]], view: view(R0[0] - 10, R0[1], 340) },
       home: { pos: [hx - 40, 10, hz + 40], view: view(hx, hz, 220) },
     },
-    update(t) { plumeUpdates.forEach(u => u(t)); if (turbines) turbines.update(t); },
+    update(t) {
+      plumeUpdates.forEach(u => u(t)); if (turbines) turbines.update(t);
+      const on = (t % 2) < 0.45 ? 1 : 0.12; beacons.forEach(b => { b.m.emissiveIntensity = b.k * on; });
+    },
   };
   attachFlowRibbons(built, { width: 2.4, glow: 5.8, brightness: 2.65, mobile: quality.mobile });
   return built;

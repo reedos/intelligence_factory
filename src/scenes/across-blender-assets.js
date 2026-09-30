@@ -36,7 +36,7 @@ export function acrossSurfaceGeometry() {
   return geo;
 }
 export function replaceWindRotor(mesh) {
-  const [geo] = acrossAssetBuilder('WIND_ROTOR').geometries().values();
-  mesh.geometry.dispose(); mesh.geometry = geo;
+  const [[material, geo]] = acrossAssetBuilder('WIND_ROTOR').geometries().entries();
+  mesh.geometry.dispose(); mesh.geometry = geo; mesh.material = material;
   mesh.userData.blenderAsset = 'WIND_ROTOR'; geo.userData.authoredIn = 'Blender';
 }

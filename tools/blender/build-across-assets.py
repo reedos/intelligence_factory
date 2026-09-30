@@ -103,18 +103,33 @@ for x in [-17,17]:
  o=lathe('Tower rim',[(33.7,11.9),(34,12.15),(34,11.65),(33.7,11.45)],pearl,g,32);o.location=pt((x,0,0))
 cyl('Containment cylinder',(1,7.5,19),7,15,pearl,g,24)
 o=lathe('Containment dome',[(15+5*math.sin(i*math.pi/24),7*math.cos(i*math.pi/24)) for i in range(13)],pearl,g,24);o.location=pt((1,0,19))
-# Wind mast and a three-bladed swept rotor, normalized for native animation.
-g='WIND_MAST';o=lathe('Tapered wind tower',[(0,.65),(16,.35)],pearl,g,16)
-box('Nacelle',(0,16.5,-.3),(1.6,1.1,2.2),pearl,g,.28)
-g='WIND_ROTOR';cyl('Spinner hub',(0,0,0),.12,.18,pearl,g)
+# Wind mast and a three-bladed rotor, normalized to blade radius 1 for native
+# animation (runtime scales it to R=10 on a 16.5 hub: rotor diameter about 1.2x
+# hub height, near the US 2023 average of 133.8 m on 103.4 m hubs, LBNL).
+# Slender blades, an ogive spinner, a tapered tower and a nacelle with a cooler
+# and an aviation light. The rotor turns about local +y, which faces upwind.
+bladeWhite=mat('Turbine off-white',(.78,.8,.8),0,.45)
+aviation=mat('Aviation light',(1,.1,.06),0,.5,6)
+g='WIND_MAST';o=lathe('Tapered wind tower',[(0,.35),(15.9,.22)],bladeWhite,g,16)
+box('Nacelle',(0,16.5,-.35),(1.15,1.1,2.5),bladeWhite,g,.34)
+box('Nacelle cooler',(0,17.14,-1.15),(.75,.24,.55),steel,g,.05)
+cyl('Nacelle aviation light',(0,17.12,.1),.13,.16,aviation,g,8)
+g='WIND_ROTOR'
+o=lathe('Ogive spinner',[(-.03,.062),(.03,.06),(.07,.05),(.1,.034),(.125,.016),(.14,.003)],bladeWhite,g,16)
+cone=math.tan(math.radians(3.5))
+# plan form: x = span (0..1), z = chord; a round root to 5% span, max chord about
+# 0.075 R near a quarter span, tapering to about 0.02 R at the tip
+poly=[(.02,-.034),(.05,-.034),(.12,-.032),(.24,-.03),(.45,-.024),(.7,-.015),(.9,-.009),(1,-.005),
+      (1,.011),(.9,.016),(.7,.024),(.45,.035),(.24,.045),(.12,.04),(.05,.034),(.02,.034)]
 for i in range(3):
  a=i*math.tau/3
- poly=[(.1,-.07),(.28,-.095),(.7,-.052),(1,-.012),(1,.02),(.6,.07),(.23,.055)]
  v=[]
- for y in [-.015,.015]:
-  for x,z in poly:v.append((x*math.cos(a)-z*math.sin(a),y+x*.025,x*math.sin(a)+z*math.cos(a)))
+ for side in [-1,1]:
+  for x,z in poly:
+   t=(.02-.014*x)*side;z2=z-.02*x*x
+   v.append((x*math.cos(a)-z2*math.sin(a),t+x*cone,x*math.sin(a)+z2*math.cos(a)))
  l=len(poly);f=[tuple(range(l-1,-1,-1)),tuple(range(l,l*2))]+[(j,(j+1)%l,(j+1)%l+l,j+l) for j in range(l)]
- mesh('Swept turbine blade',v,f,pearl,g,.006)
+ mesh('Slender turbine blade',v,f,bladeWhite,g,.004)
 # One tilted solar row. Scenario repeats it without changing the row count.
 g='SOLAR_ROW';box('PV row',(0,0,0),(60,.4,3),glass,g,.045)
 for x in [-30+i*3 for i in range(21)]:box('PV panel divider',(x,.215,0),(.055,.035,3),steel,g,.007)
