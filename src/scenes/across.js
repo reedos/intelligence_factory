@@ -281,7 +281,8 @@ export function build({ quality, model, state = {} }) {
     }
     if (authored) {
       campusSymbols.push(mtx(x, 0, z, 0, k));
-      S.slab(40 * k, 0.3, 32 * k, main ? apronHome : apronOther, x, 0.05, z);
+      // kept below the symbol's substation pad (top 0.4 k) so the two never share a plane
+      S.slab(40 * k, 0.15, 32 * k, main ? apronHome : apronOther, x, 0.05, z);
       return;
     }
     rbox(S, 34 * k, 0.6, 26 * k, MAT.concreteDark, x, 0.3, z, { r: 0.05 });
