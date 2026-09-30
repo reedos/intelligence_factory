@@ -868,9 +868,9 @@ function buildNVL({ quality, model, state }) {
     hotspots: {
       feed: { pos: [0.12, 3.03, -0.165], view: { pos: [1.2, 3.1, 1.0], target: [0, 2.7, -0.25] } },
       shelves: { pos: [0.25, trayY(31), ZF - 0.05], view: { pos: [0.7, 1.9, 1.5], target: [0, trayY(31), ZF] } },
-      busbar: { pos: [0.03, trayY(14), bbZ], view: { pos: [0.9, 1.3, -1.3], target: [0, 0.9, bbZ] } },
+      busbar: { pos: [0.03, trayY(10), bbZ], view: { pos: [0.9, 1.3, -1.3], target: [0, 0.9, bbZ] } },
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
-      nvswitch: { pos: [.1, sy + .04, sz], view: { pos: [.65, sy + .75, sz + 1.0], target: [0, sy, sz] } },
+      nvswitch: { pos: [-.12, sy + .04, sz], view: { pos: [.65, sy + .75, sz + 1.0], target: [0, sy, sz] } },
       spine: spineHot,
       manifold: manifoldHot,
     },
@@ -882,7 +882,7 @@ function buildNVL({ quality, model, state }) {
     },
     dataHotspots: {
       tp: { pos: [-0.2, trayY(15), ZF - 0.05], view: { pos: [1.2, 1.4, 2.2], target: [0, 1.0, 0] } },
-      nvswitch: { pos: [.1, sy + .04, sz], view: { pos: [.65, sy + .75, sz + 1.0], target: [0, sy, sz] } },
+      nvswitch: { pos: [-.12, sy + .04, sz], view: { pos: [.65, sy + .75, sz + 1.0], target: [0, sy, sz] } },
       spine: spineHot,
       uplinks: { pos: [fx, H + 0.2, fz], view: { pos: [1.3, 2.9, 2.2], target: [0.2, 2.2, fz] } },
       // Front cage rows, fiber managers and the patch strip, with the opened
