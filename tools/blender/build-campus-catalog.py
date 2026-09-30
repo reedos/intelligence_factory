@@ -114,17 +114,34 @@ for sx in [-1,1]:
  for y in [.55,1.75]:cyl('Radiator header',(sx*(.925+.27),y,-.55),.04,1.05,rad,g,'z',8)
 for i in range(4):box('Radiator panel',(-.45+i*.3,1.15,-1.25-.27),(.05,1.3,.52),rad,g,0)
 for y in [.55,1.75]:cyl('Radiator header',(0,y,-1.25-.27),.04,1.05,rad,g,'x',8)
-# Standby generators: same footprint, two radiator fans and stack anchors.
-g='GENSET';box('Generator foundation',(0,.2,0),(13,.4,3.8),base,g,.1);box('Acoustic enclosure',(0,1.85,0),(12.2,2.9,3),white,g,.16)
+# Standby generators: same 13 x 3.8 m footprint. A 0.7 m double-wall sub-base fuel tank under the acoustic
+# enclosure, recessed louvered intake hoods at the generator end and a discharge hood at the radiator end,
+# a high-temperature black silencer with the stack on its outlet and a flapper rain cap, lifting eyes and a
+# breaker cabinet by the step-up transformer. Enclosure details are representative.
+g='GENSET'
+hot=mat('High-temperature black paint',(.03,.032,.035),.3,.6)
+box('Generator foundation',(0,.2,0),(13,.4,3.8),base,g,.05)
+box('Sub-base fuel tank',(0,.75,0),(12.4,.7,3.1),shadow,g,.03)
+for x in [-5.2,5.2]:cyl('Sub-base fill port',(x,1.14,1.1),.08,.08,steel,g,'y',10)
+box('Acoustic enclosure',(0,2.55,0),(12.2,2.9,3),white,g,.06)
 for z in [-1.52,1.52]:
- for x in [-4.5,-1.5,1.5,4.5]:
-  box('Flush acoustic door',(x,1.85,z),(2.84,2.63,.035),pearl,g,.035)
-  box('Recessed latch',(x+.9,1.8,z+math.copysign(.025,z)),(.06,.3,.035),shadow,g,.018)
-  for y in [.7+i*.14 for i in range(8)]:box('Louver slit',(x,y,z+math.copysign(.035,z)),(2.35,.035,.026),shadow,g,.008)
-box('Radiator plenum',(4.3,3.95,0),(3.2,1.3,2.8),steel,g,.14)
-for z in [-.7,.7]:ring('Radiator fan rim',(4.3,4.62,z),.62,.055,white,g);cyl('Radiator aperture',(4.3,4.62,z),.56,.04,black,g)
-cyl('Silencer',(-2.5,3.8,0),.45,2.6,steel,g,'x');cyl('Exhaust stack',(-1.2,4.6,0),.26,2.8,shadow,g)
-box('Generator transformer',(-7.4,1.3,0),(1.2,1.8,1.6),white,g,.08)
+ for x in [-4.5,-1.5,1.5]:
+  box('Flush acoustic door',(x,2.55,z),(2.84,2.63,.035),pearl,g,.02)
+  box('Recessed latch',(x+.9,2.5,z+math.copysign(.025,z)),(.06,.3,.035),shadow,g,0)
+ # recessed louvered intake hood at the generator end
+ box('Intake hood',(4.5,2.55,z+math.copysign(.12,z)),(2.6,2.2,.24),pearl,g,.02)
+ box('Intake louver recess',(4.5,2.4,z+math.copysign(.245,z)),(2.3,1.7,.02),black,g,0)
+ for y in [1.7+i*.2 for i in range(9)]:box('Intake louver blade',(4.5,y,z+math.copysign(.25,z)),(2.25,.05,.05),steel,g,0)
+box('Radiator discharge hood',(4.3,4.65,0),(3.2,1.3,2.8),steel,g,.06)
+for z in [-.7,.7]:ring('Radiator fan rim',(4.3,5.32,z),.62,.055,white,g,24,6);cyl('Radiator aperture',(4.3,5.32,z),.56,.04,black,g,'y',20)
+for x in [-5.9,5.9]:
+ for z in [-1.4,1.4]:ring('Lifting eye',(x,4.08,z),.08,.02,steel,g,12,4)
+cyl('Silencer',(-2.5,4.5,0),.45,2.6,hot,g,'x')
+for x in [-3.7,-1.3]:cyl('Silencer flange ring',(x,4.5,0),.5,.06,hot,g,'x')
+cyl('Exhaust stack',(-3.55,5.3,0),.24,1.2,hot,g)
+box('Flapper rain cap',(-3.5,5.93,0),(.52,.03,.5),hot,g,0)
+box('Generator transformer',(-7.4,1.3,0),(1.2,1.8,1.6),white,g,.04)
+box('Breaker cabinet',(-6.55,1.3,1.2),(.5,1.4,.7),pearl,g,.02)
 # Battery container, no implied individual cell layout/capacity. A 20 ft-class steel enclosure (small edge
 # radius, not a molded look), ribbed side panels between gasketed service doors, a roof thermal-management
 # unit with fan grilles, end grilles and hazard placards. Generic, not a named product.

@@ -3,7 +3,7 @@ import { THREE, Builder } from '../kit.js';
 let source, pending;
 export function preloadCampusCatalog() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/campus-catalog.glb?v=12`).then(g => { source=g.scene; source.updateMatrixWorld(true); source.traverse(o=>{if(o.isMesh)o.geometry.userData.blender={asset:'campus-catalog',part:o.name};}); return source; }).catch(e=>{pending=undefined;throw e;});
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/campus-catalog.glb?v=13`).then(g => { source=g.scene; source.updateMatrixWorld(true); source.traverse(o=>{if(o.isMesh)o.geometry.userData.blender={asset:'campus-catalog',part:o.name};}); return source; }).catch(e=>{pending=undefined;throw e;});
 }
 export const hasCampusCatalog=()=>!!source;
 // Blender meshes supply shape/material; JS only instantiates scenario placement.
