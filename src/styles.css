@@ -1062,3 +1062,16 @@ body.story .pane-note { display: none; }
 .ov-actions .btn { justify-content: center; min-height: 46px; }
 .ov-actions .ov-open { font-size: 15px; min-height: 56px; }
 @media (max-width: 900px) { .open-vis { grid-template-columns: minmax(0, 1fr); padding: 22px; } }
+
+/* previous / next part, always in view (Reed, 09/30): in the control row beside Auto cycle on a desktop, in the side
+   pane's tab bar below 1100 px */
+.part-nav { display: flex; gap: 0; width: auto; }
+.part-nav .btn { display: inline-flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+.campus-presentation .part-nav .btn + .btn { margin-left: -1px; }
+.pane-tabs .part-nav { margin-left: auto; align-self: center; padding-right: 6px; }
+.pane-tabs .part-nav .btn { all: unset; box-sizing: border-box; cursor: pointer; display: inline-grid; place-items: center; width: 44px; height: 40px; font: 500 22px/1 var(--sans); color: var(--ink); border: 1px solid var(--line-2); }
+.pane-tabs .part-nav .btn + .btn { margin-left: -1px; }
+.pane-tabs .part-nav .btn:focus-visible { outline: 1px solid var(--accent); outline-offset: -3px; }
+.pane-tabs .part-nav .pn-t { display: none; }
+.pane-tabs:has(.part-nav) .pane-sum { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 480px) { .pane-tabs:has(.part-nav) .pane-sum { display: none; } }

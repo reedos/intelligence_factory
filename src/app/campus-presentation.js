@@ -25,7 +25,14 @@ document.getElementById('mm-tools').insertAdjacentHTML('beforeend', `<label clas
 // On tablets and phones the view's own controls join that menu too, so no control row sits between the view and the
 // side pane; on a desktop they stay in a row under the view.
 const inMenu = matchMedia('(max-width: 1100px)');
-const place = () => { if (inMenu.matches) document.getElementById('mm-view').append(panel); else document.getElementById('viewer').append(panel); };
+// Previous/next part stay in view at every size (Reed, 09/30): beside Auto cycle on a desktop, and in the side pane's
+// tab bar, which never scrolls away, where the view controls fold into the menu
+const partNav = document.querySelector('.card-navigation');
+partNav.classList.add('part-nav');
+const place = () => {
+  if (inMenu.matches) { document.getElementById('mm-view').append(panel); document.querySelector('.pane-tabs').append(partNav); }
+  else { document.getElementById('viewer').append(panel); document.getElementById('part-cycle').before(partNav); }
+};
 inMenu.addEventListener('change', place); place();
 const scope = document.createElement('section'); scope.className = 'link-scope'; scope.hidden = true;
 const scopeBrief = document.createElement('p');
