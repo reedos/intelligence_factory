@@ -468,10 +468,15 @@ export function build({ quality, model, state = {} }) {
   const near = others.map(p => ({ p, km: greatCircleKm(here, p.site) })).sort((a, b) => a.km - b.km).slice(0, 2);
   const huts = [];
   let longest = null;
+  // each line terminal sits on the east edge of its campus plinth; the route ends at a lit fiber-entrance vault
+  // on the terminal's outer wall rather than at the campus center
+  const terminalAt = ([x, z], k) => [x + 17 * k + 5.4, z - 6 * k];
+  const vaultAt = t => [t[0] + 5.3, t[1]];
+  const HT = terminalAt(H, 1);
   near.forEach(({ p, km }, i) => {
-    const B = world(p.site.lon, p.site.lat);
+    const B = world(p.site.lon, p.site.lat), BT = terminalAt(B, 0.85);
     // near the ground: long-haul fiber runs in buried conduit and enters each amplifier hut, rather than overhead
-    const pts = route(H, B, Math.min(160, km * 0.12), 7 + i * 10).map(q => [q[0], 1.2, q[2]]);
+    const pts = route(vaultAt(HT), vaultAt(BT), Math.min(160, km * 0.12), 7 + i * 10).map(q => [q[0], 1.2, q[2]]);
     const L = polyLen(pts);
     // Screen-width cartographic overlay, not a physical cable diameter. The public geographic
     // endpoints, representative wandering path and directional elevations stay unchanged.
@@ -517,7 +522,15 @@ export function build({ quality, model, state = {} }) {
   hut.cyl(.16, .14, glowMat('#ffd35c', 1.4), 2.4, 3.3, 1.5, 10);
   data.add(hut.instance(huts.map(p => mtx(p[0], 0, p[2]))));
   }
-  const terminalMatrices = [H, ...near.map(({ p }) => world(p.site.lon, p.site.lat))].map(([x, z]) => mtx(x + 20, 0, z - 16));
+  const terminals = [HT, ...near.map(({ p }) => terminalAt(world(p.site.lon, p.site.lat), 0.85))];
+  const terminalMatrices = terminals.map(([x, z]) => mtx(x, 0, z));
+  {
+    // gold carries the data layer's color onto the building: a crown strip and the vault the fiber enters by
+    const v = new Builder(), gold = glowMat('#ffd35c', 1.6);
+    v.box(7, .12, .1, gold, 0, 4.03, 3.36);
+    v.slab(.9, .35, 1.1, MAT.darkSteel, 5.3, 0, 0); v.box(1.0, .08, 1.2, gold, 5.3, .39, 0);
+    data.add(v.instance(terminalMatrices));
+  }
   if (authored) data.add(campusCatalogInstances('MAP_TERMINAL', terminalMatrices));
   else {
     const lt = new Builder(); lt.slab(8, 4, 6, MAT.white, 0, 0, 0); lt.slab(8.4, 0.4, 6.4, glowMat('#ffd35c', 0.9), 0, 4, 0);
@@ -567,7 +580,7 @@ export function build({ quality, model, state = {} }) {
       home: { pos: [hx + 2, 12, hz + 6], view: view(hx, hz + 6, 150) },
     },
     dataHotspots: {
-      dci: { pos: [hx + 20, 8, hz - 16], view: view(hx + 10, hz - 10, 200) },
+      dci: { pos: [HT[0], 8, HT[1]], view: view(HT[0] - 6, HT[1], 110) },
       ila: { pos: [h0[0], 9, h0[2]], view: view(h0[0], h0[2], 60) },
       route: { pos: [longest?.mid[0] ?? hx, 60, longest?.mid[2] ?? hz], view: { pos: [(longest?.mid[0] ?? hx) - 100, 900, (longest?.mid[2] ?? hz) + 900], target: [longest?.mid[0] ?? hx, 0, longest?.mid[2] ?? hz] } },
       remote: { pos: [R0[0], 10, R0[1]], view: view(R0[0] - 10, R0[1], 340) },
