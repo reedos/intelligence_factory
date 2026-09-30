@@ -93,6 +93,14 @@ sheetBtn.addEventListener('pointermove', e => {
 sheetBtn.addEventListener('pointerup', () => { sheetDrag = null; });
 sheetBtn.addEventListener('pointercancel', () => { sheetDrag = null; dragged = false; });
 sheetBtn.addEventListener('click', () => { if (!dragged) setSheet(!document.body.classList.contains('sheet-open')); dragged = false; });
+{
+  const q = new URLSearchParams(location.search);
+  if (q.get('pane') === 'scenario') {
+    showPane('scenario'); setSheet(true);
+    q.delete('pane');
+    try { history.replaceState(null, '', `${location.pathname}${q.size ? `?${q}` : ''}${location.hash}`); } catch { /* sandboxed viewers refuse */ }
+  }
+}
 const sum = document.getElementById('pane-sum');
 const summarize = () => { const M = store.M; if (M && sum) sum.textContent = `${M.accel.short ?? M.accel.id} · ${Math.round(M.meterMW).toLocaleString('en-US')} MW · ${M.cooling.short ?? M.cooling.id}`; };
 import('./app/store.js').then(({ on }) => { on('scenario', summarize); summarize(); });

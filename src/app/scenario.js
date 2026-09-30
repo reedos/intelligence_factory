@@ -23,7 +23,14 @@ function seg(el, options, current, disabled, onPick) {
   el.innerHTML = options.map(([id, label, sub]) => `<button type="button" data-id="${id}" aria-pressed="${id === current}" ${disabled(id) ? 'disabled' : ''}>${label}${sub ? `<small>${sub}</small>` : ''}</button>`).join('');
   el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => onPick(b.dataset.id)));
 }
+function renderLine() {
+  const line = $('sc-line'); if (!line) return;
+  const s = store.scenario, M = store.M, x = s.site && SITES[s.site];
+  line.textContent = `${x ? `${x.name} · ` : ''}${mwLabel(M.meterMW)} · ${M.accel.short} · ${M.power.short} · ${M.cooling.short}`;
+}
 function renderControls() {
+  renderLine();
+  if (!$('sc-mw')) return;                                  // the story page shows the campus; the visualizer changes it
   const s = store.scenario, A = ACCELERATORS[s.accel];
   const mwTxt = mwLabel(s.meterMW);
   $('sc-mw-v').textContent = mwTxt;
@@ -49,6 +56,7 @@ function pickSite(id) {
 }
 function renderSiteCard() {
   const s = store.scenario, x = s.site && SITES[s.site], box = $('site-card');
+  if (!box) return;
   box.hidden = !x; if (!x) return;
   // a campus sized from its fleet derives its meter, so the meter is no drift; leaving the fleet is
   const staged = x.fleet && store.M.stage != null;
@@ -72,9 +80,9 @@ function stageBlock(x) {
     <div class="sc-seg" role="group" aria-label="Fleet stage">${x.fleet.map((f, k) => `<button type="button" data-stage="${k}" aria-pressed="${k === i}">${f.label}<small>${kShort(total(f))}</small></button>`).join('')}</div>
     <p class="note">${st ? `${st.note}. ` : ''}GPU counts from Elon Musk; the halls, CDUs, cables and tokens are this model, sized from them.</p></div>`;
 }
-$('sc-mw').addEventListener('input', e => { const t = mwLabel(mwFrom(+e.target.value)); $('sc-mw-v').textContent = t; syncRange(e.target, t); });
+$('sc-mw')?.addEventListener('input', e => { const t = mwLabel(mwFrom(+e.target.value)); $('sc-mw-v').textContent = t; syncRange(e.target, t); });
 // picking a size leaves a published fleet: that campus's size comes from its GPU counts, not the slider
-$('sc-mw').addEventListener('change', e => setScenario({ meterMW: mwFrom(+e.target.value), stage: undefined }));
+$('sc-mw')?.addEventListener('change', e => setScenario({ meterMW: mwFrom(+e.target.value), stage: undefined }));
 document.querySelectorAll('[data-mw]').forEach(b => b.addEventListener('click', () => setScenario({ meterMW: +b.dataset.mw, stage: undefined })));
 
 // ---------- summary strip ----------
@@ -101,23 +109,30 @@ function kpis(M) {
     ['Water per day', waterM3h(M) * 24, v => compact(v, ' m³'), -1],
   ];
 }
+// how a figure moved from the pinned scenario A: its class (better, worse, only bigger) and the percent
+function moved(v, w, better) {
+  const pct = w ? (v - w) / w * 100 : 0;
+  const cls = Math.abs(pct) < 0.5 ? 'same' : better === 0 ? 'size' : pct * better > 0 ? 'up' : 'down';
+  return { cls, pct: cls === 'same' ? '' : `${pct > 0 ? '+' : '−'}${Math.abs(pct) >= 10 ? Math.round(Math.abs(pct)) : Math.abs(pct).toFixed(1)}%` };
+}
+const HEADLINE = ['IT load', 'Tokens per kWh', 'Water per day'];   // the pinned strip's three, read while adjusting
 function renderKpis() {
   const now = kpis(store.M), was = store.pinned ? kpis(store.pinned) : null;
   $('kpis').innerHTML = now.map(([label, v, f, better], i) => {
     let delta = '';
-    if (was) {
-      const w = was[i][1], pct = w ? (v - w) / w * 100 : 0;
-      const cls = Math.abs(pct) < 0.5 ? 'same' : better === 0 ? 'size' : pct * better > 0 ? 'up' : 'down';
-      delta = `<span class="kd ${cls}">A ${f(w)}${cls === 'same' ? '' : ` · ${pct > 0 ? '+' : '−'}${Math.abs(pct) >= 10 ? Math.round(Math.abs(pct)) : Math.abs(pct).toFixed(1)}%`}</span>`;
-    }
+    if (was) { const w = was[i][1], m = moved(v, w, better); delta = `<span class="kd ${m.cls}">A ${f(w)}${m.pct ? ` · ${m.pct}` : ''}</span>`; }
     return `<div class="kpi"><span class="kv">${f(v)}</span><span class="kl">${label}</span>${delta}</div>`;
   }).join('');
   const P = store.pinned;
+  if (!$('sc-pin')) return;
   $('sc-pin').textContent = P ? 'Unpin' : 'Pin to compare';
   $('sc-pin').setAttribute('aria-pressed', String(!!P));
-  $('sc-pinned').textContent = P ? `A = ${mwLabel(P.meterMW)} · ${P.accel.short} · ${P.power.short} · ${P.cooling.short}` : 'Pin this scenario, then change a setting to see what moves.';
+  $('sc-pin').closest('.sc-compare')?.classList.toggle('pinned', !!P);
+  const heads = was ? now.filter(k => HEADLINE.includes(k[0])).map(([label, v, f, better]) => { const w = was.find(k => k[0] === label)[1], m = moved(v, w, better);
+    return `<span class="kd ${m.cls}">${label} ${f(v)}${m.pct ? ` ${m.pct}` : ' ='}</span>`; }).join('') : '';
+  $('sc-pinned').innerHTML = P ? `<span class="sc-a">A = ${mwLabel(P.meterMW)} · ${P.accel.short} · ${P.power.short} · ${P.cooling.short}</span><span class="sc-heads">${heads}</span>` : 'Pin this scenario, then change a setting to see what moves.';
 }
-$('sc-pin').addEventListener('click', () => pin(!store.pinned));
+$('sc-pin')?.addEventListener('click', () => pin(!store.pinned));
 
 // ---------- URL ----------
 function writeUrl() {
@@ -128,6 +143,8 @@ function writeUrl() {
   // Keep a complete link for normal clicks, copying, and opening in a new tab.
   const open = $('sc-open');
   if (open) open.href = withScenario(q.toString(), 'visualizer.html?view=1.power');
+  const edit = $('sc-edit');
+  if (edit) edit.href = withScenario(q.toString(), 'visualizer.html?pane=scenario');
   try { history.replaceState(null, '', `${location.pathname}?${q}${location.hash}`); } catch { /* sandboxed viewers refuse; the page still works */ }
 }
 function readUrl() {
