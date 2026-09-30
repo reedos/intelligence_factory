@@ -3,6 +3,8 @@ language. Device counts and functional route centers belong to rack.js. Small
 passives, fasteners and fabrication marks are representative, not a vendor BOM.
 Only the exposed tray receives this detail; repeated closed trays stay batched.
 """
+import bpy
+
 def enhance(accel,m,box,cylinder,material):
     U=.04445
     h100=accel=='h100';rubin=accel=='rubin'
@@ -13,6 +15,8 @@ def enhance(accel,m,box,cylinder,material):
     pcb=material('Service solder mask',(.025,.073,.055),.25,.52)
     cap=material('Service ceramic passives',(.12,.14,.15),.2,.56)
     ink=material('Service PCB silkscreen',(.54,.62,.57),.0,.68)
+    hose=material('Service coolant hose',(.042,.054,.060),.05,.6)
+    power=material('Service insulated DC harness',(.44,.105,.026),.0,.5)
     def b(name,p,d,mat,bevel=.0005):return box('Inspection '+name,p,d,mat,1,bevel)
     def screw(x,y,z,r=.002):
         cylinder('Inspection captive fastener',(x,y,z),r,.0013,m['bright'],1)
@@ -26,6 +30,21 @@ def enhance(accel,m,box,cylinder,material):
             px=x+(i-(n-1)/2)*span/n
             b('decoupling body',(px,y,z),(.0032,.0015,.0021),cap,.00025)
             for s in [-1,1]:b('solder termination',(px+s*.00145,y,z),(.0005,.0016,.00215),m['bright'],0)
+    def tube(name,points,r,mat):
+        curve=bpy.data.curves.new('Inspection '+name,'CURVE');curve.dimensions='3D'
+        curve.resolution_u=6;curve.bevel_depth=r;curve.bevel_resolution=2
+        spline=curve.splines.new('BEZIER');spline.bezier_points.add(len(points)-1)
+        for point,(x,y,z) in zip(spline.bezier_points,points):
+            point.co=(x,-z,y);point.handle_left_type='AUTO';point.handle_right_type='AUTO'
+        obj=bpy.data.objects.new('Inspection '+name,curve);bpy.context.collection.objects.link(obj);obj.data.materials.append(mat)
+        # Convert before the exporter batches static hardware by material.
+        bpy.ops.object.select_all(action='DESELECT');obj.select_set(True);bpy.context.view_layer.objects.active=obj;bpy.ops.object.convert(target='MESH')
+    def control_board(name,x,y,z,w,d):
+        b(name,(x,y,z),(w,.002,d),pcb,0)
+        frame(name+' outline',x,y+.0012,z,w-.004,d-.004)
+        for sx in [-1,1]:
+            for sz in [-1,1]:screw(x+sx*(w/2-.005),y+.002,z+sz*(d/2-.005),.0016)
+        for sz in [-1,1]:passives(x,y+.003,z+sz*d*.37,w*.7,10)
     # Folded returns, telescoping bearing channels, captive mounting hardware.
     for x in [-.216,.216]:
         y=py+4*U*.95 if h100 and x<0 else yb+(.035 if h100 else .042)
@@ -60,6 +79,36 @@ def enhance(accel,m,box,cylinder,material):
                         cylinder('Inspection fan captive corner',(x+sx*.029,yb+dy+sy*.029,pz+depth/2-.012),.002,.002,m['bright'],1,'z')
             for j in range(7):b('PSU intake louver',(x-.024+j*.008,yb+.081,pz-depth/2+.07),(.003,.003,.095),m['shell'])
     else:
+        # Supporting power and network hardware occupies the former bare board
+        # fields. Placement is schematic; NIC/DPU counts follow this generation.
+        control_board('compute power distribution',0,yb+.011,pz+.015,.052,.67)
+        for dz in [-.25,-.12,.02,.16,.29]:
+            for x in [-.014,.014]:
+                b('power connector',(x,yb+.020,pz+dz),(.013,.014,.027),m['graphite'])
+                for k in range(3):b('power terminal',(x-.004+k*.004,yb+.0275,pz+dz),(.0015,.001,.016),m['bright'],0)
+        for x in [-.009,.009]:tube('supply harness',[(x,yb+.023,pz-.43),(x,yb+.023,pz-.34),(x,yb+.031,pz+.12),(x,yb+.022,pz+.29)],.003,power)
+        for side in [-1,1]:
+            control_board('network mezzanine',side*.112,yb+.013,pz+.185,.178,.072)
+        nic_sites=[(x,.185) for x in [-.175,-.05,.05,.175]]
+        if rubin:nic_sites=[(x,z) for x in [-.175,-.05,.05,.175] for z in [.175,.215]]
+        for x,dz in nic_sites:
+            b('network package',(x,yb+.017,pz+dz),(.024,.005,.024),m['graphite'])
+            b('network thermal base',(x,yb+.021,pz+dz),(.028,.003,.029),m['shell'])
+            if not rubin:
+                for k in range(9):b('network heatsink fin',(x-.0112+k*.0028,yb+.026,pz+dz),(.0009,.008,.027),m['shell'],.0002)
+        dpu_sites=[-.048,.048] if accel=='gb200' else [.048]
+        for x in dpu_sites:
+            control_board('storage control board',x,yb+.012,pz+.305,.043,.068)
+            b('DPU thermal assembly',(x,yb+.020,pz+.305),(.028,.013,.041),m['shell'])
+            if not rubin:
+                for k in range(8):b('DPU cooling fin',(x-.012+k*.0034,yb+.030,pz+.305),(.001,.008,.038),m['shell'],.0002)
+        # Small memory and support packages sit around the existing processors;
+        # they are illustrative support population rather than exact vendor BOM.
+        for side in [-1,1]:
+            for dz in [-.31,-.29,-.04,-.02,.12]:
+                for x in [side*.075,side*.145]:
+                    b('support memory package',(x,yb+.012,pz+dz),(.018,.003,.012),m['graphite'])
+                    passives(x,yb+.011,pz+dz+.010,.018,5)
         # Six existing processor cold plates get the same copper/seal/milled-lid
         # construction as the close-up, at their rack diagram coordinates.
         plates=([(-.165,-.23),(-.06,-.23),(.06,-.23),(.165,-.23)] if rubin else [(-.11,-.2),(.11,-.2),(-.11,.08),(.11,.08)])
@@ -106,3 +155,41 @@ def enhance(accel,m,box,cylinder,material):
             for s in [-1,1]:
                 passives(x,sy-.008,sz+dz+s*.059,.083,12)
                 for side in [-1,1]:screw(x+side*.049,sy-.001,sz+dz+s*.049,.002)
+            # Liquid-cooled switch package: its actual silicon stays underneath.
+            b('NVSwitch cold plate',(x,sy+.014,sz+dz),(.091,.010,.091),m['shell'],.003)
+            for side in [-1,1]:
+                b('switch cold plate seal',(x,sy+.0088,sz+dz+side*.043),(.083,.0015,.0018),m['dark'],0)
+                for k in range(6):
+                    vx=x+side*.062;vz=sz+dz-.041+k*.016
+                    b('switch VRM inductor',(vx,sy-.004,vz),(.012,.010,.012),m['graphite'])
+                    b('switch VRM crown',(vx,sy+.0015,vz),(.009,.001,.009),m['shell'],0)
+                tube('switch coolant connection',[(x+side*.025,sy+.021,sz+dz),
+                    (x+side*.025,sy+.030,sz+dz-.055),(x+side*.025,sy+.030,sz-.33),
+                    (side*.185,sy+.023,sz-.39),(side*.185,sy+.023,sz-.45)],.0035,hose)
+                cylinder('Inspection switch tube gland',(x+side*.025,sy+.021,sz+dz),.006,.009,m['bright'],1)
+            for k in range(5):b('switch plate etch',(x-.012+k*.006,sy+.0192,sz+dz+.018),(.002,.0003,.009),m['etch'],0)
+        control_board('switch power distribution',0,sy-.010,sz+.16,.35,.090)
+        control_board('switch management board',0,sy-.010,sz+.31,.37,.125)
+        for x in [-.15,-.10,-.05,.05,.10,.15]:
+            b('switch converter body',(x,sy-.002,sz+.16),(.028,.015,.035),m['graphite'])
+            for j in range(3):cylinder('Inspection converter capacitor',(x-.010+j*.010,sy+.007,sz+.194),.003,.013,m['dark'],1)
+        b('switch controller',(0,sy-.003,sz+.30),(.036,.009,.040),m['graphite'])
+        b('switch boot storage',(.10,sy-.005,sz+.30),(.025,.006,.077),pcb)
+        for z in [.277,.300,.323]:b('boot storage package',(.10,sy,sz+z),(.018,.004,.014),m['graphite'])
+        cylinder('Inspection switch service battery',(-.10,sy-.002,sz+.32),.012,.006,m['bright'],1)
+        for x in [-.16,-.055,.055,.155]:
+            for dz in [.265,.285,.325,.355]:
+                passives(x,sy-.007,sz+dz,.025,7)
+        for side in [-1,1]:
+            for k in range(12):passives(side*.187,sy-.009,sz-.28+k*.030,.018,5)
+            b('control harness socket',(side*.053,sy-.003,sz+.35),(.032,.012,.013),m['graphite'])
+            for k in range(8):b('control harness contact',(side*.053-.012+k*.0035,sy+.0035,sz+.35),(.001,.001,.007),m['bright'],0)
+        for side in [-1,1]:
+            # Rear blind-mate banks are electrical, with no optical receptacles.
+            for x in [side*.055,side*.115,side*.175]:
+                b('NVLink blind mate bank',(x,sy-.003,sz-.342),(.045,.018,.042),m['graphite'])
+                for k in range(9):b('rear electrical contact',(x-.016+k*.004,sy-.001,sz-.365),(.0015,.009,.004),m['bright'],0)
+            tube('switch power harness',[(side*.012,sy+.013,sz-.45),(side*.020,sy+.018,sz-.29),
+                (side*.023,sy+.022,sz+.08),(side*.05,sy+.011,sz+.16)],.004,power)
+            b('switch power input',(side*.012,sy+.008,sz-.45),(.021,.017,.025),m['graphite'])
+            b('switch QD block',(side*.185,sy+.019,sz-.445),(.032,.026,.023),m['shell'])

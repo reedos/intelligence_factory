@@ -30,6 +30,8 @@ These are representative teaching models, not dimensionally exact vendor CAD. Pr
 
 ## Validation
 
+Follow-up, 9/29/2026: the rack overview now faces the front at a three-quarter angle, while dedicated rear parts retain rear views. Part 1 focuses on the compute inspection tray. Part 2 approaches below the extended compute tray so it no longer obscures the NVLink switch board. Added representative power distribution, network mezzanine and DPU thermal assemblies, control/storage hardware, switch cold plates, coolant connections, electrical rear connector banks, and support passives. NVIDIA's published compute and NVLink switch tray top views informed these additions; they remain schematic rather than exact board reproductions. Fiber leads now follow rounded side corridors through visible guides, with compact service returns and separately routed overhead looms. All four Blender rack sources and exports were rebuilt. The follow-up passed 128 rack part views across four generations and desktop/phone, with no reported obstruction, HUD overlap, overflow, or page errors. The rack coplanar detector found zero overlap groups.
+
 - TypeScript check and all 1,318 tests passed. New tests check generation cage counts, absence of modules on NVLink switch rows, connector population, actual connector geometry behind fiber endpoints in exported GLBs, and Rubin PCIe/SerDes routing.
 - 362 selectable views across all ten levels on desktop and 390 px phone passed automated pin placement, major line-of-sight obstruction, HUD overlap, sidebar overflow, and page-error checks.
 - An additional 402 rack/tray/GPU views across all four generations and both screen sizes passed those checks. These checks measure placement and obstruction, not subjective composition quality.

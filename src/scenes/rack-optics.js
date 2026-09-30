@@ -1,5 +1,18 @@
 import { THREE, MAT, Builder, flow } from '../kit.js';
 
+// Rounded orthogonal cable runs: fixed corridors avoid spline overshoot into
+// neighboring trays. Corner radius is illustrative, not a cable SKU rating.
+function managedRoute(points, radius=.035) {
+  const p=points.map(v=>new THREE.Vector3(...v)), out=[p[0].toArray()];
+  for(let i=1;i<p.length-1;i++) {
+    const a=p[i-1],b=p[i],c=p[i+1],r=Math.min(radius,a.distanceTo(b)*.4,b.distanceTo(c)*.4);
+    const start=b.clone().add(a.clone().sub(b).normalize().multiplyScalar(r));
+    const end=b.clone().add(c.clone().sub(b).normalize().multiplyScalar(r));
+    out.push(start.toArray(),...new THREE.QuadraticBezierCurve3(start,b,end).getPoints(8).slice(1).map(v=>v.toArray()));
+  }
+  out.push(p.at(-1).toArray());return out;
+}
+
 // Representative optical population, not an exact customer cable schedule.
 // GB200/GB300: four compute-fabric OSFP cages; H100: four twin-port OSFP
 // cages for eight HCAs. Optical patch leads stay separate from NVLink copper.
@@ -44,23 +57,19 @@ export function addRackOptics(built, accel) {
         const cx=x+(connectorCount===2?(lane-.5)*.009:0);
         hardware.box(connectorCount===2?.0075:.014,.007,.018,connector,cx,y,z+direction*.03);
         for(let rib=0;rib<4;rib++)hardware.box(connectorCount===2?.0078:.0143,.0074,.0012,MAT.black,cx,y,z+direction*(.035+rib*.002));
-        const side = Math.sign(x), rail = side*(.324+index*.0038+lane*.0017);
-        const exitZ = h100 ? -.65 : 1.68;
-        const start=[cx,y,z+direction*.044], end=[rail,2.32,h100?-.63:.60];
-        // Service slack is outside the chassis, with a straight connector exit
-        // and a generous turn into each side's cable manager.
-        const curve = new THREE.CatmullRomCurve3([
-          new THREE.Vector3(...start), new THREE.Vector3(cx,y,z+direction*.105),
-          new THREE.Vector3(side*.29,y-.028,pulled?exitZ:z+direction*.15),
-          new THREE.Vector3(rail,y+.055,pulled?exitZ:z+direction*.17),
-          new THREE.Vector3(rail,y+.18,h100?-.63:.60), new THREE.Vector3(...end),
-        ]);
-        const points=curve.getPoints(64).map(p=>p.toArray());
+        const side = Math.sign(x), rail = side*(.365+(index%6)*.0028);
+        const managerZ=(h100?-.63:.64)+direction*(Math.floor(index/6)*.007+lane*.0032);
+        const start=[cx,y,z+direction*.044], end=[rail,2.32,managerZ];
+        // Short faceplate run, then a controlled side return for the extended
+        // service tray. Neighboring leads share a narrow, combed riser corridor.
+        const exitZ=z+direction*(.105+lane*.008);
+        const points=managedRoute([start,[cx,y,exitZ],[rail,y,exitZ],
+          [rail,y,managerZ],[rail,y+.10,managerZ],end]);
         const motion=flow(points,'eth',{count:8,speed:.30,size:.0013,k:1,trail:false});
         // Many neighboring fibers must remain individually readable; their
         // moving cores use less ribbon emission than the single backbone.
         motion.ribbonIntensity=.28;
-        motion.rackOpticalLink={row,port,lane,start,end};
+        motion.rackOpticalLink={row,port,lane,start,end,managed:true};
         hardware.addM(new THREE.TubeGeometry(motion.path,96,.0014,5,false),jacket,new THREE.Matrix4());
         built.dataFlows.push(motion);built.scene.add(motion.group);
         // A visible passive patch termination prevents fibers ending in air.
@@ -87,18 +96,20 @@ export function addRackOptics(built, accel) {
     }
   });
   for (const side of [-1,1]) {
-    const width=h100?.024:.082,center=side*(.324+(rows.length-1)*.0038/2);
-    hardware.box(width+.01,.033,.008,MAT.darkSteel,center,2.327,(h100?-.63:.60)-.008);
+    const center=side*.372,managerZ=h100?-.63:.64;
+    hardware.box(.042,.033,.008,MAT.darkSteel,center,2.327,managerZ+(h100?.012:-.012));
+    // Open-sided vertical managers support the bundle without hiding motion.
+    hardware.box(.004,2.16,.055,MAT.darkSteel,side*.397,1.22,managerZ);
+    for(let y=.22;y<2.31;y+=.18) {
+      hardware.box(.043,.006,.004,shell,side*.377,y,managerZ+(h100?.031:-.013));
+      hardware.box(.004,.016,.055,MAT.darkSteel,side*.351,y,managerZ+.008);
+    }
     // Each patch strip's outgoing multifiber loom continues into the overhead
     // runway. This is a cable bundle, not an optical combiner or active switch.
     for(let strand=0;strand<4;strand++) {
-      const x=center+(strand-1.5)*.0035,z=h100?-.63:.60;
-      const curve=new THREE.CatmullRomCurve3([
-        new THREE.Vector3(x,2.34,z),new THREE.Vector3(x,2.58,z),
-        new THREE.Vector3(.12+strand*.009,3.40,z),new THREE.Vector3(.16+strand*.009,3.66,z-.2),
-        new THREE.Vector3(.16+strand*.009,3.66,-1.52),
-      ]);
-      const f=flow(curve.getPoints(40).map(p=>p.toArray()),'eth',{count:9,speed:.4,size:.0017,k:1,trail:false});
+      const x=center+(strand-1.5)*.0035,z=managerZ;
+      const f=flow(managedRoute([[x,2.34,z],[x,3.54,z],
+        [side*(.12+strand*.007),3.66,z],[side*(.12+strand*.007),3.66,-1.52]],.10),'eth',{count:9,speed:.4,size:.0017,k:1,trail:false});
       f.ribbonIntensity=.30;f.rackOpticalTrunk=true;
       hardware.addM(new THREE.TubeGeometry(f.path,64,.0018,5,false),jacket,new THREE.Matrix4());
       built.dataFlows.push(f);built.scene.add(f.group);

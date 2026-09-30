@@ -60,10 +60,11 @@ describe('complete Blender compute hardware',()=>{
       expect(b.heatFlows.filter((f:any)=>f.cls==='air').length).toBe(6);
     }
   });
-  it('rack opens toward exposed motion rails and coolant direction agrees across layers',()=>{
+  it('rack opens toward the front while rear parts and coolant direction stay correct',()=>{
     for(const id of ids){
-      const b=wrappers[0].build(options(id));expect(b.camera.pos[0]).toBeGreaterThan(0);expect(b.camera.pos[2]).toBeLessThan(0);
+      const b=wrappers[0].build(options(id));expect(b.camera.pos[0]).toBeGreaterThan(0);expect(b.camera.pos[2]).toBeGreaterThan(0);
       if(id==='h100')continue;
+      expect(b.hotspots.spine.view.pos[2]).toBeLessThan(0);
       const rails=b.dataFlows.filter((f:any)=>f.cls==='nvl'&&f.count===26);
       expect(rails.length).toBe(4);
       for(const f of rails)expect(f.path.getPoint(0).z).toBeLessThan(-.5);
@@ -74,10 +75,11 @@ describe('complete Blender compute hardware',()=>{
       }
     }
   });
-  it('actual rack GLB leaves the rear rail cores and their opening-camera sightlines clear',()=>{
+  it('actual rack GLB leaves the rear rail cores and rear inspection sightlines clear',()=>{
     const b=wrappers[0].build(options('gb200')),hardware=b.scene.children.find((o:any)=>o.name==='Blender complete rack hardware');
     hardware.updateMatrixWorld(true);
-    const camera=new THREE.Vector3(...b.camera.pos),ray=new THREE.Raycaster();
+    // The overview now faces front; rear flow visibility is tested from the rear.
+    const camera=new THREE.Vector3(3.1,2.3,-3.7),ray=new THREE.Raycaster();
     const rails=[...b.dataFlows.filter((f:any)=>f.cls==='nvl'&&f.count===26),
       ...b.flows.filter((f:any)=>f.cls==='dc'&&f.count===42),
       ...b.heatFlows.filter((f:any)=>['cool','warm'].includes(f.cls)&&f.count===34)];
@@ -115,7 +117,7 @@ describe('complete Blender compute hardware',()=>{
     for(const f of b.flows)f.group.visible=false;for(const f of b.heatFlows)f.group.visible=false;
     for(const f of b.dataFlows){f.group.visible=true;f.setLevel(1,.5);f.setLevel(1,1);f.update(2,{position:new THREE.Vector3(...b.camera.pos),worldPerPixelAtUnit:.0008});}
     b.update(2,1/60);b.scene.updateMatrixWorld(true);
-    const camera=new THREE.Vector3(...b.camera.pos),ray=new THREE.Raycaster(),m=new THREE.Matrix4(),pos=new THREE.Vector3();
+    const camera=new THREE.Vector3(3.1,2.3,-3.7),ray=new THREE.Raycaster(),m=new THREE.Matrix4(),pos=new THREE.Vector3();
     const solids:any[]=[];b.scene.traverse((o:any)=>{if(o.isMesh&&o.visible&&o.material?.depthWrite!==false)solids.push(o);});
     for(const f of b.dataFlows.filter((f:any)=>f.cls==='nvl'&&f.count>=26)){
       f.mesh.getMatrixAt(0,m);pos.setFromMatrixPosition(m).applyMatrix4(f.mesh.matrixWorld);
@@ -382,6 +384,13 @@ it('rack optics seat on compute units, retain generation port counts and termina
   expect(connectors.length).toBeGreaterThan(0);
   const ray=new THREE.Raycaster();
   for(const f of links){
+   expect(f.rackOpticalLink.managed).toBe(true);
+   for(const segment of f.path.curves) {
+    for(const p of [segment.getPoint(0),segment.getPoint(1)]) {
+     expect(Math.abs(p.x)).toBeLessThan(.39);
+     expect(p.z).toBeLessThan(1.55);
+    }
+   }
    expect(f.path.getPoint(0).toArray()).toEqual(f.rackOpticalLink.start);
    expect(f.path.getPoint(1).distanceTo(new THREE.Vector3(...f.rackOpticalLink.end))).toBeLessThan(1e-8);
    expect(f.ribbonIntensity).toBeLessThan(.4);

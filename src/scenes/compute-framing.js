@@ -4,7 +4,9 @@ import { componentView } from '../app/housing-frame.js';
 // subject to the available canvas instead of applying blanket phone pullbacks.
 export function frameCompute(built, kind, accel) {
   const h100 = accel === 'h100';
-  if (kind === 'tray') {
+  if (kind === 'rack') {
+    built.camera = {...built.camera,pos:[2.8,2.4,3.7],target:[0,1.2,.28]};
+  } else if (kind === 'tray') {
     built.camera = { ...built.camera, ...componentView([0, h100 ? 1.6 : .4, -.1], [7, 7, 9], [4.9, h100 ? 3.7 : 1.3, 10.0]) };
   } else if (kind === 'chip') {
     built.camera = { ...built.camera, ...componentView([0, 2.5, 0], [9, 6, 11], [9.2, 5.0, 9.2]) };
@@ -48,11 +50,17 @@ export function frameCompute(built, kind, accel) {
       h.view = componentView([.7,3.2,0], [6,5.3,11], [11.2,6.7,9.2]);
       continue;
     }
-    if (kind === 'rack' && (id === 'compute' || id === 'servers' || (h100 && id === 'tp'))) {
+    if (kind === 'rack' && (id === 'compute' || id === 'servers' || id === 'tp')) {
       const yb = h100 ? .16+2*(8*.04445+.004) : .12+24*.04445;
       const z = h100 ? 1.045 : .965;
-      h.pos = [.13,yb+(h100 ? .15 : .06),z+.10];
+      h.pos = id === 'tp' && !h100 ? [-.11,yb+.06,z-.20] : [.13,yb+(h100 ? .15 : .06),z+.10];
       h.view = componentView([0,yb+(h100 ? .17 : .03),z], [.7,.9,1.1], [.5,h100 ? .37 : .13,.96]);
+      continue;
+    }
+    if (kind === 'rack' && !h100 && id === 'nvswitch') {
+      // Inspect below the extended compute tray instead of looking through it.
+      const y=.12+15*.04445+.022225;
+      h.view=componentView([0,y+.018,.665],[.45,.17,1.1],[.48,.09,.82]);
       continue;
     }
     if (kind === 'rack' && h100 && id === 'psus') {
