@@ -26,7 +26,7 @@ const FINISHES = [
   [/Bare silicon/i, { metalness: 0.6, roughness: 0.25, envMapIntensity: 0.7 }],
   [/Silkscreen|Label stock/i, { metalness: 0, roughness: 0.68, envMapIntensity: 0.35 }],
   [/Connector ferrule/i, { metalness: 0, roughness: 0.48, envMapIntensity: 0.45 }],
-  [/Molded optical ports/i, { metalness: 0, roughness: 0.43, envMapIntensity: 0.5 }],
+  [/Molded optical ports/i, { metalness: 0, roughness: 0.55, envMapIntensity: 0.45 }],
   [/Pull tab ochre/i, { metalness: 0.02, roughness: 0.4, envMapIntensity: 0.6 }],
   [/TX optical paths/i, { metalness: 0, roughness: 0.29, envMapIntensity: 0.6, emissiveIntensity: 0.12 }],
   [/RX optical paths/i, { metalness: 0, roughness: 0.29, envMapIntensity: 0.6, emissiveIntensity: 0.12 }],

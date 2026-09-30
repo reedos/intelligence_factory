@@ -16,7 +16,7 @@ const EXPLODED = {
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
 
-export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=edge-connected9`) {
+export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=vertical-mpo10`) {
   if (cached) return Promise.resolve(cached);
   if (!pending) pending = new GLTFLoader().loadAsync(url).then(gltf => {
     cached = gltf;
@@ -291,7 +291,7 @@ export function build({ quality, state }) {
       driver: [[-.65, 1.0, 2.3], [1.25, .35, 1.2]],
       lasers: [[-.65, .9, 2.2], [1.2, .45, 1.15]],
       mzm: [[.85, 1.1, 2.4], [2.0, .35, 1.4]],
-      mpo: [[2.4, 1.15, 1.7], [1.6, .8, 2.45]],
+      mpo: [[2.7, .75, 1.15], [1.2, .95, 2.3]],
       pd: [[1.25, 1.15, -1.0], [.55, .25, .8]],
       tia: [[-.75, 1.3, -1.35], [.75, .3, .8]],
       shell: [[-2.5, 2.0, 4.0], [7.5, .7, 2.5]],
