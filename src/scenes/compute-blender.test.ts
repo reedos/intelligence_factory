@@ -60,6 +60,17 @@ describe('complete Blender compute hardware',()=>{
       expect(b.heatFlows.filter((f:any)=>f.cls==='air').length).toBe(6);
     }
   });
+  it('tray and pulled-rack boards carry the projected PCB surface in every generation',()=>{
+    for(const id of ids)for(const [i,name] of [[1,'Tray solder mask'],[0,'Rack tray solder mask']] as const){
+      const b=wrappers[i].build(options(id)),boards=meshes(b.scene).filter((o:any)=>o.material?.name===name);
+      expect(boards.length,`${id} ${name}`).toBeGreaterThan(0);
+      for(const o of boards){
+        expect(o.material.map&&o.material.bumpMap&&o.material.roughnessMap).toBeTruthy();
+        const uv=o.geometry.attributes.uv;expect(uv.count).toBe(o.geometry.attributes.position.count);
+        expect(Array.from(uv.array as Float32Array).every(v=>v>-.01&&v<1.01)).toBe(true);
+      }
+    }
+  },30000);
   it('rack opens toward the front while rear parts and coolant direction stay correct',()=>{
     for(const id of ids){
       const b=wrappers[0].build(options(id));expect(b.camera.pos[0]).toBeGreaterThan(0);expect(b.camera.pos[2]).toBeGreaterThan(0);

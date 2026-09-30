@@ -582,7 +582,7 @@ export function content(M) {
       specs: [['Efficiency', '≈97–98%', 'assumed', { assume: 'ibc-efficiency' }], ['Loss, campus-wide', lossTxt('Bus converters'), 'derived', { calc: 'conversion-loss-campus' }]] },
     { id: 'vrm', title: 'Voltage regulators', kicker: '12 V → ≈0.8 V',
       body: 'Dozens of switching phases ring each GPU, each an inductor and a power stage switching at around a megahertz. They sit as close to the chip as they can, because every millimeter at a thousand amps costs power.',
-      specs: [['Phases per GPU', '≈20–30', 'assumed', { assume: 'vrm-phases' }], ['Efficiency', `≈${Math.round(A.vrmEff * 100)}%`, 'assumed', { assume: 'vrm-efficiency' }], ['Loss, campus-wide', lossTxt('Voltage regulators'), 'derived', { calc: 'conversion-loss-campus' }], ['Core current', `≈${n0(coreA)} A`, 'derived', { calc: 'core-current' }]] },
+      specs: [['Phases per GPU', '≈20–30', 'assumed', { assume: 'vrm-phases' }], ['Efficiency', `≈${Math.round(A.vrmEff * 100)}%`, 'assumed', { assume: 'vrm-efficiency' }], ['Loss, campus-wide', lossTxt('Voltage regulators'), 'derived', { calc: 'conversion-loss-campus' }], ['Core current', `≈${n0(coreA)} A`, 'derived', { calc: 'core-current' }], ['Board layout, traces and passives', 'representative', 'assumed', { assume: 'tray-mechanical-detail' }]] },
     { id: 'gpu', title: X.gpus, kicker: `4 per tray, ${n0(A.gpuW)} W each`,
       body: `Each GPU package is two large dies and ${stacksTxt} of HBM. It is where most of the power in the building finally goes.`,
       specs: (() => { const p = gpuPowerEv(), t = transistorsEv(), m = hbmMemEv();
@@ -616,7 +616,7 @@ export function content(M) {
       specs: [['Efficiency', '≈98%', 'assumed', { assume: 'ibc-efficiency' }], ['Loss, campus-wide', lossTxt('Bus converters'), 'derived', { calc: 'conversion-loss-campus' }]] },
     { id: 'vrm', title: 'Voltage regulators', kicker: '12 V → ≈0.8 V',
       body: 'Switching phases around each GPU make the final step to under a volt.',
-      specs: [['Efficiency', `≈${Math.round(A.vrmEff * 100)}%`, 'assumed', { assume: 'vrm-efficiency' }], ['Loss, campus-wide', lossTxt('Voltage regulators'), 'derived', { calc: 'conversion-loss-campus' }], ['Core current', `≈${n0(coreA)} A`, 'derived', { calc: 'core-current' }]] },
+      specs: [['Efficiency', `≈${Math.round(A.vrmEff * 100)}%`, 'assumed', { assume: 'vrm-efficiency' }], ['Loss, campus-wide', lossTxt('Voltage regulators'), 'derived', { calc: 'conversion-loss-campus' }], ['Core current', `≈${n0(coreA)} A`, 'derived', { calc: 'core-current' }], ['Board layout, traces and passives', 'representative', 'assumed', { assume: 'tray-mechanical-detail' }]] },
     { id: 'gpu', title: 'H100 GPUs', kicker: '8 per server, 700 W each',
       body: 'Each SXM5 module is one large die with five working HBM3 stacks beside it, mounted face-down on the baseboard under a heat sink.',
       specs: [['Power', '700 W', 'spec', { refs: [ref('nvidia-h100-product-page', 'spec table: "Max thermal design power (TDP) | Up to 700W (configurable)"')] }], ['Transistors', X.transistors, 'spec', { refs: [ref('nvidia-hopper-architecture-page', '"Built with over 80 billion transistors using a cutting edge TSMC 4N process"')] }], ['Memory', hbmSpec, 'spec', { refs: [ref('nvidia-h100-product-page', 'spec table: "GPU Memory | 80GB" with "3.35TB/s" bandwidth')] }]], drill: 5 },

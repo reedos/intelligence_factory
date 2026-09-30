@@ -14,7 +14,8 @@ export function computeMaterials() {
     satin: metal(0xb4bec8, 0.44, 0.7, 0.035),
     copper: metal(0xb87543, 0.4, 0.78, 0.022),
     graphite: metal(0x3b4651, 0.48, 0.4, 0.035),
-    pcb: new THREE.MeshStandardMaterial({ color: 0x102e2b, roughness: 0.5, metalness: 0.12 }),
+    // Named: compute-blender.js finds the board meshes by it and gives them the PCB surface (tray-pcb.js).
+    pcb: Object.assign(new THREE.MeshStandardMaterial({ color: 0x102e2b, roughness: 0.5, metalness: 0.12 }), { name: 'Tray solder mask' }),
     laminate: new THREE.MeshStandardMaterial({ color: 0x73613d, roughness: 0.74, metalness: 0.05 }),
     silkscreen: new THREE.MeshStandardMaterial({ color: 0xa7b9b2, roughness: 0.85, metalness: 0 }),
     recess: new THREE.MeshStandardMaterial({ color: 0x090f15, roughness: 0.78, metalness: 0.15 }),

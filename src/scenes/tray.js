@@ -114,6 +114,43 @@ function nicFlyovers(S, N, ports, { nicTop, cageTop, zNic, zCage, style, clips, 
   }
 }
 
+// Surface-mount passives: 0402 and 0201 ceramic capacitors (tan body) and thick-
+// film resistors (black body) with tinned end terminations, placed in the rows
+// and clusters a board designer puts around packages and regulator phases.
+// Positions are representative; see assumption 'tray-mechanical-detail'.
+const passiveMats = {
+  cap: Object.assign(new THREE.MeshStandardMaterial({ color: 0x8a7556, roughness: 0.55, metalness: 0.02 }), { name: 'PCB passive body' }),
+  res: Object.assign(new THREE.MeshStandardMaterial({ color: 0x141517, roughness: 0.5, metalness: 0.05 }), { name: 'PCB passive resistor' }),
+  term: Object.assign(new THREE.MeshStandardMaterial({ color: 0xb4b8bb, roughness: 0.32, metalness: 0.9 }), { name: 'PCB passive termination' }),
+};
+function smd(N, x, y, z, alongZ, small, resistor) {
+  const L = small ? 0.006 : 0.01, w = small ? 0.003 : 0.005, h = small ? 0.0025 : 0.0035;
+  const [bw, bd] = alongZ ? [w, L * 0.6] : [L * 0.6, w];
+  N.box(bw, h, bd, resistor ? passiveMats.res : passiveMats.cap, x, y + h / 2, z);
+  for (const s of [-1, 1]) {
+    const [tw, td] = alongZ ? [w * 1.02, L * 0.2] : [L * 0.2, w * 1.02];
+    N.box(tw, h * 1.04, td, passiveMats.term, x + (alongZ ? 0 : s * L * 0.4), y + h * 0.52, z + (alongZ ? s * L * 0.4 : 0));
+  }
+}
+// a row of n parts from a to b; every third one a resistor, a few 0201s mixed in
+function smdRow(N, y, [x0, z0], [x1, z1], n, alongZ, seed = 1) {
+  let s = seed * 9301 + 49297;
+  const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < n; i++) {
+    const t = n === 1 ? 0.5 : i / (n - 1);
+    if (r() < 0.12) continue;
+    smd(N, x0 + (x1 - x0) * t, y, z0 + (z1 - z0) * t, alongZ, r() < 0.3, i % 3 === 2);
+  }
+}
+// decoupling rows around a package footprint (w x d), g = gap outside its edge
+function smdFrame(N, y, x, z, w, d, g, pitch, seed) {
+  const nx = Math.max(2, Math.round(w / pitch)), nz = Math.max(2, Math.round(d / pitch));
+  for (const s of [-1, 1]) {
+    smdRow(N, y, [x - w / 2, z + s * (d / 2 + g)], [x + w / 2, z + s * (d / 2 + g)], nx, true, seed + s);
+    smdRow(N, y, [x + s * (w / 2 + g), z - d / 2], [x + s * (w / 2 + g), z + d / 2], nz, false, seed + 3 + s);
+  }
+}
+
 // Representative folded sheet-metal lip on an intact chassis side. Cutaway
 // edges intentionally do not get this finish. Fine captive screws are desktop
 // detail only; the lip stays clear of the central airflow and all board routes.
@@ -311,6 +348,12 @@ function buildHGX({ quality }) {
     clips: cageX.map(x => [x - 0.15, x + 0.15]) });
   if (heavy) cageX.forEach(x => cageFins(N, x, ty + .47, ZB + .3, .2, .4, 4));
   cageX.forEach(x => { for(const dy of [-.08,.08])S.box(.22,.016,.5,MAT.galv,x,ty+.35+dy,ZB+.25);for(const dx of [-.11,.11])S.box(.016,.144,.5,MAT.galv,x+dx,ty+.35,ZB+.25); N.box(0.16, 0.05, 0.05, MAT.polymer, x, ty + 0.23, ZB - 0.02); nicLeds.push({ p: [x, ty + 0.44, ZB + 0.02], color: '#5cf29a', rate: 0 }); });
+  // board population: decoupling rows around the NVSwitch chips, the SXM
+  // packages and the CPU sockets, bypass rows by the PCIe switches
+  swX.forEach((x, k) => { smdFrame(N, fy + 0.03, x, swZ, 0.42, 0.42, 0.04, 0.03, k); smdFrame(N, fy + 0.03, x, swZ, 0.42, 0.42, 0.058, 0.045, k + 20); });
+  gpus.forEach(([x, z], k) => smdRow(N, fy + 0.065, [x - 0.36, z + 0.3], [x + 0.36, z + 0.3], 16, true, k + 40));
+  cpus.forEach(([x, z], k) => smdFrame(N, ty + 0.0125, x, z, 0.62, 0.75, 0.04, 0.03, k + 60));
+  pcieX.forEach((x, k) => smdFrame(N, ty + 0.0125, x, pcieZ, 0.3, 0.3, 0.03, 0.03, k + 70));
   // rear AC inlets and power cords
   for (let i = 0; i < 6; i++) N.box(0.14, 0.1, 0.06, MAT.black, psuX(i) + 0.2, 0.62, ZB - 0.045);
   if (heavy) for (const i of [1, 4]) bundle(N, [psuX(i) + 0.2, 0.55, ZB - 0.05], [psuX(i) + 0.2, 0.05, ZB - 0.7], { n: 2, r: 0.014, spread: 0.03, sag: 0.12, mats: [MAT.black], seed: i + 3 });
@@ -584,6 +627,25 @@ function buildNVL({ quality, model }) {
   }
   nicFlyovers(S, N, nicX, { nicTop: floorY + 0.21, cageTop: 0.17, zNic: ZF - 0.8, zCage: ZF - 0.57, style: ultra ? 'flyover' : 'densilink',
     clips: ultra ? [[0.12, 0.78], [1.12, 1.78]] : nicX.map(x => [x - 0.065, x + 0.065]) });
+  // board population: decoupling around the GPUs, Grace and LPDDR5X, output
+  // capacitors beside each regulator phase, and bypass rows by each NIC chip
+  const top = floorY + 0.02;
+  gpus.forEach(([gx, gz], k) => {
+    // front edge and both sides (the rear edge carries the board-to-board connector and a regulator row)
+    for (const [g, pitch] of [[0.03, 0.03], [0.05, 0.045]]) {
+      smdRow(N, top, [gx - 0.46, gz + 0.475 + g], [gx + 0.46, gz + 0.475 + g], Math.round(0.92 / pitch), true, k * 11 + g * 100);
+      for (const sx of [-1, 1]) smdRow(N, top, [gx + sx * (0.475 + g), gz - 0.44], [gx + sx * (0.475 + g), gz + 0.46], Math.round(0.9 / pitch), false, k * 13 + sx + g * 100);
+    }
+    for (let i = 0; i < 8; i++) for (const sx of [-1, 1]) smdRow(N, top, [gx + sx * 0.565, gz - 0.44 + i * 0.12], [gx + sx * 0.565, gz - 0.4 + i * 0.12], 2, false, k * 40 + i);
+  });
+  cpus.forEach(([cx, cz], k) => {
+    smdFrame(N, top, cx, cz, 0.58, 0.58, 0.05, 0.032, 90 + k);
+    for (const side of [-1, 1]) for (let i = 0; i < 4; i++) smdRow(N, top, [cx + side * 0.655, cz - 0.4 + i * 0.24], [cx + side * 0.655, cz - 0.32 + i * 0.24], 3, false, 95 + i + k * 4);
+  });
+  for (const x of nicX) {
+    smdRow(N, floorY + 0.21, [x - 0.12, ZF - 1.47], [x + 0.12, ZF - 1.47], 9, true, x * 31);
+    smdRow(N, floorY + 0.21, [x + 0.19, ZF - 1.4], [x + 0.19, ZF - 1.0], 7, false, x * 37);
+  }
   nicX.forEach(x => { S.box(0.2, 0.14, 0.5, MAT.galv, x, 0.24, ZF - 0.28); N.box(0.16, 0.04, 0.04, MAT.polymer, x, 0.24, ZF + 0.03); if (heavy) cageFins(N, x, 0.33, ZF - 0.28, 0.18, 0.42, 3); statusLeds.push({ p: [x, 0.24, ZF - 0.02], color: '#5cf29a', rate: 0 }); });
 
   scene.add(S.build()); scene.add(N.build({ cast: false }));

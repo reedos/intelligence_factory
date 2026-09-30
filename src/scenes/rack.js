@@ -390,6 +390,8 @@ function serviceFace(B, y, z, heavy, kind) {
 }
 
 // ---------- four DGX H100 servers, air-cooled ----------
+// Pulled-tray boards get the PCB surface at rack distance (tray-pcb.js, rack LOD).
+const TRAY_PCB = Object.assign(new THREE.MeshStandardMaterial({ color: 0x10362a, roughness: 0.6, metalness: 0.05 }), { name: 'Rack tray solder mask' });
 function buildHGX({ quality, state }) {
   const scene = new THREE.Scene();
   const flows = [], dataFlows = [], heatFlows = [];
@@ -445,7 +447,7 @@ function buildHGX({ quality, state }) {
   pulled.box(0.004, SU * 0.95, sd, MAT.galv, -sw / 2, py, pz);
   // Right wall is a teaching cutaway, matching the dedicated server view.
   pulled.box(0.004, .035, sd, MAT.galv, sw / 2, yb + .0175, pz);
-  pulled.box(sw - 0.02, 0.003, 0.5, MAT.pcb, 0, yb + 0.008, pz + 0.12);
+  pulled.box(sw - 0.02, 0.003, 0.5, TRAY_PCB, 0, yb + 0.008, pz + 0.12);
   const fanItems = [];
   for (let i = 0; i < 6; i++) { const fx0 = -0.185 + i * 0.074; pulled.box(0.068, 0.15, 0.045, MAT.fan, fx0, yb + 0.1, pz + sd / 2 - 0.04); fanItems.push({ p: [fx0, yb + 0.065, pz + sd / 2 - 0.015], axis: 'z', r: 0.026 }, { p: [fx0, yb + 0.135, pz + sd / 2 - 0.015], axis: 'z', r: 0.026 }); }
   const sinks = [];
@@ -458,7 +460,7 @@ function buildHGX({ quality, state }) {
     for (let f = 0; f < 24; f++) pulled.box(0.0012, 0.1, 0.128, FIN, x - 0.038 + f * (0.076 / 23), yb + 0.075, pz + z);
   }
   for (let i = 0; i < 4; i++) pulled.box(0.04, 0.045, 0.04, MAT.alu, -0.15 + i * 0.1, yb + 0.035, pz - 0.03);         // NVSwitch sinks
-  pulled.box(sw - 0.02, 0.003, 0.38, MAT.pcb, 0, yb + 0.2, pz - 0.26);                                              // CPU tray, upper rear
+  pulled.box(sw - 0.02, 0.003, 0.38, TRAY_PCB, 0, yb + 0.2, pz - 0.26);                                              // CPU tray, upper rear
   for (const x of [-0.1, 0.1]) { pulled.box(0.06, 0.05, 0.07, MAT.alu, x, yb + 0.23, pz - 0.24); for (const s of [-1, 1]) for (let k = 0; k < 4; k++) pulled.box(0.003, 0.03, 0.12, MAT.black, x + s * (0.045 + k * 0.007), yb + 0.22, pz - 0.24); }
   for (let i = 0; i < 6; i++) pulled.box(0.068, 0.07, 0.12, MAT.darkSteel, -0.185 + i * 0.074, yb + 0.045, pz - sd / 2 + 0.07);   // supplies
   for (const x of [-0.26, 0.26]) pulled.box(0.012, 0.012, sd + out, MAT.galv, x, yb + 0.006, pz - out / 2);
@@ -621,7 +623,7 @@ function buildNVL({ quality, model, state }) {
   const PAN = new THREE.MeshStandardMaterial({ color: 0x7a828a, roughness: 0.62, metalness: 0.5 }); PAN.name = 'Tray pan satin steel';
   pulled.box(trayW, 0.004, trayD, PAN, 0, py - U / 2 + 0.004, pz);
   pulled.box(0.004, U * 0.9, trayD, PAN, -trayW / 2, py, pz); pulled.box(0.004, U * 0.9, trayD, PAN, trayW / 2, py, pz);
-  for (const x of [-.108,.108]) pulled.box(.202, 0.003, trayD * 0.62, MAT.pcb, x, py - U / 2 + 0.008, pz - 0.05);
+  for (const x of [-.108,.108]) pulled.box(.202, 0.003, trayD * 0.62, TRAY_PCB, x, py - U / 2 + 0.008, pz - 0.05);
   const plates = rubin ? [[-.165,-.23],[-.06,-.23],[.06,-.23],[.165,-.23]] : [[-0.11,-0.2],[0.11,-0.2],[-0.11,0.08],[0.11,0.08]];
   // Brushed lids, not mirror nickel: upward-facing polished slabs bloomed to white under the studio softbox.
   const LID = new THREE.MeshStandardMaterial({ color: 0x6b7178, roughness: 0.72, metalness: 0.3 }); LID.name = 'Brushed cold plate lid';
