@@ -48,7 +48,7 @@ asic = material('Switch ASIC silicon', (1,1,1), .35,.22)
 asic.node_tree.nodes.get('Principled BSDF').inputs['Emission Color'].default_value=(1,.15,.015,1)
 asic.node_tree.nodes.get('Principled BSDF').inputs['Emission Strength'].default_value=0
 eic = material('Electronic die passivation', (.035,.055,.085), .5,.3)
-pic = material('Photonic die passivation', (.07,.10,.15), .55,.28)
+pic = material('Photonic die passivation', (.08,.11,.16), .15,.26)
 gold = material('Gold bond pads', (.67,.43,.15), .8,.28)
 traceCu = material('Electrical copper', (.55,.29,.10), .82,.3)
 glass = material('Glass ferrule', (.55,.76,.86), 0,.12,.32)
@@ -64,6 +64,7 @@ eicFace = material('Electronic die face', (.03,.045,.07), .1,.25)
 # coating; the runtime paints one stripe per fiber across the ribbon (UV u).
 ribbonTx = material('Transmit ribbon', (.37,.80,.90), 0,.5)
 ribbonRx = material('Receive ribbon', (.82,.37,.66), 0,.5)
+bondLine = material('Hybrid bond interface', (.015,.016,.02), .2,.5)
 vgroove = material('Fiber array V-groove block', (.04,.05,.06), .1,.35)
 lidGlass = material('Fiber array lid glass', (.6,.8,.95), 0,.05,.25)
 epoxy = material('Fiber array epoxy', (.12,.07,.02), 0,.5)
@@ -333,8 +334,12 @@ def photonic_die(cx,cy,cz,scale,angle,exploded=False):
     def px(v):return -pw/2+v/512*pw
     def pz(v):return -pd/2+v/384*pd
     box('Photonic PIC',w(0,0,0),(pw,.15 if exploded else .06,pd),pic,role,.005*scale,angle)
-    ey=.95 if exploded else .065
-    box('Electronic EIC',w(0,ey,0),(1.23*scale,.12 if exploded else .07,.902*scale),eic if exploded else eicFace,role,.005*scale,angle,uv_top=not exploded)
+    ey=.95 if exploded else .073
+    # In the package the EIC sits back from the fiber edge so the photonic die's
+    # fiber-array landing shows, on a thin dark hybrid-bond line (representative).
+    ex0=0 if exploded else -.05
+    box('Electronic EIC',w(ex0,ey,0),(1.23*scale,.12 if exploded else .07,.902*scale),eic if exploded else eicFace,role,.005*scale,angle,uv_top=not exploded)
+    if not exploded: box('Hybrid bond line',w(ex0,.0340,0),(1.21,.007,.88),bondLine,role,0,angle)
     if not exploded: return
     # Regions are schematic functional blocks, not a photographed die floorplan.
     for i in range(8):
