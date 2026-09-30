@@ -1013,6 +1013,11 @@ export function build({ quality, model }) {
       // power-room pins (1-4) separate from the data-hall ones instead of stacking in one cluster.
       portrait: { pos: [42, 83, 33], target: [-8, 2.5, -4.5] },
       near: 0.1, far: 2000, min: 0.6, max: 180 },
+    // Phones, data layer: its 13 pins all sit in the data hall, eight of them within ~12 m of the front service
+    // aisle, and the shared portrait view (which must also reach the power room) stacked them in one diagonal
+    // clump. Looking steeply from the front wall lays the rows across the screen so each pin gets its own spot.
+    // Phones only: with cameraByMode set, a layer switch re-opens that layer's overview, which desktop keeps as is.
+    ...(quality.mobile ? { cameraByMode: { data: { portrait: { pos: [5, 58, 36], target: [5, 1, 3] } } } } : {}),
     hotspots: {
       optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .62, 1.9, -6.25], target: [leafX + .02, 1.6, -7.6] } },   // close enough to read true-size OSFP modules
       cpo: cpoSpot,
