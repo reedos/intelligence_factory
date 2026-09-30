@@ -844,6 +844,16 @@ body.story .pane-tabs { display: none; }
   body.app .panel { flex: 1 1 0; }
 }
 
+/* ---------- more below: the pane fades at its foot and a button says there is more ---------- */
+body.app .panel { position: relative; }
+.has-more > .panel-scroll { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 72px), rgba(0,0,0,.12)); mask-image: linear-gradient(180deg, #000 calc(100% - 72px), rgba(0,0,0,.12)); }
+.more-cue { position: absolute; z-index: 4; left: 50%; bottom: 12px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 14px; background: var(--ground); color: var(--ink); border: 1px solid var(--accent); border-radius: 0; font: 600 11px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; cursor: pointer; box-shadow: 0 6px 22px rgba(0,0,0,.65); }
+.more-cue i { font-style: normal; color: var(--accent); }
+.more-cue:hover { background: var(--surface); }
+.more-cue:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.more-cue[hidden], body.story .more-cue { display: none; }
+@media (pointer: coarse) { .more-cue { min-height: 44px; } }
+
 /* the publication statement at the foot of the side pane, not over the view */
 .pane-note { margin: 8px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font: 400 11px/1.5 var(--mono); color: var(--faint); }
 body.story .pane-note { display: none; }

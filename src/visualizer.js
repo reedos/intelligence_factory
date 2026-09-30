@@ -13,6 +13,7 @@ import './app/scenario.js';
 import './app/site.js';
 import './app/campus-presentation.js';
 import { setGo } from './app/links.js';
+import { moreCue } from './app/more-cue.js';
 
 stage.start();
 // links to a part move the 3D view here, rather than opening a page
@@ -41,6 +42,10 @@ tabs.forEach(b => b.addEventListener('click', () => { showPane(b.dataset.pane); 
 // phones: the side pane is a sheet the reader can pull up (the view shrinks to a strip) or push back down
 const sheetBtn = document.getElementById('sheet-toggle');
 function setSheet(open) { document.body.style.removeProperty('--inspector-size'); document.body.classList.toggle('sheet-open', open); sheetBtn.setAttribute('aria-expanded', String(open)); sheetBtn.setAttribute('aria-label', open ? 'Shrink the panel' : 'Expand the panel'); }
+// the pane says when there is more below its fold; on a phone whose sheet is down, More pulls the sheet up first
+const phoneSheet = () => matchMedia('(max-width: 1100px)').matches;
+moreCue(document.querySelector('.panel-scroll'), { host: document.querySelector('.panel'),
+  press: () => { if (phoneSheet() && !document.body.classList.contains('sheet-open')) { setSheet(true); return true; } return false; } });
 let sheetDrag = null, dragged = false;
 sheetBtn.addEventListener('pointerdown', e => {
   if (!matchMedia('(max-width: 1100px)').matches) return;
