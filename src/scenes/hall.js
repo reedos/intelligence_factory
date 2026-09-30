@@ -544,6 +544,12 @@ export function build({ quality, model }) {
   // actually mixes both — the tag keeps it from reading as deployed hardware or a ledger change.
   // kept small: the 'cpo' hotspot camera is close enough that a sprite sized like the rack-top
   // stage numbers below would fill the frame and hide the very chassis it is meant to label
+  // The comparison hotspot is a fitted view of the faceplate itself (0.47 x 0.34 m), so the 144 MPO adapters,
+  // 18 laser modules and 4 capped couplings fill the frame; the pin sits on the laser-module row. The tag above
+  // the chassis and the data layer's rack-top replica labels stay outside this frame.
+  const cpoAt = netItems[CPO_I], cpoFront = cpoAt.z + cpoAt.f * .64;
+  const cpoSpot = { pos: [cpoAt.x - .06, 1.8, cpoFront + cpoAt.f * .04],
+    view: { pos: [cpoAt.x + .3, 1.86, cpoFront + cpoAt.f * 1.2], target: [cpoAt.x, 1.71, cpoFront], detailSize: [.5, .36, .06] } };
   const cpoTag = textSprite('CPO alternative · disconnected', '#8fe4ff', 0.065);
   cpoTag.position.set(netItems[CPO_I].x, 2.42, netItems[CPO_I].z + netItems[CPO_I].f * 0.85);
   scene.add(cpoTag);
@@ -988,10 +994,10 @@ export function build({ quality, model }) {
       // Portrait looks steeply down the hall's diagonal so the 60 m hall fills the tall frame and the
       // power-room pins (1-4) separate from the data-hall ones instead of stacking in one cluster.
       portrait: { pos: [42, 83, 33], target: [-8, 2.5, -4.5] },
-      near: 0.1, far: 2000, min: 1.2, max: 180 },
+      near: 0.1, far: 2000, min: 0.6, max: 180 },
     hotspots: {
       optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .62, 1.9, -6.25], target: [leafX + .02, 1.6, -7.6] } },   // close enough to read true-size OSFP modules
-      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.1, 2.0, 13.45], target: [netItems[CPO_I].x, 1.7, 11.1] } },
+      cpo: cpoSpot,
       unitsub: { pos: [usX, 3.3, usZ], view: { pos: [usX - 6.6, 5.0, usZ + 6.4], target: [usX + 1.2, 1.3, usZ] } },
       swgr: { pos: [-27, 2.8, -15.6], view: { pos: [-25, 6, -4], target: [-27, 1.3, -15.6] } },
       [dc ? 'sst' : 'ups']: { pos: [-28, 2.8, -6.5], view: { pos: [-27, 5, 2.5], target: [-28, 1, -6.5] } },
@@ -1006,7 +1012,7 @@ export function build({ quality, model }) {
     },
     dataFlows, heatFlows, layers: { data: par },
     heatHotspots: {
-      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.1, 2.0, 13.45], target: [netItems[CPO_I].x, 1.7, 11.1] } },
+      cpo: cpoSpot,
       [air ? 'inrow' : 'cdu']: cduSpot,
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
       hotaisle: { pos: [rowX0 + 2.5, 1.7, -9.7], view: { pos: [rowX0 - 4.4, 2.5, -7.2], target: [rowX0 + 2.5, 1.3, -9.7] } },   // through the pod's end doors, down the contained aisle
@@ -1026,7 +1032,7 @@ export function build({ quality, model }) {
       spine: { pos: [rowX0 + 4, 2.7, 10.5], view: { pos: [rowX0 + 5, 5, 18], target: [rowX0 + 5, 1.2, 10.5] } },
       runways: { pos: [rowX1 + 0.45, 4.7, 4], view: { pos: [rowX1 - 6, 8, 12], target: [rowX1, 4, 2] } },
       optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .62, 1.9, -6.25], target: [leafX + .02, 1.6, -7.6] } },   // close enough to read true-size OSFP modules
-      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.1, 2.0, 13.45], target: [netItems[CPO_I].x, 1.7, 11.1] } },
+      cpo: cpoSpot,
       racks: { pos: [front[18].x, 2.6, rowZs[5]], view: { pos: [front[18].x + 1.6, 3.5, 12], target: [front[18].x, 1.25, rowZs[5]] } },
     },
     // bloom stays a small bump over the family default (0.5) for mood; threshold stays near the family
