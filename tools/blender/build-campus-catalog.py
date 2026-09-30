@@ -5,7 +5,7 @@ exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque buil
 import random
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for name in ['COOLER','UNITSUB','GENSET','BESS','CAR','TRUCK','TREE0','TREE1','TREE2','FAN','HALL_RACK','HALL_CABINET','MAP_CAMPUS','MAP_HUT','MAP_TERMINAL','WALKER','EHOUSE','CTRL_HOUSE','SHELTER','GATEHOUSE','TOWER_CELL','BESS_PCS']:
+for name in ['COOLER','UNITSUB','GENSET','BESS','CAR','TRUCK','TREE0','TREE1','TREE2','FAN','HALL_RACK','HALL_CABINET','MAP_CAMPUS','MAP_HUT','MAP_TERMINAL','WALKER','EHOUSE','CTRL_HOUSE','SHELTER','GATEHOUSE','TOWER_CELL','BESS_PCS','SUB_BREAKER','SUB_POST','SUB_ARRESTER','SUB_CVT','SUB_DISCONNECT','SUB_STRING']:
  g=bpy.data.objects.new(name,None);S.collection.objects.link(g);groups[name]=g
 steel=mat('Mechanical brushed steel',(.34,.42,.46),.8,.35)
 white=mat('Equipment ceramic white',(.72,.77,.76),.3,.39)
@@ -368,6 +368,64 @@ for y in [3.0+i*.9 for i in range(7)]:
  bpy.ops.mesh.primitive_torus_add(major_radius=.42,minor_radius=.025,major_segments=16,minor_segments=4,location=pt((4.35,y,D/2+.5)));o=bpy.context.object;o.name='Ladder cage hoop';o.parent=groups[g];o.data.materials.append(steel)
 cyl('Hot water riser',(-3.0,4.2,-D/2-.45),.35,8.4,steel,g,'y',16)
 cyl('Riser elbow',(-3.0,8.2,-D/2+.1),.35,1.1,steel,g,'z',16)
+# Substation yard kit. Insulators are turned profiles: a tapered core with tightly spaced alternating
+# large/small sheds (pitch about 0.6 x shed radius), not stacked washers. Grey porcelain and composite.
+# The dead-tank breaker carries six roof bushings with bushing CTs (Larson 345 kV dead-tank listing); the
+# V splay, mechanism cabinet position and other fittings are representative.
+porc=mat('Station porcelain grey',(.36,.38,.38),0,.3)
+comp=mat('Composite insulator grey',(.27,.29,.3),0,.5)
+galvm=mat('Galvanized steel',(.42,.45,.47),.8,.42)
+def insul(n,base,h,r0,big,small,m,axis=(0,1,0),top_ring=0,segments=12):
+ # base: viewer point, axis: unit direction in viewer coords
+ ax=Vector(axis).normalized();up=Vector((0,1,0))
+ q=up.rotation_difference(ax)
+ prof=[(r0*2.2,0),(r0*2.2,.08),(r0*1.2,.1)];y=.18;k=0;pitch=big*.6
+ while y<h-.2:
+  rr=big if k%2==0 else small
+  prof+=[(r0,y),(rr,y+.015),(rr*.9,y+.045),(r0,y+pitch*.55)];y+=pitch;k+=1
+ prof+=[(r0,h-.12),(r0*1.6,h-.1),(r0*1.6,h),(0,h+.01)]
+ v=[];f=[]
+ for j,(r,yy) in enumerate(prof):
+  for i in range(segments):
+   a=i/segments*2*math.pi;p=q@Vector((r*math.cos(a),yy,r*math.sin(a)));v.append((base[0]+p.x,base[1]+p.y,base[2]+p.z))
+ for j in range(len(prof)-1):
+  for i in range(segments):
+   a_=j*segments+i;b_=j*segments+(i+1)%segments;f.append((a_,b_,b_+segments,a_+segments))
+ o=mesh(n,v,f,m,g)
+ for pp in o.data.polygons:pp.use_smooth=True
+ if top_ring:
+  c=q@Vector((0,h-.25,0))
+  bpy.ops.mesh.primitive_torus_add(major_radius=top_ring,minor_radius=.04,major_segments=20,minor_segments=5,location=pt((base[0]+c.x,base[1]+c.y,base[2]+c.z)))
+  o2=bpy.context.object;o2.name=n+' grading ring';o2.parent=groups[g];o2.data.materials.append(steel)
+  o2.rotation_euler=Vector(pt(tuple(ax))).to_track_quat('Z','Y').to_euler()
+ return o
+g='SUB_BREAKER'
+box('Breaker support frame',(0,1.1,0),(4.5,2.2,4.2),galvm,g,.02)
+for dz in [-1.4,0,1.4]:
+ cyl('SF6 pole tank',(0,3.0,dz),.55,3.4,galvm,g,'x',20)
+ for sx in [-1,1]:
+  ax=(sx*math.sin(math.radians(17)),math.cos(math.radians(17)),0)
+  cyl('Bushing CT housing',(sx*1.2,3.55,dz),.3,.35,galvm,g,'y',16)
+  insul('Roof bushing',(sx*1.2,3.7,dz),2.85,.1,.2,.15,comp,ax)
+box('Mechanism cabinet',(3.2,.9,1.5),(1.4,1.8,1.0),galvm,g,.03)
+box('Cabinet door',(3.91,.9,1.5),(.02,1.6,.85),steel,g,0)
+g='SUB_POST';insul('Station post insulator',(0,0,0),4.3,.1,.22,.17,porc,top_ring=0)
+box('Bus clamp',(0,4.35,0),(.3,.12,.3),steel,g,0)
+g='SUB_ARRESTER';insul('Surge arrester',(0,0,0),3.6,.13,.26,.2,porc,top_ring=.45)
+cyl('Arrester counter',(0,-.6,.33),.09,.12,steel,g,'z',12)
+g='SUB_CVT';cyl('CVT base tank',(0,.35,0),.42,.7,galvm,g,'y',20)
+insul('CVT capacitor stack',(0,.7,0),3.5,.15,.3,.23,porc,top_ring=.5)
+g='SUB_DISCONNECT'
+for dz in [-1.5,1.5]:
+ cyl('Rotating base',(0,.1,dz),.25,.2,galvm,g,'y',16)
+ insul('Rotating insulator column',(0,.2,dz),2.6,.1,.22,.17,porc)
+box('Center-break blade',(0,2.87,0),(.1,.1,3.4),galvm,g,0)
+box('Blade contact',(0,2.87,0),(.18,.18,.3),steel,g,0)
+for dz in [-.25,.25]:
+ A=Vector(pt((0,2.92,dz)));B=Vector(pt((0,3.42,dz*2.2)))
+ bpy.ops.mesh.primitive_cylinder_add(vertices=6,radius=.02,depth=(B-A).length,location=(A+B)/2);o=bpy.context.object;o.name='Arcing horn'
+ o.rotation_euler=(B-A).to_track_quat('Z','Y').to_euler();o.parent=groups[g];o.data.materials.append(steel)
+g='SUB_STRING';insul('Dead-end polymer string',(0,0,0),3.0,.05,.14,.1,comp,(1,0,0))
 # Bake modifiers/transforms and one mesh per material within each asset.
 bpy.ops.object.select_all(action='DESELECT')
 for o in list(S.objects):

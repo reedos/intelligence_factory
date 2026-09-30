@@ -285,6 +285,7 @@ export function content(M) {
       body: 'The line dead-ends on steel gantries and lands on a ring of SF₆ circuit breakers and disconnect switches. Instrument transformers measure it, surge arresters clip lightning, and tall masts shield the yard.',
       specs: [
         ['Breakers', '6 dead-tank SF₆, ring bus', 'assumed', evAssume('substation-layout')],
+        ['Equipment drawn', 'typical forms, representative', 'assumed', evAssume('campus-substation-drawing')],
         ['Yard', '≈200 × 150 m gravel pad', 'assumed', evAssume('substation-layout')],
         ['Interconnection study', '1–3 years alone', 'reported', evRefs([['atk-substation-construction', 'blog: "System impact studies, facilities studies, and any required network upgrades can run twelve to thirty-six months depending on the region"']])],
       ] },

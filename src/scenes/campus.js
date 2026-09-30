@@ -121,10 +121,13 @@ export function build({ quality, model }) {
   fence(-357, -65, -439, -65); fence(-451, -65, -567, -65); fence(-567, -65, -567, -235);
   // The connected road plan meets the 12 m substation gate opening.
   // dead-end gantries: two tubular columns and a beam per circuit
+  // Blender substation kit when the catalog is loaded: turned-profile insulators, dead-tank breakers with
+  // six roof bushings, a center-break disconnect with arcing horns, arresters with grading rings, CVTs
+  const yard = authoredCampus ? { SUB_STRING: [], SUB_ARRESTER: [], SUB_CVT: [], SUB_DISCONNECT: [], SUB_BREAKER: [], SUB_POST: [] } : null;
   for (const cz of circuitZ) {
     for (const dz of [-10, 10]) { S.cyl(0.45, gantryH, MAT.galv, gantryX, gantryH / 2, cz + dz, 10); S.slab(1.6, 0.6, 1.6, MAT.concrete, gantryX, 0, cz + dz); }
     S.cylZ(0.4, 21, MAT.galv, gantryX, gantryH, cz, 10);
-    for (const pz of phaseZ) insulator(N, gantryX - 3.2, gantryH - 1.5, cz + pz, 3, 0.16, MAT.polymer, { axis: 'x', sheds: 10 });
+    for (const pz of phaseZ) if (yard) yard.SUB_STRING.push(mtx(gantryX - 3.2, gantryH - 1.5, cz + pz)); else insulator(N, gantryX - 3.2, gantryH - 1.5, cz + pz, 3, 0.16, MAT.polymer, { axis: 'x', sheds: 10 });
   }
   // equipment per phase: disconnect → breaker → bus
   const busY = 10, busX = -470;
@@ -132,18 +135,23 @@ export function build({ quality, model }) {
   for (let c = 0; c < 2; c++) for (let p = 0; p < 3; p++) {
     const z = circuitZ[c] + phaseZ[p];
     // surge arrester and CVT near the gantry
-    S.slab(0.6, 3, 0.6, MAT.galv, gantryX + 8, 0, z); insulator(N, gantryX + 8, 3, z, 3.6, 0.22, MAT.porcelain);
-    S.slab(0.6, 3, 0.6, MAT.galv, gantryX + 13, 0, z); insulator(N, gantryX + 13, 3, z, 4.2, 0.26, MAT.porcelain);
+    S.slab(0.6, 3, 0.6, MAT.galv, gantryX + 8, 0, z);
+    S.slab(0.6, 3, 0.6, MAT.galv, gantryX + 13, 0, z);
     // disconnect switch: two posts and a blade
     S.slab(0.5, 4, 3.8, MAT.galv, gantryX + 21, 0, z);
+    if (yard) { yard.SUB_ARRESTER.push(mtx(gantryX + 8, 3, z)); yard.SUB_CVT.push(mtx(gantryX + 13, 3, z)); yard.SUB_DISCONNECT.push(mtx(gantryX + 21, 4, z)); }
+    else {
+    insulator(N, gantryX + 8, 3, z, 3.6, 0.22, MAT.porcelain); insulator(N, gantryX + 13, 3, z, 4.2, 0.26, MAT.porcelain);
     insulator(N, gantryX + 21, 4, z - 1.5, 2.8, 0.2); insulator(N, gantryX + 21, 4, z + 1.5, 2.8, 0.2);
     N.cylZ(0.07, 3.2, MAT.alu, gantryX + 21, 7, z, 8);
+    }
     breakerAt.push([gantryX + 34, z]);
   }
   // dead-tank SF6 breakers (three-phase units, one per circuit per side of the ring)
   const breakerZ = [-190, -170, -150, -130, -110, -90];
   breakerZ.forEach((z, i) => {
     const x = gantryX + 36;
+    if (yard) { yard.SUB_BREAKER.push(mtx(x, 0, z)); return; }
     S.slab(4.5, 2.2, 4.2, MAT.galv, x, 0, z);
     for (const dz of [-1.4, 0, 1.4]) {
       S.cylX(0.55, 3.4, MAT.ansi61, x, 3.0, z + dz, 16);
@@ -154,8 +162,9 @@ export function build({ quality, model }) {
   // tubular HV bus on post insulators
   for (const dx of [-2.5, 0, 2.5]) {
     N.cylZ(0.12, 150, MAT.alu, busX + dx, busY, -150, 10);
-    for (let z = -222; z <= -78; z += 12) { S.slab(0.5, 5.5, 0.5, MAT.galv, busX + dx, 0, z); insulator(N, busX + dx, 5.5, z, 4.3, 0.2); }
+    for (let z = -222; z <= -78; z += 12) { S.slab(0.5, 5.5, 0.5, MAT.galv, busX + dx, 0, z); if (yard) yard.SUB_POST.push(mtx(busX + dx, 5.5, z)); else insulator(N, busX + dx, 5.5, z, 4.3, 0.2); }
   }
+  if (yard) for (const [name, mx] of Object.entries(yard)) scene.add(campusCatalogInstances(name, mx, { cast: true }));
   // lightning masts
   [[-560, -230], [-560, -70], [-465, -230], [-465, -70], [-365, -230], [-365, -70]].forEach(([x, z]) => {
     S.strut([x, 0, z], [x, 34, z], 0.35, MAT.galv, 8); N.strut([x, 34, z], [x, 40, z], 0.08, MAT.galv, 6);
