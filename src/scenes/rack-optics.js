@@ -59,7 +59,8 @@ export function addRackOptics(built, accel) {
         // moving cores use less ribbon emission than the single backbone.
         motion.ribbonIntensity=.28;
         motion.rackOpticalLink={row,port,lane,start,end,managed:true};
-        hardware.addM(new THREE.TubeGeometry(motion.path,96,.0014,5,false),jacket,new THREE.Matrix4());
+        // the pulled tray's leads are the ones the uplinks camera sees up close: rounder there, 5 sides elsewhere
+        hardware.addM(new THREE.TubeGeometry(motion.path,96,.0014,pulled?8:5,false),jacket,new THREE.Matrix4());
         built.dataFlows.push(motion);built.scene.add(motion.group);
         // A visible passive patch termination prevents fibers ending in air.
         hardware.box(.004,.020,.012,connector,rail,2.327,end[2]);
@@ -84,6 +85,15 @@ export function addRackOptics(built, accel) {
       storageCages.push({row,position:[x,y,z],form:'QSFP',role:'storage/in-band'});
     }
   });
+  // Dark hook-and-loop straps gather the yellow patch leads in each riser corridor every 180 mm, between the
+  // comb fingers (representative dressing; lead and connector counts unchanged).
+  const strap = new THREE.MeshStandardMaterial({ color: 0x17191c, roughness: .92, metalness: 0 });
+  strap.name = 'Hook-and-loop cable strap';
+  const leadTop = Math.min(...rows.map(row => h100 ? .16+row*(8*U+.004)+.23 : .12+row*U+U/2-.009)) + .12;
+  for (const side of [-1,1]) {
+    const managerZ=h100?-.575:.575, direction=h100?-1:1;
+    for(let y=.31;y<2.29;y+=.18) if(y>leadTop) hardware.box(.022,.012,.028,strap,side*.259,y,managerZ+direction*.011);
+  }
   for (const side of [-1,1]) {
     const center=side*.259,managerZ=h100?-.575:.575;
     hardware.box(.042,.033,.008,MAT.darkSteel,center,2.327,managerZ+(h100?.012:-.012));
