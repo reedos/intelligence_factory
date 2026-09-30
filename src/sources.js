@@ -546,6 +546,7 @@ export const PART_SOURCES = {
   'power:module:fingers': ['osfp-msa', 'ascentoptics-osfp-form-factor'],
   'power:module:dcdc': [],
   'power:module:dsp': ['marvell-ara-product-brief', 'nvidia-mms4a00-specs', 'broadcom-sian3-200g-lane-dsp', 'marvell-ara-1-6t-prnewswire'],
+  'power:module:driver': ['flexoptix-lpo-intro'],
   'power:module:lasers': ['nvidia-mms4x00-nm16', 'juniper-1p6t-transceiver'],
   'data:module:fingers': ['osfp-msa', 'juniper-1p6t-transceiver'],
   'data:module:dsp': ['marvell-ara-product-brief', 'nvidia-mms4a00-specs', 'juniper-1p6t-transceiver', 'marvell-ara-1-6t-prnewswire', 'broadcom-sian3-200g-lane-dsp'],
