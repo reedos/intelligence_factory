@@ -83,7 +83,11 @@ def osfp_top_housing(name, cx, cy, cz, length, width, mats):
     # channels stay open at both ends. Fin count, pitch and heights are
     # representative; the MSA gives example designs, not this one.
     b=cy-.045; H=.6; skin=.08; wall=.1
-    box(name+'_ceiling plate',(cx,b+.05,cz),(length,.1,width),mats['lid'],.04)
+    ceiling=box(name+'_ceiling plate',(cx,b+.05,cz),(length,.1,width),mats['lid'],.04)
+    # Host end: the upper lip of the nose, without fins, with ventilation
+    # slots (OSFP MSA Rev 5.0 sec. 3.2, Fig. 3-11); slot sizes are representative.
+    nose=.6; x0=cx-length/2
+    cut_away(ceiling,[box('cut',(x0+.3,b+.05,cz+k*.26),(.3,.2,.12),mats['lid'],0) for k in range(-3,4)])
     for s in [-1,1]:
         box(name+'_side wall',(cx,b+.1+(H-.1)/2,cz+s*(width/2-wall/2)),(length,H-.1,wall),mats['lid'],.03)
         box(name+'_parting seam',(cx,b+.012,cz+s*(width/2-.004)),(length-.12,.012,.01),mats['dark'],.003)
@@ -92,8 +96,8 @@ def osfp_top_housing(name, cx, cy, cz, length, width, mats):
     n=11; span=width-2*wall-.16
     for i in range(n):
         z=cz-span/2+i*span/(n-1)
-        box(name+'_heat sink fin',(cx,b+.1+(H-.1-skin)/2,z),(length-.02,H-.1-skin,.05),mats['edge'],.012)
-    top=box(name+'_top skin',(cx,b+H-skin/2,cz),(length,skin,width),mats['lid'],.04)
+        box(name+'_heat sink fin',(cx+nose/2,b+.1+(H-.1-skin)/2,z),(length-nose-.02,H-.1-skin,.05),mats['edge'],.012)
+    top=box(name+'_top skin',(cx+nose/2,b+H-skin/2,cz),(length-nose,skin,width),mats['lid'],.04)
     # A shallow label recess (OSFP MSA Fig. 3-4 gives a recommended label area).
     cut=box('Temporary cover label pocket',(cx-.6,b+H,cz),(4.2,.03,1.5),mats['lid'],.01)
     pocket=top.modifiers.new('Label recess','BOOLEAN');pocket.operation='DIFFERENCE';pocket.object=cut
@@ -421,22 +425,38 @@ def dsp_gap_pad(m, lid_y=3.4, lid_half=.045):
     pad=box('OSFP lifted cover thermal gap pad',(x,under-.15-.06,0),(1.3,.12,1.3),m['gap'],.04)
     pad['sourceMesh']='Coherent DSP thermal pad'
 
+def cut_away(target, cutters):
+    for c in cutters:
+        mod=target.modifiers.new('Cast pocket','BOOLEAN');mod.operation='DIFFERENCE';mod.object=c
+        bpy.context.view_layer.objects.active=target;bpy.ops.object.modifier_apply(modifier=mod.name)
+        bpy.data.objects.remove(c,do_unlink=True)
+    reweight(target)
+
 def coherent():
     m=reset(); L=10.78; W=2.258
-    box('OSFP lower tray', (0,0,0), (L,.12,W), m['shell'], .045)
+    # A die-cast lower case: satin cast finish, rougher than the machined edges.
+    m['shell']=mat('Die-cast lower case',(.34,.39,.44),.8,.42)
+    tray=box('OSFP lower tray', (0,0,0), (L,.12,W), m['shell'], .045)
+    # Shallow (0.4 mm) cast pockets between stiffening webs replace flat ribs.
+    webs=[-5.0,-3.6,-2.2,-.8,.6,2.0,3.4,4.8]
+    cut_away(tray,[box('cut',((a+b)/2,.06,0),(b-a-.16,.08,W-.46),m['shell'],0) for a,b in zip(webs,webs[1:])])
     for s in [-1,1]:
         z=s*(W/2-.05)
-        box('Folded shell wall',(0,.3,z),(L,.55,.1),m['shell'],.03)
+        wall=box('Folded shell wall',(0,.3,z),(L,.55,.1),m['shell'],.03)
+        # Latch pockets sit on the outer faces of the side walls.
+        cut_away(wall,[box('cut',(x,.3,s*W/2),(.4,.16,.04),m['shell'],0) for x in [-3.7,-.8,2.15]])
         box('Machined lip',(0,.575,z),(L-.08,.025,.07),m['edge'],.009)
         box('Longitudinal rebate',(0,.16,s*(W/2-.105)),(L-.3,.04,.022),m['dark'],.006)
+        # Forward stop: the side walls rise to 7 mm above the module bottom
+        # near the nose (OSFP MSA Rev 5.0 sec. 3.2); its position is representative.
+        box('Forward stop wall',(-4.7,.295,z),(1.0,.71,.1),m['shell'],.03)
+        # Fixing bosses are cast into the walls; captive screws clamp the cover.
         for x in [-4.95,-2.8,-.65,1.55,4.95]:
-            box('Cast fixing boss',(x,.105,s*.91),(.23,.09,.24),m['shell'],.04)
-            screw('Captive fastener',x,.16,s*.91,m)
-        for x in [-3.7,-.8,2.15]:
-            box('Latch shoulder',(x,.36,z-s*.028),(.6,.16,.055),m['edge'],.02)
-            box('Latch recess',(x,.38,z-s*.061),(.4,.055,.009),m['dark'],.004)
-    for x in [-4.65,-3.2,-1.6,.1,2.4,4.4]:
-        box('Milled tray reinforcement',(x,.071,0),(.08,.022,W-.3),m['edge'],.006)
+            box('Cast fixing boss',(x,.3,s*.93),(.23,.5,.2),m['shell'],.03)
+            screw('Captive fastener',x,.56,s*.93,m)
+        # Front bulkhead pillars and sill frame the LC receptacle opening.
+        box('Front bulkhead',(5.25,.305,s*.855),(.1,.49,.35),m['shell'],.02)
+    box('Front bulkhead sill',(5.25,.13,0),(.1,.14,1.36),m['shell'],.02)
     # Research-sized nano-ITLA case, not a claimed teardown of any named 800ZR.
     # Everything in the itla semantic group stays within 25 x 15.6 x 6.5 mm.
     ix=.96; y0=1.35
