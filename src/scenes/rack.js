@@ -88,6 +88,54 @@ function room(scene, quality, S, N, W, H, D) {
   rbox(N, W - 0.04, 0.008, D - 0.025, MAT.darkSteel, 0, H + 0.004, 0, { r: 0.28 });
 }
 
+// Overhead plug-in busway and the rack's two tap-off units (the A and B feeds).
+// Generic plug-in busway hardware: ribbed aluminum housing on threaded-rod
+// hangers and strut, outlet covers every 0.6 m, a bolted joint pack, and steel
+// tap-off boxes with breaker handles and a cord grip. Shape and dimensions are
+// representative, not a named product (ASSUMPTIONS 'busway-tapoff-hardware').
+// The voltage color stays on the moving flow and a thin status stripe.
+const TAPBODY = new THREE.MeshStandardMaterial({ color: 0x70767d, roughness: 0.55, metalness: 0.35 }); TAPBODY.name = 'Tap-off powder-coated steel';
+const BUSWAY = new THREE.MeshStandardMaterial({ color: 0x9aa2aa, roughness: 0.4, metalness: 0.75 }); BUSWAY.name = 'Busway extruded aluminum';
+const GLAND = new THREE.MeshStandardMaterial({ color: 0x1b1d21, roughness: 0.7, metalness: 0.05 }); GLAND.name = 'Cord grip and grommet';
+function labelTex(text) {
+  return canvasTex(64, 64, (g, w, h) => {
+    g.fillStyle = '#e6e2d6'; g.fillRect(0, 0, w, h); g.fillStyle = '#111317'; g.fillRect(3, 3, w - 6, h - 6);
+    g.fillStyle = '#e6e2d6'; g.font = 'bold 44px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, h / 2 + 2);
+  });
+}
+const TAP = { y: 2.98, glandY: 2.83 };
+function busway(scene, S, N, xs, stripeColor, H) {
+  const bx = -0.6, by = 3.2, bz = -0.25, len = 3.2;
+  S.box(len, 0.12, 0.15, BUSWAY, bx, by, bz);
+  for (const s of [-1, 1]) N.box(len, 0.022, 0.001, MAT.darkSteel, bx, by + 0.012, bz + s * 0.0755);   // extrusion groove
+  for (let x = bx - len / 2 + 0.3; x < bx + len / 2 - 0.1; x += 0.6) if (xs.every(t => Math.abs(t - x) > 0.14)) {
+    N.box(0.1, 0.012, 0.11, MAT.darkSteel, x, by - 0.067, bz);                                             // plug-in outlet cover
+    N.box(0.02, 0.006, 0.02, MAT.galv, x + 0.035, by - 0.074, bz + 0.04);
+  }
+  N.box(0.16, 0.15, 0.19, MAT.darkSteel, bx - 1.2, by, bz);                                                  // bolted joint pack
+  for (const dx of [-0.05, 0.05]) for (const dy of [-0.045, 0.045]) N.cylZ(0.007, 0.012, MAT.galv, bx - 1.2 + dx, by + dy, bz + 0.1, 8);
+  for (const x of [-0.25, 0.25, -1.45]) {                                                                   // threaded rods, strut under the housing
+    N.strut([x, by - 0.075, bz], [x, 3.8, bz], 0.005, MAT.darkSteel, 6);
+    N.box(0.042, 0.042, 0.26, MAT.galv, x, by - 0.082, bz);
+    N.cyl(0.011, 0.012, MAT.galv, x, by - 0.108, bz, 6);
+  }
+  xs.forEach((x, i) => {
+    const top = by - 0.066;
+    N.box(0.09, 0.055, 0.1, MAT.darkSteel, x, top - 0.0285, bz);                                               // hook-and-clamp plug head
+    for (const s of [-1, 1]) N.box(0.012, 0.05, 0.13, MAT.galv, x + s * 0.05, top + 0.01, bz);
+    rbox(S, 0.2, 0.2, 0.15, TAPBODY, x, TAP.y, bz, { r: 0.04 });
+    N.box(0.12, 0.07, 0.004, MAT.black, x - 0.01, TAP.y + 0.035, bz + 0.076);                                 // breaker window
+    for (let k = 0; k < 3; k++) { N.box(0.018, 0.04, 0.004, MAT.darkSteel, x - 0.05 + k * 0.04, TAP.y + 0.035, bz + 0.079); N.box(0.012, 0.014, 0.012, MAT.white, x - 0.05 + k * 0.04, TAP.y + 0.045, bz + 0.085); }
+    N.box(0.16, 0.012, 0.003, stripeColor, x, TAP.y - 0.06, bz + 0.0765);                                      // thin status stripe
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(0.045, 0.045), new THREE.MeshStandardMaterial({ map: labelTex(i ? 'B' : 'A'), roughness: 0.6 }));
+    label.position.set(x + 0.06, TAP.y - 0.02, bz + 0.0762); scene.add(label);
+    N.cyl(0.02, 0.03, GLAND, x, TAP.y - 0.118, bz, 12);                                                      // cord grip
+    N.cyl(0.014, 0.018, MAT.darkSteel, x, TAP.glandY + 0.012, bz, 10);
+    N.cyl(0.03, 0.01, GLAND, x, H + 0.018, bz, 16);                                                          // brush grommet at the rack top
+    N.cyl(0.022, 0.012, MAT.black, x, H + 0.02, bz, 16);
+  });
+}
+
 // Seeded generator: every build, and the Blender export, draws identical surface detail.
 function rng(seed) { let s = seed >>> 0; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296; }
 
@@ -275,17 +323,15 @@ function buildHGX({ quality, state }) {
     bundle(N, [x, sy(k) - 0.01, pduZ + 0.045], [x * 0.55, sy(k) - 0.12, ZF - 0.07 - sd], { n: 3, r: 0.0035, spread: 0.035, sag: 0.055, mats: [MAT.black, MAT.darkSteel], seed: k * 11 + (x > 0 ? 5 : 1), seg: 5 });
   }));
   // feed from the busway above to the top of each strip
-  S.box(3.2, 0.18, 0.16, MAT.alu, -0.6, 3.2, -0.25);
-  const tap = glowMat('#ff8a3d', 0.9);
-  pduX.forEach(x => { N.box(0.2, 0.2, 0.2, tap, x * 0.5, 3.0, -0.25); N.strut([x * 0.5, 2.9, -0.25], [x * 0.5, H + 0.02, -0.25], 0.012, MAT.black, 8); N.strut([x * 0.5, H, -0.25], [x, pTop + 0.02, pduZ], 0.012, MAT.black, 8); });
-  N.strut([-0.25, 3.3, -0.25], [-0.25, 3.8, -0.25], 0.01, MAT.darkSteel, 4); N.strut([0.25, 3.3, -0.25], [0.25, 3.8, -0.25], 0.01, MAT.darkSteel, 4);
+  busway(scene, S, N, pduX.map(x => x * 0.5), glowMat('#ff8a3d', 0.9), H);
+  pduX.forEach(x => { N.strut([x * 0.5, TAP.glandY, -0.25], [x * 0.5, H + 0.02, -0.25], 0.012, MAT.black, 8); N.strut([x * 0.5, H, -0.25], [x, pTop + 0.02, pduZ], 0.012, MAT.black, 8); });
   // data: fiber from each server's rear cages up the back to the runway
   const fx = 0.12, fz = ZB + 0.06;
   S.box(RACK_RUNWAY.width,.03,RACK_RUNWAY.length,MAT.yellowTray,RACK_RUNWAY.x,RACK_RUNWAY.floorY,0); for(const side of [-1,1]) S.box(.012,.1,RACK_RUNWAY.length,MAT.yellowTray,RACK_RUNWAY.x+side*.14,3.66,0);
   scene.add(S.build()); scene.add(N.build({ cast: false }));
 
   // ---------- flows ----------
-  pduX.forEach(x => flows.push(flow([[x * 0.5, 3.0, -0.25], [x * 0.5, H + 0.02, -0.25], [x, pTop + 0.02, pduZ], [x, pBot, pduZ]], 'lv', { count: 16, speed: 0.35, size: 0.012, trailR: 0.004 })));
+  pduX.forEach(x => flows.push(flow([[x * 0.5, TAP.glandY, -0.25], [x * 0.5, H + 0.02, -0.25], [x, pTop + 0.02, pduZ], [x, pBot, pduZ]], 'lv', { count: 16, speed: 0.35, size: 0.012, trailR: 0.004 })));
   [0, 1, 3].forEach(k => pduX.forEach(x => flows.push(flow([[x, sy(k), pduZ + 0.04], [x * 0.55, sy(k) - 0.04, ZF - 0.07 - sd]], 'lv', { count: 3, speed: 0.2, size: 0.009, trail: false }))));
   flows.push(flow([[0, yb + 0.06, pz - sd / 2 + 0.14], [0, yb + 0.03, pz - 0.05], [0, yb + 0.03, pz + 0.25]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
   // scale-up: NVLink only inside the pulled server, GPUs to the switch row
@@ -323,7 +369,7 @@ function buildHGX({ quality, state }) {
     scene, flows,
     camera: { pos: [3.1, 2.3, -3.7], target: [0, 1.0, -0.1], near: 0.01, far: 200, min: 0.4, max: 9 },
     hotspots: {
-      feed: { pos: [0.12, 3.12, -0.25], view: { pos: [1.2, 3.1, 1.0], target: [0, 2.7, -0.25] } },
+      feed: { pos: [0.12, 3.03, -0.165], view: { pos: [1.2, 3.1, 1.0], target: [0, 2.7, -0.25] } },
       pdu: { pos: [pduX[1], sy(1), pduZ], view: { pos: [0.9, 1.3, -1.4], target: [0, 0.9, ZB] } },
       servers: srv,
       psus: { pos: [0.15, yb + 0.1, pz - sd / 2 + 0.07], view: { pos: [0.9, 1.5, -0.9], target: [0, yb, pz - 0.4] } },
@@ -518,14 +564,11 @@ function buildNVL({ quality, model, state }) {
   N.strut([mX[1], bbBot - 0.1, mZ], [mX[1], 0.0, mZ - 0.1], 0.02, MAT.pipeRed, 10);
 
   // ---------- feed from the busway above ----------
-  S.box(3.2, 0.18, 0.16, MAT.alu, -0.6, 3.2, -0.25);
-  const tap = glowMat(feedV === 'hvdc' ? '#d8f04a' : '#ff8a3d', 0.9);
+  busway(scene, S, N, [-0.12, 0.12], glowMat(feedV === 'hvdc' ? '#d8f04a' : '#ff8a3d', 0.9), H);
   for (const x of [-0.12, 0.12]) {
-    N.box(0.2, 0.2, 0.2, tap, x, 3.0, -0.25);
-    N.strut([x, 2.9, -0.25], [x, H + 0.02, -0.25], 0.012, MAT.black, 8);
+    N.strut([x, TAP.glandY, -0.25], [x, H + 0.02, -0.25], 0.012, MAT.black, 8);
     N.strut([x, H, -0.25], [x * 0.8, trayY(layout.length - 2), ZB + 0.16], 0.012, MAT.black, 8);
   }
-  N.strut([-0.25, 3.3, -0.25], [-0.25, 3.8, -0.25], 0.01, MAT.darkSteel, 4); N.strut([0.25, 3.3, -0.25], [0.25, 3.8, -0.25], 0.01, MAT.darkSteel, 4);
   // bottom power shelves take their feed by a cable down the back
   N.strut([0.1, H, -0.3], [0.1, trayY(1), ZB + 0.16], 0.01, MAT.black, 8);
 
@@ -545,7 +588,7 @@ function buildNVL({ quality, model, state }) {
   [4, 8, 12, 16, 22, 26].forEach(i => cartX.forEach(cx => dataFlows.push(flow([[0, trayY(i), ZB + 0.16], [cx, trayY(i), cartZ - 0.067]], 'nvl', { count: 2, speed: 0.15, size: 0.007, k: 2.4, trail: false }))));
 
   // ---------- flows ----------
-  for (const x of [-0.12, 0.12]) flows.push(flow([[x, 3.0, -0.25], [x, H + 0.02, -0.25], [x * 0.8, trayY(layout.length - 2), ZB + 0.16]], feedV, { count: 8, speed: 0.35, size: 0.012, trailR: 0.004 }));
+  for (const x of [-0.12, 0.12]) flows.push(flow([[x, TAP.glandY, -0.25], [x, H + 0.02, -0.25], [x * 0.8, trayY(layout.length - 2), ZB + 0.16]], feedV, { count: 8, speed: 0.35, size: 0.012, trailR: 0.004 }));
   flows.push(flow([[0.1, H, -0.3], [0.1, trayY(1), ZB + 0.16]], feedV, { count: 10, speed: 0.35, size: 0.012, trailR: 0.004 }));
   // DC: from shelves onto the busbar, up and down the bar
   flows.push(flow([[-0.018, trayY(31), bbZ - 0.045], [-0.018, bbBot + 0.1, bbZ - 0.045]], 'dc', { count: 42, speed: 0.22, size: 0.011, trailR: 0.004, k: 2.4 }));
@@ -599,7 +642,7 @@ function buildNVL({ quality, model, state }) {
     scene, flows,
     camera: { pos: [3.1, 2.3, -3.7], target: [0, 1.1, -0.1], near: 0.01, far: 200, min: 0.4, max: 9 },
     hotspots: {
-      feed: { pos: [0.12, 3.12, -0.25], view: { pos: [1.2, 3.1, 1.0], target: [0, 2.7, -0.25] } },
+      feed: { pos: [0.12, 3.03, -0.165], view: { pos: [1.2, 3.1, 1.0], target: [0, 2.7, -0.25] } },
       shelves: { pos: [0.25, trayY(31), ZF - 0.05], view: { pos: [0.7, 1.9, 1.5], target: [0, trayY(31), ZF] } },
       busbar: { pos: [0.03, trayY(14), bbZ], view: { pos: [0.9, 1.3, -1.3], target: [0, 0.9, bbZ] } },
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },

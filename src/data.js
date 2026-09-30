@@ -517,7 +517,7 @@ export function content(M) {
   PARTS.rack = nvl ? [
     { id: 'feed', title: 'Rack feed', kicker: dc ? '800 V DC in' : '415 V AC in',
       body: 'Two tap-off cables from the overhead busway plug into the top of the rack: A and B feeds for redundancy.',
-      specs: [['Feeds', 'A + B', 'assumed', { assume: 'dual-feed-redundancy' }]] },
+      specs: [['Feeds', 'A + B', 'assumed', { assume: 'dual-feed-redundancy' }], ['Tap-off hardware as drawn', 'representative', 'assumed', { assume: 'busway-tapoff-hardware' }]] },
     dc
       ? { id: 'shelves', title: 'DC-DC shelves', kicker: '800 V DC → ≈50 V DC',
         body: 'With DC already in the busway, shelves such as Delta’s or LITEON’s 800 V DC power shelves only step voltage down, one conversion instead of rectifying AC. Later racks move this conversion onto the trays.',
@@ -548,7 +548,7 @@ export function content(M) {
   ] : [
     { id: 'feed', title: 'Rack feed', kicker: '415 V AC in',
       body: 'Two tap-off cables from the overhead busway feed the rack: A and B for redundancy.',
-      specs: [['Feeds', 'A + B', 'assumed', { assume: 'dual-feed-redundancy' }]] },
+      specs: [['Feeds', 'A + B', 'assumed', { assume: 'dual-feed-redundancy' }], ['Tap-off hardware as drawn', 'representative', 'assumed', { assume: 'busway-tapoff-hardware' }]] },
     { id: 'pdu', title: 'Rack power strips', kicker: '415 V three-phase → 240 V outlets',
       body: 'Vertical power strips at the back split each three-phase feed into single-phase outlets. Line to neutral, 415 V three-phase is 240 V, which is what server power supplies take.',
       specs: [['Per strip', 'high-30s kW class', 'reported', { refs: [ref('lv-distribution-busway', '"a 415V three-phase PDU at the same amperage [60A] clears the high-30s [kW]"; its 208V/415V density-tier table separately puts the 17–20 kW class at 208V, not 415V')] }], ['Outlets', 'C19/C21', 'reported', { refs: [ref('lv-distribution-busway', 'density-tier table, 30–80 kW row: "415V/400V busway + tap-off... IEC 60309 feed, C19/C21"')] }]] },
