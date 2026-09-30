@@ -208,15 +208,48 @@ def rack_hardware(accel,m):
                 box('Folded service handle',(x,y,.485),(.009,.026,.013),m['bright'],u,.003)
             for k in range(17 if accel!='rubin' and 11<=i<=19 else 0):box('Vent grille relief',(-.186+k*.0075,y,.469),(.002,.019,.005),m['graphite'],u,0)
 
+def rounded_rect(half,r,n=6):
+    # Counter-clockwise outline of a square with radiused corners (half-size, radius in native units).
+    pts=[]
+    for cx,cz,a0 in [(half-r,half-r,0),(-(half-r),half-r,90),(-(half-r),-(half-r),180),(half-r,-(half-r),270)]:
+        for i in range(n+1):
+            a=math.radians(a0+90*i/n);pts.append((cx+r*math.cos(a),cz+r*math.sin(a)))
+    return pts
+
+def stiffener_ring(name,y,outer,band,thick,r_out,r_in,mat,u):
+    # One continuous ring: radiused outer and inner corners, flat top, bonded to
+    # the substrate. Built as a single watertight mesh, not butt-jointed rails.
+    o_pts=rounded_rect(outer/2,r_out);i_pts=rounded_rect(outer/2-band,r_in)
+    n=len(o_pts);verts=[]
+    for yy in [y,y+thick]:
+        for x,z in o_pts:verts.append(p3((x,yy,z),u))
+        for x,z in i_pts:verts.append(p3((x,yy,z),u))
+    ob,ib,ot,it=0,n,2*n,3*n;faces=[]
+    for k in range(n):
+        j=(k+1)%n
+        faces.append((ot+k,ot+j,it+j,it+k))      # top
+        faces.append((ob+k,ib+k,ib+j,ob+j))      # bottom
+        faces.append((ob+k,ob+j,ot+j,ot+k))      # outer wall
+        faces.append((ib+k,it+k,it+j,ib+j))      # inner wall
+    mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
+    bm=bmesh.new();bm.from_mesh(mesh);bmesh.ops.recalc_face_normals(bm,faces=bm.faces);bm.to_mesh(mesh);bm.free()
+    o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o);o.data.materials.append(mat)
+    mod=o.modifiers.new('Top edge chamfer','BEVEL');mod.width=.015*u;mod.segments=2;mod.limit_method='ANGLE';mod.angle_limit=math.radians(60)
+    mod=o.modifiers.new('Face weighted normals','WEIGHTED_NORMAL');mod.keep_sharp=True
+    for f in o.data.polygons:f.use_smooth=True
+    return o
+
 def chip_hardware(accel,m):
     u=.01
     cover=m['shell'].copy();cover.name='IHS removable perimeter';cover['ifxCoverSurface']='ihs'
-    # Precision package stiffener shoulders and substrate registration marks.
-    for side in [-1,1]:
-        box('Stiffener machined shoulder',(0,1.415,side*4.065),(8.14,.026,.055),m['bright'],u,.009)
-        box('Stiffener machined shoulder',(side*4.065,1.415,0),(.055,.026,8.03),m['bright'],u,.009)
-    for x in [-3.77,3.77]:
-        for z in [-3.77,3.77]:
+    # One flat nickel-plated steel stiffener ring bonded to the substrate top,
+    # the usual lidless large flip-chip arrangement; the laminate edge stays
+    # exposed. Ring width, thickness and radii are representative.
+    ring=material('Nickel plated steel stiffener',(.62,.66,.70),.9,.34)
+    stiffener_ring('Package stiffener ring',1.235,8.2,.35,.07,.1,.2,ring,u)
+    # Copper fiducials sit inside the ring opening, clear of the capacitor rows.
+    for x in [-3.52,3.52]:
+        for z in [-3.52,3.52]:
             cylinder('Substrate registration pad',(x,1.237,z),.065,.004,m['copper'],u)
             cylinder('Registration pad opening',(x,1.24,z),.035,.002,m['dark'],u)
     # A chamfered plate outline supplements the teaching x-ray heat-spreader.

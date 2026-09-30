@@ -106,9 +106,7 @@ function buildPackage({ quality, state, model }) {
     N.box(SUB - 0.08, 0.008, 0.008, finish.laminate, 0, Y.sub + dy, side * (SUB / 2 + 0.004));
     N.box(0.008, 0.008, SUB - 0.08, finish.laminate, side * (SUB / 2 + 0.004), Y.sub + dy, 0);
   }
-  // Representative machined edge finish on the existing stiffener, preserving
-  // its envelope and opening. The small bevel catches the studio softbox.
-  for (const s of [-1, 1]) { rbox(S, SUB, 0.18, 0.3, MAT.nickel, 0, Y.sub + 0.22, s * (SUB / 2 - 0.15), { r: 0.1 }); rbox(S, 0.3, 0.18, SUB - 0.6, MAT.nickel, s * (SUB / 2 - 0.15), Y.sub + 0.22, 0, { r: 0.1 }); }
+  // The stiffener ring is authored in Blender (tools/blender/build-compute.py).
   // C4 bumps between substrate and interposer
   const bump = new THREE.SphereGeometry(0.045, 8, 6), nx = 34, nz = 32;
   const bumps = new THREE.InstancedMesh(bump, MAT.nickel, nx * nz); bi = 0;

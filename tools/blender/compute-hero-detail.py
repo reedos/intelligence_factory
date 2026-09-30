@@ -91,16 +91,7 @@ def enhance(kind,accel,m,box,cylinder,p3,material):
                     front_frame('HGX fan cassette',x,y,4.418,.696,.775,.044,u)
     else:
         u=.01
-        # A stepped structural frame around the existing substrate, interrupted
-        # corner landings and visible metal/ceramic seams. No new silicon.
-        for s in [-1,1]:
-            box('Package stiffener deep rail',(0,1.32,s*4.12),(8.34,.27,.15),titanium,u,.06)
-            box('Package stiffener deep rail',(s*4.12,1.32,0),(.15,.27,8.04),titanium,u,.06)
-            box('Substrate registration shoulder',(0,1.10,s*4.23),(8.48,.20,.12),ceramic,u,.045)
-            box('Substrate registration shoulder',(s*4.23,1.10,0),(.12,.20,8.24),ceramic,u,.045)
-        for x in [-3.92,3.92]:
-            for z in [-3.92,3.92]:
-                box('Stepped corner landing',(x,1.405,z),(.31,.075,.31),trim,u,.055)
+        # The package stiffener is one ring authored in build-compute.py.
         # Physical chamfered edge on the existing lifted IHS; center remains the
         # explicitly labeled x-ray surface supplied by the teaching diagram.
         cover=titanium.copy();cover.name='IHS removable flange';cover['ifxCoverSurface']='ihs'

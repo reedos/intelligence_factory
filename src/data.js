@@ -678,7 +678,7 @@ export function content(M) {
   PARTS.chip = [
     { id: 'balls', title: 'Solder balls & substrate', kicker: 'A thousand-plus amps comes up here',
       body: 'Thousands of solder balls carry power and signals from the board into a many-layer organic substrate. Most of the balls are power and ground: at 0.8 V it takes many parallel paths to carry a thousand amps.',
-      specs: [['Core voltage', '≈0.7–0.9 V', 'assumed', { assume: 'core-voltage' }], ['Core current, P ÷ V', `≈${n0(coreA)} A over several rails`, 'derived', { calc: 'core-current' }]] },
+      specs: [['Core voltage', '≈0.7–0.9 V', 'assumed', { assume: 'core-voltage' }], ['Core current, P ÷ V', `≈${n0(coreA)} A over several rails`, 'derived', { calc: 'core-current' }], ['Stiffener ring, as drawn', 'representative', 'assumed', { assume: 'package-stiffener-drawing' }]] },
     { id: 'interposer', title: 'Interposer', kicker: X.packaging.replace('TSMC ', ''),
       body: 'A silicon layer wires the dies and memory together with lines far finer than any circuit board can carry.',
       specs: [['Packaging', X.packaging, EV6.pack.basis, EV6.pack.ev]] },
