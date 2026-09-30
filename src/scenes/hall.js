@@ -398,7 +398,7 @@ export function build({ quality, model }) {
     }
     const matrices = items.map(it => { const matrix=mtx(it.x, 0, it.z, it.f > 0 ? 0 : Math.PI); return hasCampusCatalog()?matrix.scale(new THREE.Vector3(w/.58,h/2.3,d/1.2)):matrix; });
     scene.add(enclosure.instance(matrices));
-    const computeFace=tex===TEX.rack&&hasHallFinish();
+    const computeFace=tex===TEX.rack&&hasHallFinish()&&!quality.mobile; // phones rely on the face texture: the relief is sub-centimetre and repeats 192x
     const geo = new THREE.PlaneGeometry(w - .06, h - .1); geo.translate(0, h / 2, d / 2 + (computeFace ? .032 : .003));
     if(computeFace)scene.add(hallFinishInstances(nvl?'NVL_FACE':'H100_FACE',matrices));
     else if(tex===TEX.storage&&hasHallFinish())scene.add(hallFinishInstances('STORAGE_FACE',matrices)); // representative shelf bezels over the drive-bay rows

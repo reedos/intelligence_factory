@@ -289,7 +289,7 @@ for i in range(14):
 def drawer(g,top,height,pull=False):
  y=2.25-(top+height/2)*2.2/48
  box('Recessed service drawer',(0,y,.615),(.468,height*2.2/48-.008,.022),graphite,g,.007)
- box('Drawer upper rolled edge',(0,y+height*2.2/96-.008,.631),(.472,.011,.018),steel,g,.004)
+ box('Drawer upper rolled edge',(0,y+height*2.2/96-.006,.631),(.472,.011,.018),steel,g,.004)
  if pull:
   for x in [-.211,.211]:box('Captive service pull',(x,y,.65),(.018,max(.018,height*2.2/48-.018),.035),alloy,g,.006)
 g='NVL_FACE'
@@ -322,7 +322,12 @@ for o in list(S.objects):
  if o.type!='MESH':continue
  bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o
  for mod in list(o.modifiers):
-  if o.parent and o.parent.name in ['NVL_FACE','H100_FACE','STORAGE_FACE','FANWALL_CELL'] and mod.type=='BEVEL':mod.segments=1
+  parent=o.parent.name if o.parent else ''
+  # Budget: rack-face relief repeats 192x and is sub-centimetre, so its drawers carry no bevel
+  # geometry at all (the canvas texture carries the edge detail); small repeated fittings get one segment.
+  if parent in ['NVL_FACE','H100_FACE'] and mod.type in ['BEVEL','WEIGHTED_NORMAL']:
+   o.modifiers.remove(mod);continue
+  if parent in ['STORAGE_FACE','FANWALL_CELL','TAPOFF','BUS_JOINT','CDU_PORT','BUTTERFLY_VALVE','PIPE_FLANGE','PIPE_HANGER','HALL_ODF','HALL_CDU','HALL_INROW'] and mod.type=='BEVEL':mod.segments=1
   bpy.ops.object.modifier_apply(modifier=mod.name)
  bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
 for g in groups.values():
