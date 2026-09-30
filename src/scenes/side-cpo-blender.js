@@ -10,7 +10,7 @@ import { attachFlowRibbons } from '../flow-ribbons.js';
 let source, pending;
 export function preload() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=14`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=15`)
     .then(gltf => { source = gltf.scene; return source; })
     .catch(error => { pending = undefined; throw error; });
 }
@@ -56,6 +56,21 @@ function asicFace() {
     const sheen = .05 * Math.max(0, 1 - Math.hypot(u - .3, v - .3) * 1.3);
     return [.024 + sheen + grind, .042 + sheen + grind, .07 + sheen * 1.2 + grind];
   });
+}
+// Motherboard soldermask, tiled at about 1 cm: grain, faint generic trace
+// relief and via dots. Generic board texture, not a routing drawing.
+function boardFace() {
+  let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const vias = Array.from({ length: 22 }, () => [rnd() * 256, rnd() * 256]);
+  const rows = Array.from({ length: 9 }, () => [Math.floor(rnd() * 256), rnd() * 256, rnd() * 256]);
+  const tex = paintFace(256, 256, (u, v, e, block, x, y) => {
+    let k = (block - .5) * .012;
+    for (const [ry, a, b] of rows) if (Math.abs(y - ry) < 1.5 && x > Math.min(a, b) && x < Math.max(a, b)) k += .03;
+    for (const [vx, vy] of vias) { const d = Math.hypot(x - vx, y - vy); if (d < 4) k += d < 2 ? -.012 : .09; }
+    return [.018 + k * .6, .061 + k, .054 + k * .9];
+  });
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(13.6, 13.6);
+  return tex;
 }
 // One stripe per fiber across a data ribbon: a rounded coated core, dark seams.
 function ribbonStripes(color) {
@@ -105,6 +120,11 @@ export function build(args) {
   if (!asicMaterial) throw new Error('CPO asset is missing its authored switch ASIC');
   asicMaterial.emissive.set(0xff6a1a);
   if (!asicMaterial.map) { asicMaterial.map = asicFace(); asicMaterial.needsUpdate = true; }
+  asset.traverse(node => {
+    if (node.isMesh && node.material.name === 'Midnight laminate' && !node.material.map) {
+      const m = node.material; m.map = boardFace(); m.bumpMap = m.map; m.bumpScale = .6; m.color.set(0xffffff); m.needsUpdate = true;
+    }
+  });
   asset.traverse(node => {
     if (node.isMesh && node.material.name === 'Electronic die face' && !node.material.map) {
       node.material.map = eicFace(); node.material.color.set(0xffffff); node.material.needsUpdate = true;

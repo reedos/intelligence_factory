@@ -31,7 +31,7 @@ def material(name, color, metal=0, rough=.4, alpha=1):
 
 # Materials named in UV_MATERIALS keep a 0-1 top-face UV; side-cpo-blender.js
 # paints their face textures at runtime (no embedded images in the GLB).
-UV_MATERIALS={'Electronic die face','Transmit ribbon','Receive ribbon','Switch ASIC silicon'}
+UV_MATERIALS={'Electronic die face','Transmit ribbon','Receive ribbon','Switch ASIC silicon','Midnight laminate'}
 
 nickel = material('Satin nickel retainers', (.5,.57,.62), .82,.29)
 edge = material('Polished screw heads', (.68,.73,.76), .9,.22)
@@ -123,7 +123,7 @@ def cylinder(name, p, radius, height, mat, role, segments=24):
     return o
 
 # Board and lower stiffener remain underneath the existing package substrate.
-box('Motherboard',(0,0,0),(13.6,.14,13.6),pcb,'CPO_BOARD',.06)
+box('Motherboard',(0,0,0),(13.6,.14,13.6),pcb,'CPO_BOARD',.06,uv_top=True)
 for y in [-.054,-.012,.035]:
     for z in [-6.795,6.795]: box('Laminate edge',(0,y,z),(13.45,.007,.009),laminate,'CPO_BOARD',.002)
 for x in [-6.15,6.15]:
