@@ -61,9 +61,7 @@ for loop in o.data.loops:
 # stacks stand. Step-up transformers and a small gantry on +x, where the HV line
 # leaves. Representative proportions (stacks exaggerated), not one plant's CAD.
 g='GAS_PLANT'
-stackSteel=mat('Stack steel',(.30,.33,.35),.6,.45)
-soot=mat('Stack soot band',(.05,.05,.055),.3,.7)
-casing=mat('HRSG casing',(.36,.4,.42),.55,.42)
+stackSteel=steel;soot=dark;casing=steel
 eave=mat('Hall eave lights',(1,.81,.54),0,.5,.7)
 cladding=mat('Turbine hall cladding',(.3,.34,.37),.45,.5)
 redlight=mat('Obstruction light',(1,.12,.08),0,.5,8)
@@ -71,7 +69,7 @@ box('Turbine hall',(0,4.25,3),(20,8.5,7),cladding,g,.22)
 box('Standing seam roof',(0,8.6,3),(20.5,.3,7.5),pearl,g,.14)
 for x in [-8,-4,0,4,8]:
  box('Intake bay',(x,3.4,6.55),(3.1,5.6,.24),steel,g,.08)
- for y in [1.2,1.8,2.4,3,3.6,4.2,4.8,5.4]:box('Vent louver',(x,y,6.72),(2.9,.13,.18),pearl,g,.025)
+ for y in [1.2,1.8,2.4,3,3.6,4.2,4.8,5.4]:box('Vent louver',(x,y,6.72),(2.9,.13,.18),pearl,g,0)
 box('Eave light strip',(0,7.75,6.62),(19,.22,.12),eave,g,.02)
 for x in [-5,5]:
  # transition duct: flares from the turbine exhaust (hall back wall) to the HRSG inlet
@@ -79,7 +77,7 @@ for x in [-5,5]:
  v=[(x+sx*w,h0+sy*hh,z) for z,(w,hh),h0 in [(z0,a0,3.2),(z1,a1,2.9)] for sy in [-1,1] for sx in [-1,1]]
  mesh('Transition duct',v,[(0,1,3,2),(4,6,7,5),(0,4,5,1),(2,3,7,6),(0,2,6,4),(1,5,7,3)],casing,g)
  box('HRSG casing',(x,2.9,-7.6),(3.2,5.8,9),casing,g,.12)
- for z in [-4.4,-7.6,-10.8]:box('HRSG stiffener',(x,2.95,z),(3.45,5.95,.22),steel,g,.03)
+ for z in [-4.4,-7.6,-10.8]:box('HRSG stiffener',(x,2.95,z),(3.45,5.95,.22),steel,g,0)
  box('HRSG roof walkway',(x,5.9,-7.6),(3.5,.14,9.3),steel,g,.02)
  box('Breeching duct',(x,2.6,-12.6),(2.3,3.4,1.4),casing,g,.08)
  o=lathe('Steel exhaust stack',[(0,1.3),(17.4,1.15),(18,1.15)],stackSteel,g,20);o.location=pt((x,0,-13.6))
@@ -90,7 +88,7 @@ for x in [-5,5]:
 # generator step-up transformers and the line gantry the HV route leaves from
 for z in [1,5]:
  box('GSU transformer',(13,1.6,z),(3,3.2,2.6),steel,g,.12)
- for i in range(4):box('GSU radiator',(11.3,1.4,z-.9+i*.6),(.35,2.4,.4),steel,g,.02)
+ for i in range(4):box('GSU radiator',(11.3,1.4,z-.9+i*.6),(.35,2.4,.4),steel,g,0)
  for dz in [-.7,0,.7]:cyl('GSU bushing',(13.5,3.9,z+dz),.13,1.4,pearl,g,8)
 for z in [.6,5.4]:beam('Line gantry post',(16,0,z),(16,7,z),.14,steel,g)
 box('Line gantry beam',(16,7,3),(.3,.3,5.4),steel,g,.02)
@@ -101,7 +99,7 @@ box('Line gantry beam',(16,7,3),(.3,.3,5.4),steel,g,.02)
 # any one plant.
 g='NUCLEAR_PLANT'
 towerConcrete=mat('Tower concrete',(.55,.55,.52),.02,.85)
-towerInside=mat('Tower interior shadow',(.06,.065,.07),0,.95)
+towerInside=dark
 nuc=mat('Nuclear aviation light',(1,.1,.06),0,.5,6)
 H2=34;lip=H2*.06;waist=H2*.62
 def tr(y):return 9+(15-9)*((waist-y)/waist)**2 if y<=waist else 9+(12-9)*((y-waist)/(H2-waist))**2
@@ -137,7 +135,7 @@ bladeWhite=mat('Turbine off-white',(.78,.8,.8),0,.45)
 aviation=mat('Aviation light',(1,.1,.06),0,.5,6)
 g='WIND_MAST';o=lathe('Tapered wind tower',[(0,.35),(15.9,.22)],bladeWhite,g,16)
 box('Nacelle',(0,16.5,-.35),(1.15,1.1,2.5),bladeWhite,g,.34)
-box('Nacelle cooler',(0,17.14,-1.15),(.75,.24,.55),steel,g,.05)
+box('Nacelle cooler',(0,17.14,-1.15),(.75,.24,.55),bladeWhite,g,.05)
 cyl('Nacelle aviation light',(0,17.12,.1),.13,.16,aviation,g,8)
 g='WIND_ROTOR'
 o=lathe('Ogive spinner',[(-.03,.062),(.03,.06),(.07,.05),(.1,.034),(.125,.016),(.14,.003)],bladeWhite,g,16)
@@ -179,7 +177,7 @@ tbox('Portrait gap',(0,AX+.215,0),(.04,.012,60),pvFrame,g)
 for x in [-2.2,2.2]:tbox('Module frame edge',(x,AX+.2,0),(.07,.05,60),pvFrame,g)
 beam('Torque tube',(0,AX,-30),(0,AX,30),.09,steel,g)
 for z in [-30+i*6 for i in range(11)]:box('Driven pile',(0,AX/2,z),(.14,AX,.14),steel,g,0)
-box('Slew drive',(0,AX-.05,0),(.45,.45,.5),dark,g,.05)
+box('Slew drive',(0,AX-.05,0),(.45,.45,.5),steel,g,0)
 # Transmission pylon symbol: tapered four-leg lattice braced on all four faces,
 # two crossarms with three insulator strings a side, shield-wire peaks. Runtime
 # turns each tower square to its line and hangs the line from an insulator tip.
@@ -189,20 +187,20 @@ glassIns=mat('Insulator glass',(.36,.5,.46),.1,.25)
 for x in [-1,1]:
  for z in [-1,1]:beam('Pylon leg',(x*.9,0,z*.7),(x*.22,6,z*.22),.09,galv,g)
 hx=lambda y:.9-(.9-.22)*y/6;hz=lambda y:.7-(.7-.22)*y/6
-for y in [0,1.5,3,4.5]:
- y1=y+1.5
+for y in [0,3]:
+ y1=y+3
  for s2 in [-1,1]:
   beam('Pylon diagonal',(-hx(y),y,s2*hz(y)),(hx(y1),y1,s2*hz(y1)),.05,galv,g)
   beam('Pylon diagonal',(hx(y),y,s2*hz(y)),(-hx(y1),y1,s2*hz(y1)),.05,galv,g)
   beam('Pylon diagonal',(s2*hx(y),y,-hz(y)),(s2*hx(y1),y1,hz(y1)),.05,galv,g)
   beam('Pylon diagonal',(s2*hx(y),y,hz(y)),(s2*hx(y1),y1,-hz(y1)),.05,galv,g)
 for y,w in [(4.5,3.2),(6,4)]:
- box('Pylon crossarm',(0,y,0),(w,.18,.25),galv,g,.035)
+ box('Pylon crossarm',(0,y,0),(w,.18,.25),galv,g,0)
  for sx in [-1,1]:
   for k in range(3):
    x=sx*(w/2-.12-k*.52)
    if k==0 and w==4:x=sx*1.6
-   o=lathe('Insulator string',[(-.7,.06),(-.62,.12),(-.54,.06),(-.3,.06),(-.22,.12),(-.14,.06),(0,.06)],glassIns,g,6);o.location=pt((x,y,0))
+   beam('Insulator string',(x,y,0),(x,y-.7,0),.08,glassIns,g)
 for sx in [-1,1]:beam('Shield-wire peak',(sx*.22,6,0),(sx*.8,7.1,0),.06,galv,g)
 # Campus substation symbol: where the regional HV lines end, beside each campus
 # plinth. A representative yard (gantry, two step-down transformers, control
@@ -211,7 +209,7 @@ for sx in [-1,1]:beam('Shield-wire peak',(sx*.22,6,0),(sx*.8,7.1,0),.06,galv,g)
 g='MAP_SUBSTATION'
 gravel=mat('Crushed rock yard',(.13,.14,.15),0,.95)
 porcelain=mat('Bushing porcelain',(.5,.36,.26),.05,.35)
-tank=mat('Transformer tank grey',(.26,.3,.31),.45,.5)
+tank=steel
 hvbus=mat('Energized bus glow',(.71,.61,1),0,.5,4.5)
 box('Substation gravel pad',(0,.1,0),(15,.2,17),gravel,g,.05)
 for z in [-8.3,8.3]:box('Yard fence rail',(0,1.05,z),(14.6,.08,.08),steel,g,.0)
@@ -223,7 +221,7 @@ for i in range(8):
 for z in [-4,4]:
  for dx in [-.35,.35]:
   for dz in [-.35,.35]:beam('Gantry leg',(-4.5+dx,.2,z+dz),(-4.5+dx*.5,7,z+dz*.5),.07,steel,g)
- for y in [1.5,3,4.5,6]:beam('Gantry lacing',(-4.85,y-1.3,z-.3),(-4.3,y,z+.3),.04,steel,g)
+ for y in [3,6]:beam('Gantry lacing',(-4.85,y-1.3,z-.3),(-4.3,y,z+.3),.04,steel,g)
 box('Gantry crossbeam',(-4.5,7,0),(.4,.35,8.8),steel,g,.04)
 for z in [-2.6,0,2.6]:
  cyl('Strain insulator',(-4.5,6.45,z),.14,1,porcelain,g,10)
@@ -233,7 +231,7 @@ beam('Rigid HV bus',(1.2,5.3,-5.3),(1.2,5.3,5.3),.09,hvbus,g)
 for z in [-4.2,4.2]:
  box('Transformer tank',(2.2,1.85,z),(4.2,3.3,3.2),tank,g,.12)
  box('Conservator tank',(2.2,3.95,z-1),(3,.7,.7),tank,g,.25)
- for i in range(5):box('Radiator fin bank',(0.6+i*.8,1.7,z+1.95),(.5,2.6,.7),tank,g,.03)
+ for i in range(5):box('Radiator fin bank',(0.6+i*.8,1.7,z+1.95),(.5,2.6,.7),tank,g,0)
  for dz in [-.9,0,.9]:cyl('HV bushing',(1.2,4.45,z+dz*.9),.16,1.9,porcelain,g,10)
 box('Control house',(4.4,1.3,0),(2.6,2.2,4.6),pearl,g,.12)
 box('Control house roof',(4.4,2.5,0),(2.9,.2,4.9),steel,g,.05)
@@ -251,7 +249,7 @@ for y in [.35,.95]:
  for z in [-3.5,3.5]:box('Fence rail',(0,y,z),(9,.04,.04),steel,g,0)
  for x in [-4.5,4.5]:box('Fence rail',(x,y,0),(.04,.04,7),steel,g,0)
 box('Wall-pack HVAC',(-3.28,1.7,0),(.5,1.4,1.2),pearl,g,.05)
-o=lathe('HVAC fan grille',[(0,.42),(.04,.42)],dark,g,16);o.rotation_euler.y=math.pi/2;o.location=pt((-3.55,1.7,0))
+o=lathe('HVAC fan grille',[(0,.42),(.04,.42)],steel,g,16);o.rotation_euler.y=math.pi/2;o.location=pt((-3.55,1.7,0))
 box('Door lamp',(1.5,2.92,2.1),(1.1,.09,.12),hutLamp,g,0)
 cyl('Roof beacon mast',(2.4,3.5,1.5),.1,.35,steel,g,8)
 cyl('Roof beacon',(2.4,3.74,1.5),.16,.14,hutLamp,g,10)

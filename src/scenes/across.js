@@ -409,7 +409,7 @@ export function build({ quality, model, state = {} }) {
   for (const [name, matrices] of plantMatrices) power.add(acrossAssetInstances(name, matrices));
   // red aviation lights on nacelles and stacks flash together, about 30 times a minute
   const beacons = [];
-  power.traverse(o => { if (o.material && /Aviation light|Obstruction light/.test(o.material.name) && !beacons.some(b => b.m === o.material)) beacons.push({ m: o.material, k: o.material.emissiveIntensity }); });
+  power.traverse(o => { if (o.material && /aviation light|obstruction light/i.test(o.material.name) && !beacons.some(b => b.m === o.material)) beacons.push({ m: o.material, k: o.material.emissiveIntensity }); });
   power.add(P.build({ cast: false }));
   const plumeUpdates = [];
   if (nuclearEmitters.length) { const pl = plumes(nuclearEmitters, { perEmitter: quality.mobile ? 10 : 22, size: 2.2, grow: 5, life: 9, rise: 2.1, drift: [0.4, 0, 0.15], spread: 0.6, color: '#eef3f8', opacity: 0.3 }); power.add(pl.points); plumeUpdates.push(pl.update); }
