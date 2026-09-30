@@ -191,9 +191,9 @@ export function build({ quality, state, authoredHardware = false }) {
   }
   scene.userData.coherentRouting={laserTrunk,carrierPath,loPath,hostTx,hostRx,lineTx,lineRx,
     discretePackages:true,hostPathGroupsAreNotLaneCounts:true};
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.12, 1.3), new THREE.MeshStandardMaterial({ color: 0xd87aa0, roughness: 0.8, transparent: true, opacity: 0.85 }));
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.12, 1.3), new THREE.MeshStandardMaterial({ color: 0x4d4049, roughness: 0.82, transparent: true, opacity: 0.85 }));
   pad.name='Coherent DSP thermal pad';
-  pad.position.set(DSPX, 2.35, 0); scene.add(pad);
+  pad.position.set(DSPX, 3.145, 0); scene.add(pad);
   if (!authoredHardware) {
   lidBox(scene, M, LEN, MW, [0, Y.lid, 0]);
   // A restrained translucent fin silhouette keeps the interior readable in the

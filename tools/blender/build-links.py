@@ -234,6 +234,19 @@ def export(name, mats, footprint):
     bpy.ops.export_scene.gltf(filepath=str(OUT/(name+'.glb')), export_format='GLB', export_yup=True, export_extras=True, export_cameras=False, export_lights=False)
     print('EXPORTED', name, (OUT/(name+'.glb')).stat().st_size)
 
+def dsp_gap_pad(m, lid_y=3.4, lid_half=.045):
+    # The native layout carries a loose pad halfway between board and lid.
+    # Replace it with a lid-mounted stack that travels with the cover: a
+    # machined pedestal under the lid over the DSP, then a soft gap pad.
+    # Representative: pedestal-plus-TIM has no module-specific source.
+    for o in list(bpy.context.scene.objects):
+        if o.get('sourceMesh')=='Coherent DSP thermal pad':bpy.data.objects.remove(o,do_unlink=True)
+    m['gap']=mat('Soft thermal gap pad',(.30,.25,.29),0,.82)
+    x=-1.49; under=lid_y-lid_half
+    box('OSFP lifted cover DSP pedestal',(x,under-.075,0),(1.46,.15,1.46),m['lid'],.03)
+    pad=box('OSFP lifted cover thermal gap pad',(x,under-.15-.06,0),(1.3,.12,1.3),m['gap'],.04)
+    pad['sourceMesh']='Coherent DSP thermal pad'
+
 def coherent():
     m=reset(); L=10.78; W=2.258
     box('OSFP lower tray', (0,0,0), (L,.12,W), m['shell'], .045)
@@ -283,6 +296,7 @@ def coherent():
     lid('OSFP lifted cover',0,3.4,0,L,W,True,m)
     pull_loop('OSFP release pull',(5.20,.29,0),True,m['pull'])
     internals('coherent')
+    dsp_gap_pad(m)
     export('coherent-hardware',m,[L,W])
 
 def copper_package_mark(name, text, x, z, width, material):
