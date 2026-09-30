@@ -3,7 +3,7 @@ import { it, expect } from 'vitest';
 import { feature } from 'topojson-client';
 import us from 'us-atlas/states-10m.json';
 import { SITES, STATE_CARBON, DEFAULT_PLACE, albers } from '../model/sites';
-import { WIND_R, windLayout, windFootprint, solarLayout, footprintSamples, SOLAR, placePlants, plantAvoid } from './across-plants.js';
+import { WIND_R, windLayout, windFootprint, solarLayout, solarFootprint, SOLAR, placePlants, plantAvoid } from './across-plants.js';
 
 // the same projection and state rings as across.js
 const ORIGIN = albers(-92, 37);
@@ -12,8 +12,13 @@ const EXCLUDED = ['02', '15', '60', '66', '69', '72', '78'];
 const RINGS = (feature(us as any, (us as any).objects.states) as any).features.filter((f: any) => !EXCLUDED.includes(f.id)).map((f: any) => ({
   id: f.id, rings: (f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates).map((p: any) => p.map((r: any) => r.map(([a, b]: number[]) => world(a, b)))),
 }));
+const BOX = new Map<any, number[]>(RINGS.flatMap(({ rings }: any) => rings.map((poly: any) => {
+  const r = poly[0], xs = r.map((p: number[]) => p[0]), zs = r.map((p: number[]) => p[1]);
+  return [poly, [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)]];
+})));
 function stateAt(x: number, z: number) {
   for (const { id, rings } of RINGS) for (const poly of rings) {
+    const b = BOX.get(poly)!; if (x < b[0] || x > b[1] || z < b[2] || z > b[3]) continue;
     let inside = false; const r = poly[0];
     for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
       const [xi, zi] = r[i], [xj, zj] = r[j];
@@ -71,7 +76,7 @@ it('the solar array is a large array of tracker blocks whose rows, roads and ski
 
 it('every campus sets its whole solar array down on carbon-shaded land, clear of the wind farm', () => {
   for (const mobile of [false, true]) for (const { name, H } of homes) {
-    const t = windLayout(mobile), a = solarLayout(mobile), samples = footprintSamples(a.W / 2 + 3, a.L / 2 + 3);
+    const t = windLayout(mobile), a = solarLayout(mobile), samples = solarFootprint(a);
     const plants = placePlants({ H, around: AROUND, footprints: { wind: windFootprint(t), solar: samples }, stateAt, shaded: SHADED, avoid: AVOID });
     const [x, z] = plants[4];
     for (const [px, pz] of samples) expect(SHADED.has(stateAt(x + px, z + pz)), `${name} solar off shaded land`).toBe(true);

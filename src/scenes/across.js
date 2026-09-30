@@ -11,7 +11,7 @@ import { rbox, plumes } from '../fx.js';
 import { SITES, STATE_CARBON, DEFAULT_PLACE, PLACES, placeKey, albers, greatCircleKm } from '../model/sites.ts';
 import { preloadCampusCatalog, campusCatalogInstances } from './campus-blender-catalog.js';
 import { preloadAcrossAssets, hasAcrossAssets, acrossAssetInstances, acrossSurfaceGeometry, replaceWindRotor } from './across-blender-assets.js';
-import { WIND_R, WIND_SCALE, WIND_HUB, windLayout, windFootprint, solarLayout, footprintSamples, SOLAR, placePlants, plantAvoid, METROS } from './across-plants.js';
+import { WIND_R, WIND_SCALE, WIND_HUB, windLayout, windFootprint, solarLayout, solarFootprint, SOLAR, placePlants, plantAvoid, METROS } from './across-plants.js';
 export const preload = () => Promise.all([preloadCampusCatalog(), preloadAcrossAssets()]);
 
 const ORIGIN = albers(-92, 37);
@@ -42,8 +42,13 @@ const RINGS = LOWER48.map(f => {
 const PAD = 260; minX -= PAD; maxX += PAD; minZ -= PAD; maxZ += PAD;
 const MW = maxX - minX, MD = maxZ - minZ;
 // which state is a point in, if any? (ray casting against every state ring); null is water or abroad
+const RING_BOX = new Map(RINGS.flatMap(({ rings }) => rings.map(poly => {
+  const r = poly[0], xs = r.map(p => p[0]), zs = r.map(p => p[1]);
+  return [poly, [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)]];
+})));
 function stateAt(x, z) {
   for (const { id, rings } of RINGS) for (const poly of rings) {
+    const b = RING_BOX.get(poly); if (x < b[0] || x > b[1] || z < b[2] || z > b[3]) continue;   // cheap reject first
     let inside = false; const r = poly[0];
     for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
       const [xi, zi] = r[i], [xj, zj] = r[j];
@@ -339,7 +344,7 @@ export function build({ quality, model, state = {} }) {
   // inside one lit state, clear of the campus and the other plants, so no part of them lands on water or on an
   // unshaded state that reads as water
   const windAt = windLayout(quality.mobile), solar = solarLayout(quality.mobile);
-  const footprints = { wind: windFootprint(windAt), solar: footprintSamples(solar.W / 2 + 3, solar.L / 2 + 3) };
+  const footprints = { wind: windFootprint(windAt), solar: solarFootprint(solar) };
   const plants = placePlants({ H, around, footprints, stateAt, shaded: SHADED, avoid: plantAvoid(world, PLACES.map(p => p.site)) });
   let towerGeo = null;
   const GAS_RY = -0.85;

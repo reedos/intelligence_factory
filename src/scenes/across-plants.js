@@ -122,4 +122,12 @@ export function placePlants({ H, around, footprints, stateAt, shaded, avoid = /*
   });
   return plants;
 }
-export const windFootprint = pts => pts.flatMap(([x, z]) => [[x - WIND_R - 2, z - 3], [x + WIND_R + 2, z - 3], [x - WIND_R - 2, z + 3], [x + WIND_R + 2, z + 3]]);
+// Footprints carry a shore margin of 10 map km past the outermost rotor tip or roadside, so a plant never
+// hugs a coast or a dark state line.
+export const SHORE = 10;
+export const windFootprint = pts => {
+  const xs = pts.map(p => p[0]), zs = pts.map(p => p[1]);
+  const x0 = Math.min(...xs) - WIND_R - SHORE, x1 = Math.max(...xs) + WIND_R + SHORE, z0 = Math.min(...zs) - SHORE, z1 = Math.max(...zs) + SHORE;
+  return footprintSamples((x1 - x0) / 2, (z1 - z0) / 2).map(([x, z]) => [x + (x0 + x1) / 2, z + (z0 + z1) / 2]);
+};
+export const solarFootprint = a => footprintSamples(a.W / 2 + SHORE, a.L / 2 + SHORE);
