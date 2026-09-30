@@ -761,7 +761,8 @@ export function build({ quality, model }) {
         fuel: { pos: [397, 9, -100], view: { pos: [480, 50, -40], target: [397, 0, -100] } },
       } : {}),
       bess: batteryYard ? { pos: [350, 6, -150], view: { pos: [480, 120, -10], target: [350, 0, -150] } } : { pos: [-316, 6, 75], view: { pos: [-250, 60, 170], target: [-315, 0, 75] } },
-      unitsubs: { pos: [hcx, 5, -115], view: { pos: [hcx + 20, 30, -40], target: [hcx, 0, -110] } },
+      // Skim along the row so the pad-mounts, not the hall wall behind them, fill the frame.
+      unitsubs: { pos: [hcx, 5, -115], view: { pos: [hcx - 70, 16, -60], target: [hcx, 3, -120] } },
       hall: { pos: [hcx, 26, hallAz], view: { pos: [hcx + 160, 170, 120], target: [hcx, 10, -120] } },
       ...(warm ? { drycoolers: { pos: [Math.min(60, hcx), 26, -170], view: { pos: [Math.min(60, hcx) + 60, 70, -90], target: [Math.min(60, hcx), 20, -170] } } } : { chillers: { pos: [plantX, 13, -245], view: { pos: [plantX + 70, 70, -160], target: [plantX - 10, 5, -250] } } }),
       ...(towerRows.length ? {
@@ -786,7 +787,7 @@ export function build({ quality, model }) {
       ...(nHalls > 1 ? { interhall: { pos: [-45, 3, -58], view: { pos: [40, 70, 60], target: [-45, 0, -58] } } } : {}),
       ...(nHalls > 1 ? { ductbank: { pos: [-54, 1.1, -90], view: { pos: [-57.2, 1.9, -87.4], target: [-54, 0.45, -89.2] } } } : {}),
       hall: { pos: [hcx, 26, hallAz], view: { pos: [hcx + 160, 170, 120], target: [hcx, 10, -120] } },
-      border:{pos:[borderX,4.2,borderZ],view:{pos:[borderX+70,45,borderZ+70],target:[borderX,3,borderZ]}},
+      border:{pos:[borderX,4.2,borderZ],view:{pos:[borderX+16,24,borderZ-52],target:[borderX,2,borderZ-1]}},
       longhaul: { pos: [fiberA[0], 3, 520], view: { pos: [200, 260, 900], target: [-150, 0, 420] } },
     },
     look: { env: 'sky', envIntensity: 0.75, exposure: 1.08, bloom: 0.7, threshold: 1.4, ao: 0, grain: 0.006, vignette: 0.18, dof: true },
