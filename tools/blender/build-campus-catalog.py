@@ -306,8 +306,9 @@ box('Top cable gland plate',(0,1.004,-.25),(.6,.008,.3),steel,g,0)
 graph=mat('Hall graphite enclosure',(.05,.055,.062),.4,.45)
 screen=mat('Hall display glow',(.2,.55,.7),0,.3,.8)
 g='HALL_SWGR_SECTION'
+# (each section's plinth is 20 mm in from the enclosure sides, so their side faces never share a plane)
 box('Section enclosure',(0,1.15,0),(.9,2.3,1.5),white,g,.01)
-box('Section plinth',(0,.04,0),(.9,.08,1.46),shadow,g,0)
+box('Section plinth',(0,.04,0),(.86,.08,1.46),shadow,g,0)
 for i,y in enumerate([.42,1.0,1.58]):
  box('Breaker cubicle door',(0,y,.755),(.82,.54,.02),white,g,.005)
  box('Breaker escutcheon',(0,y+.02,.767),(.42,.24,.015),shadow,g,0)
@@ -323,7 +324,7 @@ box('Rear rating label',(.25,1.6,-.753),(.2,.12,.006),pearl,g,0)
 box('Top cable gland plate',(0,2.304,-.45),(.6,.008,.4),steel,g,0)
 g='HALL_UPS'
 box('UPS enclosure',(0,1.0,0),(1.1,2.0,1.0),graph,g,.01)
-box('UPS plinth',(0,.04,0),(1.1,.08,.96),shadow,g,0)
+box('UPS plinth',(0,.04,0),(1.06,.08,.96),shadow,g,0)
 box('UPS louvred door',(0,1.0,.505),(1.02,1.84,.02),graph,g,.005)
 for y in [.2+i*.07 for i in range(16)]:box('UPS door slot',(0,y,.517),(.86,.025,.006),shadow,g,0)
 box('UPS display bezel',(-.2,1.5,.52),(.3,.2,.02),shadow,g,0);box('UPS display',(-.2,1.5,.531),(.26,.16,.004),screen,g,0)
@@ -332,7 +333,7 @@ for y in [.5+i*.08 for i in range(10)]:box('Rear louvre',(0,y,-.505),(.86,.03,.0
 box('Rear rating label',(.3,1.6,-.503),(.2,.12,.006),pearl,g,0)
 g='HALL_BATT'
 box('Battery cabinet',(0,1.0,0),(.6,2.0,.8),graph,g,.01)
-box('Battery plinth',(0,.04,0),(.6,.08,.76),shadow,g,0)
+box('Battery plinth',(0,.04,0),(.56,.08,.76),shadow,g,0)
 box('Door frame',(0,1.0,.405),(.56,1.9,.01),steel,g,0)
 for y in [.22+i*.2 for i in range(8)]:
  box('Battery module drawer',(0,y,.415),(.48,.17,.012),shadow,g,0)

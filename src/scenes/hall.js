@@ -318,13 +318,15 @@ export function build({ quality, model }) {
   // at the floor centre), which carry their own doors, cubicles, displays, plinths and handles, so nothing is
   // stretched and no painted panel or seam trim is needed. Other sizes (the taller DC solid-state transformer)
   // keep the stretched cabinet with its textured front.
-  const TRUE_SIZE = { swgr: ['HALL_SWGR_SECTION', .9, 2.3, 1.5], ups: ['HALL_UPS', 1.1, 2.0, 1.0], batt: ['HALL_BATT', .6, 2.0, .8] };
+  // (each section is inset a few millimetres, a different amount per kind, so neighbouring side walls and the
+  // row ends that line up across rows never share a plane)
+  const TRUE_SIZE = { swgr: ['HALL_SWGR_SECTION', .9, 2.3, 1.5, .010], ups: ['HALL_UPS', 1.1, 2.0, 1.0, .014], batt: ['HALL_BATT', .6, 2.0, .8, .006] };
   const cabinetRow = (n, w, h, d, tex, x0, z, facing = 1) => {
     const bw = n * w;
     const kind = tex === TEX.swgr ? 'swgr' : tex === TEX.ups && !dc ? 'ups' : tex === TEX.batt ? 'batt' : null;
     const section = kind && TRUE_SIZE[kind];
     if (hasCampusCatalog() && section && section[1] === w && section[2] === h && section[3] === d) {
-      const g = campusCatalogInstances(section[0], Array.from({ length: n }, (_, i) => mtx(x0 + (i + .5) * w, 0, z, facing < 0 ? Math.PI : 0)));
+      const g = campusCatalogInstances(section[0], Array.from({ length: n }, (_, i) => mtx(x0 + (i + .5) * w, 0, z, facing < 0 ? Math.PI : 0).scale(new THREE.Vector3((w - section[4]) / w, 1, 1))));
       g.userData.trueSizeSection = kind; scene.add(g);
       return { x0, bw, h, z };
     }
