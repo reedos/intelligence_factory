@@ -323,13 +323,14 @@ describe('complete link housings',()=>{
     opts.state.mode=mode;b.update(1,1/60);asset.updateMatrixWorld(true);
     const aspect=width/height,preset=cameraPresetFor(b.camera,width,height),camera=new THREE.PerspectiveCamera(aspect<.9?48:35,aspect,.05,300);
     camera.position.fromArray(preset.pos);camera.lookAt(new THREE.Vector3().fromArray(preset.target));camera.updateMatrixWorld();
-    let edge=0,minX=Infinity,maxX=-Infinity;
+    let edge=0,minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
     for(const m of meshes(asset)) {
      const positions=m.geometry.attributes.position,p=new THREE.Vector3();
-     for(let j=0;j<positions.count;j++) {p.fromBufferAttribute(positions,j).applyMatrix4(m.matrixWorld).project(camera);edge=Math.max(edge,Math.abs(p.x),Math.abs(p.y));minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);}
+     for(let j=0;j<positions.count;j++) {p.fromBufferAttribute(positions,j).applyMatrix4(m.matrixWorld).project(camera);edge=Math.max(edge,Math.abs(p.x),Math.abs(p.y));minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y);}
     }
     expect(edge,`${mode} ${width}×${height}`).toBeLessThan(.96);
-    if(width===390 && height===445)expect((maxX-minX)/2,`${mode}: useful mobile canvas width`).toBeGreaterThan(.75);
+    // A phone view may lay the module across the canvas or diagonally up it; either way it must fill one axis.
+    if(width===390 && height===445)expect(Math.max(maxX-minX,maxY-minY)/2,`${mode}: useful mobile canvas span`).toBeGreaterThan(.75);
    }
   });
  }

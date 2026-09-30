@@ -75,13 +75,15 @@ function build(name, nativeBuilder, options) {
     built.camera.pos = [3.2, 16, 11];
     built.camera.target = [1.3, 1.6, -1];
     built.camera.compact = { pos: [3.5, 24.2, 15.8], target: [1.3, 1.6, -1] };
-    built.camera.portrait = { pos: [1.3, 23.2, 14.12], target: [1.3, 1.6, -1], fit: { aspect: 1, fov: 35, minScale: .60 } };
+    // Phones: look down from the fiber-end corner so the 10.8 cm module runs
+    // diagonally up the tall frame instead of across its narrow width.
+    built.camera.portrait = { pos: [11.5, 15.2, 4.1], target: [1.3, 1.6, -1], fit: { aspect: 1, fov: 35, minScale: 1.2 } };
   }
   if (name === 'copper') {
     // The three raised covers span more width than the exposed boards. Preserve
     // their outer edges through the compact and tall-phone aspect ranges.
     built.camera.compact = { pos: [0, 16, 19.5], target: [0, .9, 0] };
-    built.camera.portrait = { pos: [0, 19, 12.5], target: [0, .9, -1.2], fit: { aspect: 1, fov: 35, minScale: .7 } };
+    built.camera.portrait = { pos: [0, 19, 12.5], target: [0, .9, -1.2], fit: { aspect: 1, fov: 35, minScale: 1.2 } };
   }
   model.scale.setScalar(100); // GLB metres -> scene centimetres.
   model.name = `Blender ${name} complete hardware`;
