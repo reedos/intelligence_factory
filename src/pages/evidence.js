@@ -46,10 +46,13 @@ const GROUPS = [['ledger', '2.1', 'The ledger', `where ${Math.round(M.meterMW)} 
   ['links', '3.2', 'Links', 'copper and optics'], ['clock', '4', 'The clock', 'notes under the simulations'], ['temps', '4.1', 'Hot to cold', 'one operating point per cooling design'], ['site', '1', 'Real campuses', 'facts behind the presets'],
   ['tour', '▸', 'The tours', 'the figures each narrated stop states']];
 
+{ const q0 = new URLSearchParams(location.search).get('q'); if (q0) $('ev-q').value = q0; }
 function render() {
   const q = $('ev-q').value.trim().toLowerCase();
   const bases = new Set([...document.querySelectorAll('[data-basis][aria-pressed="true"]')].map(b => b.dataset.basis));
   const layers = new Set([...document.querySelectorAll('[data-layer][aria-pressed="true"]')].map(b => b.dataset.layer));
+  // a search or a filter in use: the page's head steps aside so the matching claims sit right under the tools
+  document.body.classList.toggle('ev-searching', !!q || !!document.querySelector('[data-basis][aria-pressed="false"], [data-layer][aria-pressed="false"]'));
   const text = c => `${c.label} ${c.value} ${c.part?.title || ''} ${c.scene?.title || ''} ${(c.ev?.refs || []).map(([id, at]) => `${SOURCES[id]?.publisher} ${SOURCES[id]?.title} ${at}`).join(' ')}`.toLowerCase();
   const hit = c => bases.has(c.basis) && (!c.mode || layers.has(c.mode)) && (!q || text(c).includes(q));
   const shown = claims.filter(hit);

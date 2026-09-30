@@ -1,6 +1,7 @@
 .campus-presentation { flex: none; order: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--line); background: var(--ground); z-index: 7; }
-.campus-view-buttons, .view-tools { display: flex; align-items: center; gap: 4px; }
-.view-tools { margin-left: auto; flex-wrap: wrap; min-width: 0; }
+.campus-view-buttons { display: flex; align-items: center; gap: 4px; }
+.view-part { display: inline-flex; align-items: center; gap: 8px; font: 400 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.view-part select { max-width: 280px; }
 .campus-presentation [hidden] { display: none; }
 .campus-presentation button { color: var(--ink); border: 1px solid var(--line-2); background: var(--ground); min-height: 36px; padding: 6px 10px; cursor: pointer; border-radius: 0; font: 600 11px/1.2 var(--sans); letter-spacing: .08em; text-transform: uppercase; }
 .campus-presentation button:hover { background: var(--surface); border-color: var(--ink); }
@@ -20,41 +21,54 @@ body.story .campus-presentation { display: none; }
 body.app:not(.story) .sheet-toggle { display: grid; touch-action: none; user-select: none; }
 @media (min-width: 1101px) { body.app .sheet-toggle { display: none !important; } }
 @media (max-width: 1100px) {
-  body.app:not(.story) .viewer { flex: 1 1 0; min-height: 0; }
+  /* The pane's tab bar must always take its taps. When the sheet opens, the viewer can get shorter than the view's
+     minimum plus its control row; its content then clips inside the viewer instead of spilling over the tabs, and
+     the pane sits in a layer above the viewer in any case. */
+  body.app:not(.story) .viewer { flex: 1 1 0; min-height: 0; overflow: hidden; }
+  body.app:not(.story) .panel { position: relative; z-index: 8; }
   body.app:not(.story) .view { flex: 1 1 0; height: auto; min-height: 140px; }
   body.app:not(.story) .panel { flex: 0 0 var(--inspector-size, 230px); }
   body.app.sheet-open:not(.story) .panel { flex-basis: var(--inspector-size, 52dvh); }
   body.app:not(.story) .sheet-toggle { width: 44px; place-items: center; padding: 0; }
   body.app:not(.story) .sheet-toggle i { display: block; width: 18px; height: 3px; background: var(--muted); border: 0; transform: none; border-radius: 4px; }
 }
+@media (max-width: 1100px) {
+  /* in the top row's menu: the view's own controls stack as full-width choices */
+  .mm-view .campus-presentation { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px; padding: 0; border: 0; background: none; }
+  .mm-view .campus-view-buttons { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .mm-view .view-part { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(0, 1fr); padding-left: 4px; }
+  .mm-view .campus-presentation select { width: 100%; max-width: none; min-height: 44px; }
+  .mm-view .campus-presentation button { width: 100%; min-height: 44px; white-space: normal; }
+}
 @media (max-width: 760px) {
-  body.app:not(.story) .panel { flex-basis: var(--inspector-size, 150px); }
+  /* The sheet rests at a peek: about two thirds of the screen stays the view. A part picked shows its name, its key
+     figure with the label that backs it, and its door; Details (or the handle, or More) pulls the sheet up. */
+  body.app:not(.story) .panel { flex-basis: var(--inspector-size, 198px); }
+  body.app:not(.story):not(.sheet-open) #card { gap: 4px; padding: 8px 12px; }
+  body.app:not(.story):not(.sheet-open) .panel:has(#card:not([hidden])) > .panel-scroll { -webkit-mask-image: none; mask-image: none; }
+  body.app:not(.story):not(.sheet-open) #card :is(.k, #card-b, .card-links, .card-actions),
+  body.app:not(.story):not(.sheet-open) #card-s > div:nth-child(n + 2) { display: none; }
+  body.app:not(.story):not(.sheet-open) #card h3 { font-size: 23px; }
+  body.app:not(.story):not(.sheet-open) #card-s > div { padding: 3px 0; border-bottom: 0; }
+  /* in the peek: the name, the key figure, then the door and Details */
+  body.app:not(.story):not(.sheet-open) #card-s { order: 1; }
+  body.app:not(.story):not(.sheet-open) #card .card-door { order: 2; display: flex; padding-top: 2px; gap: 6px; }
+  body.app:not(.story):not(.sheet-open) #card .card-door .btn { min-height: 44px; }
+  body.app:not(.story):not(.sheet-open) #card #card-go { flex: 1 1 auto; font-size: 11px; line-height: 1.2; }
+  body.app:not(.story):not(.sheet-open) #card .card-more { display: inline-flex; flex: none; margin-left: auto; }
+  body.app:not(.story):not(.sheet-open) .panel-scroll { padding-top: 8px; }
+  body.app:not(.story):not(.sheet-open) .panel:has(#card:not([hidden])) .more-cue { display: none; }   /* Details says it */
+  /* the handle reads as one: a chevron up to pull the sheet up, down to push it back */
+  body.app:not(.story) .sheet-toggle i { width: 10px; height: 10px; background: none; border-left: 2px solid var(--ink); border-top: 2px solid var(--ink); border-radius: 0; transform: translateY(3px) rotate(45deg); }
+  body.app.sheet-open:not(.story) .sheet-toggle i { transform: translateY(-3px) rotate(225deg); }
   body.app.sheet-open:not(.story) .panel { flex-basis: var(--inspector-size, 52dvh); }
-  .campus-presentation { padding: 6px 8px; gap: 5px; }
-  .campus-presentation button { min-height: 40px; font-size: 10px; padding-inline: 8px; }
-  .campus-view-buttons { flex: 1; }
-  .campus-view-buttons button { flex: 1; }
-  .view-tools { margin-left: 0; flex: 1; }
-  .view-tools button { flex: 1; }
-  #campus-focus { flex: 0 0 auto; }
   body.app .panel-scroll { padding: 14px 16px 22px; }
-  /* Phones spend the screen on the view: the view controls and Share share ONE row under it. The controls scroll
-     sideways in that row (a fade at the right edge says there is more) instead of wrapping into three rows. */
-  body.app:not(.story) .viewer { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: minmax(0, 1fr) auto; }
-  body.app:not(.story) .view { grid-column: 1 / -1; grid-row: 1; height: auto; min-height: 140px; }
-  body.app:not(.story) .campus-presentation { grid-column: 1; grid-row: 2; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: none; min-width: 0; padding: 5px 8px; gap: 5px;
-    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
-  body.app:not(.story) .campus-presentation::-webkit-scrollbar { display: none; }
-  body.app:not(.story) .campus-presentation::after { content: ""; flex: 0 0 18px; }   /* the last control clears the fade */
-  body.app:not(.story) .campus-presentation > *, body.app:not(.story) .campus-view-buttons button, body.app:not(.story) .view-tools > * { flex: none; }
-  body.app:not(.story) .campus-view-buttons, body.app:not(.story) .view-tools { flex: none; margin-left: 0; flex-wrap: nowrap; }
-  body.app:not(.story) .campus-presentation button { min-height: 38px; white-space: nowrap; }
-  body.app:not(.story) .campus-presentation select { min-height: 38px; max-width: 150px; }
-  body.app:not(.story) .hud-btns { grid-column: 2; grid-row: 2; border-top: 1px solid var(--line); border-left: 1px solid var(--line); background: var(--ground); display: flex; }
-  body.app:not(.story) .hud-row { height: 100%; }
-  body.app:not(.story) .hud-row .btn { min-height: 0; height: 100%; padding-inline: 14px; }
-  body.app:not(.story) .hud-row #back-out { max-width: 132px; padding: 4px 10px; }
-  body.app:not(.story) .hud-row #back-out .bo-destination { display: none; }   /* the scale tabs above already name where it goes */
+  /* Phones spend the screen on the view: its controls live in the top row's menu, so no row sits under it, and
+     Back outside floats at its top left, clear of the layer switch that moved up into the top row. */
+  body.app:not(.story) .hud-btns { position: absolute; z-index: 6; top: 10px; left: 10px; right: auto; order: 0; display: block; border: 0; background: none; pointer-events: none; }
+  body.app:not(.story) .hud-row { pointer-events: auto; }
+  body.app:not(.story) .hud-row .btn { min-height: 44px; border: 1px solid var(--accent); }
+  body.app:not(.story) .hud-row #back-out { flex: none; max-width: 220px; padding: 5px 12px; }
 }
 
 .link-scope p { margin: 0; }

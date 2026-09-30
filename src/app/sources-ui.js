@@ -31,6 +31,7 @@ function body(key) {
     if (ev.calc && CALCS[ev.calc]) html += `<p class="sp-k">How it is calculated</p><p class="sp-note">${esc(CALCS[ev.calc].how)} ${methodLink(`calc-${ev.calc}`, 'Method')}</p>`;
     if (ev.assume && ASSUMPTIONS[ev.assume]) { const a = ASSUMPTIONS[ev.assume]; html += `<p class="sp-k">What the model assumes</p><p class="sp-note">${esc(a.title)}: ${esc(a.value)}. ${esc(a.why)} ${methodLink(`assume-${ev.assume}`, 'Method')}</p>`; }
     if (ev.refs?.length) html += `<p class="sp-k">${ev.calc ? 'Its published inputs' : 'Sources for this figure'}</p><ul>${ev.refs.map(refItem).join('')}</ul>`;
+    if (c?.label) html += `<p class="sp-all"><a href="evidence.html?q=${encodeURIComponent(c.label)}">Claims like it on the Evidence page</a></p>`;
     return html;
   }
   return head + '<p class="sp-k">Not traced to a source, a calculation or an assumption.</p>';
@@ -45,10 +46,13 @@ function place(chip) {
   pop.style.left = `${left}px`;
   pop.style.top = `${below + h > innerHeight - 12 && r.top - h - 8 > 12 ? r.top - h - 8 : below}px`;
 }
+const more = () => pop.classList.toggle('has-more', pop.scrollHeight - pop.clientHeight - pop.scrollTop > 8);
+pop.addEventListener('scroll', more, { passive: true });
 function open(chip) {
   pop.innerHTML = body(chip.dataset.src);
   pop.hidden = false;
   place(chip);
+  more();
   opener = chip; chip.setAttribute('aria-expanded', 'true');
   pop.querySelector('.sp-x').addEventListener('click', close);
   pop.querySelector('a, .sp-x')?.focus({ preventScroll: true });

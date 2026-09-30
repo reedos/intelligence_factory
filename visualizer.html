@@ -27,7 +27,19 @@
 </header>
 <main class="app-main">
   <section class="stage" aria-label="Power chain in 3D">
-    <nav class="steps" id="steps" aria-label="Scale"></nav>
+    <!-- one top row: the six levels (a picker on phones), the layer switch on phones, and one menu for the rest -->
+    <div class="toprow" id="toprow">
+      <nav class="steps" id="steps" aria-label="Scale"></nav>
+      <button type="button" class="level-pick" id="level-pick" aria-haspopup="true" aria-expanded="false" aria-controls="level-menu"><span class="lp-k" id="lp-k">Level 1 of 6</span><span class="lp-t" id="lp-t">Scale across</span><i aria-hidden="true"></i></button>
+      <div class="pop level-menu" id="level-menu" role="group" aria-label="Levels" hidden></div>
+      <div class="mode-slot" id="mode-slot"></div>
+      <button type="button" class="more-btn" id="more-btn" aria-haspopup="true" aria-expanded="false" aria-controls="more-menu" aria-label="More: share, quality, present, hide details"><span aria-hidden="true">⋯</span></button>
+      <div class="pop more-menu" id="more-menu" role="group" aria-label="More" hidden>
+        <div class="mm-view" id="mm-view"><p class="mm-h">This view</p></div>
+        <div class="mm-tools" id="mm-tools"><button type="button" class="mm-item" id="share-btn">Share this view</button></div>
+        <p class="mm-note">Personal educational project based on cited public sources. Not an official publication of my employer or the companies discussed.</p>
+      </div>
+    </div>
     <div class="body">
       <!-- the viewer stacks the 3D view over its controls (on phones the buttons),
            so nothing docked to the view can land on top of anything else -->
@@ -50,46 +62,52 @@
           <div class="veil" id="veil">Building the region…</div>
         </div>
         <div class="hud-btns" id="hud-btns">
-          <div class="hud-row"><button type="button" class="btn story-btn" id="back-out" hidden>← Back outside</button><button type="button" class="btn story-btn" id="share-btn">Share</button></div>
+          <div class="hud-row"><button type="button" class="btn story-btn" id="back-out" hidden>← Back outside</button></div>
           <p class="hint">Drag to orbit · right-drag to pan · scroll to zoom<br>With the view focused or the pointer over it: 1–6 jumps scale · P D H switch layers · ← → steps parts</p>
         </div>
       </div>
       <aside class="panel" aria-label="Components">
-        <div class="pane-tabs" role="tablist" aria-label="Side pane"><button type="button" class="sheet-toggle" id="sheet-toggle" aria-expanded="false" aria-label="Expand the panel"><i aria-hidden="true"></i></button><button type="button" role="tab" data-pane="parts" aria-selected="true">Parts</button><button type="button" role="tab" data-pane="scenario" aria-selected="false">Scenario</button><span class="pane-sum" id="pane-sum"></span></div>
+        <div class="pane-tabs" role="tablist" aria-label="Side pane"><button type="button" class="sheet-toggle" id="sheet-toggle" aria-expanded="false" aria-label="Expand the panel"><i aria-hidden="true"></i></button><button type="button" role="tab" data-pane="parts" aria-selected="true">Parts<span class="tab-n" id="parts-n"></span></button><button type="button" role="tab" data-pane="scenario" aria-selected="false">Scenario</button><span class="pane-sum" id="pane-sum"></span></div>
         <div class="panel-scroll">
     <section class="scenario pane-scenario" id="pane-scenario" aria-labelledby="sc-h" hidden>
-      <div class="sc-head">
-        <p class="eyebrow">1.1 · Scenario</p>
-        <h2 id="sc-h">Build your campus</h2>
-      </div>
-      <div class="sc-controls">
-        <div class="sc-group sc-size">
-          <div class="ctl-head"><label for="sc-mw">Campus size, at the meter</label><output id="sc-mw-v" for="sc-mw">100 MW</output></div>
-          <input type="range" id="sc-mw" min="0" max="1000" step="1" value="500">
-          <div class="presets"><button type="button" data-mw="10">10 MW</button><button type="button" data-mw="100">100 MW</button><button type="button" data-mw="1000">1 GW</button><button type="button" data-mw="5000">5 GW</button></div>
-        </div>
-        <div class="sc-group"><span class="lab">Accelerator</span><div class="sc-seg" id="sc-accel" role="group" aria-label="Accelerator"></div></div>
-        <div class="sc-group"><span class="lab">Power to the rack</span><div class="sc-seg" id="sc-power" role="group" aria-label="Power to the rack"></div></div>
-        <div class="sc-group"><span class="lab">Cooling</span><div class="sc-seg" id="sc-cooling" role="group" aria-label="Cooling"></div></div>
-      </div>
-      <div class="sc-sites"><span class="lab">Or start from a real campus</span><div class="sc-seg" id="sc-site" role="group" aria-label="Real campuses"></div></div>
-      <div class="site-card" id="site-card" hidden></div>
-      <p class="note" id="sc-note"></p>
+      <!-- what the campus comes to first, and comparing two of them; then the real campuses; the four choices fold under Adjust -->
+      <h2 id="sc-h" class="sc-h">This campus</h2>
       <div class="kpis" id="kpis"></div>
-      <p class="note">These are this model’s estimates for the scenario above, not figures for a real building, even when a real campus is picked. The label beside each number on a part says what backs it.</p>
       <div class="sc-compare"><button type="button" class="btn" id="sc-pin" aria-pressed="false">Pin to compare</button><span id="sc-pinned"></span></div>
+      <div class="sc-sites"><span class="lab">Start from a real campus</span><div class="sc-seg" id="sc-site" role="group" aria-label="Real campuses"></div></div>
+      <div class="site-card" id="site-card" hidden></div>
+      <details class="sc-adjust" id="sc-adjust">
+        <summary>Adjust <span>size, accelerator, power, cooling</span></summary>
+        <div class="sc-controls">
+          <div class="sc-group sc-size">
+            <div class="ctl-head"><label for="sc-mw">Campus size, at the meter</label><output id="sc-mw-v" for="sc-mw">100 MW</output></div>
+            <input type="range" id="sc-mw" min="0" max="1000" step="1" value="500">
+            <div class="presets"><button type="button" data-mw="10">10 MW</button><button type="button" data-mw="100">100 MW</button><button type="button" data-mw="1000">1 GW</button><button type="button" data-mw="5000">5 GW</button></div>
+          </div>
+          <div class="sc-group"><span class="lab">Accelerator</span><div class="sc-seg" id="sc-accel" role="group" aria-label="Accelerator"></div></div>
+          <div class="sc-group"><span class="lab">Power to the rack</span><div class="sc-seg" id="sc-power" role="group" aria-label="Power to the rack"></div></div>
+          <div class="sc-group"><span class="lab">Cooling</span><div class="sc-seg" id="sc-cooling" role="group" aria-label="Cooling"></div></div>
+        </div>
+        <p class="note" id="sc-note"></p>
+      </details>
+      <p class="note">These are this model’s estimates for the scenario above, not figures for a real building, even when a real campus is picked. The label beside each number on a part says what backs it.</p>
     </section>
           <p class="intro" id="intro"></p>
+          <button type="button" class="intro-more" id="intro-more" aria-expanded="false" aria-controls="intro" hidden>Read more</button>
           <div class="parts-head"><span class="eyebrow" id="parts-k">Numbered in the view</span></div>
           <ul class="parts" id="parts"></ul>
           <article class="card" id="card" hidden>
             <span class="k" id="card-k"></span>
             <h3 id="card-t"></h3>
+            <!-- the part's door sits under its name, not under a long description -->
+            <div class="card-door">
+              <button type="button" class="btn go" id="card-go" hidden>Go inside →</button>
+              <button type="button" class="btn card-more" id="card-more" aria-label="Show all of this part's details">Details <span aria-hidden="true">↑</span></button>
+            </div>
             <p id="card-b"></p>
             <dl class="specs" id="card-s"></dl>
             <div class="card-links" id="card-links" hidden></div>
             <div class="card-actions">
-              <button type="button" class="btn go" id="card-go" hidden>Go inside →</button>
               <div class="card-navigation" role="group" aria-label="Part navigation">
                 <button type="button" class="btn" id="card-prev">Previous part</button>
                 <button type="button" class="btn" id="card-next">Next part</button>

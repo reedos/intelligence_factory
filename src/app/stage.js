@@ -697,7 +697,35 @@ for (let i = 0; i < BUILDERS.length; i++) {
   b.addEventListener('click', () => go(i));
   stepsEl.appendChild(b);
 }
+// phones: one level picker in place of the six tabs; its menu lists the four levels inside the links as well
+const levelPick = $('level-pick'), levelMenu = $('level-menu'), levelItems = [];
+if (levelMenu) {
+  const main = document.createElement('div'), side = document.createElement('div');
+  main.className = 'lm-group'; side.className = 'lm-group'; side.innerHTML = '<p class="mm-h">Inside the links</p>';
+  for (let i = 0; i < BUILDERS.length; i++) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'lm-item'; b.dataset.level = String(i);
+    b.addEventListener('click', () => go(i));
+    (isSide(i) ? side : main).append(b); levelItems.push(b);
+  }
+  levelMenu.append(main, side);
+}
+function renderLevelPick() {
+  if (!levelPick) return;
+  const cur = ui.scene >= 0 ? ui.scene : 0, s = SCENES()[cur];
+  const where = isSide(cur) ? 'Inside the links' : `Level ${s.n} of ${MAIN_LEVELS}`;
+  $('lp-k').textContent = where; $('lp-t').textContent = s.title;
+  levelPick.style.setProperty('--c', voltFor(s).css);
+  levelPick.setAttribute('aria-label', `${where}: ${s.title}. Choose a level`);
+  levelItems.forEach((b, i) => {
+    const t = SCENES()[i], v = voltFor(t);
+    b.style.setProperty('--c', v.css);
+    b.innerHTML = `<span class="n">${t.side ? '+' : t.n}</span><span class="t">${t.title}</span><span class="meta"><span class="dot"></span><span>${v.short} · ${t.scale}</span></span>`;
+    if (i === cur) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+  });
+}
 function renderSteps() {
+  renderLevelPick();
   [...stepsEl.children].forEach((b, i) => {
     const s = SCENES()[i], v = voltFor(s);
     b.style.setProperty('--c', v.css);
@@ -751,15 +779,18 @@ function buildPanel(i) {
   }
   $('hud-title').textContent = s.side ? s.title : `${s.n}. ${s.title}`;
   $('optics-variant').hidden = i !== MODULE_LEVEL;
-  const back = $('back-out'); back.hidden = !isSide(i);
-  if (isSide(i)) {
-    const t = SCENES()[backTarget()].title;
+  // Back outside on every level below the top: a side level goes back the way the reader came in, a main level to
+  // the one above it
+  const back = $('back-out'); back.hidden = i <= 0;
+  if (i > 0) {
+    const t = SCENES()[isSide(i) ? backTarget() : i - 1].title;
     back.innerHTML = `<span class="bo-action">← Back outside</span><span class="bo-destination">${t}</span>`;
     back.setAttribute('aria-label', `Back outside to ${t}`);
   }
   $('hud-sub').textContent = `${voltFor(s).name} · ${s.scale}`;
   const list = $('parts'); list.innerHTML = '';
   $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · ${s.side ? 'inside the links' : `level ${s.n}`} · ${parts.length} parts`;
+  const tabN = $('parts-n'); if (tabN) { tabN.textContent = parts.length; tabN.setAttribute('aria-label', `, ${parts.length} parts`); }
   const playThese = $('play-these');
   if (playThese) { playThese.textContent = `▶ Play 1 to ${parts.length}`; playThese.hidden = !parts.length; }
   const overviewRow = document.createElement('li'), overview = document.createElement('button');
@@ -1030,10 +1061,18 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   else if (built[ui.scene]?.model !== store.M) go(ui.scene, null, { force: true, keepCamera: true });   // the scenario changed mid-switch
 }
 export const sceneCount = BUILDERS.length;
-// Back out of a side level to the level, layer and door part the reader came in by
+// Back out of a side level to the level, layer and door part the reader came in by; out of a main level to the one
+// above it, at the part whose door leads here
 export async function backOut() {
-  if (!isSide(ui.scene)) return;
+  if (ui.scene <= 0) return;
   const restoreFocus = document.activeElement === $('back-out');
+  if (!isSide(ui.scene)) {
+    const from = ui.scene, to = from - 1, door = partsFor(to).find(p => p.drill === from)?.id;
+    await go(to, null);
+    if (door && hasPart(to, door)) select(door, true);
+    if (restoreFocus) (document.querySelector(`#parts button[data-id="${door}"]`) || document.querySelector('#parts button[data-overview]'))?.focus({ preventScroll: true });
+    return;
+  }
   const to = backTarget(), via = sideEntered ? sideVia : null, mode = sideEntered ? sideMode : null;
   if (mode && mode !== ui.mode) setMode(mode);
   await go(to, null);

@@ -158,6 +158,11 @@ img { max-width: 100%; }
   .chip.spec { color: var(--spec); } .chip.typical { color: var(--typical); } .chip.est { color: var(--est); border-style: dashed; }
   .chip.vendor { color: var(--vendor); } .chip.reported { color: var(--reported); } .chip.derived { color: var(--derived); } .chip.assumed { color: var(--assumed); border-style: dashed; }
   .card-actions { display: flex; gap: 10px; flex-wrap: wrap; padding-top: 4px; }
+  .card-door .card-more { display: none; }
+  .card-door { display: flex; gap: 8px; }
+  .card-door:has(#card-go[hidden]) { display: none; }
+  .card-door #card-go { flex: 0 1 auto; min-width: 0; white-space: normal; line-height: 1.25; padding-block: 8px; background: var(--accent); border-color: var(--accent); color: #000; }
+  .card-door #card-go:hover { background: #f0cc9c; border-color: #f0cc9c; }
   .card-navigation { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; }
   .card-navigation .btn { min-width: 0; min-height: 44px; padding: 8px; justify-content: center; text-align: center; white-space: normal; font-size: 11px; }
   .btn { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 20px; border: 1px solid var(--line-2); font: 600 12px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); background: transparent; transition: background .2s, color .2s, border-color .2s; }
@@ -326,6 +331,16 @@ svg .golink:focus { outline: none; }
 button.chip { font: 500 9.5px/1 var(--mono); cursor: pointer; background: transparent; margin: 0; }
 button.chip:hover, button.chip[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
 button.chip:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+/* the i on a badge says it opens what backs the figure */
+button.chip[data-src] { position: relative; gap: 5px; }
+button.chip[data-src]::after { content: "i"; display: inline-grid; place-items: center; width: 11px; height: 11px; border: 1px solid currentColor; border-radius: 50%; font: italic 600 8px/1 var(--sans); letter-spacing: 0; opacity: .85; }
+@media (pointer: coarse) { button.chip[data-src]::before { content: ""; position: absolute; inset: -13px -8px; } }   /* a finger-sized target */
+.src-pop.has-more { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 48px), rgba(0,0,0,.25)); mask-image: linear-gradient(180deg, #000 calc(100% - 48px), rgba(0,0,0,.25)); }
+/* phones: what backs a figure is a sheet along the bottom of the screen, over the view, not a popover by the badge */
+@media (max-width: 760px) {
+  .src-pop { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: auto !important; max-height: 72dvh; padding: 18px var(--gutter) calc(18px + env(safe-area-inset-bottom, 0px)); border: 0; border-top: 2px solid var(--accent); box-shadow: 0 -18px 50px rgba(0,0,0,.7); }
+  .src-pop .sp-x { min-width: 44px; min-height: 44px; display: grid; place-items: center; margin: -12px -8px -12px auto; }
+}
 .src-pop { position: fixed; z-index: 50; max-height: min(420px, 70vh); overflow-y: auto; padding: 16px 18px 14px; background: var(--surface); border: 1px solid var(--line-2); box-shadow: 0 18px 50px rgba(0,0,0,.6); display: grid; gap: 10px; font-size: 13px; color: var(--muted); }
 .src-pop .sp-head { display: flex; align-items: center; gap: 10px; }
 .src-pop .sp-head b { color: var(--ink); font-weight: 600; }
@@ -336,6 +351,7 @@ button.chip:focus-visible { outline: 1px solid var(--accent); outline-offset: 2p
 .src-pop .sp-k { font: 400 10.5px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
 .src-pop .sp-claim { color: var(--ink); }
 .src-pop .sp-d { font: 400 11px/1.4 var(--mono); color: var(--muted); }
+.src-pop .sp-all { padding-top: 8px; border-top: 1px solid var(--line-2); font-size: 12px; }
 .chip-k { font: 400 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
 .src-pop ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .src-pop li { display: grid; gap: 1px; }
@@ -507,7 +523,7 @@ body.playing .beat.on .beat-bar { visibility: visible; }
 
 /* ---------- view buttons ---------- */
 /* over the view's top right on wide screens, under the layer switch; a bar under the view on phones */
-.hud-btns { position: absolute; z-index: 3; top: 70px; right: 22px; display: grid; justify-items: end; gap: 8px; pointer-events: none; }
+.hud-btns { position: absolute; z-index: 3; top: 90px; right: 22px; display: grid; justify-items: end; gap: 8px; pointer-events: none; }
 .hud-row { display: flex; gap: 6px; pointer-events: auto; }
 body.looked .hint, body.story .hint { display: none; }
 /* the key hints sit over the scene until the reader first moves it: give them a dark backing so they read over bright hardware */
@@ -675,6 +691,22 @@ body.scrolled .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--
   .topnav .sep { display: none; }
 }
 
+/* the story page's one way into the visualizer: a button in the top bar, on every width */
+.top-cta { flex: none; min-height: 38px; padding: 0 16px; gap: 8px; margin-left: 8px; background: var(--accent); border-color: var(--accent); color: #000; font-size: 11.5px; white-space: nowrap; }
+.top-cta:hover { background: #f0cc9c; border-color: #f0cc9c; }
+.top-cta:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
+@media (pointer: coarse) { .top-cta { min-height: 44px; } }
+@media (max-width: 900px) {
+  .top-cta { margin-left: auto; }
+  .top-cta + .menu-btn { margin-left: 8px; }
+}
+@media (min-width: 901px) and (max-width: 1180px) { .topbar:has(.top-cta) .brand-t { display: none; } }   /* nav, button and name do not all fit */
+@media (max-width: 560px) {
+  .topbar:has(.top-cta) { gap: 10px; }
+  .topbar:has(.top-cta) .brand-t { display: none; }   /* the hero's title says it right below */
+  .top-cta { padding: 0 12px; font-size: 11px; }
+}
+
 /* ---------- the hero ---------- */
 .hero { position: relative; display: grid; align-items: end; min-height: 600px; height: min(100vh, 1080px); height: min(100svh, 1080px); padding: calc(var(--bar) + 40px) var(--gutter) clamp(40px, 7vh, 88px); overflow: hidden; isolation: isolate; background: #000; }   /* matches the fade at the foot of the picture */
 .hero-img, .hero-img img { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -814,10 +846,43 @@ body.app .pane-off { display: none !important; }
 .pane-tabs button { all: unset; cursor: pointer; padding: 12px 18px; font: 600 12px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-bottom: 2px solid transparent; }
 .pane-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .pane-tabs button:focus-visible { outline: 1px solid var(--accent); outline-offset: -3px; }
-.pane-sum { margin-left: auto; align-self: center; padding: 0 16px; font: 500 11px/1.2 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pane-sum { margin-left: auto; align-self: center; padding: 4px 14px 4px 8px; font: 500 10.5px/1.3 var(--mono); color: var(--muted); text-align: right; min-width: 0; }   /* wraps to a second line rather than cut off */
 body.app .pane-scenario { padding: 0; border: 0; background: none; }
 body.app .pane-scenario .sc-controls { grid-template-columns: minmax(0, 1fr); }
-body.app .pane-scenario .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+body.app .pane-scenario { gap: 16px; }
+body.app .pane-scenario .sc-h { font: 400 10.5px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 -8px; }
+/* results first and compact: three to a row, so all ten and the pin sit in the first screen of the pane */
+body.app .pane-scenario .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 0; }
+body.app .pane-scenario .kpi { padding: 8px 8px 8px 0; gap: 4px; border-top: 1px solid var(--line); }
+body.app .pane-scenario .kv { font-size: 23px; }
+body.app .pane-scenario .kl { font-size: 9.5px; letter-spacing: .06em; }
+body.app .pane-scenario .kd { font-size: 10px; }
+body.app .pane-scenario .sc-compare { gap: 10px; font-size: 12.5px; }
+body.app .pane-scenario .sc-compare .btn { flex: none; white-space: nowrap; min-height: 40px; padding: 0 16px; }
+/* pinned: the row sticks to the top of the pane with three headline changes, so a setting changed in Adjust reads here */
+body.app .pane-scenario .sc-compare.pinned { position: sticky; top: 0; z-index: 2; background: var(--ground); box-shadow: 0 -20px 0 var(--ground); padding: 8px 0; border-bottom: 1px solid var(--line-2); flex-wrap: nowrap; align-items: flex-start; }
+.sc-compare #sc-pinned { display: grid; gap: 4px; min-width: 0; }
+.sc-heads { display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.sc-heads:empty { display: none; }
+.sc-heads .kd { font-size: 10.5px; white-space: nowrap; }
+body.app .pane-scenario .sc-sites { display: grid; gap: 8px; }
+body.app .pane-scenario .sc-sites .lab { font: 400 10.5px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.sc-adjust { border: 1px solid var(--line-2); }
+.sc-adjust > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px; font: 600 12px/1.2 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); }
+.sc-adjust > summary::-webkit-details-marker { display: none; }
+.sc-adjust > summary::before { content: '+'; font: 500 16px/1 var(--mono); color: var(--accent); width: 12px; }
+.sc-adjust[open] > summary::before { content: '−'; }
+.sc-adjust > summary span { font: 400 10.5px/1.3 var(--mono); letter-spacing: .04em; text-transform: none; color: var(--muted); }
+.sc-adjust > summary:hover { background: var(--surface); }
+.sc-adjust > summary:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
+.sc-adjust > .sc-controls { padding: 14px; border-block: 1px solid var(--line); gap: 18px; }
+.sc-adjust > .note { padding: 10px 14px 14px; }
+.sc-adjust > .note:empty { display: none; }
+/* the story page: the campus in one line, and where to change it */
+.sc-summary .sc-line { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; }
+.sc-summary .sc-line b { font: 600 clamp(22px, 2.4vw, 30px)/1.1 var(--display); text-transform: uppercase; }
+.sc-edit { font: 600 12px/1.4 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); text-decoration: none; }
+.sc-edit:hover { color: var(--ink); }
 /* The inspector has its own width, independent of the desktop viewport.
    Constrain tracks and reflow content before suppressing horizontal scrolling. */
 #inspector { min-width: 0; container: inspector / inline-size; }
@@ -848,6 +913,130 @@ body.story .pane-tabs { display: none; }
   body.app .view { flex: none; height: 54vh; height: 54dvh; min-height: 260px; }
   body.app .panel { flex: 1 1 0; }
 }
+
+/* ---------- the top row: the levels, (phones) the layer switch, one menu for the rest ---------- */
+.toprow { position: relative; z-index: 20; display: flex; align-items: stretch; border-bottom: 1px solid var(--line); background: var(--ground); }
+.toprow .steps { flex: 1 1 auto; min-width: 0; border-bottom: 0; }
+.level-pick, .mode-slot:empty { display: none; }
+.more-btn { all: unset; box-sizing: border-box; flex: none; width: 56px; display: grid; place-items: center; cursor: pointer; border-left: 1px solid var(--line); color: var(--ink); font: 600 24px/1 var(--sans); }
+.more-btn:hover, .more-btn[aria-expanded="true"] { background: var(--surface); }
+.more-btn[aria-expanded="true"] { color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+.more-btn:focus-visible, .level-pick:focus-visible { outline: 1px solid var(--accent); outline-offset: -3px; }
+.pop { position: absolute; top: 100%; z-index: 30; background: var(--surface); border: 1px solid var(--line-2); box-shadow: 0 18px 48px rgba(0,0,0,.65); max-height: calc(100dvh - 150px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.pop[hidden] { display: none; }
+.more-menu { right: 0; width: min(340px, calc(100vw - 16px)); padding: 8px; display: grid; gap: 8px; }
+.mm-h { margin: 0; padding: 6px 4px 2px; font: 400 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.mm-view { display: grid; gap: 6px; }
+.mm-view:not(:has(.campus-presentation)) { display: none; }
+.mm-tools { display: grid; gap: 6px; }
+.mm-view + .mm-tools { border-top: 1px solid var(--line-2); padding-top: 8px; }
+.mm-item { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; min-height: 40px; padding: 0 12px; border: 1px solid var(--line-2); font: 600 11px/1.2 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink); }
+.mm-item:hover { background: var(--ground); border-color: var(--ink); }
+.mm-item:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+.mm-item[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #000; }
+.mm-select { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; padding: 0 0 0 12px; border: 1px solid var(--line-2); font: 600 11px/1.2 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mm-select select { align-self: stretch; min-width: 0; border: 0; border-left: 1px solid var(--line-2); border-radius: 0; background: var(--ground); color: var(--ink); padding: 0 10px; font: 600 12px/1.2 var(--sans); }
+.mm-select select:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
+.mm-note { margin: 0; padding: 8px 4px 2px; border-top: 1px solid var(--line-2); font: 400 10.5px/1.5 var(--mono); color: var(--faint); }
+@media (pointer: coarse) { .mm-item, .mm-select { min-height: 44px; } }
+.level-menu { left: 0; width: min(420px, 100vw); padding: 6px; display: grid; gap: 6px; }
+.lm-group { display: grid; }
+.lm-group + .lm-group { border-top: 1px solid var(--line-2); padding-top: 4px; }
+.lm-item { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px 10px; align-items: baseline; min-height: 48px; padding: 8px 10px; }
+.lm-item .n { grid-row: 1 / span 2; font: 600 11px/1 var(--mono); color: var(--faint); }
+.lm-item .t { font: 600 18px/1.05 var(--display); text-transform: uppercase; color: var(--ink); }
+.lm-item .meta { display: flex; align-items: center; gap: 7px; font: 500 10.5px/1.3 var(--mono); color: var(--muted); }
+.lm-item:hover { background: var(--ground); }
+.lm-item[aria-current="step"] { background: var(--ground); box-shadow: inset 2px 0 0 var(--c, var(--accent)); }
+.lm-item:focus-visible { outline: 1px solid var(--accent); outline-offset: -2px; }
+/* wide screens: every level's full name, on two lines where one is not enough, never cut off */
+@media (min-width: 761px) {
+  body.app .step .t { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.02; }
+  body.app .step .meta { white-space: normal; overflow: visible; }
+}
+@media (min-width: 761px) and (max-width: 1480px) {
+  body.app .step { padding: 11px 12px 10px; }
+  body.app .step .t { font-size: 17px; }
+  body.app .step .meta { font-size: 10.5px; gap: 6px; }
+}
+/* phones: "Level 3 of 6" and the level's name, the layer switch, the menu: one row */
+@media (max-width: 760px) {
+  body.app .toprow .steps { display: none; }
+  body.app .level-pick { all: unset; box-sizing: border-box; position: relative; flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: center; column-gap: 8px; row-gap: 2px; min-height: 54px; padding: 6px 8px 7px 14px; cursor: pointer; }
+  body.app .level-pick::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--c, var(--accent)); }
+  body.app .level-pick[aria-expanded="true"] { background: var(--surface); }
+  .lp-k { grid-column: 1; font: 500 9.5px/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .lp-t { grid-column: 1; font: 600 16px/1.02 var(--display); text-transform: uppercase; color: var(--ink); }
+  .level-pick i { grid-column: 2; grid-row: 1 / span 2; align-self: center; width: 7px; height: 7px; margin: 0 4px 4px; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: rotate(45deg); }
+  .level-pick[aria-expanded="true"] i { transform: rotate(225deg); margin: 4px 4px 0; }
+  body.app .mode-slot { display: flex; align-items: center; flex: none; border-left: 1px solid var(--line); }
+  body.app .mode-slot .mode { background: none; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; height: 100%; }
+  body.app .mode-slot .mode button { min-height: 44px; height: 100%; padding: 0 7px; gap: 5px; font-size: 10px; letter-spacing: .05em; }
+  body.app .mode-slot .mode button i { width: 7px; height: 7px; }
+  body.app .more-btn { width: 46px; }
+  .level-menu { width: 100vw; left: 0; }
+  .hud.vl { top: 10px; }   /* the layer switch no longer sits over the view */
+}
+@media (max-width: 379px) { .hud.vl { top: 64px; } }   /* too narrow to share the top with Back outside */
+
+/* ---------- the part list: a level's parts in view at once ---------- */
+body.app #intro:not(.open) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.intro-more { all: unset; box-sizing: border-box; justify-self: start; margin-top: -8px; padding: 4px 0; cursor: pointer; font: 600 11px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.intro-more[hidden] { display: none; }
+.intro-more:hover { color: var(--ink); }
+.intro-more:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+@media (pointer: coarse) { .intro-more { min-height: 44px; margin-top: -12px; } }
+/* with a mouse on a wide screen the rows are dense, so every part of a level fits at 1280 x 720; the part picked
+   opens its card right under the list. Touch keeps 44 px rows. */
+@media (min-width: 1101px) and (pointer: fine) {
+  body.app .panel-scroll { padding: 16px 20px 20px; gap: 12px; }
+  body.app .parts-head { margin-bottom: -4px; }
+  #inspector .parts button { grid-template-columns: 20px minmax(0, 1fr) auto; gap: 10px; min-height: 26px; padding: 3px 4px; }
+  body.app .parts .pn { width: 18px; height: 18px; font-size: 10px; }
+  body.app .parts .pt { font-size: 13px; line-height: 1.2; }
+  body.app .parts .pk { font-size: 10px; }
+  body.app #intro { font-size: 13.5px; line-height: 1.55; }
+  body.app .card { padding: 14px 16px 14px; gap: 10px; }
+  body.app .card h3 { font-size: 26px; }
+  body.app .card p { font-size: 13.5px; line-height: 1.55; }
+  body.app .specs div { padding: 6px 0; }
+  body.app .card-actions .btn { min-height: 36px; }
+}
+
+/* ---------- the reference pages in a sheet over the visualizer ---------- */
+.page-sheet { position: fixed; inset: 0; z-index: 70; display: grid; grid-template-columns: minmax(0, 1fr) min(860px, 100%); }
+.page-sheet[hidden] { display: none; }
+.ps-scrim { all: unset; background: rgba(0,0,0,.55); cursor: pointer; }
+.ps-panel { display: flex; flex-direction: column; min-width: 0; background: var(--ground); border-left: 1px solid var(--line-2); box-shadow: -24px 0 60px rgba(0,0,0,.6); }
+.ps-bar { flex: none; display: flex; align-items: center; gap: 16px; min-height: 52px; padding: 0 0 0 var(--gutter); border-bottom: 1px solid var(--line-2); }
+.ps-bar b { font: 600 20px/1 var(--display); text-transform: uppercase; }
+.ps-open { margin-left: auto; font: 600 11px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+.ps-open:hover { color: var(--ink); }
+.ps-x { all: unset; box-sizing: border-box; cursor: pointer; width: 52px; align-self: stretch; display: grid; place-items: center; border-left: 1px solid var(--line-2); font: 400 26px/1 var(--sans); color: var(--ink); }
+.ps-x:hover { background: var(--surface); }
+.ps-x:focus-visible, .ps-open:focus-visible { outline: 1px solid var(--accent); outline-offset: -3px; }
+.ps-panel iframe { flex: 1 1 auto; width: 100%; border: 0; background: #000; }
+@media (max-width: 760px) { .page-sheet { grid-template-columns: 0 minmax(0, 1fr); } .ps-panel { border-left: 0; } }
+/* a reference page shown in that sheet: no top bar of its own */
+.embedded .topbar { display: none; }
+.embedded .page-wrap { padding-top: 32px; }
+
+/* ---------- more below: the pane fades at its foot and a strip under it says there is more ---------- */
+/* a strip of its own, not an overlay, so it never sits on a button in the pane */
+body.app .panel { position: relative; }
+.has-more > .panel-scroll { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 40px), rgba(0,0,0,.2)); mask-image: linear-gradient(180deg, #000 calc(100% - 40px), rgba(0,0,0,.2)); }
+/* the pane's own scrollbar stays visible, thin, so a long list shows it continues */
+body.app .panel-scroll { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+.pane-tabs button[role="tab"] { display: inline-flex; align-items: center; white-space: nowrap; }
+.tab-n { display: inline-grid; place-items: center; min-width: 20px; height: 18px; margin-left: 8px; padding: 0 5px; border: 1px solid var(--line-2); font: 500 10.5px/1 var(--mono); letter-spacing: 0; color: var(--muted); vertical-align: 1px; }
+.tab-n:empty { display: none; }
+.pane-tabs [aria-selected="true"] .tab-n { border-color: var(--accent); color: var(--accent); }
+.more-cue { flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 36px; padding: 0 14px; background: var(--ground); color: var(--ink); border: 0; border-top: 1px solid var(--line-2); border-radius: 0; font: 600 11px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; cursor: pointer; }
+.more-cue i { font-style: normal; color: var(--accent); }
+.more-cue:hover { background: var(--surface); }
+.more-cue:focus-visible { outline: 1px solid var(--accent); outline-offset: -3px; }
+.more-cue[hidden], body.story .more-cue { display: none; }
+@media (pointer: coarse) { .more-cue { min-height: 44px; } }
 
 /* the publication statement at the foot of the side pane, not over the view */
 .pane-note { margin: 8px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font: 400 11px/1.5 var(--mono); color: var(--faint); }

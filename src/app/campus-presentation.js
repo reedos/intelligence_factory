@@ -14,12 +14,19 @@ panel.innerHTML = `<div class="campus-view-buttons" role="group" aria-label="Cam
   <button type="button" id="campus-focus" aria-pressed="true" aria-describedby="campus-focus-note">Soft focus</button>
   <span id="campus-focus-note" class="view-sr-only">Gentle depth of field; labels stay crisp.</span>
   <button type="button" id="link-annotations" aria-pressed="false" hidden>Annotations</button>
-  <select id="link-view" aria-label="Selected part" hidden></select>
+  <label class="view-part" hidden><span>Part</span><select id="link-view" aria-label="Selected part"></select></label>
   <button type="button" id="part-cycle" aria-pressed="false" title="Cycle through this level's parts in order. Each part holds for 8 seconds after the camera arrives.">▶ Auto cycle</button>
-  <button type="button" id="link-covers" aria-pressed="false" hidden>Show covers</button>
-  <div class="view-tools"><select id="render-quality" aria-label="Rendering quality"><option value="auto">Auto quality</option><option value="laptop">Laptop mode</option></select><button type="button" id="presentation-view" aria-pressed="false">Present</button>
-  <button type="button" id="inspector-toggle" aria-expanded="true" aria-controls="inspector">Hide details</button></div>`;
+  <button type="button" id="link-covers" aria-pressed="false" hidden>Show covers</button>`;
 document.getElementById('viewer').append(panel);
+// Share, quality, Present and Hide details live in the one menu at the end of the top row (visualizer.html)
+document.getElementById('mm-tools').insertAdjacentHTML('beforeend', `<label class="mm-select"><span>Rendering</span><select id="render-quality"><option value="auto">Auto quality</option><option value="laptop">Laptop mode</option></select></label>
+  <button type="button" class="mm-item" id="presentation-view" aria-pressed="false">Present</button>
+  <button type="button" class="mm-item" id="inspector-toggle" aria-expanded="true" aria-controls="inspector">Hide details</button>`);
+// On tablets and phones the view's own controls join that menu too, so no control row sits between the view and the
+// side pane; on a desktop they stay in a row under the view.
+const inMenu = matchMedia('(max-width: 1100px)');
+const place = () => { if (inMenu.matches) document.getElementById('mm-view').append(panel); else document.getElementById('viewer').append(panel); };
+inMenu.addEventListener('change', place); place();
 const scope = document.createElement('section'); scope.className = 'link-scope'; scope.hidden = true;
 const scopeBrief = document.createElement('p');
 const scopeDetails = document.createElement('details');
@@ -28,8 +35,8 @@ const scopeText = document.createElement('p');
 scopeDetails.append(scopeSummary, scopeText); scope.append(scopeBrief, scopeDetails);
 document.getElementById('intro').before(scope);
 document.querySelector('.panel').id = 'inspector';
-const details = panel.querySelector('#inspector-toggle');
-const present = panel.querySelector('#presentation-view');
+const details = document.getElementById('inspector-toggle');
+const present = document.getElementById('presentation-view');
 let previousCollapsed = false;
 function collapseInspector(collapsed) {
   document.body.classList.toggle('inspector-collapsed', collapsed);
@@ -80,9 +87,9 @@ onTick(dt => partCycle.tick(dt));
 for (const event of ['scene', 'mode', 'scenario', 'module-variant', 'user-camera']) on(event, () => partCycle.stop());
 on('select', () => { if (!partCycle.selecting) partCycle.stop(); });
 addEventListener('keydown', event => { if (event.key === 'Escape' && partCycle.playing) partCycle.stop(); });
-panel.querySelector('#render-quality').addEventListener('change', e => setQualityPreference(e.target.value));
+document.getElementById('render-quality').addEventListener('change', e => setQualityPreference(e.target.value));
 function sync() {
-  panel.querySelector('#render-quality').value = qualityInfo().preference;
+  document.getElementById('render-quality').value = qualityInfo().preference;
   const inspection = built[store.ui.scene]?.inspection;
   scope.hidden = !inspection?.scope;
   scopeText.textContent = inspection?.scope || '';
@@ -94,7 +101,7 @@ function sync() {
   if (scope.dataset.scene !== String(store.ui.scene)) { scopeDetails.open = false; scope.dataset.scene = String(store.ui.scene); }
   const viewSelect = panel.querySelector('#link-view');
   const parts = currentParts();
-  viewSelect.hidden = store.ui.scene < 0;
+  viewSelect.closest('label').hidden = store.ui.scene < 0;
   const viewKey = JSON.stringify([store.ui.scene, store.ui.mode, parts.map(p => [p.id, p.title])]);
   if (viewSelect.dataset.scene !== viewKey) {
     viewSelect.replaceChildren(new Option('0. Overview', ''), ...parts.map((part, i) => new Option(`${i + 1}. ${part.title}`, part.id)));
