@@ -124,7 +124,9 @@ export function layoutMapCaptions(entries, camera, width, height, selected = nul
     const x = (p.x + 1) * width / 2, y = (1 - p.y) * height / 2;
     let box = null;
     const tries = [];
-    for (const dy of [0, -24, 24, -48, 48, -72, 72, -96, 96]) tries.push([0, dy]);
+    // route distances also try sideways and further out: two routes leaving one campus put their midpoints close
+    const dys = entry.route ? [0, -24, 24, -48, 48, -72, 72, -96, 96, -120, 120, -144, 144] : [0, -24, 24, -48, 48, -72, 72, -96, 96];
+    for (const dx of entry.route ? [0, -0.6, 0.6] : [0]) for (const dy of dys) tries.push([dx * w, dy]);
     tries.sort((a, b) => Math.hypot(...a) - Math.hypot(...b));
     // the home campus caption never disappears: if every slot is taken it keeps its anchor slot
     if (entry.main) tries.push([0, 0, true]);
@@ -434,7 +436,7 @@ export function build({ quality, model, state = {} }) {
     // ≈4.9 µs/km assumption used elsewhere, computed from the rounded km so the two numbers agree
     const kmR = Math.round(L / 10) * 10;
     const lab = labelSprite(`≈ ${kmR.toLocaleString('en-US')} km · ≈ ${(kmR * 0.0049).toFixed(1)} ms one way`);
-    lab.position.set(mid[0], 40, mid[2]); lab.visible = false; data.add(lab); caption(lab, data, { route: true });
+    lab.position.set(mid[0], 40, mid[2]); lab.visible = false; data.add(lab); caption(lab, data, { route: true, priority: 2 - i });   // the nearer route places first
     if (!longest || L > longest.L) longest = { L, mid, B };
   });
   if (authored) data.add(campusCatalogInstances('MAP_HUT', huts.map(p => mtx(p[0], 0, p[2]))));
