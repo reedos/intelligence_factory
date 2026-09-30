@@ -28,6 +28,9 @@ def material(name, color, metal=0, rough=.4, alpha=1):
     if alpha < 1: m.surface_render_method = 'DITHERED'
     return m
 
+# Face textures (materials with a 0-1 top-face UV) are painted at runtime by
+# side-cpo-blender.js; the GLB embeds no images.
+
 nickel = material('Satin nickel retainers', (.5,.57,.62), .82,.29)
 edge = material('Polished screw heads', (.68,.73,.76), .9,.22)
 dark = material('Anodized recess', (.025,.038,.048), .65,.37)
@@ -54,6 +57,7 @@ for m in [fiberTx,fiberRx,fiberCw]:
     p=m.node_tree.nodes.get('Principled BSDF')
     p.inputs['Emission Color'].default_value=m.diffuse_color
     p.inputs['Emission Strength'].default_value=.18
+eicFace = material('Electronic die face', (.03,.045,.07), .1,.25)
 driver = material('Driver schematic regions', (.05,.19,.24), .45,.32)
 tia = material('TIA schematic regions', (.20,.07,.15), .45,.32)
 blue = material('Supply coolant pipe', (.025,.20,.36), .38,.28)
@@ -66,7 +70,7 @@ groups = {name: group(name) for name in ['CPO_BOARD','CPO_PACKAGE','CPO_RETAINER
 
 def world(p): return (p[0]*CM, -p[2]*CM, p[1]*CM)
 
-def box(name, p, d, mat, role, bevel=.02, angle=0):
+def box(name, p, d, mat, role, bevel=.02, angle=0, uv_top=False):
     # Work in native scene coordinates then convert to Blender Z-up meters.
     verts = []
     for z in [-1,1]:
@@ -77,6 +81,13 @@ def box(name, p, d, mat, role, bevel=.02, angle=0):
                 verts.append(world((p[0]+xx,p[1]+y*d[1]/2,p[2]+zz)))
     faces = [(0,4,6,2),(1,3,7,5),(0,1,5,4),(2,6,7,3),(0,2,3,1),(4,5,7,6)]
     mesh = bpy.data.meshes.new(name); mesh.from_pydata(verts,[],faces); mesh.update()
+    if uv_top:
+        # Top face (+Y native) spans the texture; other faces sample its dark rim.
+        uv=mesh.uv_layers.new(name='UVMap')
+        for poly in mesh.polygons:
+            for li in poly.loop_indices:
+                vi=mesh.loops[li].vertex_index
+                uv.data[li].uv=((vi&1),(vi>>2)&1) if poly.index==3 else (.002,.002)
     o=bpy.data.objects.new(name,mesh); S.collection.objects.link(o); o.parent=groups[role]; mesh.materials.append(mat)
     if bevel:
         mod=o.modifiers.new('Manufactured edge radius','BEVEL'); mod.width=bevel*CM; mod.segments=3
@@ -231,13 +242,13 @@ def photonic_die(cx,cy,cz,scale,angle,exploded=False):
     def pz(v):return -pd/2+v/384*pd
     box('Photonic PIC',w(0,0,0),(pw,.15 if exploded else .06,pd),pic,role,.005*scale,angle)
     ey=.95 if exploded else .065
-    box('Electronic EIC',w(0,ey,0),(1.23*scale,.12 if exploded else .07,.902*scale),eic,role,.005*scale,angle)
+    box('Electronic EIC',w(0,ey,0),(1.23*scale,.12 if exploded else .07,.902*scale),eic if exploded else eicFace,role,.005*scale,angle,uv_top=not exploded)
+    if not exploded: return
     # Regions are schematic functional blocks, not a photographed die floorplan.
     for i in range(8):
         ex=-1.23*scale/2+(23+i*29)/256*(1.23*scale)
         for z,m in [(-.198*scale,driver),(.227*scale,tia)]:
-            box('Driver' if m==driver else 'TIA',w(ex,ey+(.062 if exploded else .037),z),(.106*scale,.004,.324*scale),m,role,.002*scale,angle)
-    if not exploded:return
+            box('Driver' if m==driver else 'TIA',w(ex,ey+.062,z),(.106*scale,.004,.324*scale),m,role,0,angle)
     for words,z,mat in [('TX DRIVERS',-.198*scale,fiberTx),('RX TIAs',.227*scale,fiberRx)]:
         curve=bpy.data.curves.new(words,'FONT');curve.body=words;curve.size=.16*CM
         curve.align_x='CENTER';curve.align_y='CENTER';curve.extrude=0

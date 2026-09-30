@@ -3,16 +3,47 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { build as buildDiagram } from './side-cpo.js';
 import { engineLayout } from './side-geometry.js';
-import { label, note } from './side-kit.js';
+import { THREE, label, note } from './side-kit.js';
 import { directLink } from './link-art-direction.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
 
 let source, pending;
 export function preload() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=6`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=8`)
     .then(gltf => { source = gltf.scene; return source; })
     .catch(error => { pending = undefined; throw error; });
+}
+
+// Representative die faces painted at runtime onto the GLB's 0-1 top-face UVs.
+// Not floorplans: dark silicon, a seal ring, faint cell rows, and for the EIC a
+// 20% tint marking the transmit (driver) and receive (TIA) halves.
+const srgb = v => Math.round(255 * Math.min(1, Math.max(0, v)) ** (1 / 2.2));
+function paintFace(W, H, shade) {
+  const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d'), img = ctx.createImageData(W, H);
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const blocks = Array.from({ length: (H >> 4) + 1 }, () => Array.from({ length: (W >> 4) + 1 }, rnd));
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const c = shade(x / W, y / H, Math.min(x, W - 1 - x, y, H - 1 - y), blocks[y >> 4][x >> 4], x, y), i = (y * W + x) * 4;
+    img.data[i] = srgb(c[0]); img.data[i + 1] = srgb(c[1]); img.data[i + 2] = srgb(c[2]); img.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false; tex.anisotropy = 4;
+  return tex;
+}
+const mix = (a, b, k) => a.map((v, i) => v * (1 - k) + b[i] * k);
+function eicFace() {
+  return paintFace(512, 384, (u, v, e, block, x, y) => {
+    if (e <= 7) return [.022, .03, .042];
+    if (e < 10.5) return [.16, .18, .20];
+    const grain = (y % 6 < 1 ? .010 : 0) + ((x + Math.floor(y / 6) * 37) % 29 < 1 ? .006 : 0) + (block - .5) * .012;
+    let c = [.030 + grain, .045 + grain, .070 + grain];
+    if (e > 14 && v > .53) c = mix(c, [.05, .19, .24], .2);       // transmit drivers
+    if (e > 14 && v < .47) c = mix(c, [.20, .07, .15], .2);       // receive TIAs
+    return c;
+  });
 }
 
 export function build(args) {
@@ -49,6 +80,11 @@ export function build(args) {
   asset.traverse(node => { if (node.isMesh && node.material.name === 'Switch ASIC silicon') asicMaterial = node.material; });
   if (!asicMaterial) throw new Error('CPO asset is missing its authored switch ASIC');
   asicMaterial.emissive.set(0xff6a1a);
+  asset.traverse(node => {
+    if (node.isMesh && node.material.name === 'Electronic die face' && !node.material.map) {
+      node.material.map = eicFace(); node.material.color.set(0xffffff); node.material.needsUpdate = true;
+    }
+  });
   const built = buildDiagram({ ...args, authoredHardware: true, authoredAsicMaterial: asicMaterial });
   // Include the entire off-package callout and its fiber ends at desktop widths.
   built.camera.pos = [-1, 27, 32];
