@@ -161,15 +161,17 @@ export function build({ quality, state, authoredHardware = false }) {
   const loPath=[tap,[3.68,tap[1],.12],icrLo];
   strand(N,laserTrunk,M.fiberCw,.012);
   strand(N,carrierPath,M.fiberCw,.012);strand(N,loPath,M.fiberCw,.012);
-  const LCX = MX1 - 0.3, lcTx = [LCX - 0.25, Y.top + 0.2, -0.3], lcRx = [LCX - 0.25, Y.top + 0.2, 0.3];
-  strand(N, [cdmOut, [(cdmOut[0] + lcTx[0]) / 2, Y.top + 0.18, -0.35], lcTx], M.fiberTx, 0.012);
-  strand(N, [lcRx, [(icrSig[0] + lcRx[0]) / 2, Y.top + 0.18, 0.3], icrSig], M.fiberRx, 0.012);
-  for (const [dz, c] of [[-0.3, COL.tx], [0.3, COL.rx]]) { S.box(0.5, 0.36, 0.42, MAT.polymer, LCX, Y.top + 0.2, dz); N.box(0.02, 0.05, 0.05, glowMat(c, 1.4), LCX + 0.26, Y.top + 0.2, dz); }
-  for (const dz of [-0.3, 0.3]) {
-    // Connector shell lips frame the existing optical port; no additional port.
-    for (const dy of [-0.155, 0.155]) N.box(0.035, 0.035, 0.4, shellEdge, LCX + 0.245, Y.top + 0.2 + dy, dz);
-    for (const side of [-0.185, 0.185]) N.box(0.035, 0.28, 0.025, shellEdge, LCX + 0.245, Y.top + 0.2, dz + side);
-  }
+  // Duplex LC receptacle at the module front (the Blender asset models the
+  // molded body, bores, sleeves and bracket). Fibers land on its rear face;
+  // the fiber cores glow at the ferrule stub faces inside the bores.
+  const LCX = MX1 - 0.3, LCY = Y.top + 0.3, LCR = 4.78, LCF = 5.165;
+  const lcTx = [LCR, LCY, -0.3], lcRx = [LCR, LCY, 0.3];
+  const txLead = [[cdmOut[0] + .12, Y.top + .12, -.52], [LCR - .1, LCY, -.32]];
+  const rxLead = [[LCR - .1, LCY, .32], [icrSig[0] + .12, Y.top + .12, .52]];
+  strand(N, [cdmOut, ...txLead, lcTx], M.fiberTx, 0.012);
+  strand(N, [lcRx, ...rxLead, icrSig], M.fiberRx, 0.012);
+  for (const [dz, c] of [[-0.3, COL.tx], [0.3, COL.rx]]) N.box(0.006, 0.07, 0.07, glowMat(c, 1.4), LCF, LCY, dz);
+  if (!authoredHardware) for (const dz of [-0.3, 0.3]) S.box(0.58, 0.8, 0.6, MAT.polymer, (LCR + MX1 - .03) / 2, LCY, dz);
   // Separate host-side and line-side banks land on the DSP die. Signals stop
   // at the DSP and resume from its other interface: no false lane-for-lane wire
   // through the DSP. Four path groups illustrate routing, not a host pin count.
@@ -207,7 +209,7 @@ export function build({ quality, state, authoredHardware = false }) {
   }
   const names = new Map([[MAT.pcb,'Coherent PCB'],[MAT.inductor,'Coherent inductors'],[MAT.pcbBlack,'Coherent package substrates'],
     [M.glass,'Coherent optical tap'],[MAT.polymer,'Coherent LC receptacle'],[laminate,'Coherent PCB laminate edge'],[MAT.gold,'Coherent gold contacts'],
-    [MAT.copper,'Coherent copper'],[M.fiberCw,'Coherent CW fiber'],[M.fiberTx,'Coherent TX fiber'],[M.fiberRx,'Coherent RX fiber'],[shellEdge,'Coherent LC lips']]);
+    [MAT.copper,'Coherent copper'],[M.fiberCw,'Coherent CW fiber'],[M.fiberTx,'Coherent TX fiber'],[M.fiberRx,'Coherent RX fiber']]);
   for (const group of [S.build(), N.build({ cast: false })]) {
     group.traverse(o => { if (o.isMesh && names.has(o.material)) o.name = names.get(o.material); });
     scene.add(group);
@@ -220,8 +222,8 @@ export function build({ quality, state, authoredHardware = false }) {
   dataFlows.push(flow(laserTrunk,'cw',FLOW.cw));
   dataFlows.push(flow(carrierPath, 'cw', FLOW.cw));
   dataFlows.push(flow(loPath, 'cw', FLOW.cw));
-  dataFlows.push(flow([cdmIn, cdmOut, [(cdmOut[0] + lcTx[0]) / 2, Y.top + 0.18, -0.35], lcTx, [MX1 + 0.7, Y.top + 0.2, -0.3]], 'tx', FLOW.light));
-  dataFlows.push(flow([[MX1 + 0.7, Y.top + 0.2, 0.3], lcRx, [(icrSig[0] + lcRx[0]) / 2, Y.top + 0.18, 0.3], icrSig, [RX_, Y.top + 0.12, icrZ]], 'rx', FLOW.light));
+  dataFlows.push(flow([cdmIn, cdmOut, ...txLead, lcTx, [MX1 + 0.7, LCY, -0.3]], 'tx', FLOW.light));
+  dataFlows.push(flow([[MX1 + 0.7, LCY, 0.3], lcRx, ...rxLead, icrSig, [RX_, Y.top + 0.12, icrZ]], 'rx', FLOW.light));
   for (let i = 0; i < 4; i++) flows.push(flow([[MX0 - 1.1, yT, -0.9 + i * 0.6], [mx(0.3), yT, -0.9 + i * 0.6], [mx(1.35+(i%2)*.48), Y.top + 0.12, i < 2 ? -0.22 : 0.22]], 'v33', FLOW.power));
   for (const [x, z] of [[DSPX, 0], [ITX, 0], [CX_, cdmZ], [DRX, drvZ], [RX_, icrZ], [TIAX, tiaZ]]) {
     const start = [mx(2.0), yT, z * 0.4], end = [x, Y.top + 0.12, z];
@@ -252,6 +254,7 @@ export function build({ quality, state, authoredHardware = false }) {
   label(scene, 'TX carrier', [3.7,1.85,-.18], COL.cw, .10);
   label(scene, 'RX local oscillator', [3.7,1.85,.18], COL.cw, .10);
   label(scene, 'Light · glass fiber', [LCX - 0.6, 2.05, 0], COL.tx, 0.14);
+  label(scene, 'Duplex LC receptacle', [LCX + 0.1, 2.35, 0], note, 0.12);
 
   const hs = {
     cdsp: { pos: [DSPX, Y.top + .2, .3] },

@@ -350,6 +350,40 @@ def coherent_board_detail(m):
         cap(-4.9,s*.2,False)
         cap(2.36,s*.25,False)
 
+def tube(name, x0, x1, y, z, r, material, n=24, inner=0):
+    # A cylinder (or open tube when inner>0) along +x, in scene cm.
+    if inner:return annulus(name,((x0+x1)/2,y,z),r,inner,x1-x0,'x',material)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=n,radius=r*.01,depth=(x1-x0)*.01,location=xyz(((x0+x1)/2,y,z)),rotation=(0,math.pi/2,0))
+    o=bpy.context.object;o.name=name;o.data.materials.append(material)
+    for p in o.data.polygons:p.use_smooth=len(p.vertices)==4
+    return o
+
+def duplex_lc_receptacle(m):
+    # One molded duplex LC receptacle at the module front: two square bores
+    # with a stepped mouth and a latch-key slot, a zirconia split sleeve and a
+    # ferrule stub face inside each, on a bracket under the board end. The
+    # media interface is a duplex LC connector (Cisco 800G ZR/ZR+ datasheet);
+    # body styling, sizes and the 6 mm port pitch here are representative.
+    m['lcbody']=mat('Molded LC receptacle body',(.055,.06,.066),0,.5)
+    m['zirconia']=mat('Zirconia ferrule sleeve',(.86,.85,.80),0,.35)
+    x0,x1,y,h,hw=4.78,5.36,1.65,.8,.61
+    body=box('LC receptacle body',((x0+x1)/2,y,0),(x1-x0,h,2*hw),m['lcbody'],.03)
+    cuts=[]
+    for z in [-.3,.3]:
+        cuts.append(box('cut',(5.15,y,z),(.46,.46,.46),m['lcbody'],0))           # bore, 4.2 mm deep
+        cuts.append(box('cut',(5.36,y,z),(.1,.53,.53),m['lcbody'],0))            # stepped mouth
+        cuts.append(box('cut',(5.30,y+.25,z),(.2,.1,.16),m['lcbody'],0))         # latch-key slot
+    for c in cuts:
+        mod=body.modifiers.new('Port','BOOLEAN');mod.operation='DIFFERENCE';mod.object=c
+        bpy.context.view_layer.objects.active=body;bpy.ops.object.modifier_apply(modifier=mod.name)
+        bpy.data.objects.remove(c,do_unlink=True)
+    for z in [-.3,.3]:
+        tube('LC split sleeve',4.93,5.20,y,z,.085,m['zirconia'],32,.0625)
+        tube('LC ferrule stub',4.93,5.16,y,z,.0625,m['zirconia'],24)
+        tube('LC fiber strain relief',4.70,4.785,y,z,.045,m['boot'],16)
+    box('LC receptacle bracket',(4.83,1.23,0),(1.06,.04,1.3),m['edge'],.008)
+    for z in [-.45,.45]:screw('LC bracket screw',4.66,1.25,z,m,.04)
+
 def dsp_gap_pad(m, lid_y=3.4, lid_half=.045):
     # The native layout carries a loose pad halfway between board and lid.
     # Replace it with a lid-mounted stack that travels with the cover: a
@@ -404,11 +438,7 @@ def coherent():
         ('Receiver island',3.92,.55,1.18,.72),
         ('TIA island',2.85,.55,.61,.61)]:
         box(name+' carrier',(cx,1.375,cz),(length,.05,width),m['ceramic'],.012)
-    # Existing duplex LC apertures gain concentric metal sleeves, with an open
-    # bore comfortably wider than the optical pulse envelope.
-    for z in [-.3,.3]:
-        annulus('LC ferrule sleeve',(5.337,1.55,z),.114,.082,.028,'x',m['seal'])
-        annulus('LC ferrule recess',(5.322,1.55,z),.132,.114,.012,'x',m['dark'])
+    duplex_lc_receptacle(m)
     lid('OSFP lifted cover',0,3.4,0,L,W,True,m)
     pull_loop('OSFP release pull',(5.20,.29,0),True,m['pull'])
     internals('coherent')
