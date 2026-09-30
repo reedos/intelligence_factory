@@ -10,7 +10,7 @@ import { attachFlowRibbons } from '../flow-ribbons.js';
 let source, pending;
 export function preload() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=18`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=19`)
     .then(gltf => { source = gltf.scene; return source; })
     .catch(error => { pending = undefined; throw error; });
 }
@@ -160,10 +160,10 @@ export function build(args) {
   });
   const plate = asset.getObjectByName('CPO_COLDPLATE');
   if (!plate) throw new Error('CPO mechanical asset is missing its cold-plate assembly');
-  const interposer = asset.getObjectByName('CPO_PACKAGE__Photonic_die_passivation');
+  const interposer = asset.getObjectByName('CPO_PACKAGE__Silicon_interposer');
   if (!interposer?.isMesh) throw new Error('CPO hardware is missing its shared interposer');
-  // This material is otherwise shared with the PIC dies: isolate the inspection
-  // treatment so the electrical layer is exposed without ghosting optical chips.
+  // The interposer has its own Blender material; the clone keeps the inspection
+  // treatment private to this build so no optical chip is ever ghosted with it.
   interposer.material = interposer.material.clone();
   const interposerMaterial = interposer.material;
   // Power arrives from below the board. An explicitly labeled inspection view

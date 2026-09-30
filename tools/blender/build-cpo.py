@@ -49,6 +49,9 @@ asic.node_tree.nodes.get('Principled BSDF').inputs['Emission Color'].default_val
 asic.node_tree.nodes.get('Principled BSDF').inputs['Emission Strength'].default_value=0
 eic = material('Electronic die passivation', (.035,.055,.085), .5,.3)
 pic = material('Photonic die passivation', (.08,.11,.16), .15,.26)
+# The interposer keeps its own polished-silicon finish; only the photonic dies
+# read as dielectric passivation.
+interposerMat = material('Silicon interposer', (.07,.10,.15), .55,.28)
 gold = material('Gold bond pads', (.67,.43,.15), .8,.28)
 traceCu = material('Electrical copper', (.55,.29,.10), .82,.3)
 glass = material('Glass ferrule', (.55,.76,.86), 0,.12,.32)
@@ -153,7 +156,7 @@ for x in [-4.72,4.72]:
     for z in [-4.72,4.72]:
         box('Socket clamp',(x,1.105,z),(.52,.11,.52),nickel,'CPO_PACKAGE',.065)
         screw(x,1.177,z,'CPO_PACKAGE',.10)
-box('Shared silicon interposer',(0,1.45,0),(9.0,.1,9.0),pic,'CPO_PACKAGE',.02)
+box('Shared silicon interposer',(0,1.45,0),(9.0,.1,9.0),interposerMat,'CPO_PACKAGE',.02)
 # Underfill (representative) skirts the bare die on the interposer; there is
 # no published lid or stiffener around it, so none is drawn.
 underfill = material('Underfill epoxy', (.14,.08,.03), 0,.5)
