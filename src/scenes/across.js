@@ -11,6 +11,7 @@ import { rbox, plumes } from '../fx.js';
 import { SITES, STATE_CARBON, DEFAULT_PLACE, PLACES, placeKey, albers, greatCircleKm } from '../model/sites.ts';
 import { preloadCampusCatalog, campusCatalogInstances } from './campus-blender-catalog.js';
 import { preloadAcrossAssets, hasAcrossAssets, acrossAssetInstances, acrossSurfaceGeometry, replaceWindRotor } from './across-blender-assets.js';
+import { WIND_R, WIND_SCALE, WIND_HUB, windLayout, windFootprint, placePlants } from './across-plants.js';
 export const preload = () => Promise.all([preloadCampusCatalog(), preloadAcrossAssets()]);
 
 const ORIGIN = albers(-92, 37);
@@ -40,18 +41,20 @@ const RINGS = LOWER48.map(f => {
 });
 const PAD = 260; minX -= PAD; maxX += PAD; minZ -= PAD; maxZ += PAD;
 const MW = maxX - minX, MD = maxZ - minZ;
-// is a point on land? (ray casting against every state ring)
-function onLand(x, z) {
-  for (const { rings } of RINGS) for (const poly of rings) {
+// which state is a point in, if any? (ray casting against every state ring); null is water or abroad
+function stateAt(x, z) {
+  for (const { id, rings } of RINGS) for (const poly of rings) {
     let inside = false; const r = poly[0];
     for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
       const [xi, zi] = r[i], [xj, zj] = r[j];
       if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) inside = !inside;
     }
-    if (inside) return true;
+    if (inside) return id;
   }
-  return false;
+  return null;
 }
+const onLand = (x, z) => stateAt(x, z) !== null;
+const SHADED = new Set(Object.keys(STATE_CARBON));                // states the map fills with a carbon color
 const CENTROID = {};
 RINGS.forEach(({ id, rings }) => {                               // label point: the middle of the largest ring's bounding box
   let best = null, area = 0;
@@ -346,14 +349,11 @@ export function build({ quality, model, state = {} }) {
   });
   const P = new Builder();
   const around = [[-420, -300, 'gas'], [-260, 330, 'nuclear'], [260, -420, 'wind'], [380, 180, 'gas'], [120, 420, 'solar']];
-  // illustrative plants around the campus, turned until each one stands on land
-  const plants = around.map(([dx, dz, kind]) => {
-    for (let k = 0; k < 24; k++) {
-      const a = k * Math.PI / 12, x = H[0] + dx * Math.cos(a) - dz * Math.sin(a), z = H[1] + dx * Math.sin(a) + dz * Math.cos(a);
-      if (onLand(x, z)) return [x, z, kind];
-    }
-    return [H[0] + dx * 0.3, H[1] + dz * 0.3, kind];
-  });
+  // illustrative plants around the campus on land; the wide ones (a wind farm) are set down whole inside one lit
+  // state, clear of the campus and the other plants, so no part of them lands on water or on an unshaded state
+  // that reads as water
+  const windAt = windLayout(quality.mobile);
+  const plants = placePlants({ H, around, footprints: { wind: windFootprint(windAt) }, stateAt, shaded: SHADED });
   let towerGeo = null;
   const GAS_RY = -0.85;
   // a scene-local glass so the shared MAT.glass elsewhere is untouched: a clearcoat catches the key light as a
@@ -389,14 +389,13 @@ export function build({ quality, model, state = {} }) {
       nuclearEmitters.push({ p: [x - 17, H2, z], dir: [0.1, 1, 0] }, { p: [x + 17, H2, z], dir: [-0.1, 1, 0] });
     }
     if (kind === 'wind') {                                             // three-blade rotors, turning in update()
-      // R = 10 on a 16.5 hub; rows 2.5 rotor diameters apart across the wind and 5.5 downwind, each row staggered
-      const cols = quality.mobile ? 3 : 4, rows = 2, R = 10;
-      for (let i = 0; i < cols * rows; i++) {
-        const row = Math.floor(i / cols), tx = x + ((i % cols) - (cols - 1) / 2 + row * 0.5) * 2.5 * 2 * R, tz = z + (row - 0.5) * 5.5 * 2 * R;
-        if (!onLand(tx, tz)) continue;                                 // a land farm: drop any turbine the spread puts offshore
-        if (authored) placePlant('WIND_MAST', mtx(tx, 0, tz));
-        else { P.cyl(0.3, 16, MAT.white, tx, 8, tz, 8); P.box(1.2, 1, 2.4, MAT.white, tx, 16.5, tz - .35); }
-        turbineItems.push({ p: [tx, 16.5, tz + 1.05], axis: 'z', r: R });
+      // the authored turbine at 0.6 scale; a dense farm of staggered rows (across-plants.js has the spacing)
+      for (const [ox, oz] of windAt) {
+        const tx = x + ox, tz = z + oz;
+        if (!onLand(tx, tz)) continue;                                 // a land farm: drop any turbine still offshore
+        if (authored) placePlant('WIND_MAST', mtx(tx, 0, tz, 0, WIND_SCALE));
+        else { P.cyl(0.3 * WIND_SCALE, WIND_HUB, MAT.white, tx, WIND_HUB / 2, tz, 8); P.box(1.2 * WIND_SCALE, WIND_SCALE, 2.4 * WIND_SCALE, MAT.white, tx, WIND_HUB, tz - .35 * WIND_SCALE); }
+        turbineItems.push({ p: [tx, WIND_HUB, tz + 1.05 * WIND_SCALE], axis: 'z', r: WIND_R });
       }
     }
     // single-axis trackers: rows run north-south, 11 apart for a 4.4-wide module plane (ground coverage about 0.4)
@@ -437,9 +436,16 @@ export function build({ quality, model, state = {} }) {
     const f = flow(path, 'hv', { count, speed: 160, size: 1.4, trailR: .38, trailK: 0.45 });
     flows.push(f); power.add(f.group);
   };
+  const farmEdge = (px, pz, pts) => {
+    let best = null, d = Infinity;
+    for (const [ox, oz] of pts) { const e = Math.hypot(px + ox - H[0], pz + oz - H[1]); if (e < d) { d = e; best = [px + ox, pz + oz]; } }
+    const ux = (H[0] - best[0]) / d, uz = (H[1] - best[1]) / d;
+    return [best[0] + ux * (WIND_R + 4), best[1] + uz * (WIND_R + 4)]; // just outside the rotor, toward the campus
+  };
   plants.forEach(([px, pz, kind], i) => {
     const from = kind === 'gas' ? [px + 16 * Math.cos(GAS_RY) + 3 * Math.sin(GAS_RY), pz - 16 * Math.sin(GAS_RY) + 3 * Math.cos(GAS_RY)]
-      : kind === 'nuclear' ? [px + 55, pz + 12] : [px, pz];             // gas and nuclear lines leave from their switchyard gantries
+      : kind === 'nuclear' ? [px + 55, pz + 12]                         // gas and nuclear lines leave from their switchyard gantries
+      : kind === 'wind' ? farmEdge(px, pz, windAt) : [px, pz];          // the wind farm's from the turbine nearest the campus
     let pts = route(from, [HG[0], HG[2]], 60, 100 + i).map(p => [p[0], 6, p[2]]);
     // a line arriving from the far side swings around the plinth to the gantry instead of crossing the roofs
     const overCampus = pts.some(([x, , z]) => Math.abs(x - H[0]) < 19 && Math.abs(z - H[1]) < 16);

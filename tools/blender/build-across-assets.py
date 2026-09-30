@@ -152,7 +152,7 @@ for i in range(3):
    t=(.02-.014*x)*side;z2=z-.02*x*x
    v.append((x*math.cos(a)-z2*math.sin(a),t+x*cone,x*math.sin(a)+z2*math.cos(a)))
  l=len(poly);f=[tuple(range(l-1,-1,-1)),tuple(range(l,l*2))]+[(j,(j+1)%l,(j+1)%l+l,j+l) for j in range(l)]
- mesh('Slender turbine blade',v,f,bladeWhite,g,.004)
+ mesh('Slender turbine blade',v,f,bladeWhite,g)
 # One single-axis tracker row, running north-south (runtime z) with its modules
 # turned about the row axis toward the west. Nearly all new US utility-scale PV
 # tracks on one axis (LBNL). Two modules in portrait across a torque tube on

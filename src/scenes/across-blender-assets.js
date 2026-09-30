@@ -4,7 +4,7 @@ import { Builder } from '../kit.js';
 let source, pending;
 export function preloadAcrossAssets() {
   if (source) return Promise.resolve();
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/across-infrastructure.glb?v=3`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/across-infrastructure.glb?v=4`)
     .then(g => { source = g.scene; source.updateMatrixWorld(true); })
     .catch(e => { pending = null; throw e; });
 }
