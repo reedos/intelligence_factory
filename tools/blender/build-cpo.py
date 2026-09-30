@@ -176,19 +176,34 @@ for e,conn in zip(LAYOUT['engines'],LAYOUT['connectors']):
         p=(conn[0]+tan[0]*t,1.22,conn[1]+tan[1]*t)
         box('Connector guide cheek',p,(.35,.27,.035),nickel,'CPO_INTERFACES',.009,angle)
 
-# External-laser bodies are displayed beside the package schematically. Do not
-# add plugs across the fiber exit on each body's inward (-X) face.
+# External laser sources as front-panel pluggables (enclosure shape
+# representative: the sources give counts and serviceability, not a form
+# factor). Each slim body stands in a front-panel bezel, heat-sink fins on its
+# rear half, a pull tab and label outside, and a receptacle frame around the
+# laser exit on its inward (-X) face. Nothing crosses that exit.
+elsBody = material('Laser module anodized body', (.2,.21,.23), .8,.34)
+elsFin = material('Laser module heat-sink fins', (.42,.44,.47), .85,.3)
+bezel = material('Front panel bezel', (.1,.11,.12), .7,.4)
 for i in range(5):
     z=-4.4+i*2.2
-    box('External laser case',(8.2,1.35,z),(1.9,.9,1.1),nickel,'CPO_ELS',.06)
-    box('Laser case seam',(8.2,1.65,z),(1.89,.012,1.095),dark,'CPO_ELS',.008)
-    for x in [7.45,8.95]:
-        for dz in [-.38,.38]: screw(x,1.806,z+dz,'CPO_ELS',.045)
-    for k in range(4): box('Laser top ribs',(8.2,1.818,z-.30+k*.20),(1.25,.035,.075),edge,'CPO_ELS',.01)
-    box('Laser lid inset',(8.2,1.804,z),(1.54,.012,.87),dark,'CPO_ELS',.035)
-    # The native laser exit remains unobstructed on the inward face.
-    for dz in [-.44,.44]: box('Laser base rail',(8.2,.885,z+dz),(1.7,.08,.12),dark,'CPO_ELS',.025)
-    for dx in [-.67,.67]: box('Laser lid end',(8.2+dx,1.812,z),(.07,.025,.8),nickel,'CPO_ELS',.015)
+    box('External laser case',(8.48,1.5,z),(2.4,.6,1.0),elsBody,'CPO_ELS',.04)
+    for k in range(7): box('Laser heat-sink fin',(9.05,1.86,z-.39+k*.13),(1.15,.12,.035),elsFin,'CPO_ELS',0)
+    box('Laser module seam',(7.75,1.5,z),(.02,.605,1.005),dark,'CPO_ELS',0)
+    # Pull tab (bail) and label plate on the outward face.
+    for dz in [-.26,.26]: box('Laser pull tab',(9.86,1.34,z+dz),(.36,.04,.04),black,'CPO_ELS',0)
+    box('Laser pull tab',(10.02,1.34,z),(.04,.05,.56),black,'CPO_ELS',0)
+    box('Laser module label',(9.685,1.62,z),(.01,.2,.62),silk,'CPO_ELS',0)
+    # Receptacle frame around the aperture; the laser exit itself stays open.
+    for dy in [-.13,.13]: box('Laser receptacle',(7.2,1.5+dy,z),(.16,.05,.62),black,'CPO_ELS',0)
+    for dz in [-.29,.29]: box('Laser receptacle',(7.2,1.5,z+dz),(.16,.21,.04),black,'CPO_ELS',0)
+# Front-panel bezel strip: the modules plug through it, outside the package.
+for i in range(6):
+    z0=-5.5 if i==0 else -4.4+(i-1)*2.2+.52; z1=5.5 if i==5 else -4.4+i*2.2-.52
+    box('Front panel bezel',(9.35,1.0,(z0+z1)/2),(.2,1.86,z1-z0),bezel,'CPO_ELS',.02)
+for i in range(5):
+    z=-4.4+i*2.2
+    box('Front panel bezel',(9.35,.585,z),(.2,1.03,1.04),bezel,'CPO_ELS',.02)
+    box('Front panel bezel',(9.35,1.97,z),(.2,.06,1.04),bezel,'CPO_ELS',0)
 
 # A lifted, open-center cold-plate study. The translucent center is explicitly
 # an x-ray cutaway; opaque perimeter and fittings supply mechanical edge cues.
