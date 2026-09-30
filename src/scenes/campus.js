@@ -430,10 +430,19 @@ export function build({ quality, model }) {
     const bigMx = [];
     for (let c = 0; c < 14; c++) for (let r = 0; r < 9; r++) bigMx.push(mtx(292 + c * 9, 0.15, -206 + r * 13));
     scene.add(authoredCampus ? campusCatalogInstances('BESS',bigMx) : bessBox.instance(bigMx));
-    for (let r = 0; r < 9; r++) { S.slab(4, 2.4, 2.4, MAT.ansi61, 283, 0.15, -206 + r * 13); S.slab(2, 2.2, 2, MAT.xfmr, 287.5, 0.15, -206 + r * 13); }
+    if (authoredCampus) {
+      const rows = Array.from({ length: 9 }, (_, r) => -206 + r * 13);
+      scene.add(campusCatalogInstances('BESS_PCS', rows.map(z => mtx(281.5, 0.15, z, Math.PI / 2)), { cast: true }));
+      scene.add(campusCatalogInstances('UNITSUB', rows.map(z => mtx(287, 0.15, z)), { cast: true }));
+    } else for (let r = 0; r < 9; r++) { S.slab(4, 2.4, 2.4, MAT.ansi61, 283, 0.15, -206 + r * 13); S.slab(2, 2.2, 2, MAT.xfmr, 287.5, 0.15, -206 + r * 13); }
     flows.push(flow([[285, uY, -170], [262, uY, -170], [262, uY, -112], [hallX1 - 5, uY, -112]], 'mv', { count: 12, speed: 16, size: 1.0, k: 1.0, opacity: 0.6, trailK: 0.2, role: 'standby' }));
   }
-  for (let r = 0; r < 4; r++) { S.slab(4, 2.4, 2.4, MAT.ansi61, -280, 0.15, 55 + r * 14); S.slab(2, 2.2, 2, MAT.xfmr, -275, 0.15, 55 + r * 14); }
+  // each container row's power conversion cabinet and pad-mount step-up transformer (Blender catalog)
+  if (authoredCampus) {
+    const rows = Array.from({ length: 4 }, (_, r) => 55 + r * 14);
+    scene.add(campusCatalogInstances('BESS_PCS', rows.map(z => mtx(-281, 0.15, z, Math.PI / 2)), { cast: true }));
+    scene.add(campusCatalogInstances('UNITSUB', rows.map(z => mtx(-275, 0.15, z)), { cast: true }));
+  } else for (let r = 0; r < 4; r++) { S.slab(4, 2.4, 2.4, MAT.ansi61, -280, 0.15, 55 + r * 14); S.slab(2, 2.2, 2, MAT.xfmr, -275, 0.15, 55 + r * 14); }
   flows.push(flow([[-275, uY, 55], [-275, uY, 20], [-340, uY, 20], [-340, uY, -62]], 'mv', { count: 12, speed: 20, size: 1.0, k: 1.2, opacity: 0.7, trailK: 0.2 }));
 
   // ---------- cooling towers and water tanks ----------
@@ -677,6 +686,9 @@ export function build({ quality, model }) {
     N.cyl(0.18, 14, MAT.galv, x, 7, z, 6);
     lampItems.push({ p: [x, 13.9, z], w: 2, spill: 58, ground: 0.42 });
   }
+  // battery-yard floodlights, so the back rows keep their form at dusk
+  const bessPoles = [[-347, 39], [-347, 115], [-263, 39], [-263, 115], ...(batteryYard ? [[276, -218], [276, -90], [424, -218], [424, -90], [350, -218], [350, -90]] : [])];
+  for (const [x, z] of bessPoles) { N.cyl(0.16, 12, MAT.galv, x, 6, z, 6); lampItems.push({ p: [x, 11.9, z], w: 1.6, spill: 46, ground: 0.4 }); }
   for (let x = -65; x <= 65; x += 26) for (const z of [145, 195]) {
     N.cyl(0.09, 5, MAT.galv, x, 2.5, z, 6);
     lampItems.push({ p: [x, 4.9, z], w: 0.8, spill: 20 });

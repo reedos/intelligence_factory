@@ -5,7 +5,7 @@ exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque buil
 import random
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for name in ['COOLER','UNITSUB','GENSET','BESS','CAR','TRUCK','TREE0','TREE1','TREE2','FAN','HALL_RACK','HALL_CABINET','MAP_CAMPUS','MAP_HUT','MAP_TERMINAL','WALKER','EHOUSE','CTRL_HOUSE','SHELTER','GATEHOUSE','TOWER_CELL']:
+for name in ['COOLER','UNITSUB','GENSET','BESS','CAR','TRUCK','TREE0','TREE1','TREE2','FAN','HALL_RACK','HALL_CABINET','MAP_CAMPUS','MAP_HUT','MAP_TERMINAL','WALKER','EHOUSE','CTRL_HOUSE','SHELTER','GATEHOUSE','TOWER_CELL','BESS_PCS']:
  g=bpy.data.objects.new(name,None);S.collection.objects.link(g);groups[name]=g
 steel=mat('Mechanical brushed steel',(.34,.42,.46),.8,.35)
 white=mat('Equipment ceramic white',(.72,.77,.76),.3,.39)
@@ -109,14 +109,36 @@ box('Radiator plenum',(4.3,3.95,0),(3.2,1.3,2.8),steel,g,.14)
 for z in [-.7,.7]:ring('Radiator fan rim',(4.3,4.62,z),.62,.055,white,g);cyl('Radiator aperture',(4.3,4.62,z),.56,.04,black,g)
 cyl('Silencer',(-2.5,3.8,0),.45,2.6,steel,g,'x');cyl('Exhaust stack',(-1.2,4.6,0),.26,2.8,shadow,g)
 box('Generator transformer',(-7.4,1.3,0),(1.2,1.8,1.6),white,g,.08)
-# Battery container, no implied individual cell layout/capacity.
-g='BESS';box('Container foundation',(0,.15,0),(6.5,.3,3.2),base,g,.08);box('Battery enclosure',(0,1.6,0),(6.06,2.6,2.44),white,g,.13)
+# Battery container, no implied individual cell layout/capacity. A 20 ft-class steel enclosure (small edge
+# radius, not a molded look), ribbed side panels between gasketed service doors, a roof thermal-management
+# unit with fan grilles, end grilles and hazard placards. Generic, not a named product.
+g='BESS'
+placard=mat('Hazard placard white',(.8,.8,.78),0,.5)
+box('Container foundation',(0,.15,0),(6.5,.3,3.2),base,g,.05);box('Battery enclosure',(0,1.6,0),(6.06,2.6,2.44),white,g,.03)
 for z in [-1.235,1.235]:
  for x in [-2.15,-.72,.72,2.15]:
-  box('Battery service door',(x,1.6,z),(1.36,2.36,.025),pearl,g,.035);box('Battery latch',(x+.46,1.6,z+math.copysign(.028,z)),(.045,.22,.05),steel,g,.012)
+  box('Battery service door',(x,1.6,z),(1.3,2.3,.025),pearl,g,.01);box('Battery latch',(x+.46,1.6,z+math.copysign(.028,z)),(.045,.22,.05),steel,g,0)
+  for y in [.43,2.77]:box('Door gasket seam',(x,y,z+math.copysign(.015,z)),(1.34,.025,.02),shadow,g,0)
+  for dx in [-.665,.665]:box('Door gasket seam',(x+dx,1.6,z+math.copysign(.015,z)),(.025,2.36,.02),shadow,g,0)
+ for x in [-2.86,-1.435,0,1.435,2.86]:box('Side panel rib',(x,1.6,z+math.copysign(.03,z)),(.09,2.5,.05),white,g,0)
+ box('Hazard placard',(1.435,2.2,z+math.copysign(.06,z)),(.28,.28,.01),placard,g,0)
+ box('Placard stripe band',(1.435,2.29,z+math.copysign(.066,z)),(.28,.1,.01),shadow,g,0)
 for x in [-3.2,3.2]:
- box('Thermal management endcap',(x,1.5,0),(.4,1.8,1.8),shadow,g,.08)
- for y in [.75+i*.16 for i in range(10)]:box('Endcap grille',(x+math.copysign(.22,x),y,0),(.03,.035,1.55),steel,g,.008)
+ box('Thermal management endcap',(x,1.5,0),(.4,1.8,1.8),shadow,g,.03)
+ for y in [.75+i*.16 for i in range(10)]:box('Endcap grille',(x+math.copysign(.22,x),y,0),(.03,.035,1.55),steel,g,0)
+box('Roof thermal unit',(1.2,3.1,0),(2.6,.4,1.9),pearl,g,.03)
+for dx in [.55,1.85]:
+ cyl('Roof fan grille',(dx,3.31,0),.42,.03,black,g,'y',16);ring('Roof fan guard',(dx,3.33,0),.42,.025,steel,g)
+# Power conversion (PCS/inverter) cabinet paired with each container row's pad-mount transformer.
+g='BESS_PCS'
+box('PCS skid',(0,.1,0),(4.2,.2,2.6),shadow,g,0)
+box('PCS cabinet',(0,1.3,0),(4.0,2.2,2.3),pearl,g,.03)
+for x in [-1.35,0,1.35]:
+ box('PCS door',(x,1.25,1.165),(1.2,1.9,.02),white,g,.01)
+ box('PCS door handle',(x+.45,1.25,1.19),(.04,.25,.04),steel,g,0)
+ for y in [1.85+i*.09 for i in range(4)]:box('PCS louver',(x,y,1.18),(1.0,.04,.02),shadow,g,0)
+box('PCS roof',(0,2.45,0),(4.2,.1,2.5),steel,g,0)
+box('PCS hazard label',(-1.35,.62,1.18),(.3,.2,.01),warn,g,0)
 # Vehicles are styled representative silhouettes, not branded or operator-specific.
 g='CAR';prism('Sculpted car body',[(-2.2,-.7),(-1.85,-.9),(1.7,-.9),(2.2,-.65),(2.2,.65),(1.7,.9),(-1.85,.9),(-2.2,.7)],.3,1.0,pearl,g,.15)
 prism('Glazed passenger cabin',[(-1.4,-.65),(.75,-.65),(1.1,-.4),(1.1,.4),(.75,.65),(-1.4,.65)],1.0,1.57,glass,g,.18)
