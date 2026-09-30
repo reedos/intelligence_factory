@@ -179,7 +179,32 @@ export class Builder {
 export const mtx = (x = 0, y = 0, z = 0, ry = 0, s = 1) => { _o.position.set(x, y, z); _o.rotation.set(0, ry, 0); _o.scale.set(s, s, s); _o.updateMatrix(); return _o.matrix.clone(); };
 
 // ---------- energy flows: pulses that travel along a conductor ----------
-const pulseGeo = new THREE.SphereGeometry(1, 10, 8);
+const pulseGeo = new THREE.SphereGeometry(1, 12, 8);
+// A pulse is a droplet of light, not a bead: brightness and opacity fall off from the side facing the camera to the
+// silhouette (so no hard rim), the centre runs toward white, and it adds to what is behind it. Same instanced sphere
+// and one draw per flow as before; only the shading changes. `color` and `opacity` keep their MeshBasicMaterial meaning.
+export class PulseMaterial extends THREE.MeshBasicMaterial {
+  constructor(params) {
+    super({ blending: THREE.AdditiveBlending, ...params });
+    this.onBeforeCompile = shader => {
+      shader.vertexShader = `varying vec3 vGlowN;\nvarying vec3 vGlowV;\n${shader.vertexShader}`.replace('#include <project_vertex>', `#include <project_vertex>
+  vec3 glowN = normal;
+  #ifdef USE_INSTANCING
+    glowN = inverse(transpose(mat3(instanceMatrix))) * normal;   // stretched pulses keep true normals
+  #endif
+  vGlowN = normalize(normalMatrix * glowN);
+  vGlowV = -mvPosition.xyz;`);
+      shader.fragmentShader = `varying vec3 vGlowN;\nvarying vec3 vGlowV;\n${shader.fragmentShader}`.replace('#include <opaque_fragment>', `
+  float glowF = clamp(abs(dot(normalize(vGlowN), normalize(vGlowV))), 0.0, 1.0);
+  float glowHalo = glowF * glowF, glowCore = pow(glowF, 7.0);
+  float glowPeak = max(max(outgoingLight.r, outgoingLight.g), outgoingLight.b);
+  outgoingLight = outgoingLight * (0.25 + 0.85 * glowHalo) + vec3(glowPeak * 0.75 * glowCore);
+  diffuseColor.a *= smoothstep(0.02, 0.6, glowF);
+  #include <opaque_fragment>`);
+    };
+  }
+  customProgramCacheKey() { return 'ifx-pulse-droplet-v1'; }
+}
 export class Flow {
   constructor(points, css, { count = 24, speed = 1, size = 1, k = 2.2, opacity = 1, trail = true, trailK = 0.35, trailR, role } = {}) {
     this.role = role; this.gain = 1; this.bright = 1; this.acc = 0; this.lastT = undefined;
@@ -192,7 +217,7 @@ export class Flow {
     // Render after opaque hardware while still testing its depth. An opaque-
     // queue particle with depthWrite:false can be painted over by a later
     // hardware draw even when the particle is in front of that hardware.
-    this.mesh = new THREE.InstancedMesh(pulseGeo, new THREE.MeshBasicMaterial({ color: this.color, transparent: true, opacity, depthWrite: false }), count);
+    this.mesh = new THREE.InstancedMesh(pulseGeo, new PulseMaterial({ color: this.color, transparent: true, opacity, depthWrite: false }), count);
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.frustumCulled = false;
     this.group = new THREE.Group(); this.group.add(this.mesh);
