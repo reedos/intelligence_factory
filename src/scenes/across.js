@@ -536,7 +536,8 @@ export function build({ quality, model, state = {} }) {
   }
   const terminals = [HT, ...near.map(({ p }) => terminalAt(world(p.site.lon, p.site.lat), 0.85))];
   const terminalMatrices = terminals.map(([x, z]) => mtx(x, 0, z));
-  // gold carries the data layer's color onto the building: a crown strip and the vault the fiber enters by
+  // gold carries the data layer's color onto the building: the terminal's own crown fixture (MAP_TERMINAL) and
+  // the vault the fiber enters by (TERMINAL_TRIM)
   if (authored) data.add(acrossAssetInstances('TERMINAL_TRIM', terminalMatrices));
   if (authored) data.add(campusCatalogInstances('MAP_TERMINAL', terminalMatrices));
   else {

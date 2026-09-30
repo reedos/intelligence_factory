@@ -385,7 +385,10 @@ box('Line terminal enclosure',(0,2.2,0),(8,4,6),shadow,g,.2)
 box('Line terminal crown',(0,4.28,0),(8.6,.35,6.6),pearl,g,.14)
 for x in [-3,-1,1,3]:box('Terminal face panel',(x,2.2,3.04),(1.75,3.45,.16),white,g,.035)
 box('Terminal entrance',(0,1.5,3.16),(1.1,2.55,.1),steel,g,.04)
-box('Terminal fixture',(0,4.03,3.24),(7,.08,.12),lamp,g,.02)
+# the crown fixture carries the data layer's gold (#ffd35c) onto the building, so the regional map needs no
+# separate trim strip in front of it
+termGold=mat('Terminal gold fixture',(1,.83,.36),0,.5,4)
+box('Terminal fixture',(0,4.03,3.24),(7,.12,.12),termGold,g,.02)
 
 # Walking human scale cue, 1.75 m, facing +X (the direction fx.movers travels), mid-stride.
 # Dark work clothes under a muted hi-vis vest with a retro-reflective band, boots and a hard hat.
