@@ -188,9 +188,12 @@ export function build({ quality, model }) {
     S.cylZ(0.9, 7, MAT.xfmr, mptX + 1.5, 9.4, z, 20);              // conservator
     N.strut([mptX + 1.5, 7.3, z - 2.5], [mptX + 1.5, 8.6, z - 2.5], 0.12, MAT.xfmr); N.strut([mptX + 1.5, 7.3, z + 2.5], [mptX + 1.5, 8.6, z + 2.5], 0.12, MAT.xfmr);
     }
+    // bushings: authored in the Blender transformer (shed profiles, corona rings, arresters) at these same terminals
+    if (!hasCampusTransformer()) {
     for (const dz of [-2.6, 0, 2.6]) insulator(N, mptX - 2.2, 7.3, z + dz, 5.2, 0.3, MAT.porcelain);   // HV bushings
     insulator(N, mptX - 2.2, 7.3, z + 4, 2.4, 0.18, MAT.porcelain);                                      // neutral
     for (const dz of [-2, 0, 2]) insulator(N, mptX + 2.6, 7.3, z + dz, 1.8, 0.22, MAT.porcelain);      // 34.5 kV bushings
+    }
     if(!hasCampusTransformer()) S.slab(1.2, 2, 0.9, MAT.ansi61, mptX + 3.5, 0.8, z + 3.8);    // control cabinet
   });
   [-172.5, -127.5].forEach(z => S.slab(16, 11, 0.6, MAT.concrete, mptX, 0, z));  // fire walls

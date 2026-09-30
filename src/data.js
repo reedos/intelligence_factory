@@ -294,6 +294,7 @@ export function content(M) {
         ['Rating', `${L.transformers} × ${L.mvaUnit} MVA, N+1`, 'derived', evCalc('campus-transformer-count')],
         ['Efficiency, 345 kV class', '>99.6% at all loading levels', 'spec', evRefs([['pa-transformer-345kv', 'product page: "High efficiency: exceeding 99.6% at all loading levels"']])],
         [`Loss at ${meter}`, lossTxt('Main power'), 'derived', evCalc('campus-transformer-loss')],
+        ['Fittings drawn', 'radiator banks, fans, bushings: a typical layout', 'assumed', evAssume('campus-mpt-drawing')],
         ['Lead time, 2026', '128–144 weeks', 'reported', evRefs([['industrialsage-transformer-leadtimes', 'quoting a Wood Mackenzie Q2 2025 survey: "standard power transformers average 128 weeks for delivery"; generator step-up units "average 144 weeks"']])],
       ] },
     { id: 'ehouse', title: '34.5 kV switchgear', kicker: 'Campus distribution',
