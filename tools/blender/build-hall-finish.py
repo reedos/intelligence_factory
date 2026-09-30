@@ -6,7 +6,7 @@ HERE=pathlib.Path(__file__).resolve().parent
 exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque building envelope.')[0])
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT','STORAGE_FACE','HALL_UNITSUB','PIPE_UNIT','PIPE_ELBOW','PIPE_FLANGE','BUTTERFLY_VALVE','PIPE_HANGER','FANWALL_CELL','TAPOFF','BUS_JOINT']:
+for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT','STORAGE_FACE','HALL_UNITSUB','PIPE_UNIT','PIPE_ELBOW','PIPE_FLANGE','BUTTERFLY_VALVE','PIPE_HANGER','FANWALL_CELL','TAPOFF','BUS_JOINT','HALL_ODF']:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
 ceramic=mat('Soft satin architectural panel',(.30,.38,.43),.25,.45)
 alloy=mat('Anodized champagne edge',(.31,.29,.23),.8,.3)
@@ -246,6 +246,44 @@ g='BUS_JOINT'
 box('Joint pack cover',(0,0,0),(.16,.25,.21),steel,g,.01)
 for dy in [-.07,.07]:
  for dx in [-.045,.045]:cyl('Joint bolt head',(dx,dy,.108),.012,.01,graphite,g,'z',8)
+# ---- Fibre distribution frame bay, 0.88 m pitch, front face toward +z, origin on the floor at the
+# bay centre. Open 0.58 m frame of 1U high-density housings (MPO cassette fronts), 0.15 m vertical
+# managers with finger ducts and slack spools, a top entry trough, and jumpers draping into the
+# managers. Housing density follows the card (144 fibres per 1U); layout and drape representative.
+g='HALL_ODF'
+frameBlack=mat('ODF frame, black powder coat',(.02,.022,.025),.3,.55)
+housingM=mat('ODF 1U housing, dark grey',(.06,.065,.07),.4,.45)
+aqua=mat('MPO adapter, aqua',(.05,.45,.5),.1,.4)
+jumperY=mat('Single-mode jumper, yellow',(.75,.55,.05),0,.5)
+box('Plinth',(0,.05,0),(.86,.1,.58),frameBlack,g,.006)
+for sx in [-1,1]:
+ box('Frame upright',(sx*.3,1.15,.12),(.035,2.1,.06),frameBlack,g,.004)
+ box('Manager back',(sx*.37,1.15,-.05),(.12,2.1,.02),frameBlack,g,0)
+ box('Manager side',(sx*.435,1.15,.1),(.012,2.1,.3),frameBlack,g,0)
+ for i in range(40):
+  y=.18+i*.05
+  box('Finger duct',(sx*.335,y,.225),(.012,.016,.07),frameBlack,g,0)
+  box('Finger duct',(sx*.405,y,.225),(.012,.016,.07),frameBlack,g,0)
+ for i in range(6):
+  cyl('Slack spool',(sx*.37,.35+i*.32,.03),.045,.1,frameBlack,g,'z',14)
+box('Top cap',(0,2.215,.05),(.86,.03,.5),frameBlack,g,.006)
+box('Entry trough floor',(0,2.25,.05),(.6,.012,.3),frameBlack,g,0)
+for sz in [-1,1]:box('Entry trough wall',(0,2.3,.05+sz*.15),(.6,.1,.012),frameBlack,g,0)
+for i in range(38):
+ y=.2+i*.0508
+ box('1U fibre housing',(0,y,.12),(.56,.044,.3),housingM,g,.003)
+ for c in range(8):box('MPO cassette adapter',(-.2+c*.057,y,.2745),(.04,.022,.012),aqua,g,0)
+def jumper(pts,m=jumperY,r=.0035):
+ cd=bpy.data.curves.new('Patch jumper','CURVE');cd.dimensions='3D';cd.bevel_depth=r;cd.bevel_resolution=1;cd.resolution_u=4
+ sp=cd.splines.new('BEZIER');sp.bezier_points.add(len(pts)-1)
+ for bp,p in zip(sp.bezier_points,pts):bp.co=pt(p);bp.handle_left_type=bp.handle_right_type='AUTO'
+ o=bpy.data.objects.new('Patch jumper',cd);S.collection.objects.link(o);o.parent=groups[g];cd.materials.append(m)
+ return o
+import random
+rnd=random.Random(7)
+for i in range(14):
+ y=.3+rnd.random()*1.7;x=-.2+rnd.random()*.4;side=-1 if x<0 else 1;sag=.12+rnd.random()*.2
+ jumper([(x,y,.28),(x+side*.04,y-sag*.6,.31),(side*.25,y-sag,.27),(side*.37,y-sag+.05,.2)])
 # Face relief follows existing rack texture rows, not an invented tray count.
 # Canonical cabinet envelope .58 wide x2.3 high, front z=.6.
 def drawer(g,top,height,pull=False):
@@ -277,6 +315,9 @@ for i in range(12):
  for x in [-.229,.229]:box('Drive shelf bezel ear',(x,top-2.2/24,.618),(.016,.15,.024),alloy,g,.004)
 # The center of every face remains open to retain original status/vent graphics.
 # The native graphics will be relocated a few millimetres beyond the relief base.
+for o in list(S.objects):
+ if o.type=='CURVE':
+  bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o;bpy.ops.object.convert(target='MESH')
 for o in list(S.objects):
  if o.type!='MESH':continue
  bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o

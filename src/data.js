@@ -828,7 +828,7 @@ export function content(M) {
     hall: [
       { id: 'odf', title: 'Fiber distribution frames', kicker: 'Where every link is patched',
         body: 'Fabric links do not run switch to switch in one piece. Trunk cables land on patch frames, and short jumpers make the actual connections, so a link can be moved without pulling cable through the ceiling.',
-        specs: [['Fabric strands, whole campus', `≈${kfmt(NET.fibers)}`, 'derived', { calc: 'bom-network-count' }], ['Housing density, Corning EDGE8', '144 fibers per 1U', 'spec', { refs: [['corning-edge8', 'EDGE8-01U-SP product page: "Number of Modules: 18", "Fiber Capacity: 144" (18 modules × 8 fibers)']] }], ['4U housings for this campus', `≈${n0(NET.fibers / 576)}`, 'derived', { calc: 'hall-fiber-housings' }]] },
+        specs: [['Fabric strands, whole campus', `≈${kfmt(NET.fibers)}`, 'derived', { calc: 'bom-network-count' }], ['Housing density, Corning EDGE8', '144 fibers per 1U', 'spec', { refs: [['corning-edge8', 'EDGE8-01U-SP product page: "Number of Modules: 18", "Fiber Capacity: 144" (18 modules × 8 fibers)']] }], ['4U housings for this campus', `≈${n0(NET.fibers / 576)}`, 'derived', { calc: 'hall-fiber-housings' }], ['Bay layout as drawn', 'representative', 'assumed', { assume: 'hall-odf-bay' }]] },
       ...(multiHall ? [{ id: 'crosshall', title: 'To the other halls', kicker: 'Through the floor', drill: 1,
         body: 'Cables for the links that cross buildings drop through a floor sleeve into the duct bank outside.',
         specs: [['Strands', `≈${kfmt(NET.crossHallFibers)}`, 'derived', { calc: 'hall-crosshall-strands' }]] }] : []),

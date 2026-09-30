@@ -541,9 +541,12 @@ export function build({ quality, model }) {
   const odfFront = new THREE.MeshStandardMaterial({ map: odfTex, roughness: 0.6, metalness: 0.1 });
   const odfSide = new THREE.MeshStandardMaterial({ color: 0xd3d6d9, roughness: 0.6, metalness: 0.1 });
   const odfGeo = new THREE.BoxGeometry(0.88, 2.2, 0.6); odfGeo.translate(0, 1.1, 0);
-  const odf = new THREE.InstancedMesh(odfGeo, [odfSide, odfSide, odfSide, odfSide, odfFront, odfSide], odfItems.length);
-  odfItems.forEach((it, i) => odf.setMatrixAt(i, mtx(it.x, 0, it.z)));
-  odf.castShadow = odf.receiveShadow = true; scene.add(odf);
+  if (hasHallFinish()) scene.add(hallFinishInstances('HALL_ODF', odfItems.map(it => mtx(it.x, 0, it.z))));   // open bays: housings, managers, jumpers
+  else {
+    const odf = new THREE.InstancedMesh(odfGeo, [odfSide, odfSide, odfSide, odfSide, odfFront, odfSide], odfItems.length);
+    odfItems.forEach((it, i) => odf.setMatrixAt(i, mtx(it.x, 0, it.z)));
+    odf.castShadow = odf.receiveShadow = true; scene.add(odf);
+  }
   N.box(0.3, 0.04, 3.7, MAT.yellowTray, rowX0 + 4.8, 4.3, 12.35);                         // runway spine row → frames
   N.box(7.8, 0.04, 0.3, MAT.yellowTray, rowX0 + 4.4, 4.3, 14.2);
   // floor sleeve where the cross-hall cables drop into the duct bank
