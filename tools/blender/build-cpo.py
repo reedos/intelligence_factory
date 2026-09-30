@@ -169,6 +169,22 @@ for x in [-4.77,4.77]: box('Cold plate perimeter',(x,4.2,0),(.26,.35,9.28),coppe
 box('X ray center',(0,4.2,0),(9.27,.32,9.27),ghost,'CPO_COLDPLATE',.03)
 for x in [-4.65,4.65]:
     for z in [-4.65,4.65]: screw(x,4.395,z,'CPO_COLDPLATE',.10)
+# Representative skived-fin microchannels inside the x-rayed center. They follow
+# the drawn coolant path: down the supply leg (x=-1.4), across at z=3, back up
+# the return leg (x=+1.4). Fins run parallel to the flow; none sits on a flow line.
+supplyFin = material('Cold plate supply channels', (.08,.34,.9), .2,.3,.32)
+returnFin = material('Cold plate return channels', (.95,.32,.08), .2,.3,.32)
+for m in [supplyFin,returnFin]:
+    p=m.node_tree.nodes.get('Principled BSDF')
+    p.inputs['Emission Color'].default_value=m.diffuse_color
+    p.inputs['Emission Strength'].default_value=.9
+for sx,m in [(-1,supplyFin),(1,returnFin)]:
+    for k in range(10):
+        x=sx*(.28+k*.25)
+        if abs(abs(x)-1.4)<.06: continue
+        box('Microchannel fin',(x,4.2,-.72),(.028,.14,7.0),m,'CPO_COLDPLATE',0)
+for k in range(7):
+    box('Microchannel fin',(0,4.2,2.72+k*.16),(5.3,.14,.028),returnFin,'CPO_COLDPLATE',0)
 for x in [-1.4,1.4]:
     cylinder('Coolant fitting flange',(x,4.45,-4.2),.43,.16,nickel,'CPO_COLDPLATE')
     cylinder('Coolant hex nut',(x,4.57,-4.2),.36,.17,edge,'CPO_COLDPLATE',6)

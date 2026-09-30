@@ -10,7 +10,7 @@ import { attachFlowRibbons } from '../flow-ribbons.js';
 let source, pending;
 export function preload() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=5`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=6`)
     .then(gltf => { source = gltf.scene; return source; })
     .catch(error => { pending = undefined; throw error; });
 }
@@ -59,6 +59,19 @@ export function build(args) {
   directLink({ built, model: asset, kind: 'cpo', quality: args.quality, state: args.state });
   // Keep machined highlights crisp while the animated signal cores still bloom.
   Object.assign(built.look, { bloom: .54, threshold: 1.7, envIntensity: .7, exposure: 1.0 });
+  // X-ray plate: a view-angle rim keeps the translucent sheet readable face-on
+  // and under bloom, instead of vanishing over the glowing die.
+  asset.traverse(node => {
+    if (!node.isMesh || node.material.name !== 'Cutaway cold plate') return;
+    const m = node.material;
+    m.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>',
+        `float ifxRim = pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 2.0);
+        diffuseColor.a = clamp(diffuseColor.a + ifxRim * 0.3, 0.0, 1.0);
+        #include <opaque_fragment>`);
+    };
+    m.customProgramCacheKey = () => 'ifx-cpo-plate-rim';
+  });
   const plate = asset.getObjectByName('CPO_COLDPLATE');
   if (!plate) throw new Error('CPO mechanical asset is missing its cold-plate assembly');
   const interposer = asset.getObjectByName('CPO_PACKAGE__Photonic_die_passivation');
@@ -127,7 +140,7 @@ export function build(args) {
     hasCovers: { value: true }, coverLabel: { value: 'cold plate' },
   });
   built.inspection.setCovers = value => { showPlate = !!value; syncPlate(); };
-  built.inspection.scope = 'Representative package and mechanics; six groups of three engines. Package layers and the cold plate are separated for inspection. Data and Power show the interposer in x-ray to expose buried electrical routes; it is not transparent silicon. Power shows the board and package ceramic in x-ray, with the ASIC partially translucent so its footprint and the schematic supply paths from below remain visible. TX/RX fibers continue outward to front-panel ports outside this diagram; separate lower amber fibers supply laser light. Fiber routing is representative, with surface coupling unfolded for clarity rather than a literal edge-coupled NVIDIA die. Heat view shows the cold plate and coolant pipes in x-ray so their internal flow is visible. Moving marks show direction, not lane counts, speed or watts. Electrical and heat motion across display gaps is schematic. The separate engine detail is enlarged 2.5×: its EIC/PIC faces are bonded in hardware, and its dashed leader identifies the enlarged engine.';
+  built.inspection.scope = 'Representative package and mechanics; six groups of three engines. Package layers and the cold plate are separated for inspection. Data and Power show the interposer in x-ray to expose buried electrical routes; it is not transparent silicon. Power shows the board and package ceramic in x-ray, with the ASIC partially translucent so its footprint and the schematic supply paths from below remain visible. TX/RX fibers continue outward to front-panel ports outside this diagram; separate lower amber fibers supply laser light. Fiber routing is representative, with surface coupling unfolded for clarity rather than a literal edge-coupled NVIDIA die. Heat view shows the cold plate and coolant pipes in x-ray so their internal flow is visible; the fin channels inside the plate are representative. Moving marks show direction, not lane counts, speed or watts. Electrical and heat motion across display gaps is schematic. The separate engine detail is enlarged 2.5×: its EIC/PIC faces are bonded in hardware, and its dashed leader identifies the enlarged engine.';
   built.inspection.views = {
     diagram: { label: 'Complete diagram', ...built.camera },
     package: { label: 'Package', pos: [14, 18, 27], target: [1, 1.1, 0],

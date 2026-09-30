@@ -209,14 +209,16 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     pd: fitted(w(pdX, 0.12, rxRowZ(4)), [DX + 1.2, DY + 2.3, DZ - 4.0], stack, stackSize),
     els: view([ELSX, Y.sub + 1.0, 0], [ELSX + 3.2, 5, 5.5], [ELSX - 1, Y.sub, 0]),
     fiberout: fitted([edgeConn[1][0], 1.45, edgeConn[1][1]], [edgeConn[1][0] + 4, 7.5, 10.7], [edgeConn[1][0], 1.6, 5.9], [4.2, 1.6, 3.4]),
-    coldplate: view([2.5, Y.plate + 0.3, 2.5], [6, 10, 11], [0, 2.4, 0]),
+    // Pinned on the plate's return-leg microchannels, visible from the ASIC view too.
+    coldplate: view([1.65, Y.plate + 0.14, 1.0], [6, 10, 11], [0, 2.4, 0]),
   };
   return {
     scene, flows, dataFlows, heatFlows, coolingHardware,
     camera: { pos: [-0.5, 22, 25], target: [-0.5, 1.0, -1.5], near: 0.05, far: 500, min: 2, max: 90, portrait: { pos: [-3, 33, 35], target: [-3, 0.5, -1.5] } },
     hotspots: { asic: hs.asic, engine: hs.engine, els: hs.els },
     dataHotspots: { asic: hs.asic, serdes: hs.serdes, eic: hs.eic, rings: hs.rings, pd: hs.pd, els: hs.els, fiberout: hs.fiberout },
-    heatHotspots: { asic: hs.asic, coldplate: hs.coldplate },
+    // Heat looks in under the lifted plate: the die glows below, its heat rises into the channels above.
+    heatHotspots: { asic: view(hs.asic.pos, [1.2, 3.55, 10.5], [0, 2.75, 0]), coldplate: hs.coldplate },
     update(t) { if (asicTop) asicTop.emissiveIntensity = state.mode === 'heat' ? 0.5 + 0.08 * Math.sin(t * 2) : 0; },
   };
 }
