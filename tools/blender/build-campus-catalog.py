@@ -17,8 +17,8 @@ def cyl(n,p,r,h,m,g,axis='y',segments=24):
  if axis=='x':o.rotation_euler.y=math.pi/2
  if axis=='z':o.rotation_euler.x=math.pi/2
  q=o.modifiers.new('Turned edge','BEVEL');q.width=min(r,h)*.08;q.segments=2;o.modifiers.new('Weighted normals','WEIGHTED_NORMAL');return o
-def ring(n,p,r,minor,m,g):
- bpy.ops.mesh.primitive_torus_add(major_radius=r,minor_radius=minor,major_segments=32,minor_segments=8,location=pt(p));o=bpy.context.object;o.name=n;o.parent=groups[g];o.data.materials.append(m);return o
+def ring(n,p,r,minor,m,g,major=32,minor_seg=8):
+ bpy.ops.mesh.primitive_torus_add(major_radius=r,minor_radius=minor,major_segments=major,minor_segments=minor_seg,location=pt(p));o=bpy.context.object;o.name=n;o.parent=groups[g];o.data.materials.append(m);return o
 def open_throat(n,p,outer,inner,h,m,g,segments=32):
  # Hollow fan shroud: annular lips and inner/outer walls, no solid disk
  # underneath the aperture that would close the intended air passage.
@@ -28,18 +28,34 @@ def open_throat(n,p,outer,inner,h,m,g,segments=32):
   j=(i+1)%segments;a=i;b=segments+i;c=2*segments+i;d=3*segments+i
   f.extend([(a,b,segments+j,j),(c,2*segments+j,3*segments+j,d),(b,d,3*segments+j,segments+j),(a,j,2*segments+j,c)])
  return mesh(n,v,f,m,g)
-# Six-fan dry-cooler cassette. Original footprint/rotor anchors retained.
-g='COOLER';box('Structural skid',(0,.15,0),(11.6,.3,2.3),steel,g,.08)
-for z in [-.95,.95]:
- box('V-coil casing',(0,1.2,z),(11.6,1.8,.13),shadow,g,.035)
- for i in range(48):box('Coil-fin edge',(-5.6+i*.237,1.15,z+(1 if z>0 else -1)*.08),(.028,1.62,.12),steel,g,.008)
-box('Fan deck',(0,2.2,0),(11.6,.2,2.4),white,g,.09)
+# Six-fan V-type dry-cooler cassette. Original footprint and rotor anchors retained. Each side is one coil
+# panel leaning about 10 degrees inward with unbevelled fin lines (the 96 bevelled fin boxes cost ~20k
+# triangles for sub-pixel detail), wire guards over the fan throats, header stubs and an EC control box.
+def obox(n,c,d,rx,m):
+ bpy.ops.mesh.primitive_cube_add(size=1,location=pt(c));o=bpy.context.object;o.name=n;o.parent=groups[g];o.data.materials.append(m)
+ o.scale=(d[0],d[2],d[1]);o.rotation_euler=(math.radians(rx),0,0);return o
+g='COOLER';box('Structural skid',(0,.15,0),(11.6,.3,2.3),steel,g,.04)
+for sz in [-1,1]:
+ obox('V-coil casing',(0,1.2,sz*.9),(11.6,1.85,.13),sz*10,shadow)
+ for i in range(28):obox('Coil fin line',(-5.4+i*.4,1.2,sz*.965),(.03,1.7,.03),sz*10,steel)
+ for x in [-5.72,5.72]:obox('Coil end frame',(x,1.2,sz*.92),(.14,1.85,.2),sz*10,steel)
+box('Fan deck',(0,2.2,0),(11.6,.2,2.4),white,g,.04)
 for i in range(6):
- x=-4.9+i*1.96;open_throat('Fan throat',(x,2.43,0),.9,.78,.28,steel,g);ring('Rolled fan bellmouth',(x,2.57,0),.84,.055,white,g)
- # dark opening remains below native/exported rotor surface.
+ x=-4.9+i*1.96;open_throat('Fan throat',(x,2.43,0),.9,.78,.28,steel,g);ring('Rolled fan bellmouth',(x,2.57,0),.84,.055,white,g,24,6)
  cyl('Fan aperture',(x,2.585,0),.78,.016,black,g)
+ # wire fan guard above the rotor: outer and inner rings with eight radial wires
+ ring('Fan guard ring',(x,2.8,0),.8,.018,steel,g,24,4);ring('Fan guard ring',(x,2.8,0),.45,.014,steel,g,16,4)
+ for k in range(8):
+  a=k*math.pi/4;A=Vector(pt((x+.12*math.cos(a),2.8,.12*math.sin(a))));B=Vector(pt((x+.8*math.cos(a),2.8,.8*math.sin(a))))
+  bpy.ops.mesh.primitive_cylinder_add(vertices=4,radius=.012,depth=(B-A).length,location=(A+B)/2);o=bpy.context.object;o.name='Fan guard wire'
+  o.rotation_euler=(B-A).to_track_quat('Z','Y').to_euler();o.parent=groups[g];o.data.materials.append(steel)
+ for dz in [-.85,.85]:box('Guard standoff',(x,2.69,dz),(.03,.22,.03),steel,g,0)
 for x in [-5.6,5.6]:
- for z in [-1,1]:box('Cooler support',(x,-.2,z),(.15,.4,.15),steel,g,.025)
+ for z in [-1,1]:box('Cooler support',(x,-.2,z),(.15,.4,.15),steel,g,0)
+# inlet/outlet header stubs with flanges on the -X end, and the EC fan control box
+for z,yy in [(-.55,.75),(.55,1.55)]:
+ cyl('Header stub',(-6.05,yy,z),.12,.5,steel,g,'x');cyl('Header flange',(-6.3,yy,z),.2,.05,steel,g,'x')
+box('EC control box',(5.95,1.1,.6),(.25,.7,.5),white,g,.02)
 # Axial fan rotor, normalized radius 1 for the runtime spinners (blades in the XZ plane, spinning about Y).
 # Five twisted, cambered airfoil blades (about 18 degrees pitch at the root easing to 8 at the tip) on a hub.
 # One material, because the viewer takes the rotor as a single geometry.
