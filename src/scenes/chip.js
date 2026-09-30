@@ -129,27 +129,46 @@ function buildPackage({ quality, state, model }) {
   }
   // NV-HBI bridge glow between the dies
   if (twin) { const hbi = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 3.0), glowMat('#6fd8ff', 2.4)); hbi.position.set(0, Y.dies + 0.02, 0); scene.add(hbi); }
-  // HBM stacks: a base die and one DRAM layer per level, slightly spread
-  const hbmTop = canvasTex(128, 128, (g, w, h) => { g.fillStyle = '#2b2e35'; g.fillRect(0, 0, w, h); g.fillStyle = '#8b939e'; g.font = '600 18px system-ui'; g.fillText(A.hbm.type, 18, 70); });
-  const hbmTopMat = new THREE.MeshStandardMaterial({ map: hbmTop, roughness: 0.4, metalness: 0.3 });
-  hbmTopMat.name = `HBM top cap ${A.hbm.type}`;
-  const hbmLayerMat = MAT.hbm.clone();
-  hbmLayerMat.color.setHex(0x334355); hbmLayerMat.roughness = .38; hbmLayerMat.metalness = .45;
+  // HBM stacks: one molded block per stack (logic base die plus DRAM dies in
+  // epoxy mold compound) with a bare silicon top. The layer count reads as a
+  // striped band on the cut face that carries the TSVs. Real stacks are about
+  // 0.72 mm tall, level with the GPU die; the height here is drawn about 3x
+  // (representative) so the layers stay visible.
+  const mold = new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.55, metalness: 0.05 }); mold.name = 'HBM epoxy mold compound';
+  const hbmTopMat = new THREE.MeshPhysicalMaterial({ color: 0x6c737c, roughness: 0.18, metalness: 0.0, clearcoat: 0.6, clearcoatRoughness: 0.2 }); hbmTopMat.name = 'HBM bare silicon top';
+  const dramMat = new THREE.MeshStandardMaterial({ color: 0x59616c, roughness: 0.3, metalness: 0.35 }); dramMat.name = 'HBM DRAM die edge';
+  const baseDieMat = new THREE.MeshStandardMaterial({ color: 0x7a6a52, roughness: 0.34, metalness: 0.4 }); baseDieMat.name = 'HBM logic base die edge';
+  const spacerMat = new THREE.MeshPhysicalMaterial({ color: 0x8a929c, roughness: 0.12, metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.08 }); spacerMat.name = 'Blank silicon spacer';
   const hbmPos = [];
   if (twin) { for (const x of [-2.02, -0.7, 0.7, 2.02]) for (const z of [-2.3, 2.3]) hbmPos.push([x, z]); }
   else { for (const x of [-2.05, 2.05]) for (const z of [-1.12, 0, 1.12]) hbmPos.push([x, z]); }
   const spare = twin ? -1 : 5;                           // H100: six sites, five working stacks and a spacer
-  const stackH = layers * 0.055;
+  const HW = 1.06, HD = 1.0, hb = Y.dies - 0.04;       // stack footprint and underside, level with the die underside
+  const stackH = 0.24;
+  const spacerOutlines = [];
   hbmPos.forEach(([x, z], i) => {
-    S.box(1.1, 0.05, 1.05, MAT.silicon, x, Y.dies - 0.02, z);
-    if (i === spare) { S.box(1.06, stackH, 1.0, MAT.silicon, x, Y.dies + 0.013 + stackH / 2, z); return; }
-    for (let l = 0; l < layers; l++) S.box(1.06, 0.035, 1.0, l % 2 ? hbmLayerMat : MAT.darkSteel, x, Y.dies + 0.04 + l * 0.055, z);
-    const top = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.02, 1.0), [hbmLayerMat, hbmLayerMat, hbmTopMat, hbmLayerMat, hbmLayerMat, hbmLayerMat]);
-    top.position.set(x, Y.dies + 0.04 + stackH, z); scene.add(top);
-    // TSVs on the cut face that faces away from the die
+    if (i === spare) {
+      // A blank polished silicon spacer keeps the sixth site level: no DRAM,
+      // no TSVs. A dashed outline marks it as the unpopulated site.
+      S.box(HW, stackH, HD, spacerMat, x, hb + stackH / 2, z);
+      spacerOutlines.push([x, z]);
+      return;
+    }
+    S.box(HW, stackH - 0.012, HD, mold, x, hb + (stackH - 0.012) / 2, z);
+    S.box(HW - 0.04, 0.012, HD - 0.04, hbmTopMat, x, hb + stackH - 0.006, z);
+    // the cut face on the package-edge side: base die, then one band per DRAM die, then TSVs
+    const n = layers + 1, band = (stackH - 0.03) / n;
+    const fx = twin ? 0 : Math.sign(x), fz = twin ? Math.sign(z) : 0;            // outward normal of the cut face
+    const fcx = x + fx * (HW / 2 + 0.002), fcz = z + fz * (HD / 2 + 0.002), along = twin ? HW - 0.08 : HD - 0.08;
+    for (let l = 0; l < n; l++) {
+      const y = hb + 0.015 + band * (l + 0.5), h = band * (l === 0 ? 0.8 : 0.55);
+      const m = l === 0 ? baseDieMat : dramMat;
+      if (twin) N.box(along, h, 0.004, m, fcx, y, fcz); else N.box(0.004, h, along, m, fcx, y, fcz);
+    }
     for (let t = 0; t < 5; t++) {
-      if (twin) N.box(0.01, stackH, 0.01, MAT.copper, x - 0.3 + t * 0.15, Y.dies + 0.04 + stackH / 2, z - Math.sign(z) * 0.505);
-      else N.box(0.01, stackH, 0.01, MAT.copper, x + Math.sign(x) * 0.535, Y.dies + 0.04 + stackH / 2, z - 0.3 + t * 0.15);
+      const off = -0.3 + t * 0.15;
+      if (twin) N.box(0.01, stackH - 0.03, 0.006, MAT.copper, x + off, hb + stackH / 2, fcz + fz * 0.002);
+      else N.box(0.006, stackH - 0.03, 0.01, MAT.copper, fcx + fx * 0.002, hb + stackH / 2, z + off);
     }
   });
   const live = hbmPos.filter((_, i) => i !== spare);
@@ -169,6 +188,11 @@ function buildPackage({ quality, state, model }) {
   }
 
   scene.add(S.build()); scene.add(N.build({ cast: false }));
+  for (const [x, z] of spacerOutlines) {
+    const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(HW + 0.04, stackH + 0.02, HD + 0.04)),
+      new THREE.LineDashedMaterial({ color: 0xdfe6ee, dashSize: 0.06, gapSize: 0.045, transparent: true, opacity: 0.85 }));
+    edge.computeLineDistances(); edge.position.set(x, hb + stackH / 2, z); edge.name = 'Unpopulated HBM site outline'; scene.add(edge);
+  }
   finishCompute(scene, finish);
 
   // ---------- current climbing into the dies ----------
@@ -203,7 +227,7 @@ function buildPackage({ quality, state, model }) {
     const x = dieSampleX(), z = (rnd() - 0.5) * 3.0;
     heatFlows.push(flow([[x, Y.dies + 0.06, z], [x, Y.lid - 0.12, z], [x * 1.05, Y.lid + 1.4, z * 1.05]], 'hot', { count: 3, speed: 1.1 + rnd() * 0.6, size: 0.045, k: 2.6, trail: false }));
   }
-  live.forEach(([x, z]) => { const f = flow([[x, Y.dies + 0.04 + stackH, z], [x, Y.lid - 0.12, z], [x, Y.lid + 1.2, z]], 'hot', { count: 2, speed: 0.9, size: 0.04, k: 2.4, trail: false }); f.thermalOrigin = 'hbm'; heatFlows.push(f); });
+  live.forEach(([x, z]) => { const f = flow([[x, hb + stackH, z], [x, Y.lid - 0.12, z], [x, Y.lid + 1.2, z]], 'hot', { count: 2, speed: 0.9, size: 0.04, k: 2.4, trail: false }); f.thermalOrigin = 'hbm'; heatFlows.push(f); });
   scene.userData.computePackage = { gpuDies: dieX.length, liveHbmStacks: live.length, hbmDramLayers: layers, spacerSites: spare < 0 ? 0 : 1, nvlinkLinks: A.nvlink.linksPerGpu, explodedRepresentative: true };
   heatFlows.forEach(f => scene.add(f.group));
 
@@ -268,12 +292,11 @@ function buildPackage({ quality, state, model }) {
     }
     if (targetOut >= tokens.length && buf.words.length > 0) { spawnChunk(lane, buf.words, buf.startIdx); buf.words = []; }
   }
-  // the KV cache: an emissive band that rises up each live HBM stack as the context grows, and empties on restart.
-  // Sized visibly larger than the real HBM stack it wraps (that stack is 1.06 x (layers*0.055) x 1.0) so its rim
-  // reads as a glow around the pink stack rather than sitting invisibly flush against it.
+  // the KV cache: a thin emissive sheath that climbs each live HBM stack as the context grows, and empties on
+  // restart. Data layer only, and only slightly larger than the stack, so the stack itself still reads as hardware.
   const fillGeo = new THREE.BoxGeometry(1, 1, 1); fillGeo.translate(0, 0.5, 0);
-  // additive so the rim reads as a glow against the stack's own pale pink material rather than blending into it
-  const fillMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#c86bff').multiplyScalar(.9), transparent: true, opacity: 0.23, depthWrite: false, blending: THREE.AdditiveBlending });
+  // additive, so it reads as light on the dark mold rather than a colored plastic shell
+  const fillMat = new THREE.MeshBasicMaterial({ color: new THREE.Color('#c86bff').multiplyScalar(.9), transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending });
   const hbmFill = new THREE.InstancedMesh(fillGeo, fillMat, Math.max(1, live.length));
   hbmFill.frustumCulled = false; hbmFill.count = live.length; scene.add(hbmFill);
   let genCycle = buildCycle(model), genLen = genCycle.timings.totalS, genLastE = -1;
@@ -289,7 +312,7 @@ function buildPackage({ quality, state, model }) {
     }
   }
 
-  const d0 = dieX[0], [hx, hz] = live[live.length - 1], hy = Y.dies + 0.07 + stackH;
+  const d0 = dieX[0], [hx, hz] = live[live.length - 1], hy = hb + stackH + 0.03;
   const hbmHS = { pos: [hx, hy, hz], view: { pos: [hx + 3.5, hy + 4.5, hz + 4.2], target: [hx * 0.8, Y.dies + 0.5, hz * 0.9] } };
   // Tokens: frame the top of the package and the live readout above it, so the
   // generated text is legible; the pin sits beside the rows, never on them.
@@ -379,10 +402,11 @@ function buildPackage({ quality, state, model }) {
       }
       live.forEach(([x, z], i) => {
         const h = Math.max(0.02, stackH * s.contextFrac);
-        o.position.set(x, Y.dies + 0.043, z); o.rotation.set(0, 0, 0); o.scale.set(1.22, h, 1.16); o.updateMatrix();
+        o.position.set(x, hb + 0.002, z); o.rotation.set(0, 0, 0); o.scale.set(HW + 0.03, h, HD + 0.03); o.updateMatrix();
         hbmFill.setMatrixAt(i, o.matrix);
       });
       hbmFill.instanceMatrix.needsUpdate = true;
+      hbmFill.visible = state.mode === 'data';          // the cache is a data-layer idea: hardware stays hardware in power and heat
 
       pulse.v = Math.max(0, pulse.v - dt * 3);
       const heatOn = state.mode === 'heat';
