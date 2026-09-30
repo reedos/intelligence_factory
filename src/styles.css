@@ -331,6 +331,16 @@ svg .golink:focus { outline: none; }
 button.chip { font: 500 9.5px/1 var(--mono); cursor: pointer; background: transparent; margin: 0; }
 button.chip:hover, button.chip[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
 button.chip:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+/* the i on a badge says it opens what backs the figure */
+button.chip[data-src] { position: relative; gap: 5px; }
+button.chip[data-src]::after { content: "i"; display: inline-grid; place-items: center; width: 11px; height: 11px; border: 1px solid currentColor; border-radius: 50%; font: italic 600 8px/1 var(--sans); letter-spacing: 0; opacity: .85; }
+@media (pointer: coarse) { button.chip[data-src]::before { content: ""; position: absolute; inset: -13px -8px; } }   /* a finger-sized target */
+.src-pop.has-more { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 48px), rgba(0,0,0,.25)); mask-image: linear-gradient(180deg, #000 calc(100% - 48px), rgba(0,0,0,.25)); }
+/* phones: what backs a figure is a sheet along the bottom of the screen, over the view, not a popover by the badge */
+@media (max-width: 760px) {
+  .src-pop { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: auto !important; max-height: 72dvh; padding: 18px var(--gutter) calc(18px + env(safe-area-inset-bottom, 0px)); border: 0; border-top: 2px solid var(--accent); box-shadow: 0 -18px 50px rgba(0,0,0,.7); }
+  .src-pop .sp-x { min-width: 44px; min-height: 44px; display: grid; place-items: center; margin: -12px -8px -12px auto; }
+}
 .src-pop { position: fixed; z-index: 50; max-height: min(420px, 70vh); overflow-y: auto; padding: 16px 18px 14px; background: var(--surface); border: 1px solid var(--line-2); box-shadow: 0 18px 50px rgba(0,0,0,.6); display: grid; gap: 10px; font-size: 13px; color: var(--muted); }
 .src-pop .sp-head { display: flex; align-items: center; gap: 10px; }
 .src-pop .sp-head b { color: var(--ink); font-weight: 600; }
@@ -341,6 +351,7 @@ button.chip:focus-visible { outline: 1px solid var(--accent); outline-offset: 2p
 .src-pop .sp-k { font: 400 10.5px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; }
 .src-pop .sp-claim { color: var(--ink); }
 .src-pop .sp-d { font: 400 11px/1.4 var(--mono); color: var(--muted); }
+.src-pop .sp-all { padding-top: 8px; border-top: 1px solid var(--line-2); font-size: 12px; }
 .chip-k { font: 400 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
 .src-pop ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .src-pop li { display: grid; gap: 1px; }
@@ -970,6 +981,24 @@ body.app #intro:not(.open) { display: -webkit-box; -webkit-box-orient: vertical;
   body.app .specs div { padding: 6px 0; }
   body.app .card-actions .btn { min-height: 36px; }
 }
+
+/* ---------- the reference pages in a sheet over the visualizer ---------- */
+.page-sheet { position: fixed; inset: 0; z-index: 70; display: grid; grid-template-columns: minmax(0, 1fr) min(860px, 100%); }
+.page-sheet[hidden] { display: none; }
+.ps-scrim { all: unset; background: rgba(0,0,0,.55); cursor: pointer; }
+.ps-panel { display: flex; flex-direction: column; min-width: 0; background: var(--ground); border-left: 1px solid var(--line-2); box-shadow: -24px 0 60px rgba(0,0,0,.6); }
+.ps-bar { flex: none; display: flex; align-items: center; gap: 16px; min-height: 52px; padding: 0 0 0 var(--gutter); border-bottom: 1px solid var(--line-2); }
+.ps-bar b { font: 600 20px/1 var(--display); text-transform: uppercase; }
+.ps-open { margin-left: auto; font: 600 11px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+.ps-open:hover { color: var(--ink); }
+.ps-x { all: unset; box-sizing: border-box; cursor: pointer; width: 52px; align-self: stretch; display: grid; place-items: center; border-left: 1px solid var(--line-2); font: 400 26px/1 var(--sans); color: var(--ink); }
+.ps-x:hover { background: var(--surface); }
+.ps-x:focus-visible, .ps-open:focus-visible { outline: 1px solid var(--accent); outline-offset: -3px; }
+.ps-panel iframe { flex: 1 1 auto; width: 100%; border: 0; background: #000; }
+@media (max-width: 760px) { .page-sheet { grid-template-columns: 0 minmax(0, 1fr); } .ps-panel { border-left: 0; } }
+/* a reference page shown in that sheet: no top bar of its own */
+.embedded .topbar { display: none; }
+.embedded .page-wrap { padding-top: 32px; }
 
 /* ---------- more below: the pane fades at its foot and a strip under it says there is more ---------- */
 /* a strip of its own, not an overlay, so it never sits on a button in the pane */

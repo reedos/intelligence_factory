@@ -13,6 +13,7 @@ import './app/scenario.js';
 import './app/site.js';
 import './app/campus-presentation.js';
 import './app/toprow.js';
+import './app/page-sheet.js';
 import { setGo } from './app/links.js';
 import { moreCue } from './app/more-cue.js';
 

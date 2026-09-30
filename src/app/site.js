@@ -1,6 +1,19 @@
 // The top bar: firmer once the hero has scrolled under it, a menu on phones, and the chapter on screen underlined.
 import { withScenario } from './scenario-links.js';
 const $ = id => document.getElementById(id);
+const embedded = new URLSearchParams(location.search).has('embed') && window.parent !== window;
+if (embedded) {
+  document.documentElement.classList.add('embedded');
+  document.addEventListener('click', e => {
+    const a = e.target.closest?.('a[href]');
+    if (!a || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target === '_blank') return;
+    const url = new URL(a.getAttribute('href'), location.href), page = url.pathname.split('/').pop();
+    if (url.origin !== location.origin) { a.target = '_blank'; a.rel = 'noopener'; return; }
+    if (page === 'visualizer.html') { e.preventDefault(); e.stopPropagation(); parent.postMessage({ type: 'ifx-view', search: url.search }, location.origin); return; }
+    if (['evidence.html', 'method.html', 'glossary.html'].includes(page) || !page) { if (page) { url.searchParams.set('embed', '1'); a.setAttribute('href', `${page}${url.search}${url.hash}`); } return; }
+    a.target = '_top';
+  }, true);
+}
 const bar = $('topbar'), nav = $('topnav'), menu = $('menu-btn'), hero = $('top');
 
 // scrolled: the bar needs its own ground once the hero is gone from behind it
