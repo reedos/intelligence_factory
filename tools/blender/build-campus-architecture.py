@@ -94,26 +94,14 @@ for z in [-38,-30,15,23,31,39]:
 box('East facade crown',(130.6,22.55,0),(2.1,1.25,90),pearl,'HALL',.18)
 # Office is an independently placed fixed 28x60m, three-story volume. Rounded corners,
 # deep roof sails and vertical mullions create a visibly new flagship entrance.
-# Curtain wall: reflective (not near-black matte) glass, with lit rooms grouped per floor behind it so the
-# operations center reads as occupied at dusk. Representative architecture.
+# Curtain wall: reflective (not near-black matte) glass; no interior lighting (owner's call). Representative architecture.
 officeGlass=mat('Office curtain-wall glass',(.1,.17,.21),.55,.07)
-roomLit=mat('Office lit interior',(.62,.42,.22),0,.6,.45)
 prism('Three-story office glazing',roundrect(28,60,4),.3,16.3,officeGlass,'OFFICE',.04)
-for row,(y0,y1) in enumerate([(.9,5.3),(6.15,10.55),(11.4,15.8)]):
- for col in range(16):
-  if (col//3+row*2)%5<2:
-   z=-22.5+col*3
-   box('Lit office bay',(-14.06,(y0+y1)/2,z),(.02,y1-y0,2.6),roomLit,'OFFICE',0)
- for col in range(6):
-  if (col+row)%3==0:
-   x=-7.5+col*3
-   for sz in [-1,1]:box('Lit office bay',(x,(y0+y1)/2,sz*30.06),(2.6,y1-y0,.02),roomLit,'OFFICE',0)
 for y in [.28,5.55,10.8,16.25]:
  prism('Office continuous floor fascia',roundrect(29.2,61.2,4.2),y,y+.38,pearl,'OFFICE',.09)
 # Roof canopy is supported, not a floating extra floor.
 prism('Aerodynamic office roof sail',roundrect(32,64,6),18.7,19.4,pearl,'OFFICE',.23)
 prism('Dark canopy underside',roundrect(30.6,62.6,5.6),18.58,18.7,shadow,'OFFICE',.07)
-prism('Roof fascia light line',roundrect(32.2,64.2,6.05),18.98,19.06,lamp,'OFFICE',0)
 for z in [-25,25]:
  for x in [-10,10]:beam('Roof sail supports',(x,16.5,z),(x-1.2,18.65,z),.32,.32,bronze,'OFFICE')
 for z in range(-24,25,3):
