@@ -61,8 +61,17 @@ function frontTex(kind) {
       g.fillStyle = '#0e1d2a'; g.fillRect(60, 60, 136, 90); g.fillStyle = '#4c8dff'; g.fillRect(72, 76, 50, 8); g.fillStyle = '#ff5a6e'; g.fillRect(72, 94, 70, 8);
       g.fillStyle = '#b3b8bc'; for (let y = 200; y < h - 30; y += 12) g.fillRect(24, y, w - 48, 6);
     } else if (kind === 'net') {
-      g.fillStyle = '#121418'; g.fillRect(0, 0, w, h);
-      for (let y = 20; y < h - 20; y += 22) { g.fillStyle = '#1f232a'; g.fillRect(10, y, w - 20, 18); for (let x = 16; x < w - 16; x += 8) { g.fillStyle = ['#e8c547', '#3fd1c8', '#e8c547', '#9aa3ad'][(x + y) % 4]; g.fillRect(x, y + 5, 4, 8); } }    } else if (kind === 'storage') {
+      // network rack: 1U blanking panels, two horizontal cable managers either side of the switch units
+      // (the switch chassis and patch panel are geometry drawn over this face); representative
+      g.fillStyle = '#101216'; g.fillRect(0, 0, w, h);
+      const row = y => (2.25 - y) / 2.2 * h, U = .04445 / 2.2 * h;
+      for (let y = row(2.25); y < h; y += U) { g.fillStyle = '#16191e'; g.fillRect(10, y + 1, w - 20, U - 2); g.fillStyle = '#1d2127'; g.fillRect(10, y + 1, w - 20, 1); }
+      for (const y of [1.76, 1.48]) {
+        const top = row(y + .022); g.fillStyle = '#0a0b0d'; g.fillRect(8, top, w - 16, U);
+        g.fillStyle = '#23272e'; for (let x = 14; x < w - 14; x += 12) g.fillRect(x, top + 2, 6, U - 4);
+      }
+      g.fillStyle = '#0b0c0e'; g.fillRect(0, 0, 8, h); g.fillRect(w - 8, 0, 8, h);
+    } else if (kind === 'storage') {
       // JBOD-style 2U drive shelves: dense grids of small drive bays, no NVLink switches, no coolant gear
       g.fillStyle = '#15171b'; g.fillRect(0, 0, w, h);
       const U = h / 48;
@@ -90,6 +99,37 @@ function frontTex(kind) {
       }
       g.fillStyle = '#0b0c0e'; g.fillRect(0, 0, 8, h); g.fillRect(w - 8, 0, 8, h);
     }
+  });
+}
+// The shared Blender PLANE / BOX_SIX_FACES modules that finalizeSiteGeometry() swaps in carry V running
+// top-down while canvas textures keep flipY=true, so every front graphic rendered upside down (UPS/CDU
+// displays at knee height, switchgear rows inverted, NVL72 rows off the NVL_FACE relief). Re-orient V on
+// each vertical face so its top edge samples the top of the canvas. Idempotent: a face that already reads
+// top-up is left alone, so this stays correct if the shared module is fixed at the source.
+function uprightFaceUVs(scene) {
+  const seen = new Set();
+  scene.traverse(o => {
+    const module = o.isMesh && o.geometry.userData.blender?.module;
+    if ((module !== 'PLANE' && module !== 'BOX_SIX_FACES') || seen.has(o.geometry)) return;
+    seen.add(o.geometry);
+    const g = o.geometry, pos = g.attributes.position, uv = g.attributes.uv, idx = g.index;
+    if (!uv) return;
+    const total = idx ? idx.count : pos.count;
+    const groups = g.groups.length ? g.groups : [{ start: 0, count: total }];
+    for (const { start, count } of groups) {
+      const verts = new Set();
+      for (let i = start; i < start + count; i++) verts.add(idx ? idx.getX(i) : i);
+      let top = -1, bottom = -1, yMin = Infinity, yMax = -Infinity;
+      for (const v of verts) {
+        const y = pos.getY(v);
+        if (y > yMax) { yMax = y; top = v; }
+        if (y < yMin) { yMin = y; bottom = v; }
+      }
+      if (yMax - yMin < 1e-6) continue;                                                              // horizontal face
+      if (uv.getY(top) >= uv.getY(bottom)) continue;                                                 // already upright
+      for (const v of verts) uv.setY(v, 1 - uv.getY(v));
+    }
+    uv.needsUpdate = true;
   });
 }
 export function build({ quality, model }) {
@@ -123,37 +163,56 @@ export function build({ quality, model }) {
   const fiberJacket = new THREE.MeshStandardMaterial({ color: FIBER_JACKET, roughness: 0.5, metalness: 0.1 });
   const networkPorts = new Map(), fiberRoutes = [];
   const portLedItems = [];                              // link LEDs on the switch ports (the racks keep ledItems)
-  // one bank of pluggable OSFP cages + modules on a network-rack face at (cx, cz), front normal +z*fs
-  function pluggableFace(cx, cz, fs, { rows = 2, cols = 6, y0 = 1.55, y1 = 1.95, w = 0.46 } = {}) {
-    const dv = (y1 - y0) / rows, du = w / cols, faceZ = cz + fs * 0.6;
-    const ports=[];
+  // Switch chassis drawn at true size with pluggable OSFP modules (22.58 mm wide x 13 mm tall, OSFP MSA).
+  // 400G fabrics: Quantum-2 QM9700, 1U (43.6 mm) x 438 mm, 32 OSFP cages (nvidia-quantum2-qm9700-specs).
+  // 800G and up: Quantum-X800 Q3400, 4U (177.8 mm) x 438 mm, 72 OSFP cages (nvidia-xdr-switch-specs,
+  // nvidia-quantum-x800-switches). Cage arrangement and the chassis count per rack are representative.
+  const bigSwitch = model.accel.nicGbps >= 800;
+  const SWITCH_FORMS = { qm9700: { h: .0436, rows: 2, cols: 16 }, q3400: { h: .1778, rows: 4, cols: 18 }, tor: { h: .0436, rows: 1, cols: 16 } };
+  function switchChassis(cx, cz, fs, form, yb, ports) {
+    const { h, rows, cols } = SWITCH_FORMS[form], faceZ = cz + fs * 0.6, pitchX = .0235, pitchY = .0172;
+    const yc = yb + h / 2;
+    N.box(.438, h - .002, .012, MAT.darkSteel, cx, yc, faceZ + fs * .006);                  // chassis face
+    N.box(.018, h - .006, .006, MAT.black, cx - .209, yc, faceZ + fs * .015);                 // mounting ears
+    N.box(.018, h - .006, .006, MAT.black, cx + .209, yc, faceZ + fs * .015);
+    portLedItems.push({ p: [cx - .2, yc + h / 2 - .008, faceZ + fs * .02], color: '#5cf29a', rate: .6 });   // status LED
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      const x = cx - w / 2 + du * (c + 0.5), y = y0 + dv * (r + 0.5);
-      N.box(du * 0.82, dv * 0.78, 0.05, MAT.darkSteel, x, y, faceZ + fs * 0.015);        // cage, set into the face
-      N.box(du * 0.6, dv * 0.5, 0.09, moduleMetal, x, y, faceZ + fs * 0.075);            // module body, protrudes
-      N.box(du * 0.56, dv * 0.22, 0.02, pullTabMat, x, y - dv * 0.18, faceZ + fs * 0.13); // pull tab
-      ports.push({point:[x,y,faceZ+fs*.12],f:fs});
-      portLedItems.push({ p: [x + du * 0.16, y + dv * 0.22, faceZ + fs * 0.11], color: (r + c) % 3 ? '#5cf29a' : '#ffb347', rate: 0.35 + ((r * cols + c) * 0.37) % 1.2 });
+      const bank = form === 'q3400' ? (r < 2 ? -1 : 1) * .012 : 0;
+      const x = cx + (c - (cols - 1) / 2) * pitchX, y = yc + (r - (rows - 1) / 2) * pitchY + bank;
+      N.box(.0226, .013, .02, moduleMetal, x, y, faceZ + fs * .02);                           // OSFP module, ~18 mm proud
+      N.box(.004, .0035, .03, pullTabMat, x, y - .0045, faceZ + fs * .027);                    // pull tab
+      ports.push({ point: [x, y, faceZ + fs * .03], f: fs, cx, i: ports.length, under: yb - .012 });
+      portLedItems.push({ p: [x + .008, y + .0047, faceZ + fs * .0305], color: (r + c) % 3 ? '#5cf29a' : '#ffb347', rate: 0.35 + ((r * cols + c) * 0.37) % 1.2 });
     }
-    networkPorts.set(`${cx}:${cz}`,ports);return ports;
   }
-  // the co-packaged optics switch: dense MPO connectors flush on the chassis, external laser source modules, no pluggables
+  function pluggableFace(cx, cz, fs, { forms, y0 }) {
+    const ports = [];
+    let yb = y0;
+    for (const form of forms) { switchChassis(cx, cz, fs, form, yb, ports); yb += SWITCH_FORMS[form].h + .0009; }
+    networkPorts.set(`${cx}:${cz}`, ports); return ports;
+  }
+  // the co-packaged optics switch, drawn with the Quantum-X Photonics Q3450's published front-panel counts:
+  // 144 MPO connectors, 18 removable external light-source (ELS) modules, 4 UDQ4 liquid connections
+  // (lambda-q3450-unboxing). Adapter size is to scale (~13 x 8 mm); the arrangement is representative.
   function cpoFace(cx, cz, fs) {
-    const y0 = 1.5, y1 = 1.98, rows = 5, cols = 8, w = 0.5, dv = (y1 - y0) / rows, du = w / cols, faceZ = cz + fs * 0.6;
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      const x = cx - w / 2 + du * (c + 0.5), y = y0 + dv * (r + 0.5);
-      N.box(du * 0.72, dv * 0.72, 0.03, mpoBody, x, y, faceZ + fs * 0.02);               // MPO connector, near flush
+    const faceZ = cz + fs * 0.6, plateZ = faceZ + fs * .018, frontZ = faceZ + fs * .033;
+    N.box(.47, .34, .03, elsMetal, cx, 1.71, plateZ);                                     // chassis faceplate
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 18; c++) {                              // 144 MPO adapters, 8 x 18
+      const x = cx + (c - 8.5) * .0225, y = 1.61 + r * .0135;
+      N.box(.0135, .0085, .012, MAT.black, x, y, frontZ + fs * .006);
+      N.box(.005, .0022, .003, mpoBody, x, y + .0032, frontZ + fs * .0135);                // coloured key
     }
-    for (let i = 0; i < 3; i++) {                                                        // external laser source modules
-      const x = cx - 0.16 + i * 0.16;
-      N.box(0.13, 0.09, 0.1, elsMetal, x, 2.1, faceZ + fs * 0.06);
-      N.box(0.09, 0.02, 0.02, glowMat('#ffb347', 1.3), x, 2.1, faceZ + fs * 0.115);
+    for (let i = 0; i < 18; i++) {                                                         // 18 hot-swap ELS modules
+      const x = cx + (i - 8.5) * .0225;
+      N.box(.019, .05, .02, elsMetal, x, 1.8, frontZ + fs * .01);
+      N.box(.012, .006, .012, pullTabMat, x, 1.772, frontZ + fs * .026);                   // pull handle
+      N.box(.004, .004, .004, glowMat('#ffb347', 1.3), x + .005, 1.818, frontZ + fs * .0215);
     }
-    // The comparison chassis is not deployed: capped representative service
-    // ports, with no floor hoses or fiber drop into the live fabric.
-    for (const [dx, mat] of [[-.2,MAT.pipeBlue],[.2,MAT.pipeRed]]) {
-      N.cylZ(.045,.055,mat,cx+dx,1.15,faceZ+fs*.045,10);
-      N.cylZ(.035,.018,MAT.darkSteel,cx+dx,1.15,faceZ+fs*.08,10);
+    // The comparison chassis is not deployed: four capped UDQ4-style couplings (two supply, two return),
+    // with no floor hoses or fiber drop into the live fabric.
+    for (const [dx, mat] of [[-.165,MAT.pipeBlue],[-.115,MAT.pipeBlue],[.115,MAT.pipeRed],[.165,MAT.pipeRed]]) {
+      N.cylZ(.019,.03,mat,cx+dx,1.575,frontZ+fs*.015,12);
+      N.cylZ(.015,.012,MAT.darkSteel,cx+dx,1.575,frontZ+fs*.036,12);
     }
   }
   // Physical jackets and particles use one route definition. Network and rack
@@ -184,9 +243,15 @@ export function build({ quality, model }) {
   }
   function portDrop(port,rowZ) {
     const [x,y,z]=port.point,fs=port.f;
-    N.box(.022,.014,.025,mpoBody,x,y,z+fs*.013);
-    return [[x,y,z+fs*.026],[x,y,z+fs*.12],[x,HALL_RUNWAY.entryY,z+fs*.12],
+    N.box(.012,.008,.02,mpoBody,x,y,z+fs*.01);                                       // connector boot
+    if(port.cx===undefined)return [[x,y,z+fs*.026],[x,y,z+fs*.12],[x,HALL_RUNWAY.entryY,z+fs*.12],
       [x,HALL_RUNWAY.entryY,rowZ],[x,HALL_RUNWAY.cableY,rowZ]];
+    // Jumpers drop below the chassis, dress sideways to the vertical cable manager at the nearer rack edge, then rise there,
+    // leaving the switch face readable; each strand keeps its own lane in the manager.
+    const side=Math.sign(x-port.cx)||1,lane=(port.i%10)*.007,mx=port.cx+side*(.232-lane),mz=z+fs*(.05+(port.i%3)*.012);
+    const low=port.under-(port.i%4)*.006;                                              // under the chassis, then sideways
+    return [[x,y,z+fs*.026],[x,y,mz],[x,low,mz],[mx,low,mz],[mx,HALL_RUNWAY.entryY,mz],
+      [mx,HALL_RUNWAY.entryY,rowZ],[mx,HALL_RUNWAY.cableY,rowZ]];
   }
   function rackDrop(k) {
     const fs=model.accel.id==='h100'?-k.f:k.f,y=model.accel.id==='h100'?1.108:1.333375;
@@ -230,12 +295,21 @@ export function build({ quality, model }) {
   // ---------- unit substation outside the west wall ----------
   const usX = -42, usZ = -10;
   S.slab(6, 0.3, 6, MAT.concrete, usX, 0, usZ);
-  S.slab(2.6, 2.3, 2.4, MAT.ansi61, usX, 0.3, usZ);
-  for (let f = 0; f < 9; f++) { N.slab(0.05, 1.6, 0.7, MAT.ansi61, usX - 1.1 + f * 0.27, 0.6, usZ - 1.55); N.slab(0.05, 1.6, 0.7, MAT.ansi61, usX - 1.1 + f * 0.27, 0.6, usZ + 1.55); }
-  for (const dz of [-0.7, 0, 0.7]) insulator(N, usX - 0.9, 2.6, usZ + dz, 0.6, 0.08, MAT.porcelain, { sheds: 4 });
-  S.slab(1.2, 0.8, 1.6, MAT.ansi61, usX + 1.6, 1.4, usZ);                            // LV throat
-  S.box(5.6, 0.5, 0.6, MAT.alu, usX + 4.6, 2.2, usZ);                                   // bus duct to the wall
-  flows.push(flow([[usX - 3, -0.2, usZ], [usX - 0.9, 0.5, usZ], [usX - 0.9, 2.9, usZ]], 'mv', { count: 6, speed: 1.5, size: 0.11, trailR: 0.03 }));
+  if (hasHallFinish()) {
+    // Close-coupled secondary unit substation (representative; see build-hall-finish.py): enclosed MV
+    // primary cabinet, liquid-filled tank with four radiator banks, enclosed LV throat flanged to the duct.
+    scene.add(hallFinishInstances('HALL_UNITSUB', [mtx(usX, 0, usZ)]));
+    S.box(5.67, 0.5, 0.6, MAT.alu, usX + 4.565, 2.2, usZ);                              // bus duct, throat flange to the wall
+    // the 34.5 kV feeder arrives underground and rises through the conduit into the primary cabinet
+    flows.push(flow([[usX - 4.2, -0.2, usZ + .4], [usX - 2.35, -0.2, usZ + .4], [usX - 2.35, 1.1, usZ + .4], [usX - 1.7, 1.1, usZ + .4]], 'mv', { count: 6, speed: 1.5, size: 0.11, trailR: 0.03 }));
+  } else {
+    S.slab(2.6, 2.3, 2.4, MAT.ansi61, usX, 0.3, usZ);
+    for (let f = 0; f < 9; f++) { N.slab(0.05, 1.6, 0.7, MAT.ansi61, usX - 1.1 + f * 0.27, 0.6, usZ - 1.55); N.slab(0.05, 1.6, 0.7, MAT.ansi61, usX - 1.1 + f * 0.27, 0.6, usZ + 1.55); }
+    for (const dz of [-0.7, 0, 0.7]) insulator(N, usX - 0.9, 2.6, usZ + dz, 0.6, 0.08, MAT.porcelain, { sheds: 4 });
+    S.slab(1.2, 0.8, 1.6, MAT.ansi61, usX + 1.6, 1.4, usZ);                            // LV throat
+    S.box(5.6, 0.5, 0.6, MAT.alu, usX + 4.6, 2.2, usZ);                                   // bus duct to the wall
+    flows.push(flow([[usX - 4.2, -0.2, usZ + .4], [usX - 2.35, -0.2, usZ + .4], [usX - 2.35, 1.1, usZ + .4], [usX - 1.7, 1.1, usZ + .4]], 'mv', { count: 6, speed: 1.5, size: 0.11, trailR: 0.03 }));
+  }
 
   // ---------- electrical room ----------
   // rounded cabinet: a smooth painted body (merged into S, one draw call per material) plus a flat
@@ -290,7 +364,6 @@ export function build({ quality, model }) {
   flows.push(flow([[X0 - 1.5, 2.2, usZ], [X0 + 0.5, 2.2, usZ], [-33, 2.6, -15.2], [-21, 2.6, -15.2]], dc ? 'mv' : 'lv', { count: 16, speed: 2.4, size: 0.1, trailR: 0.03 }));
   flows.push(flow([[-21, 2.6, -15.2], [-21, 2.6, -9], [-30.5, 2.2, -7]], dc ? 'mv' : 'lv', { count: 12, speed: 2.4, size: 0.1, trailR: 0.03 }));
   flows.push(flow([[-30.5, 2.2, -7], [-22.5, 2.2, -6.5], [-22.5, 5.6, -6.5], [-12.2, 5.6, -6.5]], itV, { count: 14, speed: 2.4, size: 0.1, trailR: 0.03 }));
-  person(N, -27, -12.5, 0.3); person(N, -29.5, 3.6, 2.4);
 
   // ---------- data hall: three contained pods, six rows ----------
   const rowX0 = -7.2, groups = 4, perGroup = 8, RW = 0.6, CW = 0.8, GAP = 0.6;
@@ -325,9 +398,10 @@ export function build({ quality, model }) {
     }
     const matrices = items.map(it => { const matrix=mtx(it.x, 0, it.z, it.f > 0 ? 0 : Math.PI); return hasCampusCatalog()?matrix.scale(new THREE.Vector3(w/.58,h/2.3,d/1.2)):matrix; });
     scene.add(enclosure.instance(matrices));
-    const computeFace=tex===TEX.rack&&hasHallFinish();
+    const computeFace=tex===TEX.rack&&hasHallFinish()&&!quality.mobile; // phones rely on the face texture: the relief is sub-centimetre and repeats 192x
     const geo = new THREE.PlaneGeometry(w - .06, h - .1); geo.translate(0, h / 2, d / 2 + (computeFace ? .032 : .003));
     if(computeFace)scene.add(hallFinishInstances(nvl?'NVL_FACE':'H100_FACE',matrices));
+    else if(tex===TEX.storage&&hasHallFinish())scene.add(hallFinishInstances('STORAGE_FACE',matrices)); // representative shelf bezels over the drive-bay rows
     const m = new THREE.InstancedMesh(geo, front, items.length);
     items.forEach((it, i) => m.setMatrixAt(i, mtx(it.x, 0.0, it.z, it.f > 0 ? 0 : Math.PI)));
     m.castShadow = m.receiveShadow = true; scene.add(m); return m;
@@ -335,7 +409,17 @@ export function build({ quality, model }) {
   instanced(RW - 0.02, 2.3, 1.2, TEX.rack, 0x131519, rackMx);
   // CDU / in-row cooler cabinets: rounded bodies merge straight into S (no extra draw call), the shared
   // front graphic rides as one instanced panel held proud of every body by the same gap as the electrical room.
-  {
+  if (hasHallFinish()) {
+    // Authored cabinet (doors, astragal, louvres, HMI, handle, roof plate): representative, see
+    // build-hall-finish.py. Roof valve ports sit where the facility drops and secondary loops land.
+    scene.add(hallFinishInstances(air ? 'HALL_INROW' : 'HALL_CDU', cduMx.map(it => mtx(it.x, 0, it.z, it.f > 0 ? 0 : Math.PI))));
+    const ports = [];
+    rowZs.forEach((z, r) => cduMx.filter(c => c.z === z).forEach(c => {
+      for (const dx of [-.15, .15]) ports.push(mtx(c.x + dx, 2.3, c.z));
+      if (!air) for (const [dz, dx] of [[-.05, -.18], [.05, .18]]) ports.push(mtx(c.x + dx, 2.3, z - facing[r] * .35 + dz).scale(new THREE.Vector3(.5, .5, .5)));
+    }));
+    scene.add(hallFinishInstances('CDU_PORT', ports));
+  } else {
     const cduH = 2.3, cduBody = new THREE.MeshStandardMaterial({ color: 0xc9ccce, roughness: 0.55, metalness: 0.25 });
     cduMx.forEach(it => rbox(S, CW - 0.02 - 0.05, cduH - 0.02, 1.2 - 0.05, cduBody, it.x, cduH / 2, it.z, { r: 0.05, ry: it.f > 0 ? 0 : Math.PI }));
     const cduFront = new THREE.MeshStandardMaterial({ map: TEX.cdu, roughness: 0.5, metalness: 0.2 });
@@ -346,7 +430,7 @@ export function build({ quality, model }) {
   }
   // hot aisle containment: glass roof and end doors per pod
   const containmentTrim = new THREE.MeshStandardMaterial({ color: 0x8799a6, roughness: .3, metalness: .72 });
-  const glass = new THREE.MeshPhysicalMaterial({ color: 0xa8c4dd, roughness: 0.08, metalness: 0, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide });
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0xa8c4dd, roughness: 0.22, metalness: 0, ior: 1.5, specularIntensity: 1, envMapIntensity: 1.3, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide });
   for (let p = 0; p < 3; p++) {
     const za = rowZs[p * 2], zb = rowZs[p * 2 + 1], zc = (za + zb) / 2, aisle = Math.abs(zb - za) - 1.2;
     const roofM = new THREE.Mesh(new THREE.BoxGeometry(rowX1 - rowX0, 0.04, aisle), glass); roofM.position.set((rowX0 + rowX1) / 2, 2.35, zc); scene.add(roofM);
@@ -355,6 +439,16 @@ export function build({ quality, model }) {
       N.box(0.06, 2.3, 0.06, MAT.darkSteel, x, 1.15, zc - aisle / 2); N.box(0.06, 2.3, 0.06, MAT.darkSteel, x, 1.15, zc + aisle / 2); N.box(0.06, 0.06, aisle, MAT.darkSteel, x, 2.33, zc);
       N.box(0.05, 2.24, 0.05, MAT.darkSteel, x, 1.15, zc);                                // center mullion: two door leaves, not one sheet of glass
       N.box(0.03, 0.22, 0.05, MAT.black, x, 1.05, zc - aisle / 4); N.box(0.03, 0.22, 0.05, MAT.black, x, 1.05, zc + aisle / 4); // door handles
+      // Representative sliding end doors: an aluminium frame round each leaf (top and bottom rails, a
+      // kick plate) and an overhead track the leaves hang from, so the doors read as doors, not glass sheets.
+      const out = x < rowX0 ? -1 : 1;
+      for (const lz of [zc - aisle / 4, zc + aisle / 4]) {
+        N.box(.045, .04, aisle / 2 - .07, MAT.alu, x + out * .004, 2.23, lz);
+        N.box(.045, .16, aisle / 2 - .07, MAT.alu, x + out * .004, .1, lz);
+        for (const e of [-1, 1]) N.box(.045, 2.1, .04, MAT.alu, x + out * .004, 1.16, lz + e * (aisle / 4 - .055));
+      }
+      N.box(.07, .05, aisle + .1, MAT.darkSteel, x + out * .07, 2.285, zc);                       // top track
+      for (const lz of [zc - aisle / 4, zc + aisle / 4]) for (const e of [-1, 1]) N.box(.03, .07, .03, MAT.darkSteel, x + out * .045, 2.25, lz + e * aisle / 8); // hangers
     }
     for (let x = rowX0; x <= rowX1; x += 1.2) N.box(0.04, 0.05, aisle, containmentTrim, x, 2.37, zc);
     for (const z of [zc - aisle / 2, zc + aisle / 2]) N.box(rowX1 - rowX0, .05, .04, containmentTrim, (rowX0 + rowX1) / 2, 2.37, z);
@@ -369,14 +463,28 @@ export function build({ quality, model }) {
   }
   // overhead busway per row with tap-off boxes and drops
   const tap = glowMat(dc ? '#d8f04a' : '#ff8a3d', 0.9);
+  // Authored tap-off units carry the voltage colour on a label band only (the box itself is grey steel);
+  // joint-pack covers every 3 m and threaded-rod trapeze hangers replace the thin struts. Representative.
+  const tapMx = [], jointMx = [];
+  const tapOff = (x, z) => { if (hasHallFinish()) tapMx.push(mtx(x, 3.39, z)); else N.box(0.22, 0.2, 0.2, tap, x, 3.29, z); };
   N.box(2.7,.22,.18,MAT.alu,-10.85,5.6,-6.5);
   const busZ0=rowZs[0]+facing[0]*.25,busZ1=rowZs.at(-1)+facing.at(-1)*.25;
   N.box(.18,.22,busZ1-busZ0,MAT.alu,-9.5,5.6,(busZ0+busZ1)/2);
   rowZs.forEach((z, r) => {
     const bz = z + facing[r] * 0.25;
     S.box(rowX1 - rowX0 + 5, 0.22, 0.18, MAT.alu, (rowX0 + rowX1) / 2 - 2.5, 3.5, bz);
-    for (let x = rowX0 + 0.3; x < rowX1; x += 2 * RW) N.strut([x, 3.6, bz], [x, WALL_H - 0.9, bz], 0.012, MAT.darkSteel, 4);
-    rackMx.filter(k => k.z === z).forEach(k => { N.box(0.22, 0.2, 0.2, tap, k.x, 3.29, bz); N.strut([k.x, 3.2, bz], [k.x, 2.3, bz], 0.018, MAT.black, 5); });
+    if (hasHallFinish()) {
+      // joints and trapezes at rack-group gaps and every fifth rack boundary, clear of the tap-offs
+      const gaps = [rowX0 - 2.5, rowX0 - .3];
+      for (let gI = 0; gI < groups; gI++) { const gx = rowX0 + gI * (CW + perGroup * RW + GAP); gaps.push(gx + CW + 3 * RW, gx + CW + perGroup * RW + GAP / 2); }
+      gaps.forEach((x, i) => {
+        if (x < rowX1 - .1) jointMx.push(mtx(x, 3.5, bz));
+        for (const dz of [-.14, .14]) N.strut([x + .09, 3.37, bz + dz], [x + .09, WALL_H - 0.9, bz + dz], 0.008, MAT.galv, 6);
+        N.box(.04, .035, .34, MAT.galv, x + .09, 3.37, bz);
+      });
+      N.box(.02, .24, .2, MAT.darkSteel, rowX1 + .005, 3.5, bz);                          // end cap
+    } else for (let x = rowX0 + 0.3; x < rowX1; x += 2 * RW) N.strut([x, 3.6, bz], [x, WALL_H - 0.9, bz], 0.012, MAT.darkSteel, 4);
+    rackMx.filter(k => k.z === z).forEach(k => { tapOff(k.x, bz); N.strut([k.x, hasHallFinish() ? 3.13 : 3.2, bz], [k.x, 2.3, bz], hasHallFinish() ? 0.012 : 0.018, MAT.black, 6); });
     N.box(.18,2.1,.18,MAT.alu,-9.5,4.55,bz);
     flows.push(flow([[-12.2, 5.6, -6.5], [-9.5, 5.6, -6.5], [-9.5, 5.6, bz], [-9.5, 3.5, bz], [rowX1, 3.5, bz]], itV, { count: 20, speed: 2.2, size: 0.07, trailR: 0.02, trailK: 0.25 }));
     // Sampled activity down the already modeled tap/drop cables. Particle count
@@ -387,13 +495,20 @@ export function build({ quality, model }) {
       f.group.userData.rackPowerDrop=true;flows.push(f);
     });
   });
-  // yellow fiber runway over the rows and a trunk to the network spine
-  rowZs.forEach(z => { N.box(rowX1 - rowX0, 0.04, 0.3, MAT.yellowTray, (rowX0 + rowX1) / 2, 4.3, z); N.box(rowX1 - rowX0, 0.1, 0.02, MAT.yellowTray, (rowX0 + rowX1) / 2, 4.35, z - 0.15); N.box(rowX1 - rowX0, 0.1, 0.02, MAT.yellowTray, (rowX0 + rowX1) / 2, 4.35, z + 0.15); });
-  N.box(0.3, 0.04, 23, MAT.yellowTray, rowX0 - 1.3, 4.3, -1.6);
+  // yellow fiber runway over the rows and a trunk to the network spine. A slightly muted safety yellow
+  // (representative) so the moving fiber ribbons, not the tray, stay the brightest thing in the data view.
+  const runwayMat = new THREE.MeshStandardMaterial({ color: 0xc9a431, roughness: 0.5, metalness: 0.05 });
+  rowZs.forEach(z => { N.box(rowX1 - rowX0, 0.04, 0.3, runwayMat, (rowX0 + rowX1) / 2, 4.3, z); N.box(rowX1 - rowX0, 0.1, 0.02, runwayMat, (rowX0 + rowX1) / 2, 4.35, z - 0.15); N.box(rowX1 - rowX0, 0.1, 0.02, runwayMat, (rowX0 + rowX1) / 2, 4.35, z + 0.15); });
+  // rolled lips on the channel walls and a joint splice every 1.8 m, so the runway reads as a formed U-channel
+  rowZs.forEach(z => {
+    for (const dz of [-0.155, 0.155]) N.cylX(.013, rowX1 - rowX0, runwayMat, (rowX0 + rowX1) / 2, 4.405, z + dz, 8);
+    for (let x = rowX0 + 1.8; x < rowX1 - .3; x += 1.8) N.box(.05, .1, .336, runwayMat, x, 4.343, z);
+  });
+  N.box(0.3, 0.04, 23, runwayMat, rowX0 - 1.3, 4.3, -1.6);
   // Short connectors join each row runway to the cross-hall trunks.
   rowZs.forEach(z=>{
-    N.box(1.3,.04,.3,MAT.yellowTray,rowX0-.65,4.3,z);
-    N.box(.45,.04,.3,MAT.yellowTray,rowX1+.225,4.3,z);
+    N.box(1.3,.04,.3,runwayMat,rowX0-.65,4.3,z);
+    N.box(.45,.04,.3,runwayMat,rowX1+.225,4.3,z);
   });
   // network spine racks along the front
   // ten pluggable spine switches, then the CPO comparison unit set apart past the end of the row: a fabric that
@@ -403,10 +518,10 @@ export function build({ quality, model }) {
   instanced(0.6, 2.3, 1.2, TEX.net, 0x131519, netItems);
   // spine faceplates: pluggable OSFP; the unit apart is the CPO switch (liquid-cooled, MPO direct on the chassis)
   const CPO_I = 10;
-  scene.userData.cpoComparison={deployed:false,fiberDrops:0,cappedCoolantPorts:2};
+  scene.userData.cpoComparison={deployed:false,fiberDrops:0,cappedCoolantPorts:4,mpoConnectors:144,laserModules:18};
   netItems.forEach((it, i) => {
     if (i === CPO_I) { cpoFace(it.x, it.z, it.f); }
-    else { pluggableFace(it.x, it.z, it.f); }
+    else { pluggableFace(it.x, it.z, it.f, { forms: bigSwitch ? ['q3400', 'q3400'] : ['qm9700', 'qm9700', 'qm9700', 'qm9700'], y0: 1.52 }); }   // chassis per rack representative
   });
   // Extend the IT distribution to deployed network racks as well as compute.
   // These are representative rack feeds, not building voltage applied to an OSFP.
@@ -421,7 +536,7 @@ export function build({ quality, model }) {
   const spineBusZ = 10.25, lastSpineX = netItems[CPO_I - 1].x;
   networkPowerRoute([[-9.5, 5.6, busZ1], [-9.5, 5.6, spineBusZ], [-9.5, 3.5, spineBusZ], [lastSpineX, 3.5, spineBusZ]], .07, 'busway');
   netItems.slice(0, CPO_I).forEach(it => {
-    N.box(.22, .2, .2, tap, it.x, 3.29, spineBusZ);
+    tapOff(it.x, spineBusZ);
     networkPowerRoute([[it.x, 3.5, spineBusZ], [it.x, 2.3, spineBusZ]], .018, 'spine-drop');
   });
   scene.userData.networkPowerFeeds = networkFeeds;
@@ -432,7 +547,7 @@ export function build({ quality, model }) {
   const cpoTag = textSprite('CPO alternative · disconnected', '#8fe4ff', 0.065);
   cpoTag.position.set(netItems[CPO_I].x, 2.42, netItems[CPO_I].z + netItems[CPO_I].f * 0.85);
   scene.add(cpoTag);
-  N.box(.3,.04,.6,MAT.yellowTray,rowX0-1.3,4.3,10.2);
+  N.box(.3,.04,.6,runwayMat,rowX0-1.3,4.3,10.2);
   // fiber distribution frames: every fabric link is patched here, between the spine row and the cross-hall sleeve
   const odfTex = canvasTex(256, 512, (g, w, h) => {
     g.fillStyle = '#d7dadd'; g.fillRect(0, 0, w, h);
@@ -443,16 +558,19 @@ export function build({ quality, model }) {
   const odfFront = new THREE.MeshStandardMaterial({ map: odfTex, roughness: 0.6, metalness: 0.1 });
   const odfSide = new THREE.MeshStandardMaterial({ color: 0xd3d6d9, roughness: 0.6, metalness: 0.1 });
   const odfGeo = new THREE.BoxGeometry(0.88, 2.2, 0.6); odfGeo.translate(0, 1.1, 0);
-  const odf = new THREE.InstancedMesh(odfGeo, [odfSide, odfSide, odfSide, odfSide, odfFront, odfSide], odfItems.length);
-  odfItems.forEach((it, i) => odf.setMatrixAt(i, mtx(it.x, 0, it.z)));
-  odf.castShadow = odf.receiveShadow = true; scene.add(odf);
-  N.box(0.3, 0.04, 3.7, MAT.yellowTray, rowX0 + 4.8, 4.3, 12.35);                         // runway spine row → frames
-  N.box(7.8, 0.04, 0.3, MAT.yellowTray, rowX0 + 4.4, 4.3, 14.2);
+  if (hasHallFinish()) scene.add(hallFinishInstances('HALL_ODF', odfItems.map(it => mtx(it.x, 0, it.z))));   // open bays: housings, managers, jumpers
+  else {
+    const odf = new THREE.InstancedMesh(odfGeo, [odfSide, odfSide, odfSide, odfSide, odfFront, odfSide], odfItems.length);
+    odfItems.forEach((it, i) => odf.setMatrixAt(i, mtx(it.x, 0, it.z)));
+    odf.castShadow = odf.receiveShadow = true; scene.add(odf);
+  }
+  N.box(0.3, 0.04, 3.7, runwayMat, rowX0 + 4.8, 4.3, 12.35);                         // runway spine row → frames
+  N.box(7.8, 0.04, 0.3, runwayMat, rowX0 + 4.4, 4.3, 14.2);
   // floor sleeve where the cross-hall cables drop into the duct bank
   const sleeveX = rowX0 + 9.4, sleeveZ = 14.2;
   S.cyl(0.36, 0.12, MAT.darkSteel, sleeveX, 0.2, sleeveZ, 20);
-  for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; N.strut([sleeveX + Math.cos(a) * 0.16, 4.3, sleeveZ + Math.sin(a) * 0.16], [sleeveX + Math.cos(a) * 0.16, 0.1, sleeveZ + Math.sin(a) * 0.16], 0.045, MAT.yellowTray, 8); }
-  N.box(1.4, 0.04, 0.3, MAT.yellowTray, sleeveX - 0.6, 4.3, sleeveZ);
+  for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; N.strut([sleeveX + Math.cos(a) * 0.16, 4.3, sleeveZ + Math.sin(a) * 0.16], [sleeveX + Math.cos(a) * 0.16, 0.1, sleeveZ + Math.sin(a) * 0.16], 0.045, runwayMat, 8); }
+  N.box(1.4, 0.04, 0.3, runwayMat, sleeveX - 0.6, 4.3, sleeveZ);
   // ---------- storage & control racks: patched via the ODF runway ----------
   // storage: short 2U drive-shelf racks (dense drive-bay grid, no NVLink gear, no coolant manifolds) plus a
   // pair of storage/front-end Ethernet switches on top of the last one; control: head/login/scheduler nodes
@@ -460,46 +578,56 @@ export function build({ quality, model }) {
   const storageMx = []; for (let i = 0; i < 4; i++) storageMx.push({ x: storageX0 + i * RW + RW / 2, z: svcZ, f: 1 });
   instanced(RW - 0.02, 2.3, 1.2, TEX.storage, 0x131519, storageMx).name = 'Storage rack faces';
   const storLast = storageMx[3];
-  pluggableFace(storLast.x, storLast.z, storLast.f, { rows: 2, cols: 8, y0: 2.0, y1: 2.22, w: RW - 0.1 });
-  N.box(2.0, 0.04, 0.3, MAT.yellowTray, storLast.x, 4.3, svcZ);                             // short local runway stub
-  N.box(2.0, 0.1, 0.02, MAT.yellowTray, storLast.x, 4.35, svcZ - 0.15);
+  pluggableFace(storLast.x, storLast.z, storLast.f, { forms: ['tor', 'tor'], y0: 2.02 });   // representative storage/front-end pair
+  N.box(2.0, 0.04, 0.3, runwayMat, storLast.x, 4.3, svcZ);                             // short local runway stub
+  N.box(2.0, 0.1, 0.02, runwayMat, storLast.x, 4.35, svcZ - 0.15);
   // Rear wall leaves a T-junction into the storage-to-ODF spur.
-  for(const side of [-1,1])N.box(.8,.1,.02,MAT.yellowTray,storLast.x+side*.6,4.35,svcZ+.15);
+  for(const side of [-1,1])N.box(.8,.1,.02,runwayMat,storLast.x+side*.6,4.35,svcZ+.15);
 
   const controlX0 = storageX0 + 4 * RW + svcGap;
   const controlMx = []; for (let i = 0; i < 2; i++) controlMx.push({ x: controlX0 + i * RW + RW / 2, z: svcZ, f: 1 });
   instanced(RW - 0.02, 2.3, 1.2, TEX.cpu, 0x131519, controlMx).name = 'Control rack faces';
   scene.userData.supportRacks = { storage: storageMx.length, control: controlMx.length, representative: true };
   const ctrlFirst = controlMx[0];
-  N.box(ctrlFirst.x-sleeveX,.04,.3,MAT.yellowTray,(ctrlFirst.x+sleeveX)/2,4.3,14.2);
+  N.box(ctrlFirst.x-sleeveX,.04,.3,runwayMat,(ctrlFirst.x+sleeveX)/2,4.3,14.2);
   for(const it of [storLast,ctrlFirst]){
-    N.box(.3,.04,2.2,MAT.yellowTray,it.x,4.3,13.1);
-    N.box(.6,.04,.3,MAT.yellowTray,it.x,4.3,svcZ);
+    N.box(.3,.04,2.2,runwayMat,it.x,4.3,13.1);
+    N.box(.6,.04,.3,runwayMat,it.x,4.3,svcZ);
   }
-  pluggableFace(ctrlFirst.x, ctrlFirst.z, ctrlFirst.f, { rows: 1, cols: 6, y0: 2.05, y1: 2.2, w: RW - 0.14 }); // small ToR management switch
+  pluggableFace(ctrlFirst.x, ctrlFirst.z, ctrlFirst.f, { forms: ['tor'], y0: 2.06 }); // small ToR management switch, representative
   // scale-out: a leaf-switch rack at the end of every row, a cross runway to the spine row
   const leafX = rowX1 + 0.45;
   rowZs.forEach((z, r) => {
     const bz = z + facing[r] * .25;
     networkPowerRoute([[rowX1, 3.5, bz], [leafX, 3.5, bz]], .07, 'busway');
-    N.box(.22, .2, .2, tap, leafX, 3.29, bz);
+    tapOff(leafX, bz);
     networkPowerRoute([[leafX, 3.5, bz], [leafX, 2.3, bz]], .018, 'leaf-drop');
   });
   instanced(0.6, 2.3, 1.2, TEX.net, 0x131519, rowZs.map((z, r) => ({ x: leafX, z, f: facing[r] })));
+  if (tapMx.length) {
+    const taps = hallFinishInstances('TAPOFF', tapMx);
+    taps.traverse(o => { if (o.isMesh && o.material.name === 'Voltage label band') { o.material.color.set(dc ? '#d8f04a' : '#ff8a3d'); o.material.emissive.set(dc ? '#d8f04a' : '#ff8a3d'); } });
+    scene.add(taps, hallFinishInstances('BUS_JOINT', jointMx));
+  }
   // leaf faceplates: pluggable OSFP modules, fiber pigtails rising into the runway overhead
-  rowZs.forEach((z, r) => { pluggableFace(leafX,z,facing[r],{rows:5,cols:8,y0:1.3,y1:2.1}); });
-  N.box(.3,.04,23,MAT.yellowTray,leafX,HALL_RUNWAY.floorY,-.8);
+  rowZs.forEach((z, r) => { pluggableFace(leafX, z, facing[r], { forms: bigSwitch ? ['q3400'] : ['qm9700', 'qm9700'], y0: 1.52 }); });
+  N.box(.3,.04,23,runwayMat,leafX,HALL_RUNWAY.floorY,-.8);
   // Open T-junctions: the row fibers must not pass through a solid tray wall.
   const runwayOpenings=[...rowZs,10.5];let wallStart=-12.3;
   for(const junction of runwayOpenings){
     const end=junction-.2;
-    if(end>wallStart)N.box(.02,.1,end-wallStart,MAT.yellowTray,leafX-.15,4.35,(wallStart+end)/2);
+    if(end>wallStart)N.box(.02,.1,end-wallStart,runwayMat,leafX-.15,4.35,(wallStart+end)/2);
     wallStart=junction+.2;
   }
-  N.box(.02,.1,23,MAT.yellowTray,leafX+.15,4.35,-.8);
-  N.box(leafX-(rowX0-1.3),.04,.3,MAT.yellowTray,(leafX+rowX0-1.3)/2,4.3,10.5);
+  N.box(.02,.1,23,runwayMat,leafX+.15,4.35,-.8);
+  N.box(leafX-(rowX0-1.3),.04,.3,runwayMat,(leafX+rowX0-1.3)/2,4.3,10.5);
   // patch panels on the spine row
-  for (let i = 0; i < 10; i++) N.box(0.5, 0.18, 0.08, MAT.white, rowX0 + 2 + i * 0.62, 2.38, 11.1);
+  // 1U MPO patch panel in each spine rack's top units (was a block sitting on the roof): 12 cassette ports
+  for (let i = 0; i < 10; i++) {
+    const px = rowX0 + 2 + i * 0.62;
+    N.box(.438, .042, .014, MAT.darkSteel, px, 2.12, 11.107);
+    for (let k = 0; k < 12; k++) N.box(.02, .012, .01, mpoBody, px - .165 + k * .03, 2.12, 11.118);
+  }
   rowZs.forEach((z,r)=>{
     const ports=networkPorts.get(`${leafX}:${z}`),row=rackMx.filter(k=>k.z===z);
     row.forEach((k,i)=>{
@@ -532,23 +660,93 @@ export function build({ quality, model }) {
   // fan wall on the east side
   S.slab(1.2, 6, 26, MAT.darkSteel, X1 - 1.0, 0, -3);
   const wallFans = [];
-  for (let yi = 0; yi < 4; yi++) for (let zi = 0; zi < 14; zi++) { N.cylX(0.62, 0.1, MAT.fan, X1 - 1.65, 1.1 + yi * 1.4, -15 + zi * 1.8, 18); N.cylX(0.66, 0.06, MAT.galv, X1 - 1.62, 1.1 + yi * 1.4, -15 + zi * 1.8, 18); wallFans.push({ p: [X1 - 1.76, 1.1 + yi * 1.4, -15 + zi * 1.8], axis: 'x', r: 0.56 }); }
+  const fanCells = [];
+  for (let yi = 0; yi < 4; yi++) for (let zi = 0; zi < 14; zi++) {
+    const fy = 1.1 + yi * 1.4, fz = -15 + zi * 1.8;
+    if (hasHallFinish()) fanCells.push(mtx(X1 - 1.64, fy, fz, -Math.PI / 2));      // authored cell: frame, bellmouth, guard
+    else { N.cylX(0.62, 0.1, MAT.fan, X1 - 1.65, fy, fz, 18); N.cylX(0.66, 0.06, MAT.galv, X1 - 1.62, fy, fz, 18); }
+    wallFans.push({ p: [X1 - 1.76, fy, fz], axis: 'x', r: 0.56 });
+  }
+  if (fanCells.length) scene.add(hallFinishInstances('FANWALL_CELL', fanCells));
   const fans = spinners(wallFans, MAT.darkSteel, { speed: 4 }); if(hasCampusCatalog())campusCatalogRotor(fans.mesh); scene.add(fans.mesh);
   // facility water: insulated headers along the back wall, drops to every CDU
   const hdrY = 6.2;
   const facilitySupplyX=X0+2,facilityReturnX=X0+2.8,headerEndX=rowX1+3;
   const coolantAudit={facility:[],secondary:[],rackDrops:[],representative:true};
   const coolantPipe=(pts,mat,r=.035,kind='secondary')=>{for(let i=1;i<pts.length;i++)N.strut(pts[i-1],pts[i],r,mat,8);coolantAudit[kind].push(pts);};
-  S.cylX(0.26, headerEndX-facilitySupplyX, MAT.pipeBlue, (headerEndX+facilitySupplyX)/2, hdrY, -16.4, 16);
   coolantAudit.facility.push([[facilitySupplyX,hdrY,-16.4],[headerEndX,hdrY,-16.4]]);
-  S.cylX(0.26, headerEndX-facilityReturnX, MAT.pipeRed, (headerEndX+facilityReturnX)/2, hdrY-.7, -16.4, 16);
   coolantAudit.facility.push([[facilityReturnX,hdrY-.7,-16.4],[headerEndX,hdrY-.7,-16.4]]);
-  for (let x = rowX0 - 9; x < rowX1 + 3; x += 5) N.strut([x, hdrY + 0.2, -16.4], [x, WALL_H - 0.9, -16.4], 0.03, MAT.darkSteel, 4);
-  cduMx.forEach(c => {
-    N.strut([c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], 0.07, MAT.pipeBlue, 8); N.strut([c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z], 0.07, MAT.pipeBlue, 8);
-    N.strut([c.x + 0.15, hdrY - 0.7, -16.4], [c.x + 0.15, hdrY - 0.7, c.z], 0.07, MAT.pipeRed, 8); N.strut([c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, 2.3, c.z], 0.07, MAT.pipeRed, 8);
-    N.cylZ(0.12, 0.08, MAT.orange, c.x - 0.15, hdrY - 0.35, c.z, 12);                      // valve handwheel
-  });
+  // Where the return riser rises: it jogs toward the room so it never crosses the supply header.
+  const returnRiserZ = -14.8;
+  if (hasHallFinish()) {
+    // Authored pipework: smooth runs, long-radius elbows (R = 1.5 D), weld-neck flanges every 6 m,
+    // trapeze hangers every 3 m, a flanged take-off and a geared butterfly valve on every CDU branch,
+    // and risers leaving through a roof curb. Fittings, spacing and valve positions are representative.
+    const V3 = (a) => new THREE.Vector3(...a), runs = new Map(), bends = new Map(), flanges = [], valves = [], bands = [];
+    const frame = (dir, hint = [0, 1, 0]) => {
+      const x = V3(dir).normalize(); let h = V3(hint); if (Math.abs(h.dot(x)) > .9) h = V3([1, 0, 0]);
+      const z = new THREE.Vector3().crossVectors(x, h).normalize(), y = new THREE.Vector3().crossVectors(z, x);
+      return [x, y, z];
+    };
+    const place = ([x, y, z], at, sx, sy, sz) => new THREE.Matrix4().makeBasis(x.multiplyScalar(sx), y.multiplyScalar(sy), z.multiplyScalar(sz)).setPosition(V3(at));
+    const add = (map, mat, m) => { if (!map.has(mat)) map.set(mat, []); map.get(mat).push(m); };
+    const run = (a, b, r, mat) => { const d = V3(b).sub(V3(a)), len = d.length(); if (len < .01) return; add(runs, mat, place(frame(d.toArray()), V3(a).add(V3(b)).multiplyScalar(.5).toArray(), len, r, r)); };
+    const bend = (corner, din, dout, r, mat) => {
+      const X = V3(din), Y = V3(dout), Z = new THREE.Vector3().crossVectors(X, Y);
+      add(bends, mat, place([X, Y, Z], V3(corner).addScaledVector(X, -3 * r).addScaledVector(Y, 3 * r).toArray(), r, r, r));
+    };
+    const rH = .26, eH = 3 * rH, rD = .07, eD = 3 * rD;
+    // supply: header west end turns up into its riser
+    bend([X0 + 2, hdrY, -16.4], [-1, 0, 0], [0, 1, 0], rH, MAT.pipeBlue);
+    run([X0 + 2 + eH, hdrY, -16.4], [headerEndX, hdrY, -16.4], rH, MAT.pipeBlue);
+    run([X0 + 2, hdrY + eH, -16.4], [X0 + 2, 8.9, -16.4], rH, MAT.pipeBlue);
+    // return: header, a jog toward the room, then its riser
+    run([X0 + 2.8 + eH, hdrY - .7, -16.4], [headerEndX, hdrY - .7, -16.4], rH, MAT.pipeRed);
+    bend([X0 + 2.8, hdrY - .7, -16.4], [-1, 0, 0], [0, 0, 1], rH, MAT.pipeRed);
+    run([X0 + 2.8, hdrY - .7, -16.4 + eH], [X0 + 2.8, hdrY - .7, returnRiserZ - eH], rH, MAT.pipeRed);
+    bend([X0 + 2.8, hdrY - .7, returnRiserZ], [0, 0, 1], [0, 1, 0], rH, MAT.pipeRed);
+    run([X0 + 2.8, hdrY - .7 + eH, returnRiserZ], [X0 + 2.8, 8.9, returnRiserZ], rH, MAT.pipeRed);
+    for (let x = X0 + 6; x < headerEndX - 1; x += 6) for (const y of [hdrY, hdrY - .7]) flanges.push(place(frame([1, 0, 0]), [x, y, -16.4], rH, rH, rH));
+    // trapeze hangers: two rods from under the wall crown, a strut under each header, a band on each pipe
+    for (let x = X0 + 4.5; x < headerEndX - .5; x += 3) {
+      for (const dz of [-.42, .42]) N.strut([x, 7.35, -16.4 + dz], [x, hdrY - .7 - rH - .07, -16.4 + dz], .011, MAT.galv, 6);
+      for (const y of [hdrY, hdrY - .7]) { N.box(.05, .05, .95, MAT.galv, x, y - rH - .035, -16.4); bands.push(place(frame([1, 0, 0]), [x, y, -16.4], rH, rH, rH)); }
+    }
+    // CDU branches: one flanged take-off per column of CDUs, a branch main out to the farthest row, a
+    // long-radius bend there and a tee (collar) at each nearer row; every drop carries a geared butterfly valve.
+    const columns = new Map(); cduMx.forEach(c => { const k = c.x.toFixed(3); if (!columns.has(k)) columns.set(k, []); columns.get(k).push(c); });
+    for (const list of columns.values()) {
+      const far = list.reduce((a, b) => (b.z > a.z ? b : a));
+      for (const [dx, y, mat, side, valveDrop] of [[-.15, hdrY, MAT.pipeBlue, -1, .6], [.15, hdrY - .7, MAT.pipeRed, 1, .6]]) {
+        const x = far.x + dx;
+        flanges.push(place(frame([0, 0, 1]), [x, y, -16.4 + rH + .01], rD, rD, rD));
+        run([x, y, -16.4], [x, y, far.z - eD], rD, mat);
+        bend([x, y, far.z], [0, 0, 1], [0, -1, 0], rD, mat);
+        for (const c of list) {
+          if (c !== far) flanges.push(place(frame([0, 0, 1]), [x, y, c.z], rD, rD, rD));
+          run([x, c === far ? y - eD : y, c.z], [x, 2.3, c.z], rD, mat);
+          valves.push(place(frame([0, -1, 0], [side, 0, 0]), [x, y - valveDrop, c.z], rD, rD, rD));
+        }
+      }
+    }
+    const inst = (name, list, mat) => { if (!list.length) return; const g = hallFinishInstances(name, list); if (mat) g.traverse(o => { if (o.isMesh) o.material = mat; }); scene.add(g); };
+    for (const [mat, list] of runs) inst('PIPE_UNIT', list, mat);
+    for (const [mat, list] of bends) inst('PIPE_ELBOW', list, mat);
+    inst('PIPE_FLANGE', flanges); inst('BUTTERFLY_VALVE', valves); inst('PIPE_HANGER', bands);
+    // roof curb where the risers leave the building: a short cut section of roof deck with flashing collars
+    S.box(3.0, .25, 3.7, MAT.concrete, X0 + 2.4, 7.675, -16.05);
+    N.box(3.0, .02, 3.7, cutTop, X0 + 2.4, 7.812, -16.05);
+    for (const [x, z] of [[X0 + 2, -16.4], [X0 + 2.8, returnRiserZ]]) N.cyl(.34, .14, MAT.galv, x, 7.9, z, 24);
+  } else {
+    S.cylX(0.26, headerEndX-facilitySupplyX, MAT.pipeBlue, (headerEndX+facilitySupplyX)/2, hdrY, -16.4, 16);
+    S.cylX(0.26, headerEndX-facilityReturnX, MAT.pipeRed, (headerEndX+facilityReturnX)/2, hdrY-.7, -16.4, 16);
+    for (let x = rowX0 - 9; x < rowX1 + 3; x += 5) N.strut([x, hdrY + 0.2, -16.4], [x, WALL_H - 0.9, -16.4], 0.03, MAT.darkSteel, 4);
+    cduMx.forEach(c => {
+      N.strut([c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], 0.07, MAT.pipeBlue, 8); N.strut([c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z], 0.07, MAT.pipeBlue, 8);
+      N.strut([c.x + 0.15, hdrY - 0.7, -16.4], [c.x + 0.15, hdrY - 0.7, c.z], 0.07, MAT.pipeRed, 8); N.strut([c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, 2.3, c.z], 0.07, MAT.pipeRed, 8);
+      N.cylZ(0.12, 0.08, MAT.orange, c.x - 0.15, hdrY - 0.35, c.z, 12);                      // valve handwheel
+    });
+  }
   // rack loop from each CDU along its rack group, over the rack tops (liquid-cooled racks only)
   if (!air) rowZs.forEach((z, r) => {
     const lz = z - facing[r] * 0.35;
@@ -576,7 +774,7 @@ export function build({ quality, model }) {
   flows.push(flow([[rowX1 + 2, hdrY - 0.7, -16.4], [facilityReturnX, hdrY - 0.7, -16.4]], 'warm', { count: 24, speed: 3, size: 0.12, k: 1.6, trail: false }));
   // ---------- heat layer ----------
   heatFlows.push(flow([[X0 + 2, hdrY + 3, -16.4], [X0 + 2, hdrY, -16.4], [rowX1 + 2, hdrY, -16.4]], 'cool', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 }));
-  heatFlows.push(flow([[rowX1 + 2, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY + 2.8, -16.4]], 'warm', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 }));
+  heatFlows.push(flow([[rowX1 + 2, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY - 0.7, returnRiserZ], [X0 + 2.8, hdrY + 2.8, returnRiserZ]], 'warm', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 }));
   cduMx.forEach(c => {
     heatFlows.push(flow([[c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z]], 'cool', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false }));
     heatFlows.push(flow([[c.x + 0.15, 2.3, c.z], [c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, hdrY - 0.7, -16.4]], 'warm', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false }));
@@ -620,7 +818,7 @@ export function build({ quality, model }) {
   scene.add(par);
   scene.userData.hallCoolant=coolantAudit;
   // headers leave through the roof to the facility cooling plant
-  S.cyl(0.26, 3, MAT.pipeBlue, X0 + 2, hdrY + 1.4, -16.4, 16); S.cyl(0.26, 3.6, MAT.pipeRed, X0 + 2.8, hdrY + 1.1, -16.4, 16);
+  if (!hasHallFinish()) { S.cyl(0.26, 3, MAT.pipeBlue, X0 + 2, hdrY + 1.4, -16.4, 16); S.cylZ(0.26, 1.6, MAT.pipeRed, X0 + 2.8, hdrY - .7, -15.6, 16); S.cyl(0.26, 3.6, MAT.pipeRed, X0 + 2.8, hdrY + 1.1, returnRiserZ, 16); }
 
   // ---------- lighting fixtures, activity and finishing detail ----------
   // ceiling fixtures: warm pools over the power room, cool white rows over the data hall aisles
@@ -653,7 +851,7 @@ export function build({ quality, model }) {
   // actual broad lights supply illumination rather than relying on bloom alone.
   const railBody=new THREE.MeshStandardMaterial({color:0x253440,roughness:.3,metalness:.72});
   const railTrim=new THREE.MeshStandardMaterial({color:0x8095a3,roughness:.26,metalness:.75});
-  const diffuser=new THREE.MeshStandardMaterial({color:0xe5f1ff,emissive:0xbad7ff,emissiveIntensity:2.15,roughness:.36,metalness:.02});
+  const diffuser=new THREE.MeshStandardMaterial({color:0xe5f1ff,emissive:0xbad7ff,emissiveIntensity:1.2,roughness:.36,metalness:.02});
   const lightsBuilder=new Builder(),supportBuilder=new Builder();
   const frameX=[-10.1,22.3],frameZ=[-18.12,7.6],frameY=7.15,railY=6.55;
   const lightZs=[-6.4,.2],railStart=rowX0,railEnd=rowX1,railWidth=.22;
@@ -696,17 +894,21 @@ export function build({ quality, model }) {
   scene.userData.hallCutaway={roofRemoved:true,fixturesRetainedAtRear:true,slimAisleRails:lightZs.length,actualAreaLights:hasHallFinish()?4:2,engineeringServicesRetained:true};
 
   // sprinkler branch lines with pendant heads, over the aisles
+  const sprinklerMx = [];
   [-9, -2.4, 4.2].forEach(sz => {
     N.cylX(0.035, rowX1 - rowX0 + 2, MAT.galv, (rowX0 + rowX1) / 2, 6.7, sz, 8);
-    for (let x = rowX0 - 1; x <= rowX1 + 1; x += 3) { N.cyl(0.018, 0.12, MAT.darkSteel, x, 6.6, sz, 6); N.cyl(0.05, 0.02, MAT.orange, x, 6.53, sz, 8); }
+    for (let x = rowX0 - 1; x <= rowX1 + 1; x += 3) { N.cyl(0.018, 0.12, MAT.darkSteel, x, 6.6, sz, 6); if (hasHallFinish()) sprinklerMx.push(mtx(x, 6.54, sz)); else N.cyl(0.05, 0.02, MAT.orange, x, 6.53, sz, 8); }
   });
 
   // air-sampling smoke detection: a wall box on the partition, well clear of the doorway opening so it
   // reads against a solid wall face; a thin red sampling pipe along the ceiling with a few tiny sampling
   // points, offset from the -9 sprinkler main so the two never share a plane
   const asdX = -11.78, asdY = 2.3, asdZ = -9, asdPipeY = 6.6, asdPipeZ = -9.15;
-  N.box(0.14, 0.46, 0.36, MAT.white, asdX, asdY, asdZ);
-  N.box(0.03, 0.08, 0.1, glowMat('#ff5a5a', 1.4), asdX + 0.085, asdY + 0.12, asdZ);
+  if (hasHallFinish()) scene.add(hallFinishInstances('HALL_ASD', [mtx(asdX - .07, asdY, asdZ, Math.PI / 2)]), hallFinishInstances('SPRINKLER', sprinklerMx));
+  else {
+    N.box(0.14, 0.46, 0.36, MAT.white, asdX, asdY, asdZ);
+    N.box(0.03, 0.08, 0.1, glowMat('#ff5a5a', 1.4), asdX + 0.085, asdY + 0.12, asdZ);
+  }
   N.strut([asdX, asdY + 0.23, asdZ], [asdX, asdPipeY, asdZ], 0.022, MAT.pipeRed, 8);
   N.strut([asdX, asdPipeY, asdZ], [asdX, asdPipeY, asdPipeZ], 0.022, MAT.pipeRed, 8);
   N.strut([asdX, asdPipeY, asdPipeZ], [-2, asdPipeY, asdPipeZ], 0.022, MAT.pipeRed, 8);
@@ -757,61 +959,74 @@ export function build({ quality, model }) {
   if (quality.reflections) scene.add(floorMirror(X1 - X0 - 1, Z1 - Z0 - 1, { x: (X0 + X1) / 2, y: 0.155, z: 0, res: 0.85, strength: 0.16, blur: 0.56, tint: '#9aaaba' }));
 
   // light fixtures over the aisles: standing figures for scale
-  person(N, rowX0 + 6, -6.4, 0.4); person(N, rowX0 + 14, 0.2, 2.6); person(N, rowX0 + 3.5, 8.6, -0.6);
+  // Standing scale figures use the same muted technician as the walkers (campus WALKER asset), so the
+  // level shows one human style instead of a lime block figure beside the most detailed cabinets.
+  const standing = [[-27, -12.5, 0.3], [-29.5, 3.6, 2.4], [rowX0 + 6, -6.4, 0.4], [rowX0 + 14, 0.2, 2.6], [rowX0 + 3.5, 8.6, -0.6]];
+  if (hasCampusCatalog()) scene.add(campusCatalogBuilder('WALKER').instance(standing.map(([x, z, ry]) => mtx(x, 0, z, ry))));
+  else { const vest = new THREE.MeshStandardMaterial({ color: 0x6f7a4a, roughness: .85 }); standing.forEach(([x, z, ry]) => person(N, x, z, ry, 0, vest)); }
 
   scene.add(S.build({ cast: true, receive: true }));
   scene.add(N.build({ cast: false, receive: true }));
   flows.forEach(f => scene.add(f.group));
   dataFlows.forEach(f => scene.add(f.group));
   heatFlows.forEach(f => scene.add(f.group));
-  const leds = blinkers(portLedItems, { size: 0.014 });
+  const leds = blinkers(portLedItems, { size: 0.006 });
   scene.add(leds.mesh);
 
   finalizeSiteGeometry(scene);
+  uprightFaceUVs(scene);
+  // CDU close-up: the first unit of the front row, whose front faces the open service aisle, seen from
+  // below the light rails so no diffuser sits in the line of sight (the back-row unit faced the wall).
+  const cduHero = cduMx[(rowZs.length - 1) * groups];
+  const cduSpot = { pos: [cduHero.x, 2.75, cduHero.z], view: { pos: [cduHero.x - 3.4, 3.1, cduHero.z + 4.6], target: [cduHero.x + .2, 1.35, cduHero.z] } };
   const built = {
     scene, flows,
-    camera: { pos: [42, 28, 46], target: [-6, 1.4, -2],
-      compact: { pos: [52, 34, 56], target: [-6, 1.4, -2] },
-      portrait: { pos: [65, 42, 70], target: [-6, 1.4, -2] },
-      near: 0.1, far: 2000, min: 4, max: 180 },
+    // Desktop overview sits ~15% closer than before so the hall fills the frame; the target is offset
+    // right so the risers' pin clears the orbit-hint line at the top left.
+    camera: { pos: [40, 26, 37], target: [-2, 1.5, -4],
+      compact: { pos: [48, 31, 45], target: [-2, 1.5, -4] },
+      // Portrait looks steeply down the hall's diagonal so the 60 m hall fills the tall frame and the
+      // power-room pins (1-4) separate from the data-hall ones instead of stacking in one cluster.
+      portrait: { pos: [42, 83, 33], target: [-8, 2.5, -4.5] },
+      near: 0.1, far: 2000, min: 1.2, max: 180 },
     hotspots: {
-      optics: { pos: [leafX, 2.6, -8.2], view: { pos: [leafX + 2.2, 4.8, -3.8], target: [leafX, 2.45, -8.2] } },
-      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.0, 4.2, 15.5], target: [netItems[CPO_I].x, 1.8, 10.5] } },
-      unitsub: { pos: [usX, 3.3, usZ], view: { pos: [-52, 8, 2], target: [usX, 1.5, usZ] } },
+      optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .62, 1.9, -6.25], target: [leafX + .02, 1.6, -7.6] } },   // close enough to read true-size OSFP modules
+      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.1, 2.0, 13.45], target: [netItems[CPO_I].x, 1.7, 11.1] } },
+      unitsub: { pos: [usX, 3.3, usZ], view: { pos: [usX - 6.6, 5.0, usZ + 6.4], target: [usX + 1.2, 1.3, usZ] } },
       swgr: { pos: [-27, 2.8, -15.6], view: { pos: [-25, 6, -4], target: [-27, 1.3, -15.6] } },
       [dc ? 'sst' : 'ups']: { pos: [-28, 2.8, -6.5], view: { pos: [-27, 5, 2.5], target: [-28, 1, -6.5] } },
       batt: { pos: [-30, 2.4, 3.5], view: { pos: [-22, 5, 10], target: [-30, 1, 3.5] } },
       busway: { pos: [0, 3.9, -8.0], view: { pos: [-6, 7, 8], target: [2, 3.2, -8] } },
       racks: { pos: [front[18].x, 2.6, rowZs[5]], view: { pos: [front[18].x + 1.6, 3.5, 12], target: [front[18].x, 1.25, rowZs[5]] } },
-      containment: { pos: [6, 2.5, -9.7], view: { pos: [-11, 5, -9.2], target: [4, 1.5, -9.7] } },
-      [air ? 'inrow' : 'cdu']: { pos: [cduMx[0].x, 2.7, cduMx[0].z], view: { pos: [-11, 4, -4], target: [cduMx[0].x, 1.2, cduMx[0].z] } },
+      containment: { pos: [rowX0 + 2.5, 1.7, -9.7], view: { pos: [rowX0 - 4.4, 2.5, -7.2], target: [rowX0 + 2.5, 1.3, -9.7] } },   // through the pod's end doors, down the contained aisle
+      [air ? 'inrow' : 'cdu']: cduSpot,
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
       fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
       network: { pos: [rowX0 + 5, 2.7, 10.5], view: { pos: [rowX0 + 5, 5, 18], target: [rowX0 + 5, 1.2, 10.5] } },
     },
     dataFlows, heatFlows, layers: { data: par },
     heatHotspots: {
-      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.0, 4.2, 15.5], target: [netItems[CPO_I].x, 1.8, 10.5] } },
-      [air ? 'inrow' : 'cdu']: { pos: [cduMx[0].x, 2.7, cduMx[0].z], view: { pos: [-11, 4, -4], target: [cduMx[0].x, 1.2, cduMx[0].z] } },
+      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.1, 2.0, 13.45], target: [netItems[CPO_I].x, 1.7, 11.1] } },
+      [air ? 'inrow' : 'cdu']: cduSpot,
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
-      hotaisle: { pos: [6, 2.5, -9.7], view: { pos: [-11, 5, -9.2], target: [4, 1.5, -9.7] } },
+      hotaisle: { pos: [rowX0 + 2.5, 1.7, -9.7], view: { pos: [rowX0 - 4.4, 2.5, -7.2], target: [rowX0 + 2.5, 1.3, -9.7] } },   // through the pod's end doors, down the contained aisle
       fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
-      riser: { pos: [X0 + 2.4, hdrY + 3.2, -16.4], view: { pos: [X0 + 10, 10, -4], target: [X0 + 2.4, 5, -16.4] } },
+      riser: { pos: [X0 + 2.4, hdrY + 1.4, -16.4], view: { pos: [X0 + 10, 10, -4], target: [X0 + 2.4, 5, -16.4] } },
       fire: { pos: [asdX, 2.9, asdZ], view: { pos: [-7.5, 2.2, -5.2], target: [-10.8, 3.4, -9] } },   // the detector box and its sampling pipe rising to the ceiling
     },
     dataHotspots: {
-      storage: { pos: [storageMx[0].x, 3.3, svcZ], view: { pos: [(storageMx[0].x + storLast.x) / 2, 5, 19], target: [(storageMx[0].x + storLast.x) / 2, 1.3, svcZ] } },
+      storage: { pos: [storageMx[1].x, 2.5, svcZ + .6], view: { pos: [(storageMx[0].x + storLast.x) / 2 - 1.2, 1.9, svcZ + 4.7], target: [(storageMx[0].x + storLast.x) / 2 - .2, 1.3, svcZ + .6] } },   // eye level, near head-on: the drive shelves must read as storage, not compute
       control: { pos: [(controlMx[0].x + controlMx[1].x) / 2, 2.6, svcZ], view: { pos: [(controlMx[0].x + controlMx[1].x) / 2, 5, 19], target: [(controlMx[0].x + controlMx[1].x) / 2, 1.3, svcZ] } },
       odf: { pos: [rowX0 + 4.4, 2.5, 14.5], view: { pos: [rowX0 + 11, 5.2, 23], target: [rowX0 + 5, 1.6, 12.5] } },
       crosshall: { pos: [rowX0 + 9.4, 1.2, 14.2], view: { pos: [rowX0 + 12, 3.2, 18.5], target: [rowX0 + 9.4, 1.2, 14.2] }, drill: 1 },
       pp: { pos: [front[0].x - 0.3, 2.6, rowZs[5]], view: { pos: [front[4].x, 7.5, rowZs[5] + 7.5], target: [front[4].x, 2.3, rowZs[5] - 1.5] } },
       dp: { pos: [front[6].x, 2.6, rowZs[5]], view: { pos: [front[10].x, 9, rowZs[5] + 10], target: [front[12].x, 2, rowZs[3]] } },
-      uplinks: { pos: [rackMx.filter(k => k.z === -4.6)[10].x, 3.4, -4.6], view: { pos: [2, 7, 6], target: [4, 2.5, -4.6] } },
+      uplinks: { pos: [rackMx.filter(k => k.z === -4.6)[10].x, 3.4, -4.6], view: { pos: [-1.2, 2.9, -7.0], target: [4.5, 3.2, -4.9] } },
       leaf: { pos: [rowX1 + 0.45, 2.7, -1.6], view: { pos: [rowX1 - 5, 5, 8], target: [rowX1 + 0.4, 1.5, -1.6] } },
       spine: { pos: [rowX0 + 4, 2.7, 10.5], view: { pos: [rowX0 + 5, 5, 18], target: [rowX0 + 5, 1.2, 10.5] } },
       runways: { pos: [rowX1 + 0.45, 4.7, 4], view: { pos: [rowX1 - 6, 8, 12], target: [rowX1, 4, 2] } },
-      optics: { pos: [leafX, 2.6, -8.2], view: { pos: [leafX + 1.0, 4.0, -4.5], target: [leafX, 1.78, -8.2] } },
-      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.0, 4.2, 15.5], target: [netItems[CPO_I].x, 1.8, 10.5] } },
+      optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .62, 1.9, -6.25], target: [leafX + .02, 1.6, -7.6] } },   // close enough to read true-size OSFP modules
+      cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.1, 2.0, 13.45], target: [netItems[CPO_I].x, 1.7, 11.1] } },
       racks: { pos: [front[18].x, 2.6, rowZs[5]], view: { pos: [front[18].x + 1.6, 3.5, 12], target: [front[18].x, 1.25, rowZs[5]] } },
     },
     // bloom stays a small bump over the family default (0.5) for mood; threshold stays near the family
