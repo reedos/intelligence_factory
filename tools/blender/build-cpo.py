@@ -1,11 +1,21 @@
 """Representative CPO mechanics, aligned to the existing cm-scale technical diagram.
 Run: blender --background --python tools/blender/build-cpo.py
-(needs node/npx on PATH: the export is quantized with @gltf-transform/cli)
+(needs node/npx: the export is quantized with @gltf-transform/cli, fetched by npx
+ on first use. The script checks for npx before building and stops with a clear
+ message if it is missing; IFX_SKIP_QUANTIZE=1 exports unquantized instead.)
 Reference: NVIDIA's public Quantum-X Photonics package imagery, not a production CAD model.
 All static hardware is authored here. Runtime JS retains only animated signals,
 labels, selection guides, and the reviewed path/anchor contract.
 """
 import bpy, math, json, pathlib
+import os, shutil, subprocess, sys
+
+# Fail fast, before minutes of modeling, if the quantize step cannot run.
+SKIP_QUANTIZE = os.environ.get('IFX_SKIP_QUANTIZE') == '1'
+NPX = None if SKIP_QUANTIZE else (shutil.which('npx') or shutil.which('npx.cmd'))
+if not SKIP_QUANTIZE and not NPX:
+    sys.exit('build-cpo.py: npx not found on PATH. Install Node.js (the export is quantized with '
+             '@gltf-transform/cli via npx), or set IFX_SKIP_QUANTIZE=1 to export an unquantized GLB.')
 from mathutils import Matrix, Vector
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -456,7 +466,9 @@ bpy.ops.wm.save_as_mainfile(filepath=str(HERE/'cpo-hardware.blend'))
 bpy.ops.export_scene.gltf(filepath=str(out),export_format='GLB',export_extras=True,export_yup=True,export_cameras=False,export_lights=False)
 # Quantize positions/normals (KHR_mesh_quantization, decoded natively by three's
 # GLTFLoader; no decoder library needed). Extras, names and materials survive.
-import subprocess
-subprocess.run(f'npx -y @gltf-transform/cli@4.5.1 quantize "{out}" "{out}" --quantize-position 16 --quantize-normal 10',
-    shell=True, check=True, cwd=str(ROOT))
+if SKIP_QUANTIZE:
+    print('IFX_CPO_WARNING unquantized export (IFX_SKIP_QUANTIZE=1): about 4x larger; do not commit it')
+else:
+    subprocess.run([NPX,'-y','@gltf-transform/cli@4.5.1','quantize',str(out),str(out),
+        '--quantize-position','16','--quantize-normal','10'], check=True, cwd=str(ROOT))
 print('IFX_CPO_EXPORTED',out, out.stat().st_size)
