@@ -191,20 +191,26 @@ def sedan(g,L,W,H,paint,y=False):
 
 sedan('MODEL_3',4.720,1.850,1.440,white)
 sedan('MODEL_Y',4.790,1.920,1.624,white,True)
-g='CYBERCAB';body=loft('Cybercab faceted flowing body',[(-2.2,.56,.22,.63,.77),(-2.05,.83,.18,.83,1.00),(-1.45,.94,.15,.87,1.03),(-.35,.95,.15,.79,.93),(.7,.93,.16,.68,.87),(1.72,.83,.21,.60,.76),(2.2,.67,.28,.46,.58)],gold,g)
-cyberRoof=[(-1.55,.58,.85,.98,1.02),(-.9,.72,.88,1.16,1.39),(-.2,.70,.89,1.25,1.44),(.45,.67,.85,1.13,1.36),(1.04,.68,.76,.82,.88)]
-cyberCanopy=loft('Cybercab arched gold roof',cyberRoof,gold,g)
-cyberCanopy.data.materials.append(glass)
-for poly in cyberCanopy.data.polygons:
+# Two-seat fastback coupe (public descriptions: two seats, butterfly doors, sloped roofline, matte gold,
+# oversized covered wheels, no rear window): short low nose with a full-width light bar, one continuous
+# slope from the windshield over the roof into a fastback that ends at a sharp horizontal tail with a
+# full-width rear light bar. Proportions are representative.
+g='CYBERCAB'
+satin=mat('Cybercab satin gold',(.6,.37,.15),.7,.45);satin.node_tree.nodes.get('Principled BSDF').inputs['Coat Weight'].default_value=0
+cyber=[(-2.24,.80,.30,.70,.80),(-2.1,.92,.20,.76,.95),(-1.5,.96,.16,.79,1.14),(-.75,.97,.15,.81,1.33),(-.05,.96,.15,.80,1.36),
+       (.7,.94,.16,.78,1.12),(1.3,.92,.18,.78,.95),(1.85,.86,.2,.72,.8),(2.2,.74,.26,.6,.66)]
+body=loft('Cybercab fastback body',cyber,satin,g,40)
+body.data.materials.append(glass)
+for poly in body.data.polygons:
  if poly.index<2:continue
- k=(poly.index-2)%32
- # Glazing shares the continuous loft surface with the roof. Separate planar
- # window polygons intersected this curved canopy at the gold/glass boundary.
- crown=math.cos((k+.5)*math.tau/32)
- if crown<.71 or poly.center.x>.10:poly.material_index=1
-path('Cybercab front light blade',[(2.175,.54,-.68),(2.215,.55,0),(2.175,.54,.68)],.016,light,g)
-path('Cybercab rear light blade',[(-2.19,.73,-.61),(-2.225,.74,0),(-2.19,.73,.61)],.016,red,g)
-wheels(body,[-1.42,1.43],1.9,.345,g,True)
+ k=(poly.index-2)%40;crown=math.cos((k+.5)*math.tau/40);cx=poly.center.x
+ # greenhouse: windshield and the side glass ahead of the fastback; the fastback itself stays gold (no rear window)
+ if crown>.2 and -.55<cx<1.2:poly.material_index=1
+for sgn in [-1,1]:
+ path('Butterfly door shut line',[(.62,1.02,sgn*.955),(.2,.42,sgn*.975),(-.9,.42,sgn*.975),(-1.02,.95,sgn*.965)],.0045,black,g)
+path('Cybercab front light bar',[(2.19,.62,-.7),(2.235,.63,0),(2.19,.62,.7)],.018,light,g)
+path('Cybercab rear light bar',[(-2.235,.77,-.76),(-2.26,.775,0),(-2.235,.77,.76)],.02,red,g)
+wheels(body,[-1.42,1.38],1.94,.36,g,True)
 g='ROBOVAN'
 body=loft('Robovan streamlined pod',[(-3.25,.72,.20,.80,1.45),(-3.08,1.05,.13,1.28,2.25),(-2.60,1.25,.12,1.60,2.79),(-1.80,1.275,.12,1.70,2.9),(0,1.275,.12,1.72,2.9),(1.8,1.275,.12,1.70,2.9),(2.6,1.25,.12,1.60,2.79),(3.08,1.05,.13,1.28,2.25),(3.25,.72,.20,.80,1.45)],silver,g,48)
 # The public concept has a continuous low skirt, not exposed circular wheel

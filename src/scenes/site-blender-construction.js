@@ -9,7 +9,7 @@ let source,pending;
 const geometries=new Map();
 export function preloadSiteConstruction(){
  if(source)return Promise.resolve(source);
- return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/site-construction.glb?v=3`).then(g=>{
+ return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/site-construction.glb?v=4`).then(g=>{
   source=g.scene;source.updateMatrixWorld(true);
   source.traverse(o=>{if(!o.isMesh)return;const geo=o.geometry.clone().applyMatrix4(o.matrixWorld);geo.userData.blender={asset:'site-construction',module:o.name};geometries.set(o.name,geo);});
   const faces=['PX','NX','PY','NY','PZ','NZ'].map(n=>{const g=geometries.get(`FACE_${n}`);return g.index?g.toNonIndexed():g.clone();});
@@ -32,7 +32,8 @@ export function authoredConstruction(geo,{sixFaces=false}={}){
  else if(geo.type==='ConeGeometry')name='CONE';
  else if(geo.type==='CylinderGeometry'){
   const p=geo.parameters;
-  if(p.radiusTop===p.radiusBottom)name='CYLINDER';
+  // nearest authored segment count: 12 for small parts, 24, and 48 for large tanks and stacks
+  if(p.radiusTop===p.radiusBottom)name=p.radialSegments<=14?'CYLINDER_12':p.radialSegments>=32||Math.max(p.radiusTop,p.radiusBottom)>5?'CYLINDER_48':'CYLINDER';
   else if(Math.abs(p.radiusTop/p.radiusBottom-1.3/1.85)<1e-6)name='TAPERED_CYLINDER';
  }
  else if(geo.type==='TubeGeometry'){

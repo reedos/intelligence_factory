@@ -3,7 +3,7 @@ import { THREE, Builder } from '../kit.js';
 let source, pending;
 export function preloadCampusCatalog() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/campus-catalog.glb?v=4`).then(g => { source=g.scene; source.updateMatrixWorld(true); source.traverse(o=>{if(o.isMesh)o.geometry.userData.blender={asset:'campus-catalog',part:o.name};}); return source; }).catch(e=>{pending=undefined;throw e;});
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/campus-catalog.glb?v=18`).then(g => { source=g.scene; source.updateMatrixWorld(true); source.traverse(o=>{if(o.isMesh)o.geometry.userData.blender={asset:'campus-catalog',part:o.name};}); return source; }).catch(e=>{pending=undefined;throw e;});
 }
 export const hasCampusCatalog=()=>!!source;
 // Blender meshes supply shape/material; JS only instantiates scenario placement.
@@ -29,6 +29,7 @@ export function campusCatalogInstances(name, matrices, options) {
 }
 export function campusCatalogRotor(mesh) {
   if(!source)return;
-  const [geo]=campusCatalogBuilder('FAN').geometries().values();
-  mesh.geometry.dispose();mesh.geometry=geo;mesh.userData.blenderAsset='FAN';
+  const [[mat,geo]]=campusCatalogBuilder('FAN').geometries();
+  // the rotor's own grey FRP finish, not the caller's placeholder dark steel
+  mesh.geometry.dispose();mesh.geometry=geo;mesh.material=mat;mesh.userData.blenderAsset='FAN';
 }

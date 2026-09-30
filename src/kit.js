@@ -409,14 +409,37 @@ export function textSprite(text, color = '#e8ecf2', h = 1) {
   s.scale.set(w / 72 * h, h, 1); s.renderOrder = 10; return s;
 }
 
-// A person for scale: 1.75 m, hard hat.
-export function person(b, x, z, ry = 0, y0 = 0, vest = MAT.hiVis) {
-  const c = Math.cos(ry), s = Math.sin(ry), at = (dx, dz) => [x + dx * c + dz * s, z - dx * s + dz * c];
-  for (const side of [-1, 1]) { const [lx, lz] = at(side * 0.1, 0); b.cyl(0.07, 0.85, MAT.darkSteel, lx, y0 + 0.425, lz, 8); }
-  b.cyl(0.19, 0.6, vest, x, y0 + 1.15, z, 10);
-  for (const side of [-1, 1]) { const [ax, az] = at(side * 0.25, 0); b.cyl(0.05, 0.6, vest, ax, y0 + 1.12, az, 8); }
-  b.add(new THREE.SphereGeometry(0.11, 12, 10), MAT.skin, x, y0 + 1.58, z);
-  b.add(new THREE.SphereGeometry(0.13, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), MAT.white, x, y0 + 1.62, z);
+// A person for scale: 1.75 m, standing, facing local +z. Dark work clothes under a hi-vis vest with a
+// retro-reflective band, arms at the sides with a slight bend, boots and a brimmed hard hat, so the figure
+// reads as a person rather than a colored peg at the 5-20 m distances the part cameras use.
+// Only shapes the site construction library carries (box, cylinder, its 1.3:1.85 taper, sphere, dome).
+const PERSON = {
+  shirt: std(0x1d2a3a, 0.85), trousers: std(0x23262b, 0.9), boots: std(0x15130f, 0.8),
+  vest: std(0xb7c43c, 0.6), band: std(0x9ea3a6, 0.35, 0.3), hat: std(0xe6e3d8, 0.45),
+};
+const _taper = new THREE.CylinderGeometry(1.3 / 1.85, 1, 1, 10, 1);
+export function person(b, x, z, ry = 0, y0 = 0, vest = PERSON.vest) {
+  const c = Math.cos(ry), s = Math.sin(ry);
+  const P = (dx, y, dz) => [x + dx * c + dz * s, y0 + y, z - dx * s + dz * c];
+  const limb = (a, e, r, m) => b.strut(P(...a), P(...e), r, m, 8);
+  for (const side of [-1, 1]) {
+    limb([side * 0.1, 0.93, 0], [side * 0.105, 0.5, 0.025], 0.072, PERSON.trousers);
+    limb([side * 0.105, 0.5, 0.025], [side * 0.11, 0.1, 0], 0.06, PERSON.trousers);
+    b.box(0.12, 0.11, 0.27, PERSON.boots, ...P(side * 0.11, 0.055, 0.04), ry);
+    // arms hang a little away from the body, elbows slightly bent forward
+    limb([side * 0.215, 1.43, 0], [side * 0.255, 1.15, -0.01], 0.05, PERSON.shirt);
+    limb([side * 0.255, 1.15, -0.01], [side * 0.25, 0.9, 0.07], 0.043, PERSON.shirt);
+    b.add(new THREE.SphereGeometry(0.047, 8, 6), MAT.skin, ...P(side * 0.25, 0.87, 0.075));
+  }
+  b.box(0.34, 0.16, 0.2, PERSON.trousers, ...P(0, 0.92, 0), ry);
+  // torso: a flattened taper, wide at the shoulders; the vest is a slightly larger shell over it
+  b.add(_taper, PERSON.shirt, ...P(0, 1.21, 0), Math.PI, -ry, 0, 0.215, 0.56, 0.13);
+  b.add(_taper, vest, ...P(0, 1.25, 0), Math.PI, -ry, 0, 0.228, 0.44, 0.142);
+  b.add(_taper, PERSON.band, ...P(0, 1.12, 0), Math.PI, -ry, 0, 0.215, 0.05, 0.14);
+  b.cyl(0.048, 0.1, MAT.skin, ...P(0, 1.52, 0), 8);
+  b.add(new THREE.SphereGeometry(0.1, 12, 10), MAT.skin, ...P(0, 1.63, 0), 0, ry, 0, 1, 1.15, 1.05);
+  b.add(new THREE.SphereGeometry(0.125, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), PERSON.hat, ...P(0, 1.675, 0.005), 0, ry, 0, 1, 0.8, 1.08);
+  b.cyl(0.155, 0.016, PERSON.hat, ...P(0, 1.68, 0.02), 14);
   return b;
 }
 

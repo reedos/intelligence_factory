@@ -50,9 +50,19 @@ def beam(n,a,b,w,d,m,g):
  q=o.modifiers.new('Rounded structural edge','BEVEL');q.width=min(w,d)*.18;q.segments=3;o.modifiers.new('Weighted normals','WEIGHTED_NORMAL')
  return o
 # Full opaque building envelope. No transparent server-hall walls.
-box('Opaque compute hall envelope',(0,11.15,0),(260,22,90),shadow,'HALL',.18)
+# Hall-only materials: the graphite panels are lifted so the sun-away faces keep their form, and the roof
+# reads as a single-ply membrane (seams, walkway pads, drains) rather than one flat plate.
+hallGraphite=mat('Hall graphite wall panels',(.075,.1,.12),.35,.45)
+membrane=mat('Hall roof membrane',(.26,.29,.3),0,.72)
+seamMat=mat('Hall membrane seam',(.36,.39,.4),0,.6)
+padMat=mat('Hall roof walkway pad',(.46,.46,.44),0,.85)
+box('Opaque compute hall envelope',(0,11.15,0),(260,22,90),hallGraphite,'HALL',.18)
 box('Continuous concrete plinth',(0,1.0,0),(260.5,1.7,90.5),base,'HALL',.12)
-box('Visible roof deck',(0,22.23,0),(259,.16,89),roof,'HALL',.04)
+box('Visible roof deck',(0,22.23,0),(259,.16,89),membrane,'HALL',.04)
+for i in range(129):box('Membrane seam',(-129+2*i+.5,22.335,0),(.06,.05,88.6),seamMat,'HALL',0)
+for z in [-11.5,11.5]:box('Roof walkway pad',(0,22.36,z),(252,.1,1.2),padMat,'HALL',0)
+for x in range(-104,105,26):
+ for z in [-34,34]:box('Roof drain',(x,22.345,z),(.6,.07,.6),black,'HALL',0)
 # Long facade: deep structural blade portals and faceted folded shells. Intentionally
 # dramatic silhouette, yet every crown remains below the existing 25.12m fan outlet.
 for sign in [-1,1]:
@@ -66,7 +76,12 @@ for sign in [-1,1]:
   mesh('Folded structural portal',v,f,pearl,'HALL',.13)
   beam('Champagne portal reveal',(x+2.9,2.5,z+sign*.58),(x+7.5,18.2,z+sign*2.17),.17,.2,bronze,'HALL')
   # Upper dark ventilation screen stays recessed; no new cooling-capacity assertion.
-  for y in [14.7+j*.75 for j in range(7)]:box('Recessed facade louver',(x+15.5,y,z-.06*sign),(17,.13,.3),roof,'HALL',.025)
+  for y in [14.7+j*.75 for j in range(7)]:box('Recessed facade louver',(x+15.5,y,z-.06*sign),(17,.13,.3),roof,'HALL',0)
+  if i in (1,5,8):
+   # recessed personnel door with a small canopy and a door light
+   box('Personnel door',(x+15.2,1.1+1.15,z+.2*sign),(1.1,2.3,.06),black,'HALL',0)
+   box('Door canopy',(x+15.2,3.75,z+.75*sign),(1.9,.12,1.1),pearl,'HALL',.03)
+   box('Door light',(x+15.2,3.62,z+.45*sign),(.4,.06,.14),lamp,'HALL',0)
   box('Ground-level insulated facade bay',(x+15.2,7.4,z+.03*sign),(17.2,10.8,.18),pearl,'HALL',.035)
   for xx in [x+10,x+15.5,x+21]:box('Panel expansion reveal',(xx,7.4,z+.14*sign),(.045,10.6,.035),shadow,'HALL',.008)
   # Warm luminaires contained under the folded overhang, not signal traces.
@@ -79,12 +94,14 @@ for z in [-38,-30,15,23,31,39]:
 box('East facade crown',(130.6,22.55,0),(2.1,1.25,90),pearl,'HALL',.18)
 # Office is an independently placed fixed 28x60m, three-story volume. Rounded corners,
 # deep roof sails and vertical mullions create a visibly new flagship entrance.
-prism('Three-story office glazing',roundrect(28,60,4),.3,16.3,glass,'OFFICE',.04)
+# Curtain wall: reflective (not near-black matte) glass; no interior lighting (owner's call). Representative architecture.
+officeGlass=mat('Office curtain-wall glass',(.1,.17,.21),.55,.07)
+prism('Three-story office glazing',roundrect(28,60,4),.3,16.3,officeGlass,'OFFICE',.04)
 for y in [.28,5.55,10.8,16.25]:
  prism('Office continuous floor fascia',roundrect(29.2,61.2,4.2),y,y+.38,pearl,'OFFICE',.09)
 # Roof canopy is supported, not a floating extra floor.
-prism('Aerodynamic office roof sail',roundrect(36,68,7),18.7,19.4,pearl,'OFFICE',.23)
-prism('Dark canopy underside',roundrect(34,66,6.5),18.58,18.7,shadow,'OFFICE',.07)
+prism('Aerodynamic office roof sail',roundrect(32,64,6),18.7,19.4,pearl,'OFFICE',.23)
+prism('Dark canopy underside',roundrect(30.6,62.6,5.6),18.58,18.7,shadow,'OFFICE',.07)
 for z in [-25,25]:
  for x in [-10,10]:beam('Roof sail supports',(x,16.5,z),(x-1.2,18.65,z),.32,.32,bronze,'OFFICE')
 for z in range(-24,25,3):
@@ -93,6 +110,11 @@ for x in range(-9,10,3):
  for z in [-30.04,30.04]:box('Office end mullion',(x,8.35,z),(.16,15.6,.22),bronze,'OFFICE',.035)
 # Two lower entry canopies stay within prior porch extent west of the office.
 for z in [-21,21]:
+ # glazed entrance vestibule with a door, tied back to the facade by the canopy beams
+ box('Entrance vestibule glass',(-15.6,1.85,z),(3.2,3.1,5.2),officeGlass,'OFFICE',.02)
+ box('Vestibule frame',(-15.6,3.47,z),(3.3,.14,5.3),bronze,'OFFICE',.02)
+ box('Entrance door',(-17.23,1.4,z),(.04,2.2,1.8),black,'OFFICE',0)
+ for dz in [-2.6,2.6]:beam('Canopy tie beam',(-21.5,4.85,z+dz),(-14.1,4.85,z+dz),.22,.3,bronze,'OFFICE')
  prism('Entry canopy',roundrect(10,11,2),4.65,5.05,pearl,'OFFICE',.12).location.x=-17.5
  for dz in [-4,4]:beam('Entry canopy support',(-21,.2,z+dz),(-21,4.65,z+dz),.28,.28,bronze,'OFFICE')
  # canopy prism above is centered before this local offset.

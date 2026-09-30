@@ -1,7 +1,7 @@
 import { attachFlowRibbons } from '../flow-ribbons.js';
 import { SiteBuilder as Builder, preloadSiteConstruction, finalizeSiteGeometry, hasSiteConstruction } from './site-blender-construction.js';
 // Scene 1: grid & campus. Units are meters. x runs east, z runs south, y up.
-import { THREE, MAT, mtx, flow, insulator, latticeTower, catenary, wires, canvasTex, sky, person, glowMat, spinners, surfaceDetail } from '../kit.js';
+import { THREE, MAT, mtx, flow, insulator, latticeTower, catenary, wires, canvasTex, sky, person, glowMat, spinners, surfaceDetail, textSprite } from '../kit.js';
 import { rbox, lamps, plumes, movers } from '../fx.js';
 import { terrainTexture, clouds, treeMatrices, carBuild, truckBuild, walkerBuild } from './campus-detail.js';
 import { campusRoadPlan, addCampusRoads, containsPlan } from './campus-roads.js';
@@ -95,7 +95,18 @@ export function build({ quality, model }) {
   const tipAt = (x, i) => [x + tips[i][2], tips[i][1], towerZ - tips[i][0]];
   const spans = [];
   for (let t = towerXs.length - 1; t > 0; t--) for (let i = 0; i < tips.length; i++) spans.push({ i, pts: catenary(tipAt(towerXs[t], i), tipAt(towerXs[t - 1], i), i >= 6 ? 7 : 10) });
-  scene.add(wires(spans.map(s => s.pts), 0x3a4048));
+  // each phase is a two-conductor bundle 0.45 m apart (the card's "bundled aluminum conductor"), held by
+  // spacer-dampers about every 60 m; the top pair are the dark optical ground (shield) wires
+  const bundle = (pts, dz) => pts.map(([x, y, z]) => [x, y, z + dz]);
+  const phaseSpans = spans.filter(s => s.i < 6), shieldSpans = spans.filter(s => s.i >= 6);
+  scene.add(wires(phaseSpans.flatMap(s => [bundle(s.pts, -0.225), bundle(s.pts, 0.225)]), 0x3a4048));
+  scene.add(wires(shieldSpans.map(s => s.pts), 0x1b1d20));
+  for (const s of phaseSpans) for (let k = 1; k < 6; k++) {
+    const u = k / 6, p = s.pts[Math.round(u * (s.pts.length - 1))];
+    N.box(0.08, 0.08, 0.5, MAT.alu, p[0], p[1], p[2]);
+  }
+  // concrete pier caps under the four legs of every tower
+  for (const x of towerXs) for (const dx of [-4.5, 4.5]) for (const dz of [-4.5, 4.5]) S.cyl(0.7, 0.6, MAT.concrete, x + dx, 0.3, towerZ + dz, 16);
   // last span into the dead-end gantries
   const gantryX = -548, gantryH = 20, circuitZ = [-178, -122];
   const phaseZ = [-6, 0, 6];
@@ -105,7 +116,7 @@ export function build({ quality, model }) {
     const a = tipAt(towerXs[0], tipIdx), b = [gantryX, gantryH - 1.5, circuitZ[c] + phaseZ[p]];
     landing.push({ c, p, pts: catenary(a, b, 5, 20) });
   }
-  scene.add(wires(landing.map(l => l.pts), 0x3a4048));
+  scene.add(wires(landing.flatMap(l => [bundle(l.pts, -0.225), bundle(l.pts, 0.225)]), 0x3a4048));
   // HV flow: one conductor per phase on the incoming line, all the way to the gantry
   for (let c = 0; c < 2; c++) for (let p = 0; p < 3; p++) {
     const tipIdx = [0, 2, 4][p] + (c === 0 ? 0 : 1);
@@ -121,10 +132,13 @@ export function build({ quality, model }) {
   fence(-357, -65, -439, -65); fence(-451, -65, -567, -65); fence(-567, -65, -567, -235);
   // The connected road plan meets the 12 m substation gate opening.
   // dead-end gantries: two tubular columns and a beam per circuit
+  // Blender substation kit when the catalog is loaded: turned-profile insulators, dead-tank breakers with
+  // six roof bushings, a center-break disconnect with arcing horns, arresters with grading rings, CVTs
+  const yard = authoredCampus ? { SUB_STRING: [], SUB_ARRESTER: [], SUB_CVT: [], SUB_DISCONNECT: [], SUB_BREAKER: [], SUB_POST: [] } : null;
   for (const cz of circuitZ) {
     for (const dz of [-10, 10]) { S.cyl(0.45, gantryH, MAT.galv, gantryX, gantryH / 2, cz + dz, 10); S.slab(1.6, 0.6, 1.6, MAT.concrete, gantryX, 0, cz + dz); }
     S.cylZ(0.4, 21, MAT.galv, gantryX, gantryH, cz, 10);
-    for (const pz of phaseZ) insulator(N, gantryX - 3.2, gantryH - 1.5, cz + pz, 3, 0.16, MAT.polymer, { axis: 'x', sheds: 10 });
+    for (const pz of phaseZ) if (yard) yard.SUB_STRING.push(mtx(gantryX - 3.2, gantryH - 1.5, cz + pz)); else insulator(N, gantryX - 3.2, gantryH - 1.5, cz + pz, 3, 0.16, MAT.polymer, { axis: 'x', sheds: 10 });
   }
   // equipment per phase: disconnect → breaker → bus
   const busY = 10, busX = -470;
@@ -132,18 +146,23 @@ export function build({ quality, model }) {
   for (let c = 0; c < 2; c++) for (let p = 0; p < 3; p++) {
     const z = circuitZ[c] + phaseZ[p];
     // surge arrester and CVT near the gantry
-    S.slab(0.6, 3, 0.6, MAT.galv, gantryX + 8, 0, z); insulator(N, gantryX + 8, 3, z, 3.6, 0.22, MAT.porcelain);
-    S.slab(0.6, 3, 0.6, MAT.galv, gantryX + 13, 0, z); insulator(N, gantryX + 13, 3, z, 4.2, 0.26, MAT.porcelain);
+    S.slab(0.6, 3, 0.6, MAT.galv, gantryX + 8, 0, z);
+    S.slab(0.6, 3, 0.6, MAT.galv, gantryX + 13, 0, z);
     // disconnect switch: two posts and a blade
     S.slab(0.5, 4, 3.8, MAT.galv, gantryX + 21, 0, z);
+    if (yard) { yard.SUB_ARRESTER.push(mtx(gantryX + 8, 3, z)); yard.SUB_CVT.push(mtx(gantryX + 13, 3, z)); yard.SUB_DISCONNECT.push(mtx(gantryX + 21, 4, z)); }
+    else {
+    insulator(N, gantryX + 8, 3, z, 3.6, 0.22, MAT.porcelain); insulator(N, gantryX + 13, 3, z, 4.2, 0.26, MAT.porcelain);
     insulator(N, gantryX + 21, 4, z - 1.5, 2.8, 0.2); insulator(N, gantryX + 21, 4, z + 1.5, 2.8, 0.2);
     N.cylZ(0.07, 3.2, MAT.alu, gantryX + 21, 7, z, 8);
+    }
     breakerAt.push([gantryX + 34, z]);
   }
   // dead-tank SF6 breakers (three-phase units, one per circuit per side of the ring)
   const breakerZ = [-190, -170, -150, -130, -110, -90];
   breakerZ.forEach((z, i) => {
     const x = gantryX + 36;
+    if (yard) { yard.SUB_BREAKER.push(mtx(x, 0, z)); return; }
     S.slab(4.5, 2.2, 4.2, MAT.galv, x, 0, z);
     for (const dz of [-1.4, 0, 1.4]) {
       S.cylX(0.55, 3.4, MAT.ansi61, x, 3.0, z + dz, 16);
@@ -154,15 +173,20 @@ export function build({ quality, model }) {
   // tubular HV bus on post insulators
   for (const dx of [-2.5, 0, 2.5]) {
     N.cylZ(0.12, 150, MAT.alu, busX + dx, busY, -150, 10);
-    for (let z = -222; z <= -78; z += 12) { S.slab(0.5, 5.5, 0.5, MAT.galv, busX + dx, 0, z); insulator(N, busX + dx, 5.5, z, 4.3, 0.2); }
+    for (let z = -222; z <= -78; z += 12) { S.slab(0.5, 5.5, 0.5, MAT.galv, busX + dx, 0, z); if (yard) yard.SUB_POST.push(mtx(busX + dx, 5.5, z)); else insulator(N, busX + dx, 5.5, z, 4.3, 0.2); }
   }
+  if (yard) for (const [name, mx] of Object.entries(yard)) scene.add(campusCatalogInstances(name, mx, { cast: true }));
   // lightning masts
   [[-560, -230], [-560, -70], [-465, -230], [-465, -70], [-365, -230], [-365, -70]].forEach(([x, z]) => {
     S.strut([x, 0, z], [x, 34, z], 0.35, MAT.galv, 8); N.strut([x, 34, z], [x, 40, z], 0.08, MAT.galv, 6);
   });
   // control house
+  // (Blender prefab-building kit when the catalog is loaded: ribbed panels, doors, landings, wall-pack HVAC)
+  if (authoredCampus) scene.add(campusCatalogInstances('CTRL_HOUSE', [mtx(-525, 0.4, -82, Math.PI / 2)], { cast: true }));
+  else {
   S.slab(22, 5, 10, MAT.beige, -525, 0, -82); S.slab(23, 0.5, 11, MAT.roof, -525, 5, -82);
   for (let i = 0; i < 3; i++) N.slab(1.4, 0.8, 0.4, MAT.darkSteel, -532 + i * 7, 5.5, -82);
+  }
 
   // main power transformers ×3 with radiators, conservator, bushings, fire walls
   const mptX = -418, mptZ = [-195, -150, -105];
@@ -184,14 +208,18 @@ export function build({ quality, model }) {
     S.cylZ(0.9, 7, MAT.xfmr, mptX + 1.5, 9.4, z, 20);              // conservator
     N.strut([mptX + 1.5, 7.3, z - 2.5], [mptX + 1.5, 8.6, z - 2.5], 0.12, MAT.xfmr); N.strut([mptX + 1.5, 7.3, z + 2.5], [mptX + 1.5, 8.6, z + 2.5], 0.12, MAT.xfmr);
     }
+    // bushings: authored in the Blender transformer (shed profiles, corona rings, arresters) at these same terminals
+    if (!hasCampusTransformer()) {
     for (const dz of [-2.6, 0, 2.6]) insulator(N, mptX - 2.2, 7.3, z + dz, 5.2, 0.3, MAT.porcelain);   // HV bushings
     insulator(N, mptX - 2.2, 7.3, z + 4, 2.4, 0.18, MAT.porcelain);                                      // neutral
     for (const dz of [-2, 0, 2]) insulator(N, mptX + 2.6, 7.3, z + dz, 1.8, 0.22, MAT.porcelain);      // 34.5 kV bushings
+    }
     if(!hasCampusTransformer()) S.slab(1.2, 2, 0.9, MAT.ansi61, mptX + 3.5, 0.8, z + 3.8);    // control cabinet
   });
   [-172.5, -127.5].forEach(z => S.slab(16, 11, 0.6, MAT.concrete, mptX, 0, z));  // fire walls
   // 34.5 kV switchgear e-houses
-  [[-378, -178], [-378, -122]].forEach(([x, z]) => {
+  if (authoredCampus) scene.add(campusCatalogInstances('EHOUSE', [[-378, -178], [-378, -122]].map(([x, z]) => mtx(x, 0.4, z)), { cast: true }));
+  else [[-378, -178], [-378, -122]].forEach(([x, z]) => {
     rslab(S, 8, 4.2, 34, MAT.white, x, 0.4, z, 0, 0.03); S.slab(8.4, 0.4, 34.4, MAT.roof, x, 4.6, z);
     for (let i = 0; i < 4; i++) N.slab(0.9, 0.9, 2.2, MAT.darkSteel, x + 4.3, 3.2, z - 12 + i * 8);
     for (let i = 0; i < 6; i++) N.slab(0.05, 2.1, 1, MAT.darkSteel, x - 4.02, 0.4, z - 14 + i * 5.6);
@@ -393,11 +421,21 @@ export function build({ quality, model }) {
     for (const blockZ of [-205, 20]) for (let c = 0; c < 4; c++) for (let r = 0; r < 5; r++) if (gensetMx.length < Math.min(40, L.gensets)) gensetMx.push(mtx(290 + c * 21, 0.15, blockZ + r * 8));
     scene.add(authoredCampus ? campusCatalogInstances('GENSET',gensetMx) : genset.instance(gensetMx));
     // fuel farm
+    const tankMx = [[], []];
     for (let i = 0; i < 6; i++) {
       const x = 390 + (i % 2) * 14, z = -120 + Math.floor(i / 2) * 18;
       S.slab(12, 0.4, 16, MAT.concreteDark, x, 0.15, z);
+      if (authoredCampus) { tankMx[i % 2].push(mtx(x, 0.55, z)); continue; }
       for (const dz of [-3.5, 3.5]) S.slab(1.2, 1.4, 5, MAT.concrete, x, 0.5, z + dz);
       S.cylZ(2.2, 13.5, MAT.white, x, 4.0, z, 24);
+    }
+    if (authoredCampus) {
+      // Blender double-wall tanks (ladder and platform on one per pair) and a supply/return manifold to the polishing skid
+      scene.add(campusCatalogInstances('FUEL_TANK_ACCESS', tankMx[0], { cast: true }), campusCatalogInstances('FUEL_TANK', tankMx[1], { cast: true }));
+      for (const [dx, y] of [[-0.35, 0.75], [0.35, 1.05]]) {
+        N.strut([397 + dx, y, -84], [397 + dx, y, -140], 0.11, MAT.steel, 8);
+        for (let r = 0; r < 3; r++) for (const tx of [390, 404]) N.strut([tx + (tx < 397 ? 2.3 : -2.3), y, -120 + r * 18 + dx * 4], [397 + dx, y, -120 + r * 18 + dx * 4], 0.07, MAT.steel, 8);
+      }
     }
     S.slab(6, 2.4, 3, MAT.steel, 405, 0.15, -145);                             // fuel polishing skid
     // standby flow: generators to the MV network (dim, slow)
@@ -422,20 +460,33 @@ export function build({ quality, model }) {
     const bigMx = [];
     for (let c = 0; c < 14; c++) for (let r = 0; r < 9; r++) bigMx.push(mtx(292 + c * 9, 0.15, -206 + r * 13));
     scene.add(authoredCampus ? campusCatalogInstances('BESS',bigMx) : bessBox.instance(bigMx));
-    for (let r = 0; r < 9; r++) { S.slab(4, 2.4, 2.4, MAT.ansi61, 283, 0.15, -206 + r * 13); S.slab(2, 2.2, 2, MAT.xfmr, 287.5, 0.15, -206 + r * 13); }
+    if (authoredCampus) {
+      const rows = Array.from({ length: 9 }, (_, r) => -206 + r * 13);
+      scene.add(campusCatalogInstances('BESS_PCS', rows.map(z => mtx(281.5, 0.15, z, Math.PI / 2)), { cast: true }));
+      scene.add(campusCatalogInstances('UNITSUB', rows.map(z => mtx(287, 0.15, z)), { cast: true }));
+    } else for (let r = 0; r < 9; r++) { S.slab(4, 2.4, 2.4, MAT.ansi61, 283, 0.15, -206 + r * 13); S.slab(2, 2.2, 2, MAT.xfmr, 287.5, 0.15, -206 + r * 13); }
     flows.push(flow([[285, uY, -170], [262, uY, -170], [262, uY, -112], [hallX1 - 5, uY, -112]], 'mv', { count: 12, speed: 16, size: 1.0, k: 1.0, opacity: 0.6, trailK: 0.2, role: 'standby' }));
   }
-  for (let r = 0; r < 4; r++) { S.slab(4, 2.4, 2.4, MAT.ansi61, -280, 0.15, 55 + r * 14); S.slab(2, 2.2, 2, MAT.xfmr, -275, 0.15, 55 + r * 14); }
+  // each container row's power conversion cabinet and pad-mount step-up transformer (Blender catalog)
+  if (authoredCampus) {
+    const rows = Array.from({ length: 4 }, (_, r) => 55 + r * 14);
+    scene.add(campusCatalogInstances('BESS_PCS', rows.map(z => mtx(-281, 0.15, z, Math.PI / 2)), { cast: true }));
+    scene.add(campusCatalogInstances('UNITSUB', rows.map(z => mtx(-275, 0.15, z)), { cast: true }));
+  } else for (let r = 0; r < 4; r++) { S.slab(4, 2.4, 2.4, MAT.ansi61, -280, 0.15, 55 + r * 14); S.slab(2, 2.2, 2, MAT.xfmr, -275, 0.15, 55 + r * 14); }
   flows.push(flow([[-275, uY, 55], [-275, uY, 20], [-340, uY, 20], [-340, uY, -62]], 'mv', { count: 12, speed: 20, size: 1.0, k: 1.2, opacity: 0.7, trailK: 0.2 }));
 
   // ---------- cooling towers and water tanks ----------
+  // Blender counterflow cells (casing, louvers, deck, eased-inlet stack); the rotor turns 0.8 m below the stack rim
+  const towerMx = [];
   towerRows.forEach(z => { for (let i = 0; i < 6; i++) {
     const x = 15 + i * 12;
+    if (authoredCampus) { towerMx.push(mtx(x, 0.15, z)); fanItems.push({ p: [x, 11.55, z], axis: 'y', r: 3.7 }); continue; }
     fanItems.push({ p: [x, 11.36, z], axis: 'y', r: 3.7 });
     S.slab(11.4, 8, 11, MAT.ansi61, x, 0.15, z);
     for (let y = 1; y < 6; y += 0.6) N.slab(11.5, 0.12, 0.2, MAT.darkSteel, x, y, z + 5.6);
     S.cyl(4.2, 3.2, MAT.ansi61, x, 9.8, z, 24); N.cyl(3.9, 0.2, MAT.fan, x, 11.2, z, 24);
   } });
+  if (towerMx.length) scene.add(campusCatalogInstances('TOWER_CELL', towerMx, { cast: true }));
   if (towerRows.length) S.slab(205, 0.04, 55, MAT.gravel, 100, 0.15, -280);
   if (!warm) {
     // chiller plant: a long shed with louvered walls, headers to hall A and to the towers
@@ -458,20 +509,55 @@ export function build({ quality, model }) {
     S.slab(18, 5, 12, MAT.beige, 190, 0.15, -280); // evaporative makeup-water treatment
   }
 
+  // ---------- heat reuse: an illustrative export tie-in, drawn only in the heat layer ----------
+  // This campus exports no heat (the card says so). To show what reuse would add, the heat layer draws a ghosted
+  // supply/return pair from the last hall to a plate heat-exchanger and heat-pump skid and on toward the site edge,
+  // labeled as an illustration. Representative arrangement, not a modeled facility (ASSUMPTIONS campus-heat-reuse-illustration).
+  const reuse = new Builder(), hR = hallList[hallList.length - 1];
+  const ghost = (color, emissive) => new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: .6, roughness: .5, transparent: true, opacity: .62, depthWrite: false });
+  const gWarm = ghost(0xd9793f, 0x6a2a0a), gCool = ghost(0x4f86d8, 0x0e2a5a), gSkid = ghost(0xb9c2c6, 0x1c2226);
+  const reuseSkid = [hallX0 - 42, hR.z1 + 10], reuseEnd = hallX0 - 70;
+  for (const [dz, mat, y] of [[-0.7, gWarm, 1.6], [0.7, gCool, 1.6]]) {
+    const run = [[hallX0 + 4, y, hR.z1 + 0.6], [hallX0 + 4, y, reuseSkid[1] + dz], [reuseEnd, y, reuseSkid[1] + dz]];
+    for (let i = 1; i < run.length; i++) reuse.strut(run[i - 1], run[i], 0.32, mat, 12);
+  }
+  for (let x = hallX0 - 4; x > reuseEnd; x -= 8) reuse.slab(0.4, 1.2, 2.6, gSkid, x, 0.15, reuseSkid[1]);   // pipe sleepers
+  reuse.slab(8, 0.3, 4.2, gSkid, reuseSkid[0], 0.15, reuseSkid[1] + 4);
+  reuse.slab(1.3, 2.3, 0.9, gSkid, reuseSkid[0] - 2.4, 0.45, reuseSkid[1] + 4);                             // plate heat exchanger frame
+  for (let i = 0; i < 9; i++) reuse.slab(0.07, 1.9, 0.8, gWarm, reuseSkid[0] - 2.95 + i * 0.13, 0.6, reuseSkid[1] + 4);
+  reuse.slab(3.6, 2.4, 2.6, gSkid, reuseSkid[0] + 1.6, 0.45, reuseSkid[1] + 4);                              // heat-pump package
+  for (const dx of [-2.4, 1.6]) reuse.strut([reuseSkid[0] + dx, 1.6, reuseSkid[1] - 0.7], [reuseSkid[0] + dx, 1.6, reuseSkid[1] + 2.9], 0.18, gWarm, 8);
+  const reuseGroup = reuse.build({ cast: false, receive: false }); reuseGroup.name = 'Illustrative heat-export tie-in (heat layer only)';
+  const reuseTag = textSprite('ILLUSTRATIVE TIE-IN, NOT BUILT', '#ffb27a', 1.3);
+  reuseTag.position.set(reuseSkid[0] + 2, 11, reuseSkid[1] + 4); reuseGroup.add(reuseTag);
+  reuseGroup.visible = false; scene.add(reuseGroup);
+  heatFlows.push(flow([[hallX0 + 4, 1.6, hR.z1 + 0.6], [hallX0 + 4, 1.6, reuseSkid[1] - 0.7], [reuseEnd, 1.6, reuseSkid[1] - 0.7]], 'warm', { count: 16, speed: 12, size: 0.7, k: 2.2, trailR: 0.24 }));
+  heatFlows.push(flow([[reuseEnd, 1.6, reuseSkid[1] + 0.7], [hallX0 + 4, 1.6, reuseSkid[1] + 0.7], [hallX0 + 4, 1.6, hR.z1 + 0.6]], 'cool', { count: 12, speed: 10, size: 0.6, k: 2, trailR: 0.2 }));
+
   // ---------- fiber vaults ----------
   const fiberA = [-150, 238], fiberB = [455, -300];
-  for (const [x, z] of [fiberA, fiberB]) { S.slab(3, 0.6, 3, MAT.concrete, x, 0.15, z); N.slab(1.2, 0.05, 1.2, MAT.darkSteel, x, 0.76, z); }
+  // fiber vaults: flush concrete box with a steel lid, and orange route-marker posts where the cable enters
+  for (const [x, z] of [fiberA, fiberB]) {
+    S.slab(3, 0.6, 3, MAT.concrete, x, 0.15, z); N.slab(1.2, 0.05, 1.2, MAT.darkSteel, x, 0.76, z);
+    for (const dz of [2.6, 6.5]) { N.cyl(0.05, 1.5, MAT.orange, x + 1.9, 0.9, z + dz, 8); N.cyl(0.055, 0.2, MAT.white, x + 1.9, 1.45, z + dz, 8); }
+  }
   // data: long-haul fiber in, through the line-terminal huts, to the halls; hall-to-hall fabric fiber
   const hutA = [-215, 196], hutB = [430, -276];
   for (const [x, z] of [hutA, hutB]) {
+    if (!authoredCampus) {
     S.slab(12, 3.6, 7, MAT.white, x, 0.15, z); S.slab(12.6, 0.4, 7.6, MAT.roof, x, 3.75, z);
     N.slab(1.4, 1.2, 0.6, MAT.darkSteel, x + 6.5, 1.2, z); N.slab(1.4, 1.2, 0.6, MAT.darkSteel, x + 6.5, 1.2, z - 2);
+    }
     N.cyl(0.15, 9, MAT.galv, x - 5, 4.5, z + 3, 6);
   }
   // Representative meet-me/border-router annex at the existing fiber landing.
   const borderX=hallX1+6,borderZ=-210;
+  // Line-terminal huts and the annex share the Blender prefab kit (HVAC end toward the old wall-pack side).
+  if (authoredCampus) scene.add(campusCatalogInstances('SHELTER', [...[hutA, hutB].map(([x, z]) => mtx(x, 0.15, z, Math.PI / 2)), mtx(borderX, 0.15, borderZ, -Math.PI / 2)], { cast: true }));
+  else {
   S.slab(12,3.6,7,MAT.white,borderX,.15,borderZ);S.slab(12.6,.4,7.6,MAT.roof,borderX,3.75,borderZ);
   N.slab(1.4,1.2,.6,MAT.darkSteel,borderX-6.5,1.2,borderZ);N.slab(1.4,1.2,.6,MAT.darkSteel,borderX-6.5,1.2,borderZ-2);
+  }
   N.cyl(.15,9,MAT.galv,borderX-1,4.5,borderZ+3,6);
   const dci = (pts, n) => dataFlows.push(flow(pts, 'dci', { count: n, speed: 45, size: 0.9, k: 2.2, trailK: 0.35, trailR: 0.3 }));
   dci([[fiberA[0], 0.7, 900], [fiberA[0], 0.7, fiberA[1]]], 40);
@@ -589,13 +675,27 @@ export function build({ quality, model }) {
   } else scene.add(car.instance(carMx));
   const gardenMotion = addCampusArchitecture({ scene, hallList, hallX0, hallX1, extra, quality, materials: architectureMaterials, authoredHall: authoredCampus });
   if (authoredCampus) addBlenderCampusArchitecture(scene, hallList, hallX0, hallX1, quality);
-  S.slab(8, 3.6, 5, MAT.beige, -96, 0.15, 232); S.slab(10, 0.4, 7, MAT.roof, -96, 3.75, 232);
-  N.slab(0.3, 1.1, 10, MAT.orange, -110, 0.15, 226);
-  // swing gate at the south entry, where the access road meets the perimeter fence: two posts,
-  // one leaf swung open at an angle so the drive reads as staffed rather than sealed
+  if (authoredCampus) scene.add(campusCatalogInstances('GATEHOUSE', [mtx(-96, 0.15, 232)], { cast: true }));
+  else { S.slab(8, 3.6, 5, MAT.beige, -96, 0.15, 232); S.slab(10, 0.4, 7, MAT.roof, -96, 3.75, 232); }
+  // Barrier arm on the inbound lane beside the gatehouse: an operator housing at the lane edge and a
+  // 6 m red/white boom raised about 75 degrees, so the checkpoint reads as open and staffed (generic, representative).
+  const boomRed = new THREE.MeshStandardMaterial({ color: 0xc8322a, roughness: 0.45 });
+  const pivot = [-102.9, 1.12, 228.6], boomA = 75 * Math.PI / 180, boomDir = [-Math.cos(boomA), Math.sin(boomA), 0];
+  rslab(N, 0.42, 1.0, 0.42, MAT.white, pivot[0] + 0.12, 0.15, pivot[2], 0, 0.04);
+  N.cylX(0.09, 0.14, MAT.darkSteel, pivot[0] - 0.14, pivot[1], pivot[2], 12);
+  for (let i = 0; i < 8; i++) {
+    const at = t => pivot.map((v, k) => v + boomDir[k] * t);
+    N.strut(at(i * 0.75), at((i + 1) * 0.75), 0.055, i % 2 ? MAT.white : boomRed, 8);
+  }
+  N.cyl(0.05, 0.9, MAT.galv, -103.4, 0.6, 232.6, 8); N.slab(0.22, 0.3, 0.12, MAT.darkSteel, -103.4, 0.95, 232.6);   // card-reader pedestal
+  // swing gate at the south entry, where the access road meets the perimeter fence: two posts and
+  // one framed leaf swung open outward, so the drive reads as staffed rather than sealed
   for (const dx of [-6, 6]) N.cyl(0.1, 2.7, MAT.galv, -110 + dx, 1.35, 250, 8);
-  N.strut([-116, 2.6, 250], [-116, 1.35, 261.5], 0.045, MAT.galv, 6);
-  N.strut([-116, 1.35, 250], [-116, 1.35, 261.5], 0.045, MAT.galv, 6);
+  const leafEnd = 261.2;
+  for (const y of [0.35, 2.35]) N.strut([-116, y, 250.2], [-116, y, leafEnd], 0.045, MAT.galv, 6);
+  N.strut([-116, 0.35, leafEnd], [-116, 2.35, leafEnd], 0.045, MAT.galv, 6);
+  N.strut([-116, 0.35, 250.2], [-116, 2.35, leafEnd], 0.035, MAT.galv, 6);
+  for (let z = 252.2; z < leafEnd; z += 2) N.strut([-116, 0.35, z], [-116, 2.35, z], 0.025, MAT.galv, 4);
   // site lighting: pole heads on every light pole, plus warm lamps at the office and hall doors
   const lampItems = [];
   const streetLightPoles=[];
@@ -616,6 +716,9 @@ export function build({ quality, model }) {
     N.cyl(0.18, 14, MAT.galv, x, 7, z, 6);
     lampItems.push({ p: [x, 13.9, z], w: 2, spill: 58, ground: 0.42 });
   }
+  // battery-yard floodlights, so the back rows keep their form at dusk
+  const bessPoles = [[-347, 39], [-347, 115], [-263, 39], [-263, 115], ...(batteryYard ? [[276, -218], [276, -90], [424, -218], [424, -90], [350, -218], [350, -90]] : [])];
+  for (const [x, z] of bessPoles) { N.cyl(0.16, 12, MAT.galv, x, 6, z, 6); lampItems.push({ p: [x, 11.9, z], w: 1.6, spill: 46, ground: 0.4 }); }
   for (let x = -65; x <= 65; x += 26) for (const z of [145, 195]) {
     N.cyl(0.09, 5, MAT.galv, x, 2.5, z, 6);
     lampItems.push({ p: [x, 4.9, z], w: 0.8, spill: 20 });
@@ -627,7 +730,10 @@ export function build({ quality, model }) {
     const light = new THREE.PointLight(0xffd39a, 1800, 150, 2);
     light.position.set(-455, 13.5, z); scene.add(light);
   }
-  for (let i = 0; i < 6; i++) person(N, -405 + i * 2.2, -140 + i * 1.3, i);
+  // scale cues in the yard: a crew of three at a transformer's operating cabinet and two at an e-house door,
+  // standing on the gravel (top at 0.4 m) rather than in a diagonal row
+  [[-410.2, -100.6, -1.9], [-409.6, -102.4, -1.2], [-411.4, -98.6, -2.6]].forEach(([x, z, ry]) => person(N, x, z, ry, 0.4));
+  [[-384.8, -168.2, -2.2], [-385.6, -166.6, 0.6]].forEach(([x, z, ry]) => person(N, x, z, ry, 0.4));
   person(N, 212, -104, 1.2); person(N, 214, -103, 2.2);
   const treeCount = quality.mobile ? 5 : 9;
   const treeMx = treeMatrices(rnd, {
@@ -761,13 +867,14 @@ export function build({ quality, model }) {
         fuel: { pos: [397, 9, -100], view: { pos: [480, 50, -40], target: [397, 0, -100] } },
       } : {}),
       bess: batteryYard ? { pos: [350, 6, -150], view: { pos: [480, 120, -10], target: [350, 0, -150] } } : { pos: [-316, 6, 75], view: { pos: [-250, 60, 170], target: [-315, 0, 75] } },
-      unitsubs: { pos: [hcx, 5, -115], view: { pos: [hcx + 20, 30, -40], target: [hcx, 0, -110] } },
+      // Skim along the row so the pad-mounts, not the hall wall behind them, fill the frame.
+      unitsubs: { pos: [hcx, 5, -115], view: { pos: [hcx - 40, 8, -93], target: [hcx, 2, -118] } },
       hall: { pos: [hcx, 26, hallAz], view: { pos: [hcx + 160, 170, 120], target: [hcx, 10, -120] } },
       ...(warm ? { drycoolers: { pos: [Math.min(60, hcx), 26, -170], view: { pos: [Math.min(60, hcx) + 60, 70, -90], target: [Math.min(60, hcx), 20, -170] } } } : { chillers: { pos: [plantX, 13, -245], view: { pos: [plantX + 70, 70, -160], target: [plantX - 10, 5, -250] } } }),
       ...(towerRows.length ? {
         towers: { pos: [45, 13, -275], view: { pos: [110, 60, -200], target: [70, 5, -275] } },
       } : {}),
-      fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-60, 60, 330], target: [-120, 0, 200] } },
+      fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-171, 14, 273], target: [-150, 0.8, 239] } },
       security:{pos:[-96,4.2,232],view:{pos:[-140,20,290],target:[-103,3,241]}},
       ops:{pos:[opsAnt.x,opsAnt.roofY+3,opsAnt.z],view:{pos:[hallX0-89,42,hallAz+85],target:[hallX0-14,8,hallAz]}},
     },
@@ -778,20 +885,21 @@ export function build({ quality, model }) {
         towers: { pos: [45, 13, -275], view: { pos: [110, 60, -200], target: [70, 20, -275] } },
       } : {}),
       plume: { pos: [hcx, 70, -170], view: { pos: [hcx + 220, 160, 80], target: [hcx, 40, -110] } },
-      reuse: { pos: [hallX0 - 28, 18, 60], view: { pos: [-160, 80, 180], target: [-40, 10, 60] } },
+      reuse: { pos: [reuseSkid[0], 7, reuseSkid[1] + 4], view: { pos: [reuseSkid[0] - 30, 20, reuseSkid[1] + 40], target: [reuseSkid[0] + 4, 3, reuseSkid[1]] } },
     },
     dataHotspots: {
-      fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-60, 60, 330], target: [-120, 0, 200] } },
+      fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-171, 14, 273], target: [-150, 0.8, 239] } },
       dci: { pos: [hutA[0], 6, hutA[1]], view: { pos: [-130, 40, 290], target: [hutA[0], 0, hutA[1]] } },
       ...(nHalls > 1 ? { interhall: { pos: [-45, 3, -58], view: { pos: [40, 70, 60], target: [-45, 0, -58] } } } : {}),
       ...(nHalls > 1 ? { ductbank: { pos: [-54, 1.1, -90], view: { pos: [-57.2, 1.9, -87.4], target: [-54, 0.45, -89.2] } } } : {}),
       hall: { pos: [hcx, 26, hallAz], view: { pos: [hcx + 160, 170, 120], target: [hcx, 10, -120] } },
-      border:{pos:[borderX,4.2,borderZ],view:{pos:[borderX+70,45,borderZ+70],target:[borderX,3,borderZ]}},
+      border:{pos:[borderX,4.2,borderZ],view:{pos:[borderX+16,24,borderZ-52],target:[borderX,2,borderZ-1]}},
       longhaul: { pos: [fiberA[0], 3, 520], view: { pos: [200, 260, 900], target: [-150, 0, 420] } },
     },
     look: { env: 'sky', envIntensity: 0.75, exposure: 1.08, bloom: 0.7, threshold: 1.4, ao: 0, grain: 0.006, vignette: 0.18, dof: true },
     update(t, dt) {
       woodlandMotion(t); gardenMotion(t);
+      reuseGroup.visible = globalThis.document?.body?.dataset.mode === 'heat';
       if (cloudDrift && !quality.reduced) cloudDrift.position.x = Math.sin(t * .008) * 35;
       fans.update(t);
       moverGroups.forEach(m => m.update(t));

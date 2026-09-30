@@ -287,6 +287,7 @@ export function content(M) {
       body: 'The line dead-ends on steel gantries and lands on a ring of SF₆ circuit breakers and disconnect switches. Instrument transformers measure it, surge arresters clip lightning, and tall masts shield the yard.',
       specs: [
         ['Breakers', '6 dead-tank SF₆, ring bus', 'assumed', evAssume('substation-layout')],
+        ['Equipment drawn', 'typical forms, representative', 'assumed', evAssume('campus-substation-drawing')],
         ['Yard', '≈200 × 150 m gravel pad', 'assumed', evAssume('substation-layout')],
         ['Interconnection study', '1–3 years alone', 'reported', evRefs([['atk-substation-construction', 'blog: "System impact studies, facilities studies, and any required network upgrades can run twelve to thirty-six months depending on the region"']])],
       ] },
@@ -296,6 +297,7 @@ export function content(M) {
         ['Rating', `${L.transformers} × ${L.mvaUnit} MVA, N+1`, 'derived', evCalc('campus-transformer-count')],
         ['Efficiency, 345 kV class', '>99.6% at all loading levels', 'spec', evRefs([['pa-transformer-345kv', 'product page: "High efficiency: exceeding 99.6% at all loading levels"']])],
         [`Loss at ${meter}`, lossTxt('Main power'), 'derived', evCalc('campus-transformer-loss')],
+        ['Fittings drawn', 'radiator banks, fans, bushings: a typical layout', 'assumed', evAssume('campus-mpt-drawing')],
         ['Lead time, 2026', '128–144 weeks', 'reported', evRefs([['industrialsage-transformer-leadtimes', 'quoting a Wood Mackenzie Q2 2025 survey: "standard power transformers average 128 weeks for delivery"; generator step-up units "average 144 weeks"']])],
       ] },
     { id: 'ehouse', title: '34.5 kV switchgear', kicker: 'Campus distribution',
@@ -304,6 +306,7 @@ export function content(M) {
         ['Feeders', `≈${n0(L.feeders)}, each ≈10 MW`, 'derived', evCalc('campus-feeder-count')],
         ['Voltage', '34.5 kV (some campuses use 13.8 kV)', 'reported', evRefs([['mv-distribution-atk', 'blog: "On a large campus, 34.5 kV has become the standard distribution voltage because it carries more power with fewer and smaller feeders than 13.8 kV"']])],
         ['Loss, cables + gear', lossTxt('Campus cables'), 'derived', evCalc('campus-cable-loss')],
+        ['Buildings drawn', 'a typical prefab kit, representative', 'assumed', evAssume('campus-prefab-buildings')],
       ] },
     ...(bat ? [] : [
     { id: 'gensets', title: 'Standby generator yard', kicker: 'Diesel, 480 V stepped up to 34.5 kV',
@@ -319,6 +322,7 @@ export function content(M) {
       specs: [
         [`Volume, 48 h at ${meter}`, `≈${L.fuelML >= 10 ? n0(L.fuelML) : L.fuelML.toFixed(1)} million L`, 'derived', evCalc('campus-fuel-volume')],
         ['Tanker deliveries to refill', `≈${n0(L.fuelML * 1e6 / 30000)}`, 'derived', evCalc('fuel-tankers')],
+        ['Tanks drawn', 'double-wall horizontal, representative fittings', 'assumed', evAssume('campus-fuel-tank-drawing')],
       ] },
     ]),
     bat
@@ -390,6 +394,7 @@ export function content(M) {
         ['Towers', `≈${n0(L.towers)}`, 'derived', evCalc('campus-tower-count')],
         ['WUE, on site', `≈${M.wue.toFixed(2)} L/kWh IT`, 'assumed', evAssume('wue-by-cooling')],
         ['Use', warm ? 'peak days only' : 'all year', 'derived', evCalc('campus-tower-use')],
+        ['Cell drawn', 'counterflow, representative', 'assumed', evAssume('campus-tower-drawing')],
       ] },
     ]),
     { id: 'fiber', title: 'Fiber entrances', kicker: 'Two diverse routes',
@@ -1046,6 +1051,7 @@ export function content(M) {
           ['Meta Odense, Denmark', '≈165,000 MWh a year, ≈11,000 homes', 'reported', evRefs([['munters-odense', 'case study: Meta’s Odense heat reuse provides "up to 165,000 MWh of energy a year" to warm "11,000 homes and businesses"']])],
           ['Microsoft + Fortum, Finland', 'up to 180 MW of district heat', 'reported', evRefs([['fortum-finland-heat', 'press release: "72 units, producing up to 180 megawatts of district heating"']])],
           ['Stockholm Data Parks', '30+ data centers selling heat', 'reported', evRefs([['stockholm-data-parks', 'program site'], ['eurelectric-stockholm-data-parks', '"The platform now connects 30+ DCs across 16 providers."']])],
+          ['Tie-in drawn here', 'an illustration, not built', 'assumed', evAssume('campus-heat-reuse-illustration')],
         ] },
     ],
     hall: [
