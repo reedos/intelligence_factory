@@ -9,7 +9,7 @@ import { campusMaterials, addCampusArchitecture } from './campus-architecture.js
 import { campusHorizon, campusLightPools, campusTreeBelt } from './campus-atmosphere.js';
 import { campusWoodland, campusMeadow, campusContactShade } from './campus-landscape.js';
 import { preloadCampusArchitecture, hasCampusArchitecture, addBlenderCampusArchitecture, addBlenderCampusExpansion } from './campus-blender-architecture.js';
-import { preloadCampusCatalog, campusCatalogInstances, campusCatalogRotor } from './campus-blender-catalog.js';
+import { preloadCampusCatalog, campusCatalogInstances, campusCatalogRotor, campusCatalogBuilder } from './campus-blender-catalog.js';
 import { preloadCampusVehicles, hasCampusVehicles, campusVehicleInstances } from './campus-blender-vehicles.js';
 import { preloadCampusTransformer, hasCampusTransformer, campusTransformerInstances } from './campus-blender-transformer.js';
 export const preload = () => Promise.all([preloadCampusArchitecture(), preloadCampusCatalog(), preloadSiteConstruction(), preloadCampusVehicles(), preloadCampusTransformer()]);
@@ -87,7 +87,9 @@ export function build({ quality, model }) {
 
   // ---------- transmission line from the west ----------
   const tower = new Builder();
-  const tips = latticeTower(tower, 46, 9);
+  // suspension strings: the catalog's turned-profile polymer string (alternating sheds, end fittings), the same
+  // one the substation dead-ends use, in place of the stacked-disc stand-in
+  const tips = latticeTower(tower, 46, 9, authoredCampus ? { string: campusCatalogBuilder('SUB_STRING') } : {});
   const towerXs = [-640, -990, -1340, -1690, -2040, -2390, -2740];
   const towerZ = -150;
   scene.add(tower.instance(towerXs.map(x => mtx(x, 0, towerZ, Math.PI / 2))));

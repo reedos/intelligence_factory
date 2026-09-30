@@ -312,7 +312,11 @@ export function insulator(b, x, y0, z, h, r, mat = MAT.porcelain, { axis = 'y', 
 }
 
 // Lattice transmission tower, double circuit, three crossarm levels. Returns arm tip positions.
-export function latticeTower(b, H = 46, base = 9) {
+// `string`: an optional Builder holding an authored insulator string laid along +X from its origin (the campus
+// catalog's 3 m SUB_STRING); each suspension string then uses it, hung straight down and scaled to reach the
+// conductor clamp, instead of the procedural disc stack.
+const _hang = new THREE.Matrix4(), _hangR = new THREE.Matrix4().makeRotationZ(-Math.PI / 2), _hangS = new THREE.Matrix4();
+export function latticeTower(b, H = 46, base = 9, { string = null } = {}) {
   const mat = MAT.galv, r = 0.14;
   const waistY = H * 0.62, waistW = 2.6, topW = 1.6;
   const legAt = (y) => { const w = y < waistY ? THREE.MathUtils.lerp(base, waistW, y / waistY) : THREE.MathUtils.lerp(waistW, topW, (y - waistY) / (H - waistY)); return w / 2; };
@@ -337,8 +341,9 @@ export function latticeTower(b, H = 46, base = 9) {
       const tip = [side * reach, y, 0];
       b.strut([side * hw, y, 0.9], tip, r * 0.9, mat); b.strut([side * hw, y, -0.9], tip, r * 0.9, mat);
       b.strut([side * hw, y + 2.2, 0], tip, r * 0.7, mat);
-      // suspension insulator string (hangs 3.4 m)
-      insulator(b, tip[0], y - 3.6, 0, 3.4, 0.16, MAT.polymer, { sheds: 12 });
+      // suspension insulator string (hangs 3.4 m from 0.2 m under the arm to the clamp)
+      if (string) b.merge(string, _hang.makeTranslation(tip[0], y - 0.2, 0).multiply(_hangR).multiply(_hangS.makeScale(1.2, 1.2, 1.2)));
+      else insulator(b, tip[0], y - 3.6, 0, 3.4, 0.16, MAT.polymer, { sheds: 12 });
       tips.push([tip[0], y - 3.8, 0]);
     }
   });
