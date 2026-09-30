@@ -369,8 +369,8 @@ function serviceFace(B, y, z, heavy, kind) {
   for (const x of [-0.204, 0.194]) {
     if (gold) {
       // bent pull handle: two standoffs and a proud grip bar
-      for (const dy of [-0.013, 0.013]) B.box(0.008, 0.005, 0.014, TRIM, x, y + dy, z + 0.007);
-      rbox(B, 0.011, U * 0.72, 0.006, TRIM, x, y, z + 0.016, { r: 0.35 });
+      for (const dy of [-0.013, 0.013]) B.box(0.008, 0.005, 0.016, TRIM, x, y + dy, z + 0.008);
+      rbox(B, 0.011, U * 0.72, 0.006, TRIM, x, y, z + 0.0185, { r: 0.35 });
       continue;
     }
     rbox(B, 0.009, U * 0.57, 0.004, COLLAR, x, y, z + 0.004, { r: 0.22 });
@@ -691,8 +691,8 @@ function buildNVL({ quality, model, state }) {
     rbox(S, 0.06, spanH, cartD, CART, x, spanMid, cartC, { r: 0.05 });
     for (const s of [-1, 1]) {
       // folded rear flange and riveted spine rail on each side
-      N.box(0.003, spanH - 0.01, 0.014, COLLAR, x + s * 0.0315, spanMid, cartC - cartD / 2 + 0.008);
-      if (heavy) for (let y = spanLo + 0.04; y < spanHi - 0.02; y += 0.09) N.cylX(0.0022, 0.004, MAT.galv, x + s * 0.0332, y, cartC - cartD / 2 + 0.008, 8);
+      N.box(0.002, spanH - 0.01, 0.014, COLLAR, x + s * 0.0305, spanMid, cartC - cartD / 2 + 0.008);
+      if (heavy && Math.abs(x + s * 0.03) < 0.22) for (let y = spanLo + 0.04; y < spanHi - 0.02; y += 0.09) N.cylX(0.0022, 0.004, MAT.galv, x + s * 0.0325, y, cartC - cartD / 2 + 0.008, 8);
     }
     // A slotted window every four units shows the packed cable bundle. It is
     // flush with the rear face so the depth-tested NVLink cores stay clear.
@@ -735,11 +735,11 @@ function buildNVL({ quality, model, state }) {
   const mTop = bbTop + 0.1, mBot = trayY(3) - 0.08, mMid = (mTop + mBot) / 2, mLen = mTop - mBot;
   mX.forEach((x, side) => {
     const band = side ? MAT.pipeRed : MAT.pipeBlue, out = Math.sign(x);
-    rbox(S, 0.05, mLen, 0.05, STAINLESS, x, mMid, mZ, { r: 0.12 });
+    rbox(S, 0.045, mLen, 0.048, STAINLESS, x, mMid, mZ, { r: 0.12 });
     for (const y of [mTop, mBot]) rbox(N, 0.056, 0.012, 0.056, STAINLESS, x, y, mZ, { r: 0.3 });              // welded end caps
     N.cyl(0.006, 0.02, MAT.galv, x, mTop + 0.016, mZ, 10); N.cyl(0.009, 0.008, band, x, mTop + 0.03, mZ, 12);   // bleed valve
     N.box(0.052, 0.07, 0.002, band, x, mTop - 0.06, mZ + 0.0265);                                               // supply / return label
-    for (const y of [mBot + 0.06, mTop - 0.14]) N.box(0.0525, 0.018, 0.0525, band, x, y, mZ);                  // colored identification bands
+    for (const y of [mBot + 0.06, mTop - 0.14]) N.box(0.0475, 0.018, 0.0505, band, x, y, mZ);                  // colored identification bands
     for (let y = mBot + 0.12; y < mTop - 0.05; y += 0.5) N.box(0.03, 0.022, 0.04, MAT.darkSteel, x + out * 0.035, y, mZ);  // mounting bracket to the post
   });
   layout.forEach((k, i) => {
