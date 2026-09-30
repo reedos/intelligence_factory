@@ -622,17 +622,17 @@ describe('twin-port authored module correction', () => {
       for (let i=1;i<8;i++) expect(zs[i-1]-zs[i]).toBeCloseTo(.00079 * .7, 8);
     }
   });
-  it('maps each port to MPO positions 1–4 TX and 9–12 RX with physically separated fiber crossings', () => {
+  it('maps each vertical ferrule to the MSA dual-MPO channel orientation with physically separated fiber crossings', () => {
     const routes=new Map(metadata.routes.map(r=>[r.name,r]));
-    for(let e=0;e<2;e++){
-      const center=e===0?.0051:-.0051;
-      const fibers=[];
-      for(let j=0;j<4;j++)for(const prefix of ['TX','RX']){
-        const r=routes.get(`${prefix} glass fiber ${String(e*4+j+1).padStart(2,'0')}`)!;
-        const position=(prefix==='TX'?j:8+j);
-        expect(r.points.at(-1)![2]).toBeCloseTo(center+.001375-position*.00025,8);
-        fibers.push(r.points);
-      }
+    // OSFP MSA Rev 5.22 Fig 14-48: connector 1 (+Z) RX1-4 top, TX4-TX1 bottom;
+    // connector 2 (-Z) TX5-8 top, RX8-RX5 bottom; positions 5-8 from the top are dark.
+    for(let lane=1;lane<=8;lane++)for(const prefix of ['TX','RX']){
+      const e=lane<=4?0:1;
+      const k=e===0?(prefix==='RX'?lane-1:12-lane):(prefix==='TX'?lane-5:16-lane);
+      const end=routes.get(`${prefix} glass fiber ${String(lane).padStart(2,'0')}`)!.points.at(-1)!;
+      expect(end[2]).toBeCloseTo(e===0?.005:-.005,8);
+      expect(end[1]).toBeCloseTo(.00705+(5.5-k)*.00025,8);
+      expect(k<4||k>=8).toBe(true);
     }
     const fibers = metadata.routes.filter(r => /^(TX|RX) glass fiber/.test(r.name));
     // Check the complete 3D segment geometry, including crossings between ports.

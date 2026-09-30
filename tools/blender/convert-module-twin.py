@@ -4,7 +4,7 @@ Eight TX lanes occupy one bank, eight RX lanes the other; analog ICs and
 placement are representative, not a vendor teardown. SI metres, glTF Y up.
 Run with Blender --background --python tools/blender/convert-module-twin.py.
 """
-import bpy,json,struct,math,shutil
+import bpy,bmesh,json,struct,math,shutil
 from pathlib import Path
 from mathutils import Vector
 ROOT=Path(__file__).resolve().parents[2]
@@ -46,6 +46,10 @@ for o in bpy.data.objects['PART_DCDC'].children_recursive:
 for name in ['PART_BOARD__05','PART_BOARD__07']:
  if name in bpy.data.objects:bpy.data.objects.remove(bpy.data.objects[name],do_unlink=True)
 
+# Twin MPO receptacles: 10.0 mm centre pitch (MSA Fig 14-48), vertical MT
+# ferrule 6.4 x 2.5 mm with 12 fibre positions at 0.25 mm. Body depth and shape
+# are representative; no receptacle internals are published.
+MPO_Z=[.005,-.005];MPO_Y=.00705;MPO_PITCH=.00025;MPO_FERRULE_BACK=.0470;MPO_FERRULE_FACE=.0503
 def group(name,parent=board):
  o=bpy.data.objects.new(name,None);bpy.context.collection.objects.link(o);o.parent=parent;return o
 def remove_children(g):
@@ -96,6 +100,8 @@ lpo=group('LPO_BYPASS');bonds=bpy.data.objects['PART_BONDS'];traces=bpy.data.obj
 # Build physical conductors and metadata together: electrical and light never exchange materials.
 routes=[];parts={};contacts={c['signal']:c for c in meta['contacts']};host_vias=[]
 via_group=group('HOST_SIGNAL_VIAS')
+# Six-sided conductors: indistinguishable from eight at the closest camera, a quarter fewer triangles.
+SIDES=6
 def route(name,points,mat,radius,parent,engine=None):
  points=[list(p) for p in points];r={'name':name,'assembly':'02_BOARD','points':points}
  if engine is not None:r['engine']=engine+1
@@ -108,9 +114,9 @@ def route(name,points,mat,radius,parent,engine=None):
   if u.length<.1:u=d.cross(Vector((0,1,0)))
   u.normalize();v=d.cross(u);base=len(vs)
   for p in [a,b]:
-   for k in range(8):vs.append(tuple(p+radius*(math.cos(k*math.tau/8)*u+math.sin(k*math.tau/8)*v)))
-  for k in range(8):n=(k+1)%8;fs.append((base+k,base+n,base+8+n,base+8+k))
-  fs.extend([tuple(base+k for k in range(7,-1,-1)),tuple(base+8+k for k in range(8))])
+   for k in range(SIDES):vs.append(tuple(p+radius*(math.cos(k*math.tau/SIDES)*u+math.sin(k*math.tau/SIDES)*v)))
+  for k in range(SIDES):n=(k+1)%SIDES;fs.append((base+k,base+n,base+SIDES+n,base+SIDES+k))
+  fs.extend([tuple(base+k for k in range(SIDES-1,-1,-1)),tuple(base+SIDES+k for k in range(SIDES))])
 for i in range(8):
  e=i//4;tx=.00665-i*.00079;rx=-.001-i*.00079;num=f'{i+1:02d}'
  for prefix,z in [('TX',tx),('RX',rx)]:
@@ -121,7 +127,11 @@ for i in range(8):
    route(name,points,M[13 if prefix=='TX' else 14] if optical else M[5 if 'bond' in name else 6],.000028 if optical else .000012,bonds if 'bond' in name else optics,e)
   # Smooth fiber banks fan out to each port. RX arches above TX so crossings
   # in plan view remain separate glass strands, never optical junctions.
-  previous=old[f'{prefix} glass fiber {num}']['points'];start=[.0334,.00395,z];end=previous[-1]
+  # Vertical MT ferrules, OSFP MSA Rev 5.22 Fig 14-48: connector 1 (+Z, left
+  # from the front) carries RX1-4 at the top and TX1-4 at the bottom; connector 2
+  # carries TX5-8 at the top and RX5-8 at the bottom. The four middle positions stay dark.
+  k=(i if prefix=='RX' else 11-i) if e==0 else (i-4 if prefix=='TX' else 15-i)
+  start=[.0334,.00395,z];end=[MPO_FERRULE_BACK,MPO_Y+(5.5-k)*MPO_PITCH,MPO_Z[e]]
   points=[]
   for k in range(25):
    t=k/24;u=t*t*(3-2*t);points.append([start[0]+(end[0]-start[0])*t,start[1]+(end[1]-start[1])*u+(.00055 if prefix=='TX' else .0020)*math.sin(math.pi*t),start[2]+(end[2]-start[2])*u])
@@ -161,6 +171,176 @@ for index,p in enumerate(host_vias):
  obj=bpy.data.objects.new(f'Signal via {index+1}',mesh);bpy.context.collection.objects.link(obj);obj.parent=via_group;obj.data.materials.append(M[5]);obj['authoredStatic']=True
 for (parent,mat),(vs,fs) in parts.items():
  mesh=bpy.data.meshes.new('Authored routes');mesh.from_pydata(vs,[],fs);mesh.update();o=bpy.data.objects.new(parent+' '+mat,mesh);bpy.context.collection.objects.link(o);o.parent=bpy.data.objects[parent];o.data.materials.append(bpy.data.materials[mat]);o['authoredStatic']=True
+# ---- Optical nose: full-height IHS nose with a saddle, twin vertical MPO receptacles.
+# NVIDIA MMS4A00 datasheet p.16 (Option 2) shows the 13.00 mm body continuing over
+# the nose after a concave saddle, and a port view with two vertical ferrules.
+# Saddle depth/width, wall thickness and bezel shape are representative.
+def mesh_obj(name,verts,faces,mat,parent,recalc=True):
+ me=bpy.data.meshes.new(name);me.from_pydata([tuple(B(v)) for v in verts],[],faces);me.update()
+ if recalc:bm=bmesh.new();bm.from_mesh(me);bmesh.ops.recalc_face_normals(bm,faces=bm.faces);bm.to_mesh(me);bm.free()
+ o=bpy.data.objects.new(name,me);bpy.context.collection.objects.link(o);o.parent=parent;o.data.materials.append(mat);o['authoredStatic']=True
+ return o
+def extrude_profile(name,profile,z0,z1,mat,parent):
+ n=len(profile);verts=[(x,y,z0) for x,y in profile]+[(x,y,z1) for x,y in profile]
+ faces=[tuple(range(n)),tuple(range(2*n-1,n-1,-1))]+[(k,(k+1)%n,n+(k+1)%n,n+k) for k in range(n)]
+ return mesh_obj(name,verts,faces,mat,parent)
+def cut(target,center,dims):
+ c=box('Temporary cut',center,dims,M[4],target.parent,0)
+ bpy.context.view_layer.objects.active=target
+ mod=target.modifiers.new('cut','BOOLEAN');mod.operation='DIFFERENCE';mod.object=c;mod.solver='EXACT'
+ bpy.ops.object.modifier_apply(modifier=mod.name);bpy.data.objects.remove(c,do_unlink=True)
+def bevel(o,width,segments=2):
+ bpy.context.view_layer.objects.active=o
+ mod=o.modifiers.new('Manufactured edge radius','BEVEL');mod.width=width;mod.segments=segments;mod.limit_method='ANGLE'
+ bpy.ops.object.modifier_apply(modifier=mod.name)
+def disc(verts,faces,x,y,z,r,n=12):
+ b=len(verts)
+ for k in range(n):t=k*math.tau/n;verts.append((x,y+r*math.sin(t),z-r*math.cos(t)))
+ faces.append(tuple(b+k for k in range(n)))
+NOSE_START=.0259;SADDLE_END=.0351;NOSE_END=.0539;TOP=.0130;HALF=.01129
+# Retire the reference's low nose plate: collapse its vertices into the new
+# nose solid, then merge the resulting zero-area faces away.
+cover=bpy.data.objects['04_COVER']
+for o in [c for c in cover.children if c.type=='MESH']:
+ mats=[m.name for m in o.data.materials]
+ if any(n.startswith('03 |') for n in mats):bpy.data.objects.remove(o,do_unlink=True);continue
+ if any(n.startswith(('07 |','17 |')) for n in mats):continue
+ inv=o.matrix_world.inverted();moved=set()
+ for v in o.data.vertices:
+  q=list(G(o.matrix_world@v.co))
+  if q[0]>.0275:q[0]=.0262;v.co=inv@B(q);moved.add(v.index)
+ if moved:
+  # Faces wholly in the old nose go; long rails keep their rear part, ending inside the new nose.
+  bm=bmesh.new();bm.from_mesh(o.data);bm.verts.ensure_lookup_table()
+  bmesh.ops.delete(bm,geom=[f for f in bm.faces if all(v.index in moved for v in f.verts)],context='FACES')
+  bmesh.ops.delete(bm,geom=[v for v in bm.verts if not v.link_faces],context='VERTS')
+  bmesh.ops.remove_doubles(bm,verts=bm.verts,dist=1e-7)
+  bmesh.ops.dissolve_degenerate(bm,edges=bm.edges,dist=1e-7);bm.to_mesh(o.data);bm.free()
+# The label's printing is drawn at runtime as a texture (module-art-direction.js);
+# the reference's geometry text and barcode (about 6k triangles) are removed.
+for o in [c for c in cover.children if c.type=='MESH' and any(m.name.startswith('07 |') for m in c.data.materials)]:bpy.data.objects.remove(o,do_unlink=True)
+# The label plate moves onto the raised nose.
+for o in [c for c in cover.children if c.type=='MESH' and any(m.name.startswith('17 |') for m in c.data.materials)]:
+ inv=o.matrix_world.inverted()
+ for v in o.data.vertices:
+  q=list(G(o.matrix_world@v.co));q=[.0445+(q[0]-.0413)*.8,TOP-.00013+(q[1]-.00837),q[2]*.8];v.co=inv@B(q)
+profile=[(NOSE_END,.00535),(NOSE_START,.00535),(NOSE_START,TOP-.00005)]
+for k in range(1,24):
+ s_=k/24;x=NOSE_START+(SADDLE_END-NOSE_START)*s_;profile.append((x,TOP-.0040*(1-(2*s_-1)**2)**1.4))
+profile+= [(SADDLE_END,TOP),(NOSE_END-.0004,TOP),(NOSE_END,TOP-.0004)]
+nose=extrude_profile('04_COVER optical nose',profile,-HALF,HALF,M[1],cover)
+cut(nose,(.0445,TOP,0),(.0164,.0003,.0134))  # label recess, 0.15 mm deep
+cut(nose,((SADDLE_END+.0005+.056)/2,.0085,0),(.056-SADDLE_END-.0005,.0066,2*(HALF-.0007)))
+bevel(nose,.00022)
+# Fin field: the reference's 21 fins at 0.96 mm pitch alias into moire at the
+# overview distance. Re-cut 16 fins at 1.3 mm pitch, 0.5 mm thick, rounded tips,
+# rooted 7.32 mm up like the reference fins, on the same 13.0 mm envelope.
+# Fin count and pitch are representative (not published).
+removed=0
+for fins_src in [c for c in cover.children if c.type=='MESH' and c.data.materials[0].name.startswith('01 |')]:
+ bm=bmesh.new();bm.from_mesh(fins_src.data);mw=fins_src.matrix_world;doomed=[]
+ for f in bm.faces:
+  ps=[G(mw@q.co) for q in f.verts]
+  if all(abs(p[2])<=.009805 and -.04402<=p[0]<=.02502 for p in ps) and max(p[1] for p in ps)>.01005:doomed.append(f)
+ bmesh.ops.delete(bm,geom=doomed,context='FACES');bm.to_mesh(fins_src.data);bm.free();removed+=len(doomed)
+print('FINS REMOVED FACES',removed)
+for k in range(16):
+ fin=box('Heat sink fin',(-.0095,.01016,-.00975+k*.0013),(.069,.00568,.0005),M[1],cover,0)
+ bevel(fin,.00015,2)
+# Gap pad: one 1.0 mm silicone slab with rounded edges over the 10.3 mm die, replacing
+# the reference's 2.24 mm two-tone block. Thickness and colour are representative.
+pad_group=bpy.data.objects['SHARED_03_THERMAL']
+for o in [c for c in pad_group.children if c.type=='MESH']:bpy.data.objects.remove(o,do_unlink=True)
+pad_mat=M[16];pm=pad_mat.node_tree.nodes.get('Principled BSDF')
+pm.inputs['Base Color'].default_value=(.105,.115,.16,1);pm.inputs['Roughness'].default_value=.85;pad_mat.diffuse_color=(.105,.115,.16,1)
+pad=box('Thermal gap pad',(-.016,.00456,0),(.0108,.0010,.0108),pad_mat,pad_group,0);bevel(pad,.0002,3)
+for f in pad.data.polygons:f.use_smooth=True
+# Flip-chip underfill: a thin darker fillet around the 10.3 mm die (representative).
+fillet=box('DSP underfill fillet',(-.016,.00342,0),(.0107,.00024,.0107),M[7],bpy.data.objects['SHARED_PART_DSP'],0);bevel(fillet,.00008,2)
+# Inductor markings: the reference font set '1R0' so that it read 'IRO'. Re-set it
+# in a face with a flagged 1 and a slashed zero where available.
+dcdc=bpy.data.objects['PART_DCDC']
+for o in [c for c in dcdc.children if c.type=='MESH' and c.data.materials[0].name.startswith('09 |')]:bpy.data.objects.remove(o,do_unlink=True)
+mark_font=None
+for path in ['C:/Windows/Fonts/consola.ttf','/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf']:
+ if Path(path).exists():mark_font=bpy.data.fonts.load(path,check_existing=True);break
+for ix in [-.036,-.031]:
+ for iz in [.0055,-.0055]:
+  cu=bpy.data.curves.new('Inductor marking','FONT');cu.body='1R0';cu.align_x='CENTER';cu.align_y='CENTER';cu.size=.0009;cu.extrude=.000002
+  if mark_font:cu.font=mark_font
+  mk=bpy.data.objects.new('Inductor marking 1R0',cu);bpy.context.collection.objects.link(mk);mk.location=B((ix,.004423,iz+.0001))
+  mk.data.materials.append(M[9]);bpy.ops.object.select_all(action='DESELECT');mk.select_set(True);bpy.context.view_layer.objects.active=mk;bpy.ops.object.convert(target='MESH')
+  w_=mk.matrix_world.copy();mk.parent=dcdc;mk.matrix_world=w_;mk['authoredStatic']=True
+# Board fiducials: bare-copper dots in open solder mask, as pick-and-place targets (representative).
+# Existing materials keep the draw-call count down: gold finish dots in dark mask openings.
+fv,ff,rv,rf=[],[],[],[]
+def flat_disc(vs,fs,x,y,z,r,n=24):
+ b=len(vs)
+ for k in range(n):t=k*math.tau/n;vs.append((x+r*math.cos(t),y,z-r*math.sin(t)))
+ fs.append(tuple(b+k for k in range(n)))
+for fx,fz in [(-.0425,.0090),(-.0425,-.0090),(.0385,.0092)]:
+ flat_disc(fv,ff,fx,.002716,fz,.0005);flat_disc(rv,rf,fx,.002708,fz,.0010)
+mesh_obj('Board fiducials',fv,ff,M[5],bpy.data.objects['PART_BOARD'],False)
+mesh_obj('Board fiducial clearances',rv,rf,M[7],bpy.data.objects['PART_BOARD'],False)
+# Receptacles, ferrules and bezel ride with the board, where the old ports sat.
+mpo=bpy.data.objects['PART_MPO']
+for o in [c for c in mpo.children if c.type=='MESH']:
+ mats=[m.name for m in o.data.materials]
+ if any(n.startswith('10 |') for n in mats):
+  bm=bmesh.new();bm.from_mesh(o.data);mw=o.matrix_world
+  far=[v for v in bm.verts if G(mw@v.co)[0]>.040];bmesh.ops.delete(bm,geom=far,context='VERTS');bm.to_mesh(o.data);bm.free()
+ else:bpy.data.objects.remove(o,do_unlink=True)
+port=M[11];pn=port.node_tree.nodes.get('Principled BSDF')
+pn.inputs['Base Color'].default_value=(.028,.029,.033,1);pn.inputs['Roughness'].default_value=.55;port.diffuse_color=(.028,.029,.033,1)
+hole=M[7]  # unlit positions: dark molded finish, no extra material
+bez=box('MPO bezel',(.05345,.0065,0),(.0005,.0104,.0212),port,mpo,0)
+for e,zc in enumerate(MPO_Z):
+ body=box(f'MPO receptacle {e+1}',(.04875,.007175,zc),(.0085,.00885,.0086),port,mpo,0)
+ cut(body,(.0515,MPO_Y,zc),(.0040,.0074,.0060))
+ bevel(body,.00018)
+ cut(bez,(.05345,MPO_Y,zc),(.0012,.0074,.0060))
+ cut(bez,(.05370,.01135,zc),(.0004,.0006,.0024))
+ box(f'MT ferrule {e+1}',((MPO_FERRULE_BACK+MPO_FERRULE_FACE)/2,MPO_Y,zc),(MPO_FERRULE_FACE-MPO_FERRULE_BACK,.0064,.0025),M[10],mpo,.00006)
+ # Representative alignment sleeve around the ferrule and a latch arm on each side of the opening.
+ sleeve=box(f'MPO sleeve {e+1}',(.05005,MPO_Y,zc),(.0011,.0074,.0038),M[7],mpo,0)
+ cut(sleeve,(.05005,MPO_Y,zc),(.0014,.0066,.0027));bevel(sleeve,.00008)
+ for side in [-1,1]:box(f'MPO latch arm {e+1}',(.0514,MPO_Y,zc+side*.00282),(.0026,.0050,.00022),M[2],mpo,.00004)
+ lit={13:([],[]),14:([],[]),18:([],[])}
+ for k in range(12):
+  if 4<=k<8:key=18
+  elif e==0:key=14 if k<4 else 13
+  else:key=13 if k<4 else 14
+  disc(*lit[key],MPO_FERRULE_FACE+.00002,MPO_Y+(5.5-k)*MPO_PITCH,zc,.00009)
+ for sy in [-1,1]:disc(*lit[18],MPO_FERRULE_FACE+.00002,MPO_Y+sy*.0023,zc,.00035,16)
+ for key,(vs,fs) in lit.items():
+  mesh_obj(f'MPO face {e+1} {key}',vs,fs,hole if key==18 else M[key],mpo,False)
+bevel(bez,.00012)
+# Pull tab: NVIDIA MMS4A00 Option 2 drawing (datasheet p.16) gives 24.65 mm reach
+# beyond the nose, 18.58 mm outer width and a raised grip end (14.11 mm); single-mode
+# yellow per p.22. The swept strap section and the S-rise profile are representative.
+tab=bpy.data.objects['05_PULL_TAB']
+for o in [c for c in tab.children if c.type=='MESH' and c.data.materials[0].name.startswith('12 |')]:bpy.data.objects.remove(o,do_unlink=True)
+ochre=M[12];on=ochre.node_tree.nodes.get('Principled BSDF')
+on.inputs['Base Color'].default_value=(.85,.72,.08,1);on.inputs['Roughness'].default_value=.5;on.inputs['Metallic'].default_value=0;ochre.diffuse_color=(.85,.72,.08,1)
+W_,T_=.0022,.0012;ZA=.01858/2-W_/2;TIP=NOSE_END+.02465;CX=TIP-W_/2-ZA;Y0,Y1=.0035,.0124
+def rise(x):
+ s_=min(1,max(0,(x-.0565)/(CX-.0565)));return Y0+(Y1-Y0)*s_*s_*(3-2*s_)
+path=[]
+for k in range(25):x=.0515+(CX-.0515)*k/24;path.append(Vector((x,rise(x),ZA)))
+for k in range(1,24):a_=math.pi/2-math.pi*k/24;path.append(Vector((CX+ZA*math.cos(a_),Y1,ZA*math.sin(a_))))
+for k in range(24,-1,-1):x=.0515+(CX-.0515)*k/24;path.append(Vector((x,rise(x),-ZA)))
+ring=[];R_=.0003
+for cx_,cy_ in [(1,1),(-1,1),(-1,-1),(1,-1)]:
+ for k in range(3):a_=math.atan2(cy_,cx_)-math.pi/4+k*math.pi/4;ring.append((cx_*(W_/2-R_)+R_*math.cos(a_),cy_*(T_/2-R_)+R_*math.sin(a_)))
+verts=[];faces=[];n_=len(ring)
+for i,p_ in enumerate(path):
+ t_=(path[min(i+1,len(path)-1)]-path[max(i-1,0)]).normalized();w_=Vector((0,1,0)).cross(t_).normalized();u_=t_.cross(w_).normalized()
+ for a_,b_ in ring:verts.append(tuple(p_+w_*a_+u_*b_))
+ if i:faces+=[((i-1)*n_+k,(i-1)*n_+(k+1)%n_,i*n_+(k+1)%n_,i*n_+k) for k in range(n_)]
+faces+=[tuple(range(n_-1,-1,-1)),tuple(range((len(path)-1)*n_,len(path)*n_))]
+strap=mesh_obj('05_PULL_TAB swept strap',verts,faces,ochre,tab)
+for f in strap.data.polygons[:-2]:f.use_smooth=True
+meta['opticalPorts']={'pitchMm':10.0,'orientation':'vertical','ferruleMm':[6.4,2.5],'positions':12,'mapping':'MSA Rev 5.22 Fig 14-48'}
 # Batch manufacturable details per engine/material, retaining meaningful assembly groups.
 for parent in [o for o in list(bpy.data.objects) if o.type=='EMPTY']:
  meshes=[o for o in parent.children if o.type=='MESH']
@@ -173,9 +353,10 @@ for parent in [o for o in list(bpy.data.objects) if o.type=='EMPTY']:
   bpy.context.view_layer.objects.active=same[0];bpy.ops.object.join();bpy.context.object.name=parent.name+' '+mat.name
 marking='DSP\n8 × 200G\n1.6T'
 curve=bpy.data.curves.new('Shared DSP capacity marking','FONT')
-curve.body=marking;curve.align_x='CENTER';curve.align_y='CENTER';curve.size=.0013;curve.space_line=1.15;curve.extrude=.000002
+curve.body=marking;curve.align_x='CENTER';curve.align_y='CENTER';curve.size=.0009;curve.space_line=1.15;curve.extrude=.000002
 obj=bpy.data.objects.new('SHARED_DSP_CAPACITY',curve);bpy.context.collection.objects.link(obj)
-obj.location=B((-.016,.004075,0));obj.data.materials.append(M[9])
+# Set toward the die's -Z edge, clear of the part pin that marks the die centre.
+obj.location=B((-.016,.004075,-.0029));obj.data.materials.append(M[9])
 bpy.ops.object.select_all(action='DESELECT');obj.select_set(True);bpy.context.view_layer.objects.active=obj;bpy.ops.object.convert(target='MESH')
 world=obj.matrix_world.copy();obj.parent=bpy.data.objects['SHARED_PART_DSP'];obj.matrix_world=world
 obj['authoredStatic']=True;obj['capacityMarking']=marking;obj['lanesPerDirection']=8;obj['nominalLaneGbps']=200

@@ -10,13 +10,13 @@ import { hardwareBounds, componentView } from '../app/housing-frame.js';
 let cached, pending;
 const CM = 100;
 const EXPLODED = {
-  '01_BASE': [0, 0, 0], '02_BOARD': [0, 1.5, 0], '03_THERMAL': [0, 2.6, 0],
+  '01_BASE': [0, 0, 0], '02_BOARD': [0, 1.5, 0], '03_THERMAL': [0, 2.8, 0],
   '04_COVER': [0, 4, 0], '05_PULL_TAB': [0, 0, 0],
 };
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
 
-export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=edge-connected9`) {
+export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=vertical-mpo10`) {
   if (cached) return Promise.resolve(cached);
   if (!pending) pending = new GLTFLoader().loadAsync(url).then(gltf => {
     cached = gltf;
@@ -115,6 +115,9 @@ export function build({ quality, state }) {
     // Put the glow into moving signals while keeping Studio's subdued static
     // materials and high bloom threshold. Smaller cores preserve lane separation.
     const finish = matched ? {} : { size: style.size * (kind === 'cw' ? 0.7 : 0.8), k: style.k * 1.35, trailR: 0.0045, trailK: 0.25 };
+    // Power rails read as dimly as the light paths once did: give them a lit trace and
+    // brighter, more frequent pulses so the power layer carries the same visual weight.
+    if (!matched && kind === 'power') Object.assign(finish, { size: style.size * 0.95, k: style.k * 2.3, count: 6, trail: true, trailR: 0.009, trailK: 0.8 });
     const f = flow(path, cls, { ...style, ...finish, ...options });
     // Diagnostics describe real runtime paths, including their physical source.
     f.route = { id, source, assembly, mode, kind, variant, from, to,
@@ -194,7 +197,7 @@ export function build({ quality, state }) {
       mode: 'power', kind: 'power', from: 'dcdc', to: target });
   }
   const dspAnchor = anchorWorld('dsp'), shellAnchor = anchorWorld('shell');
-  const padY = EXPLODED['03_THERMAL'][1] + 0.518;
+  const padY = EXPLODED['03_THERMAL'][1] + 0.456;
   const coverY = EXPLODED['04_COVER'][1] + 0.675, exhaustY = Math.max(shellAnchor[1] + 0.3, 5.6);
   for (let i = 0; i < 6; i++) {
     const x = dspAnchor[0] + (i % 3 - 1) * 0.22, z = dspAnchor[2] + (Math.floor(i / 3) - 0.5) * 0.4;
@@ -231,6 +234,46 @@ export function build({ quality, state }) {
     };
     if (node.material) node.material = Array.isArray(node.material) ? node.material.map(isolate) : isolate(node.material);
   });
+  // Heat mode warms the finned cover itself, brightest over the DSP and toward
+  // the fin roots: a qualitative cue, not a temperature map.
+  const cover = object('04_COVER'), shellHeat = { value: 0 }, coverBase = { value: 0 }, heatX = { value: dspAnchor[0] };
+  const shellMaterials = new Map();
+  cover.traverse(node => {
+    if (!node.isMesh || !/Satin nickel aluminium/i.test(node.material?.name || '')) return;
+    if (!shellMaterials.has(node.material)) {
+      const m = node.material.clone();
+      m.emissive.set(0xff6a1a); m.emissiveIntensity = 1;
+      m.onBeforeCompile = shader => {
+        Object.assign(shader.uniforms, { ifxShellHeat: shellHeat, ifxCoverBase: coverBase,
+          ifxHeatX: heatX });
+        shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vIfxWorld;')
+          .replace('#include <project_vertex>', '#include <project_vertex>\nvIfxWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+        shader.fragmentShader = shader.fragmentShader.replace('#include <common>',
+          '#include <common>\nvarying vec3 vIfxWorld;\nuniform float ifxShellHeat, ifxCoverBase, ifxHeatX;')
+          .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+          float ifxDx = (vIfxWorld.x - ifxHeatX) / 2.6;
+          float ifxRise = clamp((vIfxWorld.y - ifxCoverBase) / 0.7, 0.0, 1.0);
+          totalEmissiveRadiance *= ifxShellHeat * (0.18 + 0.82 * exp(-ifxDx * ifxDx)) * (1.0 - 0.6 * ifxRise);`);
+      };
+      m.customProgramCacheKey = () => 'ifx-module-shell-heat';
+      shellMaterials.set(node.material, m);
+    }
+    node.material = shellMaterials.get(node.material);
+  });
+  // The driver, TIA and laser sources get their own, dimmer heat glow so every
+  // heat arrow starts at a warm source; their silicon is shared with the PIC otherwise.
+  const analogHeat = [];
+  for (const [name, pattern] of [['PART_DRIVER', /silicon/i], ['PART_TIA', /silicon/i], ['PART_LASERS', /Molded packages/i]]) {
+    const isolated = new Map();
+    object(name).traverse(node => {
+      if (!node.isMesh || !pattern.test(node.material?.name || '')) return;
+      if (!isolated.has(node.material)) {
+        const copy = node.material.clone(); copy.emissive.set(0xff6a1a); copy.emissiveIntensity = 0;
+        isolated.set(node.material, copy); analogHeat.push(copy);
+      }
+      node.material = isolated.get(node.material);
+    });
+  }
   const ghost = new THREE.Group(); boardOverlay.add(ghost);
   {
     const outline = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.015, 1.5),
@@ -291,9 +334,9 @@ export function build({ quality, state }) {
       driver: [[-.65, 1.0, 2.3], [1.25, .35, 1.2]],
       lasers: [[-.65, .9, 2.2], [1.2, .45, 1.15]],
       mzm: [[.85, 1.1, 2.4], [2.0, .35, 1.4]],
-      mpo: [[2.4, 1.15, 1.7], [1.6, .8, 2.45]],
-      pd: [[.7, 1.0, -2.2], [1.3, .35, 1.2]],
-      tia: [[-.65, 1.0, -2.3], [1.25, .35, 1.2]],
+      mpo: [[2.7, .75, 1.15], [1.2, .95, 2.3]],
+      pd: [[1.25, 1.15, -1.0], [.55, .25, .8]],
+      tia: [[-.75, 1.3, -1.35], [.75, .3, .8]],
       shell: [[-2.5, 2.0, 4.0], [7.5, .7, 2.5]],
     })[name];
     hs[name] = { pos: p, view: componentView(p, offset, size) };
@@ -305,7 +348,7 @@ export function build({ quality, state }) {
     scene, flows, dataFlows, heatFlows, look,
     housingBounds: hardwareBounds(model),
     camera: { pos: quality.mobile ? [1.6, 13.5, 20.5] : [1.6, 12, 17.5], target: [0.5, 2.1, 0], near: 0.05, far: 300, min: 1.2, max: 40,
-      portrait: { pos: [1.2, 14.5, 19], target: [0.7, 2.3, 0.3] } },
+      portrait: { pos: [6.2, 11.5, 10], target: [1.1, 2.1, 0.2] } },
     hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers },
     dataHotspots: { fingers: hs.fingers, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers, mzm: hs.mzm, mpo: hs.mpo, pd: hs.pd, tia: hs.tia },
     heatHotspots: { dsp: hs.dsp, shell: hs.shell },
@@ -342,6 +385,11 @@ export function build({ quality, state }) {
         applyAssembly();
       }
       syncFlows();
+      // Without the DSP (LPO) the analog chips remain the sources, so the warm band moves and dims.
+      shellHeat.value = state.mode === 'heat' && amount === 1 ? (lpo ? 0.15 : 0.26) + 0.04 * Math.sin(t * 2) : 0;
+      heatX.value = lpo ? anchorWorld('driver')[0] : dspAnchor[0];
+      coverBase.value = cover.position.y * CM + 0.615;
+      for (const material of analogHeat) material.emissiveIntensity = state.mode === 'heat' ? 0.25 + 0.05 * Math.sin(t * 2 + 1) : 0;
       for (const material of heatMaterials) material.emissiveIntensity = state.mode === 'heat' && !lpo
         ? 0.5 + 0.08 * Math.sin(t * 2) : 0;
       return moving;

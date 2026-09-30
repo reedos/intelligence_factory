@@ -16,8 +16,9 @@ export const MODULE_LOOK = Object.freeze({
 // Unknown materials keep their original appearance so additions fail visibly
 // rather than silently inheriting the wrong physical treatment.
 const FINISHES = [
-  [/Satin nickel aluminium/i, { metalness: 0.84, roughness: 0.34, envMapIntensity: 0.9 }],
-  [/Machined edge highlights/i, { metalness: 0.94, roughness: 0.23, envMapIntensity: 1.0 }],
+  [/Satin nickel aluminium/i, { metalness: 0.84, roughness: 0.58, envMapIntensity: 0.9 }],
+  // Studio light panels mirrored in glossier shell chamfers read as rows of glowing beads.
+  [/Machined edge highlights/i, { metalness: 0.94, roughness: 0.42, envMapIntensity: 0.7 }],
   [/Dark anodized metal/i, { metalness: 0.75, roughness: 0.34, envMapIntensity: 0.85 }],
   [/Midnight green solder mask/i, { metalness: 0.06, roughness: 0.4, envMapIntensity: 0.55 }],
   [/Gold contacts and wire bonds/i, { metalness: 0.86, roughness: 0.27, envMapIntensity: 0.85 }],
@@ -26,13 +27,81 @@ const FINISHES = [
   [/Bare silicon/i, { metalness: 0.6, roughness: 0.25, envMapIntensity: 0.7 }],
   [/Silkscreen|Label stock/i, { metalness: 0, roughness: 0.68, envMapIntensity: 0.35 }],
   [/Connector ferrule/i, { metalness: 0, roughness: 0.48, envMapIntensity: 0.45 }],
-  [/Molded optical ports/i, { metalness: 0, roughness: 0.43, envMapIntensity: 0.5 }],
-  [/Pull tab ochre/i, { metalness: 0.02, roughness: 0.4, envMapIntensity: 0.6 }],
+  [/Molded optical ports/i, { metalness: 0, roughness: 0.55, envMapIntensity: 0.45 }],
+  [/Pull tab ochre/i, { metalness: 0, roughness: 0.5, envMapIntensity: 0.6 }],
   [/TX optical paths/i, { metalness: 0, roughness: 0.29, envMapIntensity: 0.6, emissiveIntensity: 0.12 }],
   [/RX optical paths/i, { metalness: 0, roughness: 0.29, envMapIntensity: 0.6, emissiveIntensity: 0.12 }],
   [/Laser carrier paths/i, { metalness: 0, roughness: 0.29, envMapIntensity: 0.6, emissiveIntensity: 0.14 }],
-  [/Thermal interface pad/i, { metalness: 0, roughness: 0.8, envMapIntensity: 0.3 }],
+  [/Thermal interface pad/i, { metalness: 0, roughness: 0.85, envMapIntensity: 0.35 }],
 ];
+
+// Silicone gap pads have a fine orange-peel surface. A tileable canvas normal
+// map adds it without textures in the asset; skipped where no DOM exists (tests).
+function orangePeelNormal() {
+  if (typeof document === 'undefined') return null;
+  const n = 128, h = new Float32Array(n * n);
+  let seed = 7;
+  const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let k = 0; k < 260; k++) {
+    const cx = rand() * n, cy = rand() * n, r = 2 + rand() * 4, a = 0.4 + rand() * 0.6;
+    for (let y = -8; y <= 8; y++) for (let x = -8; x <= 8; x++) {
+      const d = (x * x + y * y) / (r * r);
+      if (d < 3) h[((Math.floor(cy) + y + n) % n) * n + ((Math.floor(cx) + x + n) % n)] += a * Math.exp(-d);
+    }
+  }
+  const c = document.createElement('canvas'); c.width = c.height = n;
+  const g = c.getContext('2d'), img = g.createImageData(n, n), at = (x, y) => h[((y + n) % n) * n + ((x + n) % n)];
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const dx = (at(x + 1, y) - at(x - 1, y)) * 0.9, dy = (at(x, y + 1) - at(x, y - 1)) * 0.9;
+    const l = Math.hypot(dx, dy, 1), i = (y * n + x) * 4;
+    img.data[i] = (-dx / l * 0.5 + 0.5) * 255; img.data[i + 1] = (-dy / l * 0.5 + 0.5) * 255;
+    img.data[i + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(6, 6); t.anisotropy = 4;
+  return t;
+}
+
+// Representative cover label, printed as a texture on the authored label plate:
+// the rate names the same 2 × DR4 configuration as every caption. Not a vendor label.
+function labelTexture() {
+  if (typeof document === 'undefined') return null;
+  const w = 1024, h = 840, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.fillStyle = '#e9e8e2'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#16181c'; g.textBaseline = 'alphabetic';
+  g.font = '600 150px "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif'; g.fillText('OSFP', 70, 200);
+  g.font = '500 92px "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif'; g.fillText('1.6T  2×DR4', 70, 330);
+  g.font = '500 44px "IBM Plex Mono", Menlo, Consolas, monospace'; g.fillText('DESIGN STUDY · REPRESENTATIVE', 72, 410);
+  // Evenly weighted bars from a fixed sequence; no encoded data.
+  let x = 70, seed = 11;
+  const rand = () => (seed = (seed * 48271) % 2147483647) / 2147483647;
+  while (x < 690) { const bar = 5 + Math.floor(rand() * 3) * 5; g.fillRect(x, 480, bar, 250); x += bar + 5 + Math.floor(rand() * 3) * 5; }
+  // A 2D code block: a finder square in three corners plus a fixed pattern.
+  const cx = 740, cy = 480, cell = 12, n = 21;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const finder = (a, b) => i >= a && i < a + 7 && j >= b && j < b + 7;
+    const f = finder(0, 0) || finder(0, n - 7) || finder(n - 7, 0);
+    const ring = f && ((i % (n - 7)) === 1 || (j % (n - 7)) === 1 || (i % (n - 7)) === 5 || (j % (n - 7)) === 5) && !((i % (n - 7)) >= 2 && (i % (n - 7)) <= 4 && (j % (n - 7)) >= 2 && (j % (n - 7)) <= 4);
+    if (f ? !ring : rand() < 0.48) g.fillRect(cx + i * cell, cy + j * cell, cell, cell);
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  return t;
+}
+function printLabel(mesh) {
+  const tex = labelTexture();
+  if (!tex) return;
+  const geometry = mesh.geometry, position = geometry.attributes.position;
+  geometry.computeBoundingBox();
+  const { min, max } = geometry.boundingBox, uv = new Float32Array(position.count * 2);
+  for (let i = 0; i < position.count; i++) {
+    uv[i * 2] = (position.getX(i) - min.x) / (max.x - min.x);
+    uv[i * 2 + 1] = 1 - (position.getZ(i) - min.z) / (max.z - min.z);
+  }
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  mesh.material.map = tex; mesh.material.color.set(0xffffff); mesh.material.needsUpdate = true;
+}
 
 /** Apply only to a build-owned clone, never the cached glTF source. */
 export function applyArtDirection({ scene, model, quality = {} }) {
@@ -44,9 +113,15 @@ export function applyArtDirection({ scene, model, quality = {} }) {
       seen.add(material);
       const finish = FINISHES.find(([pattern]) => pattern.test(material.name));
       if (finish) Object.assign(material, finish[1]);
+      if (/Thermal interface pad/i.test(material.name) && !material.normalMap) {
+        const peel = orangePeelNormal();
+        if (peel) { material.normalMap = peel; material.normalScale.set(0.3, 0.3); material.needsUpdate = true; }
+      }
       if (quality.mobile && /Satin nickel aluminium|Machined edge highlights/i.test(material.name)) material.roughness = Math.max(material.roughness, 0.42);
     }
   });
+
+  model.traverse(object => { if (object.isMesh && /Label stock/i.test(object.material?.name || '')) printLabel(object); });
 
   // Preserve setup()'s one shadow map. The studio environment supplies broad
   // softbox reflections; these lights illuminate the board and expose bevels.

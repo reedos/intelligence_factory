@@ -75,7 +75,7 @@ describe('tours', () => {
   // no door went unnoticed. This inventory is written out by hand: every side-level card an Every part tour must
   // visit, per layer. The copper cables' door is the NVL72 rack's NVLink spine, so they are expected only there.
   const SIDE_EXPECTED = (nvl: boolean): Record<string, Record<string, string[]>> => ({
-    power: { module: ['fingers', 'dcdc', 'dsp', 'lasers'], cpo: ['asic', 'engine', 'els'], coherent: ['cdsp', 'itla', 'driver', 'cdm', 'icr', 'tia'], ...(nvl ? { copper: ['dac', 'acc', 'aec'] } : {}) },
+    power: { module: ['fingers', 'dcdc', 'dsp', 'driver', 'lasers'], cpo: ['asic', 'engine', 'els'], coherent: ['cdsp', 'itla', 'driver', 'cdm', 'icr', 'tia'], ...(nvl ? { copper: ['dac', 'acc', 'aec'] } : {}) },
     data: { module: ['fingers', 'dsp', 'driver', 'lasers', 'mzm', 'mpo', 'pd', 'tia'], cpo: ['asic', 'serdes', 'eic', 'rings', 'pd', 'els', 'fiberout'], coherent: ['cdsp', 'driver', 'cdm', 'itla', 'icr', 'tia', 'lc'], ...(nvl ? { copper: ['dac', 'acc', 'aec'] } : {}) },
     heat: { module: ['dsp', 'shell'], cpo: ['asic', 'coldplate'], coherent: ['cdsp', 'itla', 'driver', 'cdm', 'icr', 'tia'], ...(nvl ? { copper: ['acc', 'aec'] } : {}) },
   });
