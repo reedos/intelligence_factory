@@ -590,12 +590,25 @@ export function build({ quality, model }) {
   const gardenMotion = addCampusArchitecture({ scene, hallList, hallX0, hallX1, extra, quality, materials: architectureMaterials, authoredHall: authoredCampus });
   if (authoredCampus) addBlenderCampusArchitecture(scene, hallList, hallX0, hallX1, quality);
   S.slab(8, 3.6, 5, MAT.beige, -96, 0.15, 232); S.slab(10, 0.4, 7, MAT.roof, -96, 3.75, 232);
-  N.slab(0.3, 1.1, 10, MAT.orange, -110, 0.15, 226);
-  // swing gate at the south entry, where the access road meets the perimeter fence: two posts,
-  // one leaf swung open at an angle so the drive reads as staffed rather than sealed
+  // Barrier arm on the inbound lane beside the gatehouse: an operator housing at the lane edge and a
+  // 6 m red/white boom raised about 75 degrees, so the checkpoint reads as open and staffed (generic, representative).
+  const boomRed = new THREE.MeshStandardMaterial({ color: 0xc8322a, roughness: 0.45 });
+  const pivot = [-102.9, 1.12, 228.6], boomA = 75 * Math.PI / 180, boomDir = [-Math.cos(boomA), Math.sin(boomA), 0];
+  rslab(N, 0.42, 1.0, 0.42, MAT.white, pivot[0] + 0.12, 0.15, pivot[2], 0, 0.04);
+  N.cylX(0.09, 0.14, MAT.darkSteel, pivot[0] - 0.14, pivot[1], pivot[2], 12);
+  for (let i = 0; i < 8; i++) {
+    const at = t => pivot.map((v, k) => v + boomDir[k] * t);
+    N.strut(at(i * 0.75), at((i + 1) * 0.75), 0.055, i % 2 ? MAT.white : boomRed, 8);
+  }
+  N.cyl(0.05, 0.9, MAT.galv, -103.4, 0.6, 232.6, 8); N.slab(0.22, 0.3, 0.12, MAT.darkSteel, -103.4, 0.95, 232.6);   // card-reader pedestal
+  // swing gate at the south entry, where the access road meets the perimeter fence: two posts and
+  // one framed leaf swung open outward, so the drive reads as staffed rather than sealed
   for (const dx of [-6, 6]) N.cyl(0.1, 2.7, MAT.galv, -110 + dx, 1.35, 250, 8);
-  N.strut([-116, 2.6, 250], [-116, 1.35, 261.5], 0.045, MAT.galv, 6);
-  N.strut([-116, 1.35, 250], [-116, 1.35, 261.5], 0.045, MAT.galv, 6);
+  const leafEnd = 261.2;
+  for (const y of [0.35, 2.35]) N.strut([-116, y, 250.2], [-116, y, leafEnd], 0.045, MAT.galv, 6);
+  N.strut([-116, 0.35, leafEnd], [-116, 2.35, leafEnd], 0.045, MAT.galv, 6);
+  N.strut([-116, 0.35, 250.2], [-116, 2.35, leafEnd], 0.035, MAT.galv, 6);
+  for (let z = 252.2; z < leafEnd; z += 2) N.strut([-116, 0.35, z], [-116, 2.35, z], 0.025, MAT.galv, 4);
   // site lighting: pole heads on every light pole, plus warm lamps at the office and hall doors
   const lampItems = [];
   const streetLightPoles=[];
