@@ -686,6 +686,22 @@ body.scrolled .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--
   .topnav .sep { display: none; }
 }
 
+/* the story page's one way into the visualizer: a button in the top bar, on every width */
+.top-cta { flex: none; min-height: 38px; padding: 0 16px; gap: 8px; margin-left: 8px; background: var(--accent); border-color: var(--accent); color: #000; font-size: 11.5px; white-space: nowrap; }
+.top-cta:hover { background: #f0cc9c; border-color: #f0cc9c; }
+.top-cta:focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
+@media (pointer: coarse) { .top-cta { min-height: 44px; } }
+@media (max-width: 900px) {
+  .top-cta { margin-left: auto; }
+  .top-cta + .menu-btn { margin-left: 8px; }
+}
+@media (min-width: 901px) and (max-width: 1180px) { .topbar:has(.top-cta) .brand-t { display: none; } }   /* nav, button and name do not all fit */
+@media (max-width: 560px) {
+  .topbar:has(.top-cta) { gap: 10px; }
+  .topbar:has(.top-cta) .brand-t { display: none; }   /* the hero's title says it right below */
+  .top-cta { padding: 0 12px; font-size: 11px; }
+}
+
 /* ---------- the hero ---------- */
 .hero { position: relative; display: grid; align-items: end; min-height: 600px; height: min(100vh, 1080px); height: min(100svh, 1080px); padding: calc(var(--bar) + 40px) var(--gutter) clamp(40px, 7vh, 88px); overflow: hidden; isolation: isolate; background: #000; }   /* matches the fade at the foot of the picture */
 .hero-img, .hero-img img { position: absolute; inset: 0; width: 100%; height: 100%; }

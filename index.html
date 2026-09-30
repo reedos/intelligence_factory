@@ -24,7 +24,6 @@
 <header class="topbar" id="topbar">
   <a class="brand" href="#top" aria-label="The Intelligence Factory, top of the page"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span><span class="brand-t">The Intelligence Factory</span></a>
   <nav class="topnav" id="topnav" aria-label="Site">
-    <a href="visualizer.html">Visualizer</a>
     <a href="#power" style="--c: var(--mv)">Power</a>
     <a href="#data" style="--c: var(--nvl)">Data</a>
     <a href="#heat" style="--c: var(--warm)">Heat</a>
@@ -34,6 +33,8 @@
     <a href="method.html">Method</a>
     <a href="glossary.html">Glossary</a>
   </nav>
+  <!-- the one way into the visualizer, in view from the first screen on every width -->
+  <a class="btn go top-cta" id="top-cta" href="visualizer.html">Open the visualizer <span aria-hidden="true">→</span></a>
   <button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="topnav"><span aria-hidden="true"></span>Menu</button>
 </header>
 <section class="hero" id="top" aria-labelledby="hero-h">
@@ -46,7 +47,6 @@
     <h1 id="hero-h">The Intelligence Factory</h1>
     <p class="tagline"><span class="v1">Electricity in.</span> <span class="v2">Intelligence out.</span></p>
     <p class="lede">Follow the power from the plants on a 2,000 km grid into one AI campus: 345,000 volts at the fence, down through the substation, the halls, a rack and a tray, to 0.8 V at a GPU die, and out as tokens. Switch to the data layer to follow the links back out, or to heat to follow every watt to the sky. The figures on each part and chart carry a label for what backs them: a published spec, a vendor claim, a third party's report, or this page's own math or assumption.</p>
-    <div class="hero-actions"><a class="btn go" href="visualizer.html" id="hero-explore">Explore the campus →</a></div>
     <p class="hero-note">Personal educational project based on cited public sources. Not an official publication of my employer or the companies discussed. Models are schematic; estimates and assumptions are identified.</p>
   </div>
   <p class="hero-cap" id="hero-cap">Illustration, drawn by an image model from this site's campus layout</p>
@@ -54,7 +54,7 @@
 <main class="wrap">
   <header class="chapter" id="explore" style="--c: var(--accent)">
     <p class="ch-k"><span>01</span>Visualizer</p>
-    <p class="ch-s">Set up a campus, then fly through it at six scales in three layers. Every pin is a part with its own numbers, each labeled by what backs it.</p>
+    <p class="ch-s">Fly through one campus at six scales, from a regional grid to a GPU die, and four more inside the links: a pluggable optical module, a co-packaged switch, a coherent module and copper cables. Every pin is a part with its own numbers in power, data and heat, each labeled by what backs it.</p>
   </header>
   <section class="scenario sc-summary" aria-labelledby="sc-h">
     <div class="sc-head">
@@ -64,17 +64,6 @@
     <p class="sc-line"><b id="sc-line">100 MW · GB200 · 415 V AC · Warm water</b><a class="sc-edit" id="sc-edit" href="visualizer.html?pane=scenario">Change it in the visualizer’s Scenario pane →</a></p>
     <div class="kpis" id="kpis"></div>
     <p class="note">These are this model’s estimates for this scenario, not figures for a real building, even when a real campus is picked. Every chart on this page follows it.</p>
-  </section>
-
-  <section class="open-vis" aria-labelledby="ov-h">
-    <div class="ov-text">
-      <p class="eyebrow">1.2 · Visualizer</p>
-      <h2 id="ov-h">Fly through it in 3D</h2>
-      <p>Six scales from a regional grid to a GPU die, and four more inside the links: a pluggable optical module, a co-packaged switch, a coherent module and copper cables. Every part has its numbers, in power, data and heat, each labeled by what backs it. It opens full screen, with the scenario above.</p>
-    </div>
-    <div class="ov-actions">
-      <a class="btn go ov-open" href="visualizer.html">Open the visualizer →</a>
-    </div>
   </section>
 
   <header class="chapter" id="power" style="--c: var(--mv)">
