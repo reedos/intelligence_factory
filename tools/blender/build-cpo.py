@@ -1,11 +1,21 @@
 """Representative CPO mechanics, aligned to the existing cm-scale technical diagram.
 Run: blender --background --python tools/blender/build-cpo.py
-(needs node/npx on PATH: the export is quantized with @gltf-transform/cli)
+(needs node/npx: the export is quantized with @gltf-transform/cli, fetched by npx
+ on first use. The script checks for npx before building and stops with a clear
+ message if it is missing; IFX_SKIP_QUANTIZE=1 exports unquantized instead.)
 Reference: NVIDIA's public Quantum-X Photonics package imagery, not a production CAD model.
 All static hardware is authored here. Runtime JS retains only animated signals,
 labels, selection guides, and the reviewed path/anchor contract.
 """
 import bpy, math, json, pathlib
+import os, shutil, subprocess, sys
+
+# Fail fast, before minutes of modeling, if the quantize step cannot run.
+SKIP_QUANTIZE = os.environ.get('IFX_SKIP_QUANTIZE') == '1'
+NPX = None if SKIP_QUANTIZE else (shutil.which('npx') or shutil.which('npx.cmd'))
+if not SKIP_QUANTIZE and not NPX:
+    sys.exit('build-cpo.py: npx not found on PATH. Install Node.js (the export is quantized with '
+             '@gltf-transform/cli via npx), or set IFX_SKIP_QUANTIZE=1 to export an unquantized GLB.')
 from mathutils import Matrix, Vector
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -49,6 +59,9 @@ asic.node_tree.nodes.get('Principled BSDF').inputs['Emission Color'].default_val
 asic.node_tree.nodes.get('Principled BSDF').inputs['Emission Strength'].default_value=0
 eic = material('Electronic die passivation', (.035,.055,.085), .5,.3)
 pic = material('Photonic die passivation', (.08,.11,.16), .15,.26)
+# The interposer keeps its own polished-silicon finish; only the photonic dies
+# read as dielectric passivation.
+interposerMat = material('Silicon interposer', (.07,.10,.15), .55,.28)
 gold = material('Gold bond pads', (.67,.43,.15), .8,.28)
 traceCu = material('Electrical copper', (.55,.29,.10), .82,.3)
 glass = material('Glass ferrule', (.55,.76,.86), 0,.12,.32)
@@ -77,7 +90,10 @@ vgroove = material('Fiber array V-groove block', (.04,.05,.06), .1,.35)
 lidGlass = material('Fiber array lid glass', (.6,.8,.95), 0,.05,.25)
 epoxy = material('Fiber array epoxy', (.12,.07,.02), 0,.5)
 boot = material('Connector strain relief boot', (.02,.022,.025), 0,.7)
-pinSteel = material('Guide pin steel', (.5,.52,.55), 1,.32)
+pinSteel = material('Guide pin steel', (.42,.44,.47), .85,.5)
+# Small interface cheeks are bead-blasted: polished nickel at this size only
+# caught pin-point key-light glints that bloomed into white bars.
+cheek = material('Bead-blasted interface cheeks', (.36,.41,.45), .7,.55)
 driver = material('Driver schematic regions', (.05,.19,.24), .45,.32)
 tia = material('TIA schematic regions', (.20,.07,.15), .45,.32)
 blue = material('Supply coolant pipe', (.025,.20,.36), .38,.28)
@@ -150,7 +166,7 @@ for x in [-4.72,4.72]:
     for z in [-4.72,4.72]:
         box('Socket clamp',(x,1.105,z),(.52,.11,.52),nickel,'CPO_PACKAGE',.065)
         screw(x,1.177,z,'CPO_PACKAGE',.10)
-box('Shared silicon interposer',(0,1.45,0),(9.0,.1,9.0),pic,'CPO_PACKAGE',.02)
+box('Shared silicon interposer',(0,1.45,0),(9.0,.1,9.0),interposerMat,'CPO_PACKAGE',.02)
 # Underfill (representative) skirts the bare die on the interposer; there is
 # no published lid or stiffener around it, so none is drawn.
 underfill = material('Underfill epoxy', (.14,.08,.03), 0,.5)
@@ -179,23 +195,25 @@ for side,t0 in LAYOUT['subassemblies']:
 for e,conn in zip(LAYOUT['engines'],LAYOUT['connectors']):
     out=e['out']; tan=e['tan']; angle=e['side']*math.pi/2
     def ip(r,t,y): return (e['x']+out[0]*r+tan[0]*t,y+.15,e['z']+out[1]*r+tan[1]*t)
-    for t in [-.43,.43]: box('Ferrule side cheek',ip(.83,t,1.56),(.36,.23,.045),nickel,'CPO_INTERFACES',.012,angle)
+    for t in [-.43,.43]: box('Ferrule side cheek',ip(.83,t,1.56),(.36,.23,.045),cheek,'CPO_INTERFACES',.012,angle)
     box('Ferrule lower seat',ip(.83,0,1.375),(.37,.03,.82),black,'CPO_INTERFACES',.008,angle)
     for t in [-.5,.5]:
         p=(conn[0]+tan[0]*t,1.22,conn[1]+tan[1]*t)
-        box('Connector guide cheek',p,(.35,.27,.035),nickel,'CPO_INTERFACES',.009,angle)
+        box('Connector guide cheek',p,(.35,.27,.035),cheek,'CPO_INTERFACES',.009,angle)
 
 # External laser sources as front-panel pluggables (enclosure shape
 # representative: the sources give counts and serviceability, not a form
 # factor). Each slim body stands in a front-panel bezel, heat-sink fins on its
 # rear half, a pull tab and label outside, and a receptacle frame around the
 # laser exit on its inward (-X) face. Nothing crosses that exit.
-elsBody = material('Laser module anodized body', (.2,.21,.23), .8,.34)
+# Lighter satin anodize and a wider edge radius: the bodies must separate from
+# the black ground in the overview, where a dark mirror finish reflected only it.
+elsBody = material('Laser module anodized body', (.30,.33,.37), .6,.38)
 elsFin = material('Laser module heat-sink fins', (.42,.44,.47), .85,.3)
-bezel = material('Front panel bezel', (.1,.11,.12), .7,.4)
+bezel = material('Front panel bezel', (.15,.16,.18), .6,.42)
 for i in range(5):
     z=-4.4+i*2.2
-    box('External laser case',(8.48,1.5,z),(2.4,.6,1.0),elsBody,'CPO_ELS',.04)
+    box('External laser case',(8.48,1.5,z),(2.4,.6,1.0),elsBody,'CPO_ELS',.07)
     for k in range(7): box('Laser heat-sink fin',(9.05,1.86,z-.39+k*.13),(1.15,.12,.035),elsFin,'CPO_ELS',0)
     box('Laser module seam',(7.75,1.5,z),(.02,.605,1.005),dark,'CPO_ELS',0)
     # Pull tab (bail) and label plate on the outward face.
@@ -448,7 +466,9 @@ bpy.ops.wm.save_as_mainfile(filepath=str(HERE/'cpo-hardware.blend'))
 bpy.ops.export_scene.gltf(filepath=str(out),export_format='GLB',export_extras=True,export_yup=True,export_cameras=False,export_lights=False)
 # Quantize positions/normals (KHR_mesh_quantization, decoded natively by three's
 # GLTFLoader; no decoder library needed). Extras, names and materials survive.
-import subprocess
-subprocess.run(f'npx -y @gltf-transform/cli@4.5.1 quantize "{out}" "{out}" --quantize-position 16 --quantize-normal 10',
-    shell=True, check=True, cwd=str(ROOT))
+if SKIP_QUANTIZE:
+    print('IFX_CPO_WARNING unquantized export (IFX_SKIP_QUANTIZE=1): about 4x larger; do not commit it')
+else:
+    subprocess.run([NPX,'-y','@gltf-transform/cli@4.5.1','quantize',str(out),str(out),
+        '--quantize-position','16','--quantize-normal','10'], check=True, cwd=str(ROOT))
 print('IFX_CPO_EXPORTED',out, out.stat().st_size)

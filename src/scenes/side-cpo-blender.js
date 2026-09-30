@@ -10,14 +10,14 @@ import { attachFlowRibbons } from '../flow-ribbons.js';
 let source, pending;
 export function preload() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=16`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=19`)
     .then(gltf => { source = gltf.scene; return source; })
     .catch(error => { pending = undefined; throw error; });
 }
 
 // Representative die faces painted at runtime onto the GLB's 0-1 top-face UVs.
 // Not floorplans: dark silicon, a seal ring, faint cell rows, and for the EIC a
-// 20% tint marking the transmit (driver) and receive (TIA) halves.
+// 36% tint marking the transmit (driver) and receive (TIA) halves.
 const srgb = v => Math.round(255 * Math.min(1, Math.max(0, v)) ** (1 / 2.2));
 function paintFace(W, H, shade) {
   const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
@@ -40,8 +40,8 @@ function eicFace() {
     if (e < 10.5) return [.16, .18, .20];
     const grain = (y % 6 < 1 ? .010 : 0) + ((x + Math.floor(y / 6) * 37) % 29 < 1 ? .006 : 0) + (block - .5) * .012;
     let c = [.030 + grain, .045 + grain, .070 + grain];
-    if (e > 14 && v > .53) c = mix(c, [.05, .19, .24], .2);       // transmit drivers
-    if (e > 14 && v < .47) c = mix(c, [.20, .07, .15], .2);       // receive TIAs
+    if (e > 14 && v > .53) c = mix(c, [.05, .19, .24], .36);      // transmit drivers
+    if (e > 14 && v < .47) c = mix(c, [.20, .07, .15], .36);      // receive TIAs
     return c;
   });
 }
@@ -160,10 +160,10 @@ export function build(args) {
   });
   const plate = asset.getObjectByName('CPO_COLDPLATE');
   if (!plate) throw new Error('CPO mechanical asset is missing its cold-plate assembly');
-  const interposer = asset.getObjectByName('CPO_PACKAGE__Photonic_die_passivation');
+  const interposer = asset.getObjectByName('CPO_PACKAGE__Silicon_interposer');
   if (!interposer?.isMesh) throw new Error('CPO hardware is missing its shared interposer');
-  // This material is otherwise shared with the PIC dies: isolate the inspection
-  // treatment so the electrical layer is exposed without ghosting optical chips.
+  // The interposer has its own Blender material; the clone keeps the inspection
+  // treatment private to this build so no optical chip is ever ghosted with it.
   interposer.material = interposer.material.clone();
   const interposerMaterial = interposer.material;
   // Power arrives from below the board. An explicitly labeled inspection view

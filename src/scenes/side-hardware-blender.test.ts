@@ -139,7 +139,7 @@ function meshes(root:THREE.Object3D){const m:THREE.Mesh[]=[];root.traverse(o=>{i
 describe('Blender mechanical layers preserve native technical diagrams',()=>{
   it('CPO exposes buried electrical routes only through a qualified interposer x-ray',()=>{
     const opts=options(),b=wrappers[0].build(opts);
-    const interposer=b.scene.getObjectByName('CPO_PACKAGE__Photonic_die_passivation') as THREE.Mesh;
+    const interposer=b.scene.getObjectByName('CPO_PACKAGE__Silicon_interposer') as THREE.Mesh;
     expect(interposer).toBeDefined();
     b.scene.updateMatrixWorld(true);
     const path=b.dataFlows.find((f:any)=>f.cls==='eth').path;
@@ -265,7 +265,7 @@ describe('Blender mechanical layers preserve native technical diagrams',()=>{
       const end=f.path.getPoint(1);expect(Math.abs(end.x)).toBeLessThan(ASIC_HALF);expect(Math.abs(end.z)).toBeLessThan(ASIC_HALF);
     }
     const dieHeat=b.heatFlows.filter((f:any)=>Math.abs(f.path.getPoint(0).y-1.68)<1e-5);
-    expect(dieHeat.length).toBe(26);
+    expect(dieHeat.length).toBe(14);
     for(const f of dieHeat) {
       const start=f.path.getPoint(0);expect(Math.abs(start.x)).toBeLessThan(ASIC_HALF);expect(Math.abs(start.z)).toBeLessThan(ASIC_HALF);
     }
@@ -275,9 +275,9 @@ describe('Blender mechanical layers preserve native technical diagrams',()=>{
 describe('shared CPO interposer correction',()=>{
  it('spans the ASIC and all 18 engines, with elevated carriers above its top',()=>{
   const asset=assets.get('cpo').scene;asset.updateMatrixWorld(true);
-  const interposer=asset.getObjectByName('CPO_PACKAGE__Photonic_die_passivation');
+  const interposer=asset.getObjectByName('CPO_PACKAGE__Silicon_interposer');
   let target:THREE.Object3D|undefined;
-  asset.traverse((o:THREE.Object3D)=>{if(o.name.replaceAll('_',' ').includes('CPO PACKAGE  Photonic die passivation'))target=o;});
+  asset.traverse((o:THREE.Object3D)=>{if(o.name.replaceAll('_',' ').includes('CPO PACKAGE  Silicon interposer'))target=o;});
   const bounds=new THREE.Box3().setFromObject(interposer||target!);
   const size=bounds.getSize(new THREE.Vector3());
   expect(size.x*100).toBeCloseTo(9,4);expect(size.z*100).toBeCloseTo(9,4);
