@@ -75,7 +75,22 @@ function chassisLip(N, wallX, topY, depth, inward, heavy) {
 export function build(opts) {
   const result = opts.model.accel.id === 'rubin' ? buildRubin(opts, { lights, pkgTex, dieTex }) : opts.model.accel.gpusPerRack === 72 ? buildNVL(opts) : buildHGX(opts);
   frameCompute(result, 'tray', opts.model.accel.id);
+  modeAccents(result, opts.state);
   return result;
+}
+
+// Heat mode already has warm volumetric glow; power and data sat on a flatter,
+// darker board. Two low accent lights (a cool edge rim from the rear and a soft
+// warm counter-fill) give those layers the same depth. Off in heat mode.
+function modeAccents(result, state) {
+  const rim = new THREE.DirectionalLight(0x8fd0ff, 0), warm = new THREE.DirectionalLight(0xe6ba82, 0);
+  rim.name = 'Tray layer rim'; warm.name = 'Tray layer counter-fill';
+  rim.position.set(7, 3.2, -8); warm.position.set(-7, 2.4, 6);
+  result.scene.add(rim, warm);
+  const apply = () => { const mode = state?.mode; rim.intensity = mode === 'heat' ? 0 : 0.95; warm.intensity = mode === 'power' ? 0.55 : mode === 'data' ? 0.3 : 0; };
+  apply();
+  const update = result.update;
+  result.update = (t, dt) => { apply(); return update?.(t, dt); };
 }
 
 function lights(scene, quality) {
