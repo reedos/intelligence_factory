@@ -18,7 +18,7 @@ dark=mat('Graphite recess',(.035,.055,.075),.4,.4)
 steel=mat('Brushed structural steel',(.3,.38,.45),.75,.34)
 concrete=mat('Satin concrete',(.38,.40,.42),.05,.72)
 glass=mat('Photovoltaic glazing',(.015,.07,.12),.55,.22)
-names=['MAP_SURFACE','GAS_PLANT','NUCLEAR_PLANT','WIND_MAST','WIND_ROTOR','SOLAR_ROW','GRID_PYLON','MAP_SUBSTATION','HUT_SITE']
+names=['MAP_SURFACE','GAS_PLANT','NUCLEAR_PLANT','WIND_MAST','WIND_ROTOR','SOLAR_ROW','GRID_PYLON','MAP_SUBSTATION','HUT_SITE','TERMINAL_TRIM']
 groups={}
 for n in names:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
@@ -253,6 +253,14 @@ o=lathe('HVAC fan grille',[(0,.42),(.04,.42)],steel,g,16);o.rotation_euler.y=mat
 box('Door lamp',(1.5,2.92,2.1),(1.1,.09,.12),hutLamp,g,0)
 cyl('Roof beacon mast',(2.4,3.5,1.5),.1,.35,steel,g,8)
 cyl('Roof beacon',(2.4,3.74,1.5),.16,.14,hutLamp,g,10)
+# Line terminal trim, placed with each shared MAP_TERMINAL: a gold crown strip in
+# the data layer's color and a lit fiber-entrance vault on the east wall, where
+# the DWDM route ends.
+g='TERMINAL_TRIM'
+goldLamp=mat('Fiber gold lamp',(1,.83,.36),0,.5,4)
+box('Crown gold strip',(0,4.03,3.36),(7,.12,.1),goldLamp,g,0)
+box('Fiber entrance vault',(5.3,.18,0),(.9,.36,1.1),dark,g,.04)
+box('Vault gold rim',(5.3,.39,0),(1.0,.08,1.2),goldLamp,g,0)
 # Bake modifiers, merge by semantic asset/material, then write reusable assets.
 for o in list(S.objects):
  if o.type=='MESH':

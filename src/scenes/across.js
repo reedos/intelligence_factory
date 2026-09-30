@@ -476,7 +476,7 @@ export function build({ quality, model, state = {} }) {
   near.forEach(({ p, km }, i) => {
     const B = world(p.site.lon, p.site.lat), BT = terminalAt(B, 0.85);
     // near the ground: long-haul fiber runs in buried conduit and enters each amplifier hut, rather than overhead
-    const pts = route(vaultAt(HT), vaultAt(BT), Math.min(160, km * 0.12), 7 + i * 10).map(q => [q[0], 1.2, q[2]]);
+    const pts = route(vaultAt(HT), vaultAt(BT), Math.min(160, km * 0.12), 7 + i * 10).map(q => [q[0], 1.25, q[2]]);
     const L = polyLen(pts);
     // Screen-width cartographic overlay, not a physical cable diameter. The public geographic
     // endpoints, representative wandering path and directional elevations stay unchanged.
@@ -524,13 +524,8 @@ export function build({ quality, model, state = {} }) {
   }
   const terminals = [HT, ...near.map(({ p }) => terminalAt(world(p.site.lon, p.site.lat), 0.85))];
   const terminalMatrices = terminals.map(([x, z]) => mtx(x, 0, z));
-  {
-    // gold carries the data layer's color onto the building: a crown strip and the vault the fiber enters by
-    const v = new Builder(), gold = glowMat('#ffd35c', 1.6);
-    v.box(7, .12, .1, gold, 0, 4.03, 3.36);
-    v.slab(.9, .35, 1.1, MAT.darkSteel, 5.3, 0, 0); v.box(1.0, .08, 1.2, gold, 5.3, .39, 0);
-    data.add(v.instance(terminalMatrices));
-  }
+  // gold carries the data layer's color onto the building: a crown strip and the vault the fiber enters by
+  if (authored) data.add(acrossAssetInstances('TERMINAL_TRIM', terminalMatrices));
   if (authored) data.add(campusCatalogInstances('MAP_TERMINAL', terminalMatrices));
   else {
     const lt = new Builder(); lt.slab(8, 4, 6, MAT.white, 0, 0, 0); lt.slab(8.4, 0.4, 6.4, glowMat('#ffd35c', 0.9), 0, 4, 0);
@@ -547,7 +542,7 @@ export function build({ quality, model, state = {} }) {
   // the page's overlays inside the view: numbered pins (circle and label), the title block, layer switch, buttons, hint
   const OVERLAYS = '#pins .pin .num, #pins .pin .lbl, #view .hud.tl, #view .hud.tr, #hud-btns .btn, #hud-btns .hint';
   const reservedBoxes = canvas => {
-    if (typeof document === 'undefined') return [];
+    if (typeof document === 'undefined' || !document.querySelectorAll || !canvas?.getBoundingClientRect) return [];
     const c = canvas.getBoundingClientRect(), out = [];
     for (const el of document.querySelectorAll(OVERLAYS)) {
       const r = el.getBoundingClientRect();
