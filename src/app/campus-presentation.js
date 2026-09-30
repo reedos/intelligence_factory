@@ -19,7 +19,7 @@ panel.innerHTML = `<div class="campus-view-buttons" role="group" aria-label="Cam
   <button type="button" id="link-covers" aria-pressed="false" hidden>Show covers</button>`;
 document.getElementById('viewer').append(panel);
 // Share, quality, Present and Hide details live in the one menu at the end of the top row (visualizer.html)
-document.getElementById('mm-tools').insertAdjacentHTML('beforeend', `<label class="mm-select"><span>Rendering</span><select id="render-quality"><option value="auto">Auto quality</option><option value="laptop">Laptop mode</option></select></label>
+document.getElementById('mm-tools').insertAdjacentHTML('beforeend', `<label class="mm-select"><span>Rendering</span><select id="render-quality"><option value="auto">Auto quality</option><option value="laptop" title="Turns off reflections, ambient occlusion, depth of field and anti-aliasing to keep the GPU cool and save battery">Battery saver</option></select></label>
   <button type="button" class="mm-item" id="presentation-view" aria-pressed="false">Present</button>
   <button type="button" class="mm-item" id="inspector-toggle" aria-expanded="true" aria-controls="inspector">Hide details</button>`);
 // On tablets and phones the view's own controls join that menu too, so no control row sits between the view and the
