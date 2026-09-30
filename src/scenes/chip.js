@@ -78,7 +78,7 @@ export function build(options) {
   if (options.quality?.mobile) {
     // Portrait phones are width-limited: a steeper view and a tighter fit on the
     // 8.4 cm package (the board is context) let the stack fill more of the height.
-    result.camera = { ...result.camera, ...componentView([0, 2.9, 0], [6, 11, 7.5], [7.9, 5.6, 7.9]) };
+    result.camera = { ...result.camera, ...componentView([0.35, 2.7, 0.45], [6, 11, 7.5], [7.9, 5.6, 7.9]) };
     result.cameraByMode.power = { ...componentView([0, 2.3, 0], [8, 5.6, 9.8], [8.1, 5.0, 8.1]) };
   }
   return result;
@@ -115,12 +115,14 @@ function buildPackage({ quality, state, model }) {
     const m = new THREE.Mesh(g, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; scene.add(m); return m;
   };
 
-  // board beneath, cut square
+  // board beneath, cut square: 10.8 cm, a 1.2 cm margin around the package, so
+  // the whole cut board still fits a portrait phone frame
+  const BOARD = 10.8;
   // Host board under the package: solder mask with the BGA land pattern (gold
   // pads on the ball grid), a via field and trace bundles fanning out, darkening
   // toward the cut edge. Representative host board.
   const boardTex = canvasTex(2048, 2048, (g, w, h) => {
-    const px = w / 12, c = w / 2;
+    const px = w / BOARD, c = w / 2;
     g.fillStyle = '#0d2a26'; g.fillRect(0, 0, w, h);
     let seed = 9; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
     // Trace fan-out on every side of the BGA field, the outer rows jogging 45
@@ -129,7 +131,7 @@ function buildPackage({ quality, state, model }) {
     // trace ends on a tented via, the escape pattern a BGA breakout uses.
     g.strokeStyle = 'rgba(80,150,124,0.78)'; g.lineWidth = w / 560;
     for (let side = 0; side < 4; side++) for (let k = 0; k < 24; k++) {
-      const t = (k - 11.5) / 11.5, along = t * 3.6 * px, r0 = 3.95 * px, r1 = 6.0 * px, jog = t * Math.abs(t) * 1.3 * px;
+      const t = (k - 11.5) / 11.5, along = t * 3.6 * px, r0 = 3.95 * px, r1 = 5.25 * px, jog = t * Math.abs(t) * 1.3 * px;
       const pt = (r, a) => side === 0 ? [c + r, c + a] : side === 1 ? [c - r, c - a] : side === 2 ? [c - a, c + r] : [c + a, c - r];
       g.beginPath(); g.moveTo(...pt(r0, along)); g.lineTo(...pt(r0 + 0.35 * px, along)); g.lineTo(...pt(r0 + 0.35 * px + Math.abs(jog), along + jog)); g.lineTo(...pt(r1, along + jog)); g.stroke();
       const [vx, vy] = pt(r1, along + jog);
@@ -143,14 +145,14 @@ function buildPackage({ quality, state, model }) {
       g.fillStyle = '#c9a54f'; g.beginPath(); g.arc(x, y, 0.075 * px, 0, Math.PI * 2); g.fill();
       g.fillStyle = 'rgba(20,40,34,0.9)'; g.beginPath(); g.arc(x + 0.15 * px, y + 0.15 * px, 0.025 * px, 0, Math.PI * 2); g.fill();
     }
-    const fade = g.createRadialGradient(c, c, 4.6 * px, c, c, 8.4 * px);
+    const fade = g.createRadialGradient(c, c, 4.4 * px, c, c, 7.7 * px);
     fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(1, 'rgba(4,8,10,0.92)');
     g.fillStyle = fade; g.fillRect(0, 0, w, h);
   });
   boardTex.anisotropy = 8;                                            // the solder-ball camera looks across it at a low angle
   const boardMat = new THREE.MeshStandardMaterial({ map: boardTex, roughness: 0.6, metalness: 0.08, envMapIntensity: 0.6 }); boardMat.name = 'Host board solder mask';
-  texBox(12, 0.16, 12, boardMat, 0, -0.08, 0, 12);
-  boardFinish(N, finish, 0, -0.01, 0, 12, 12, 3);
+  texBox(BOARD, 0.16, BOARD, boardMat, 0, -0.08, 0, BOARD);
+  boardFinish(N, finish, 0, -0.01, 0, BOARD, BOARD, 3);
   // BGA balls
   const ball = new THREE.SphereGeometry(0.1, 10, 8);
   const pitch = 0.3, nB = 26, balls = new THREE.InstancedMesh(ball, MAT.nickel, nB * nB);
@@ -479,7 +481,7 @@ function buildPackage({ quality, state, model }) {
   const TOKEN_ROWS = [2.2, 7.6, -1];
   // The pin rides just above the back of the package, where the answer tokens
   // leave the die, so in the overviews it marks a place rather than empty air.
-  const tokensHS = { pos: [2.9, Y.dies + 1.4, -1.6], view: componentView([2.0, 5.7, -0.5], [6, 4.6, 11], [9.4, 5.2, 5.0]) };
+  const tokensHS = { pos: [2.0, Y.dies + 1.5, -2.2], view: componentView([2.0, 5.7, -0.5], [6, 4.6, 11], [9.4, 5.2, 5.0]) };
   const nvphyHS = twin ? { pos: [2.62, Y.dies + 0.1, -1.2], view: { pos: [8, 5, 1], target: [3, 2.6, 0] } } : { pos: [0.9, Y.dies + 0.1, 1.62], view: { pos: [2, 5.5, 8], target: [0, 2.6, 2.2] } };
   return {
     scene, flows,
