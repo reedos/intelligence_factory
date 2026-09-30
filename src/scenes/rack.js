@@ -14,8 +14,39 @@ const TRIM = new THREE.MeshStandardMaterial({ color: 0xb39a6a, roughness: 0.42, 
 const COLLAR = new THREE.MeshStandardMaterial({ color: 0xc7ccd2, roughness: 0.42, metalness: 0.55 });
 const AIR_HAZE = '#ff8a4a';                                    // matches the 'air' heat flow color: hot exhaust, decorative only
 
+// Management switch face: 48 RJ45 ports of 1GbE and 4 QSFP28 ports of 100GbE,
+// the SN2201's published port count (NVIDIA SN2201 specifications). Port
+// grouping, console/management jacks and link LEDs are drawn as representative.
+function mgmtFace(g, w, h) {
+  const sx = w / 1024, sy = h / 96, r = rng(5);
+  g.fillStyle = '#2f353d'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#1a1e23'; g.fillRect(0, 0, w, 4 * sy); g.fillRect(0, h - 4 * sy, w, 4 * sy);
+  // console and out-of-band jacks, USB
+  for (const x of [34, 62]) { g.fillStyle = '#07080a'; g.fillRect(x * sx, 30 * sy, 22 * sx, 20 * sy); g.fillStyle = '#50565e'; g.fillRect((x + 6) * sx, 30 * sy, 10 * sx, 4 * sy); }
+  g.fillStyle = '#07080a'; g.fillRect(92 * sx, 34 * sy, 14 * sx, 8 * sy);
+  // four blocks of twelve RJ45 (six wide, two high), link LEDs above/below
+  for (let b = 0; b < 4; b++) for (let c = 0; c < 6; c++) for (let row = 0; row < 2; row++) {
+    const x = (140 + b * 170 + c * 26) * sx, y = (row ? 52 : 18) * sy;
+    g.fillStyle = '#5a6068'; g.fillRect(x - 1 * sx, y - 1 * sy, 24 * sx, 24 * sy);
+    g.fillStyle = '#060708'; g.fillRect(x, y, 22 * sx, 22 * sy);
+    g.fillStyle = '#23272c'; g.fillRect(x + 7 * sx, y + (row ? 16 : 0) * sy, 8 * sx, 6 * sy);
+    const lit = r() < 0.7;
+    g.fillStyle = lit ? '#5cf29a' : '#1b2a21'; g.fillRect(x + 2 * sx, y + (row ? 23 : -5) * sy, 4 * sx, 3 * sy);
+    g.fillStyle = lit && r() < 0.4 ? '#f2b84a' : '#2a2416'; g.fillRect(x + 16 * sx, y + (row ? 23 : -5) * sy, 4 * sx, 3 * sy);
+  }
+  // four QSFP28 cages, 2 x 2
+  for (let c = 0; c < 2; c++) for (let row = 0; row < 2; row++) {
+    const x = (842 + c * 62) * sx, y = (row ? 52 : 16) * sy;
+    g.fillStyle = '#8a9098'; g.fillRect(x - 2 * sx, y - 2 * sy, 54 * sx, 28 * sy);
+    g.fillStyle = '#07080a'; g.fillRect(x, y, 50 * sx, 24 * sy);
+  }
+  g.fillStyle = '#5cf29a'; g.fillRect(990 * sx, 20 * sy, 6 * sx, 5 * sy);                 // system status
+  g.fillStyle = '#d7dbe0'; g.fillRect(990 * sx, 60 * sy, 22 * sx, 10 * sy);              // label pull-tab
+}
+
 function trayTex(kind, generation) {
-  return canvasTex(512, 48, (g, w, h) => {
+  const big = kind === 'mgmt';
+  return canvasTex(big ? 1024 : 512, big ? 96 : 48, (g, w, h) => {
     g.fillStyle = kind === 'ps' ? '#3c444d' : '#303944'; g.fillRect(0, 0, w, h);
     g.fillStyle = '#0d0e10'; g.fillRect(0, 0, w, 2); g.fillRect(0, h - 2, w, 2);
     if (generation === 'rubin' && (kind === 'compute' || kind === 'switch')) {
@@ -35,8 +66,7 @@ function trayTex(kind, generation) {
     } else if (kind === 'ps') {
       for (let i = 0; i < 6; i++) { const x = 6 + i * 84; g.fillStyle = '#353a42'; g.fillRect(x, 5, 78, h - 10); g.fillStyle = '#101216'; for (let gx = x + 6; gx < x + 50; gx += 5) g.fillRect(gx, 10, 3, h - 20); g.fillStyle = '#c9ccd0'; g.fillRect(x + 56, 12, 14, h - 24); g.fillStyle = '#5cf29a'; g.fillRect(x + 72, 12, 3, 3); }
     } else if (kind === 'mgmt') {
-      for (let i = 0; i < 24; i++) for (let r = 0; r < 2; r++) { g.fillStyle = '#0b0c0e'; g.fillRect(40 + i * 16, 8 + r * 17, 13, 13); }
-      g.fillStyle = '#e8c547'; g.fillRect(440, 16, 40, 16);
+      mgmtFace(g, w, h);
     } else {
       g.fillStyle = '#16181c'; g.fillRect(0, 0, w, h);
     }
@@ -133,6 +163,21 @@ function busway(scene, S, N, xs, stripeColor, H) {
     N.cyl(0.014, 0.018, MAT.darkSteel, x, TAP.glandY + 0.012, bz, 10);
     N.cyl(0.03, 0.01, GLAND, x, H + 0.018, bz, 16);                                                          // brush grommet at the rack top
     N.cyl(0.022, 0.012, MAT.black, x, H + 0.02, bz, 16);
+  });
+}
+
+// Rack ears, captive screws and a few patched copper leads that dress down to
+// the side cable manager, so the out-of-band network reads as cabled hardware.
+const CAT6 = new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.6, metalness: 0.05 }); CAT6.name = 'Management patch lead';
+function mgmtHardware(N, y, z, heavy, seed = 3) {
+  for (const x of [-0.245, 0.245]) N.box(0.03, U * 0.9, 0.01, MAT.galv, x, y, z + 0.005);
+  if (heavy) earFasteners(N, y, z + 0.0115);
+  // port x positions follow mgmtFace(): 0.44 m face, 1024 px texture
+  const leads = heavy ? [0, 3, 7, 12, 14] : [0, 7];
+  leads.forEach((c, i) => {
+    const b = Math.floor(c / 6), x = -0.22 + (140 + b * 170 + (c % 6) * 26 + 11) / 1024 * 0.44, yy = y + (i % 2 ? -0.0085 : 0.0065);
+    N.box(0.0095, 0.0085, 0.02, CAT6, x, yy, z + 0.01);                                                      // plug boot
+    bundle(N, [x, yy, z + 0.02], [0.268, y - 0.09 - i * 0.012, z + 0.03], { n: 1, r: 0.0028, sag: 0.03, mats: [CAT6], seed: seed + i, seg: 5 });
   });
 }
 
@@ -285,7 +330,7 @@ function buildHGX({ quality, state }) {
   const mgm = new THREE.Mesh(new THREE.BoxGeometry(sw, U * 0.94, 0.5), [side, side, side, side, new THREE.MeshStandardMaterial({ map: mg, roughness: 0.5, metalness: 0.35 }), side]);
   mgm.position.set(0, topY + U / 2, ZF - 0.07 - 0.25); scene.add(mgm);
   S.box(sw, H - 0.05 - topY - U, 0.01, MAT.rackFace, 0, (topY + U + H - 0.05) / 2, ZF - 0.07);
-  bezel(N, 0, topY + U / 2, sw / 2 - 0.06, U * 0.42, ZF - 0.07, TRIM);
+  mgmtHardware(N, topY + U / 2, ZF - 0.07, !quality.mobile);
 
   // the pulled server, lid off: fans at the front, eight heat sinks, the CPU tray behind
   const py = sy(PULLED), pz = ZF - 0.07 - sd / 2 + out, yb = py - SU / 2;
@@ -346,7 +391,7 @@ function buildHGX({ quality, state }) {
 
   // ---------- activity: status LEDs and warm exhaust shimmer (all four servers are air-cooled) ----------
   const ledStep = quality.mobile ? 2 : 1;
-  const ledItems = [];
+  const ledItems = [], portLeds = [];
   // Front: power LED (solid green when on) and the ID button's blue LED, which
   // only some servers show, as an operator locating one would see. Rear: each
   // supply's status light.
@@ -355,8 +400,9 @@ function buildHGX({ quality, state }) {
     if (i === 1) ledItems.push({ p: [0.155, sy(k) + SU * 0.3, bzFront + 0.0075], color: '#4aa8ff', rate: 0.5, duty: 0.5 });
     if (!quality.mobile) for (let s = 0; s < 6; s++) ledItems.push({ p: [0.2 - s * 0.0705 - 0.03, sy(k) - SU * 0.49 + 0.052, ZF - 0.07 - sd - 0.003], color: '#5cf29a', rate: 0 });
   });
-  ledItems.push({ p: [X - 0.03, topY + U / 2, ZF - 0.07 + 0.006], color: '#e8c547', rate: 0.5, duty: 0.6 });
-  const leds = blinkers(ledItems, { size: 0.008 });
+  for (let b = 0; b < 4; b++) portLeds.push({ p: [-0.22 + (140 + b * 170 + 64) / 1024 * 0.44, topY + U / 2 + U * 0.36, ZF - 0.067], color: '#5cf29a', rate: 1.3 + b * 0.37, duty: 0.35 });
+  const leds = blinkers(ledItems, { size: 0.008 }), links = blinkers(portLeds, { size: 0.0032 });
+  scene.add(links.mesh);
   scene.add(leds.mesh);
   const haze = plumes(
     [...inRack.map(k => ({ p: [0, sy(k) + 0.02, ZB - 0.12], dir: [0, 1, 0] })), { p: [0, yb + 0.1, pz - sd / 2 - 0.22], dir: [0, 1, 0] }],
@@ -374,7 +420,7 @@ function buildHGX({ quality, state }) {
       servers: srv,
       psus: { pos: [0.15, yb + 0.1, pz - sd / 2 + 0.07], view: { pos: [0.9, 1.5, -0.9], target: [0, yb, pz - 0.4] } },
       cabling: { pos: [pduX[0] * 0.7, sy(0), ZB + 0.15], view: { pos: [-0.8, 0.9, -1.5], target: [0, 0.6, ZB] } },
-      mgmt: { pos: [0.22, topY + U / 2, ZF - 0.05], view: { pos: [0.7, 1.9, 1.3], target: [0, topY, ZF] } },
+      mgmt: { pos: [0.22, topY + U / 2, ZF - 0.03], view: componentView([0.02, topY + U / 2, ZF - 0.02], [0.32, 0.16, 0.9], [0.5, 0.12, 0.2]) },
     },
     dataFlows, heatFlows,
     heatHotspots: {
@@ -389,10 +435,10 @@ function buildHGX({ quality, state }) {
       // The rear cage rows, the combed fiber manager and its patch strip: the
       // scale-out optics this card contrasts with scale-up copper.
       optical: { pos: [0.259, 1.62, ZB - 0.06], view: componentView([0.16, 1.3, ZB + 0.06], [0.75, 0.3, -0.95], [0.46, 0.8, 0.3]) },
-      mgmt: { pos: [0.22, topY + U / 2, ZF - 0.05], view: { pos: [0.7, 1.9, 1.3], target: [0, topY, ZF] } },
+      mgmt: { pos: [0.22, topY + U / 2, ZF - 0.03], view: componentView([0.02, topY + U / 2, ZF - 0.02], [0.32, 0.16, 0.9], [0.5, 0.12, 0.2]) },
     },
     look: LOOK,
-    update(t) { leds.update(t); haze.points.visible = state.mode === 'heat'; if (haze.points.visible) haze.update(t); fans.update(t); },
+    update(t) { leds.update(t); links.update(t); haze.points.visible = state.mode === 'heat'; if (haze.points.visible) haze.update(t); fans.update(t); },
   };
 }
 
@@ -410,9 +456,9 @@ function buildNVL({ quality, model, state }) {
   // ---------- trays ----------
   const layout = [];
   const push = (kind, n) => { for (let i = 0; i < n; i++) layout.push(kind); };
-  push('ps', 3); push('compute', 8); push('switch', 9); push('compute', 10); push('ps', 3); push('mgmt', 1);
+  push('ps', 3); push('compute', 8); push('switch', 9); push('compute', 10); push('ps', 3); push('mgmt', 2);
   const TEX = { compute: trayTex('compute', model.accel.id), switch: trayTex('switch', model.accel.id), ps: trayTex('ps'), mgmt: trayTex('mgmt'), blank: trayTex('blank') };
-  const PULLED = 24, SWITCH_PULLED = 15;                              // index of the tray pulled out for view
+  const PULLED = 24, SWITCH_PULLED = 15, TOP_SHELF = 32;                              // index of the tray pulled out for view
   const trayY = i => base + 0.02 + i * U + U / 2;
   const kinds = {};
   layout.forEach((k, i) => (kinds[k] = kinds[k] || []).push(i));
@@ -431,6 +477,7 @@ function buildNVL({ quality, model, state }) {
   // tray ears, and a proud handle nub on every real tray so the front reads as serviceable hardware, not a picture
   layout.forEach((k, i) => {
     if (i === PULLED || i === SWITCH_PULLED) return;
+    if (k === 'mgmt') { mgmtHardware(N, trayY(i), ZF - 0.07, !quality.mobile, i); return; }
     serviceFace(N, trayY(i), ZF - 0.07, !quality.mobile, k);
     N.box(0.03, U * 0.9, 0.01, MAT.galv, -0.245, trayY(i), ZF - 0.065); N.box(0.03, U * 0.9, 0.01, MAT.galv, 0.245, trayY(i), ZF - 0.065);
     if (!quality.mobile) earFasteners(N, trayY(i), ZF - 0.0585);
@@ -490,7 +537,7 @@ function buildNVL({ quality, model, state }) {
   scene.userData.computeGeneration={id:model.accel.id,computeTrays:18,switchTrays:9,switchChipsPerTray:switchChips,openedSwitchChips:switchPositions.length,computeFans:rubin?0:6,representative:true};
 
   // ---------- rear: busbar, clips, NVLink spine, manifolds ----------
-  const bbZ = ZB + 0.1, bbTop = trayY(layout.length - 2) + U / 2, bbBot = trayY(0) - U / 2;
+  const bbZ = ZB + 0.1, bbTop = trayY(TOP_SHELF) + U / 2, bbBot = trayY(0) - U / 2;
   for (const dx of [-0.018, 0.018]) S.box(0.022, bbTop - bbBot, 0.05, MAT.copper, dx, (bbTop + bbBot) / 2, bbZ);
   S.box(0.08, bbTop - bbBot, 0.012, MAT.polymer, 0, (bbTop + bbBot) / 2, bbZ + 0.035);          // insulating cover
   layout.forEach((k, i) => {
@@ -567,7 +614,7 @@ function buildNVL({ quality, model, state }) {
   busway(scene, S, N, [-0.12, 0.12], glowMat(feedV === 'hvdc' ? '#d8f04a' : '#ff8a3d', 0.9), H);
   for (const x of [-0.12, 0.12]) {
     N.strut([x, TAP.glandY, -0.25], [x, H + 0.02, -0.25], 0.012, MAT.black, 8);
-    N.strut([x, H, -0.25], [x * 0.8, trayY(layout.length - 2), ZB + 0.16], 0.012, MAT.black, 8);
+    N.strut([x, H, -0.25], [x * 0.8, trayY(TOP_SHELF), ZB + 0.16], 0.012, MAT.black, 8);
   }
   // bottom power shelves take their feed by a cable down the back
   N.strut([0.1, H, -0.3], [0.1, trayY(1), ZB + 0.16], 0.01, MAT.black, 8);
@@ -588,7 +635,7 @@ function buildNVL({ quality, model, state }) {
   [4, 8, 12, 16, 22, 26].forEach(i => cartX.forEach(cx => dataFlows.push(flow([[0, trayY(i), ZB + 0.16], [cx, trayY(i), cartZ - 0.067]], 'nvl', { count: 2, speed: 0.15, size: 0.007, k: 2.4, trail: false }))));
 
   // ---------- flows ----------
-  for (const x of [-0.12, 0.12]) flows.push(flow([[x, TAP.glandY, -0.25], [x, H + 0.02, -0.25], [x * 0.8, trayY(layout.length - 2), ZB + 0.16]], feedV, { count: 8, speed: 0.35, size: 0.012, trailR: 0.004 }));
+  for (const x of [-0.12, 0.12]) flows.push(flow([[x, TAP.glandY, -0.25], [x, H + 0.02, -0.25], [x * 0.8, trayY(TOP_SHELF), ZB + 0.16]], feedV, { count: 8, speed: 0.35, size: 0.012, trailR: 0.004 }));
   flows.push(flow([[0.1, H, -0.3], [0.1, trayY(1), ZB + 0.16]], feedV, { count: 10, speed: 0.35, size: 0.012, trailR: 0.004 }));
   // DC: from shelves onto the busbar, up and down the bar
   flows.push(flow([[-0.018, trayY(31), bbZ - 0.045], [-0.018, bbBot + 0.1, bbZ - 0.045]], 'dc', { count: 42, speed: 0.22, size: 0.011, trailR: 0.004, k: 2.4 }));
@@ -619,14 +666,15 @@ function buildNVL({ quality, model, state }) {
 
   // ---------- activity: status LEDs on trays and shelves, warm shimmer off the air share ----------
   const ledStep = quality.mobile ? 3 : 1;
-  const ledItems = [];
+  const ledItems = [], portLeds = [];
   layout.forEach((k, i) => {
     if (i === PULLED || i % ledStep !== 0) return;
     if (k === 'compute' || k === 'switch') ledItems.push({ p: [0.222, trayY(i), ZF - 0.066], color: '#5cf29a', rate: 0.35 + (i % 5) * 0.15, duty: 0.5 });
     else if (k === 'ps') ledItems.push({ p: [0.2, trayY(i), ZF - 0.066], color: '#ffcf5c', rate: 0.25, duty: 0.6 });
-    else if (k === 'mgmt') ledItems.push({ p: [0.22, trayY(i), ZF - 0.066], color: '#e8c547', rate: 0.5, duty: 0.6 });
+    else if (k === 'mgmt') for (let b = 0; b < 4; b++) portLeds.push({ p: [-0.22 + (140 + b * 170 + 64) / 1024 * 0.44, trayY(i) + U * 0.36, ZF - 0.067], color: '#5cf29a', rate: 1.3 + b * 0.37 + i * 0.1, duty: 0.35 });
   });
-  const leds = blinkers(ledItems, { size: 0.007 });
+  const leds = blinkers(ledItems, { size: 0.007 }), links = blinkers(portLeds, { size: 0.0032 });
+  scene.add(links.mesh);
   scene.add(leds.mesh);
   let haze = null;
   if (airShare) {
@@ -665,11 +713,11 @@ function buildNVL({ quality, model, state }) {
       // tray's seated modules in frame: scale-out optics, set against copper.
       optical: { pos: [0.259, 1.72, ZF + 0.06], view: componentView([0.16, 1.5, ZF - 0.06], [0.75, 0.3, 0.95], [0.46, 0.8, 0.3]) },
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
-      mgmt: { pos: [0.22, trayY(33), ZF - 0.05], view: { pos: [0.7, 1.9, 1.3], target: [0, trayY(33), ZF] } },
+      mgmt: { pos: [0.22, trayY(34), ZF - 0.03], view: componentView([0.02, trayY(33) + U / 2, ZF - 0.02], [0.32, 0.16, 0.9], [0.5, 0.15, 0.2]) },
     },
     look: LOOK,
     update(t) {
-      leds.update(t);
+      leds.update(t); links.update(t);
       if (haze) { haze.points.visible = state.mode === 'heat'; if (haze.points.visible) haze.update(t); }
       fans.update(t);
     },

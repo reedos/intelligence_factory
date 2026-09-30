@@ -563,7 +563,7 @@ export function content(M) {
       specs: [['Cords per rack', '24', 'derived', { calc: 'count-per-rack' }]] },
     { id: 'mgmt', title: 'Management switch', kicker: 'Out-of-band',
       body: 'A small copper switch at the top runs the rack’s management network: firmware, sensors and power control, separate from the fabrics that move model data.',
-      specs: [['Rate', '1–10 GbE class', 'assumed', { assume: 'bmc-network-speed' }]] },
+      specs: [['Rate', '1–10 GbE class', 'assumed', { assume: 'bmc-network-speed' }], ['Ports as drawn', '48 × 1 GbE + 4 × 100 GbE', 'assumed', { assume: 'tor-switch-ports', refs: [ref('nvidia-sn2201-specs', 'Connector/Port Specifications: "48 RJ45 ports of 1GbE and 4 QSFP28 ports of 100GbE"')] }]] },
   ];
   PARTS.tray = nvl ? [
     { id: 'clip', title: 'Busbar clip', kicker: '≈50 V DC in',
@@ -900,7 +900,7 @@ export function content(M) {
         specs: (() => { const l = nvl72LayoutEv(); return [['GPUs', '4', l.basis, l.ev]]; })() },
       { id: 'mgmt', title: 'Management switch', kicker: 'Out-of-band',
         body: 'A small copper switch at the top runs the rack’s management network: firmware, sensors and power control, separate from the fabrics that move model data.',
-        specs: [['Rate', '1–10 GbE class', 'assumed', { assume: 'bmc-network-speed' }]] },
+        specs: [['Rate', '1–10 GbE class', 'assumed', { assume: 'bmc-network-speed' }], ['TOR switches', '2', 'spec', { refs: [ref('nvidia-dgx-gb200-hardware', 'Hardware: "2x TOR Switches for management"')] }], ['Ports as drawn', '48 × 1 GbE + 4 × 100 GbE', 'assumed', { assume: 'tor-switch-ports', refs: [ref('nvidia-sn2201-specs', 'Connector/Port Specifications: "48 RJ45 ports of 1GbE and 4 QSFP28 ports of 100GbE"')] }]] },
     ] : [
       { id: 'tp', title: 'Tensor parallel', kicker: 'Inside one server',
         body: 'The chattiest work, splitting each layer’s math, has to fit inside one 8-GPU server. That is why Llama 3 405B ran tensor parallel 8 on H100: eight was the whole NVLink domain.',
@@ -916,7 +916,7 @@ export function content(M) {
         specs: [['Ironwood superpod', '9,216 chips, 144 cubes of 64', 'spec', { refs: [ref('google-ironwood-codesign', '"a small ‘pod’ (e.g., a 256-chip Ironwood pod with four cubes) to a massive ‘superpod’ (e.g., a 9,216-chip system with 144 cubes)"; each cube is "64 Ironwood chips"')] }], ['ICI per chip, inside a cube', '1.2 TB/s; mostly copper', 'reported', { refs: [ref('google-ironwood-tpu', '"linked via a breakthrough Inter-Chip Interconnect (ICI) network operating at 9.6 Tb/s" (= 1.2 TB/s); Google’s own pages do not state the link medium'), ref('semianalysis-tpuv7-ironwood', 'reports that ICI links interior to the 4×4×4 cube run over direct-attached copper (DAC) cables, while chips at the cube’s face/edge/corner use optical transceivers instead')] }]] },
       { id: 'mgmt', title: 'Management switch', kicker: 'Out-of-band',
         body: 'A small copper switch at the top runs the rack’s management network, separate from the fabrics that move model data.',
-        specs: [['Rate', '1–10 GbE class', 'assumed', { assume: 'bmc-network-speed' }]] },
+        specs: [['Rate', '1–10 GbE class', 'assumed', { assume: 'bmc-network-speed' }], ['Ports as drawn', '48 × 1 GbE + 4 × 100 GbE', 'assumed', { assume: 'tor-switch-ports', refs: [ref('nvidia-sn2201-specs', 'Connector/Port Specifications: "48 RJ45 ports of 1GbE and 4 QSFP28 ports of 100GbE"')] }]] },
     ],
     tray: nvl ? [
       { id: 'nvconn', title: 'NVLink connectors', kicker: `${A.nvlink.gen}`,

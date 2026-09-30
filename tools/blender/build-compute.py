@@ -202,7 +202,7 @@ def rack_hardware(accel,m):
     box('Black powder-coat top cap',(0,2.258,0),(.598,.022,1.06),m['graphite'],u,.007)
     if accel!='h100':
         for i in range(34):
-            if i in [15,24]:continue
+            if i in [15,24,33]:continue  # pulled trays; the management switch has no tray handles
             y=.12+i*.04445+.022225
             for x in [-.205,.185]:
                 box('Folded service handle',(x,y,.485),(.009,.026,.013),m['bright'],u,.003)
