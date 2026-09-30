@@ -15,3 +15,15 @@ Read-only public-source review. Requirements sent to rack/tray and model owners.
 - Rubin Ultra/Kyber are separate roadmap configurations; March architecture article distinguishes these from ordinary Rubin NVL72. https://developer.nvidia.com/blog/?p=113993
 
 Geometry decisions: H100 and Rubin require distinct models. GB200/GB300 may share outer family resemblance but must show their generation-specific networking and qualified memory. No exact internal PCB placement inferred from performance figures.
+
+## Compute tray: NIC to front optical cages (09/30/2026)
+
+- SemiAnalysis, "GB200 Hardware Architecture and Component Supply Chain & BOM" (07/17/2024), https://newsletter.semianalysis.com/p/gb200-hardware-architecture-and-component
+  - "the ConnectX-7/8 ICs now sit directly on top of the Bianca board using a mezzanine board via Mirror Mezz connectors."
+  - "The electrical lanes are routed to the OSFP cages at the front of the chassis with DensiLink connectors from the mezzanine board."
+  - "This is similar to how Nvidia used DensiLink on their gold plated DGX H100 chassis to route from the ConnectX-7 to the OSFP cages."
+- Lenovo Press, "Lenovo NVIDIA GB300 NVL72 Rack Scale AI Product Guide" (LP2357), https://lenovopress.lenovo.com/lp2357.pdf
+  - "One PCIe Gen5 x16 Slot (BlueField-3 DPU) Two PCIe Gen5 x16 Slot (OSFP Boards)"
+  - "Two Gen 5 x16 connections (32 lanes total) provide the bandwidth needed for an 800 GbE connection using the ConnectX-8 8180 network adapter (2x 2port ConnectX-8 adapters)."
+  - Up to 8 E1.S bays per compute tray, 4 populated in the reference architecture; parts list includes "GB300 PCIe Riser Cable".
+- Drawn as representative (assumption `tray-nic-cage-cabling`): the cable path, one flat twinax assembly per port, connector heads, clips, standoffs, and the GB200 / H100 cage boards.
