@@ -680,8 +680,12 @@ export function content(M) {
       body: 'Thousands of solder balls carry power and signals from the board into a many-layer organic substrate. Most of the balls are power and ground: at 0.8 V it takes many parallel paths to carry a thousand amps.',
       specs: [['Core voltage', '≈0.7–0.9 V', 'assumed', { assume: 'core-voltage' }], ['Core current, P ÷ V', `≈${n0(coreA)} A over several rails`, 'derived', { calc: 'core-current' }], ['Stiffener ring, as drawn', 'representative', 'assumed', { assume: 'package-stiffener-drawing' }]] },
     { id: 'interposer', title: 'Interposer', kicker: X.packaging.replace('TSMC ', ''),
-      body: 'A silicon layer wires the dies and memory together with lines far finer than any circuit board can carry.',
-      specs: [['Packaging', X.packaging, EV6.pack.basis, EV6.pack.ev]] },
+      body: A.id === 'h100'
+        ? 'A single silicon interposer wires the die and memory together with lines far finer than any circuit board can carry.'
+        : 'Instead of one large silicon interposer, small silicon bridges embedded in the interposer carry the finest wiring: under the seam between the dies and under each die-to-HBM edge.',
+      specs: [['Packaging', X.packaging, EV6.pack.basis, EV6.pack.ev],
+        ...(A.id === 'h100' ? [] : [['Structure', 'bridge-based, not a monolithic silicon interposer', A.id === 'rubin' ? 'assumed' : 'reported', A.id === 'rubin' ? { assume: 'rubin-packaging' } : { refs: [['techinsights-b200-packaging', 'body text: GB100 "utilizes the local area silicon interconnect (-L) variant of CoWoS instead of a monolithic silicon interposer (-S)", "NVIDIA’s first use of a bridge-based 2.5D integration technology"']] }],
+          ['Bridges and microbumps, as drawn', 'representative', 'assumed', { assume: 'cowos-bridge-drawing' }]])] },
     { id: 'dies', title: A.dies > 1 ? 'Two GPU dies' : 'One GPU die', kicker: `${X.transistors.replace(', as announced', '')} transistors`,
       body: A.dies > 1
         ? 'Two reticle-limit dies act as one GPU, joined by a 10 TB/s die-to-die link. Nearly every watt that reaches them, whether it runs computation, on-chip memory, communication or leakage, ends as heat.'

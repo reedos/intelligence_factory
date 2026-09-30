@@ -169,6 +169,7 @@ export const SOURCES = {
   'nvidia-blackwell-ultra-blog': { title: 'Inside NVIDIA Blackwell Ultra: The Chip Powering the AI Factory Era', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/inside-nvidia-blackwell-ultra-the-chip-powering-the-ai-factory-era', published: '2025', dated: "Aug 22, 2025", accessed: '09/27/2026', kind: 'primary', marketing: true },
   'wccftech-nv-hbi': { title: 'NVIDIA Deep-Dives Into Blackwell Infrastructure: NV-HBI Used to Fuse Two AI GPUs Together', publisher: 'WCCFTech', url: 'https://wccftech.com/nvidia-blackwell-ai-deep-dive-nv-hbi-fuse-two-ai-gpus-together-5th-gen-tensor-cores-5th-gen-nvlink-spectrum-x/', published: '2024', dated: "Aug 27, 2024", accessed: '09/27/2026', kind: 'secondary' },
   'tes-h100-sxm5-module': { title: 'NVIDIA H100 80GB SXM5 HBM3 GPU (699-2G520-0200-400) product listing', publisher: 'TES IT Solutions', url: 'https://www.tes-itsolutions.com/product-page/nvidia-h100-80gb-sxm5-hbm3-hopper-tensor-core-gpu-699-2g520-0200-400', published: 'undated', dated: 'undated product page', accessed: '09/30/2026', kind: 'secondary' },
+  'techinsights-b200-packaging': { title: 'NVIDIA Blackwell B200: High-Performance Interconnect and Packaging Analysis', publisher: 'TechInsights', url: 'https://www.techinsights.com/blog/nvidia-blackwell-b200-high-performance-interconnect-and-packaging-analysis', published: 'undated', dated: 'undated blog post', accessed: '09/30/2026', kind: 'secondary' },
   'micron-hbm3e-brief': { title: 'HBM3E product brief', publisher: 'Micron', url: 'https://assets.micron.com/adobe/assets/urn:aaid:aem:b710d8f2-7f66-44c1-a234-456e2b986347/original/as/hbm3e-product-brief.pdf', published: '10/2023', dated: "footer reads \"Rev. C 10/2023\"", accessed: '09/27/2026', via: 'Wayback Machine copy (the live URL is WAF-blocked)', kind: 'primary', marketing: true },
 
   // tokens, training, carbon, models
@@ -493,7 +494,7 @@ export const PART_SOURCES = {
   'power:tray:nvswitch': ['nvidia-h100-datasheet'],
 
   'power:chip:balls': ['semianalysis-blackwell-power-delivery'],
-  'power:chip:interposer': ['nvidia-blackwell-ultra-blog', 'wccftech-nv-hbi'],
+  'power:chip:interposer': ['nvidia-blackwell-ultra-blog', 'wccftech-nv-hbi', 'techinsights-b200-packaging'],
   'power:chip:dies': ['nvidia-blackwell-ultra-blog', 'wccftech-nv-hbi'],
   'power:chip:hbm': ['micron-hbm3e-brief', 'arxiv-gpu-power-visibility', 'skhynix-hbm4', 'micron-hbm4', 'samsung-hbm4'],
   'power:chip:tokens': ['google-inference-impact', 'samsi-words-to-watts'],

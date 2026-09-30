@@ -130,10 +130,33 @@ function buildPackage({ quality, state, model }) {
   bumps.userData.computeDynamic = 'c4';
   for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) { o.position.set(-2.97 + i * 0.18, Y.bumps, -2.79 + j * 0.18); o.updateMatrix(); bumps.setMatrixAt(bi++, o.matrix); }
   scene.add(bumps);
-  // silicon interposer
+  // Interposer. H100 (CoWoS-S): one monolithic silicon interposer, drawn as
+  // mirror-grey silicon with a fine TSV dot field. Blackwell and Rubin
+  // (CoWoS-L): an organic redistribution interposer with small silicon bridges
+  // embedded under the die seam and the die-to-HBM edges. Bridge count, size
+  // and placement are representative (cowos-bridge-drawing).
+  const cowosL = A.id !== 'h100';
   const IW = twin ? 6.2 : 6.0, ID = twin ? 5.9 : 4.0;
-  S.box(IW, 0.1, ID, MAT.silicon, 0, Y.inter, 0);
-  for (let i = 0; i < 40; i++) N.box(0.012, 0.004, ID - 0.3, MAT.gold, -2.9 + i * 0.15, Y.inter + 0.052, 0);
+  const dots = (pitch, r, bg, dot) => canvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = bg; g.fillRect(0, 0, w, h); g.fillStyle = dot;
+    for (let y = pitch / 2; y < h; y += pitch) for (let x = pitch / 2; x < w; x += pitch) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
+  });
+  // Builder merges drop UVs, so textured slabs are their own meshes; UVs scale with size so the dot pitch stays fixed.
+  const texBox = (w, h, d, mat, x, y, z, cell) => {
+    const g = new THREE.BoxGeometry(w, h, d), uv = g.attributes.uv;
+    for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * w / cell, uv.getY(k) * d / cell);
+    const m = new THREE.Mesh(g, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; scene.add(m); return m;
+  };
+  const interMat = cowosL
+    ? new THREE.MeshStandardMaterial({ color: 0x1c1a1a, roughness: 0.5, metalness: 0.1 })
+    : new THREE.MeshStandardMaterial({ color: 0x8e96a2, map: dots(16, 2.2, '#b8bec8', '#8a8f98'), roughness: 0.15, metalness: 0.55 });
+  interMat.name = cowosL ? 'CoWoS-L organic redistribution interposer' : 'CoWoS-S silicon interposer';
+  if (cowosL) S.box(IW, 0.1, ID, interMat, 0, Y.inter, 0); else texBox(IW, 0.1, ID, interMat, 0, Y.inter, 0, 0.5);
+  if (cowosL) {
+    const bridge = new THREE.MeshStandardMaterial({ color: 0xc8d0dc, roughness: 0.12, metalness: 0.6 }); bridge.name = 'Embedded silicon bridge';
+    S.box(0.3, 0.02, 2.6, bridge, 0, Y.inter + 0.045, 0);                                   // under the die-to-die seam
+    for (const x of [-2.02, -0.7, 0.7, 2.02]) for (const z of [-1.72, 1.72]) S.box(0.8, 0.02, 0.36, bridge, x, Y.inter + 0.045, z);   // die-to-HBM edges
+  }
   // GPU dies: polished silicon backside with a dark sidewall; the floorplan is a
   // separate x-ray decal (runtime overlay) shown in the data and heat layers.
   const dieMat = new THREE.MeshPhysicalMaterial({ color: 0x4a5262, roughness: 1, roughnessMap: dieRoughness(), metalness: 0.35, clearcoat: 1.0, clearcoatRoughness: 0.06, iridescence: 0.1, iridescenceThicknessRange: [180, 320], envMapIntensity: 0.9, emissive: 0x6fd8ff, emissiveIntensity: 0.0 });
@@ -195,6 +218,12 @@ function buildPackage({ quality, state, model }) {
       else N.box(0.006, stackH - 0.03, 0.01, MAT.copper, fcx + fx * 0.002, hb + stackH / 2, z + off);
     }
   });
+  // Underfill with the microbump field under every die and HBM site, on the
+  // interposer: what each exploded gap connects to (pitch representative).
+  const underfill = new THREE.MeshPhysicalMaterial({ color: 0x8a6a3a, map: dots(12, 3.2, '#6b5230', '#d8c08a'), roughness: 0.45, metalness: 0.2, transparent: true, opacity: 0.8 });
+  underfill.name = 'Underfill and microbumps';
+  for (const dx of dieX) texBox(2.6, 0.012, 3.3, underfill, dx, Y.inter + 0.072, 0, 1.2);
+  for (const [x, z] of hbmPos) texBox(HW, 0.012, HD, underfill, x, Y.inter + 0.072, z, 1.2);
   const live = hbmPos.filter((_, i) => i !== spare);
   // Heat layer only: what sits above the silicon. A thin thermal interface
   // sheet on each die and stack, then the lifted copper base of the cooler
