@@ -468,12 +468,16 @@ function buildPackage({ quality, state, model }) {
   }
 
   const d0 = dieX[0], [hx, hz] = live[live.length - 1], hy = hb + stackH + 0.03;
+  // H100's single die pin sits toward the die's far corner, clear of the HBM pin on its right edge
+  const diePin = twin ? [d0, Y.dies + 0.1, 0.4] : [-0.9, Y.dies + 0.1, -1.3];
   // the pin sits on the stack's outer corner, clear of the dies pin in the overview and interposer views
   const hbmHS = { pos: [hx + Math.sign(hx) * 0.42, hy, hz + Math.sign(hz) * 0.4], view: { pos: [hx + 3.5, hy + 4.5, hz + 4.2], target: [hx * 0.8, Y.dies + 0.5, hz * 0.9] } };
   // Tokens: frame the top of the package and the live readout above it, so the
   // generated text is legible; the pin sits beside the rows, never on them.
   const TOKEN_ROWS = [2.2, 7.6, -1];
-  const tokensHS = { pos: [TOKEN_ROWS[0] + 4.1, TOKEN_ROWS[1] - 1.3, TOKEN_ROWS[2]], view: componentView([2.0, 5.7, -0.5], [6, 4.6, 11], [9.4, 5.2, 5.0]) };
+  // The pin rides just above the back of the package, where the answer tokens
+  // leave the die, so in the overviews it marks a place rather than empty air.
+  const tokensHS = { pos: [2.9, Y.dies + 1.4, -1.6], view: componentView([2.0, 5.7, -0.5], [6, 4.6, 11], [9.4, 5.2, 5.0]) };
   const nvphyHS = twin ? { pos: [2.62, Y.dies + 0.1, -1.2], view: { pos: [8, 5, 1], target: [3, 2.6, 0] } } : { pos: [0.9, Y.dies + 0.1, 1.62], view: { pos: [2, 5.5, 8], target: [0, 2.6, 2.2] } };
   return {
     scene, flows,
@@ -487,13 +491,13 @@ function buildPackage({ quality, state, model }) {
       // the ball rows and the fan-out past the field, still under the substrate edge
       balls: { pos: [3.75, .20, 3.75], view: { pos: [7.2, 1.6, 7.2], target: [2.8, .15, 2.8] } },
       interposer: { pos: [3.1, Y.inter, 0], view: { pos: [7.5, 4.2, 4.5], target: [1.5, 2.2, 0] } },
-      dies: { pos: [d0, Y.dies + 0.1, 0.4], view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
+      dies: { pos: diePin, view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
       hbm: hbmHS,
       tokens: tokensHS,
     },
     dataFlows, heatFlows,
     heatHotspots: {
-      junction: { pos: [d0, Y.dies + 0.1, 0.4], view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
+      junction: { pos: diePin, view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
       flux: { pos: [dieX[dieX.length - 1], Y.dies + 0.1, -0.8], view: { pos: [4, 6.5, 4], target: [1, 3.1, 0] } },
       tim: { pos: [3.2, Y.lid + 0.1, 3.0], view: { pos: [9, 7.5, 9], target: [0, 4, 0] } },
       hbm: hbmHS,
