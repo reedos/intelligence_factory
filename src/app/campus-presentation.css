@@ -20,7 +20,11 @@ body.story .campus-presentation { display: none; }
 body.app:not(.story) .sheet-toggle { display: grid; touch-action: none; user-select: none; }
 @media (min-width: 1101px) { body.app .sheet-toggle { display: none !important; } }
 @media (max-width: 1100px) {
-  body.app:not(.story) .viewer { flex: 1 1 0; min-height: 0; }
+  /* The pane's tab bar must always take its taps. When the sheet opens, the viewer can get shorter than the view's
+     minimum plus its control row; its content then clips inside the viewer instead of spilling over the tabs, and
+     the pane sits in a layer above the viewer in any case. */
+  body.app:not(.story) .viewer { flex: 1 1 0; min-height: 0; overflow: hidden; }
+  body.app:not(.story) .panel { position: relative; z-index: 8; }
   body.app:not(.story) .view { flex: 1 1 0; height: auto; min-height: 140px; }
   body.app:not(.story) .panel { flex: 0 0 var(--inspector-size, 230px); }
   body.app.sheet-open:not(.story) .panel { flex-basis: var(--inspector-size, 52dvh); }
