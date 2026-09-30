@@ -15,3 +15,50 @@ export function pinLabelBox(x, y, width, canvasWidth, canvasHeight, reserved, se
   }
   return null;
 }
+
+// Small screens: numbered pins that land on top of each other are decluttered. Pins closer than `radius` px join one
+// cluster. A cluster of 2..collapseAt-1 pins fans out on a ring round its centre (each pin keeps its own number), a
+// bigger one folds into a single group badge, which fans out like the small ones once `expanded` holds any of its
+// ids. Whatever results must not overlap: two clusters whose fans or badges would touch merge and are laid out again.
+// points: [{ id, x, y }] in list order. Returns placements (id -> { x, y, ax, ay }, true point ax/ay),
+// hidden ids, and groups ({ key, ids, x, y }) to draw as badges.
+/** @param {{ id: string, x: number, y: number }[]} points @param {{ radius?: number, collapseAt?: number, expanded?: Set<string> | null }} [opts] */
+export function declutterPins(points, { radius = 24, collapseAt = 5, expanded = null } = {}) {
+  const PIN = 12, BADGE = 21;   // half-sizes: a 22 px pin with its ring, a "N +k" badge
+  const order = new Map(points.map((p, i) => [p.id, i]));
+  let clusters = points.map(p => [p]);
+  const centre = m => ({ x: m.reduce((s, q) => s + q.x, 0) / m.length, y: m.reduce((s, q) => s + q.y, 0) / m.length });
+  const merge = (i, j) => { clusters[i] = [...clusters[i], ...clusters[j]].sort((a, b) => order.get(a.id) - order.get(b.id)); clusters.splice(j, 1); };
+  // single linkage: any two pins closer than radius share a cluster
+  for (let again = true; again;) {
+    again = false;
+    outer: for (let i = 0; i < clusters.length; i++) for (let j = i + 1; j < clusters.length; j++)
+      if (clusters[i].some(a => clusters[j].some(b => Math.hypot(a.x - b.x, a.y - b.y) < radius))) { merge(i, j); again = true; break outer; }
+  }
+  const layout = m => {
+    const c = centre(m), k = m.length;
+    if (k === 1) return { c, items: [{ id: m[0].id, x: m[0].x, y: m[0].y, r: PIN, p: m[0] }] };
+    const open = expanded && m.some(p => expanded.has(p.id));
+    if (k >= collapseAt && !open) return { c, group: true, items: [{ x: c.x, y: c.y, r: BADGE }] };
+    // evenly spaced round the centre, in the order the pins already sit round it, so each keeps its side;
+    // neighbours 34 px apart: 22 px badges with a clear gap
+    const r = 17 / Math.sin(Math.PI / k);
+    const ang = m.map(p => Math.hypot(p.x - c.x, p.y - c.y) < 1 ? null : Math.atan2(p.y - c.y, p.x - c.x));
+    const start = ang.find(a => a !== null) ?? -Math.PI / 2;
+    const rel = a => ((a - start) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+    const sorted = m.map((p, i) => ({ p, a: ang[i] ?? start + i * 1e-3 })).sort((u, v) => rel(u.a) - rel(v.a));
+    return { c, items: sorted.map(({ p }, i) => { const a = start + i * 2 * Math.PI / k; return { id: p.id, x: c.x + r * Math.cos(a), y: c.y + r * Math.sin(a), r: PIN, p }; }) };
+  };
+  let laid;
+  for (let again = true; again;) {
+    again = false; laid = clusters.map(layout);
+    outer: for (let i = 0; i < laid.length; i++) for (let j = i + 1; j < laid.length; j++)
+      if (laid[i].items.some(a => laid[j].items.some(b => Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r + 4))) { merge(i, j); again = true; break outer; }
+  }
+  const placements = new Map(), hidden = new Set(), groups = [];
+  laid.forEach((l, i) => {
+    if (l.group) { clusters[i].forEach(p => hidden.add(p.id)); groups.push({ key: clusters[i].map(p => p.id).join('|'), ids: clusters[i].map(p => p.id), x: l.c.x, y: l.c.y }); return; }
+    for (const it of l.items) placements.set(it.id, { x: it.x, y: it.y, ax: it.p.x, ay: it.p.y });
+  });
+  return { placements, hidden, groups };
+}
