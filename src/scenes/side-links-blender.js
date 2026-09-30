@@ -161,6 +161,24 @@ function build(name, nativeBuilder, options) {
     coversAlwaysVisible: { value: true },
     hasCovers: { value: covers.length > 0 },
   });
+  // Keep a readable enclosure outline without layering a bright sheet over
+  // the electronics. This is an inspection treatment, not clear metal.
+  const baseOpacity = material => options.state.mode === 'heat' ? .18 : /edge highlights/i.test(material.name) ? .32 : .07;
+  let coverFade = 1, coverOpacity = baseOpacity;
+  if (name === 'coherent' && covers.length) {
+    // Coherent part close-ups sit just beside or under the raised finned lid,
+    // where its bright fin edges would crowd the view and the page title. Fade
+    // the x-ray lid as the camera nears it; in Heat it stays a visible target.
+    const coverBox = new THREE.Box3();
+    for (const cover of covers) coverBox.expandByObject(cover);
+    coverOpacity = material => baseOpacity(material) * (options.state.mode === 'heat' ? .5 + .5 * coverFade : .1 + .9 * coverFade);
+    const fade = (renderer, scene, camera, geometry, material) => {
+      if (!coverMaterials.has(material)) return;
+      coverFade = THREE.MathUtils.smoothstep(coverBox.distanceToPoint(camera.position), 4, 10);
+      material.opacity = coverOpacity(material);
+    };
+    for (const cover of covers) cover.onBeforeRender = fade;
+  }
   let coversDirty = false;
   built.inspection.setCovers = () => {
     const visible = true;
@@ -186,9 +204,7 @@ function build(name, nativeBuilder, options) {
     }
     for (const material of coverMaterials) {
       if (!material.transparent) { material.transparent = true; material.needsUpdate = true; moved = true; }
-      // Keep a readable enclosure outline without layering a bright sheet over
-      // the electronics. This is an inspection treatment, not clear metal.
-      material.opacity = options.state.mode === 'heat' ? .18 : /edge highlights/i.test(material.name) ? .32 : .07;
+      material.opacity = coverOpacity(material);
       material.depthWrite = false;
     }
     return moved || changed;
