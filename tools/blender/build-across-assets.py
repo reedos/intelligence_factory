@@ -23,8 +23,10 @@ groups={}
 for n in names:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
 def pt(p):return(p[0],-p[2],p[1])
-def mesh(n,v,f,m,g,bevel=0):
+def mesh(n,v,f,m,g,bevel=0,smooth=False):
  me=bpy.data.meshes.new(n);me.from_pydata([pt(p) for p in v],[],f);me.update()
+ if smooth:
+  for poly in me.polygons:poly.use_smooth=True
  o=bpy.data.objects.new(n,me);S.collection.objects.link(o);o.parent=groups[g];me.materials.append(m)
  if bevel:
   q=o.modifiers.new('Manufactured radius','BEVEL');q.width=bevel;q.segments=2
@@ -33,10 +35,11 @@ def mesh(n,v,f,m,g,bevel=0):
 def box(n,p,d,m,g,b=.04):
  v=[(p[0]+x*d[0]/2,p[1]+y*d[1]/2,p[2]+z*d[2]/2) for z in [-1,1] for y in [-1,1] for x in [-1,1]]
  return mesh(n,v,[(0,4,6,2),(1,3,7,5),(0,1,5,4),(2,6,7,3),(0,2,3,1),(4,5,7,6)],m,g,b)
-def lathe(n,profile,m,g,seg=24):
+def lathe(n,profile,m,g,seg=24,smooth=False,inward=False):
  v=[(r*math.cos(k*math.tau/seg),y,r*math.sin(k*math.tau/seg)) for y,r in profile for k in range(seg)]
  f=[(j*seg+k,(j+1)*seg+k,(j+1)*seg+(k+1)%seg,j*seg+(k+1)%seg) for j in range(len(profile)-1) for k in range(seg)]
- return mesh(n,v,f,m,g)
+ if inward:f=[tuple(reversed(q)) for q in f]
+ return mesh(n,v,f,m,g,smooth=smooth)
 def cyl(n,p,r,h,m,g,seg=16):
  o=lathe(n,[(-h/2,r),(h/2,r)],m,g,seg);o.location=pt(p);return o
 def beam(n,a,b,r,m,g):
@@ -91,18 +94,40 @@ for z in [1,5]:
  for dz in [-.7,0,.7]:cyl('GSU bushing',(13.5,3.9,z+dz),.13,1.4,pearl,g,8)
 for z in [.6,5.4]:beam('Line gantry post',(16,0,z),(16,7,z),.14,steel,g)
 box('Line gantry beam',(16,7,3),(.3,.3,5.4),steel,g,.02)
-# Nuclear generation: open hyperboloid cooling towers and containment cylinder.
+# Nuclear generation: two natural-draft cooling towers standing on a ring of
+# X-braced columns (the open air inlet), a containment building beside them, a
+# turbine hall and a switchyard where the HV line leaves. Tower proportions follow
+# the usual hyperboloid (height about 1.1x base diameter); representative, not
+# any one plant.
 g='NUCLEAR_PLANT'
-profile=[]
-for i in range(19):
- y=34*i/18;waist=34*.62
- r=9+(15-9)*((waist-y)/waist)**2 if y<=waist else 9+(12-9)*((y-waist)/(34-waist))**2
- profile.append((y,r))
+towerConcrete=mat('Tower concrete',(.55,.55,.52),.02,.85)
+towerInside=mat('Tower interior shadow',(.06,.065,.07),0,.95)
+nuc=mat('Nuclear aviation light',(1,.1,.06),0,.5,6)
+H2=34;lip=H2*.06;waist=H2*.62
+def tr(y):return 9+(15-9)*((waist-y)/waist)**2 if y<=waist else 9+(12-9)*((y-waist)/(H2-waist))**2
+profile=[(lip+(H2-lip)*i/22,tr(lip+(H2-lip)*i/22)) for i in range(23)]
 for x in [-17,17]:
- o=lathe('Cooling tower shell',profile,concrete,g,32);o.location=pt((x,0,0))
- o=lathe('Tower rim',[(33.7,11.9),(34,12.15),(34,11.65),(33.7,11.45)],pearl,g,32);o.location=pt((x,0,0))
-cyl('Containment cylinder',(1,7.5,19),7,15,pearl,g,24)
-o=lathe('Containment dome',[(15+5*math.sin(i*math.pi/24),7*math.cos(i*math.pi/24)) for i in range(13)],pearl,g,24);o.location=pt((1,0,19))
+ o=lathe('Cooling tower shell',profile,towerConcrete,g,48,smooth=True);o.location=pt((x,0,0))
+ o=lathe('Tower shell interior',[(y,r-.35) for y,r in profile[8:]],towerInside,g,48,smooth=True,inward=True);o.location=pt((x,0,0))
+ o=lathe('Tower rim',[(33.7,11.9),(34,12.15),(34,11.65),(33.7,11.45)],pearl,g,48);o.location=pt((x,0,0))
+ cyl('Tower basin',(x,.2,0),tr(lip)-.3,.4,towerInside,g,32)
+ rb=tr(lip)-.25;n=28
+ for k in range(n):
+  a0=k*math.tau/n;a1=(k+1)*math.tau/n
+  p0=(x+rb*math.cos(a0),0,rb*math.sin(a0));p1=(x+rb*math.cos(a1),0,rb*math.sin(a1))
+  q0=(x+rb*math.cos(a0),lip+.1,rb*math.sin(a0));q1=(x+rb*math.cos(a1),lip+.1,rb*math.sin(a1))
+  beam('Inlet column',p0,q1,.16,towerConcrete,g);beam('Inlet column',p1,q0,.16,towerConcrete,g)
+ for a in [0,2.1,4.2]:cyl('Tower rim light',(x+12*math.cos(a),34.15,12*math.sin(a)),.2,.25,nuc,g,8)
+# reactor island beside the towers: containment, turbine hall, switchyard
+cyl('Containment cylinder',(42,7.5,-2),7,15,pearl,g,32)
+o=lathe('Containment dome',[(15+5*math.sin(i*math.pi/40),7*math.cos(i*math.pi/40)) for i in range(21)],pearl,g,32,smooth=True);o.location=pt((42,0,-2))
+box('Turbine building',(42,3.2,12),(12,6.4,14),cladding,g,.15)
+box('Turbine building roof',(42,6.5,12),(12.4,.25,14.4),pearl,g,.05)
+for z in [9,15]:
+ box('Main transformer',(51,1.5,z),(3,3,2.4),steel,g,.1)
+ for dz in [-.6,0,.6]:cyl('Transformer bushing',(51.4,3.7,z+dz),.12,1.3,pearl,g,8)
+for z in [9.5,14.5]:beam('Switchyard gantry post',(55,0,z),(55,6.5,z),.13,steel,g)
+box('Switchyard gantry beam',(55,6.5,12),(.3,.3,5.6),steel,g,.02)
 # Wind mast and a three-bladed rotor, normalized to blade radius 1 for native
 # animation (runtime scales it to R=10 on a 16.5 hub: rotor diameter about 1.2x
 # hub height, near the US 2023 average of 133.8 m on 103.4 m hubs, LBNL).

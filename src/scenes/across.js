@@ -358,7 +358,7 @@ export function build({ quality, model, state = {} }) {
       else {
       towerGeo ||= coolingTowerGeo(H2, 15, 9, 12, seg);
       P.addM(towerGeo, MAT.concrete, mtx(x - 17, 0, z)); P.addM(towerGeo, MAT.concrete, mtx(x + 17, 0, z));
-      P.cyl(7, 15, MAT.white, x + 1, 7.5, z + 19, 20);
+      P.cyl(7, 15, MAT.white, x + 42, 7.5, z - 2, 20);
       }
       nuclearEmitters.push({ p: [x - 17, H2, z], dir: [0.1, 1, 0] }, { p: [x + 17, H2, z], dir: [-0.1, 1, 0] });
     }
@@ -392,7 +392,8 @@ export function build({ quality, model, state = {} }) {
   const towerPts = [];
   const HG = gantry(H, 1);
   plants.forEach(([px, pz, kind], i) => {
-    const from = kind === 'gas' ? [px + 16 * Math.cos(GAS_RY) + 3 * Math.sin(GAS_RY), pz - 16 * Math.sin(GAS_RY) + 3 * Math.cos(GAS_RY)] : [px, pz];      // a gas plant's line leaves from its step-up gantry
+    const from = kind === 'gas' ? [px + 16 * Math.cos(GAS_RY) + 3 * Math.sin(GAS_RY), pz - 16 * Math.sin(GAS_RY) + 3 * Math.cos(GAS_RY)]
+      : kind === 'nuclear' ? [px + 55, pz + 12] : [px, pz];             // gas and nuclear lines leave from their switchyard gantries      // a gas plant's line leaves from its step-up gantry
     let pts = route(from, [HG[0], HG[2]], 60, 100 + i).map(p => [p[0], 6, p[2]]);
     // a line arriving from the far side swings around the plinth to the gantry instead of crossing the roofs
     const overCampus = pts.some(([x, , z]) => Math.abs(x - H[0]) < 19 && Math.abs(z - H[1]) < 16);
