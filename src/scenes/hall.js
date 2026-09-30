@@ -145,7 +145,9 @@ export function build({ quality, model }) {
   if (quality.shadows) { key.castShadow = true; key.shadow.mapSize.set(4096, 4096); Object.assign(key.shadow.camera, { left: -48, right: 48, top: 32, bottom: -32, near: 10, far: 180 }); key.shadow.bias = -0.0003; key.shadow.normalBias = 0.04; }
   scene.add(key, key.target);
   const fill = new THREE.DirectionalLight(0xadc2d5, 0.48); fill.position.set(40, 18, 60); scene.add(fill);
-  const edgeLight=new THREE.DirectionalLight(0xffddba,.5);edgeLight.position.set(30,12,-30);edgeLight.target.position.set(4,1,0);scene.add(edgeLight,edgeLight.target);
+  // Raised to ~40 deg: at the old ~15 deg its mirror angle matched the low close-up cameras (CDU, fan wall,
+  // busway), so it painted a glare hotspot on flat cabinet tops, tray and floor.
+  const edgeLight=new THREE.DirectionalLight(0xffddba,.5);edgeLight.position.set(30,34,-30);edgeLight.target.position.set(4,1,0);scene.add(edgeLight,edgeLight.target);
 
   const flows = [], dataFlows = [], heatFlows = [];
   const S = new Builder(), N = new Builder();
@@ -755,10 +757,19 @@ export function build({ quality, model }) {
     for (const [mat, list] of runs) inst('PIPE_UNIT', list, mat);
     for (const [mat, list] of bends) inst('PIPE_ELBOW', list, mat);
     inst('PIPE_FLANGE', flanges); inst('BUTTERFLY_VALVE', valves); inst('PIPE_HANGER', bands);
-    // roof curb where the risers leave the building: a short cut section of roof deck with flashing collars
-    S.box(3.0, .25, 3.7, MAT.concrete, X0 + 2.4, 7.675, -16.05);
-    N.box(3.0, .02, 3.7, cutTop, X0 + 2.4, 7.812, -16.05);
-    for (const [x, z] of [[X0 + 2, -16.4], [X0 + 2.8, returnRiserZ]]) N.cyl(.34, .14, MAT.galv, x, 7.9, z, 24);
+    // Roof curb where the risers leave the building: the one bay of roof kept in the cutaway. The deck bears on
+    // the back wall's crown and on two steel roof beams framed into that wall, both cut off at the bay's edge
+    // with the rest of the section, so it reads as retained roof rather than a plate hanging in the air.
+    const curbZ0 = Z0 - .28, curbZ1 = -14.1, curbZc = (curbZ0 + curbZ1) / 2, curbL = curbZ1 - curbZ0;
+    const beamTop = WALL_H + .295, beamD = .4;
+    for (const bx of [X0 + 1.02, X0 + 3.78]) {
+      for (const y of [beamTop - .0125, beamTop - beamD + .0125]) N.box(.17, .025, curbL - .05, MAT.darkSteel, bx, y, curbZc - .025);
+      N.box(.012, beamD - .05, curbL - .05, MAT.darkSteel, bx, beamTop - beamD / 2, curbZc - .025);
+    }
+    S.box(3.18, beamTop - WALL_H - .01, .29, MAT.concrete, X0 + 2.4, (WALL_H + beamTop) / 2, Z0 - .15);   // wall crown under the deck
+    S.box(3.2, .22, curbL, MAT.concrete, X0 + 2.4, beamTop + .005 + .11, curbZc);
+    N.box(3.2, .02, curbL, cutTop, X0 + 2.4, beamTop + .005 + .23, curbZc);
+    for (const [x, z] of [[X0 + 2, -16.4], [X0 + 2.8, returnRiserZ]]) N.cyl(.34, .14, MAT.galv, x, beamTop + .31, z, 24);
   } else {
     S.cylX(0.26, headerEndX-facilitySupplyX, MAT.pipeBlue, (headerEndX+facilitySupplyX)/2, hdrY, -16.4, 16);
     S.cylX(0.26, headerEndX-facilityReturnX, MAT.pipeRed, (headerEndX+facilityReturnX)/2, hdrY-.7, -16.4, 16);
@@ -1011,8 +1022,13 @@ export function build({ quality, model }) {
       // power-room pins (1-4) separate from the data-hall ones instead of stacking in one cluster.
       portrait: { pos: [42, 83, 33], target: [-8, 2.5, -4.5] },
       near: 0.1, far: 2000, min: 0.6, max: 180 },
+    // Phones, data layer: its 13 pins all sit in the data hall, eight of them within ~12 m of the front service
+    // aisle, and the shared portrait view (which must also reach the power room) stacked them in one diagonal
+    // clump. Looking steeply from the front wall lays the rows across the screen so each pin gets its own spot.
+    // Phones only: with cameraByMode set, a layer switch re-opens that layer's overview, which desktop keeps as is.
+    ...(quality.mobile ? { cameraByMode: { data: { portrait: { pos: [5, 58, 36], target: [5, 1, 3] } } } } : {}),
     hotspots: {
-      optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .62, 1.9, -6.25], target: [leafX + .02, 1.6, -7.6] } },   // close enough to read true-size OSFP modules
+      optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .37, 1.74, -6.72], target: [leafX + .02, 1.57, -7.6] } },   // ~0.9 m off the cages so the true-size OSFP modules and their jumpers fill the frame
       cpo: cpoSpot,
       unitsub: { pos: [usX, 3.3, usZ], view: { pos: [usX - 6.6, 5.0, usZ + 6.4], target: [usX + 1.2, 1.3, usZ] } },
       swgr: { pos: [-27, 2.8, -15.6], view: { pos: [-25, 6, -4], target: [-27, 1.3, -15.6] } },
@@ -1031,23 +1047,30 @@ export function build({ quality, model }) {
       cpo: cpoSpot,
       [air ? 'inrow' : 'cdu']: cduSpot,
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
-      hotaisle: { pos: [rowX0 + 2.5, 1.7, -9.7], view: { pos: [rowX0 - 4.4, 2.5, -7.2], target: [rowX0 + 2.5, 1.3, -9.7] } },   // through the pod's end doors, down the contained aisle
+      // Heat keeps the long one-point view down the contained aisle toward the fan wall, over the end doors, so the
+      // hot air is seen running the aisle's length; the power layer's containment view stays head-on to the doors.
+      hotaisle: { pos: [rowX0 + 6.2, 1.7, -9.7], view: { pos: [rowX0 - 3, 3.6, -9.45], target: [rowX0 + 11.2, 1.3, -9.7] } },
       fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
-      riser: { pos: [X0 + 2.4, hdrY + 1.4, -16.4], view: { pos: [X0 + 10, 10, -4], target: [X0 + 2.4, 5, -16.4] } },
+      riser: { pos: [X0 + 2.4, 8.5, -15.6], view: { pos: [X0 + 10, 10, -4], target: [X0 + 2.4, 5, -16.4] } },
       fire: { pos: [asdX, 2.9, asdZ], view: { pos: [-7.5, 2.2, -5.2], target: [-10.8, 3.4, -9] } },   // the detector box and its sampling pipe rising to the ceiling
     },
     dataHotspots: {
-      storage: { pos: [storageMx[1].x, 2.5, svcZ + .6], view: { pos: [(storageMx[0].x + storLast.x) / 2 - 1.2, 1.9, svcZ + 4.7], target: [(storageMx[0].x + storLast.x) / 2 - .2, 1.3, svcZ + .6] } },   // eye level, near head-on: the drive shelves must read as storage, not compute
+      // Looking down onto the drive shelves from just above head height: every other pin in the hall sits
+      // farther back at ~2.6 m, so from above it projects off the top of the frame instead of stacking over
+      // the storage racks (from eye level they all landed on the shelf tops, 'NVL72 racks' among them).
+      storage: { pos: [storageMx[1].x, 2.0, svcZ + .6], view: { pos: [(storageMx[0].x + storLast.x) / 2 - .9, 3.5, svcZ + 5.1], target: [(storageMx[0].x + storLast.x) / 2 - .2, 1.1, svcZ + .6] } },
       control: { pos: [(controlMx[0].x + controlMx[1].x) / 2, 2.6, svcZ], view: { pos: [(controlMx[0].x + controlMx[1].x) / 2, 5, 19], target: [(controlMx[0].x + controlMx[1].x) / 2, 1.3, svcZ] } },
       odf: { pos: [rowX0 + 4.4, 2.5, 14.5], view: { pos: [rowX0 + 11, 5.2, 23], target: [rowX0 + 5, 1.6, 12.5] } },
       crosshall: { pos: [rowX0 + 9.4, 1.2, 14.2], view: { pos: [rowX0 + 12, 3.2, 18.5], target: [rowX0 + 9.4, 1.2, 14.2] }, drill: 1 },
       pp: { pos: [front[0].x - 0.3, 2.6, rowZs[5]], view: { pos: [front[4].x, 7.5, rowZs[5] + 7.5], target: [front[4].x, 2.3, rowZs[5] - 1.5] } },
       dp: { pos: [front[6].x, 2.6, rowZs[5]], view: { pos: [front[10].x, 9, rowZs[5] + 10], target: [front[12].x, 2, rowZs[3]] } },
       uplinks: { pos: [rackMx.filter(k => k.z === -4.6)[10].x, 3.4, -4.6], view: { pos: [-1.2, 2.9, -7.0], target: [4.5, 3.2, -4.9] } },
-      leaf: { pos: [rowX1 + 0.45, 2.7, -1.6], view: { pos: [rowX1 - 5, 5, 8], target: [rowX1 + 0.4, 1.5, -1.6] } },
+      // At true size a 1U QM9700 is 44 mm tall, so the view stands in the aisle ~1.6 m from the row-end
+      // network rack, level with its switch pair; the pin sits on that rack's face, not its roof.
+      leaf: { pos: [leafX, 1.8, -.95], view: { pos: [leafX - .65, 1.85, .4], target: [leafX, 1.5, -1.0] } },
       spine: { pos: [rowX0 + 4, 2.7, 10.5], view: { pos: [rowX0 + 5, 5, 18], target: [rowX0 + 5, 1.2, 10.5] } },
       runways: { pos: [rowX1 + 0.45, 4.7, 4], view: { pos: [rowX1 - 6, 8, 12], target: [rowX1, 4, 2] } },
-      optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .62, 1.9, -6.25], target: [leafX + .02, 1.6, -7.6] } },   // close enough to read true-size OSFP modules
+      optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .37, 1.74, -6.72], target: [leafX + .02, 1.57, -7.6] } },   // ~0.9 m off the cages so the true-size OSFP modules and their jumpers fill the frame
       cpo: cpoSpot,
       racks: { pos: [front[18].x, 2.6, rowZs[5]], view: { pos: [front[18].x + 1.6, 3.5, 12], target: [front[18].x, 1.25, rowZs[5]] } },
     },
