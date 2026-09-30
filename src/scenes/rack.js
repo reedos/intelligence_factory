@@ -6,6 +6,7 @@ import { rbox, bundle, blinkers, plumes, floorMirror } from '../fx.js';
 import { computeMaterials, finishCompute } from './compute-finish.js';
 import { frameCompute } from './compute-framing.js';
 import { addRackOptics } from './rack-optics.js';
+import { componentView } from '../app/housing-frame.js';
 
 const U = 0.04445;
 // product-shot trim: the champagne bezel band from the server texture, in real geometry; and quick-disconnect collars
@@ -339,7 +340,9 @@ function buildHGX({ quality, state }) {
       tp: { pos: [-0.1, yb + 0.14, pz + 0.18], view: { pos: [0.5, 1.6, 1.5], target: [0, py, pz] } },
       servers: srv,
       uplinks: { pos: [fx, H + 0.2, fz], view: { pos: [1.3, 2.9, -1.6], target: [0.2, 2.2, fz] } },
-      optical: { pos: [-0.62, H + 0.05, 0], view: { pos: [-1.8, 3.0, 2.8], target: [-0.3, 1.6, 0] } },
+      // The rear cage rows, the combed fiber manager and its patch strip: the
+      // scale-out optics this card contrasts with scale-up copper.
+      optical: { pos: [0.259, 1.62, ZB - 0.06], view: componentView([0.16, 1.3, ZB + 0.06], [0.75, 0.3, -0.95], [0.46, 0.8, 0.3]) },
       mgmt: { pos: [0.22, topY + U / 2, ZF - 0.05], view: { pos: [0.7, 1.9, 1.3], target: [0, topY, ZF] } },
     },
     look: LOOK,
@@ -579,7 +582,9 @@ function buildNVL({ quality, model, state }) {
       nvswitch: { pos: [.1, sy + .04, sz], view: { pos: [.65, sy + .75, sz + 1.0], target: [0, sy, sz] } },
       spine: { pos: [0.2, trayY(18), cartZ], view: { pos: [0.4, 1.1, -1.6], target: [0, 0.9, ZB] } },
       uplinks: { pos: [fx, H + 0.2, fz], view: { pos: [1.3, 2.9, 2.2], target: [0.2, 2.2, fz] } },
-      optical: { pos: [-0.62, H + 0.05, 0], view: { pos: [-1.8, 3.0, 2.8], target: [-0.3, 1.6, 0] } },
+      // Front cage rows, fiber managers and the patch strip, with the opened
+      // tray's seated modules in frame: scale-out optics, set against copper.
+      optical: { pos: [0.259, 1.72, ZF + 0.06], view: componentView([0.16, 1.5, ZF - 0.06], [0.75, 0.3, 0.95], [0.46, 0.8, 0.3]) },
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
       mgmt: { pos: [0.22, trayY(33), ZF - 0.05], view: { pos: [0.7, 1.9, 1.3], target: [0, trayY(33), ZF] } },
     },
