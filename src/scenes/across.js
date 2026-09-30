@@ -504,7 +504,7 @@ export function build({ quality, model, state = {} }) {
   const built = {
     scene, flows, dataFlows, heatFlows, layers: { power, data },
     look: { exposure: 1.0, bloom: 0.85, threshold: 0.92, ao: 0, env: 'night', envIntensity: 0.5 },
-    camera: { pos: [hx - 120, 1650, hz + 1700], target: [hx + 80, 0, hz + 60], near: 1, far: 30000, min: 60, max: 6000 },
+    camera: { pos: [hx - 220, 1380, hz + 1560], target: [hx - 60, 0, hz + 200], near: 1, far: 30000, min: 60, max: 6000 },
     hotspots: {
       grid: { pos: [(plants[1][0] + hx) / 2, 12, (plants[1][1] + hz) / 2], view: view((plants[1][0] + hx) / 2, (plants[1][1] + hz) / 2, 700) },
       plants: { pos: [plants[0][0] + 5 * Math.cos(GAS_RY) - 7 * Math.sin(GAS_RY), 24, plants[0][1] - 5 * Math.sin(GAS_RY) - 7 * Math.cos(GAS_RY)], view: view(plants[0][0] + 2, plants[0][1] - 4, 95) },
