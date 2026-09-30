@@ -123,10 +123,13 @@ def boot_stations():
     # Tapered strain-relief overmold (representative: no dimensioned source),
     # 12.4 mm across at the neck collar, easing to the jacket over 25 mm with
     # five flex-relief grooves, then the jacket itself to the end of the cutaway.
+    # Each groove is a rounded trough (half a cosine, 1.4 mm wide, 0.4 mm deep)
+    # so its section reads as a molded flex relief, not a machined sawtooth.
     st=[(-3.2,.62),(-3.55,.62)]
     for k in range(5):
         zg=-3.85-k*.4; r=.62-(k+1)*.028
-        st+= [(zg+.05,r),(zg+.03,r-.05),(zg-.03,r-.05),(zg-.05,r)]
+        for i in range(7):
+            u=i/6;st.append((zg+.07-.14*u,r-.04*(1-math.cos(2*math.pi*u))/2))
     st+= [(-5.75,.47),(-5.82,.43),(-6.0,.43)]
     return st
 
@@ -186,12 +189,45 @@ def cable_cutaway(name, cx, mats):
     # end faces the viewer, so the pairs run into the cable, not into air.
     bpy.ops.mesh.primitive_cylinder_add(vertices=40,radius=.43*.01,depth=.9*.01,location=xyz((cx,.9,-6.45)),rotation=(math.pi/2,0,0))
     j=bpy.context.object;j.name=name+' closed jacket';j.data.materials.append(mats['boot'])
-    b=j.modifiers.new('Jacket edge','BEVEL');b.width=.00012;b.segments=2;b.limit_method='ANGLE'
+    b=j.modifiers.new('Jacket edge','BEVEL');b.width=.0003;b.segments=3;b.limit_method='ANGLE'
     bpy.ops.object.modifier_apply(modifier=b.name)
     for p in j.data.polygons:p.use_smooth=len(p.vertices)<=4
+    cable_end_section(name,cx,-6.9,mats)
     # the cut end facing the cutaway, a hair proud of the cap
     bpy.ops.mesh.primitive_circle_add(vertices=40,radius=.41*.01,fill_type='NGON',location=xyz((cx,.9,-5.994)),rotation=(math.pi/2,0,0))
     c=bpy.context.object;c.name=name+' jacket cut face';c.data.materials.append(mats['cut'])
+
+def end_disc(name, cx, cy, z, rx, ry, material, n=24, inner=0):
+    # A flat disc (or ring, with inner>0) facing the far end of the cable, -z.
+    verts=[];faces=[]
+    for i in range(n):
+        a=2*math.pi*i/n
+        verts.append(xyz((cx+rx*math.cos(a),cy+ry*math.sin(a),z)))
+        if inner:verts.append(xyz((cx+inner*math.cos(a),cy+inner*math.sin(a),z)))
+    if inner:
+        for i in range(n):
+            j=(i+1)%n;faces.append((2*j,2*j+1,2*i+1,2*i))
+    else:faces.append(tuple(reversed(range(n))))
+    mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
+    if mesh.polygons[0].normal.y<0:mesh.flip_normals()     # Blender +Y is native -z
+    o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o);mesh.materials.append(material)
+    return o
+
+def cable_end_section(name, cx, z, mats):
+    # The cable is cut short behind the boot. Its end shows the construction the
+    # opened pairs already carry (representative layout): an overall shield
+    # under the jacket, filler, and the eight pairs in their round pack, each two
+    # insulated conductors in an oval foil. Layers step 0.03 mm toward the viewer.
+    cy=.9;ring=.24;d=.036
+    end_disc(name+' end filler',cx,cy,z-.003,.405,.405,mats['endfill'],40)
+    end_disc(name+' end overall shield',cx,cy,z-.0045,.385,.385,mats['endfoil'],40,.355)
+    for sx in [1,-1]:
+        for deg in [157.5,202.5,112.5,247.5]:
+            a=math.radians(deg);px=cx+sx*ring*math.cos(a);py=cy+ring*math.sin(a)
+            end_disc(name+' end pair foil',px,py+.01,z-.006,.078,.062,mats['endfoil'],20)
+            for ox in [-d,d]:
+                end_disc(name+' end insulation',px+ox,py,z-.009,d*.92,d*.92,mats['endinsul'],14)
+                end_disc(name+' end conductor',px+ox,py,z-.012,.013,.013,mats['endcu'],10)
 
 def copper_pull(name, cx, mats):
     # Flat molded pull tab (representative, photo-inspired): two straps from
@@ -258,7 +294,16 @@ def internals(kind):
         # conductor centerline or touching the active circuit topology.
         # Swept round conductors (copper twinax) are already smooth tubes: no bevel.
         swept=any(m and m.name.startswith(('Twinax','Tinned drain','Solder fillet')) for m in o.data.materials)
-        if not swept:
+        # Copper traces, vias and gold pads are hundreds of flat boxes: the import leaves every face unwelded, so a
+        # bevel finds no shared edge and changes nothing. Weld them and keep them flat-shaded, which exports each
+        # box with a third fewer vertices and the same look.
+        flat=kind=='copper' and any(m and (m.name.startswith('Gold contact pads') or m.name.startswith('Physical')) for m in o.data.materials)
+        if flat:
+            bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
+            bpy.ops.mesh.remove_doubles(threshold=.0000005);bpy.ops.object.mode_set(mode='OBJECT')
+            if o.data.has_custom_normals:bpy.ops.mesh.customdata_custom_splitnormals_clear()
+            for p in o.data.polygons:p.use_smooth=False
+        elif not swept:
             b=o.modifiers.new('Manufactured micro edge','BEVEL');b.width=.000015;b.segments=2;b.limit_method='ANGLE'
             bpy.ops.object.modifier_apply(modifier=b.name)
             w=o.modifiers.new('Weighted manufactured normals','WEIGHTED_NORMAL');w.keep_sharp=True
@@ -668,8 +713,11 @@ def copper_card_detail(kind, x, zc, m):
             vz=2.05-j*.25
             vx=x+rx
             if chip and chip[0]-.04<vx<chip[1]+.04 and chip[2]<vz<chip[3]:continue
-            bpy.ops.mesh.primitive_cylinder_add(vertices=6,radius=.018*.01,depth=.004*.01,location=xyz((vx,top+.0015,vz)))
-            o=bpy.context.object;o.name=kind+' stitching via';o.data.materials.append(m['via'])
+            # a via reads only as its ring on the card top: one flat hexagon at the old barrel's top face
+            ring=[xyz((vx+.018*math.cos(a*math.pi/3),top+.0035,vz+.018*math.sin(a*math.pi/3))) for a in range(6)]
+            mesh=bpy.data.meshes.new(kind+' stitching via');mesh.from_pydata(ring,[],[tuple(range(6))]);mesh.update()
+            if mesh.polygons[0].normal.z<0:mesh.flip_normals()     # Blender +Z is native up
+            o=bpy.data.objects.new(kind+' stitching via',mesh);bpy.context.collection.objects.link(o);mesh.materials.append(m['via'])
             k+=1
     return k
 
@@ -768,6 +816,10 @@ def copper():
     m=reset(); W=1.84; L=6; zc=-.2
     m['shell']=mat('Satin die-cast zinc',(.5,.53,.56),.9,.36)
     m['cut']=mat('Sectioned overmold face',(.2,.21,.22),0,.7)
+    m['endfill']=mat('Cable end filler',(.045,.05,.055),0,.8)
+    m['endfoil']=mat('Cable end shield foil',(.62,.65,.69),.85,.34)
+    m['endinsul']=mat('Cable end insulation',(.8,.78,.72),0,.5)
+    m['endcu']=mat('Cable end copper',(.68,.31,.13),.8,.3)
     m['pull']=mat('Molded copper pull tab',(.1,.12,.15),0,.72)
     # Matte polymer: a low specular level keeps the broad studio softbox from
     # sheeting across these flat molded faces.
