@@ -100,6 +100,8 @@ lpo=group('LPO_BYPASS');bonds=bpy.data.objects['PART_BONDS'];traces=bpy.data.obj
 # Build physical conductors and metadata together: electrical and light never exchange materials.
 routes=[];parts={};contacts={c['signal']:c for c in meta['contacts']};host_vias=[]
 via_group=group('HOST_SIGNAL_VIAS')
+# Six-sided conductors: indistinguishable from eight at the closest camera, a quarter fewer triangles.
+SIDES=6
 def route(name,points,mat,radius,parent,engine=None):
  points=[list(p) for p in points];r={'name':name,'assembly':'02_BOARD','points':points}
  if engine is not None:r['engine']=engine+1
@@ -112,9 +114,9 @@ def route(name,points,mat,radius,parent,engine=None):
   if u.length<.1:u=d.cross(Vector((0,1,0)))
   u.normalize();v=d.cross(u);base=len(vs)
   for p in [a,b]:
-   for k in range(8):vs.append(tuple(p+radius*(math.cos(k*math.tau/8)*u+math.sin(k*math.tau/8)*v)))
-  for k in range(8):n=(k+1)%8;fs.append((base+k,base+n,base+8+n,base+8+k))
-  fs.extend([tuple(base+k for k in range(7,-1,-1)),tuple(base+8+k for k in range(8))])
+   for k in range(SIDES):vs.append(tuple(p+radius*(math.cos(k*math.tau/SIDES)*u+math.sin(k*math.tau/SIDES)*v)))
+  for k in range(SIDES):n=(k+1)%SIDES;fs.append((base+k,base+n,base+SIDES+n,base+SIDES+k))
+  fs.extend([tuple(base+k for k in range(SIDES-1,-1,-1)),tuple(base+SIDES+k for k in range(SIDES))])
 for i in range(8):
  e=i//4;tx=.00665-i*.00079;rx=-.001-i*.00079;num=f'{i+1:02d}'
  for prefix,z in [('TX',tx),('RX',rx)]:
@@ -254,9 +256,32 @@ pm.inputs['Base Color'].default_value=(.105,.115,.16,1);pm.inputs['Roughness'].d
 pad=box('Thermal gap pad',(-.016,.00456,0),(.0108,.0010,.0108),pad_mat,pad_group,0);bevel(pad,.0002,3)
 for f in pad.data.polygons:f.use_smooth=True
 # Flip-chip underfill: a thin darker fillet around the 10.3 mm die (representative).
-underfill=bpy.data.materials.new('19 | Underfill epoxy');underfill.use_nodes=True
-un=underfill.node_tree.nodes.get('Principled BSDF');un.inputs['Base Color'].default_value=(.018,.02,.024,1);un.inputs['Roughness'].default_value=.5;underfill.diffuse_color=(.018,.02,.024,1)
-fillet=box('DSP underfill fillet',(-.016,.00342,0),(.0107,.00024,.0107),underfill,bpy.data.objects['SHARED_PART_DSP'],0);bevel(fillet,.00008,2)
+fillet=box('DSP underfill fillet',(-.016,.00342,0),(.0107,.00024,.0107),M[7],bpy.data.objects['SHARED_PART_DSP'],0);bevel(fillet,.00008,2)
+# Inductor markings: the reference font set '1R0' so that it read 'IRO'. Re-set it
+# in a face with a flagged 1 and a slashed zero where available.
+dcdc=bpy.data.objects['PART_DCDC']
+for o in [c for c in dcdc.children if c.type=='MESH' and c.data.materials[0].name.startswith('09 |')]:bpy.data.objects.remove(o,do_unlink=True)
+mark_font=None
+for path in ['C:/Windows/Fonts/consola.ttf','/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf']:
+ if Path(path).exists():mark_font=bpy.data.fonts.load(path,check_existing=True);break
+for ix in [-.036,-.031]:
+ for iz in [.0055,-.0055]:
+  cu=bpy.data.curves.new('Inductor marking','FONT');cu.body='1R0';cu.align_x='CENTER';cu.align_y='CENTER';cu.size=.0009;cu.extrude=.000002
+  if mark_font:cu.font=mark_font
+  mk=bpy.data.objects.new('Inductor marking 1R0',cu);bpy.context.collection.objects.link(mk);mk.location=B((ix,.004423,iz+.0001))
+  mk.data.materials.append(M[9]);bpy.ops.object.select_all(action='DESELECT');mk.select_set(True);bpy.context.view_layer.objects.active=mk;bpy.ops.object.convert(target='MESH')
+  w_=mk.matrix_world.copy();mk.parent=dcdc;mk.matrix_world=w_;mk['authoredStatic']=True
+# Board fiducials: bare-copper dots in open solder mask, as pick-and-place targets (representative).
+# Existing materials keep the draw-call count down: gold finish dots in dark mask openings.
+fv,ff,rv,rf=[],[],[],[]
+def flat_disc(vs,fs,x,y,z,r,n=24):
+ b=len(vs)
+ for k in range(n):t=k*math.tau/n;vs.append((x+r*math.cos(t),y,z-r*math.sin(t)))
+ fs.append(tuple(b+k for k in range(n)))
+for fx,fz in [(-.0425,.0090),(-.0425,-.0090),(.0385,.0092)]:
+ flat_disc(fv,ff,fx,.002716,fz,.0005);flat_disc(rv,rf,fx,.002708,fz,.0010)
+mesh_obj('Board fiducials',fv,ff,M[5],bpy.data.objects['PART_BOARD'],False)
+mesh_obj('Board fiducial clearances',rv,rf,M[7],bpy.data.objects['PART_BOARD'],False)
 # Receptacles, ferrules and bezel ride with the board, where the old ports sat.
 mpo=bpy.data.objects['PART_MPO']
 for o in [c for c in mpo.children if c.type=='MESH']:
@@ -267,8 +292,7 @@ for o in [c for c in mpo.children if c.type=='MESH']:
  else:bpy.data.objects.remove(o,do_unlink=True)
 port=M[11];pn=port.node_tree.nodes.get('Principled BSDF')
 pn.inputs['Base Color'].default_value=(.028,.029,.033,1);pn.inputs['Roughness'].default_value=.55;port.diffuse_color=(.028,.029,.033,1)
-hole=bpy.data.materials.new('18 | Unlit fibre positions');hole.use_nodes=True
-hn=hole.node_tree.nodes.get('Principled BSDF');hn.inputs['Base Color'].default_value=(.012,.012,.014,1);hn.inputs['Roughness'].default_value=.6;hole.diffuse_color=(.012,.012,.014,1)
+hole=M[7]  # unlit positions: dark molded finish, no extra material
 bez=box('MPO bezel',(.05345,.0065,0),(.0005,.0104,.0212),port,mpo,0)
 for e,zc in enumerate(MPO_Z):
  body=box(f'MPO receptacle {e+1}',(.04875,.007175,zc),(.0085,.00885,.0086),port,mpo,0)
