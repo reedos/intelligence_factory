@@ -346,7 +346,7 @@ export function build({ quality, model }) {
   }
   // hot aisle containment: glass roof and end doors per pod
   const containmentTrim = new THREE.MeshStandardMaterial({ color: 0x8799a6, roughness: .3, metalness: .72 });
-  const glass = new THREE.MeshPhysicalMaterial({ color: 0xa8c4dd, roughness: 0.08, metalness: 0, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide });
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0xa8c4dd, roughness: 0.22, metalness: 0, transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide });
   for (let p = 0; p < 3; p++) {
     const za = rowZs[p * 2], zb = rowZs[p * 2 + 1], zc = (za + zb) / 2, aisle = Math.abs(zb - za) - 1.2;
     const roofM = new THREE.Mesh(new THREE.BoxGeometry(rowX1 - rowX0, 0.04, aisle), glass); roofM.position.set((rowX0 + rowX1) / 2, 2.35, zc); scene.add(roofM);
@@ -653,7 +653,7 @@ export function build({ quality, model }) {
   // actual broad lights supply illumination rather than relying on bloom alone.
   const railBody=new THREE.MeshStandardMaterial({color:0x253440,roughness:.3,metalness:.72});
   const railTrim=new THREE.MeshStandardMaterial({color:0x8095a3,roughness:.26,metalness:.75});
-  const diffuser=new THREE.MeshStandardMaterial({color:0xe5f1ff,emissive:0xbad7ff,emissiveIntensity:2.15,roughness:.36,metalness:.02});
+  const diffuser=new THREE.MeshStandardMaterial({color:0xe5f1ff,emissive:0xbad7ff,emissiveIntensity:1.2,roughness:.36,metalness:.02});
   const lightsBuilder=new Builder(),supportBuilder=new Builder();
   const frameX=[-10.1,22.3],frameZ=[-18.12,7.6],frameY=7.15,railY=6.55;
   const lightZs=[-6.4,.2],railStart=rowX0,railEnd=rowX1,railWidth=.22;
@@ -768,6 +768,10 @@ export function build({ quality, model }) {
   scene.add(leds.mesh);
 
   finalizeSiteGeometry(scene);
+  // CDU close-up: the first unit of the front row, whose front faces the open service aisle, seen from
+  // below the light rails so no diffuser sits in the line of sight (the back-row unit faced the wall).
+  const cduHero = cduMx[(rowZs.length - 1) * groups];
+  const cduSpot = { pos: [cduHero.x, 2.75, cduHero.z], view: { pos: [cduHero.x - 3.4, 3.1, cduHero.z + 4.6], target: [cduHero.x + .2, 1.35, cduHero.z] } };
   const built = {
     scene, flows,
     camera: { pos: [42, 28, 46], target: [-6, 1.4, -2],
@@ -784,7 +788,7 @@ export function build({ quality, model }) {
       busway: { pos: [0, 3.9, -8.0], view: { pos: [-6, 7, 8], target: [2, 3.2, -8] } },
       racks: { pos: [front[18].x, 2.6, rowZs[5]], view: { pos: [front[18].x + 1.6, 3.5, 12], target: [front[18].x, 1.25, rowZs[5]] } },
       containment: { pos: [6, 2.5, -9.7], view: { pos: [-11, 5, -9.2], target: [4, 1.5, -9.7] } },
-      [air ? 'inrow' : 'cdu']: { pos: [cduMx[0].x, 2.7, cduMx[0].z], view: { pos: [-11, 4, -4], target: [cduMx[0].x, 1.2, cduMx[0].z] } },
+      [air ? 'inrow' : 'cdu']: cduSpot,
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
       fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
       network: { pos: [rowX0 + 5, 2.7, 10.5], view: { pos: [rowX0 + 5, 5, 18], target: [rowX0 + 5, 1.2, 10.5] } },
@@ -792,7 +796,7 @@ export function build({ quality, model }) {
     dataFlows, heatFlows, layers: { data: par },
     heatHotspots: {
       cpo: { pos: [netItems[CPO_I].x, 2.6, 10.5], view: { pos: [netItems[CPO_I].x + 1.0, 4.2, 15.5], target: [netItems[CPO_I].x, 1.8, 10.5] } },
-      [air ? 'inrow' : 'cdu']: { pos: [cduMx[0].x, 2.7, cduMx[0].z], view: { pos: [-11, 4, -4], target: [cduMx[0].x, 1.2, cduMx[0].z] } },
+      [air ? 'inrow' : 'cdu']: cduSpot,
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
       hotaisle: { pos: [6, 2.5, -9.7], view: { pos: [-11, 5, -9.2], target: [4, 1.5, -9.7] } },
       fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
@@ -806,7 +810,7 @@ export function build({ quality, model }) {
       crosshall: { pos: [rowX0 + 9.4, 1.2, 14.2], view: { pos: [rowX0 + 12, 3.2, 18.5], target: [rowX0 + 9.4, 1.2, 14.2] }, drill: 1 },
       pp: { pos: [front[0].x - 0.3, 2.6, rowZs[5]], view: { pos: [front[4].x, 7.5, rowZs[5] + 7.5], target: [front[4].x, 2.3, rowZs[5] - 1.5] } },
       dp: { pos: [front[6].x, 2.6, rowZs[5]], view: { pos: [front[10].x, 9, rowZs[5] + 10], target: [front[12].x, 2, rowZs[3]] } },
-      uplinks: { pos: [rackMx.filter(k => k.z === -4.6)[10].x, 3.4, -4.6], view: { pos: [2, 7, 6], target: [4, 2.5, -4.6] } },
+      uplinks: { pos: [rackMx.filter(k => k.z === -4.6)[10].x, 3.4, -4.6], view: { pos: [-1.2, 2.9, -7.0], target: [4.5, 3.2, -4.9] } },
       leaf: { pos: [rowX1 + 0.45, 2.7, -1.6], view: { pos: [rowX1 - 5, 5, 8], target: [rowX1 + 0.4, 1.5, -1.6] } },
       spine: { pos: [rowX0 + 4, 2.7, 10.5], view: { pos: [rowX0 + 5, 5, 18], target: [rowX0 + 5, 1.2, 10.5] } },
       runways: { pos: [rowX1 + 0.45, 4.7, 4], view: { pos: [rowX1 - 6, 8, 12], target: [rowX1, 4, 2] } },
