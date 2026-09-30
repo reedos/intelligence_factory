@@ -199,6 +199,18 @@ function build(name, nativeBuilder, options) {
   }
   const coverPositions = new Map(covers.map(cover => [cover, cover.position.clone()]));
   const coverMaterials = new Set(covers.flatMap(cover => Array.isArray(cover.material) ? cover.material : [cover.material]));
+  // Copper: the lifted upper halves stay a faint x-ray sheet where they face the camera, so the card below reads
+  // through them, but thicken toward their silhouettes like a real sheet of metal seen edge-on. In a grazing side
+  // view that keeps each half present as a part instead of a ghost.
+  if (name === 'copper') for (const material of coverMaterials) if (/lifted cover/i.test(material.name)) {
+    material.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>',
+        `float ifxGraze = 1.0 - abs(dot(normalize(normal), normalize(vViewPosition)));
+        diffuseColor.a = mix(diffuseColor.a, min(0.75, diffuseColor.a * 9.0), ifxGraze * ifxGraze);
+        #include <opaque_fragment>`);
+    };
+    material.customProgramCacheKey = () => 'copper-lifted-cover-graze';
+  }
   // Copper: the twinax shield, insulation and drain are solid in Power and Heat. In Data they take the same x-ray
   // inspection treatment as the lids, so the pulses stay visible running between the two conductors of each pair.
   const sheath = new Set();
