@@ -468,7 +468,7 @@ export function content(M) {
       specs: [['Supply → return', `≈${TT.fwsSupply} → ${TT.fwsReturn} °C`, 'assumed', { assume: 'loop-temps' }], ['Temperature rise', '≈10 °C across the racks', 'assumed', { assume: 'hall-water-rise-10c' }], ['Pipework as drawn', 'representative', 'assumed', { assume: 'hall-pipework-detail' }]] },
     { id: 'fanwall', title: 'Fan wall', kicker: 'Air side',
       body: air ? 'A wall of fans and coils handles room air and the heat from lights, people and power gear.' : 'A wall of fans and coils cools the air that carries the remaining heat from power shelves, switches, optics and memory.',
-      specs: [['Share of rack heat', `≈${Math.round((1 - liq) * 100)}%`, 'derived', { calc: 'hall-air-heat-share' }]] },
+      specs: [['Share of rack heat', `≈${Math.round((1 - liq) * 100)}%`, 'derived', { calc: 'hall-air-heat-share' }], ['Cells as drawn', 'representative', 'assumed', { assume: 'hall-fanwall-cells' }]] },
     { id: 'network', title: 'Network spine', kicker: 'Where tokens leave',
       body: 'Spine switches tie every rack to every other and to the fiber out of the building. Dense yellow trays carry thousands of fibers overhead.',
       specs: [['Per GPU', `${nicTxt} scale-out`, nicSpecBasis, nicSpecEv]] },
@@ -1064,7 +1064,7 @@ export function content(M) {
         body: 'Fans pull hot-aisle air through water coils and blow it back into the room cool, closing the air loop.',
         specs: [air
           ? ['Moves', 'room loads and overflow', 'assumed', { assume: 'hall-standard-practice' }]
-          : ['Moves', `the ≈${Math.round((1 - liq) * 100)}% air share`, 'derived', { calc: 'hall-air-heat-share' }]] },
+          : ['Moves', `the ≈${Math.round((1 - liq) * 100)}% air share`, 'derived', { calc: 'hall-air-heat-share' }], ['Cells as drawn', 'representative', 'assumed', { assume: 'hall-fanwall-cells' }]] },
       { id: 'fire', title: 'Fire detection', kicker: 'Smoke found early',
         body: 'Air-sampling detectors pull air from the room through a pipe network and test it continuously, so they can find smoke before a fire grows. Sprinkler lines run above the aisles. NFPA 75 sets the minimum fire protection for rooms of IT equipment.',
         specs: [['Air-sampling detection', 'continuous, the earliest warning', 'reported', evRefs([['xtralis-vesda', '"continuous air sampling provide the earliest possible warning of an impending fire hazard"']])],

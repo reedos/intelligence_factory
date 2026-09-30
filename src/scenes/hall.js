@@ -587,7 +587,14 @@ export function build({ quality, model }) {
   // fan wall on the east side
   S.slab(1.2, 6, 26, MAT.darkSteel, X1 - 1.0, 0, -3);
   const wallFans = [];
-  for (let yi = 0; yi < 4; yi++) for (let zi = 0; zi < 14; zi++) { N.cylX(0.62, 0.1, MAT.fan, X1 - 1.65, 1.1 + yi * 1.4, -15 + zi * 1.8, 18); N.cylX(0.66, 0.06, MAT.galv, X1 - 1.62, 1.1 + yi * 1.4, -15 + zi * 1.8, 18); wallFans.push({ p: [X1 - 1.76, 1.1 + yi * 1.4, -15 + zi * 1.8], axis: 'x', r: 0.56 }); }
+  const fanCells = [];
+  for (let yi = 0; yi < 4; yi++) for (let zi = 0; zi < 14; zi++) {
+    const fy = 1.1 + yi * 1.4, fz = -15 + zi * 1.8;
+    if (hasHallFinish()) fanCells.push(mtx(X1 - 1.64, fy, fz, -Math.PI / 2));      // authored cell: frame, bellmouth, guard
+    else { N.cylX(0.62, 0.1, MAT.fan, X1 - 1.65, fy, fz, 18); N.cylX(0.66, 0.06, MAT.galv, X1 - 1.62, fy, fz, 18); }
+    wallFans.push({ p: [X1 - 1.76, fy, fz], axis: 'x', r: 0.56 });
+  }
+  if (fanCells.length) scene.add(hallFinishInstances('FANWALL_CELL', fanCells));
   const fans = spinners(wallFans, MAT.darkSteel, { speed: 4 }); if(hasCampusCatalog())campusCatalogRotor(fans.mesh); scene.add(fans.mesh);
   // facility water: insulated headers along the back wall, drops to every CDU
   const hdrY = 6.2;

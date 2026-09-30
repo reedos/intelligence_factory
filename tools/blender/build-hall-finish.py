@@ -6,7 +6,7 @@ HERE=pathlib.Path(__file__).resolve().parent
 exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque building envelope.')[0])
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT','STORAGE_FACE','HALL_UNITSUB','PIPE_UNIT','PIPE_ELBOW','PIPE_FLANGE','BUTTERFLY_VALVE','PIPE_HANGER']:
+for n in ['SERVICE_WALL','LUMINAIRE','NVL_FACE','H100_FACE','HALL_CDU','HALL_INROW','CDU_PORT','STORAGE_FACE','HALL_UNITSUB','PIPE_UNIT','PIPE_ELBOW','PIPE_FLANGE','BUTTERFLY_VALVE','PIPE_HANGER','FANWALL_CELL']:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
 ceramic=mat('Soft satin architectural panel',(.30,.38,.43),.25,.45)
 alloy=mat('Anodized champagne edge',(.31,.29,.23),.8,.3)
@@ -203,6 +203,30 @@ g='PIPE_HANGER'
 bpy.ops.mesh.primitive_torus_add(major_radius=1.1,minor_radius=.1,major_segments=32,minor_segments=8,location=(0,0,0),rotation=(0,math.pi/2,0))
 o=bpy.context.object;o.name='Clevis band';o.parent=groups[g];o.data.materials.append(unistrut);bpy.ops.object.shade_smooth()
 box('Clevis yoke',(0,1.3,0),(.14,.4,.5),unistrut,g,.02)
+# ---- Fan-wall cell: one 1.8 m x 1.4 m bay of a fan array, front face at z=0 facing +z (the viewer
+# turns it to face the room). Folded galvanised frame, spun inlet bellmouth, finger guard and motor
+# hub; the rotor is instanced separately and spins. Cell size and count are representative.
+g='FANWALL_CELL'
+galv=mat('Galvanised fan-cell frame',(.36,.38,.4),.9,.45)
+cellBack=mat('Fan cell plenum, dark',(.02,.024,.028),.3,.7)
+guardM=mat('Finger guard wire, black',(.03,.03,.032),.6,.45)
+for sx in [-1,1]:box('Cell stile',(sx*.868,0,-.24),(.044,1.37,.48),galv,g,.008)
+for sy in [-1,1]:box('Cell rail',(0,sy*.664,-.242),(1.69,.04,.476),galv,g,.008)
+box('Cell face plate',(0,0,-.014),(1.69,1.288,.012),galv,g,0)
+box('Plenum back',(0,0,-.455),(1.69,1.288,.02),cellBack,g,0)
+bpy.ops.mesh.primitive_cone_add(vertices=40,radius1=.58,radius2=.64,depth=.3,end_fill_type='NOTHING',location=pt((0,0,-.14)),rotation=(math.pi/2,0,0))
+o=bpy.context.object;o.name='Spun inlet bellmouth';o.parent=groups[g];o.data.materials.append(galv);bpy.ops.object.shade_smooth()
+bpy.ops.mesh.primitive_torus_add(major_radius=.64,minor_radius=.022,major_segments=40,minor_segments=6,location=pt((0,0,.008)),rotation=(math.pi/2,0,0))
+o=bpy.context.object;o.name='Bellmouth rolled lip';o.parent=groups[g];o.data.materials.append(galv);bpy.ops.object.shade_smooth()
+cyl('Motor hub',(0,0,-.16),.15,.2,cellBack,g,'z',20)
+for r_ in [.34,.6]:
+ bpy.ops.mesh.primitive_torus_add(major_radius=r_,minor_radius=.007,major_segments=36,minor_segments=4,location=pt((0,0,.22)),rotation=(math.pi/2,0,0))
+ o=bpy.context.object;o.name='Finger guard ring';o.parent=groups[g];o.data.materials.append(guardM)
+for k in range(8):
+ a_=math.pi*k/8;beam('Finger guard wire',(-.6*math.cos(a_),-.6*math.sin(a_),.22),(.6*math.cos(a_),.6*math.sin(a_),.22),.012,.012,guardM,g)
+for k in range(4):
+ a_=math.pi/4+math.pi*k/2;beam('Guard standoff',(.6*math.cos(a_),.6*math.sin(a_),.22),(.66*math.cos(a_),.66*math.sin(a_),0),.014,.014,guardM,g)
+cyl('Guard centre boss',(0,0,.22),.07,.02,guardM,g,'z',16)
 # Face relief follows existing rack texture rows, not an invented tray count.
 # Canonical cabinet envelope .58 wide x2.3 high, front z=.6.
 def drawer(g,top,height,pull=False):
@@ -238,7 +262,7 @@ for o in list(S.objects):
  if o.type!='MESH':continue
  bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o
  for mod in list(o.modifiers):
-  if o.parent and o.parent.name in ['NVL_FACE','H100_FACE','STORAGE_FACE'] and mod.type=='BEVEL':mod.segments=1
+  if o.parent and o.parent.name in ['NVL_FACE','H100_FACE','STORAGE_FACE','FANWALL_CELL'] and mod.type=='BEVEL':mod.segments=1
   bpy.ops.object.modifier_apply(modifier=mod.name)
  bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
 for g in groups.values():
