@@ -14,10 +14,10 @@ const EXPLODED = {
   '04_COVER': [0, 4, 0], '05_PULL_TAB': [0, 0, 0],
 };
 // Pin offsets from each exported anchor, cm. The driver pin sits at the driver's
-// front-left corner (clear of its DRV marking) and the laser pin at the back of the
+// front-left corner (clear of its DRV marking) and the laser pin at the front of the
 // laser row, so the two no longer touch at overview distance.
 const PIN_OFFSET = {
-  driver: [-0.22, 0, 0.24], lasers: [0.04, 0, -0.2], tia: [0.14, 0, -0.23],
+  driver: [-0.22, 0, 0.24], lasers: [0.05, 0, 0.2], tia: [-0.2, 0, -0.23],
 };
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
