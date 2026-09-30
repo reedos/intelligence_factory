@@ -329,6 +329,7 @@ export function build({ quality, model, state = {} }) {
     return [H[0] + dx * 0.3, H[1] + dz * 0.3, kind];
   });
   let towerGeo = null;
+  const GAS_RY = -0.85;
   // a scene-local glass so the shared MAT.glass elsewhere is untouched: a clearcoat catches the key light as a
   // glint, a faint emissive keeps the panels from reading as flat black slabs at night.
   const solarGlass = new THREE.MeshPhysicalMaterial({ color: 0x141c26, roughness: 0.12, metalness: 0.5, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 2.2, emissive: 0x16232f, emissiveIntensity: 0.4 });
@@ -336,14 +337,20 @@ export function build({ quality, model, state = {} }) {
   const plantMatrices = new Map();
   const placePlant = (name, matrix) => { if (!plantMatrices.has(name)) plantMatrices.set(name, []); plantMatrices.get(name).push(matrix); };
   plants.forEach(([x, z, kind]) => {
-    if (kind === 'gas') {                                              // a turbine hall and two tapered stacks
-      if (authored) placePlant('GAS_PLANT', mtx(x, 0, z));
+    if (kind === 'gas') {                                              // combined cycle: turbine hall, two HRSGs, a stack at the end of each
+      // turned so the Generation view sees the hall front and the HRSG trains receding at three quarters
+      const at = (dx, dz) => [x + dx * Math.cos(GAS_RY) + dz * Math.sin(GAS_RY), z - dx * Math.sin(GAS_RY) + dz * Math.cos(GAS_RY)];
+      if (authored) placePlant('GAS_PLANT', mtx(x, 0, z, GAS_RY));
       else {
-      rbox(P, 20, 7, 13, MAT.steel, x, 3.5, z, { r: 0.05 });
-      const stack = new THREE.CylinderGeometry(1.3, 1.85, 24, 12);
-      P.addM(stack, MAT.concrete, mtx(x - 4.5, 12, z)); P.addM(stack, MAT.concrete, mtx(x + 4.5, 12, z));
+      const [hx, hz] = at(0, 3); rbox(P, 20, 8.5, 7, MAT.steel, hx, 4.25, hz, { r: 0.05, ry: GAS_RY });
+      for (const sx of [-5, 5]) { const [cx, cz] = at(sx, -7.6), [sx2, sz2] = at(sx, -13.6); rbox(P, 3.2, 5.8, 9, MAT.steel, cx, 2.9, cz, { r: 0.05, ry: GAS_RY }); P.cyl(1.2, 18, MAT.galv, sx2, 9, sz2, 12); }
       }
-      gasEmitters.push({ p: [x - 4.5, 24, z], dir: [0.15, 1, 0] }, { p: [x + 4.5, 24, z], dir: [-0.1, 1, 0.1] });
+      const [s1x, s1z] = at(-5, -13.6), [s2x, s2z] = at(5, -13.6);
+      if (!gasEmitters.length) {                                       // the hero plant only: warm site floodlight, one light for the level
+        const [lx, lz] = at(14, 14), flood = new THREE.PointLight(0xffc78a, 600, 110, 1.6);
+        flood.position.set(lx, 22, lz); power.add(flood);
+      }
+      gasEmitters.push({ p: [s1x, 18.2, s1z], dir: [0.15, 1, 0] }, { p: [s2x, 18.2, s2z], dir: [-0.1, 1, 0.1] });
     }
     if (kind === 'nuclear') {                                          // two hyperbolic cooling towers, a containment dome
       const H2 = 34, seg = quality.mobile ? 10 : 18;
@@ -379,8 +386,9 @@ export function build({ quality, model, state = {} }) {
   if (turbines) power.add(turbines.mesh);
   const towerPts = [];
   const HG = gantry(H, 1);
-  plants.forEach(([px, pz], i) => {
-    const pts = route([px, pz], [HG[0], HG[2]], 60, 100 + i).map(p => [p[0], 6, p[2]]);
+  plants.forEach(([px, pz, kind], i) => {
+    const from = kind === 'gas' ? [px + 16 * Math.cos(GAS_RY) + 3 * Math.sin(GAS_RY), pz - 16 * Math.sin(GAS_RY) + 3 * Math.cos(GAS_RY)] : [px, pz];      // a gas plant's line leaves from its step-up gantry
+    const pts = route(from, [HG[0], HG[2]], 60, 100 + i).map(p => [p[0], 6, p[2]]);
     const f = flow(pts, 'hv', { count: 18, speed: 160, size: 1.4, trailR: .38, trailK: 0.45 });
     flows.push(f); power.add(f.group);
     const L = polyLen(pts); for (let d = 0; d < L; d += 30) towerPts.push(pointAt(pts, d));
@@ -494,7 +502,7 @@ export function build({ quality, model, state = {} }) {
     camera: { pos: [hx - 120, 1650, hz + 1700], target: [hx + 80, 0, hz + 60], near: 1, far: 30000, min: 60, max: 6000 },
     hotspots: {
       grid: { pos: [(plants[1][0] + hx) / 2, 12, (plants[1][1] + hz) / 2], view: view((plants[1][0] + hx) / 2, (plants[1][1] + hz) / 2, 700) },
-      plants: { pos: [plants[0][0], 26, plants[0][1]], view: view(plants[0][0], plants[0][1], 90) },
+      plants: { pos: [plants[0][0] + 5 * Math.cos(GAS_RY) - 7 * Math.sin(GAS_RY), 24, plants[0][1] - 5 * Math.sin(GAS_RY) - 7 * Math.cos(GAS_RY)], view: view(plants[0][0] + 2, plants[0][1] - 4, 95) },
       home: { pos: [hx, 10, hz], view: view(hx, hz, 220) },
       carbon: (() => { const c = CENTROID[(site || DEFAULT_PLACE).state] || [hx, hz]; return { pos: [c[0], 34, c[1]], view: { pos: [c[0], 1300, c[1] + 1100], target: [c[0], 0, c[1]] } }; })(),
       ...siteSpots,

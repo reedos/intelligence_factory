@@ -52,15 +52,45 @@ uv=o.data.uv_layers.new(name='Map coordinates')
 for loop in o.data.loops:
  # glTF flips V on export; retain the original Three CanvasTexture convention.
  co=o.data.vertices[loop.vertex_index].co;uv.data[loop.index].uv=(co.x+.5,.5-co.y)
-# Gas generation: turbine hall, roof machinery, intake bays, two stacks.
-g='GAS_PLANT';box('Turbine hall',(0,3.5,0),(20,7,13),dark,g,.22)
-box('Standing seam roof',(0,7.08,0),(20.5,.3,13.5),pearl,g,.14)
+# Gas generation: a 2x1 combined-cycle symbol. Turbine hall facing +z, a transition
+# duct and heat-recovery steam generator (HRSG) behind each gas turbine, and a steel
+# exhaust stack at the far (downstream) end of each HRSG, where combined-cycle
+# stacks stand. Step-up transformers and a small gantry on +x, where the HV line
+# leaves. Representative proportions (stacks exaggerated), not one plant's CAD.
+g='GAS_PLANT'
+stackSteel=mat('Stack steel',(.30,.33,.35),.6,.45)
+soot=mat('Stack soot band',(.05,.05,.055),.3,.7)
+casing=mat('HRSG casing',(.36,.4,.42),.55,.42)
+eave=mat('Hall eave lights',(1,.81,.54),0,.5,.7)
+cladding=mat('Turbine hall cladding',(.3,.34,.37),.45,.5)
+redlight=mat('Obstruction light',(1,.12,.08),0,.5,8)
+box('Turbine hall',(0,4.25,3),(20,8.5,7),cladding,g,.22)
+box('Standing seam roof',(0,8.6,3),(20.5,.3,7.5),pearl,g,.14)
 for x in [-8,-4,0,4,8]:
- box('Intake bay',(x,3.2,6.55),(3.1,5.1,.24),steel,g,.08)
- for y in [1.2,1.8,2.4,3,3.6,4.2,4.8]:box('Vent louver',(x,y,6.72),(2.9,.13,.18),pearl,g,.025)
-for x in [-4.5,4.5]:
- o=lathe('Tapered exhaust stack',[(0,1.85),(23.8,1.3),(24,1.5)],concrete,g);o.location=pt((x,0,0))
- for y in [8,16,23.7]:cyl('Stack reinforcement collar',(x,y,0),1.7-y*.014,.18,steel,g)
+ box('Intake bay',(x,3.4,6.55),(3.1,5.6,.24),steel,g,.08)
+ for y in [1.2,1.8,2.4,3,3.6,4.2,4.8,5.4]:box('Vent louver',(x,y,6.72),(2.9,.13,.18),pearl,g,.025)
+box('Eave light strip',(0,7.75,6.62),(19,.22,.12),eave,g,.02)
+for x in [-5,5]:
+ # transition duct: flares from the turbine exhaust (hall back wall) to the HRSG inlet
+ a0,a1=(1.3,1.6),(1.6,2.75);z0,z1=-.5,-3.1
+ v=[(x+sx*w,h0+sy*hh,z) for z,(w,hh),h0 in [(z0,a0,3.2),(z1,a1,2.9)] for sy in [-1,1] for sx in [-1,1]]
+ mesh('Transition duct',v,[(0,1,3,2),(4,6,7,5),(0,4,5,1),(2,3,7,6),(0,2,6,4),(1,5,7,3)],casing,g)
+ box('HRSG casing',(x,2.9,-7.6),(3.2,5.8,9),casing,g,.12)
+ for z in [-4.4,-7.6,-10.8]:box('HRSG stiffener',(x,2.95,z),(3.45,5.95,.22),steel,g,.03)
+ box('HRSG roof walkway',(x,5.9,-7.6),(3.5,.14,9.3),steel,g,.02)
+ box('Breeching duct',(x,2.6,-12.6),(2.3,3.4,1.4),casing,g,.08)
+ o=lathe('Steel exhaust stack',[(0,1.3),(17.4,1.15),(18,1.15)],stackSteel,g,20);o.location=pt((x,0,-13.6))
+ o=lathe('Stack soot band',[(17.4,1.18),(18.02,1.18)],soot,g,20);o.location=pt((x,0,-13.6))
+ o=lathe('Stack platform',[(12.5,1.2),(12.5,1.9),(12.65,1.9),(12.65,1.2)],steel,g,20);o.location=pt((x,0,-13.6))
+ box('CEMS gallery',(x,13.3,-12.1),(1.1,1.2,.8),pearl,g,.05)
+ cyl('Stack obstruction light',(x,18.15,-13.6),.22,.3,redlight,g,8)
+# generator step-up transformers and the line gantry the HV route leaves from
+for z in [1,5]:
+ box('GSU transformer',(13,1.6,z),(3,3.2,2.6),steel,g,.12)
+ for i in range(4):box('GSU radiator',(11.3,1.4,z-.9+i*.6),(.35,2.4,.4),steel,g,.02)
+ for dz in [-.7,0,.7]:cyl('GSU bushing',(13.5,3.9,z+dz),.13,1.4,pearl,g,8)
+for z in [.6,5.4]:beam('Line gantry post',(16,0,z),(16,7,z),.14,steel,g)
+box('Line gantry beam',(16,7,3),(.3,.3,5.4),steel,g,.02)
 # Nuclear generation: open hyperboloid cooling towers and containment cylinder.
 g='NUCLEAR_PLANT'
 profile=[]
