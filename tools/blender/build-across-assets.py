@@ -18,7 +18,7 @@ dark=mat('Graphite recess',(.035,.055,.075),.4,.4)
 steel=mat('Brushed structural steel',(.3,.38,.45),.75,.34)
 concrete=mat('Satin concrete',(.38,.40,.42),.05,.72)
 glass=mat('Photovoltaic glazing',(.015,.07,.12),.55,.22)
-names=['MAP_SURFACE','GAS_PLANT','NUCLEAR_PLANT','WIND_MAST','WIND_ROTOR','SOLAR_ROW','GRID_PYLON','MAP_SUBSTATION','HUT_SITE','TERMINAL_TRIM']
+names=['MAP_SURFACE','GAS_PLANT','NUCLEAR_PLANT','WIND_MAST','WIND_ROTOR','SOLAR_ROW','SOLAR_SKID','SOLAR_ROAD','GRID_PYLON','MAP_SUBSTATION','HUT_SITE','TERMINAL_TRIM']
 groups={}
 for n in names:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
@@ -155,13 +155,13 @@ for i in range(3):
  mesh('Slender turbine blade',v,f,bladeWhite,g)
 # One single-axis tracker row, running north-south (runtime z) with its modules
 # turned about the row axis toward the west. Nearly all new US utility-scale PV
-# tracks on one axis (LBNL). Two modules in portrait across a torque tube on
-# driven piles, one slew drive at mid-row. Runtime repeats the row at a ground
-# coverage ratio of about 0.4.
+# tracks on one axis (LBNL). Two modules in portrait (2.6 wide) across a torque
+# tube on driven piles, one slew drive at mid-row, 32 long. Runtime sets rows at a
+# 6.5 pitch (ground coverage ratio 0.4) in blocks of ten between gravel roads.
 g='SOLAR_ROW'
-pvGlass=mat('Tracker module glass',(.02,.07,.13),.3,.08,.3)
+pvGlass=mat('Tracker module glass',(.03,.1,.19),.3,.08,.45)
 pvFrame=mat('Module frame aluminum',(.62,.66,.7),.8,.3)
-TILT=math.radians(15);AX=1.55
+TILT=math.radians(15);AX=1.0;RL=32;RW=2.6
 def tbox(n,c,d,m,g):
  # a box turned about the row axis (z) through (0, AX)
  v=[]
@@ -171,13 +171,26 @@ def tbox(n,c,d,m,g):
     px,py=c[0]+x*d[0]/2,c[1]+y*d[1]/2-AX
     v.append((px*math.cos(TILT)-py*math.sin(TILT),AX+px*math.sin(TILT)+py*math.cos(TILT),c[2]+z*d[2]/2))
  return mesh(n,v,[(0,4,6,2),(1,3,7,5),(0,1,5,4),(2,6,7,3),(0,2,3,1),(4,5,7,6)],m,g)
-tbox('Module plane',(0,AX+.18,0),(4.4,.06,60),pvGlass,g)
-for z in [-30+i*1.1 for i in range(1,55)]:tbox('Module seam',(0,AX+.215,z),(4.4,.012,.05),pvFrame,g)
-tbox('Portrait gap',(0,AX+.215,0),(.04,.012,60),pvFrame,g)
-for x in [-2.2,2.2]:tbox('Module frame edge',(x,AX+.2,0),(.07,.05,60),pvFrame,g)
-beam('Torque tube',(0,AX,-30),(0,AX,30),.09,steel,g)
-for z in [-30+i*6 for i in range(11)]:box('Driven pile',(0,AX/2,z),(.14,AX,.14),steel,g,0)
-box('Slew drive',(0,AX-.05,0),(.45,.45,.5),steel,g,0)
+tbox('Module plane',(0,AX+.12,0),(RW,.05,RL),pvGlass,g)
+for z in [-RL/2+i*1.6 for i in range(1,20)]:tbox('Module seam',(0,AX+.15,z),(RW,.01,.05),pvFrame,g)
+tbox('Portrait gap',(0,AX+.15,0),(.04,.01,RL),pvFrame,g)
+for x in [-RW/2,RW/2]:tbox('Module frame edge',(x,AX+.13,0),(.06,.04,RL),pvFrame,g)
+beam('Torque tube',(0,AX,-RL/2),(0,AX,RL/2),.07,steel,g)
+for z in [-RL/2+i*4 for i in range(9)]:box('Driven pile',(0,AX/2,z),(.1,AX,.1),steel,g,0)
+box('Slew drive',(0,AX-.04,0),(.3,.3,.35),steel,g,0)
+# Inverter skid, one per block: a concrete pad, two central inverters, a pad-mount
+# medium-voltage transformer with cooling fins and a small work light. Representative.
+g='SOLAR_SKID'
+skidLamp=mat('Skid work lamp',(1,.78,.45),0,.5,5)
+box('Skid pad',(0,.12,0),(5.2,.24,2.6),concrete,g,.03)
+for x in [-1.6,-.2]:box('Central inverter',(x,.95,0),(1.2,1.4,1.6),pearl,g,.05)
+box('MV transformer',(1.55,.85,0),(1.3,1.2,1.4),steel,g,.05)
+for z in [-.8,.8]:box('Transformer fins',(1.55,.8,z),(1.1,.95,.2),steel,g,0)
+cyl('Skid lamp',(0,1.75,1.05),.12,.14,skidLamp,g,8)
+# Gravel access road, a unit strip the runtime stretches to each road's length.
+g='SOLAR_ROAD'
+gravel=mat('Access road gravel',(.3,.29,.26),0,.95)
+box('Gravel road',(0,.05,0),(1,.06,1),gravel,g,0)
 # Transmission pylon symbol: tapered four-leg lattice braced on all four faces,
 # two crossarms with three insulator strings a side, shield-wire peaks. Runtime
 # turns each tower square to its line and hangs the line from an insulator tip.

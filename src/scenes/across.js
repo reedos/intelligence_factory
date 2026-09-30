@@ -11,7 +11,7 @@ import { rbox, plumes } from '../fx.js';
 import { SITES, STATE_CARBON, DEFAULT_PLACE, PLACES, placeKey, albers, greatCircleKm } from '../model/sites.ts';
 import { preloadCampusCatalog, campusCatalogInstances } from './campus-blender-catalog.js';
 import { preloadAcrossAssets, hasAcrossAssets, acrossAssetInstances, acrossSurfaceGeometry, replaceWindRotor } from './across-blender-assets.js';
-import { WIND_R, WIND_SCALE, WIND_HUB, windLayout, windFootprint, placePlants } from './across-plants.js';
+import { WIND_R, WIND_SCALE, WIND_HUB, windLayout, windFootprint, solarLayout, footprintSamples, SOLAR, placePlants, plantAvoid, METROS } from './across-plants.js';
 export const preload = () => Promise.all([preloadCampusCatalog(), preloadAcrossAssets()]);
 
 const ORIGIN = albers(-92, 37);
@@ -185,20 +185,6 @@ function coolingTowerGeo(h, rBase, rWaist, rTop, seg) {
   }
   return new THREE.LatheGeometry(pts, seg);
 }
-// ~40 major US metro areas, lon/lat and a rough population weight (millions) for glow size only: purely decorative
-// city lights, no labels and no invented figures reach the page.
-const METROS = [
-  [-74.01, 40.71, 19.5], [-118.24, 34.05, 13.2], [-87.63, 41.88, 9.5], [-96.80, 32.78, 7.8],
-  [-95.37, 29.76, 7.3], [-77.04, 38.91, 6.3], [-80.19, 25.76, 6.2], [-75.17, 39.95, 6.2],
-  [-84.39, 33.75, 6.3], [-112.07, 33.45, 5.0], [-71.06, 42.36, 4.9], [-122.42, 37.77, 4.7],
-  [-117.40, 33.95, 4.6], [-83.05, 42.33, 4.3], [-122.33, 47.61, 4.0], [-93.27, 44.98, 3.7],
-  [-117.16, 32.72, 3.3], [-82.46, 27.95, 3.3], [-104.99, 39.74, 3.0], [-90.20, 38.63, 2.8],
-  [-76.61, 39.29, 2.8], [-80.84, 35.23, 2.7], [-81.38, 28.54, 2.7], [-98.49, 29.42, 2.6],
-  [-122.68, 45.52, 2.5], [-121.49, 38.58, 2.4], [-79.99, 40.44, 2.3], [-115.14, 36.17, 2.3],
-  [-84.51, 39.10, 2.3], [-94.58, 39.10, 2.2], [-83.00, 39.96, 2.1], [-86.16, 39.77, 2.1],
-  [-81.69, 41.50, 2.0], [-121.89, 37.34, 2.0], [-86.78, 36.16, 2.0], [-76.29, 36.85, 1.8],
-  [-81.66, 30.33, 1.6], [-87.91, 43.04, 1.6], [-97.52, 35.47, 1.4], [-78.64, 35.78, 1.5],
-];
 // a soft radial falloff, white so instance colors tint it: ground light pools for metros and campuses
 let radial = null;
 function radialTex() {
@@ -349,11 +335,12 @@ export function build({ quality, model, state = {} }) {
   });
   const P = new Builder();
   const around = [[-420, -300, 'gas'], [-260, 330, 'nuclear'], [260, -420, 'wind'], [380, 180, 'gas'], [120, 420, 'solar']];
-  // illustrative plants around the campus on land; the wide ones (a wind farm) are set down whole inside one lit
-  // state, clear of the campus and the other plants, so no part of them lands on water or on an unshaded state
-  // that reads as water
-  const windAt = windLayout(quality.mobile);
-  const plants = placePlants({ H, around, footprints: { wind: windFootprint(windAt) }, stateAt, shaded: SHADED });
+  // illustrative plants around the campus on land; the wide ones (a wind farm, a solar array) are set down whole
+  // inside one lit state, clear of the campus and the other plants, so no part of them lands on water or on an
+  // unshaded state that reads as water
+  const windAt = windLayout(quality.mobile), solar = solarLayout(quality.mobile);
+  const footprints = { wind: windFootprint(windAt), solar: footprintSamples(solar.W / 2 + 3, solar.L / 2 + 3) };
+  const plants = placePlants({ H, around, footprints, stateAt, shaded: SHADED, avoid: plantAvoid(world, PLACES.map(p => p.site)) });
   let towerGeo = null;
   const GAS_RY = -0.85;
   // a scene-local glass so the shared MAT.glass elsewhere is untouched: a clearcoat catches the key light as a
@@ -398,11 +385,20 @@ export function build({ quality, model, state = {} }) {
         turbineItems.push({ p: [tx, WIND_HUB, tz + 1.05 * WIND_SCALE], axis: 'z', r: WIND_R });
       }
     }
-    // single-axis trackers: rows run north-south, 11 apart for a 4.4-wide module plane (ground coverage about 0.4)
-    if (kind === 'solar') for (let i = 0; i < 10; i++) {
-      if (!onLand(x - 49.5 + i * 11, z - 30) || !onLand(x - 49.5 + i * 11, z + 30)) continue;   // no rows offshore
-      if (authored) placePlant('SOLAR_ROW', mtx(x - 49.5 + i * 11, 0, z));
-      else P.box(4.4, 0.2, 60, solarGlass, x - 49.5 + i * 11, 1.6, z, 0, 0, 0.26);
+    // single-axis tracker rows running north-south in blocks between gravel roads, an inverter skid per block
+    // (across-plants.js has the layout); a row is dropped only if some part of it would still stand off land
+    if (kind === 'solar') {
+      const half = SOLAR.rowL / 2;
+      for (const [ox, oz] of solar.rows) {
+        const rx = x + ox, rz = z + oz;
+        if (![-1, -0.5, 0, 0.5, 1].every(t => onLand(rx, rz + t * half))) continue;
+        if (authored) placePlant('SOLAR_ROW', mtx(rx, 0, rz));
+        else P.box(SOLAR.rowW, 0.12, SOLAR.rowL, solarGlass, rx, 1.1, rz, 0, 0, 0.26);
+      }
+      if (authored) {
+        for (const [ox, oz] of solar.skids) placePlant('SOLAR_SKID', mtx(x + ox, 0, z + oz));
+        for (const r of solar.roads) placePlant('SOLAR_ROAD', new THREE.Matrix4().makeScale(r.w, 1, r.l).setPosition(x + r.x, 0, z + r.z));
+      }
     }
   });
   for (const [name, matrices] of plantMatrices) power.add(acrossAssetInstances(name, matrices));
@@ -442,10 +438,19 @@ export function build({ quality, model, state = {} }) {
     const ux = (H[0] - best[0]) / d, uz = (H[1] - best[1]) / d;
     return [best[0] + ux * (WIND_R + 4), best[1] + uz * (WIND_R + 4)]; // just outside the rotor, toward the campus
   };
+  // the array's line leaves from the inverter skid nearest the campus, out through the ring road
+  const arrayEdge = (px, pz) => {
+    let best = null, d = Infinity;
+    for (const [ox, oz] of solar.skids) { const e = Math.hypot(px + ox - H[0], pz + oz - H[1]); if (e < d) { d = e; best = [ox, oz]; } }
+    const ex = Math.sign(H[0] - px) * (solar.W / 2 + 2), ez = Math.sign(H[1] - pz) * (solar.L / 2 + 2);
+    // step outside the array along whichever axis the campus lies farther along
+    return Math.abs(H[0] - px) / solar.W > Math.abs(H[1] - pz) / solar.L ? [px + ex, pz + best[1]] : [px + best[0], pz + ez];
+  };
   plants.forEach(([px, pz, kind], i) => {
     const from = kind === 'gas' ? [px + 16 * Math.cos(GAS_RY) + 3 * Math.sin(GAS_RY), pz - 16 * Math.sin(GAS_RY) + 3 * Math.cos(GAS_RY)]
       : kind === 'nuclear' ? [px + 55, pz + 12]                         // gas and nuclear lines leave from their switchyard gantries
-      : kind === 'wind' ? farmEdge(px, pz, windAt) : [px, pz];          // the wind farm's from the turbine nearest the campus
+      : kind === 'wind' ? farmEdge(px, pz, windAt)                      // the wind farm's from the turbine nearest the campus,
+      : kind === 'solar' ? arrayEdge(px, pz) : [px, pz];                // the solar array's from the skid nearest the campus
     let pts = route(from, [HG[0], HG[2]], 60, 100 + i).map(p => [p[0], 6, p[2]]);
     // a line arriving from the far side swings around the plinth to the gantry instead of crossing the roofs
     const overCampus = pts.some(([x, , z]) => Math.abs(x - H[0]) < 19 && Math.abs(z - H[1]) < 16);
