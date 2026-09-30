@@ -338,7 +338,9 @@ function buildNVL({ quality, model }) {
   const finish = computeMaterials();
   const W = 4.4, D = 9, H = 0.42, ZF = D / 2, ZB = -D / 2;
   const floorY = 0.03;
-  const hoseMat = new THREE.MeshStandardMaterial({ color: 0x16181b, roughness: 0.6, metalness: 0 });
+  // EPDM hose jackets tinted by circuit (deep blue supply, deep red return), so
+  // the coding still reads where the ID bands are too small, e.g. on a phone.
+  const hoseMat = { sup: new THREE.MeshStandardMaterial({ color: 0x1b2c4e, roughness: 0.6, metalness: 0 }), ret: new THREE.MeshStandardMaterial({ color: 0x4a1d22, roughness: 0.6, metalness: 0 }) };
   const heavy = !quality.mobile;
   const statusLeds = [], warmTops = [];
 
@@ -446,10 +448,10 @@ function buildNVL({ quality, model }) {
     // supply: rear quick disconnect → CPU plate → GPU → GPU → back
     const sup = [[qdX, 0.25, ZB - 0.05], [qdX, y, ZB + 0.3], [bx - 0.2, y, -1.55], [bx - 0.2, y, 0.2], [bx - 0.2, y, 1.75]];
     const ret = [[bx + 0.2, y, 1.75], [bx + 0.2, y, 0.2], [bx + 0.2, y, -1.55], [qdX + 0.15, y, ZB + 0.3], [qdX + 0.15, 0.25, ZB - 0.05]];
-    // Black EPDM hose with a colored ID band either side of each turned fitting
+    // EPDM hose (circuit-tinted jacket) with a colored ID band either side of each turned fitting
     // (hex body, collars); the animated flows still carry supply/return color.
-    for (const [pts, band] of [[sup, MAT.pipeBlue], [ret, MAT.pipeRed]]) {
-      tube(N, pts, 0.034, hoseMat, { seg: 10 });
+    for (const [pts, band, jacket] of [[sup, MAT.pipeBlue, hoseMat.sup], [ret, MAT.pipeRed, hoseMat.ret]]) {
+      tube(N, pts, 0.034, jacket, { seg: 10 });
       const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)));
       for (let i = 1; i < pts.length - 1; i++) {
         const t = i / (pts.length - 1), p = curve.getPoint(t), d = curve.getTangent(t).multiplyScalar(0.05);
