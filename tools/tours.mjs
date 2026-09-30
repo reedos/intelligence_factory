@@ -24,6 +24,14 @@ const gateArgs = process.env.IFX_GATE_GPU === '1'
   ? ['--use-angle=d3d11', '--ignore-gpu-blocklist']
   : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
 const b = await chromium.launch({ args: gateArgs });
+// the visualizer no longer runs tours (Reed, 09/2026): say so and pass, rather than fail on a missing feature
+{
+  const p = await b.newPage();
+  await p.goto(URL); await ready(p);
+  const has = await p.evaluate(() => typeof window.ifx.enterStory === 'function');
+  await p.close();
+  if (!has) { console.log('no tours on this page, nothing to check'); await b.close(); process.exit(0); }
+}
 
 // ---------- (a) + (b): This level's entry context and This level's OUTWARD-aware next (findings 9, 16) ----------
 async function thisLevelCase(layer, scene) {
