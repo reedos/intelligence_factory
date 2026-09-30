@@ -104,6 +104,9 @@ export function build({ quality, state, authoredHardware = false }) {
   const DSPX = mx(3.9), DH = 0.85;
   S.box(1.7, 0.1, 1.7, MAT.pcbBlack, DSPX, Y.top + 0.05, 0);
   const dspTop = die(scene, M, 1.15, 0.06, 1.15, dspTex(), DSPX, Y.top + 0.13, 0);
+  // Names travel into the Blender reference export (userData.sourceMesh).
+  const named = name => { scene.children.at(-1).name = name; };
+  named('Coherent DSP die');
   // the tunable laser, to its published size
   const ITX = mx(6.35), ITL = 2.5, ITW = 1.56, ITH = 0.65;
   if (!authoredHardware) {
@@ -131,10 +134,10 @@ export function build({ quality, state, authoredHardware = false }) {
       [RX_,icrZ,1.18,.72],[TIAX,tiaZ,.61,.61]])
       S.box(l,.05,w,MAT.pcbBlack,x,Y.top+.025,z);
   }
-  die(scene,M,CL,.06,.66,iqTex(),CX_,Y.top+.08,cdmZ);
-  die(scene,M,RL,.06,.66,icrTex(),RX_,Y.top+.08,icrZ);
-  die(scene,M,EW,.18,EW,analogTex('DRIVER'),DRX,Y.top+.14,drvZ,0,{metalness:.08,roughness:.54});
-  die(scene,M,EW,.18,EW,analogTex('TIA'),TIAX,Y.top+.14,tiaZ,0,{metalness:.08,roughness:.54});
+  die(scene,M,CL,.06,.66,iqTex(),CX_,Y.top+.08,cdmZ); named('Coherent IQ modulator die');
+  die(scene,M,RL,.06,.66,icrTex(),RX_,Y.top+.08,icrZ); named('Coherent receiver die');
+  die(scene,M,EW,.18,EW,analogTex('DRIVER'),DRX,Y.top+.14,drvZ,0,{metalness:.08,roughness:.54}); named('Coherent driver package');
+  die(scene,M,EW,.18,EW,analogTex('TIA'),TIAX,Y.top+.14,tiaZ,0,{metalness:.08,roughness:.54}); named('Coherent TIA package');
   const driverBonds=[],tiaBonds=[],driverInputs=[],tiaOutputs=[];
   const portY=Y.top+.055, boardY=Y.top+.004;
   const bridge=(x0,x1,z)=>[[x0,portY,z],[x0+(x1-x0)*.3,boardY,z],
@@ -146,8 +149,10 @@ export function build({ quality, state, authoredHardware = false }) {
     driverBonds.push(db);tiaBonds.push(tb);driverInputs.push(di);tiaOutputs.push(to);
     for(const path of [db,tb,di,to]) for(const d of [-.006,.006])
       strand(N,path.map(p=>[p[0],p[1],p[2]+d]),MAT.copper,.002,4);
-    for(const [x,z] of [[DRX-EW/2,dz],[DRX+EW/2,dz],[TIAX-EW/2,rz],[TIAX+EW/2,rz],[CX0,dz],[RX0,rz]])
-      N.box(.06,.026,.034,MAT.gold,x,portY,z);
+    // Flat gold lands on the carrier at each bond foot, reaching away from
+    // the package or die edge they serve (no cubes stuck to package sides).
+    for(const [x,z,out] of [[DRX-EW/2,dz,-1],[DRX+EW/2,dz,1],[TIAX-EW/2,rz,-1],[TIAX+EW/2,rz,1],[CX0,dz,-1],[RX0,rz,-1]])
+      N.box(.06,.006,.034,MAT.gold,x+out*.03,Y.top+.053,z);
   }
   const cdmIn=[CX_,Y.top+.1,cdmZ+.33],cdmOut=[CX0+CL,Y.top+.1,cdmZ];
   const icrSig=[RX0+RL,Y.top+.1,icrZ],icrLo=[RX_,Y.top+.1,icrZ-.33];
@@ -200,7 +205,13 @@ export function build({ quality, state, authoredHardware = false }) {
   // exploded teaching view; it is representative, not a thermal design claim.
   for (let i = 0; i < 13; i++) N.box(LEN * 0.67, 0.23, 0.025, lidDetail, -1.25, Y.lid + 0.185, -0.9 + i * 0.15);
   }
-  scene.add(S.build()); scene.add(N.build({ cast: false }));
+  const names = new Map([[MAT.pcb,'Coherent PCB'],[MAT.inductor,'Coherent inductors'],[MAT.pcbBlack,'Coherent package substrates'],
+    [M.glass,'Coherent optical tap'],[MAT.polymer,'Coherent LC receptacle'],[laminate,'Coherent PCB laminate edge'],[MAT.gold,'Coherent gold contacts'],
+    [MAT.copper,'Coherent copper'],[M.fiberCw,'Coherent CW fiber'],[M.fiberTx,'Coherent TX fiber'],[M.fiberRx,'Coherent RX fiber'],[shellEdge,'Coherent LC lips']]);
+  for (const group of [S.build(), N.build({ cast: false })]) {
+    group.traverse(o => { if (o.isMesh && names.has(o.material)) o.name = names.get(o.material); });
+    scene.add(group);
+  }
 
   // ======================= flows =======================
   const yT = Y.top + 0.01;

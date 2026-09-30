@@ -234,6 +234,103 @@ def export(name, mats, footprint):
     bpy.ops.export_scene.gltf(filepath=str(OUT/(name+'.glb')), export_format='GLB', export_yup=True, export_extras=True, export_cameras=False, export_lights=False)
     print('EXPORTED', name, (OUT/(name+'.glb')).stat().st_size)
 
+def by_source(name):
+    return [o for o in bpy.context.scene.objects if o.type=='MESH' and o.get('sourceMesh')==name]
+
+def refine_edges(o, width, segments=2):
+    # glTF import splits every box face into its own vertices, so a bevel has
+    # no connected edges to round. Weld first, then bevel at a real width.
+    bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o
+    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.remove_doubles(threshold=1e-7);bpy.ops.object.mode_set(mode='OBJECT')
+    if o.data.has_custom_normals:bpy.ops.mesh.customdata_custom_splitnormals_clear()
+    for mod in list(o.modifiers):o.modifiers.remove(mod)
+    b=o.modifiers.new('Package edge radius','BEVEL');b.width=width*.01;b.segments=segments;b.limit_method='ANGLE';b.harden_normals=True
+    bpy.ops.object.modifier_apply(modifier=b.name)
+    w=o.modifiers.new('Package weighted normals','WEIGHTED_NORMAL');w.keep_sharp=True
+    bpy.ops.object.modifier_apply(modifier=w.name)
+    for p in o.data.polygons:p.use_smooth=True
+
+def coherent_board_detail(m):
+    """Package and board detail on the imported audited layout (scene cm).
+    Representative: no teardown gives package styles or passive placement."""
+    T=1.35  # PCB top
+    for name,width in [('Coherent DSP die',.008),('Coherent IQ modulator die',.008),('Coherent receiver die',.008),
+                       ('Coherent driver package',.016),('Coherent TIA package',.016),('Coherent package substrates',.012),
+                       ('Coherent inductors',.035),('Coherent PCB',.005)]:
+        for o in by_source(name):refine_edges(o,width,3 if name=='Coherent inductors' else 2)
+    m['tin']=mat('Tin-plated terminations',(.70,.71,.72),.9,.3)
+    m['cap']=mat('Ceramic capacitor body',(.52,.44,.31),0,.55)
+    m['epoxy']=mat('Dark underfill epoxy',(.03,.03,.035),0,.35)
+    m['inp']=mat('Cleaved die edge',(.40,.43,.47),.55,.3)
+    m['attach']=mat('Fiber attach glass',(.50,.60,.66),0,.12)
+    m['gold']=mat('Gold bond pads',(1,.78,.35),1,.18)
+    def cap(x,z,along_x=True,size=(.06,.03,.03),body='cap'):
+        l,h,w=size;t=l*.2
+        box('Board passive',(x,T+h/2,z),(l-2*t,h*.96,w*.96) if along_x else (w*.96,h*.96,l-2*t),m[body],0)
+        for s in [-1,1]:
+            p=(x+s*(l/2-t/2),T+h/2,z) if along_x else (x,T+h/2,z+s*(l/2-t/2))
+            box('Board passive termination',p,(t,h,w) if along_x else (w,h,t),m['tin'],0)
+    # DSP: lidless die, dark underfill skirt, decoupling ring, stiffener frame.
+    dx=-1.49; S=T+.1  # substrate top
+    for s in [-1,1]:
+        box('DSP underfill fillet',(dx+s*.585,S+.011,0),(.02,.022,1.19),m['epoxy'],.004)
+        box('DSP underfill fillet',(dx,S+.011,s*.585),(1.15,.022,.02),m['epoxy'],.004)
+    # Die-edge signal banks (native dspTex and routing) stay clear of capacitors.
+    banks=[(49+i*52)/512*1.15-.575 for i in range(4)]+[(301+i*52)/512*1.15-.575 for i in range(4)]
+    for s in [-1,1]:
+        box('DSP stiffener ring',(dx+s*.78,S+.02,0),(.1,.04,1.66),m['seal'],.01)
+        box('DSP stiffener ring',(dx,S+.02,s*.78),(1.46,.04,.1),m['seal'],.01)
+    for i in range(10):
+        u=-.6+i*.1333
+        for s in [-1,1]:
+            for x,z,ax in [(dx+s*.68,u,False),(dx+u,s*.68,True)]:
+                if not ax and min(abs(u-b) for b in banks)<.045:continue
+                l,h,w=.06,.03,.03;t=.012
+                box('DSP decoupling capacitor',(x,S+h/2,z),(l-2*t,h*.96,w*.96) if ax else (w*.96,h*.96,l-2*t),m['cap'],0)
+                for e in [-1,1]:
+                    p=(x+e*(l/2-t/2),S+h/2,z) if ax else (x,S+h/2,z+e*(l/2-t/2))
+                    box('DSP decoupling termination',p,(t,h,w) if ax else (w,h,t),m['tin'],0)
+    # Driver and TIA: QFN-style tin lands round the package foot; the four RF
+    # bond lands per side are the gold pads in the native layout.
+    offs=[(58+k*46)/256*.66-.33 for k in range(4)]
+    for cx,cz in [(2.85,-.55),(2.85,.55)]:
+        for i in range(9):
+            u=-.24+i*.06
+            for s in [-1,1]:
+                box('QFN land',(cx+u,1.4025,cz+s*.287),(.025,.005,.04),m['tin'],0)
+                if min(abs(u-o) for o in offs)>.03:box('QFN land',(cx+s*.287,1.4025,cz+u),(.04,.005,.025),m['tin'],0)
+    # Optical assemblies: cleaved die edge, ground-signal-ground pads on the RF
+    # edge, and a glass fiber-attach block where each fiber meets the die.
+    for cx,cz in [(3.92,-.55),(3.92,.55)]:
+        for s in [-1,1]:
+            box('Photonic die edge',(cx+s*.558,1.415,cz),(.016,.03,.676),m['inp'],.003)
+            box('Photonic die edge',(cx,1.415,cz+s*.338),(1.132,.03,.016),m['inp'],.003)
+        for o in offs:
+            for g,wd in [(-.034,.018),(0,.014),(.034,.018)]:
+                box('RF edge bond pad',(3.37+.035,1.4615,cz+o+g),(.04,.003,wd),m['gold'],0)
+    for x,z,size in [(4.49,-.55,(.04,.07,.10)),(3.92,-.205,(.10,.07,.03)),(4.49,.55,(.04,.07,.10)),(3.92,.205,(.10,.07,.03))]:
+        box('Fiber attach block',(x,1.435,z),size,m['attach'],.005)
+    # Inductors: silver end terminations on the rounded molded bodies.
+    for i in range(4):
+        x=-5.39+1.35+(i%2)*.48;z=-.22 if i<2 else .22
+        for s in [-1,1]:box('Inductor termination',(x+s*.158,T+.113,z),(.03,.226,.30),m['tin'],.006)
+    # Representative passives and two small controller/PMIC packages, placed
+    # clear of every native trace, fiber and animated feed.
+    for x,z,l in [(2.36,0,.22),(-4.62,0,.24)]:
+        box('Board QFN controller',(x,T+.03,z),(l,.06,l),m['package'],.012)
+        for i in range(5):
+            u=-l/2+.04+i*(l-.08)/4
+            for s in [-1,1]:
+                box('Board QFN land',(x+u,T+.002,z+s*(l/2+.012)),(.018,.004,.03),m['tin'],0)
+                box('Board QFN land',(x+s*(l/2+.012),T+.002,z+u),(.03,.004,.018),m['tin'],0)
+    for z in [-.36+i*.12 for i in range(7)]:cap(-.54,z,False)
+    for z in [-.24,-.12,.12,.24]:cap(-2.45,z,False)
+    for z in [-.36,-.1,.1,.36]:cap(-3.25,z,False,(.1,.05,.05))
+    for s in [-1,1]:
+        cap(-4.9,s*.2,False)
+        cap(2.36,s*.25,False)
+
 def dsp_gap_pad(m, lid_y=3.4, lid_half=.045):
     # The native layout carries a loose pad halfway between board and lid.
     # Replace it with a lid-mounted stack that travels with the cover: a
@@ -296,6 +393,7 @@ def coherent():
     lid('OSFP lifted cover',0,3.4,0,L,W,True,m)
     pull_loop('OSFP release pull',(5.20,.29,0),True,m['pull'])
     internals('coherent')
+    coherent_board_detail(m)
     dsp_gap_pad(m)
     export('coherent-hardware',m,[L,W])
 
