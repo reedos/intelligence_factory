@@ -320,6 +320,7 @@ export function content(M) {
       specs: [
         [`Volume, 48 h at ${meter}`, `≈${L.fuelML >= 10 ? n0(L.fuelML) : L.fuelML.toFixed(1)} million L`, 'derived', evCalc('campus-fuel-volume')],
         ['Tanker deliveries to refill', `≈${n0(L.fuelML * 1e6 / 30000)}`, 'derived', evCalc('fuel-tankers')],
+        ['Tanks drawn', 'double-wall horizontal, representative fittings', 'assumed', evAssume('campus-fuel-tank-drawing')],
       ] },
     ]),
     bat

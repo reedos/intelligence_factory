@@ -410,11 +410,21 @@ export function build({ quality, model }) {
     for (const blockZ of [-205, 20]) for (let c = 0; c < 4; c++) for (let r = 0; r < 5; r++) if (gensetMx.length < Math.min(40, L.gensets)) gensetMx.push(mtx(290 + c * 21, 0.15, blockZ + r * 8));
     scene.add(authoredCampus ? campusCatalogInstances('GENSET',gensetMx) : genset.instance(gensetMx));
     // fuel farm
+    const tankMx = [[], []];
     for (let i = 0; i < 6; i++) {
       const x = 390 + (i % 2) * 14, z = -120 + Math.floor(i / 2) * 18;
       S.slab(12, 0.4, 16, MAT.concreteDark, x, 0.15, z);
+      if (authoredCampus) { tankMx[i % 2].push(mtx(x, 0.55, z)); continue; }
       for (const dz of [-3.5, 3.5]) S.slab(1.2, 1.4, 5, MAT.concrete, x, 0.5, z + dz);
       S.cylZ(2.2, 13.5, MAT.white, x, 4.0, z, 24);
+    }
+    if (authoredCampus) {
+      // Blender double-wall tanks (ladder and platform on one per pair) and a supply/return manifold to the polishing skid
+      scene.add(campusCatalogInstances('FUEL_TANK_ACCESS', tankMx[0], { cast: true }), campusCatalogInstances('FUEL_TANK', tankMx[1], { cast: true }));
+      for (const [dx, y] of [[-0.35, 0.75], [0.35, 1.05]]) {
+        N.strut([397 + dx, y, -84], [397 + dx, y, -140], 0.11, MAT.steel, 8);
+        for (let r = 0; r < 3; r++) for (const tx of [390, 404]) N.strut([tx + (tx < 397 ? 2.3 : -2.3), y, -120 + r * 18 + dx * 4], [397 + dx, y, -120 + r * 18 + dx * 4], 0.07, MAT.steel, 8);
+      }
     }
     S.slab(6, 2.4, 3, MAT.steel, 405, 0.15, -145);                             // fuel polishing skid
     // standby flow: generators to the MV network (dim, slow)

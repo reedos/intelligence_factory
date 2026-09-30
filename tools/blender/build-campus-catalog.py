@@ -5,7 +5,7 @@ exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque buil
 import random
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for name in ['COOLER','UNITSUB','GENSET','BESS','CAR','TRUCK','TREE0','TREE1','TREE2','FAN','HALL_RACK','HALL_CABINET','MAP_CAMPUS','MAP_HUT','MAP_TERMINAL','WALKER','EHOUSE','CTRL_HOUSE','SHELTER','GATEHOUSE','TOWER_CELL','BESS_PCS','SUB_BREAKER','SUB_POST','SUB_ARRESTER','SUB_CVT','SUB_DISCONNECT','SUB_STRING']:
+for name in ['COOLER','UNITSUB','GENSET','BESS','CAR','TRUCK','TREE0','TREE1','TREE2','FAN','HALL_RACK','HALL_CABINET','MAP_CAMPUS','MAP_HUT','MAP_TERMINAL','WALKER','EHOUSE','CTRL_HOUSE','SHELTER','GATEHOUSE','TOWER_CELL','BESS_PCS','SUB_BREAKER','SUB_POST','SUB_ARRESTER','SUB_CVT','SUB_DISCONNECT','SUB_STRING','FUEL_TANK','FUEL_TANK_ACCESS']:
  g=bpy.data.objects.new(name,None);S.collection.objects.link(g);groups[name]=g
 steel=mat('Mechanical brushed steel',(.34,.42,.46),.8,.35)
 white=mat('Equipment ceramic white',(.72,.77,.76),.3,.39)
@@ -426,6 +426,40 @@ for dz in [-.25,.25]:
  bpy.ops.mesh.primitive_cylinder_add(vertices=6,radius=.02,depth=(B-A).length,location=(A+B)/2);o=bpy.context.object;o.name='Arcing horn'
  o.rotation_euler=(B-A).to_track_quat('Z','Y').to_euler();o.parent=groups[g];o.data.materials.append(steel)
 g='SUB_STRING';insul('Dead-end polymer string',(0,0,0),3.0,.05,.14,.1,comp,(1,0,0))
+# Horizontal double-wall bulk fuel tank (UL 142 style), axis along Z, origin on the pad top. A smooth shell with
+# dished heads and weld seams on steel saddles, a manway, a pressure-vacuum vent, an emergency vent, a fill box
+# with spill container, a level gauge and a low containment curb. FUEL_TANK_ACCESS adds a ladder and top
+# platform (one tank per pair). The card gives only the total volume; fittings are representative.
+tankPaint=mat('Fuel tank white enamel',(.62,.64,.62),.1,.45)
+for gname in ['FUEL_TANK','FUEL_TANK_ACCESS']:
+ g=gname;R=2.2;Lh=13.5/2-.35
+ prof=[(0,-Lh-.5),(1.0,-Lh-.45),(1.7,-Lh-.3),(2.05,-Lh-.12),(R,-Lh),(R,Lh),(2.05,Lh+.12),(1.7,Lh+.3),(1.0,Lh+.45),(0,Lh+.5)]
+ v=[];f=[];seg=40
+ for r,zz in prof:
+  for i in range(seg):a=i/seg*2*math.pi;v.append((r*math.cos(a),3.45+r*math.sin(a),zz))
+ for j in range(len(prof)-1):
+  for i in range(seg):
+   a_=j*seg+i;b_=j*seg+(i+1)%seg;f.append((a_,a_+seg,b_+seg,b_))
+ o=mesh('Double-wall tank shell',v,f,tankPaint,g)
+ for q in o.data.polygons:q.use_smooth=True
+ for zz in [-Lh+2.2,0,Lh-2.2]:cyl('Weld seam band',(0,3.45,zz),R+.012,.05,tankPaint,g,'z',40)
+ for zz in [-3.6,3.6]:
+  box('Steel saddle web',(0,.65,zz),(3.2,1.3,.12),steel,g,0)
+  box('Saddle base plate',(0,.04,zz),(3.4,.08,.5),steel,g,0)
+ box('Containment curb',(0,.2,-7.8),(11.6,.4,.3),base,g,0);box('Containment curb',(0,.2,7.8),(11.6,.4,.3),base,g,0)
+ box('Containment curb',(-5.8,.2,0),(.3,.4,15.9),base,g,0);box('Containment curb',(5.8,.2,0),(.3,.4,15.9),base,g,0)
+ cyl('Manway',(0,5.75,-1.5),.38,.25,steel,g,'y',20)
+ cyl('PV vent pipe',(0,6.3,2.2),.05,1.3,steel,g,'y',8);cyl('PV vent cap',(0,7.0,2.2),.14,.14,steel,g,'y',12)
+ cyl('Emergency vent',(0,5.8,.6),.22,.3,steel,g,'y',16)
+ box('Fill box and spill container',(.9,5.75,4.0),(.6,.35,.6),shadow,g,.02)
+ box('Level gauge',(R+.05,3.45,-5.0),(.08,.35,.25),steel,g,0)
+ if gname=='FUEL_TANK_ACCESS':
+  for zz in [5.2,5.7]:box('Ladder rail',(R+.4,3.0,zz),(.05,5.9,.05),steel,g,0)
+  for y in [.4+i*.35 for i in range(16)]:box('Ladder rung',(R+.4,y,5.45),(.04,.035,.5),steel,g,0)
+  box('Top platform grating',(0,5.72,4.8),(1.8,.06,1.6),shadow,g,0)
+  for x in [-.9,.9]:
+   for zz in [4.0,5.6]:box('Platform rail post',(x,6.25,zz),(.04,1.0,.04),steel,g,0)
+   box('Platform rail',(x,6.75,4.8),(.04,.04,1.64),steel,g,0)
 # Bake modifiers/transforms and one mesh per material within each asset.
 bpy.ops.object.select_all(action='DESELECT')
 for o in list(S.objects):
