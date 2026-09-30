@@ -557,11 +557,13 @@ export function build({ quality, model }) {
   // kept small: the 'cpo' hotspot camera is close enough that a sprite sized like the rack-top
   // stage numbers below would fill the frame and hide the very chassis it is meant to label
   // The comparison hotspot is a fitted view of the faceplate itself (0.47 x 0.34 m), so the 144 MPO adapters,
-  // 18 laser modules and 4 capped couplings fill the frame; the pin sits on the laser-module row. The tag above
+  // 18 laser modules and 4 capped couplings fill the frame; the pin sits on the MPO field. The tag above
   // the chassis and the data layer's rack-top replica labels stay outside this frame.
   const cpoAt = netItems[CPO_I], cpoFront = cpoAt.z + cpoAt.f * .64;
-  const cpoSpot = { pos: [cpoAt.x - .06, 1.8, cpoFront + cpoAt.f * .04],
-    view: { pos: [cpoAt.x + .3, 1.86, cpoFront + cpoAt.f * 1.2], target: [cpoAt.x, 1.71, cpoFront], detailSize: [.5, .36, .06] } };
+  // The camera looks down on it about 25 degrees, so pins of parts far behind it (the hot aisle, the busway)
+  // project above the frame instead of onto the faceplate.
+  const cpoSpot = { pos: [cpoAt.x + .08, 1.64, cpoFront + cpoAt.f * .03],
+    view: { pos: [cpoAt.x - .12, 2.27, cpoFront + cpoAt.f * 1.2], target: [cpoAt.x, 1.71, cpoFront], detailSize: [.5, .36, .06] } };
   const cpoTag = textSprite('CPO alternative · disconnected', '#8fe4ff', 0.065);
   cpoTag.position.set(netItems[CPO_I].x, 2.42, netItems[CPO_I].z + netItems[CPO_I].f * 0.85);
   scene.add(cpoTag);
