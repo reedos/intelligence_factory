@@ -106,8 +106,10 @@ function labelSprite(text, color = '#ffe7a3', size = 26) {
 }
 // Map captions are annotations: keep their geographic anchors and move only the caption,
 // with a leader whenever screen-space collision avoidance displaces it.
-export function layoutMapCaptions(entries, camera, width, height, selected = null) {
-  const occupied = [];
+// `reserved` holds screen boxes already taken by the page's own overlays (numbered pins, title, buttons), in the
+// canvas's CSS pixels, so a caption steps around them instead of printing over them.
+export function layoutMapCaptions(entries, camera, width, height, selected = null, reserved = []) {
+  const occupied = [...reserved];
   camera.updateMatrixWorld();
   for (const entry of [...entries].sort((a, b) =>
     (b.main ? 100 : b.key === selected ? 90 : b.priority || 0) - (a.main ? 100 : a.key === selected ? 90 : a.priority || 0))) {
@@ -121,12 +123,18 @@ export function layoutMapCaptions(entries, camera, width, height, selected = nul
     const h = sprite.scale.y * camera.projectionMatrix.elements[5] * height / 2;
     const x = (p.x + 1) * width / 2, y = (1 - p.y) * height / 2;
     let box = null;
-    for (const dy of [0, -24, 24, -48, 48, -72, 72, -96, 96]) {
-      const cx = Math.max(w / 2 + 8, Math.min(width - w / 2 - 8, x));
+    const tries = [];
+    for (const dy of [0, -24, 24, -48, 48, -72, 72, -96, 96]) tries.push([0, dy]);
+    tries.sort((a, b) => Math.hypot(...a) - Math.hypot(...b));
+    // the home campus caption never disappears: if every slot is taken it keeps its anchor slot
+    if (entry.main) tries.push([0, 0, true]);
+    for (const [dx, dy, force] of tries) {
+      if (!force && entry.maxShift != null && Math.hypot(dx, dy) > entry.maxShift) continue;
+      const cx = Math.max(w / 2 + 8, Math.min(width - w / 2 - 8, x + dx));
       // Reserve the bottom strip for the map scale and canvas controls.
       const cy = Math.max(h / 2 + 8, Math.min(height - h / 2 - 64, y + dy));
       const candidate = [cx - w / 2 - 5, cy - h / 2 - 4, cx + w / 2 + 5, cy + h / 2 + 4];
-      if (!occupied.some(q => candidate[0] < q[2] && candidate[2] > q[0] && candidate[1] < q[3] && candidate[3] > q[1])) {
+      if (force || !occupied.some(q => candidate[0] < q[2] && candidate[2] > q[0] && candidate[1] < q[3] && candidate[3] > q[1])) {
         box = candidate;
         sprite.position.set(cx / width * 2 - 1, 1 - cy / height * 2, p.z).unproject(camera);
         sprite.updateMatrixWorld();
@@ -305,6 +313,8 @@ export function build({ quality, model, state = {} }) {
   Object.entries(STATE_CARBON).forEach(([id, c]) => {
     const at = CENTROID[id]; if (!at) return;
     const l = labelSprite(`${c.abbr} ${c.g} g`, carbonColor(c.g), 34); l.position.set(at[0], 30, at[1]); power.add(l);
+    // state figures yield to campus names and pins: they shift a little, or drop out where the map is crowded
+    caption(l, power, { key: `carbon-${id}`, priority: 0.1, maxShift: 30 });
   });
   const P = new Builder();
   const around = [[-420, -300, 'gas'], [-260, 330, 'nuclear'], [260, -420, 'wind'], [380, 180, 'gas'], [120, 420, 'solar']];
@@ -456,9 +466,21 @@ export function build({ quality, model, state = {} }) {
   };
 
   const viewport = new THREE.Vector2();
+  // the page's overlays inside the view: numbered pins (circle and label), the title block, layer switch, buttons, hint
+  const OVERLAYS = '#pins .pin .num, #pins .pin .lbl, #view .hud.tl, #view .hud.tr, #hud-btns .btn, #hud-btns .hint';
+  const reservedBoxes = canvas => {
+    if (typeof document === 'undefined') return [];
+    const c = canvas.getBoundingClientRect(), out = [];
+    for (const el of document.querySelectorAll(OVERLAYS)) {
+      const r = el.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1 || getComputedStyle(el).visibility === 'hidden') continue;
+      out.push([r.left - c.left - 3, r.top - c.top - 3, r.right - c.left + 3, r.bottom - c.top + 3]);
+    }
+    return out;
+  };
   scene.onBeforeRender = (renderer, _scene, camera) => {
     renderer.getSize(viewport);
-    layoutMapCaptions(mapCaptions, camera, viewport.x, viewport.y, state.selected);
+    layoutMapCaptions(mapCaptions, camera, viewport.x, viewport.y, state.selected, reservedBoxes(renderer.domElement));
   };
 
   const [hx, hz] = H, h0 = huts[3] || huts[0] || [hx, 3, hz], R0 = near[0] ? world(near[0].p.site.lon, near[0].p.site.lat) : [hx + 300, hz];
