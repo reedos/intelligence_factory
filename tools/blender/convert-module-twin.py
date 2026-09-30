@@ -315,31 +315,6 @@ for e,zc in enumerate(MPO_Z):
  for key,(vs,fs) in lit.items():
   mesh_obj(f'MPO face {e+1} {key}',vs,fs,hole if key==18 else M[key],mpo,False)
 bevel(bez,.00012)
-# Pull tab: NVIDIA MMS4A00 Option 2 drawing (datasheet p.16) gives 24.65 mm reach
-# beyond the nose, 18.58 mm outer width and a raised grip end (14.11 mm); single-mode
-# yellow per p.22. The swept strap section and the S-rise profile are representative.
-tab=bpy.data.objects['05_PULL_TAB']
-for o in [c for c in tab.children if c.type=='MESH' and c.data.materials[0].name.startswith('12 |')]:bpy.data.objects.remove(o,do_unlink=True)
-ochre=M[12];on=ochre.node_tree.nodes.get('Principled BSDF')
-on.inputs['Base Color'].default_value=(.85,.72,.08,1);on.inputs['Roughness'].default_value=.5;on.inputs['Metallic'].default_value=0;ochre.diffuse_color=(.85,.72,.08,1)
-W_,T_=.0022,.0012;ZA=.01858/2-W_/2;TIP=NOSE_END+.02465;CX=TIP-W_/2-ZA;Y0,Y1=.0035,.0124
-def rise(x):
- s_=min(1,max(0,(x-.0565)/(CX-.0565)));return Y0+(Y1-Y0)*s_*s_*(3-2*s_)
-path=[]
-for k in range(25):x=.0515+(CX-.0515)*k/24;path.append(Vector((x,rise(x),ZA)))
-for k in range(1,24):a_=math.pi/2-math.pi*k/24;path.append(Vector((CX+ZA*math.cos(a_),Y1,ZA*math.sin(a_))))
-for k in range(24,-1,-1):x=.0515+(CX-.0515)*k/24;path.append(Vector((x,rise(x),-ZA)))
-ring=[];R_=.0003
-for cx_,cy_ in [(1,1),(-1,1),(-1,-1),(1,-1)]:
- for k in range(3):a_=math.atan2(cy_,cx_)-math.pi/4+k*math.pi/4;ring.append((cx_*(W_/2-R_)+R_*math.cos(a_),cy_*(T_/2-R_)+R_*math.sin(a_)))
-verts=[];faces=[];n_=len(ring)
-for i,p_ in enumerate(path):
- t_=(path[min(i+1,len(path)-1)]-path[max(i-1,0)]).normalized();w_=Vector((0,1,0)).cross(t_).normalized();u_=t_.cross(w_).normalized()
- for a_,b_ in ring:verts.append(tuple(p_+w_*a_+u_*b_))
- if i:faces+=[((i-1)*n_+k,(i-1)*n_+(k+1)%n_,i*n_+(k+1)%n_,i*n_+k) for k in range(n_)]
-faces+=[tuple(range(n_-1,-1,-1)),tuple(range((len(path)-1)*n_,len(path)*n_))]
-strap=mesh_obj('05_PULL_TAB swept strap',verts,faces,ochre,tab)
-for f in strap.data.polygons[:-2]:f.use_smooth=True
 meta['opticalPorts']={'pitchMm':10.0,'orientation':'vertical','ferruleMm':[6.4,2.5],'positions':12,'mapping':'MSA Rev 5.22 Fig 14-48'}
 # Batch manufacturable details per engine/material, retaining meaningful assembly groups.
 for parent in [o for o in list(bpy.data.objects) if o.type=='EMPTY']:
