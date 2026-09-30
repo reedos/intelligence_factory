@@ -10,7 +10,7 @@ import { attachFlowRibbons } from '../flow-ribbons.js';
 let source, pending;
 export function preload() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=9`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=10`)
     .then(gltf => { source = gltf.scene; return source; })
     .catch(error => { pending = undefined; throw error; });
 }
@@ -45,6 +45,19 @@ function eicFace() {
     return c;
   });
 }
+
+// One stripe per fiber across a data ribbon: a rounded coated core, dark seams.
+function ribbonStripes(color) {
+  const tex = paintFace(64, 4, (u, v, e, block, x) => {
+    const f = ((x % 8) + .5) / 8;
+    if (x % 8 === 0) return color.map(c => c * .08);
+    const k = .12 + .38 * Math.sqrt(Math.max(0, 1 - (2 * f - 1) ** 2));
+    return color.map(c => c * k);
+  });
+  tex.wrapT = THREE.RepeatWrapping; tex.magFilter = THREE.LinearFilter;
+  return tex;
+}
+const RIBBONS = { 'Transmit ribbon': [.37, .80, .90], 'Receive ribbon': [.82, .37, .66] };
 
 export function build(args) {
   if (!source) throw new Error('CPO hardware preload required');
@@ -83,6 +96,11 @@ export function build(args) {
   asset.traverse(node => {
     if (node.isMesh && node.material.name === 'Electronic die face' && !node.material.map) {
       node.material.map = eicFace(); node.material.color.set(0xffffff); node.material.needsUpdate = true;
+    }
+    const lane = node.isMesh && RIBBONS[node.material.name];
+    if (lane && !node.material.map) {
+      const m = node.material, tex = ribbonStripes(lane);
+      m.map = tex; m.emissiveMap = tex; m.color.set(0xffffff); m.emissive.set(0xffffff); m.emissiveIntensity = .35; m.needsUpdate = true;
     }
   });
   const built = buildDiagram({ ...args, authoredHardware: true, authoredAsicMaterial: asicMaterial });

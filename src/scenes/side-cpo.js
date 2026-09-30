@@ -10,6 +10,26 @@ import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, label,
 
 import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes } from './side-geometry.js';
 
+// Fiber cannot fold at a point. The route contract (side-geometry.js) stays a
+// reviewed polyline; the drawn fiber and its moving light follow the same path
+// with each interior corner rounded by a short quadratic arc (up to 3 mm,
+// representative bend radius). build-cpo.py applies the identical rounding.
+export function roundCorners(pts, keep = () => false, radius = .3, steps = 6) {
+  const out = [pts[0]];
+  for (let k = 1; k < pts.length - 1; k++) {
+    const p = pts[k], a = pts[k - 1], b = pts[k + 1];
+    if (keep(k, pts.length)) { out.push(p); continue; }
+    const la = Math.hypot(...a.map((v, j) => v - p[j])), lb = Math.hypot(...b.map((v, j) => v - p[j]));
+    const d = Math.min(radius, la * .45, lb * .45);
+    const p1 = p.map((v, j) => v + (a[j] - v) / la * d), p2 = p.map((v, j) => v + (b[j] - v) / lb * d);
+    for (let s = 0; s <= steps; s++) { const t = s / steps, u = 1 - t; out.push(p.map((v, j) => u * u * p1[j] + 2 * u * t * v + t * t * p2[j])); }
+  }
+  out.push(pts.at(-1));
+  return out;
+}
+// Laser feeds keep the sharp drop from the module aperture and the final lift onto the engine.
+export const keepCwCorner = (k, n) => k === 1 || k === n - 2;
+
 export function build({ quality, state, authoredHardware = false, authoredAsicMaterial = null }) {
   const scene = setup(quality, 14), M = materials();
   // Blender owns every physical mesh in the authored variant. Keep this layout
@@ -67,7 +87,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   engines.forEach(({ out }, i) => {
     const [ex, ez] = edgeConn[i];
     for (const [kind, material] of [['tx', M.fiberTx], ['rx', M.fiberRx], ['cw', M.fiberCw]])
-      for (const points of fiberRoutes[i][kind]) strand(N, points, material, kind === 'cw' ? .008 : .007);
+      for (const points of fiberRoutes[i][kind]) strand(N, kind === 'cw' ? roundCorners(points, keepCwCorner, .25) : roundCorners(points), material, kind === 'cw' ? .008 : .007);
     S.box(out[0] !== 0 ? .3 : .7, .3, out[0] !== 0 ? .7 : .3, MAT.polymer, ex, 1.2, ez);
   });
   // the laser modules at the front panel, and each engine's two laser fibers, run round the outside of the package
@@ -162,9 +182,9 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     // bundle; they are not a count of fibers or a bandwidth scale.
     {
       const routes = fiberRoutes[i];
-      dataFlows.push(flow(routes.tx[3], 'tx', FLOW.light));
-      dataFlows.push(flow([...routes.rx[3]].reverse(), 'rx', FLOW.light));
-      dataFlows.push(flow(routes.cw[0], 'cw', FLOW.cw));
+      dataFlows.push(flow(roundCorners(routes.tx[3]), 'tx', FLOW.light));
+      dataFlows.push(flow(roundCorners([...routes.rx[3]].reverse()), 'rx', FLOW.light));
+      dataFlows.push(flow(roundCorners(routes.cw[0], keepCwCorner, .25), 'cw', FLOW.cw));
     }
   });
   // in the detail: electrical in to the drivers, down to the rings; laser light along the bus; light out; light in to

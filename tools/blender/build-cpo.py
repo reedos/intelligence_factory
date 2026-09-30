@@ -31,7 +31,7 @@ def material(name, color, metal=0, rough=.4, alpha=1):
 
 # Materials named in UV_MATERIALS keep a 0-1 top-face UV; side-cpo-blender.js
 # paints their face textures at runtime (no embedded images in the GLB).
-UV_MATERIALS={'Electronic die face'}
+UV_MATERIALS={'Electronic die face','Transmit ribbon','Receive ribbon'}
 
 nickel = material('Satin nickel retainers', (.5,.57,.62), .82,.29)
 edge = material('Polished screw heads', (.68,.73,.76), .9,.22)
@@ -60,6 +60,10 @@ for m in [fiberTx,fiberRx,fiberCw]:
     p.inputs['Emission Color'].default_value=m.diffuse_color
     p.inputs['Emission Strength'].default_value=.18
 eicFace = material('Electronic die face', (.03,.045,.07), .1,.25)
+# Package data fibers are drawn as two flat 8-fiber ribbons per engine in a matte
+# coating; the runtime paints one stripe per fiber across the ribbon (UV u).
+ribbonTx = material('Transmit ribbon', (.37,.80,.90), 0,.5)
+ribbonRx = material('Receive ribbon', (.82,.37,.66), 0,.5)
 driver = material('Driver schematic regions', (.05,.19,.24), .45,.32)
 tia = material('TIA schematic regions', (.20,.07,.15), .45,.32)
 blue = material('Supply coolant pipe', (.025,.20,.36), .38,.28)
@@ -229,6 +233,66 @@ def segment(name,a,b,r,mat,role,n=8):
 def path(name,pts,r,mat,role,n=8):
     for a,b in zip(pts,pts[1:]):segment(name,a,b,r,mat,role,n)
 
+def round_corners(pts,keep=lambda k,n:False,radius=.3,steps=6):
+    # Identical to roundCorners() in side-cpo.js: the animated light rides this path.
+    out=[pts[0]]
+    for k in range(1,len(pts)-1):
+        p,a,b=pts[k],pts[k-1],pts[k+1]
+        if keep(k,len(pts)): out.append(p); continue
+        la=math.dist(a,p); lb=math.dist(b,p); d=min(radius,la*.45,lb*.45)
+        p1=[v+(a[j]-v)/la*d for j,v in enumerate(p)]; p2=[v+(b[j]-v)/lb*d for j,v in enumerate(p)]
+        for st in range(steps+1):
+            t=st/steps; u=1-t
+            out.append([u*u*p1[j]+2*u*t*v+t*t*p2[j] for j,v in enumerate(p)])
+    out.append(pts[-1]); return out
+
+def keep_cw(k,n): return k==1 or k==n-2
+
+def tube(name,pts,r,mat,role,n=6):
+    # One continuous tube (shared rings, end caps only) along a rounded path.
+    P=[Vector(world(p)) for p in pts]; verts=[]; ref=None
+    for i,c in enumerate(P):
+        d=(P[min(len(P)-1,i+1)]-P[max(0,i-1)]).normalized()
+        if ref is None: ref=d.orthogonal().normalized()
+        u=(ref-d*ref.dot(d)).normalized(); v=d.cross(u); ref=u
+        for k in range(n):
+            a=k*math.tau/n; verts.append(c+(u*math.cos(a)+v*math.sin(a))*r*CM)
+    faces=[tuple(reversed(range(n))),tuple(range(n*(len(P)-1),n*len(P)))]
+    for i in range(len(P)-1):
+        for k in range(n): faces.append((i*n+k,i*n+(k+1)%n,(i+1)*n+(k+1)%n,(i+1)*n+k))
+    mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
+    for f in mesh.polygons: f.use_smooth=True
+    o=bpy.data.objects.new(name,mesh);S.collection.objects.link(o);o.parent=groups[role];mesh.materials.append(mat)
+    return o
+
+def ribbon(name,lanes,mat,role,half=.127,thick=.006):
+    # One flat ribbon over parallel lanes (identical shapes offset sideways).
+    rounded=[round_corners(l) for l in lanes]
+    center=[[sum(r[i][j] for r in rounded)/len(rounded) for j in range(3)] for i in range(len(rounded[0]))]
+    side=Vector(rounded[-1][0])-Vector(rounded[0][0]); side.normalize()
+    verts=[];uvs=[];n=len(center)
+    for i,c in enumerate(center):
+        a=Vector(center[max(0,i-1)]); b=Vector(center[min(n-1,i+1)]); d=(b-a).normalized()
+        nrm=d.cross(side).normalized()
+        if nrm.y<0: nrm=-nrm
+        c=Vector(c)
+        for sw,sn in [(-1,1),(1,1),(1,-1),(-1,-1)]:
+            q=c+side*(sw*half)+nrm*(sn*thick/2); verts.append(world(tuple(q)))
+    faces=[];uv=[]
+    for i in range(n-1):
+        o,m=4*i,4*i+4
+        for k in range(4):
+            k2=(k+1)%4; faces.append((o+k,o+k2,m+k2,m+k))
+    faces.append((0,3,2,1)); faces.append((4*(n-1),4*(n-1)+1,4*(n-1)+2,4*(n-1)+3))
+    mesh=bpy.data.meshes.new(name); mesh.from_pydata(verts,[],faces); mesh.update()
+    layer=mesh.uv_layers.new(name='UVMap')
+    for poly in mesh.polygons:
+        for li in poly.loop_indices:
+            vi=mesh.loops[li].vertex_index; corner=vi%4
+            layer.data[li].uv=((0 if corner in (0,3) else 1),(vi//4)/(n-1))
+    o=bpy.data.objects.new(name,mesh);S.collection.objects.link(o);o.parent=groups[role];mesh.materials.append(mat)
+    return o
+
 def flat_trace(a,b,y,width,role):
     dx,dz=b[0]-a[0],b[1]-a[1]
     box('Copper substrate trace',((a[0]+b[0])/2,y,(a[1]+b[1])/2),
@@ -294,8 +358,9 @@ for i,(e,conn) in enumerate(zip(LAYOUT['engines'],LAYOUT['connectors'])):
         flat_trace((a[0]+tan[0]*o,a[1]+tan[1]*o),(b[0]+tan[0]*o,b[1]+tan[1]*o),1.041,.03,'CPO_CONDUCTORS')
     ex,ez=conn
     routes=LAYOUT['fiberRoutes'][i]
-    for kind,mat in [('tx',fiberTx),('rx',fiberRx),('cw',fiberCw)]:
-        for points in routes[kind]:path('Engine '+kind+' fiber',points,.008 if kind=='cw' else .007,mat,'CPO_FIBERS')
+    ribbon('Engine tx ribbon',routes['tx'],ribbonTx,'CPO_FIBERS')
+    ribbon('Engine rx ribbon',routes['rx'],ribbonRx,'CPO_FIBERS')
+    for points in routes['cw']:tube('Engine cw fiber',round_corners(points,keep_cw,.25),.008,fiberCw,'CPO_FIBERS')
     box('Package fiber guide',(ex,1.2,ez),(.3 if out[0] else .7,.3,.7 if out[0] else .3),black,'CPO_INTERFACES',.018)
 
 photonic_die(-11.4,1.4,-8.4,2.5,math.pi,True)
