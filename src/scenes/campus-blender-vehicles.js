@@ -4,7 +4,7 @@ let source,pending;
 export const hasCampusVehicles=()=>!!source;
 export function preloadCampusVehicles(){
  if(source)return Promise.resolve(source);
- return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/campus-vehicles.glb?v=6`).then(g=>{source=g.scene;source.updateMatrixWorld(true);return source;}).catch(e=>{pending=undefined;throw e;});
+ return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/campus-vehicles.glb?v=7`).then(g=>{source=g.scene;source.updateMatrixWorld(true);return source;}).catch(e=>{pending=undefined;throw e;});
 }
 export function campusVehicleBuilder(name,target=new Builder()){
  const group=source?.getObjectByName(name);if(!group)throw new Error(`Missing Blender fleet model ${name}`);
