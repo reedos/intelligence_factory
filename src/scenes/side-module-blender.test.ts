@@ -190,7 +190,10 @@ describe('Blender optical module integration', () => {
       const assembly = result.scene.getObjectByName(anchor.assembly);
       expect(assembly, id).toBeDefined();
       const expected = assembly!.localToWorld(new THREE.Vector3(...anchor.position)).toArray();
-      expectPoint((hotspots as Record<string, any>)[id].pos, expected, id);
+      const hotspot = (hotspots as Record<string, any>)[id];
+      // The camera frames the anchor; a pin may step to a free corner of its part.
+      expectPoint(hotspot.view.focus, expected, id);
+      expect(new THREE.Vector3(...hotspot.pos).distanceTo(new THREE.Vector3(...expected)), id).toBeLessThan(0.75);
     }
   });
 
