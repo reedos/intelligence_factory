@@ -3,14 +3,13 @@ import {beforeAll,afterAll,it,expect,vi} from 'vitest';
 import {readFileSync} from 'node:fs';
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import {engineLayout} from './side-geometry.js';
 let moduleBuilder:any,cpoBuilder:any;
 beforeAll(async()=>{
  const noop=()=>undefined,ctx=new Proxy({measureText:(t:string)=>({width:t.length*24}),createImageData:(w:number,h:number)=>({data:new Uint8ClampedArray(w*h*4)}),createLinearGradient:()=>({addColorStop:noop}),createRadialGradient:()=>({addColorStop:noop})} as Record<string,unknown>,{get:(t,k:string)=>k in t?t[k]:noop});
  vi.stubGlobal('document',{createElement:()=>({width:1,height:1,getContext:()=>ctx})});
  const assets=new Map();for(const name of ['osfp-module-runtime','cpo-hardware']){
-  const b=readFileSync(new URL(`../../public/models/${name}.glb`,import.meta.url));assets.set(name,await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),''));
+  const b=readFileSync(new URL(`../../public/models/${name}.glb`,import.meta.url));assets.set(name,await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),''));
  }
  vi.spyOn(GLTFLoader.prototype,'loadAsync').mockImplementation(async url=>assets.get(url.includes('cpo-hardware')?'cpo-hardware':'osfp-module-runtime'));
  moduleBuilder=await import('./side-module-blender.js');cpoBuilder=await import('./side-cpo-blender.js');await Promise.all([moduleBuilder.preload(),cpoBuilder.preload()]);

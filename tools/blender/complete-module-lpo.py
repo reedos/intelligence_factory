@@ -42,5 +42,5 @@ bpy.context.view_layer.objects.active=parts[0];bpy.ops.object.join()
 o=bpy.context.object;o.name='LPO_BYPASS';world=o.matrix_world.copy();o.parent=board;o.matrix_world=world
 o['authoredStatic']=True;o['basis']='Representative alternate copper traces. Same direct host-to-driver/TIA paths as the audited LPO diagram.'
 bpy.ops.wm.save_as_mainfile(filepath=str(ROOT/'tools'/'blender'/'osfp-module-complete.blend'))
-bpy.ops.export_scene.gltf(filepath=str(TARGET),export_format='GLB',export_yup=True,export_extras=True,export_cameras=False,export_lights=False,export_meshopt_compression_enable=True)
+bpy.ops.export_scene.gltf(filepath=str(TARGET),export_format='GLB',export_yup=True,export_extras=True,export_cameras=False,export_lights=False)
 print('COMPLETE MODULE',TARGET.stat().st_size)

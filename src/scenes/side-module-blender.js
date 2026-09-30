@@ -2,7 +2,6 @@
 // The asset is a representative layout, not a recovered production design. Exported
 // routes describe visible conductors; chip-internal paths are omitted; contact breakout uses representative PCB layers.
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { THREE, flow, setup, label, FLOW, COL, note, unitCol } from './side-kit.js';
 import { applyArtDirection } from './module-art-direction.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
@@ -17,9 +16,9 @@ const EXPLODED = {
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
 
-export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=vertical-mpo12`) {
+export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=vertical-mpo11`) {
   if (cached) return Promise.resolve(cached);
-  if (!pending) pending = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(url).then(gltf => {
+  if (!pending) pending = new GLTFLoader().loadAsync(url).then(gltf => {
     cached = gltf;
     return gltf;
   }).catch(error => { pending = undefined; throw error; });
