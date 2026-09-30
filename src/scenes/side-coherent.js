@@ -98,12 +98,26 @@ export function build({ quality, state, authoredHardware = false }) {
   }
   S.box(LEN - 0.9, 0.1, MW - 0.24, MAT.pcb, (MX0 + MX1 - 0.9) / 2 + 0.05, Y.pcb, 0);
   for (const z of [-(MW - 0.24) / 2, (MW - 0.24) / 2]) N.box(LEN - 0.92, 0.025, 0.008, laminate, -0.4, Y.pcb, z);
-  for (let i = 0; i < 30; i++) { const z = -0.95 + i * 0.066; N.box(0.55, 0.012, 0.045, MAT.gold, mx(0.33), Y.top + 0.006, z); N.box(0.55, 0.012, 0.045, MAT.gold, mx(0.33), Y.pcb - 0.056, z); }
+  // 60-contact card edge, 30 pads a side. Sequenced mating: ground pads reach
+  // closest to the leading edge, then power, then signal (OSFP MSA Rev 5.0
+  // sec. 3.5); pads 15/16 and 45/46 are the wider power pads. The ground and
+  // signal order between them is representative, not the MSA pinout.
+  const trail = mx(0.33) + 0.275;
+  for (let i = 0; i < 30; i++) {
+    if (i === 15) continue;                                  // joined into the 15/16 power pad
+    const power = i === 14, ground = !power && i % 3 === 0;
+    const lead = mx(0.055) + (ground ? 0 : power ? 0.025 : 0.05), len = trail - lead;
+    const z = -0.95 + i * 0.066 + (power ? 0.033 : 0), w = power ? 0.111 : 0.045;
+    N.box(len, 0.012, w, MAT.gold, lead + len / 2, Y.top + 0.006, z); N.box(len, 0.012, w, MAT.gold, lead + len / 2, Y.pcb - 0.056, z);
+  }
   for (let i = 0; i < 4; i++) S.box(0.34, 0.22, 0.34, MAT.inductor, mx(1.35 + (i % 2) * 0.48), Y.top + 0.11, i < 2 ? -0.22 : 0.22);
   // the coherent DSP
   const DSPX = mx(3.9), DH = 0.85;
   S.box(1.7, 0.1, 1.7, MAT.pcbBlack, DSPX, Y.top + 0.05, 0);
   const dspTop = die(scene, M, 1.15, 0.06, 1.15, dspTex(), DSPX, Y.top + 0.13, 0);
+  // Names travel into the Blender reference export (userData.sourceMesh).
+  const named = name => { scene.children.at(-1).name = name; };
+  named('Coherent DSP die');
   // the tunable laser, to its published size
   const ITX = mx(6.35), ITL = 2.5, ITW = 1.56, ITH = 0.65;
   if (!authoredHardware) {
@@ -117,10 +131,10 @@ export function build({ quality, state, authoredHardware = false }) {
   }
   }
   const itOut = [ITX + ITL / 2, Y.top + 0.33, 0];
-  N.box(0.03, 0.12, 0.3, glowMat(COL.cw, 1.5), itOut[0] + 0.015, itOut[1], 0);
-  // a tap splits the laser's light between the transmit carrier and the receiver's local oscillator
-  const tap = [3.5, Y.top + 0.12, 0];
-  S.box(0.18, 0.12, 0.3, M.glass, tap[0], tap[1], 0);
+  // A fused tap (about 1 x 1 x 3 mm, on a mount in the Blender asset) splits the
+  // laser's light between the transmit carrier and the receiver's local oscillator.
+  const tap = [3.5, Y.top + 0.23, 0];
+  S.box(0.3, 0.1, 0.1, M.glass, tap[0], tap[1], 0);
   // Two-by-two board layout: closed electronic packages on the host side,
   // distinct optical assemblies toward the fiber side. No shared substrate or lid.
   const CX0=3.37, CL=1.10, CX_=CX0+CL/2, cdmZ=-.55;
@@ -131,10 +145,10 @@ export function build({ quality, state, authoredHardware = false }) {
       [RX_,icrZ,1.18,.72],[TIAX,tiaZ,.61,.61]])
       S.box(l,.05,w,MAT.pcbBlack,x,Y.top+.025,z);
   }
-  die(scene,M,CL,.06,.66,iqTex(),CX_,Y.top+.08,cdmZ);
-  die(scene,M,RL,.06,.66,icrTex(),RX_,Y.top+.08,icrZ);
-  die(scene,M,EW,.18,EW,analogTex('DRIVER'),DRX,Y.top+.14,drvZ,0,{metalness:.08,roughness:.54});
-  die(scene,M,EW,.18,EW,analogTex('TIA'),TIAX,Y.top+.14,tiaZ,0,{metalness:.08,roughness:.54});
+  die(scene,M,CL,.06,.66,iqTex(),CX_,Y.top+.08,cdmZ); named('Coherent IQ modulator die');
+  die(scene,M,RL,.06,.66,icrTex(),RX_,Y.top+.08,icrZ); named('Coherent receiver die');
+  die(scene,M,EW,.18,EW,analogTex('DRIVER'),DRX,Y.top+.14,drvZ,0,{metalness:.08,roughness:.54}); named('Coherent driver package');
+  die(scene,M,EW,.18,EW,analogTex('TIA'),TIAX,Y.top+.14,tiaZ,0,{metalness:.08,roughness:.54}); named('Coherent TIA package');
   const driverBonds=[],tiaBonds=[],driverInputs=[],tiaOutputs=[];
   const portY=Y.top+.055, boardY=Y.top+.004;
   const bridge=(x0,x1,z)=>[[x0,portY,z],[x0+(x1-x0)*.3,boardY,z],
@@ -146,25 +160,37 @@ export function build({ quality, state, authoredHardware = false }) {
     driverBonds.push(db);tiaBonds.push(tb);driverInputs.push(di);tiaOutputs.push(to);
     for(const path of [db,tb,di,to]) for(const d of [-.006,.006])
       strand(N,path.map(p=>[p[0],p[1],p[2]+d]),MAT.copper,.002,4);
-    for(const [x,z] of [[DRX-EW/2,dz],[DRX+EW/2,dz],[TIAX-EW/2,rz],[TIAX+EW/2,rz],[CX0,dz],[RX0,rz]])
-      N.box(.06,.026,.034,MAT.gold,x,portY,z);
+    // Flat gold lands on the carrier at each bond foot, reaching away from
+    // the package or die edge they serve (no cubes stuck to package sides).
+    for(const [x,z,out] of [[DRX-EW/2,dz,-1],[DRX+EW/2,dz,1],[TIAX-EW/2,rz,-1],[TIAX+EW/2,rz,1],[CX0,dz,-1],[RX0,rz,-1]])
+      N.box(.06,.006,.034,MAT.gold,x+out*.03,Y.top+.053,z);
   }
   const cdmIn=[CX_,Y.top+.1,cdmZ+.33],cdmOut=[CX0+CL,Y.top+.1,cdmZ];
   const icrSig=[RX0+RL,Y.top+.1,icrZ],icrLo=[RX_,Y.top+.1,icrZ-.33];
-  const laserTrunk=[itOut,tap];
-  const carrierPath=[tap,[3.68,tap[1],-.12],cdmIn];
-  const loPath=[tap,[3.68,tap[1],.12],icrLo];
+  // Fibers follow smooth cubic bends, never kinks. The laser pigtail leaves
+  // through its snout and boot (0.6 cm) and drops to the tap in an S-bend whose
+  // radius stays at or above the 5 mm a nano-ITLA vendor page specifies.
+  const bez=(p0,p1,p2,p3,n=10)=>Array.from({length:n-1},(_,i)=>{const t=(i+1)/n,u=1-t;
+    return [0,1,2].map(k=>u*u*u*p0[k]+3*u*u*t*p1[k]+3*u*t*t*p2[k]+t*t*t*p3[k]);});
+  const bootEnd=[itOut[0]+.6,itOut[1],0],tapIn=[tap[0]-.15,tap[1],0];
+  const laserTrunk=[itOut,bootEnd,...bez(bootEnd,[3.08,itOut[1],0],[3.08,tap[1],0],tapIn),tapIn,tap];
+  const branch=(end,s)=>{const a=[tap[0]+.15,tap[1],s*.02];
+    return [tap,a,...bez(a,[3.86,tap[1],s*.02],[end[0],end[1],s*.03],end),end];};
+  const carrierPath=branch(cdmIn,-1);
+  const loPath=branch(icrLo,1);
   strand(N,laserTrunk,M.fiberCw,.012);
   strand(N,carrierPath,M.fiberCw,.012);strand(N,loPath,M.fiberCw,.012);
-  const LCX = MX1 - 0.3, lcTx = [LCX - 0.25, Y.top + 0.2, -0.3], lcRx = [LCX - 0.25, Y.top + 0.2, 0.3];
-  strand(N, [cdmOut, [(cdmOut[0] + lcTx[0]) / 2, Y.top + 0.18, -0.35], lcTx], M.fiberTx, 0.012);
-  strand(N, [lcRx, [(icrSig[0] + lcRx[0]) / 2, Y.top + 0.18, 0.3], icrSig], M.fiberRx, 0.012);
-  for (const [dz, c] of [[-0.3, COL.tx], [0.3, COL.rx]]) { S.box(0.5, 0.36, 0.42, MAT.polymer, LCX, Y.top + 0.2, dz); N.box(0.02, 0.05, 0.05, glowMat(c, 1.4), LCX + 0.26, Y.top + 0.2, dz); }
-  for (const dz of [-0.3, 0.3]) {
-    // Connector shell lips frame the existing optical port; no additional port.
-    for (const dy of [-0.155, 0.155]) N.box(0.035, 0.035, 0.4, shellEdge, LCX + 0.245, Y.top + 0.2 + dy, dz);
-    for (const side of [-0.185, 0.185]) N.box(0.035, 0.28, 0.025, shellEdge, LCX + 0.245, Y.top + 0.2, dz + side);
-  }
+  // Duplex LC receptacle at the module front (the Blender asset models the
+  // molded body, bores, sleeves and bracket). Fibers land on its rear face;
+  // the fiber cores glow at the ferrule stub faces inside the bores.
+  const LCX = MX1 - 0.3, LCY = Y.top + 0.3, LCR = 4.78, LCF = 5.165;
+  const lcTx = [LCR, LCY, -0.3], lcRx = [LCR, LCY, 0.3];
+  const txLead = bez(cdmOut, [4.64, cdmOut[1], -.55], [4.62, LCY, -.3], lcTx);
+  const rxLead = bez(lcRx, [4.62, LCY, .3], [4.64, icrSig[1], .55], icrSig);
+  strand(N, [cdmOut, ...txLead, lcTx], M.fiberTx, 0.012);
+  strand(N, [lcRx, ...rxLead, icrSig], M.fiberRx, 0.012);
+  for (const [dz, c] of [[-0.3, COL.tx], [0.3, COL.rx]]) N.box(0.006, 0.07, 0.07, glowMat(c, 1.4), LCF, LCY, dz);
+  if (!authoredHardware) for (const dz of [-0.3, 0.3]) S.box(0.58, 0.8, 0.6, MAT.polymer, (LCR + MX1 - .03) / 2, LCY, dz);
   // Separate host-side and line-side banks land on the DSP die. Signals stop
   // at the DSP and resume from its other interface: no false lane-for-lane wire
   // through the DSP. Four path groups illustrate routing, not a host pin count.
@@ -191,16 +217,22 @@ export function build({ quality, state, authoredHardware = false }) {
   }
   scene.userData.coherentRouting={laserTrunk,carrierPath,loPath,hostTx,hostRx,lineTx,lineRx,
     discretePackages:true,hostPathGroupsAreNotLaneCounts:true};
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.12, 1.3), new THREE.MeshStandardMaterial({ color: 0xd87aa0, roughness: 0.8, transparent: true, opacity: 0.85 }));
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.12, 1.3), new THREE.MeshStandardMaterial({ color: 0x4d4049, roughness: 0.82, transparent: true, opacity: 0.85 }));
   pad.name='Coherent DSP thermal pad';
-  pad.position.set(DSPX, 2.35, 0); scene.add(pad);
+  pad.position.set(DSPX, 3.145, 0); scene.add(pad);
   if (!authoredHardware) {
   lidBox(scene, M, LEN, MW, [0, Y.lid, 0]);
   // A restrained translucent fin silhouette keeps the interior readable in the
   // exploded teaching view; it is representative, not a thermal design claim.
   for (let i = 0; i < 13; i++) N.box(LEN * 0.67, 0.23, 0.025, lidDetail, -1.25, Y.lid + 0.185, -0.9 + i * 0.15);
   }
-  scene.add(S.build()); scene.add(N.build({ cast: false }));
+  const names = new Map([[MAT.pcb,'Coherent PCB'],[MAT.inductor,'Coherent inductors'],[MAT.pcbBlack,'Coherent package substrates'],
+    [M.glass,'Coherent optical tap'],[MAT.polymer,'Coherent LC receptacle'],[laminate,'Coherent PCB laminate edge'],[MAT.gold,'Coherent gold contacts'],
+    [MAT.copper,'Coherent copper'],[M.fiberCw,'Coherent CW fiber'],[M.fiberTx,'Coherent TX fiber'],[M.fiberRx,'Coherent RX fiber']]);
+  for (const group of [S.build(), N.build({ cast: false })]) {
+    group.traverse(o => { if (o.isMesh && names.has(o.material)) o.name = names.get(o.material); });
+    scene.add(group);
+  }
 
   // ======================= flows =======================
   const yT = Y.top + 0.01;
@@ -209,8 +241,8 @@ export function build({ quality, state, authoredHardware = false }) {
   dataFlows.push(flow(laserTrunk,'cw',FLOW.cw));
   dataFlows.push(flow(carrierPath, 'cw', FLOW.cw));
   dataFlows.push(flow(loPath, 'cw', FLOW.cw));
-  dataFlows.push(flow([cdmIn, cdmOut, [(cdmOut[0] + lcTx[0]) / 2, Y.top + 0.18, -0.35], lcTx, [MX1 + 0.7, Y.top + 0.2, -0.3]], 'tx', FLOW.light));
-  dataFlows.push(flow([[MX1 + 0.7, Y.top + 0.2, 0.3], lcRx, [(icrSig[0] + lcRx[0]) / 2, Y.top + 0.18, 0.3], icrSig, [RX_, Y.top + 0.12, icrZ]], 'rx', FLOW.light));
+  dataFlows.push(flow([cdmIn, cdmOut, ...txLead, lcTx, [MX1 + 0.7, LCY, -0.3]], 'tx', FLOW.light));
+  dataFlows.push(flow([[MX1 + 0.7, LCY, 0.3], lcRx, ...rxLead, icrSig, [RX_, Y.top + 0.12, icrZ]], 'rx', FLOW.light));
   for (let i = 0; i < 4; i++) flows.push(flow([[MX0 - 1.1, yT, -0.9 + i * 0.6], [mx(0.3), yT, -0.9 + i * 0.6], [mx(1.35+(i%2)*.48), Y.top + 0.12, i < 2 ? -0.22 : 0.22]], 'v33', FLOW.power));
   for (const [x, z] of [[DSPX, 0], [ITX, 0], [CX_, cdmZ], [DRX, drvZ], [RX_, icrZ], [TIAX, tiaZ]]) {
     const start = [mx(2.0), yT, z * 0.4], end = [x, Y.top + 0.12, z];
@@ -241,6 +273,7 @@ export function build({ quality, state, authoredHardware = false }) {
   label(scene, 'TX carrier', [3.7,1.85,-.18], COL.cw, .10);
   label(scene, 'RX local oscillator', [3.7,1.85,.18], COL.cw, .10);
   label(scene, 'Light · glass fiber', [LCX - 0.6, 2.05, 0], COL.tx, 0.14);
+  label(scene, 'Duplex LC receptacle', [LCX + 0.1, 2.35, 0], note, 0.12);
 
   const hs = {
     cdsp: { pos: [DSPX, Y.top + .2, .3] },

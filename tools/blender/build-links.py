@@ -62,6 +62,13 @@ def box(name, pos, size, material, bevel=.025):
     for p in o.data.polygons: p.use_smooth = True
     return o
 
+def reweight(o):
+    # A boolean leaves smooth-shaded n-gons whose vertex normals lean toward
+    # the side walls, which reads as a sloped frustum. Re-weight by face area.
+    bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o
+    w=o.modifiers.new('Face weighted normals','WEIGHTED_NORMAL');w.keep_sharp=True;w.weight=100
+    bpy.ops.object.modifier_apply(modifier=w.name)
+
 def screw(name, x, y, z, mats, r=.058):
     bpy.ops.mesh.primitive_cylinder_add(vertices=16, radius=r*.01, depth=.019*.01, location=xyz((x,y,z)))
     o = bpy.context.object; o.name = name; o.data.materials.append(mats['edge'])
@@ -69,24 +76,48 @@ def screw(name, x, y, z, mats, r=.058):
     bpy.ops.object.modifier_apply(modifier=b.name)
     box(name+'_slot', (x,y+.010,z), (r*1.2,.002,r*.22), mats['dark'], .001)
 
+def osfp_top_housing(name, cx, cy, cz, length, width, mats):
+    # Die-cast OSFP top housing with an integrated closed-top heat sink: a
+    # ceiling plate, longitudinal fins running the whole length, and a flat top
+    # skin, so air can pass along the module (OSFP MSA Rev 5.0 sec. 3.3). The
+    # channels stay open at both ends. Fin count, pitch and heights are
+    # representative; the MSA gives example designs, not this one.
+    b=cy-.045; H=.6; skin=.08; wall=.1
+    ceiling=box(name+'_ceiling plate',(cx,b+.05,cz),(length,.1,width),mats['lid'],.04)
+    # Host end: the upper lip of the nose, without fins, with ventilation
+    # slots (OSFP MSA Rev 5.0 sec. 3.2, Fig. 3-11); slot sizes are representative.
+    nose=.6; x0=cx-length/2
+    cut_away(ceiling,[box('cut',(x0+.3,b+.05,cz+k*.26),(.3,.2,.12),mats['lid'],0) for k in range(-3,4)])
+    for s in [-1,1]:
+        box(name+'_side wall',(cx,b+.1+(H-.1)/2,cz+s*(width/2-wall/2)),(length,H-.1,wall),mats['lid'],.03)
+        box(name+'_parting seam',(cx,b+.012,cz+s*(width/2-.004)),(length-.12,.012,.01),mats['dark'],.003)
+    for x in [-1,1]:
+        box(name+'_parting seam',(cx+x*(length/2-.004),b+.012,cz),(.01,.012,width-.12),mats['dark'],.003)
+    n=11; span=width-2*wall-.16
+    for i in range(n):
+        z=cz-span/2+i*span/(n-1)
+        box(name+'_heat sink fin',(cx+nose/2,b+.1+(H-.1-skin)/2,z),(length-nose-.02,H-.1-skin,.05),mats['edge'],.012)
+    top=box(name+'_top skin',(cx+nose/2,b+H-skin/2,cz),(length-nose,skin,width),mats['lid'],.04)
+    # A shallow label recess (OSFP MSA Fig. 3-4 gives a recommended label area).
+    cut=box('Temporary cover label pocket',(cx-.6,b+H,cz),(4.2,.03,1.5),mats['lid'],.01)
+    pocket=top.modifiers.new('Label recess','BOOLEAN');pocket.operation='DIFFERENCE';pocket.object=cut
+    bpy.context.view_layer.objects.active=top;bpy.ops.object.modifier_apply(modifier=pocket.name)
+    bpy.data.objects.remove(cut,do_unlink=True)
+    reweight(top)
+
 def lid(name, cx, cy, cz, length, width, along_x, mats):
     # Opaque metal, lifted for inspection. The UI can hide the cover entirely.
-    dims=(length,.09,width) if along_x else (width,.09,length)
-    box(name+'_cutaway', (cx,cy,cz), dims, mats['lid'], .035)
     if along_x:
-        for z in [-width/2+.05,width/2-.05]: box(name+'_fold', (cx,cy,cz+z), (length,.12,.1), mats['edge'])
-        for x in [-length/2+.09,length/2-.09]: box(name+'_end', (cx+x,cy,cz), (.18,.12,width-.2), mats['shell'])
-        # The photographed coherent OSFP has a broad flat lid and a short
-        # transverse bank of fins near the LC end, not full-length fins.
-        box(name+'_flat crown',(cx-.38,cy+.065,cz),(length-1.1,.12,width-.18),mats['lid'],.04)
-        for i in range(11): box(name+'_fin', (cx+length/2-.63,cy+.18,cz-.8+i*.16), (.48,.3,.035), mats['fin'], .012)
-    else:
-        for x in [-width/2+.05,width/2-.05]: box(name+'_fold', (cx+x,cy,cz), (.1,.12,length), mats['edge'])
-        for z in [-length/2+.09,length/2-.09]: box(name+'_end', (cx,cy,cz+z), (width-.2,.12,.18), mats['shell'])
-        # Flat QSFP-style clamshell: no invented cooling ribs. The shallow rear
-        # shoulder and inset label landing follow the public QSFP112 DAC photo.
-        box(name+'_rear shoulder', (cx,cy+.065,cz-length/2+.58), (width-.14,.13,1.0), mats['lid'], .065)
-        box(name+'_label landing', (cx,cy+.048,cz+.35), (width-.65,.008,2.3), mats['shell'], .045)
+        osfp_top_housing(name,cx,cy,cz,length,width,mats)
+        return
+    dims=(width,.09,length)
+    box(name+'_cutaway', (cx,cy,cz), dims, mats['lid'], .035)
+    for x in [-width/2+.05,width/2-.05]: box(name+'_fold', (cx+x,cy,cz), (.1,.12,length), mats['edge'])
+    for z in [-length/2+.09,length/2-.09]: box(name+'_end', (cx,cy,cz+z), (width-.2,.12,.18), mats['shell'])
+    # Flat QSFP-style clamshell: no invented cooling ribs. The shallow rear
+    # shoulder and inset label landing follow the public QSFP112 DAC photo.
+    box(name+'_rear shoulder', (cx,cy+.065,cz-length/2+.58), (width-.14,.13,1.0), mats['lid'], .065)
+    box(name+'_label landing', (cx,cy+.048,cz+.35), (width-.65,.008,2.3), mats['shell'], .045)
 
 def cable_cutaway(name, cx, mats):
     # Lower half-shell of the boot and jacket: sectioned through the upper half
@@ -143,28 +174,6 @@ def annulus(name, center, outer, inner, depth, axis, material):
         faces += [(i,j,n+j,n+i),(2*n+j,2*n+i,3*n+i,3*n+j),(i,2*n+i,2*n+j,j),(n+j,3*n+j,3*n+i,n+i)]
     mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
     o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o);mesh.materials.append(material)
-    return o
-
-def pull_loop(name, origin, along_x, material):
-    # Photo-inspired open release loop. It is a mechanical handle, never a
-    # signal path. Dimensions beyond the shell are representative.
-    outer=[(0,-1.04),(2.45,-1.04),(2.78,-.72),(2.92,0),(2.78,.72),(2.45,1.04),(0,1.04)]
-    inner=[(.18,-.86),(2.35,-.86),(2.59,-.59),(2.70,0),(2.59,.59),(2.35,.86),(.18,.86)]
-    verts=[]
-    for y in [-.055,.055]:
-        for ring in [outer,inner]:
-            for u,v in ring:
-                x,z=(origin[0]+u,origin[2]+v) if along_x else (origin[0]+v,origin[2]-u)
-                verts.append(xyz((x,origin[1]+y,z)))
-    n=len(outer);faces=[]
-    for i in range(n):
-        j=(i+1)%n
-        faces += [(i,j,n+j,n+i),(2*n+j,2*n+i,3*n+i,3*n+j),(i,2*n+i,2*n+j,j),(n+j,3*n+j,3*n+i,n+i)]
-    mesh=bpy.data.meshes.new(name);mesh.from_pydata(verts,[],faces);mesh.update()
-    o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o);mesh.materials.append(material)
-    bpy.context.view_layer.objects.active=o
-    b=o.modifiers.new('Soft molded release edges','BEVEL');b.width=.00012;b.segments=3
-    bpy.ops.object.modifier_apply(modifier=b.name)
     return o
 
 def internals(kind):
@@ -234,39 +243,264 @@ def export(name, mats, footprint):
     bpy.ops.export_scene.gltf(filepath=str(OUT/(name+'.glb')), export_format='GLB', export_yup=True, export_extras=True, export_cameras=False, export_lights=False)
     print('EXPORTED', name, (OUT/(name+'.glb')).stat().st_size)
 
+def by_source(name):
+    return [o for o in bpy.context.scene.objects if o.type=='MESH' and o.get('sourceMesh')==name]
+
+def refine_edges(o, width, segments=2):
+    # glTF import splits every box face into its own vertices, so a bevel has
+    # no connected edges to round. Weld first, then bevel at a real width.
+    bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o
+    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.remove_doubles(threshold=1e-7);bpy.ops.object.mode_set(mode='OBJECT')
+    if o.data.has_custom_normals:bpy.ops.mesh.customdata_custom_splitnormals_clear()
+    for mod in list(o.modifiers):o.modifiers.remove(mod)
+    b=o.modifiers.new('Package edge radius','BEVEL');b.width=width*.01;b.segments=segments;b.limit_method='ANGLE';b.harden_normals=True
+    bpy.ops.object.modifier_apply(modifier=b.name)
+    w=o.modifiers.new('Package weighted normals','WEIGHTED_NORMAL');w.keep_sharp=True
+    bpy.ops.object.modifier_apply(modifier=w.name)
+    for p in o.data.polygons:p.use_smooth=True
+
+def coherent_board_detail(m):
+    """Package and board detail on the imported audited layout (scene cm).
+    Representative: no teardown gives package styles or passive placement."""
+    T=1.35  # PCB top
+    for name,width in [('Coherent DSP die',.008),('Coherent IQ modulator die',.008),('Coherent receiver die',.008),
+                       ('Coherent driver package',.016),('Coherent TIA package',.016),('Coherent package substrates',.012),
+                       ('Coherent inductors',.035),('Coherent PCB',.005)]:
+        for o in by_source(name):refine_edges(o,width,3 if name=='Coherent inductors' else 2)
+    m['tin']=mat('Tin-plated terminations',(.70,.71,.72),.9,.3)
+    m['cap']=mat('Ceramic capacitor body',(.52,.44,.31),0,.55)
+    m['epoxy']=mat('Dark underfill epoxy',(.03,.03,.035),0,.35)
+    m['inp']=mat('Cleaved die edge',(.40,.43,.47),.55,.3)
+    m['attach']=mat('Fiber attach glass',(.50,.60,.66),0,.12)
+    m['gold']=mat('Gold bond pads',(1,.78,.35),1,.18)
+    def cap(x,z,along_x=True,size=(.06,.03,.03),body='cap'):
+        l,h,w=size;t=l*.2
+        box('Board passive',(x,T+h/2,z),(l-2*t,h*.96,w*.96) if along_x else (w*.96,h*.96,l-2*t),m[body],0)
+        for s in [-1,1]:
+            p=(x+s*(l/2-t/2),T+h/2,z) if along_x else (x,T+h/2,z+s*(l/2-t/2))
+            box('Board passive termination',p,(t,h,w) if along_x else (w,h,t),m['tin'],0)
+    # DSP: lidless die, dark underfill skirt, decoupling ring, stiffener frame.
+    dx=-1.49; S=T+.1  # substrate top
+    for s in [-1,1]:
+        box('DSP underfill fillet',(dx+s*.585,S+.011,0),(.02,.022,1.19),m['epoxy'],.004)
+        box('DSP underfill fillet',(dx,S+.011,s*.585),(1.15,.022,.02),m['epoxy'],.004)
+    # Die-edge signal banks (native dspTex and routing) stay clear of capacitors.
+    banks=[(49+i*52)/512*1.15-.575 for i in range(4)]+[(301+i*52)/512*1.15-.575 for i in range(4)]
+    for s in [-1,1]:
+        box('DSP stiffener ring',(dx+s*.78,S+.02,0),(.1,.04,1.66),m['seal'],.01)
+        box('DSP stiffener ring',(dx,S+.02,s*.78),(1.46,.04,.1),m['seal'],.01)
+    for i in range(10):
+        u=-.6+i*.1333
+        for s in [-1,1]:
+            for x,z,ax in [(dx+s*.68,u,False),(dx+u,s*.68,True)]:
+                if not ax and min(abs(u-b) for b in banks)<.045:continue
+                l,h,w=.06,.03,.03;t=.012
+                box('DSP decoupling capacitor',(x,S+h/2,z),(l-2*t,h*.96,w*.96) if ax else (w*.96,h*.96,l-2*t),m['cap'],0)
+                for e in [-1,1]:
+                    p=(x+e*(l/2-t/2),S+h/2,z) if ax else (x,S+h/2,z+e*(l/2-t/2))
+                    box('DSP decoupling termination',p,(t,h,w) if ax else (w,h,t),m['tin'],0)
+    # Driver and TIA: QFN-style tin lands round the package foot; the four RF
+    # bond lands per side are the gold pads in the native layout.
+    offs=[(58+k*46)/256*.66-.33 for k in range(4)]
+    for cx,cz in [(2.85,-.55),(2.85,.55)]:
+        for i in range(9):
+            u=-.24+i*.06
+            for s in [-1,1]:
+                box('QFN land',(cx+u,1.4025,cz+s*.287),(.025,.005,.04),m['tin'],0)
+                if min(abs(u-o) for o in offs)>.03:box('QFN land',(cx+s*.287,1.4025,cz+u),(.04,.005,.025),m['tin'],0)
+    # Optical assemblies: cleaved die edge, ground-signal-ground pads on the RF
+    # edge, and a glass fiber-attach block where each fiber meets the die.
+    for cx,cz in [(3.92,-.55),(3.92,.55)]:
+        for s in [-1,1]:
+            box('Photonic die edge',(cx+s*.558,1.415,cz),(.016,.03,.676),m['inp'],.003)
+            box('Photonic die edge',(cx,1.415,cz+s*.338),(1.132,.03,.016),m['inp'],.003)
+        for o in offs:
+            for g,wd in [(-.034,.018),(0,.014),(.034,.018)]:
+                box('RF edge bond pad',(3.37+.035,1.4615,cz+o+g),(.04,.003,wd),m['gold'],0)
+    for x,z,size in [(4.49,-.55,(.04,.07,.10)),(3.92,-.205,(.10,.07,.03)),(4.49,.55,(.04,.07,.10)),(3.92,.205,(.10,.07,.03))]:
+        box('Fiber attach block',(x,1.435,z),size,m['attach'],.005)
+    # Hard gold on the card-edge pads and bond lands.
+    for o in by_source('Coherent gold contacts'):
+        for mt in o.data.materials:
+            p=mt.node_tree.nodes.get('Principled BSDF')
+            p.inputs['Base Color'].default_value=(1,.78,.35,1);p.inputs['Metallic'].default_value=1;p.inputs['Roughness'].default_value=.3
+    # Fused tap on a small ceramic mount; fibers get a glossy acrylate coat.
+    box('Fused tap mount',(3.5,1.44,0),(.24,.18,.14),m['ceramic'],.01)
+    for name in ['Coherent CW fiber','Coherent TX fiber','Coherent RX fiber']:
+        for o in by_source(name):
+            for mt in o.data.materials:
+                p=mt.node_tree.nodes.get('Principled BSDF')
+                c=p.inputs['Base Color'].default_value;p.inputs['Base Color'].default_value=(c[0],c[1],c[2],1)
+                p.inputs['Alpha'].default_value=1;p.inputs['Roughness'].default_value=.25
+    # Inductors: silver end terminations on the rounded molded bodies.
+    for i in range(4):
+        x=-5.39+1.35+(i%2)*.48;z=-.22 if i<2 else .22
+        for s in [-1,1]:box('Inductor termination',(x+s*.158,T+.113,z),(.03,.226,.30),m['tin'],.006)
+    # Representative passives and two small controller/PMIC packages, placed
+    # clear of every native trace, fiber and animated feed.
+    for x,z,l in [(2.36,0,.22),(-4.62,0,.24)]:
+        box('Board QFN controller',(x,T+.03,z),(l,.06,l),m['package'],.012)
+        for i in range(5):
+            u=-l/2+.04+i*(l-.08)/4
+            for s in [-1,1]:
+                box('Board QFN land',(x+u,T+.002,z+s*(l/2+.012)),(.018,.004,.03),m['tin'],0)
+                box('Board QFN land',(x+s*(l/2+.012),T+.002,z+u),(.03,.004,.018),m['tin'],0)
+    for z in [-.36+i*.12 for i in range(7)]:cap(-.54,z,False)
+    for z in [-.24,-.12,.12,.24]:cap(-2.45,z,False)
+    for z in [-.36,-.1,.1,.36]:cap(-3.25,z,False,(.1,.05,.05))
+    for s in [-1,1]:
+        cap(-4.9,s*.2,False)
+        cap(2.36,s*.25,False)
+
+def tube(name, x0, x1, y, z, r, material, n=24, inner=0):
+    # A cylinder (or open tube when inner>0) along +x, in scene cm.
+    if inner:return annulus(name,((x0+x1)/2,y,z),r,inner,x1-x0,'x',material)
+    bpy.ops.mesh.primitive_cylinder_add(vertices=n,radius=r*.01,depth=(x1-x0)*.01,location=xyz(((x0+x1)/2,y,z)),rotation=(0,math.pi/2,0))
+    o=bpy.context.object;o.name=name;o.data.materials.append(material)
+    for p in o.data.polygons:p.use_smooth=len(p.vertices)==4
+    return o
+
+def duplex_lc_receptacle(m):
+    # One molded duplex LC receptacle at the module front: two square bores
+    # with a stepped mouth and a latch-key slot, a zirconia split sleeve and a
+    # ferrule stub face inside each, on a bracket under the board end. The
+    # media interface is a duplex LC connector (Cisco 800G ZR/ZR+ datasheet);
+    # body styling, sizes and the 6 mm port pitch here are representative.
+    m['lcbody']=mat('Molded LC receptacle body',(.055,.06,.066),0,.5)
+    m['zirconia']=mat('Zirconia ferrule sleeve',(.86,.85,.80),0,.35)
+    x0,x1,y,h,hw=4.78,5.36,1.65,.8,.61
+    body=box('LC receptacle body',((x0+x1)/2,y,0),(x1-x0,h,2*hw),m['lcbody'],.03)
+    cuts=[]
+    for z in [-.3,.3]:
+        cuts.append(box('cut',(5.15,y,z),(.46,.46,.46),m['lcbody'],0))           # bore, 4.2 mm deep
+        cuts.append(box('cut',(5.36,y,z),(.1,.53,.53),m['lcbody'],0))            # stepped mouth
+        cuts.append(box('cut',(5.30,y+.25,z),(.2,.1,.16),m['lcbody'],0))         # latch-key slot
+    for c in cuts:
+        mod=body.modifiers.new('Port','BOOLEAN');mod.operation='DIFFERENCE';mod.object=c
+        bpy.context.view_layer.objects.active=body;bpy.ops.object.modifier_apply(modifier=mod.name)
+        bpy.data.objects.remove(c,do_unlink=True)
+    reweight(body)
+    for z in [-.3,.3]:
+        tube('LC split sleeve',4.93,5.20,y,z,.085,m['zirconia'],32,.0625)
+        tube('LC ferrule stub',4.93,5.16,y,z,.0625,m['zirconia'],24)
+        tube('LC fiber strain relief',4.70,4.785,y,z,.045,m['boot'],16)
+    box('LC receptacle bracket',(4.83,1.23,0),(1.06,.04,1.3),m['edge'],.008)
+    for z in [-.45,.45]:screw('LC bracket screw',4.66,1.25,z,m,.04)
+
+def osfp_pull_tab(m, x_nose=5.39, reach=.8):
+    # Molded pull tab: a rounded tongue with an oval finger hole reaching
+    # about 8 mm past the nose, joined by a crossbar to two thin arms that run
+    # back along the side walls to the latch. With it the model stays within
+    # the 116 mm maximum Cisco lists for its OSFP 800G modules with pull tab.
+    # Shape, arm routing and the neutral colour are representative.
+    m['tab']=mat('Molded release pull tab',(.085,.09,.10),0,.5)
+    y,t=.30,.15; hw=.55; cx=x_nose+reach-hw
+    outline=[(x_nose-.06,-1.14),(x_nose+.12,-1.14),(x_nose+.28,-hw)]
+    outline+=[(cx+hw*math.cos(a),hw*math.sin(a)) for a in [-math.pi/2+i*math.pi/20 for i in range(21)]]
+    outline+=[(x_nose+.28,hw),(x_nose+.12,1.14),(x_nose-.06,1.14)]
+    verts=[xyz((x,y+d,z)) for d in [-t/2,t/2] for x,z in outline]
+    n=len(outline)
+    faces=[tuple(range(n))[::-1],tuple(range(n,2*n))]+[(i,(i+1)%n,n+(i+1)%n,n+i) for i in range(n)]
+    mesh=bpy.data.meshes.new('OSFP release pull tab');mesh.from_pydata(verts,[],faces);mesh.update()
+    tab=bpy.data.objects.new('OSFP release pull tab',mesh);bpy.context.collection.objects.link(tab);mesh.materials.append(m['tab'])
+    bpy.ops.object.select_all(action='DESELECT');tab.select_set(True);bpy.context.view_layer.objects.active=tab
+    bpy.ops.object.mode_set(mode='EDIT');bpy.ops.mesh.select_all(action='SELECT');bpy.ops.mesh.normals_make_consistent(inside=False);bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.ops.mesh.primitive_cylinder_add(vertices=32,radius=.01,depth=.01,location=xyz((cx+.02,y,0)))
+    hole=bpy.context.object;hole.scale=(.24,.34,t*3)
+    mod=tab.modifiers.new('Finger hole','BOOLEAN');mod.operation='DIFFERENCE';mod.object=hole
+    bpy.context.view_layer.objects.active=tab;bpy.ops.object.modifier_apply(modifier=mod.name)
+    bpy.data.objects.remove(hole,do_unlink=True)
+    b=tab.modifiers.new('Molded edge','BEVEL');b.width=.0003;b.segments=2;b.limit_method='ANGLE'
+    bpy.ops.object.modifier_apply(modifier=b.name)
+    for p in tab.data.polygons:p.use_smooth=False
+    for s in [-1,1]:
+        box('OSFP release pull arm',((1.85+x_nose)/2,y,s*1.12),(x_nose-1.85,.12,.04),m['tab'],.012)
+
+def dsp_gap_pad(m, lid_y=3.4, lid_half=.045):
+    # The native layout carries a loose pad halfway between board and lid.
+    # Replace it with a lid-mounted stack that travels with the cover: a
+    # machined pedestal under the lid over the DSP, then a soft gap pad.
+    # Representative: pedestal-plus-TIM has no module-specific source.
+    for o in list(bpy.context.scene.objects):
+        if o.get('sourceMesh')=='Coherent DSP thermal pad':bpy.data.objects.remove(o,do_unlink=True)
+    m['gap']=mat('Soft thermal gap pad',(.30,.25,.29),0,.82)
+    x=-1.49; under=lid_y-lid_half
+    box('OSFP lifted cover DSP pedestal',(x,under-.075,0),(1.46,.15,1.46),m['lid'],.03)
+    pad=box('OSFP lifted cover thermal gap pad',(x,under-.15-.06,0),(1.3,.12,1.3),m['gap'],.04)
+    pad['sourceMesh']='Coherent DSP thermal pad'
+
+def cut_away(target, cutters):
+    for c in cutters:
+        mod=target.modifiers.new('Cast pocket','BOOLEAN');mod.operation='DIFFERENCE';mod.object=c
+        bpy.context.view_layer.objects.active=target;bpy.ops.object.modifier_apply(modifier=mod.name)
+        bpy.data.objects.remove(c,do_unlink=True)
+    reweight(target)
+
 def coherent():
     m=reset(); L=10.78; W=2.258
-    box('OSFP lower tray', (0,0,0), (L,.12,W), m['shell'], .045)
+    # A die-cast lower case: satin cast finish, rougher than the machined edges.
+    m['shell']=mat('Die-cast lower case',(.34,.39,.44),.8,.42)
+    tray=box('OSFP lower tray', (0,0,0), (L,.12,W), m['shell'], .045)
+    # Shallow (0.4 mm) cast pockets between stiffening webs replace flat ribs.
+    webs=[-5.0,-3.6,-2.2,-.8,.6,2.0,3.4,4.8]
+    cut_away(tray,[box('cut',((a+b)/2,.06,0),(b-a-.16,.08,W-.46),m['shell'],0) for a,b in zip(webs,webs[1:])])
     for s in [-1,1]:
         z=s*(W/2-.05)
-        box('Folded shell wall',(0,.3,z),(L,.55,.1),m['shell'],.03)
+        wall=box('Folded shell wall',(0,.3,z),(L,.55,.1),m['shell'],.03)
+        # Latch pockets sit on the outer faces of the side walls.
+        cut_away(wall,[box('cut',(x,.3,s*W/2),(.4,.16,.04),m['shell'],0) for x in [-3.7,-.8,2.15]])
         box('Machined lip',(0,.575,z),(L-.08,.025,.07),m['edge'],.009)
         box('Longitudinal rebate',(0,.16,s*(W/2-.105)),(L-.3,.04,.022),m['dark'],.006)
+        # Forward stop: the side walls rise to 7 mm above the module bottom
+        # near the nose (OSFP MSA Rev 5.0 sec. 3.2); its position is representative.
+        box('Forward stop wall',(-4.7,.295,z),(1.0,.71,.1),m['shell'],.03)
+        # Fixing bosses are cast into the walls; captive screws clamp the cover.
         for x in [-4.95,-2.8,-.65,1.55,4.95]:
-            box('Cast fixing boss',(x,.105,s*.91),(.23,.09,.24),m['shell'],.04)
-            screw('Captive fastener',x,.16,s*.91,m)
-        for x in [-3.7,-.8,2.15]:
-            box('Latch shoulder',(x,.36,z-s*.028),(.6,.16,.055),m['edge'],.02)
-            box('Latch recess',(x,.38,z-s*.061),(.4,.055,.009),m['dark'],.004)
-    for x in [-4.65,-3.2,-1.6,.1,2.4,4.4]:
-        box('Milled tray reinforcement',(x,.071,0),(.08,.022,W-.3),m['edge'],.006)
+            box('Cast fixing boss',(x,.3,s*.93),(.23,.5,.2),m['shell'],.03)
+            screw('Captive fastener',x,.56,s*.93,m)
+        # Front bulkhead pillars and sill frame the LC receptacle opening.
+        box('Front bulkhead',(5.25,.305,s*.855),(.1,.49,.35),m['shell'],.02)
+    box('Front bulkhead sill',(5.25,.13,0),(.1,.14,1.36),m['shell'],.02)
     # Research-sized nano-ITLA case, not a claimed teardown of any named 800ZR.
     # Everything in the itla semantic group stays within 25 x 15.6 x 6.5 mm.
     ix=.96; y0=1.35
-    box('Nano ITLA body',(ix,y0+.29,0),(2.5,.58,1.56),m['shell'],.027)
+    m['itla']=mat('Nano ITLA nickel case',(.40,.42,.45),.85,.36)
+    m['itlalid']=mat('Nano ITLA seam-welded lid',(.47,.50,.53),.85,.33)
+    m['kovar']=mat('Kovar fiber feedthrough',(.52,.50,.46),.9,.3)
+    m['buffer']=mat('Tight-buffered PM fiber',(.92,.88,.78),0,.4)
+    m['flex']=mat('Polyimide flex tail',(.62,.34,.06),0,.45)
+    box('Nano ITLA body',(ix,y0+.29,0),(2.5,.58,1.56),m['itla'],.027)
     box('Nano ITLA gasket',(ix,y0+.586,0),(2.47,.018,1.53),m['dark'],.016)
-    cap = box('Nano ITLA welded lid',(ix,y0+.622,0),(2.5,.056,1.56),m['edge'],.024)
-    # Cut a real identification recess instead of laying coincident faces on the lid.
-    # The lid perimeter still reaches y=2.0, preserving the 6.5 mm package envelope.
-    cut = box('Temporary label pocket',(ix-.05,1.997,0),(1.68,.012,.70),m['shell'],.014)
+    # A flat seam-welded lid (small edge break, not a frustum) with a raised
+    # weld bead just inside its edge. The bead top is the 6.5 mm envelope.
+    cap = box('Nano ITLA welded lid',(ix,1.967,0),(2.5,.046,1.56),m['itlalid'],.005)
+    for s_ in [-1,1]:
+        box('Nano ITLA seam weld',(ix,1.995,s_*(.78-.036)),(2.5-.06,.01,.012),m['itlalid'],.004)
+        box('Nano ITLA seam weld',(ix+s_*(1.25-.036),1.995,0),(.012,.01,1.56-.084),m['itlalid'],.004)
+    # A real identification recess cut into the lid, holding a flat label.
+    cut = box('Temporary label pocket',(ix-.05,1.987,0),(1.68,.012,.70),m['shell'],.014)
     pocket = cap.modifiers.new('Recessed identification pocket','BOOLEAN'); pocket.operation='DIFFERENCE'; pocket.object=cut
     bpy.context.view_layer.objects.active=cap; bpy.ops.object.modifier_apply(modifier=pocket.name)
     bpy.data.objects.remove(cut,do_unlink=True)
-    box('Nano ITLA label recess',(ix-.05,1.992,0),(1.65,.002,.67),m['shell'],.012)
+    reweight(cap)
+    box('Nano ITLA label recess',(ix-.05,1.982,0),(1.65,.002,.67),m['shell'],0)
     for j,w in enumerate([.018,.03,.014,.035,.02,.014,.026,.02,.038,.015,.025]):
-        box('Nano ITLA identification bar',(ix-.65+j*.065,1.994,.13),(w,.0007,.20),m['mark'],.0002)
+        box('Nano ITLA identification bar',(ix-.65+j*.065,1.9835,.13),(w,.001,.20),m['mark'],0)
     for x in [ix-1.11,ix+1.11]:
-        for z in [-.64,.64]:screw('Nano ITLA flush fastener',x,1.989,z,m,.046)
+        for z in [-.64,.64]:screw('Nano ITLA flush fastener',x,1.978,z,m,.046)
+    # Output: a Kovar feedthrough snout, black strain-relief boot and a
+    # tight-buffered PANDA fiber pigtail, and a polyimide flex tail from the
+    # host-side face to a board-to-board receptacle (a nano-ITLA vendor page
+    # lists a PANDA fiber pigtail and a Molex board connector). The native
+    # layout routes the pigtail to the tap with a bend radius of 5 mm or more.
+    ox=ix+1.25; oy=1.68
+    tube('ITLA pigtail feedthrough snout',ox-.01,ox+.3,oy,0,.08,m['kovar'],24)
+    tube('ITLA pigtail strain relief boot',ox+.3,ox+.6,oy,0,.06,m['boot'],20)
+    hx=ix-1.25
+    box('ITLA flex tail riser',(hx-.012,1.53,0),(.015,.34,.5),m['flex'],0)
+    box('ITLA flex tail run',(hx-.053,1.362,0),(.095,.015,.5),m['flex'],0)
+    box('ITLA board-to-board receptacle',(hx-.15,1.39,0),(.1,.08,.56),m['package'],.01)
     # Four independent board footprints: closed electronic packages are imported
     # with marked tops; optical assemblies remain open for the photonic schematic.
     for name,cx,cz,length,width in [
@@ -275,14 +509,12 @@ def coherent():
         ('Receiver island',3.92,.55,1.18,.72),
         ('TIA island',2.85,.55,.61,.61)]:
         box(name+' carrier',(cx,1.375,cz),(length,.05,width),m['ceramic'],.012)
-    # Existing duplex LC apertures gain concentric metal sleeves, with an open
-    # bore comfortably wider than the optical pulse envelope.
-    for z in [-.3,.3]:
-        annulus('LC ferrule sleeve',(5.337,1.55,z),.114,.082,.028,'x',m['seal'])
-        annulus('LC ferrule recess',(5.322,1.55,z),.132,.114,.012,'x',m['dark'])
+    duplex_lc_receptacle(m)
     lid('OSFP lifted cover',0,3.4,0,L,W,True,m)
-    pull_loop('OSFP release pull',(5.20,.29,0),True,m['pull'])
+    osfp_pull_tab(m)
     internals('coherent')
+    coherent_board_detail(m)
+    dsp_gap_pad(m)
     export('coherent-hardware',m,[L,W])
 
 def copper_package_mark(name, text, x, z, width, material):
