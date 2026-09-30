@@ -233,7 +233,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     asic: fitted([0, Y.die + 0.1, 0], [-1, 8.5, 7], [0, Y.die, 0], [3.6, 0.5, 3.6]),
     serdes: view([asicEdge(engines[1])[0], Y.subTop + 0.1, asicEdge(engines[1])[1] + 0.3], [engines[1].x + 1.5, 5, engines[1].z + 3.2], [engines[1].x * 0.7, Y.subTop, engines[1].z * 0.7]),
     engine: view([EQ.x, Y.eng + 0.15, EQ.z], [EQ.x + 2.5, 5, EQ.z + 3.2], [EQ.x, Y.eng, EQ.z]),
-    eic: fitted(w(-0.9, 1.1, 0.4), [DX + 1.5, DY + 4.2, DZ + 4.2], stack, stackSize),
+    eic: fitted(w(1.2, 1.1, 1.0), [DX + 1.5, DY + 4.2, DZ + 4.2], stack, stackSize),
     rings: fitted(w(r3x, 0.12, r3z), [DX + 0.5, DY + 3.6, DZ + 3.8], stack, stackSize),
     pd: fitted(w(pdX, 0.12, rxRowZ(4)), [DX + 1.2, DY + 2.3, DZ - 4.0], stack, stackSize),
     els: view([ELSX, Y.sub + 1.0, 0], [ELSX + 3.2, 5, 5.5], [ELSX - 1, Y.sub, 0]),
