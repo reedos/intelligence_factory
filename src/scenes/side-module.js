@@ -1,4 +1,5 @@
-// Side level: inside a 1.6T twin-port pluggable module (OSFP, 2 × DR4), exploded, and its LPO variant. World unit = 1 cm.
+// Side level: inside the scenario's switch-side twin-port pluggable module (OSFP, 2 × DR4: 800G for H100 / GB200, 1.6T
+// for GB300 and Vera Rubin; lid-labels.js moduleTier), exploded, and its LPO variant. World unit = 1 cm.
 // The footprint is drawn to its published size and the layers are pulled apart vertically; the parts inside are
 // representative (this research pass found no suitable public teardown).
 // One shared DSP and PIC, with eight TX channels on one side and eight RX on the other.
@@ -7,6 +8,7 @@
 // TX: host → DSP → driver → Mach-Zehnder modulators, lit by CW lasers → fiber → connector.
 // RX: connector → fiber → photodiodes → TIA → DSP → host.
 import { MODULE_VARIANTS, LRO_COLOR, inVariant, lroDieTop, lroIntro, lroPartCopy } from './module-lro.js';
+import { moduleTier } from './lid-labels.js';
 import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, bondWire, label, lidBox, outline, FLOW, COL, note, unitCol, finTex, glowMat, canvasTex } from './side-kit.js';
 
 // A representative shared PIC: eight TX lanes, eight RX lanes; four CW sources feed TX only.
@@ -40,8 +42,9 @@ function ePicTex() {
   });
 }
 
-export function build({ quality, state }) {
-  const scene = setup(quality, 9), M = materials();
+/** @param {{ quality: any, state: any, model?: any }} options */
+export function build({ quality, state, model }) {
+  const scene = setup(quality, 9), M = materials(), tier = moduleTier(model?.accel);   // the scenario's switch-side module
   const S = new Builder(), N = new Builder(), TD = new Builder(), TL = new Builder();   // TD: traces with a DSP, TL: the LPO module's
   const TDr = new Builder(), TLr = new Builder();   // their receive halves, apart so LRO can keep DSP transmit + linear receive
   const flows = [], dataFlows = [], heatFlows = [];
@@ -85,7 +88,7 @@ export function build({ quality, state }) {
     g.fillStyle = '#344660'; g.fillRect(0, 0, w, h);
     g.fillStyle = '#ecf4ff'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.font = 'bold 48px monospace';
-    ['DSP', '8 × 200G', '1.6T'].forEach((text, i) => g.fillText(text, w / 2, h / 2 + (i - 1) * 76));
+    ['DSP', `8 × ${tier.lane}`, tier.rate].forEach((text, i) => g.fillText(text, w / 2, h / 2 + (i - 1) * 76));
   });
   const dspTop = new THREE.MeshStandardMaterial({ map: dspMarking, roughness: 0.34, metalness: 0.45, envMapIntensity: 0.5, emissive: 0xff6a1a, emissiveIntensity: 0 });
   const dsp = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.06, 1.1), [M.dieSide, M.dieSide, dspTop, M.dieSide, M.dieSide, M.dieSide]); dsp.position.set(DSPX, Y.top + 0.13, 0); dspGroup.add(dsp);
@@ -179,7 +182,7 @@ export function build({ quality, state }) {
   const tracesDsp = TD.build({ cast: false }), tracesLpo = TL.build({ cast: false }); tracesLpo.visible = false;
   const tracesDspRx = TDr.build({ cast: false }), tracesLpoRx = TLr.build({ cast: false }); tracesLpoRx.visible = false;
   scene.add(tracesDsp, tracesLpo, tracesDspRx, tracesLpoRx);
-  const lroMark = lroDieTop({ w: 0.66, d: 1.06 }); lroMark.position.set(DSPX, Y.top + 0.161, 0); lroMark.visible = false; scene.add(lroMark);
+  const lroMark = lroDieTop({ w: 0.66, d: 1.06, lanes: `8 × ${tier.lane}` }); lroMark.position.set(DSPX, Y.top + 0.161, 0); lroMark.visible = false; scene.add(lroMark);
 
   // ---- shell top with fins, lifted ----
   lidBox(scene, M, LEN, MW, [0, Y.lid, 0]);
@@ -190,9 +193,9 @@ export function build({ quality, state }) {
   [flows, dataFlows, heatFlows].forEach(a => a.forEach(f => scene.add(f.group)));
 
   // ======================= what the reader should know at a glance =======================
-  label(scene, 'Pluggable module · 1.6T twin-port OSFP, 2 × DR4', [0, -0.35, 2.6], '#e8ecf2', 0.34);
+  label(scene, `Pluggable module · ${tier.published ? `${tier.rate} twin-port OSFP, 2 × DR4` : `${tier.rate} OSFP, type unpublished`}`, [0, -0.35, 2.6], '#e8ecf2', 0.34);
   label(scene, '107.8 × 22.58 mm · layers pulled apart · parts representative', [0, -0.75, 2.6], note, 0.18);
-  label(scene, 'One DSP · 1.6T · 8 TX + 8 RX · two 800G ports', [0, -1.05, 2.6], unitCol, 0.18);
+  label(scene, `One DSP · ${tier.rate} · 8 TX + 8 RX · two ${tier.port} ports`, [0, -1.05, 2.6], unitCol, 0.18);
   label(scene, 'Electrical · copper traces', [DSPX - 1.2, 1.9, -1.45], COL.elec, 0.14);
   label(scene, 'Bond wires', [(DRVX + PICX0) / 2, 1.9, -1.45], '#e6c46b', 0.14);
   label(scene, 'Light · waveguides on the chip', [PICX, 2.1, -1.45], COL.tx, 0.14);

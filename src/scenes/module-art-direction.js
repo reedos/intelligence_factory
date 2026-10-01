@@ -1,7 +1,7 @@
 // Studio finish for the representative Blender module. This changes illumination
 // and material response only: no geometry, physical connections, or signal colors.
 import { THREE } from './side-kit.js';
-import { MODULE_LABEL } from './lid-labels.js';
+import { moduleLabel } from './lid-labels.js';
 
 export const MODULE_LOOK = Object.freeze({
   env: 'studio',
@@ -67,13 +67,14 @@ function orangePeelNormal() {
 }
 
 // Representative cover label, printed as a texture on the authored label plate:
-// the rate names the same 2 x DR4 configuration as every caption, and the LPO view
-// adds "LPO" the way vendors name linear-drive modules (lid-labels.js). Not a vendor label.
-function drawLabel(g, w, h, lpo) {
+// the scenario's switch-side module, as the hall prints it (OSFP 800G 2xDR4, OSFP 1.6T 2xDR4 or,
+// for Vera Rubin, OSFP 1.6T), and the LPO view adds "LPO" the way vendors name linear-drive
+// modules (lid-labels.js). Not a vendor label.
+function drawLabel(g, w, h, text) {
   g.fillStyle = '#e9e8e2'; g.fillRect(0, 0, w, h);
   g.fillStyle = '#16181c'; g.textBaseline = 'alphabetic';
   g.font = '600 150px "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif'; g.fillText('OSFP', 70, 200);
-  const [, rate] = (lpo ? MODULE_LABEL.lpo : MODULE_LABEL.dsp).match(/^OSFP (.*)$/);
+  const [, rate] = text.match(/^OSFP (.*)$/);
   g.font = '500 92px "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif'; g.fillText(rate, 70, 330);
   g.font = '500 44px "IBM Plex Mono", Menlo, Consolas, monospace'; g.fillText('DESIGN STUDY · REPRESENTATIVE', 72, 410);
   // Evenly weighted bars from a fixed sequence; no encoded data.
@@ -89,17 +90,18 @@ function drawLabel(g, w, h, lpo) {
     if (f ? !ring : rand() < 0.48) g.fillRect(cx + i * cell, cy + j * cell, cell, cell);
   }
 }
-function labelTexture() {
+function labelTexture(accel) {
   if (typeof document === 'undefined') return null;
   const w = 1024, h = 840, c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d');
-  drawLabel(g, w, h, false);
+  drawLabel(g, w, h, moduleLabel(accel, false));
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
-  t.userData.setLpo = lpo => { drawLabel(g, w, h, !!lpo); t.needsUpdate = true; };
+  t.userData.text = moduleLabel(accel, false);
+  t.userData.setLpo = lpo => { t.userData.text = moduleLabel(accel, !!lpo); drawLabel(g, w, h, t.userData.text); t.needsUpdate = true; };
   return t;
 }
-function printLabel(mesh) {
-  const tex = labelTexture();
+function printLabel(mesh, accel) {
+  const tex = labelTexture(accel);
   if (!tex) return;
   const geometry = mesh.geometry, position = geometry.attributes.position;
   geometry.computeBoundingBox();
@@ -114,7 +116,7 @@ function printLabel(mesh) {
 }
 
 /** Apply only to a build-owned clone, never the cached glTF source. */
-export function applyArtDirection({ scene, model, quality = {} }) {
+export function applyArtDirection({ scene, model, quality = {}, accel }) {
   const seen = new Set();
   model.traverse(object => {
     const materials = Array.isArray(object.material) ? object.material : [object.material];
@@ -133,7 +135,7 @@ export function applyArtDirection({ scene, model, quality = {} }) {
   });
 
   const labels = [];
-  model.traverse(object => { if (object.isMesh && /Label stock/i.test(object.material?.name || '')) { const t = printLabel(object); if (t) labels.push(t); } });
+  model.traverse(object => { if (object.isMesh && /Label stock/i.test(object.material?.name || '')) { const t = printLabel(object, accel); if (t) labels.push(t); } });
 
   // Preserve setup()'s one shadow map. The studio environment supplies broad
   // softbox reflections; these lights illuminate the board and expose bevels.
@@ -175,7 +177,7 @@ export function applyArtDirection({ scene, model, quality = {} }) {
   fill.castShadow = false;
   scene.background = new THREE.Color(0x070b12);
   scene.userData.moduleArtDirection = 'studio-v2';
-  return { setLabelLpo: lpo => labels.forEach(t => t.userData.setLpo(lpo)), ...MODULE_LOOK, bloom: quality.mobile ? 0.28 : MODULE_LOOK.bloom,
+  return { setLabelLpo: lpo => labels.forEach(t => t.userData.setLpo(lpo)), labelText: () => labels[0]?.userData.text, ...MODULE_LOOK, bloom: quality.mobile ? 0.28 : MODULE_LOOK.bloom,
     envIntensity: quality.mobile ? 0.65 : MODULE_LOOK.envIntensity,
     dof: !quality.mobile && quality.dof !== false };
 }

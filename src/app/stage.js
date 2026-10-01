@@ -526,7 +526,9 @@ function safeBox() {
   // the clear area in normalized device coordinates, from the overlays actually on screen
   const vr = view.getBoundingClientRect(), box = { x0: -0.82, x1: 0.82, y0: -0.8, y1: 0.8 };
   const toY = px => 1 - 2 * (px - vr.top) / vr.height;
-  for (const sel of ['.hud.tl', '.hud.tr', '#hud-btns']) {        // the clock and the phone buttons sit below the view
+  // a level whose overview carries captions under its hardware (the module) also keeps them off the bottom HUD
+  const bottom = built[ui.scene]?.presentation?.clearBottomHud ? ['.hud.bl .hint', '.hud.bl .scalebar', '#legend'] : [];
+  for (const sel of ['.hud.tl', '.hud.tr', '#hud-btns', ...bottom]) {        // the clock and the phone buttons sit below the view
     const el = document.querySelector(sel); if (!el || el.hidden || getComputedStyle(el).display === 'none') continue;
     const r = el.getBoundingClientRect(); if (!r.width) continue;
     if (r.top - vr.top < vr.height / 2) box.y1 = Math.min(box.y1, toY(r.bottom + 14));   // overlay along the top
@@ -1119,7 +1121,8 @@ export function select(id, fly) {
   const key = `card:${ui.mode}:${SCENES()[ui.scene].id}:${id}`;   // each row's chip opens that row's own evidence
   $('card-s').innerHTML = p.specs.map(([k, v, b], i) => `<div><dt>${k}</dt><dd>${v}</dd>${basisChip(b, `${key}:${i}`, k)}</div>`).join('');
   const go_ = $('card-go'), to = drillOf(p), inw = isInward(ui.scene, to); go_.hidden = p.drill === undefined;
-  if (p.drill !== undefined) go_.textContent = `${inw ? 'Go inside' : 'Back out'}: ${SCENES()[to].door || SCENES()[to].title} ${inw ? '→' : '↑'}`;
+  // a door may name what it opens (the module level's door names this scenario's switch module: OSFP 800G 2xDR4)
+  if (p.drill !== undefined) go_.textContent = `${inw ? 'Go inside' : 'Back out'}: ${SCENES()[to].door || SCENES()[to].title}${inw && p.doorName ? ` · ${p.doorName}` : ''} ${inw ? '→' : '↑'}`;
   go_.onclick = () => (p.drill === 'out' ? backOut() : go(drillOf(p), id));
   // a close part view (a switch face read at true size) may bring the orbit nearer than the level's own limit, for as
   // long as that part is selected

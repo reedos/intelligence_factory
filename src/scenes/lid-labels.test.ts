@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ACCELERATORS } from '../model/engine';
-import { switchLabel, nicLabel, labelLines, MODULE_LABEL, COHERENT_LABEL, COPPER_LABELS } from './lid-labels.js';
+import { switchLabel, nicLabel, labelLines, moduleLabel, moduleTier, COHERENT_LABEL, COPPER_LABELS } from './lid-labels.js';
 import { GPU_NAME, CPU_NAME } from './package-marks.js';
 
 // The printed lid labels follow the scenario's hardware tier (H100/GB200 400G per GPU, GB300 800G, Vera Rubin 1.6T).
@@ -21,7 +21,17 @@ describe('lid labels', () => {
     }
   });
   it('name the side levels', () => {
-    expect(MODULE_LABEL).toEqual({ dsp: 'OSFP 1.6T 2xDR4', lpo: 'OSFP 1.6T 2xDR4 LPO' });
+    // the module level opens the switch-side module, so it prints the hall's switch label (plus LPO in its LPO view)
+    const tiers = { h100: ['800g', '100G', '400G'], gb200: ['800g', '100G', '400G'], gb300: ['1.6t', '200G', '800G'], rubin: ['rubin', '200G', '800G'] };
+    for (const [id, [key, lane, port]] of Object.entries(tiers)) {
+      const accel = (ACCELERATORS as any)[id];
+      expect(moduleLabel(accel), id).toBe(switchLabel(accel));
+      expect(moduleLabel(accel, true), id).toBe(`${switchLabel(accel)} LPO`);
+      expect(moduleTier(accel), id).toMatchObject({ key, lane, port, label: switchLabel(accel) });
+    }
+    expect(moduleTier(ACCELERATORS.rubin as any).published).toBe(false);
+    expect(moduleTier(ACCELERATORS.gb200 as any).part).toBe('MMS4X00');
+    expect(moduleTier(ACCELERATORS.gb300 as any).part).toBe('MMS4A00');
     expect(COHERENT_LABEL).toBe('800ZR');
     expect(COPPER_LABELS).toEqual({ dac: 'DAC', acc: 'ACC', aec: 'AEC' });
   });
