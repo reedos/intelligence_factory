@@ -12,6 +12,7 @@ import { preloadCampusArchitecture, hasCampusArchitecture, addBlenderCampusArchi
 import { preloadCampusCatalog, campusCatalogInstances, campusCatalogRotor, campusCatalogBuilder } from './campus-blender-catalog.js';
 import { preloadCampusVehicles, hasCampusVehicles, campusVehicleInstances } from './campus-blender-vehicles.js';
 import { palette } from './campus-palette.js';
+import { addLineTerminalCutaway } from './dwdm-terminal.js';
 import { preloadCampusTransformer, hasCampusTransformer, campusTransformerInstances } from './campus-blender-transformer.js';
 export const preload = () => Promise.all([preloadCampusArchitecture(), preloadCampusCatalog(), preloadSiteConstruction(), preloadCampusVehicles(), preloadCampusTransformer()]);
 
@@ -584,8 +585,11 @@ export function build({ quality, model }) {
   D.slab(1.6, 0.05, 2.6, MAT.gravel, dbX, dbY - 0.02, dbZ);                                   // trench floor
   // handhole a few meters on, where cables are spliced and slack is stored
   D.slab(1.4, 0.9, 1.1, MAT.concrete, dbX, dbY, dbZ + 4); D.slab(1.2, 0.02, 0.9, MAT.darkSteel, dbX, dbY + 0.9, dbZ + 4);
-  dataGroup.add(palette(D).build({ cast: false }));
-  if (nHalls > 1) scene.add(dataGroup);
+  if (nHalls > 1) dataGroup.add(palette(D).build({ cast: false }));
+  // the line-terminal hut's inside, cut away beside it (src/scenes/dwdm-terminal.js)
+  const lineTerm = addLineTerminalCutaway(dataGroup, { x: hutA[0] + 17, z: hutA[1] - 12, mobile: quality.mobile });
+  dataFlows.push(...lineTerm.flows); moverGroups.push(lineTerm);
+  scene.add(dataGroup);
 
   // ---------- the rest of a big campus: representative authored hall exteriors ----------
   if (extra) {
@@ -897,6 +901,7 @@ export function build({ quality, model }) {
     dataHotspots: {
       fiber: { pos: [fiberA[0], 3, fiberA[1]], view: { pos: [-171, 14, 273], target: [-150, 0.8, 239] } },
       dci: { pos: [hutA[0], 6, hutA[1]], view: { pos: [-130, 40, 290], target: [hutA[0], 0, hutA[1]] } },
+      lineterm: lineTerm.hotspot,
       ...(nHalls > 1 ? { interhall: { pos: [-45, 3, -58], view: { pos: [40, 70, 60], target: [-45, 0, -58] } } } : {}),
       ...(nHalls > 1 ? { ductbank: { pos: [-54, 1.1, -90], view: { pos: [-57.2, 1.9, -87.4], target: [-54, 0.45, -89.2] } } } : {}),
       hall: { pos: [hcx, 26, hallAz], view: { pos: [hcx + 160, 170, 120], target: [hcx, 10, -120] } },
