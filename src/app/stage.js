@@ -716,10 +716,11 @@ function clearanceOf(b, { now = false } = {}) {
   // Walked fresh each time (solidsOf caches its list at the first framing, before late assets such as the hall's
   // Blender finish have joined the scene). Anything that reads as a surface counts: opaque-looking meshes, including
   // the wide flow ribbons that draw without depth (a camera inside a glowing cable tray fills the frame with it), but
-  // not lines, additive glows, faint veils or sky domes (seen from inside).
+  // not lines, additive glows, faint veils, sky domes (seen from inside) or printed decals (flush on a surface that
+  // already counts).
   const solids = [], shown = o => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
   b.scene.traverse(o => {
-    if (!(o.isMesh || o.isInstancedMesh) || o.isSprite || o.isLine2 || o.isLineSegments2 || !shown(o)) return;
+    if (!(o.isMesh || o.isInstancedMesh) || o.isSprite || o.isLine2 || o.isLineSegments2 || o.userData.printed || !shown(o)) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     if (mats.some(m => m && m.visible !== false && !m.isLineMaterial && m.side !== THREE.BackSide && m.blending !== THREE.AdditiveBlending && !(m.transparent && m.opacity < 0.6))) solids.push(o);
   });

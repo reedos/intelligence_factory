@@ -2,14 +2,15 @@
 // to part 1, then from each part to the next in list order, the way a reader stepping down the parts list does; record
 // the camera's position every frame of each flight, and raycast each step (one frame's position to the next) against
 // the level's solid geometry: visible meshes that read as surfaces (not mostly transparent, not lines or additive
-// glows or sky domes; a wide flow ribbon counts, depth or not: flying inside one fills the frame), less the surroundings
-// (ground, ridgeline, studio floor: flat and as wide as the level) where the camera stays above them. A step that
-// crosses one is a flight through a building. Mid-flight the camera must also keep a margin from surfaces (6% of its
-// distance from the aim point, or of the end framings' if larger) and a clear view ahead (nothing solid in the first
-// 25% of the way to the aim point for three frames running), both tapering to nothing at the two ends, whose framing
-// is the part's own: skimming a roof two metres under a camera framing a building 40 m off, or a facade filling the
-// frame, reads as flying through it (Reed, 09/30: campus data 1→2 and 2→3, hall data 11→12). The stage plans with a
-// wider margin and a longer view. Pins and labels (HTML), sprites, particles and flow lines are not surfaces.
+// glows, sky domes or printed decals; a wide flow ribbon counts, depth or not: flying inside one fills the frame),
+// less the surroundings (ground, ridgeline, studio floor: flat and as wide as the level) where the camera stays above
+// them. A step that crosses one is a flight through a building. Mid-flight the camera must also keep a margin from
+// surfaces (6% of its distance from the aim point, or of the end framings' if larger) and a clear view ahead (nothing
+// solid in the first 45% of the way to the aim point for three frames running), both tapering to nothing at the two
+// ends, whose framing is the part's own: skimming a roof two metres under a camera framing a building 40 m off, or a
+// facade filling the frame, reads as flying through it (Reed, 09/30: campus data 1→2 and 2→3, hall data 11→12). The
+// stage plans with a wider margin and a longer view. Pins and labels (HTML), sprites, particles and flow lines are
+// not surfaces.
 // Within 3% of the aim distance of the start or end framing, whatever is there belongs to that framing (a hall view
 // that sits a centimetre from a hanging cable), not to the flight, whose ends are fixed: those steps are not counted.
 // Usage: node tools/flights.mjs [desktop|phone]   (URL env for the page; IFX_GATE_GPU=1 for the real GPU;
@@ -51,7 +52,7 @@ const fly = async ({ id }) => {
   ifx.settle();
   const shown = o => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
   const solid = o => {
-    if (!(o.isMesh || o.isInstancedMesh) || o.isSprite || o.isLine2 || o.isLineSegments2 || !shown(o)) return false;
+    if (!(o.isMesh || o.isInstancedMesh) || o.isSprite || o.isLine2 || o.isLineSegments2 || o.userData.printed || !shown(o)) return false;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     return mats.some(m => m && m.visible !== false && !m.isLineMaterial && m.side !== T.BackSide && m.blending !== T.AdditiveBlending && !(m.transparent && m.opacity < 0.6));
   };
