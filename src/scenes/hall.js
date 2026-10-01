@@ -8,6 +8,11 @@ import { preloadCampusCatalog, hasCampusCatalog, campusCatalogBuilder, campusCat
 import { preloadHallFinish, hasHallFinish, hallFinishInstances } from './hall-blender-finish.js';
 export const preload=()=>Promise.all([preloadCampusCatalog(),preloadSiteConstruction(),preloadHallFinish()]);
 import { rbox, bundle, blinkers, lamps, plumes, movers, floorMirror } from '../fx.js';
+import { printDecals, textTexture, printTexture, SANS } from './print-kit.js';
+import { switchLabel, labelLines } from './lid-labels.js';
+import { hallMarks } from './electrical-marks.js';
+import { hallPipeMarks } from './cooling-marks.js';
+import { hallIds, cduPlates } from './site-signs.js';
 
 // Cabinet front textures (drawn once).
 function frontTex(kind) {
@@ -165,6 +170,7 @@ export function build({ quality, model }) {
   const fiberJacket = new THREE.MeshStandardMaterial({ color: FIBER_JACKET, roughness: 0.5, metalness: 0.1 });
   const networkPorts = new Map(), fiberRoutes = [];
   const portLedItems = [];                              // link LEDs on the switch ports (the racks keep ledItems)
+  const lidLabels = [];                                 // printed lid labels, one per pluggable module (lid-labels.js)
   // Switch chassis drawn at true size with pluggable OSFP modules (22.58 mm wide x 13 mm tall, OSFP MSA).
   // 400G fabrics: Quantum-2 QM9700, 1U (43.6 mm) x 438 mm, 32 OSFP cages (nvidia-quantum2-qm9700-specs).
   // 800G and up: Quantum-X800 Q3400, 4U (177.8 mm) x 438 mm, 72 OSFP cages (nvidia-xdr-switch-specs,
@@ -182,15 +188,41 @@ export function build({ quality, model }) {
       const bank = form === 'q3400' ? (r < 2 ? -1 : 1) * .012 : 0;
       const x = cx + (c - (cols - 1) / 2) * pitchX, y = yc + (r - (rows - 1) / 2) * pitchY + bank;
       N.box(.0226, .013, .02, moduleMetal, x, y, faceZ + fs * .02);                           // OSFP module, ~18 mm proud
+      lidLabels.push({ p: [x, y + .0065, faceZ + fs * .02], face: 'top', yaw: fs > 0 ? 0 : Math.PI });
       N.box(.004, .0035, .03, pullTabMat, x, y - .0045, faceZ + fs * .027);                    // pull tab
       ports.push({ point: [x, y, faceZ + fs * .03], f: fs, cx, i: ports.length, under: yb - .012 });
       portLedItems.push({ p: [x + .008, y + .0047, faceZ + fs * .0305], color: (r + c) % 3 ? '#5cf29a' : '#ffb347', rate: 0.35 + ((r * cols + c) * 0.37) % 1.2 });
     }
   }
+  // Printed chassis face: port numbers in the gaps above each cage and, where the face has room, the model name
+  // (Quantum-X800 Q3400 in the band over its ports; QM9700 up the narrow strip beside the first column). One texture
+  // per chassis form, laid on the face just behind the modules. Numbering order is representative.
+  const facePrints = new Map();
+  const SWITCH_NAMES = { q3400: 'Quantum-X800 Q3400', qm9700: 'QM9700' };
+  function faceTexture(form) {
+    const { h, rows, cols } = SWITCH_FORMS[form], W = 4096, H = Math.round(W * h / .438), k = W / .438, pitchX = .0235, pitchY = .0172;
+    return printTexture(W, H, (g) => {
+      g.fillStyle = '#c3c8ce'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = `600 ${Math.round(.0032 * k)}px ${SANS}`;
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const bank = form === 'q3400' ? (r < 2 ? -1 : 1) * .012 : 0;
+        const x = (c - (cols - 1) / 2) * pitchX, y = (r - (rows - 1) / 2) * pitchY + bank + .0065 + .0021;
+        g.fillText(String(c * rows + (rows - 1 - r) + 1), W / 2 + x * k, H / 2 - y * k);
+      }
+      const name = SWITCH_NAMES[form];
+      if (form === 'q3400') { g.fillStyle = '#a3aab2'; g.font = `600 ${Math.round(.0095 * k)}px ${SANS}`; g.fillText(name, W / 2, H / 2 - .066 * k); }
+      else if (name) { g.save(); g.translate(W / 2 - .194 * k, H / 2); g.rotate(-Math.PI / 2); g.font = `600 ${Math.round(.0075 * k)}px ${SANS}`; g.fillText(name, 0, 0); g.restore(); }
+    });
+  }
   function pluggableFace(cx, cz, fs, { forms, y0 }) {
     const ports = [];
     let yb = y0;
-    for (const form of forms) { switchChassis(cx, cz, fs, form, yb, ports); yb += SWITCH_FORMS[form].h + .0009; }
+    for (const form of forms) {
+      switchChassis(cx, cz, fs, form, yb, ports);
+      if (!facePrints.has(form)) facePrints.set(form, []);
+      facePrints.get(form).push({ p: [cx, yb + SWITCH_FORMS[form].h / 2, cz + fs * 0.6 + fs * .012], n: [0, 0, fs] });
+      yb += SWITCH_FORMS[form].h + .0009;
+    }
     networkPorts.set(`${cx}:${cz}`, ports); return ports;
   }
   // the co-packaged optics switch, drawn with the Quantum-X Photonics Q3450's published front-panel counts:
@@ -780,6 +812,8 @@ export function build({ quality, model }) {
       N.cylZ(0.12, 0.08, MAT.orange, c.x - 0.15, hdrY - 0.35, c.z, 12);                      // valve handwheel
     });
   }
+  // ASME A13.1-style markers with flow arrows on the headers, risers and CDU drops (cooling-marks.js)
+  hallPipeMarks(scene, model, { X0, hdrY, headerEndX, returnRiserZ, cduMx, risers: hasHallFinish() });
   // rack loop from each CDU along its rack group, over the rack tops (liquid-cooled racks only)
   if (!air) rowZs.forEach((z, r) => {
     const lz = z - facing[r] * 0.35;
@@ -1000,6 +1034,19 @@ export function build({ quality, model }) {
 
   scene.add(S.build({ cast: true, receive: true }));
   scene.add(N.build({ cast: false, receive: true }));
+  // Lid print on every switch-side module: the class the scenario's fabric uses (lid-labels.js), etched dark on
+  // the nickel lid, small enough to fade into the lid tone at overview distance.
+  printDecals(scene, { texture: textTexture(labelLines(switchLabel(model.accel)), { px: 72, aspect: 2, ink: '#474d55', pad: 0.05 }),
+    size: [.019, .0095], placements: lidLabels, lift: .00008, name: 'Switch module lid labels', material: { roughness: .7, metalness: .25 } });
+  for (const [form, placements] of facePrints) printDecals(scene, { texture: faceTexture(form), size: [.438, SWITCH_FORMS[form].h - .002],
+    placements, lift: .0002, name: `Switch face print ${form}`, material: { roughness: .6 } });
+  // Rack labels and the hall's name over the back-wall pipework (site-signs.js).
+  hallIds(scene, { rackMx, rowZs, rowX0, wall: { p: [-4, 6.98, Z0 + .03] } });
+  if (!air) cduPlates(scene, { cduMx });
+  // Nameplates, voltage stencils and hazard signs on the power gear (electrical-marks.js).
+  hallMarks(scene, model, { usX, usZ, swgr: { x0: -33.5, w: .9, n: 14, zFront: -15.6 + .75 },
+    busways: [{ from: -22.55, to: -12.25, y: 5.6, z: -6.5, depth: .6 },
+      ...rowZs.map((z, r) => ({ from: rowX0 - 5, to: rowX1, y: 3.5, z: z + facing[r] * .25, depth: .18 }))] });
   flows.forEach(f => scene.add(f.group));
   dataFlows.forEach(f => scene.add(f.group));
   heatFlows.forEach(f => scene.add(f.group));

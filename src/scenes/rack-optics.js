@@ -1,6 +1,9 @@
 import { THREE, MAT, Builder, flow } from '../kit.js';
 
 import { managedRoute, RACK_RUNWAY, FIBER_JACKET } from './fiber-routing.js';
+import { printDecals, textTexture } from './print-kit.js';
+import { nicLabel, labelLines } from './lid-labels.js';
+import { etch } from './package-marks.js';
 
 // Representative optical population, not an exact customer cable schedule.
 // GB200/GB300: four compute-fabric OSFP cages; H100: four twin-port OSFP
@@ -9,6 +12,9 @@ import { managedRoute, RACK_RUNWAY, FIBER_JACKET } from './fiber-routing.js';
 export function addRackOptics(built, accel) {
   const h100 = accel === 'h100', rubin = accel === 'rubin', U = .04445;
   const hardware = new Builder(), modules = [], links = [], storageCages = [];
+  const lidLabels = [];
+  const mpoTags = [];   // cable flags on each patch lead, just behind its connector boot
+  const portNumbers = new Map();   // printed cage numbers on the tray faces, by number (realized on the authored hardware)
   const jacket = new THREE.MeshStandardMaterial({ color: FIBER_JACKET, roughness: .48, metalness: .08 });
   jacket.name = 'Optical patch cable jacket';
   const connector = new THREE.MeshStandardMaterial({ color: 0x266c50, roughness: .42, metalness: .1 });
@@ -25,6 +31,14 @@ export function addRackOptics(built, accel) {
     // Show a few populated links per tray with the remaining cages inspectable.
     ports.forEach(({x,dy},port) => {
       const y=rowY+dy;
+      // Cage numbers read left to right from the aisle; stacked Vera Rubin cages number top then bottom per
+      // column, the lower number printed under its cage. Order is representative.
+      if (!h100) {   // the DGX H100's rear cages sit under riding heat sinks and patch leads: no room for a number
+        const order = [...ports].sort((a, b) => (a.x - b.x) * direction || b.dy - a.dy), n = order.indexOf(ports[port]) + 1;
+        const below = rubin && dy === 0, ny = y + (below ? -.0098 : .0098);
+        if (!portNumbers.has(n)) portNumbers.set(n, []);
+        portNumbers.get(n).push({ p: [x, ny, z - direction * .006], n: [0, 0, direction] });   // on the tray face, flush with the cage plane
+      }
       const occupied = port === 0 || port === ports.length-1;
       // Rolled metal mouth is a hollow frame, not a painted black rectangle.
       for (const s of [-1,1]) {
@@ -37,6 +51,8 @@ export function addRackOptics(built, accel) {
       const length = pulled ? .1078 : .020;
       hardware.box(.02258,.013,length,shell,x,y,z-direction*(length/2-.017));
       hardware.box(.020,.010,.004,MAT.black,x,y,z+direction*.019);
+      // printed lid label on the nose ahead of the cage lip (lip to z+.006, nose to z+.017), read from the aisle
+      lidLabels.push({ p: [x, y + .0065, z + direction * .0118], face: 'top', yaw: direction > 0 ? 0 : Math.PI });
       if (h100) {
         hardware.box(.025,.003,.075,shell,x,y+.009,z+.042);
         for(let fin=0;fin<8;fin++)hardware.box(.0012,.010,.073,shell,x-.0105+fin*.003,y+.015,z+.042);
@@ -49,6 +65,8 @@ export function addRackOptics(built, accel) {
         const side = Math.sign(x), rail = side*(.252+(index%6)*.0028);
         const managerZ=(h100?-.575:.575)+direction*(Math.floor(index/6)*.007+lane*.0032);
         const start=[cx,y,z+direction*.044], end=[rail,2.32,managerZ];
+        // one tag per module, hanging under its lead or straddling a twin pair, clear of the connector faces
+        if (lane === 0) mpoTags.push({ p: [x, y - .0058, z + direction * .066], n: [0, 0, direction] });
         // Short faceplate run, then a controlled side return for the extended
         // service tray. Neighboring leads share a narrow, combed riser corridor.
         const exitZ=z+direction*(.085+lane*.008);
@@ -119,7 +137,16 @@ export function addRackOptics(built, accel) {
     }
   }
   const mesh=hardware.build();mesh.name='Rack optical population and passive patch terminations';built.scene.add(mesh);
+  // MPO-12 flag tags: thin printed sleeves hanging off each lead, readable from either side (MPO-12/APC leads, as the
+  // module datasheets give; the tag form is representative).
+  const pair = h100 || accel === 'gb300';
+  printDecals(built.scene, { texture: textTexture([{ text: pair ? '2× MPO-12' : 'MPO-12', size: .62, weight: 700 }], { px: 64, aspect: pair ? 3.2 : 2.6, ink: '#1b1e22', align: 'center', plate: '#eef0f1' }),
+    size: pair ? [.019, .0059] : [.0154, .0059], placements: mpoTags, name: 'MPO patch lead tags', material: { roughness: .7, side: THREE.DoubleSide } });
+  // Lid print: the NIC-side module class for this scenario (lid-labels.js), etched dark on the nickel shell.
+  printDecals(built.scene, { texture: textTexture(labelLines(nicLabel(accel)), { px: 72, aspect: 2, ink: '#474d55', pad: .05 }),
+    size: [.019, .0088], placements: lidLabels, lift: .00008, name: 'NIC module lid labels', material: { roughness: .7, metalness: .25 } });
   built.scene.userData.rackOptics={modules,links,storageCages,cagesPerTray:ports.length,representative:true,termination:'passive patch strip'};
+  built.printSpots = [...(built.printSpots || []), ...[...portNumbers].map(([n, spots]) => etch(`Cage number ${n}`, String(n), [.008, .0045], spots, { ink: '#c9cfd6' }))];
   const hero=modules.find(m=>m.pulled && (h100 ? m.position[0]>0 : true));
   if(hero && built.dataHotspots.uplinks) {
     const [x,y,z]=hero.position;

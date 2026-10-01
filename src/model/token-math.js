@@ -40,7 +40,7 @@ export function tokenMathRows(M) {
     ['Arithmetic per token', `≈${sig(t.flops / 1e9)} GFLOP (2 × ${m.paramsText} weights)`, 'derived', { calc: 'token-math-flops' }],
     ['Read from HBM per token', `≈${sig(t.bytes / 1e9)} GB (${m.paramsText} × ${m.bytesPerParam} byte)`, 'derived', { calc: 'token-math-bytes' }],
   ];
-  if (t.balance) rows.push(['Arithmetic per byte read', `≈${sig(t.intensity)} FLOP; ${A.short ?? A.id} can do ≈${sig(t.balance)} (${t.mathPrecision})`, 'derived', { calc: 'token-math-intensity' }]);
+  if (t.balance) rows.push(['Arithmetic per byte read', `≈${sig(t.intensity)} FLOP; ${A.id === 'rubin' ? 'Rubin' : (A.short ?? A.id)} can do ≈${sig(t.balance)} (${t.mathPrecision})`, 'derived', { calc: 'token-math-intensity' }]);
   rows.push(['One stream on one GPU', `≈${ms(t.readS)} ms reading weights${t.mathS ? ` vs ≈${ms(t.mathS)} ms of math` : ''}`, 'derived', { calc: 'token-math-step-time' }]);
   return rows;
 }

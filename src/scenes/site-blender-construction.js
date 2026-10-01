@@ -83,7 +83,7 @@ export function finalizeSiteGeometry(scene){
  if(!source)return;
  const converted=new Map(),physical=[],unconverted=[];
  scene.traverse(o=>{
-  if(!o.isMesh)return;
+  if(!o.isMesh||o.userData.printed)return;   // printed labels and markers are surface decals, not construction
   const mats=Array.isArray(o.material)?o.material:[o.material];
   if(!mats.some(m=>m.isMeshStandardMaterial||m.isMeshPhysicalMaterial))return;
   if(!o.geometry.userData.blender){

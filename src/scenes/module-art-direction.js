@@ -1,6 +1,7 @@
 // Studio finish for the representative Blender module. This changes illumination
 // and material response only: no geometry, physical connections, or signal colors.
 import { THREE } from './side-kit.js';
+import { MODULE_LABEL } from './lid-labels.js';
 
 export const MODULE_LOOK = Object.freeze({
   env: 'studio',
@@ -66,15 +67,14 @@ function orangePeelNormal() {
 }
 
 // Representative cover label, printed as a texture on the authored label plate:
-// the rate names the same 2 × DR4 configuration as every caption. Not a vendor label.
-function labelTexture() {
-  if (typeof document === 'undefined') return null;
-  const w = 1024, h = 840, c = document.createElement('canvas'); c.width = w; c.height = h;
-  const g = c.getContext('2d');
+// the rate names the same 2 x DR4 configuration as every caption, and the LPO view
+// adds "LPO" the way vendors name linear-drive modules (lid-labels.js). Not a vendor label.
+function drawLabel(g, w, h, lpo) {
   g.fillStyle = '#e9e8e2'; g.fillRect(0, 0, w, h);
   g.fillStyle = '#16181c'; g.textBaseline = 'alphabetic';
   g.font = '600 150px "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif'; g.fillText('OSFP', 70, 200);
-  g.font = '500 92px "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif'; g.fillText('1.6T  2×DR4', 70, 330);
+  const [, rate] = (lpo ? MODULE_LABEL.lpo : MODULE_LABEL.dsp).match(/^OSFP (.*)$/);
+  g.font = '500 92px "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif'; g.fillText(rate, 70, 330);
   g.font = '500 44px "IBM Plex Mono", Menlo, Consolas, monospace'; g.fillText('DESIGN STUDY · REPRESENTATIVE', 72, 410);
   // Evenly weighted bars from a fixed sequence; no encoded data.
   let x = 70, seed = 11;
@@ -88,7 +88,14 @@ function labelTexture() {
     const ring = f && ((i % (n - 7)) === 1 || (j % (n - 7)) === 1 || (i % (n - 7)) === 5 || (j % (n - 7)) === 5) && !((i % (n - 7)) >= 2 && (i % (n - 7)) <= 4 && (j % (n - 7)) >= 2 && (j % (n - 7)) <= 4);
     if (f ? !ring : rand() < 0.48) g.fillRect(cx + i * cell, cy + j * cell, cell, cell);
   }
+}
+function labelTexture() {
+  if (typeof document === 'undefined') return null;
+  const w = 1024, h = 840, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  drawLabel(g, w, h, false);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  t.userData.setLpo = lpo => { drawLabel(g, w, h, !!lpo); t.needsUpdate = true; };
   return t;
 }
 function printLabel(mesh) {
@@ -103,6 +110,7 @@ function printLabel(mesh) {
   }
   geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   mesh.material.map = tex; mesh.material.color.set(0xffffff); mesh.material.needsUpdate = true;
+  return tex;
 }
 
 /** Apply only to a build-owned clone, never the cached glTF source. */
@@ -124,7 +132,8 @@ export function applyArtDirection({ scene, model, quality = {} }) {
     }
   });
 
-  model.traverse(object => { if (object.isMesh && /Label stock/i.test(object.material?.name || '')) printLabel(object); });
+  const labels = [];
+  model.traverse(object => { if (object.isMesh && /Label stock/i.test(object.material?.name || '')) { const t = printLabel(object); if (t) labels.push(t); } });
 
   // Preserve setup()'s one shadow map. The studio environment supplies broad
   // softbox reflections; these lights illuminate the board and expose bevels.
@@ -166,7 +175,7 @@ export function applyArtDirection({ scene, model, quality = {} }) {
   fill.castShadow = false;
   scene.background = new THREE.Color(0x070b12);
   scene.userData.moduleArtDirection = 'studio-v2';
-  return { ...MODULE_LOOK, bloom: quality.mobile ? 0.28 : MODULE_LOOK.bloom,
+  return { setLabelLpo: lpo => labels.forEach(t => t.userData.setLpo(lpo)), ...MODULE_LOOK, bloom: quality.mobile ? 0.28 : MODULE_LOOK.bloom,
     envIntensity: quality.mobile ? 0.65 : MODULE_LOOK.envIntensity,
     dof: !quality.mobile && quality.dof !== false };
 }

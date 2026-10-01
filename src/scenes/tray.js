@@ -7,6 +7,15 @@ import { buildRubin } from './tray-rubin.js';
 import { computeMaterials, finishCompute, coldPlateDetail, boardFinish } from './compute-finish.js';
 import { frameCompute } from './compute-framing.js';
 import { componentView } from '../app/housing-frame.js';
+import { printDecals, textTexture } from './print-kit.js';
+import { nicLabel, labelLines } from './lid-labels.js';
+import { etch, GPU_NAME } from './package-marks.js';
+
+// Printed lid labels on the modules seated in the NIC cages: the scenario's NIC-side class (lid-labels.js).
+export function trayLidLabels(scene, accel, placements, size) {
+  return printDecals(scene, { texture: textTexture(labelLines(nicLabel(accel)), { px: 96, aspect: 2, ink: '#474d55', pad: .05 }),
+    size, placements, lift: .0006, name: 'NIC module lid labels', material: { roughness: .7, metalness: .25 } });
+}
 
 // Package top: dark molded substrate, a laser-etched field and a generic name
 // (no logos or part numbers). 512 px so the text stays crisp at part cameras.
@@ -173,7 +182,7 @@ export function nvConnector(S, N, x, y, z, w = 0.5, h = 0.24, d = 0.32) {
 }
 
 export function build(opts) {
-  const result = opts.model.accel.id === 'rubin' ? buildRubin(opts, { lights, pkgTex, dieTex, nvConnector }) : opts.model.accel.gpusPerRack === 72 ? buildNVL(opts) : buildHGX(opts);
+  const result = opts.model.accel.id === 'rubin' ? buildRubin(opts, { lights, pkgTex, dieTex, nvConnector, trayLidLabels }) : opts.model.accel.gpusPerRack === 72 ? buildNVL(opts) : buildHGX(opts);
   frameCompute(result, 'tray', opts.model.accel.id);
   modeAccents(result, opts.state);
   return result;
@@ -348,6 +357,15 @@ function buildHGX({ quality }) {
     clips: cageX.map(x => [x - 0.15, x + 0.15]) });
   if (heavy) cageX.forEach(x => cageFins(N, x, ty + .47, ZB + .3, .2, .4, 4));
   cageX.forEach(x => { for(const dy of [-.08,.08])S.box(.22,.016,.5,MAT.galv,x,ty+.35+dy,ZB+.25);for(const dx of [-.11,.11])S.box(.016,.144,.5,MAT.galv,x+dx,ty+.35,ZB+.25); N.box(0.16, 0.05, 0.05, MAT.polymer, x, ty + 0.23, ZB - 0.02); nicLeds.push({ p: [x, ty + 0.44, ZB + 0.02], color: '#5cf29a', rate: 0 }); });
+  // A twin-port module seated in each cage: its nose stands 15 mm proud of the rear mouth, two MPO
+  // receptacles on its face and a pull tab below; the lid label prints on the exposed nose.
+  const lidAt = [];
+  cageX.forEach(x => {
+    N.box(.19, .12, .25, MAT.nickel, x, ty + .35, ZB - .025);
+    for (const dx of [-.045, .045]) N.box(.07, .05, .006, MAT.polymer, x + dx, ty + .35, ZB - .153);
+    N.box(.04, .008, .07, MAT.black, x, ty + .286, ZB - .175);
+    lidAt.push({ p: [x, ty + .41, ZB - .09], face: 'top', yaw: Math.PI });
+  });
   // board population: decoupling rows around the NVSwitch chips, the SXM
   // packages and the CPU sockets, bypass rows by the PCIe switches
   swX.forEach((x, k) => { smdFrame(N, fy + 0.03, x, swZ, 0.42, 0.42, 0.04, 0.03, k); smdFrame(N, fy + 0.03, x, swZ, 0.42, 0.42, 0.058, 0.045, k + 20); });
@@ -359,6 +377,7 @@ function buildHGX({ quality }) {
   if (heavy) for (const i of [1, 4]) bundle(N, [psuX(i) + 0.2, 0.55, ZB - 0.05], [psuX(i) + 0.2, 0.05, ZB - 0.7], { n: 2, r: 0.014, spread: 0.03, sag: 0.12, mats: [MAT.black], seed: i + 3 });
 
   scene.add(S.build()); scene.add(N.build({ cast: false }));
+  trayLidLabels(scene, 'h100', lidAt, [.16, .08]);
 
   // ---------- power: AC into the supplies, 54 V forward, 12 V to the modules ----------
   for (let i = 0; i < 6; i++) flows.push(flow([[psuX(i) + 0.2, 0.6, ZB - 0.8], [psuX(i) + 0.2, 0.6, ZB + 0.05]], 'lv', { count: 4, speed: 0.6, size: 0.03, trailR: 0.01 }));
@@ -401,6 +420,8 @@ function buildHGX({ quality }) {
   finishCompute(scene, finish);
   scene.userData.computeGeneration = { id: 'h100', gpus: 8, cpus: 2, fans: 12, dpuCount: 0, nicCount: 8, storageNicCount: 2, opticalPorts: 4, representative: true };
   return {
+    // the GPU name etched on each package's substrate, ahead of the die inside the stiffener ring (package-marks.js)
+    printSpots: [etch('GPU package marking', GPU_NAME.h100, [.16, .036], gpus.map(([x, z]) => ({ from: [x, fy + .104, z + .188], dir: [0, -1, 0] })))],
     scene, flows,
     look: { env: 'studio', envIntensity: 0.5, exposure: 0.95, bloom: 0.38, threshold: 2.0, ao: 0.14, dof: true },
     camera: { pos: [9.2, 8.4, 4.6], target: [0, 0.7, -0.2], near: 0.02, far: 400, min: 1, max: 30 },
@@ -646,10 +667,21 @@ function buildNVL({ quality, model }) {
     smdRow(N, floorY + 0.21, [x - 0.12, ZF - 1.47], [x + 0.12, ZF - 1.47], 9, true, x * 31);
     smdRow(N, floorY + 0.21, [x + 0.19, ZF - 1.4], [x + 0.19, ZF - 1.0], 7, false, x * 37);
   }
-  nicX.forEach(x => { S.box(0.2, 0.14, 0.5, MAT.galv, x, 0.24, ZF - 0.28); N.box(0.16, 0.04, 0.04, MAT.polymer, x, 0.24, ZF + 0.03); if (heavy) cageFins(N, x, 0.33, ZF - 0.28, 0.18, 0.42, 3); statusLeds.push({ p: [x, 0.24, ZF - 0.02], color: '#5cf29a', rate: 0 }); });
+  // A module seated in each cage: its nose stands 15 mm proud of the cage mouth with the MPO receptacle on its
+  // face, a pull tab below and the lid label on the exposed top (single-port OSFP at the NIC).
+  const lidAt = [];
+  nicX.forEach(x => {
+    S.box(0.2, 0.14, 0.5, MAT.galv, x, 0.24, ZF - 0.28); if (heavy) cageFins(N, x, 0.33, ZF - 0.28, 0.18, 0.42, 3);
+    N.box(.15, .088, .15, MAT.nickel, x, .23, ZF + .045);
+    N.box(.10, .05, .006, MAT.polymer, x, .23, ZF + .123);
+    N.box(.04, .008, .07, MAT.black, x, .182, ZF + .135);
+    statusLeds.push({ p: [x + .06, .25, ZF + .1215], color: '#5cf29a', rate: 0 });
+    lidAt.push({ p: [x, .274, ZF + .075], face: 'top', yaw: 0 });
+  });
 
   scene.add(S.build()); scene.add(N.build({ cast: false }));
   flows.forEach(f => scene.add(f.group));
+  trayLidLabels(scene, model.accel, lidAt, [.13, .065]);
 
   // ---------- data: NVLink out the back, C2C to the CPU, NIC and optics out the front ----------
   const nvX = [-1.9, -1.15, 1.15, 1.9], yD = floorY + 0.14;
@@ -692,6 +724,12 @@ function buildNVL({ quality, model }) {
   finishCompute(scene, finish);
   scene.userData.computeGeneration = { id: model.accel.id, gpus: 4, cpus: 2, fans: 6, dpuCount: dpuX.length, nicCount: 4, nic: ultra ? 'ConnectX-8' : 'ConnectX-7', memoryModules: 'soldered LPDDR5X', nicBoards: ultra ? 2 : 4, representative: true };
   return {
+    // the GPU name etched on each package's front substrate margin, clear of its capacitor ring (package-marks.js)
+    printSpots: [etch('GPU package marking', GPU_NAME[model.accel.id], [.2, .055], gpus.map(([x, z]) => ({ from: [x - .15, floorY + .075, z + .40], dir: [0, -1, 0] }))),
+      // GB300: Lenovo's LP2357 guide lists E1.S drives of 7.68 TB (and 3.84 TB); each sled's release paddle carries it
+      ...(ultra ? [{ name: 'E1.S drive capacity', lines: [{ text: 'E1.S', size: .34, weight: 700 }, { text: '7.68 TB', size: .4, weight: 700 }],
+        text: { px: 96, aspect: 1.6, ink: '#c9cfd6', align: 'center', pad: .04 }, size: [.11, .068],
+        spots: [0, 1, 2, 3].map(i => ({ from: [-1.95 + i * 0.26, .29, ZF + .7], dir: [0, 0, -1] })), material: { roughness: .5 } }] : [])],
     scene, flows,
     look: { env: 'studio', envIntensity: 0.5, exposure: 0.98, bloom: 0.36, threshold: 2.0, ao: 0.12, dof: true },
     camera: { pos: [5.9, 6.4, 8.3], target: [0, 0.1, -0.5], near: 0.02, far: 400, min: 1, max: 30 },
