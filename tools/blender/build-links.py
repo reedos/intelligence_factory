@@ -98,8 +98,9 @@ def osfp_top_housing(name, cx, cy, cz, length, width, mats):
         z=cz-span/2+i*span/(n-1)
         box(name+'_heat sink fin',(cx+nose/2,b+.1+(H-.1-skin)/2,z),(length-nose-.02,H-.1-skin,.05),mats['edge'],.012)
     top=box(name+'_top skin',(cx+nose/2,b+H-skin/2,cz),(length-nose,skin,width),mats['lid'],.04)
-    # A shallow label recess (OSFP MSA Fig. 3-4 gives a recommended label area).
-    cut=box('Temporary cover label pocket',(cx-.6,b+H,cz),(4.2,.03,1.5),mats['lid'],.01)
+    # A shallow label recess where OSFP MSA rev 5.22 Fig. 3-4 recommends the
+    # label: 15 x 20 mm on the top face at the fiber end (+x here).
+    cut=box('Temporary cover label pocket',(cx+length/2-1.25,b+H,cz),(1.56,.03,2.06),mats['lid'],.01)
     pocket=top.modifiers.new('Label recess','BOOLEAN');pocket.operation='DIFFERENCE';pocket.object=cut
     bpy.context.view_layer.objects.active=top;bpy.ops.object.modifier_apply(modifier=pocket.name)
     bpy.data.objects.remove(cut,do_unlink=True)
@@ -383,6 +384,12 @@ def refine_edges(o, width, segments=2):
     bpy.ops.object.modifier_apply(modifier=w.name)
     for p in o.data.polygons:p.use_smooth=True
 
+# Coherent board layout (scene cm), matching src/scenes/side-coherent.js: the DSP,
+# then the driver and TIA beside its line-side edge, then the optics, whose fiber
+# ports face the laser and the LC end (OIF HB-CDM / micro-ICR / IC-TROSA: RF at
+# the end facing the DSP, fibers at the opposite end).
+DSPX=-2.30; ANALOGX=-.85; OPTX=.25; OPT_END=.80; ITLAX=3.15; TAPX=1.15
+
 def coherent_board_detail(m):
     """Package and board detail on the imported audited layout (scene cm).
     Representative: no teardown gives package styles or passive placement."""
@@ -404,7 +411,7 @@ def coherent_board_detail(m):
             p=(x+s*(l/2-t/2),T+h/2,z) if along_x else (x,T+h/2,z+s*(l/2-t/2))
             box('Board passive termination',p,(t,h,w) if along_x else (w,h,t),m['tin'],0)
     # DSP: lidless die, dark underfill skirt, decoupling ring, stiffener frame.
-    dx=-1.49; S=T+.1  # substrate top
+    dx=DSPX; S=T+.1  # substrate top
     for s in [-1,1]:
         box('DSP underfill fillet',(dx+s*.585,S+.011,0),(.02,.022,1.19),m['epoxy'],.004)
         box('DSP underfill fillet',(dx,S+.011,s*.585),(1.15,.022,.02),m['epoxy'],.004)
@@ -426,7 +433,7 @@ def coherent_board_detail(m):
     # Driver and TIA: QFN-style tin lands round the package foot; the four RF
     # bond lands per side are the gold pads in the native layout.
     offs=[(58+k*46)/256*.66-.33 for k in range(4)]
-    for cx,cz in [(2.85,-.55),(2.85,.55)]:
+    for cx,cz in [(ANALOGX,-.55),(ANALOGX,.55)]:
         for i in range(9):
             u=-.24+i*.06
             for s in [-1,1]:
@@ -434,15 +441,17 @@ def coherent_board_detail(m):
                 if min(abs(u-o) for o in offs)>.03:box('QFN land',(cx+s*.287,1.4025,cz+u),(.04,.005,.025),m['tin'],0)
     # Optical assemblies: cleaved die edge, ground-signal-ground pads on the RF
     # edge, and a glass fiber-attach block where each fiber meets the die.
-    for cx,cz in [(3.92,-.55),(3.92,.55)]:
+    for cx,cz in [(OPTX,-.55),(OPTX,.55)]:
         for s in [-1,1]:
             box('Photonic die edge',(cx+s*.558,1.415,cz),(.016,.03,.676),m['inp'],.003)
             box('Photonic die edge',(cx,1.415,cz+s*.338),(1.132,.03,.016),m['inp'],.003)
         for o in offs:
             for g,wd in [(-.034,.018),(0,.014),(.034,.018)]:
-                box('RF edge bond pad',(3.37+.035,1.4615,cz+o+g),(.04,.003,wd),m['gold'],0)
-    for x,z,size in [(4.49,-.55,(.04,.07,.10)),(3.92,-.205,(.10,.07,.03)),(4.49,.55,(.04,.07,.10)),(3.92,.205,(.10,.07,.03))]:
-        box('Fiber attach block',(x,1.435,z),size,m['attach'],.005)
+                box('RF edge bond pad',(OPTX-.55+.035,1.4615,cz+o+g),(.04,.003,wd),m['gold'],0)
+    # All four fiber ports are on the far (fiber) end: modulator carrier in and
+    # light out, receiver signal and local oscillator in (offsets as iqTex/icrTex).
+    for z in [-.55,-.55+.33-14/256*.66,.55,.55-.33+24/256*.66]:
+        box('Fiber attach block',(OPT_END+.04,1.435,z),(.04,.07,.09),m['attach'],.005)
     # Hard gold on the card-edge pads and bond lands. Plated contacts are not
     # mirror-polished: roughness .55 keeps a gold sheen without the pads near
     # the key light blooming into a white patch in the card-edge close-up.
@@ -450,8 +459,9 @@ def coherent_board_detail(m):
         for mt in o.data.materials:
             p=mt.node_tree.nodes.get('Principled BSDF')
             p.inputs['Base Color'].default_value=(.95,.74,.33,1);p.inputs['Metallic'].default_value=1;p.inputs['Roughness'].default_value=.55
-    # Fused tap on a small ceramic mount; fibers get a glossy acrylate coat.
-    box('Fused tap mount',(3.5,1.44,0),(.24,.18,.14),m['ceramic'],.01)
+    # Fused tap on a ceramic mount at the laser pigtail's height (1.68 cm), so the
+    # pigtail runs straight in; fibers get a glossy acrylate coat.
+    box('Fused tap mount',(TAPX,1.49,0),(.24,.28,.14),m['ceramic'],.01)
     for name in ['Coherent CW fiber','Coherent TX fiber','Coherent RX fiber']:
         for o in by_source(name):
             for mt in o.data.materials:
@@ -464,19 +474,20 @@ def coherent_board_detail(m):
         for s in [-1,1]:box('Inductor termination',(x+s*.158,T+.113,z),(.03,.226,.30),m['tin'],.006)
     # Representative passives and two small controller/PMIC packages, placed
     # clear of every native trace, fiber and animated feed.
-    for x,z,l in [(2.36,0,.22),(-4.62,0,.24)]:
+    for x,z,l in [(1.6,.5,.22),(-4.62,0,.24)]:
         box('Board QFN controller',(x,T+.03,z),(l,.06,l),m['package'],.012)
         for i in range(5):
             u=-l/2+.04+i*(l-.08)/4
             for s in [-1,1]:
                 box('Board QFN land',(x+u,T+.002,z+s*(l/2+.012)),(.018,.004,.03),m['tin'],0)
                 box('Board QFN land',(x+s*(l/2+.012),T+.002,z+u),(.03,.004,.018),m['tin'],0)
-    for z in [-.36+i*.12 for i in range(7)]:cap(-.54,z,False)
-    for z in [-.24,-.12,.12,.24]:cap(-2.45,z,False)
+    # Clear of every native trace, fiber, port and animated feed in the new order.
+    for z in [-.12,0,.12]:cap(ANALOGX,z,False)
+    for z in [-.1,0,.1]:cap(OPTX,z,False)
     for z in [-.36,-.1,.1,.36]:cap(-3.25,z,False,(.1,.05,.05))
     for s in [-1,1]:
         cap(-4.9,s*.2,False)
-        cap(2.36,s*.25,False)
+    for x in [1.35,1.85]:cap(x,.5,False)
 
 def tube(name, x0, x1, y, z, r, material, n=24, inner=0):
     # A cylinder (or open tube when inner>0) along +x, in scene cm.
@@ -515,11 +526,13 @@ def duplex_lc_receptacle(m):
 
 def osfp_pull_tab(m, x_nose=5.39, reach=.8):
     # Molded pull tab: a rounded tongue with an oval finger hole reaching
-    # about 8 mm past the nose, joined by a crossbar to two thin arms that run
-    # back along the side walls to the latch. With it the model stays within
-    # the 116 mm maximum Cisco lists for its OSFP 800G modules with pull tab.
-    # Shape, arm routing and the neutral colour are representative.
-    m['tab']=mat('Molded release pull tab',(.085,.09,.10),0,.5)
+    # about 8 mm past the nose, joined by a crossbar to two arms that run back
+    # along the side walls to the latch. With it the model stays within the
+    # 116 mm maximum Cisco lists for its OSFP 800G modules with pull tab.
+    # Color: OSFP MSA rev 5.22 Table 3-3 gives white for 1550 nm modules up to
+    # 80 km; it has no coherent row, so white is the nearest entry (assumption).
+    # Shape and arm routing are representative.
+    m['tab']=mat('Molded release pull tab',(.80,.81,.80),0,.55)
     y,t=.30,.15; hw=.55; cx=x_nose+reach-hw
     outline=[(x_nose-.06,-1.14),(x_nose+.12,-1.14),(x_nose+.28,-hw)]
     outline+=[(cx+hw*math.cos(a),hw*math.sin(a)) for a in [-math.pi/2+i*math.pi/20 for i in range(21)]]
@@ -540,7 +553,7 @@ def osfp_pull_tab(m, x_nose=5.39, reach=.8):
     bpy.ops.object.modifier_apply(modifier=b.name)
     for p in tab.data.polygons:p.use_smooth=False
     for s in [-1,1]:
-        box('OSFP release pull arm',((1.85+x_nose)/2,y,s*1.12),(x_nose-1.85,.12,.04),m['tab'],.012)
+        box('OSFP release pull arm',((1.85+x_nose)/2,y,s*1.12),(x_nose-1.85,.16,.04),m['tab'],.012)
 
 def dsp_gap_pad(m, lid_y=3.4, lid_half=.045):
     # The native layout carries a loose pad halfway between board and lid.
@@ -550,7 +563,7 @@ def dsp_gap_pad(m, lid_y=3.4, lid_half=.045):
     for o in list(bpy.context.scene.objects):
         if o.get('sourceMesh')=='Coherent DSP thermal pad':bpy.data.objects.remove(o,do_unlink=True)
     m['gap']=mat('Soft thermal gap pad',(.30,.25,.29),0,.82)
-    x=-1.49; under=lid_y-lid_half
+    x=DSPX; under=lid_y-lid_half
     box('OSFP lifted cover DSP pedestal',(x,under-.075,0),(1.46,.15,1.46),m['lid'],.03)
     pad=box('OSFP lifted cover thermal gap pad',(x,under-.15-.06,0),(1.3,.12,1.3),m['gap'],.04)
     pad['sourceMesh']='Coherent DSP thermal pad'
@@ -589,7 +602,7 @@ def coherent():
     box('Front bulkhead sill',(5.25,.13,0),(.1,.14,1.36),m['shell'],.02)
     # Research-sized nano-ITLA case, not a claimed teardown of any named 800ZR.
     # Everything in the itla semantic group stays within 25 x 15.6 x 6.5 mm.
-    ix=.96; y0=1.35
+    ix=ITLAX; y0=1.35
     m['itla']=mat('Nano ITLA nickel case',(.40,.42,.45),.85,.36)
     m['itlalid']=mat('Nano ITLA seam-welded lid',(.47,.50,.53),.85,.33)
     m['kovar']=mat('Kovar fiber feedthrough',(.52,.50,.46),.9,.3)
@@ -618,24 +631,24 @@ def coherent():
     for x in [ix-1.11,ix+1.11]:
         for z in [-.64,.64]:screw('Nano ITLA flush fastener',x,1.978,z,m,.046)
     # Output: a Kovar feedthrough snout, black strain-relief boot and a
-    # tight-buffered PANDA fiber pigtail, and a polyimide flex tail from the
-    # host-side face to a board-to-board receptacle (a nano-ITLA vendor page
-    # lists a PANDA fiber pigtail and a Molex board connector). The native
-    # layout routes the pigtail to the tap with a bend radius of 5 mm or more.
-    ox=ix+1.25; oy=1.68
-    tube('ITLA pigtail feedthrough snout',ox-.01,ox+.3,oy,0,.08,m['kovar'],24)
-    tube('ITLA pigtail strain relief boot',ox+.3,ox+.6,oy,0,.06,m['boot'],20)
-    hx=ix-1.25
-    box('ITLA flex tail riser',(hx-.012,1.53,0),(.015,.34,.5),m['flex'],0)
-    box('ITLA flex tail run',(hx-.053,1.362,0),(.095,.015,.5),m['flex'],0)
-    box('ITLA board-to-board receptacle',(hx-.15,1.39,0),(.1,.08,.56),m['package'],.01)
+    # tight-buffered PANDA fiber pigtail on the host-facing end, running straight
+    # back to the tap; a polyimide flex tail on the fiber-facing end to a
+    # board-to-board receptacle (a nano-ITLA vendor page lists a PANDA fiber
+    # pigtail and a Molex board connector; which end carries which is drawn).
+    ox=ix-1.25; oy=1.68
+    tube('ITLA pigtail feedthrough snout',ox-.3,ox+.01,oy,0,.08,m['kovar'],24)
+    tube('ITLA pigtail strain relief boot',ox-.6,ox-.3,oy,0,.06,m['boot'],20)
+    hx=ix+1.25
+    box('ITLA flex tail riser',(hx+.012,1.53,0),(.015,.34,.5),m['flex'],0)
+    box('ITLA flex tail run',(hx+.053,1.362,0),(.095,.015,.5),m['flex'],0)
+    box('ITLA board-to-board receptacle',(hx+.15,1.39,0),(.1,.08,.56),m['package'],.01)
     # Four independent board footprints: closed electronic packages are imported
     # with marked tops; optical assemblies remain open for the photonic schematic.
     for name,cx,cz,length,width in [
-        ('Modulator island',3.92,-.55,1.18,.72),
-        ('Driver island',2.85,-.55,.61,.61),
-        ('Receiver island',3.92,.55,1.18,.72),
-        ('TIA island',2.85,.55,.61,.61)]:
+        ('Modulator island',OPTX,-.55,1.18,.72),
+        ('Driver island',ANALOGX,-.55,.61,.61),
+        ('Receiver island',OPTX,.55,1.18,.72),
+        ('TIA island',ANALOGX,.55,.61,.61)]:
         box(name+' carrier',(cx,1.375,cz),(length,.05,width),m['ceramic'],.012)
     duplex_lc_receptacle(m)
     lid('OSFP lifted cover',0,3.4,0,L,W,True,m)

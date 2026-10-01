@@ -4,10 +4,16 @@
 // This is an explicit design assumption, not a teardown of a shipping 800ZR.
 // OSFP footprint and nano-ITLA envelope are dimensioned; other dimensions and RF
 // routing are schematic. Optical signals never enter the electronic packages.
+// Order along the board follows the OIF packaging agreements (HB-CDM, micro-ICR,
+// IC-TROSA): each optical assembly takes its RF signals at the end facing the DSP
+// and its fibers at the opposite end, so the DSP, then the driver and TIA, then
+// the optics sit in a line with short electrical paths. The laser sits toward the
+// fiber end, off the RF path, and its pigtail runs back to the splitter.
 import { THREE, MAT, Builder, flow, canvasTex, setup, materials, die, strand, label, lidBox, FLOW, COL, note, unitCol, dspTex, glowMat } from './side-kit.js';
 import { componentView } from '../app/housing-frame.js';
 
-// The IQ modulator seen from above, as one dual-polarization IQ modulator: laser in at the near edge, split into an X and
+// The IQ modulator seen from above, as one dual-polarization IQ modulator: laser in at the fiber end (right, as the
+// OIF HB-CDM puts both fibers on the end opposite its RF pads), split into an X and
 // a Y polarization branch; each holds an I and a Q Mach-Zehnder, with a 90-degree phase section on Q; the Y branch
 // passes a polarization rotator (PR) and a combiner (PBC) joins both onto one output at the right. Pads for the RF
 // driver's electrical terminals along the left edge, one per modulator (XI, XQ, YI, YQ).
@@ -15,7 +21,7 @@ function iqTex() {
   return canvasTex(640, 256, (g, w, h) => {
     g.fillStyle = '#4a5468'; g.fillRect(0, 0, w, h); g.lineCap = 'round'; g.lineJoin = 'round';
     const txt = (t, x, y, c = 'rgba(255,255,255,0.8)') => { g.fillStyle = c; g.font = '600 15px system-ui'; g.fillText(t, x, y); };
-    g.strokeStyle = 'rgba(255,179,71,0.9)'; g.lineWidth = 3; g.beginPath(); g.moveTo(w / 2, h); g.lineTo(w / 2, h - 14); g.lineTo(40, h - 14); g.lineTo(40, h / 2); g.lineTo(70, 70); g.moveTo(40, h / 2); g.lineTo(70, 186); g.stroke();
+    g.strokeStyle = 'rgba(255,179,71,0.9)'; g.lineWidth = 3; g.beginPath(); g.moveTo(w, h - 14); g.lineTo(40, h - 14); g.lineTo(40, h / 2); g.lineTo(70, 70); g.moveTo(40, h / 2); g.lineTo(70, 186); g.stroke();
     const pol = [[70, 'X'], [186, 'Y']];
     pol.forEach(([py, name], p) => {
       txt(name, 78, py + 5);
@@ -43,9 +49,10 @@ function iqTex() {
     g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(w - 12, 0, 12, h);
   });
 }
-// The coherent receiver: the signal in from the right and the laser's own light (the local oscillator) in from the
-// far edge, each split by polarization (PBS); an X and a Y 90-degree hybrid mix them; four balanced photodiode pairs at the
-// left edge read XI, XQ, YI, YQ for the separate TIA package.
+// The coherent receiver: the signal and the laser's own light (the local oscillator) both in from the right, the
+// fiber end (OIF micro-ICR: fiber inputs and RF outputs on opposite ends), each split by polarization (PBS); an X
+// and a Y 90-degree hybrid mix them; four balanced photodiode pairs at the left edge read XI, XQ, YI, YQ for the
+// separate TIA package.
 function icrTex() {
   return canvasTex(512, 256, (g, w, h) => {
     g.fillStyle = '#4a5468'; g.fillRect(0, 0, w, h); g.lineCap = 'round'; g.lineJoin = 'round';
@@ -53,7 +60,7 @@ function icrTex() {
     g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(420, 40, 34, 40); txt('PBS', 421, 65);                  // signal split
     g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(40, 40, 34, 40); txt('PBS', 41, 65);                    // LO split
     g.strokeStyle = 'rgba(255,122,217,0.9)'; g.lineWidth = 3; g.beginPath(); g.moveTo(w, h / 2); g.lineTo(480, h / 2); g.lineTo(480, 60); g.lineTo(454, 60); g.moveTo(420, 52); g.lineTo(330, 100); g.moveTo(420, 68); g.lineTo(220, 100); g.stroke();
-    g.strokeStyle = 'rgba(255,179,71,0.9)'; g.beginPath(); g.moveTo(w / 2, 0); g.lineTo(w / 2, 24); g.lineTo(40, 24); g.lineTo(40, 60); g.moveTo(74, 52); g.lineTo(160, 100); g.moveTo(74, 68); g.lineTo(290, 100); g.stroke();
+    g.strokeStyle = 'rgba(255,179,71,0.9)'; g.beginPath(); g.moveTo(w, 24); g.lineTo(40, 24); g.lineTo(40, 60); g.moveTo(74, 52); g.lineTo(160, 100); g.moveTo(74, 68); g.lineTo(290, 100); g.stroke();
     for (const [x0, name] of [[140, 'X'], [270, 'Y']]) {
       g.strokeStyle = 'rgba(255,255,255,0.65)'; g.lineWidth = 2; g.strokeRect(x0, 100, 100, 70); txt(`90° ${name}`, x0 + 22, 141);
     }
@@ -112,14 +119,15 @@ export function build({ quality, state, authoredHardware = false }) {
   }
   for (let i = 0; i < 4; i++) S.box(0.34, 0.22, 0.34, MAT.inductor, mx(1.35 + (i % 2) * 0.48), Y.top + 0.11, i < 2 ? -0.22 : 0.22);
   // the coherent DSP
-  const DSPX = mx(3.9), DH = 0.85;
+  const DSPX = mx(3.09), DH = 0.85;
   S.box(1.7, 0.1, 1.7, MAT.pcbBlack, DSPX, Y.top + 0.05, 0);
   const dspTop = die(scene, M, 1.15, 0.06, 1.15, dspTex(), DSPX, Y.top + 0.13, 0);
   // Names travel into the Blender reference export (userData.sourceMesh).
   const named = name => { scene.children.at(-1).name = name; };
   named('Coherent DSP die');
-  // the tunable laser, to its published size
-  const ITX = mx(6.35), ITL = 2.5, ITW = 1.56, ITH = 0.65;
+  // the tunable laser, to its published size, toward the fiber end and off the
+  // DSP-to-analog path; its pigtail leaves the host-facing end toward the splitter
+  const ITX = 3.15, ITL = 2.5, ITW = 1.56, ITH = 0.65;
   if (!authoredHardware) {
   S.box(ITL, ITH - 0.07, ITW, MAT.nickel, ITX, Y.top + (ITH - 0.07) / 2, 0);
   S.box(ITL - 0.02, 0.014, ITW - 0.02, MAT.darkSteel, ITX, Y.top + ITH - 0.063, 0);
@@ -130,16 +138,18 @@ export function build({ quality, state, authoredHardware = false }) {
     N.box(0.054, 0.003, 0.013, shellEdge, x, Y.top + ITH - 0.0015, z);
   }
   }
-  const itOut = [ITX + ITL / 2, Y.top + 0.33, 0];
+  const itOut = [ITX - ITL / 2, Y.top + 0.33, 0];
   // A fused tap (about 1 x 1 x 3 mm, on a mount in the Blender asset) splits the
   // laser's light between the transmit carrier and the receiver's local oscillator.
-  const tap = [3.5, Y.top + 0.23, 0];
+  // It sits at pigtail height, so the pigtail runs straight in with no bend.
+  const tap = [1.15, Y.top + 0.33, 0];
   S.box(0.3, 0.1, 0.1, M.glass, tap[0], tap[1], 0);
-  // Two-by-two board layout: closed electronic packages on the host side,
-  // distinct optical assemblies toward the fiber side. No shared substrate or lid.
-  const CX0=3.37, CL=1.10, CX_=CX0+CL/2, cdmZ=-.55;
-  const RX0=3.37, RL=1.10, RX_=RX0+RL/2, icrZ=.55;
-  const DRX=2.85, TIAX=2.85, drvZ=cdmZ, tiaZ=icrZ, EW=.55;
+  // Two-by-two board layout: closed electronic packages beside the DSP's
+  // line-side edge, distinct optical assemblies right after them, fibers out of
+  // the far end. No shared substrate or lid.
+  const CX0=-.3, CL=1.10, CX_=CX0+CL/2, cdmZ=-.55;
+  const RX0=-.3, RL=1.10, RX_=RX0+RL/2, icrZ=.55;
+  const DRX=-.85, TIAX=-.85, drvZ=cdmZ, tiaZ=icrZ, EW=.55;
   if (!authoredHardware) {
     for(const [x,z,l,w] of [[CX_,cdmZ,1.18,.72],[DRX,drvZ,.61,.61],
       [RX_,icrZ,1.18,.72],[TIAX,tiaZ,.61,.61]])
@@ -165,28 +175,34 @@ export function build({ quality, state, authoredHardware = false }) {
     for(const [x,z,out] of [[DRX-EW/2,dz,-1],[DRX+EW/2,dz,1],[TIAX-EW/2,rz,-1],[TIAX+EW/2,rz,1],[CX0,dz,-1],[RX0,rz,-1]])
       N.box(.06,.006,.034,MAT.gold,x+out*.03,Y.top+.053,z);
   }
-  const cdmIn=[CX_,Y.top+.1,cdmZ+.33],cdmOut=[CX0+CL,Y.top+.1,cdmZ];
-  const icrSig=[RX0+RL,Y.top+.1,icrZ],icrLo=[RX_,Y.top+.1,icrZ-.33];
+  // Every fiber port is on the optics' far (fiber) end, x = CX0 + CL: the
+  // carrier in and modulated light out of the modulator; the signal and the
+  // local oscillator into the receiver. Offsets match iqTex() and icrTex().
+  const OPT=CX0+CL;
+  const cdmIn=[OPT,Y.top+.1,cdmZ+.33-14/256*.66],cdmOut=[OPT,Y.top+.1,cdmZ];
+  const icrSig=[OPT,Y.top+.1,icrZ],icrLo=[OPT,Y.top+.1,icrZ-.33+24/256*.66];
   // Fibers follow smooth cubic bends, never kinks. The laser pigtail leaves
-  // through its snout and boot (0.6 cm) and drops to the tap in an S-bend whose
-  // radius stays at or above the 5 mm a nano-ITLA vendor page specifies.
+  // through its snout and boot (0.6 cm) and runs straight into the tap.
   const bez=(p0,p1,p2,p3,n=10)=>Array.from({length:n-1},(_,i)=>{const t=(i+1)/n,u=1-t;
     return [0,1,2].map(k=>u*u*u*p0[k]+3*u*u*t*p1[k]+3*u*t*t*p2[k]+t*t*t*p3[k]);});
-  const bootEnd=[itOut[0]+.6,itOut[1],0],tapIn=[tap[0]-.15,tap[1],0];
-  const laserTrunk=[itOut,bootEnd,...bez(bootEnd,[3.08,itOut[1],0],[3.08,tap[1],0],tapIn),tapIn,tap];
-  const branch=(end,s)=>{const a=[tap[0]+.15,tap[1],s*.02];
-    return [tap,a,...bez(a,[3.86,tap[1],s*.02],[end[0],end[1],s*.03],end),end];};
+  const bootEnd=[itOut[0]-.6,itOut[1],0];
+  const laserTrunk=[itOut,bootEnd,tap];
+  const branch=(end,s)=>{const a=[tap[0]-.15,tap[1],s*.02];
+    return [tap,a,...bez(a,[a[0]-.1,tap[1],s*.02],[end[0]+.1,end[1],end[2]],end),end];};
   const carrierPath=branch(cdmIn,-1);
   const loPath=branch(icrLo,1);
   strand(N,laserTrunk,M.fiberCw,.012);
   strand(N,carrierPath,M.fiberCw,.012);strand(N,loPath,M.fiberCw,.012);
   // Duplex LC receptacle at the module front (the Blender asset models the
   // molded body, bores, sleeves and bracket). Fibers land on its rear face;
-  // the fiber cores glow at the ferrule stub faces inside the bores.
-  const LCX = MX1 - 0.3, LCY = Y.top + 0.3, LCR = 4.78, LCF = 5.165;
+  // the fiber cores glow at the ferrule stub faces inside the bores. The line
+  // fibers pass the laser case in the 2.5 mm channels beside it.
+  const LCX = MX1 - 0.3, LCY = Y.top + 0.3, LCR = 4.78, LCF = 5.165, SIDE = .89, FY = Y.top + .1;
   const lcTx = [LCR, LCY, -0.3], lcRx = [LCR, LCY, 0.3];
-  const txLead = bez(cdmOut, [4.64, cdmOut[1], -.55], [4.62, LCY, -.3], lcTx);
-  const rxLead = bez(lcRx, [4.62, LCY, .3], [4.64, icrSig[1], .55], icrSig);
+  const sideRun = s => [...bez([OPT, FY, s*.55], [OPT+.35, FY, s*.55], [OPT+.35, FY, s*SIDE], [OPT+.8, FY, s*SIDE]),
+    [OPT+.8, FY, s*SIDE], [ITX+ITL/2, FY, s*SIDE], ...bez([ITX+ITL/2, FY, s*SIDE], [4.66, FY, s*SIDE], [4.6, LCY, s*.3], [LCR, LCY, s*.3])];
+  const txLead = sideRun(-1);
+  const rxLead = sideRun(1).reverse();
   strand(N, [cdmOut, ...txLead, lcTx], M.fiberTx, 0.012);
   strand(N, [lcRx, ...rxLead, icrSig], M.fiberRx, 0.012);
   for (const [dz, c] of [[-0.3, COL.tx], [0.3, COL.rx]]) N.box(0.006, 0.07, 0.07, glowMat(c, 1.4), LCF, LCY, dz);
@@ -201,22 +217,25 @@ export function build({ quality, state, authoredHardware = false }) {
     const ht=-.93+i*.07,hr=.72+i*.07;
     // Match the centers of the eight visible DSP interface blocks in dspTex().
     const dt=(49+i*52)/512*1.15-.575,dr=(301+i*52)/512*1.15-.575;
-    const et=-.95+i*.045,er=.81+i*.045;
-    const tx=[[mx(.62),yTrace,ht],[-3.1,yTrace,ht],[DSPX-DH,yTrace,dt],
+    // Line side: straight from the DSP's line-side bank to the driver or TIA
+    // pads beside it, about 6 mm, with no detour (OIF HB-CDM sec. 8.2 counts
+    // these DSP-to-driver traces as part of the transmit response).
+    const dz=driverInputs[i][0][2],rz=tiaOutputs[i][0][2];
+    const tx=[[mx(.62),yTrace,ht],[DSPX-DH-.2,yTrace,ht],[DSPX-DH,yTrace,dt],
       [DSPX-dieHalf,yDie,dt]];
-    const rx=[[DSPX-dieHalf,yDie,dr],[DSPX-DH,yTrace,dr],[-3.1,yTrace,hr],[mx(.62),yTrace,hr]];
+    const rx=[[DSPX-dieHalf,yDie,dr],[DSPX-DH,yTrace,dr],[DSPX-DH-.2,yTrace,hr],[mx(.62),yTrace,hr]];
     const lt=[[DSPX+dieHalf,yDie,dt],[DSPX+DH,yTrace,dt],
-      [ITX-ITL/2-.2,yTrace,et],[DRX-EW/2-.15,yTrace,et],...driverInputs[i],...driverBonds[i]];
-    const lr=[...tiaBonds[i],...tiaOutputs[i],[TIAX-EW/2-.15,yTrace,er],
-      [ITX-ITL/2-.2,yTrace,er],[DSPX+DH,yTrace,dr],[DSPX+dieHalf,yDie,dr]];
+      [DRX-EW/2-.15,yTrace,dz],...driverInputs[i],...driverBonds[i]];
+    const lr=[...tiaBonds[i],...tiaOutputs[i],[TIAX-EW/2-.15,yTrace,rz],
+      [DSPX+DH,yTrace,dr],[DSPX+dieHalf,yDie,dr]];
     hostTx.push([[MX0-.9,yTrace,ht],...tx]);hostRx.push([...rx,[MX0-.9,yTrace,hr]]);
     lineTx.push(lt);lineRx.push(lr);
     pair3(tx);pair3(rx);
     // Outside packages only: the interior conversion is a functional animation.
-    pair3(lt.slice(0,5));pair3(lr.slice(7));
+    pair3(lt.slice(0,4));pair3(lr.slice(7));
   }
   scene.userData.coherentRouting={laserTrunk,carrierPath,loPath,hostTx,hostRx,lineTx,lineRx,
-    discretePackages:true,hostPathGroupsAreNotLaneCounts:true};
+    discretePackages:true,hostPathGroupsAreNotLaneCounts:true,rfEndFacesDsp:true};
   const pad = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.12, 1.3), new THREE.MeshStandardMaterial({ color: 0x4d4049, roughness: 0.82, transparent: true, opacity: 0.85 }));
   pad.name='Coherent DSP thermal pad';
   pad.position.set(DSPX, 3.145, 0); scene.add(pad);
@@ -241,17 +260,16 @@ export function build({ quality, state, authoredHardware = false }) {
   dataFlows.push(flow(laserTrunk,'cw',FLOW.cw));
   dataFlows.push(flow(carrierPath, 'cw', FLOW.cw));
   dataFlows.push(flow(loPath, 'cw', FLOW.cw));
-  dataFlows.push(flow([cdmIn, cdmOut, ...txLead, lcTx, [MX1 + 0.7, LCY, -0.3]], 'tx', FLOW.light));
+  dataFlows.push(flow([[CX0 + 0.25, Y.top + 0.12, cdmZ], cdmOut, ...txLead, lcTx, [MX1 + 0.7, LCY, -0.3]], 'tx', FLOW.light));
   dataFlows.push(flow([[MX1 + 0.7, LCY, 0.3], lcRx, ...rxLead, icrSig, [RX_, Y.top + 0.12, icrZ]], 'rx', FLOW.light));
   for (let i = 0; i < 4; i++) flows.push(flow([[MX0 - 1.1, yT, -0.9 + i * 0.6], [mx(0.3), yT, -0.9 + i * 0.6], [mx(1.35+(i%2)*.48), Y.top + 0.12, i < 2 ? -0.22 : 0.22]], 'v33', FLOW.power));
-  for (const [x, z] of [[DSPX, 0], [ITX, 0], [CX_, cdmZ], [DRX, drvZ], [RX_, icrZ], [TIAX, tiaZ]]) {
+  for (const [x, z, side] of [[DSPX, 0, 0], [ITX, 0, 1], [CX_, cdmZ, -1], [DRX, drvZ, -1], [RX_, icrZ, 1], [TIAX, tiaZ, 1]]) {
     const start = [mx(2.0), yT, z * 0.4], end = [x, Y.top + 0.12, z];
-    // A functional DC distribution path, not a fabricated PCB trace. Route the
-    // optical-package feeds outside the metal laser case so energy cannot look
-    // as if it passes through the laser to reach unrelated circuits.
-    const edge = Math.sign(z) * .97;
-    const pts = z === 0 ? [start, end] : [start, [ITX - ITL / 2 - .22, yT, edge],
-      [ITX + ITL / 2 + .2, yT, edge], [x, yT, edge], end];
+    // A functional DC distribution path, not a fabricated PCB trace. Feeds run
+    // along the board edge past the DSP so energy never looks as if it passes
+    // through the DSP; the optical-package feeds never reach the laser case.
+    const edge = side * .97;
+    const pts = !side ? [start, end] : [start, [DSPX - DH - .15, yT, edge], [x, yT, edge], end];
     flows.push(flow(pts, 'core', FLOW.power));
   }
   for (let i = 0; i < 10; i++) { const x = DSPX + (i % 5 - 2) * 0.18, z = (Math.floor(i / 5) - 0.5) * 0.45; heatFlows.push(flow([[x, Y.top + 0.16, z], [x, Y.lid, z], [x, Y.lid + 1.2, z]], 'hot', FLOW.heat)); }
@@ -268,10 +286,10 @@ export function build({ quality, state, authoredHardware = false }) {
   label(scene, 'RX · lanes out', [MX0 - 0.9, 1.75, 0.55], COL.rx, 0.16);
   label(scene, 'Electrical · copper traces', [DSPX + 1.2, 1.9, -1.45], COL.elec, 0.14);
   label(scene, 'Tunable laser · sized to a published nano-ITLA (JLT 2023), 25.0 × 15.6 × 6.5 mm', [ITX, 2.45, 0], COL.cw, 0.15);
-  label(scene, 'TX · separate driver IC → IQ modulator', [CX_, 1.9, -1.6], COL.tx, 0.14);
-  label(scene, 'RX · photodiodes → separate TIA IC', [RX_, 1.9, 1.6], COL.rx, 0.14);
-  label(scene, 'TX carrier', [3.7,1.85,-.18], COL.cw, .10);
-  label(scene, 'RX local oscillator', [3.7,1.85,.18], COL.cw, .10);
+  label(scene, 'TX · separate driver IC → IQ modulator', [(DRX + CX_) / 2, 1.9, -1.6], COL.tx, 0.14);
+  label(scene, 'RX · photodiodes → separate TIA IC', [(TIAX + RX_) / 2, 1.9, 1.6], COL.rx, 0.14);
+  label(scene, 'TX carrier', [tap[0]-.35,1.85,-.18], COL.cw, .10);
+  label(scene, 'RX local oscillator', [tap[0]-.35,1.85,.18], COL.cw, .10);
   label(scene, 'Light · glass fiber', [LCX - 0.6, 2.05, 0], COL.tx, 0.14);
   label(scene, 'Duplex LC receptacle', [LCX + 0.1, 2.35, 0], note, 0.12);
 
@@ -283,6 +301,8 @@ export function build({ quality, state, authoredHardware = false }) {
     tia: { pos: [TIAX, Y.top + .27, tiaZ] },
     icr: { pos: [RX_, Y.top + .15, icrZ] },
     lc: { pos: [LCX, Y.top + .5, 0] },
+    // The pluggable itself: the pin sits on the pull tab's finger loop.
+    pluggable: { pos: [MX1 + .42, .45, 0] },
   };
   const detail = {
     cdsp: [[-.9, 1.4, 2.9], [2.2, .5, 2.1]],
@@ -296,6 +316,9 @@ export function build({ quality, state, authoredHardware = false }) {
     // From the transmit side and above the board: the receptacle sits beside
     // the IQ modulator, not in front of it, so each pin lands on its own part.
     lc: [[1.8, 1.6, -2.2], [1.8, .8, 1.9]],
+    // The fiber end from above the transmit side: the pull tab below, the
+    // lifted top housing and its label above.
+    pluggable: [[2.6, 3.4, 4.6], [3.6, 4.2, 2.8], [-1.3, 1.6, 0]],
   };
   for (const [id, [offset, size, shift = [0, 0, 0]]] of Object.entries(detail))
     hs[id].view = componentView(hs[id].pos.map((v, i) => v + shift[i]), offset, size);
@@ -303,7 +326,7 @@ export function build({ quality, state, authoredHardware = false }) {
     scene, flows, dataFlows, heatFlows,
     camera: { pos: [1.2, 10.5, 14.5], target: [0, 1.3, 0], near: 0.05, far: 300, min: 1.2, max: 40, portrait: { pos: [0.6, 12.5, 16.5], target: [0, 0.9, 0.4] } },
     hotspots: { cdsp: hs.cdsp, itla: hs.itla, driver: hs.driver, cdm: hs.cdm, icr: hs.icr, tia: hs.tia },
-    dataHotspots: { cdsp: hs.cdsp, driver: hs.driver, cdm: hs.cdm, itla: hs.itla, icr: hs.icr, tia: hs.tia, lc: hs.lc },
+    dataHotspots: { cdsp: hs.cdsp, driver: hs.driver, cdm: hs.cdm, itla: hs.itla, icr: hs.icr, tia: hs.tia, lc: hs.lc, pluggable: hs.pluggable },
     heatHotspots: { cdsp: hs.cdsp, itla: hs.itla, driver: hs.driver, cdm: hs.cdm, icr: hs.icr, tia: hs.tia },
     update(t) { dspTop.emissiveIntensity = state.mode === 'heat' ? 0.5 + 0.08 * Math.sin(t * 2) : 0; },
   };
