@@ -95,6 +95,8 @@ export const dieFlux = A => Math.round(A.gpuW * (1 - A.hbmShare) / FACTS[A.id].d
 export function content(M) {
   const { accel: A, power: P, cooling: CL, NET, racks: RACKS, gpus: GPUS, IT_MW, layout: L, rack: RK } = M;
   const X = FACTS[A.id];
+  // the aqua multimode links and 1:2 splitters at one leaf (scenes/hall-breakout.js) are drawn in 400G NVL72 halls only
+  const mmDrawn = A.nicPortGbps === 400 && A.gpusPerRack === 72;
   const nvl = A.gpusPerRack === 72, dc = P.id === 'dc800', air = CL.id === 'air', warm = CL.id === 'warm';
   // a real campus's published plant (sites.ts): battery backup instead of diesel, a closed loop instead of towers
   const bat = M.backup === 'battery', closed = M.closedLoop, bessH = L.bessMW ? L.bessMWh / L.bessMW : 0;
@@ -869,11 +871,17 @@ export function content(M) {
         specs: [['In NVIDIA’s B300 design', '2 for Base Command Manager, 3 for Kubernetes, 2 Slurm login nodes', 'spec', evRefs([['nvidia-superpod-b300-management-servers', 'Management Server Quantities and Connectivity: "Base Command Manager in High Availability (HA): 2 Nodes"; "K8s Management Server: 3 Nodes"; "SLURM Login Nodes, 2 Nodes"']])]] },
       { id: 'runways', title: 'Fiber runways', kicker: 'Yellow means fiber',
         body: 'Overhead yellow trays carry thousands of fiber strands. A parallel optical link runs each lane on its own fiber, one each way, so strand counts climb fast.',
-        specs: [['Fibers per link', `${NET.fabric.fibersPerLink}`, 'assumed', { assume: 'fibers-per-link' }]] },
+        specs: [['Fibers per link', `${NET.fabric.fibersPerLink}`, 'assumed', { assume: 'fibers-per-link' }],
+          ...(A.nicPortGbps === 400 ? [['Multimode fiber jacket', 'aqua', 'spec', { refs: [['nvidia-mma4z00-ns400-datasheet', 'Introduction: "Multimode optics is denoted by a tan-colored pull tab and aqua-colored optical fiber."']] }]] : []),
+          ...(mmDrawn ? [['Aqua cables in this runway', 'representative', 'assumed', { assume: 'hall-multimode-breakout' }]] : [])] },
       { id: 'optics', title: 'Optical modules', kicker: 'Several per GPU', drill: 6,
-        body: `Every link is lit at both ends by a pluggable module, from merchant suppliers such as InnoLight and Coherent as well as NVIDIA’s own LinkX line. Here they fill the faces of the leaf switches at the row ends and of the spine switches, with a link light on each and fiber rising to the runway. ${A.nicsPerGpu} physical scale-out ${A.nicsPerGpu === 1 ? 'link leaves' : 'links leave'} the rack per GPU, and every tier above adds more modules: about ${(NET.modules / GPUS).toFixed(1)} per GPU, ${NET.opticsMW.toFixed(1)} MW for this campus.`,
+        body: `Every link is lit at both ends by a pluggable module, from merchant suppliers such as InnoLight and Coherent as well as NVIDIA’s own LinkX line. Here they fill the faces of the leaf switches at the row ends and of the spine switches, with a link light on each and fiber rising to the runway. ${A.nicsPerGpu} physical scale-out ${A.nicsPerGpu === 1 ? 'link leaves' : 'links leave'} the rack per GPU, and every tier above adds more modules: about ${(NET.modules / GPUS).toFixed(1)} per GPU, ${NET.opticsMW.toFixed(1)} MW for this campus.${A.nicPortGbps === 400 ? ' Runs this short can also be multimode: short-reach optics on aqua fiber, rated to 50 m on OM4.' : ''}${mmDrawn ? ' One leaf switch here shows it, with two aqua cables from a tan-tabbed module to two racks; it is a representative example, not counted in the totals.' : ''}`,
         specs: [...(A.nicPortGbps === 400 ? [
           ['At the switch: twin-port 800G OSFP, 2 × 400G', '17 W max', 'spec', { refs: [['nvidia-800g-dr8-datasheet', '§4.2, Recommended Operating Conditions and Power Supply Requirements: Maximum Power Dissipation, Max 17 W'], ['nvidia-mma4z00-ns', '"The 400G IB/EN switches require finned-top 2x400G transceivers for additional cooling"']] }],
+          ['Short runs, multimode option', '2 × SR4, OM4 up to 50 m (OM3 30 m)', 'spec', { refs: [['nvidia-mma4z00-ns-specs', 'MMA4Z00-NS specifications: "Operating Distance (OM3) 2–30 m", "Operating Distance (OM4) 2–50 m"; two MPO-12/APC connectors']] }],
+          ['Multimode light source', '850 nm VCSEL', 'spec', { refs: [['nvidia-mma4z00-ns400-datasheet', 'Key Features, MMA4Z00-NS400 (the single-port 400G SR4 adapter end): "850nm VCSEL"'], ['nvidia-mma4z00-ns-specs', 'MMA4Z00-NS transmitter and receiver tables: "Wavelength λC 844 850 863 nm"']] }],
+          ['How multimode is marked', 'tan pull tab, aqua fiber', 'spec', { refs: [['nvidia-mma4z00-ns-specs', '"Tan pull-tab denotes multimode optics"'], ['nvidia-mma4z00-ns400-datasheet', 'Introduction: "Multimode optics is denoted by a tan-colored pull tab and aqua-colored optical fiber."']] }],
+          ...(mmDrawn ? [['Aqua multimode links at one leaf, as drawn', 'representative', 'assumed', { assume: 'hall-multimode-breakout' }]] : []),
         ] : A.nicPortGbps === 800 ? [
           ['At the switch: twin-port 1.6T OSFP, 2 × DR4', 'Quantum-X800', 'spec', { refs: [['nvidia-quantum-x800-clusters', 'transceiver list: "NVIDIA twin port transceiver, 1600Gbps, OSFP 2xDR4, 2xMPO APC, 1310nm SMF", platform: switch']] }],
           ['Its power', '33.5 W max', 'spec', { refs: [['nvidia-mms4a00', 'product summary: "33.5W max power"; "Used in Quantum-3 air-cooled and liquid-cooled switch"']] }],
