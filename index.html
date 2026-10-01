@@ -283,11 +283,11 @@
       <a href="method.html">Method</a> page lists every calculation and assumption behind them. Underneath, a
       scenario engine turns four choices — campus size, accelerator, power path and cooling — into every number,
       chart and sentence on the page.</p>
-      <p>Automated checks run before anything ships: Vitest unit tests (1,350 tests across 37 files, as of this
+      <p>Automated checks run before anything ships: Vitest unit tests (1,380 tests across 40 files, as of this
       writing) cover the engine, the content and the links; <a href="https://playwright.dev">Playwright</a> drives
       a real browser through checks named for what they look for — <code>cycle</code> (every scenario, scene and layer, watching for errors),
       <code>views</code> (every part framed clear of overlays), <code>coplanar</code> (flush surfaces that would
-      flicker), <code>parts</code> (every numbered part has a pin) and <code>ui</code> (the page’s controls stay
+      flicker), <code>parts</code> (every numbered part has a pin), <code>flights</code> (every camera move between parts stays clear of walls and roofs) and <code>ui</code> (the page’s controls stay
       out of each other’s way, on phone and desktop alike). A quality governor adapts the 3D rendering to the
       device it’s running on, with Max quality, Auto quality and Battery saver settings for when you want to
       choose yourself.</p>
