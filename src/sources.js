@@ -422,6 +422,10 @@ export const SOURCES = {
   'nvidia-mms4x50-nm': { title: 'MMS4X50-NM 800Gbps Twin-port OSFP 2xFR4, 2x400Gb/s Single Mode, 2km: specifications', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/mms4x50nm800g2kmpub/specifications', published: 'undated', dated: 'live product documentation', accessed: '09/30/2026', kind: 'primary' },
   'ieee-802-3cu-lr4-baseline': { title: '400GBASE-LR4 Baseline Proposal (lewis_3cu_02a_0519)', publisher: 'IEEE 802.3cu Task Force', url: 'https://www.ieee802.org/3/cu/public/May19/lewis_3cu_02a_0519.pdf', published: '05/23/2019', dated: 'May 2019 task force meeting', accessed: '09/30/2026', kind: 'primary' },
   'tiafotc-400gbase-fr4': { title: '400GBASE-FR4: single-mode Ethernet standards update', publisher: 'TIA Fiber Optics Technology Consortium', url: 'https://www.tiafotc.org/ieee-802-3-ethernet-standards-update/singlemode-standards-update/400gbase-fr4/', published: 'undated', dated: 'live page', accessed: '09/30/2026', kind: 'secondary' },
+  // ---- 09/30/2026, interconnect: inside the DWDM line terminal ----
+  'ciena-6500-rls-datasheet': { title: '6500 Reconfigurable Line System data sheet (DS365)', publisher: 'Ciena', url: 'https://telecomcauliffe.com/wp-content/uploads/2023/10/Ciena_6500_Reconfigurable_Line_System_DS.pdf', published: '09/2023', dated: 'DS365 9.2023, copyright 2023 Ciena', via: 'reseller-hosted copy of the Ciena data sheet', accessed: '09/30/2026', kind: 'primary', marketing: true },
+  'fs-64ch-cband-mux': { title: '64 Channels DWDM Mux Demux, Super C-band 75GHz', publisher: 'FS.com', url: 'https://www.fs.com/products/166004.html', published: 'undated', dated: 'live product page', accessed: '09/30/2026', kind: 'secondary', marketing: true },
+  'wikipedia-roadm': { title: 'Reconfigurable optical add-drop multiplexer', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Reconfigurable_optical_add-drop_multiplexer', published: 'undated', dated: 'live article', accessed: '09/30/2026', kind: 'secondary' },
 
 };
 
@@ -515,7 +519,7 @@ export const PART_SOURCES = {
   'power:chip:tokens': ['google-inference-impact', 'samsi-words-to-watts'],
 
   // ---- data ----
-  'data:across:dci': ['ciena-wavelogic6', 'marvell-colorz-800', 'ciena-wavelogic6-nano'],
+  'data:across:dci': ['ciena-wavelogic6', 'marvell-colorz-800', 'ciena-wavelogic6-nano', 'ciena-6500-rls-datasheet'],
   'data:across:ila': [],
   'data:across:route': ['microsoft-hollow-core-fiber', 'coherent-full-cband-pols'],
   'data:across:remote': ['microsoft-ai-wan', 'nvidia-spectrum-xgs', 'deepmind-decoupled-diloco'],
@@ -523,6 +527,7 @@ export const PART_SOURCES = {
 
   'data:campus:fiber': ['zayo-route-diversity'],
   'data:campus:dci': ['ciena-wavelogic6'],
+  'data:campus:lineterm': ['cisco-800g-zr-datasheet', 'ciena-6500-rls-datasheet', 'fs-64ch-cband-mux', 'wikipedia-roadm'],
   'data:campus:interhall': ['nvidia-linkx-interconnect', 'nvidia-mms4x50-nm', 'tiafotc-400gbase-fr4', 'ieee-802-3cu-lr4-baseline'],
   'data:campus:ductbank': ['prysmian-flexribbon'],
   'data:campus:hall': [],
