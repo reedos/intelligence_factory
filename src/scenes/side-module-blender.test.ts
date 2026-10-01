@@ -286,6 +286,65 @@ describe('Blender optical module integration', () => {
     }
   });
 
+  it('draws the half-retimed (LRO) variant: DSP on transmit, linear receive straight to the host, and switches back', () => {
+    const { result, state } = build();
+    const visible = (name: string) => {
+      let object = result.scene.getObjectByName(name);
+      expect(object, name).toBeDefined();
+      for (; object; object = object.parent || undefined) if (!object.visible) return false;
+      return true;
+    };
+    const half = (root: string, dir: 'TX' | 'RX') => {
+      let found: THREE.Object3D | undefined;
+      result.scene.getObjectByName(root)!.traverse(node => { if (!found && node.name.endsWith(` · ${dir}`)) found = node; });
+      expect(found, `${root} ${dir} half`).toBeDefined();
+      return found!;
+    };
+    const shownHalf = (root: string, dir: 'TX' | 'RX') => { const o = half(root, dir); return o.visible && visible(root); };
+    const merged = (root: string) => { let found: THREE.Object3D | undefined; result.scene.getObjectByName(root)!.traverse(n => { if (!found && (n as THREE.Mesh).isMesh) found = n; }); return found!.visible && visible(root); };
+    // the two halves partition the merged copper: every triangle lands on exactly one side
+    for (const root of ['PART_DSP_TRACES', 'LPO bypass copper']) {
+      const tx = (half(root, 'TX') as THREE.Mesh).geometry.index!.count, rx = (half(root, 'RX') as THREE.Mesh).geometry.index!.count;
+      expect(tx, root).toBeGreaterThan(0); expect(rx, root).toBeGreaterThan(0);
+    }
+    for (const kind of ['lro', 'dsp', 'lro', 'lpo', 'lro'] as const) {
+      result.variant.set(kind);
+      expect(result.variant.kind).toBe(kind);
+      expect(result.variant.lpo).toBe(kind === 'lpo');
+      const lro = kind === 'lro';
+      expect(visible('LRO transmit-only DSP marking'), kind).toBe(lro);
+      if (kind === 'lpo') continue;
+      for (const name of ['PART_DSP', '03_THERMAL']) expect(visible(name), `${kind}: ${name}`).toBe(true);
+      // full DSP draws the merged DSP copper; LRO swaps in its transmit half and the linear layout's receive half
+      expect(merged('PART_DSP_TRACES'), `${kind}: merged DSP copper`).toBe(!lro);
+      expect(shownHalf('PART_DSP_TRACES', 'TX'), `${kind}: DSP TX copper`).toBe(lro);
+      expect(shownHalf('PART_DSP_TRACES', 'RX'), `${kind}: DSP RX copper`).toBe(false);
+      expect(shownHalf('LPO bypass copper', 'RX'), `${kind}: linear RX copper`).toBe(lro);
+      expect(shownHalf('LPO bypass copper', 'TX'), `${kind}: linear TX copper`).toBe(false);
+      expect(merged('LPO bypass copper'), `${kind}: merged linear copper`).toBe(false);
+      for (const mode of ['power', 'data', 'heat'] as const) {
+        state.mode = mode;
+        result.update(3);
+        const shown = result[arrays[mode]].filter(flow => flow.group.visible);
+        if (mode === 'data') {
+          const edges = new Set(shown.map(flow => `${flow.route.from}>${flow.route.to}`));
+          const expected = ['driver>mzm', 'lasers>mzm', 'mzm>mpo', 'mpo>pd', 'pd>tia', 'fingers>dsp', 'dsp>driver',
+            ...(lro ? ['tia>fingers'] : ['tia>dsp', 'dsp>fingers'])];
+          expect([...edges].sort(), `functional data chain: ${kind}`).toEqual(expected.sort());
+        }
+        if (mode === 'power') expect(shown.some(flow => flow.route.from === 'dcdc' && flow.route.to === 'dsp'), `${kind}: DSP powered`).toBe(true);
+        if (mode === 'heat') {
+          const dspHeat = shown.filter(flow => flow.route.from === 'dsp').length;
+          expect(dspHeat, `${kind}: DSP heat arrows`).toBe(lro ? 3 : 6);
+        }
+      }
+    }
+    expect(result.variant.intro('data')).toMatch(/transmit/);
+    const card = result.variant.partCopy({ id: 'dsp', title: 'DSP', specs: [['a', 'b', 'spec']] }, 'data');
+    expect(card.title).toBe('DSP, transmit only');
+    expect(card.specs, 'spec rows keep their positions (evidence chips are keyed by index)').toEqual([['a', 'b', 'spec']]);
+  }, 60000);
+
   it('connects each LPO bypass to the same host and analog front-end terminals as the exported DSP routes', () => {
     const { result } = build();
     const routes = new Map(metadata.routes.map(route => [route.name, route]));
