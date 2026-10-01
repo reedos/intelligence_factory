@@ -33,15 +33,33 @@ export function occupancyBuilder(meshes, { maxCells = 32_000_000 } = {}) {
       for (let k = k0; k <= k1; k++) for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) set((k * ny + j) * nx + i);
       return;
     }
-    // a big triangle: only the cells its plane passes through (a superset of the triangle within its box)
+    // a big triangle: the cells within reach of its plane, inside its box (a superset of the triangle's own)
     const ux = bx - ax, uy = by - ay, uz = bz - az, vx = cx - ax, vy = cy - ay, vz = cz - az;
     let px = uy * vz - uz * vy, py = uz * vx - ux * vz, pz = ux * vy - uy * vx;
     const len = Math.hypot(px, py, pz); if (len < 1e-20) return;
     px /= len; py /= len; pz /= len;
     const d = px * ax + py * ay + pz * az;
-    for (let k = k0; k <= k1; k++) for (let j = j0; j <= j1; j++) {
-      const base = py * (oy + (j + 0.5) * h) + pz * (oz + (k + 0.5) * h) - d, row = (k * ny + j) * nx;
-      for (let i = i0; i <= i1; i++) if (Math.abs(base + px * (ox + (i + 0.5) * h)) <= reach) set(row + i);
+    // walk the two axes the plane spreads along and solve for the band of cells on the third (O(area), not volume)
+    const qx = Math.abs(px), qy = Math.abs(py), qz = Math.abs(pz);
+    const band = (n, c0, c1, o, lo, hi, cell) => {          // cells on the solved axis within reach of the plane
+      const c = (d - c0 - c1) / n, w = reach / Math.abs(n);
+      return [Math.max(lo, Math.floor((c - w - o) / cell)), Math.min(hi, Math.floor((c + w - o) / cell))];
+    };
+    if (qx >= qy && qx >= qz) {
+      for (let k = k0; k <= k1; k++) for (let j = j0; j <= j1; j++) {
+        const [a0, a1] = band(px, py * (oy + (j + 0.5) * h), pz * (oz + (k + 0.5) * h), ox, i0, i1, h), row = (k * ny + j) * nx;
+        for (let i = a0; i <= a1; i++) set(row + i);
+      }
+    } else if (qy >= qz) {
+      for (let k = k0; k <= k1; k++) for (let i = i0; i <= i1; i++) {
+        const [a0, a1] = band(py, px * (ox + (i + 0.5) * h), pz * (oz + (k + 0.5) * h), oy, j0, j1, h);
+        for (let j = a0; j <= a1; j++) set((k * ny + j) * nx + i);
+      }
+    } else {
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+        const [a0, a1] = band(pz, px * (ox + (i + 0.5) * h), py * (oy + (j + 0.5) * h), oz, k0, k1, h);
+        for (let k = a0; k <= a1; k++) set((k * ny + j) * nx + i);
+      }
     }
   };
   // the work, as a queue of (mesh, copy) jobs, each walked in chunks of triangles
@@ -50,13 +68,23 @@ export function occupancyBuilder(meshes, { maxCells = 32_000_000 } = {}) {
     const pos = o.geometry?.attributes?.position; if (!pos) continue;
     for (let c = 0, n = o.isInstancedMesh ? o.count : 1; c < n; c++) jobs.push([o, c]);
   }
-  let job = 0, tri = 0, idx = null, tris = 0;
-  const begin = () => {                                    // world-space corners of the job's copy, once
+  // a job runs in two phases, both in chunks so no single frame takes long: its corners into world space, then its
+  // triangles into the grid
+  let job = 0, tri = 0, idx = null, tris = 0, vert = -1;
+  const begin = () => {
     const [o, c] = jobs[job], g = o.geometry, pos = g.attributes.position;
     if (o.isInstancedMesh) { o.getMatrixAt(c, _im); _m.multiplyMatrices(o.matrixWorld, _im); } else _m.copy(o.matrixWorld);
     if (V.length < pos.count * 3) V = new Float32Array(pos.count * 3);
-    for (let i = 0; i < pos.count; i++) { _v.fromBufferAttribute(pos, i).applyMatrix4(_m); V[i * 3] = _v.x; V[i * 3 + 1] = _v.y; V[i * 3 + 2] = _v.z; }
-    idx = g.index; tris = Math.floor((idx ? idx.count : pos.count) / 3); tri = 0;
+    idx = g.index; tris = Math.floor((idx ? idx.count : pos.count) / 3); tri = 0; vert = 0;
+  };
+  const corners = (budget, t0) => {                       // world-space corners of the job's copy, a chunk at a time
+    const pos = jobs[job][0].geometry.attributes.position;
+    while (vert < pos.count) {
+      const end = Math.min(pos.count, vert + 4096);
+      for (; vert < end; vert++) { _v.fromBufferAttribute(pos, vert).applyMatrix4(_m); V[vert * 3] = _v.x; V[vert * 3 + 1] = _v.y; V[vert * 3 + 2] = _v.z; }
+      if (performance.now() - t0 > budget) return false;
+    }
+    return true;
   };
   const near = (p, r) => {
     const R = r + reach, R2 = R * R;
@@ -96,15 +124,17 @@ export function occupancyBuilder(meshes, { maxCells = 32_000_000 } = {}) {
     },
   };
   const builder = {
+    /** @type {typeof map | null} */
     result: null,
     step(budgetMs = Infinity) {
       const t0 = performance.now();
       while (job < jobs.length) {
-        if (!idx && tri === 0 && tris === 0) begin();
-        const end = Math.min(tris, tri + 20000);
+        if (vert < 0) begin();
+        if (!corners(budgetMs, t0)) return false;
+        const end = Math.min(tris, tri + 512);
         if (idx) for (; tri < end; tri++) mark(idx.getX(tri * 3) * 3, idx.getX(tri * 3 + 1) * 3, idx.getX(tri * 3 + 2) * 3);
         else for (; tri < end; tri++) mark(tri * 9, tri * 9 + 3, tri * 9 + 6);
-        if (tri >= tris) { job++; tri = 0; tris = 0; idx = null; }
+        if (tri >= tris) { job++; tri = 0; tris = 0; idx = null; vert = -1; }
         if (performance.now() - t0 > budgetMs) return false;
       }
       builder.result = map;

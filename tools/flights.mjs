@@ -38,7 +38,7 @@ const fly = async ({ id }) => {
   const t0 = performance.now(), cs = ifx.clearance ? { ...ifx.clearance } : null;
   if (id) ifx.select(id, true);
   const selectMs = performance.now() - t0, ce = ifx.clearance;
-  const plan = cs && { built: ce.builds > cs.builds ? ce.buildMs : null, planned: ce.plans > cs.plans ? ce.planMs : null, clear: ce.clear, chosen: ce.chosen, costs: ce.costs };
+  const plan = cs && { built: ce.finishedOnTap > cs.finishedOnTap ? ce.buildMs : null, planned: ce.plans > cs.plans ? ce.planMs : null, ready: ce.hits > cs.hits, clear: ce.clear, chosen: ce.chosen, costs: ce.costs };
   await new Promise(res => {
     let still = 0, n = 0;
     const tick = () => {
@@ -106,22 +106,25 @@ const fly = async ({ id }) => {
 const plan = await p.evaluate(() => ifx.store.C.SCENES.map((s, i) => ({ i, id: s.id })));
 const only = process.env.ONLY ? process.env.ONLY.split(':') : null;
 const fails = [], counts = [], selects = [], plans = [], builds = [];
+let ready = 0;
 for (const { i, id: level } of plan) {
   if (only && only[0] !== level) continue;
   for (const mode of ['power', 'data', 'heat']) {
     if (only?.[1] && only[1] !== mode) continue;
     await p.evaluate(async ({ i, mode }) => { await ifx.show({ scene: i, mode, part: null }, { scroll: false }); ifx.settle(); }, { i, mode });
     await p.waitForTimeout(400);
-    // the level's clearance map builds in the background, a few ms a frame; a reader's first tap may beat it (the
-    // flight then goes as authored), but the gate measures the planned flights
+    // the level's clearance map builds in the background between frames; a reader's first tap may beat it (the map is
+    // then finished on that tap, which the summary counts)
     await p.waitForFunction(() => !ifx.clearance?.pending, null, { timeout: 30000 }).catch(() => {});
     await p.evaluate(() => ifx.settle());
     const parts = await p.evaluate(() => [...document.querySelectorAll('#parts button[data-id]')].map(b => b.dataset.id));
     let from = 'overview', bad = 0;
     for (const id of parts) {
+      await p.waitForTimeout(300);                       // a reader's pause between parts (plans ahead run then)
       const r = await p.evaluate(`(${fly})(${JSON.stringify({ id })})`);
       selects.push(r.selectMs);
       if (r.plan?.planned != null) plans.push(r.plan.planned);
+      if (r.plan?.ready) ready++;
       if (r.plan?.built != null) builds.push(r.plan.built);
       if (r.hits) { bad++; fails.push(`${level}:${mode}:${from}→${id}  (${r.hits} of ${r.frames - 1} steps, first at frame ${r.first.frame} ${r.first.kind}: ${r.first.what}${r.plan && !r.plan.clear ? "; the planner found no clear path" : ""})`); if (process.env.DEBUG) fails.push(`    ${JSON.stringify(r.plan)}`); }
       from = id;
@@ -134,7 +137,7 @@ for (const c of counts) { const l = byLevel[c.level] ||= { flights: 0, bad: 0 };
 for (const [level, c] of Object.entries(byLevel)) console.log(`${level}: ${c.flights} flights, ${c.bad} through geometry`);
 for (const f of fails) console.log(`  ${f}`);
 const stat = a => (a.sort((x, y) => x - y), a.length ? `median ${a[a.length >> 1].toFixed(1)} ms, max ${a.at(-1).toFixed(1)} ms` : 'none');
-console.log(`select, all of it: ${stat(selects)}; path planning: ${stat(plans)} (${plans.length} plans); clearance map built during a select ${builds.length}x; last map build ${(await p.evaluate(() => ifx.clearance?.buildMs ?? 0)).toFixed(0)} ms of sliced work`);
+console.log(`select, all of it: ${stat(selects)}; path planning on the tap: ${stat(plans)} (${plans.length} plans; ${ready} more planned ahead while idle); clearance map finished on a tap ${builds.length}x${builds.length ? ` (${stat(builds)})` : ''}`);
 console.log(errors.length ? `errors: ${[...new Set(errors)].join(' | ')}` : 'no page errors');
 console.log(`${form}: ${fails.length} flight${fails.length === 1 ? '' : 's'} through geometry`);
 await b.close();

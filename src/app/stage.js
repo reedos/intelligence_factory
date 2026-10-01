@@ -28,7 +28,7 @@ import * as sideCopper from '../scenes/side-copper.js';
 import { applyVisualDirection } from '../scenes/visual-direction.js';
 import { applyComputeArtDirection } from '../scenes/compute-art-direction.js';
 import { cameraPresetFor } from './camera-presets.js';
-import { poseAt, clearPath } from './camera-path.js';
+import { poseAt, planPath } from './camera-path.js';
 import { occupancyBuilder } from './occupancy.js';
 import { fitHousing, fitComponent } from './housing-frame.js';
 import { overlapsRect, pinLabelBox, declutterPins } from './pin-layout.js';
@@ -636,6 +636,11 @@ function glide(pos, target, dur, curve) {
 }
 export function flyTo(pos, target, dur = 1.1, { detail = false } = {}) {
   drift = null;
+  tween = makeTween(pos, target, dur, { detail });
+  if (!reduced && tween.dur > 0.05) clearTween(tween);
+}
+// a move from where the camera is now, as flyTo would make it (also used to plan the next move ahead of time)
+function makeTween(pos, target, dur, { detail = false } = {}) {
   const p1 = V(pos), t1 = V(target);
   if (reduced) dur = 0.01;
   let arc = null;
@@ -653,8 +658,30 @@ export function flyTo(pos, target, dur = 1.1, { detail = false } = {}) {
       dur = Math.min(2.1, 1.55 + Math.abs(dTheta) * .16);
     }
   }
-  tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1, t1, u: 0, dur, arc, still: detail && !cinema };
-  if (!reduced && dur > 0.05) clearTween(tween);
+  return { p0: camera.position.clone(), t0: controls.target.clone(), p1, t1, u: 0, dur, arc, still: detail && !cinema };
+}
+// Once a part's move has landed, plan the moves to the parts either side of it in the list while the page is idle,
+// so stepping on (Next, Previous, the next row) finds its plan waiting instead of searching on the tap.
+let prefetchFor = null;
+function prefetchNeighbours() {
+  if (reduced || cinema || !ui.selected) return;
+  const key = `${ui.scene}:${ui.mode}:${ui.selected}`; if (prefetchFor === key) return;
+  prefetchFor = key;
+  const parts = partsFor(ui.scene), i = parts.findIndex(q => q.id === ui.selected);
+  const next = [parts[i + 1], parts[i - 1]].filter(Boolean);
+  let job = null;
+  const step = deadline => {
+    if (tween || prefetchFor !== key || `${ui.scene}:${ui.mode}:${ui.selected}` !== key) return;   // the reader moved on
+    if (!job) {
+      const q = next.shift(); if (!q) return;
+      const h = hotspotsFor(ui.scene)[q.id], b = built[ui.scene];
+      if (h?.view && b) { const f = frame(b, h); const tw = makeTween(f.pos, f.target, 1.1, { detail: !!h.view.detailSize }); if (tw.dur > 0.05) job = planTween(tw, false); }
+    }
+    const t0 = performance.now(), budget = idleBudget(deadline);
+    while (job && performance.now() - t0 < budget) if (job.next().done) job = null;
+    if (job || next.length) whenIdle(step);
+  };
+  whenIdle(step);
 }
 // ---------- clearance: a move never passes through (or skims) anything solid ----------
 // Sample the move's path with the same math the playback uses, test each step against the level's solid geometry,
@@ -665,12 +692,26 @@ export function flyTo(pos, target, dur = 1.1, { detail = false } = {}) {
 // level's parts plans each flight once.
 // per unit of aim distance: the margin around the camera, a framing's own reach, the clear view ahead (all mid-move)
 const CLEAR = 0.075, HOME = 0.03, SIGHT = 0.55;
+// what an intrusion into the margin or the view costs, by how far in it reaches (the flights gate holds 80%)
+const MARGIN_TIERS = [[0.85, 0.3], [0.7, 1], [0.45, 3], [0.2, 10]], BAND = 0.05;   // BAND: the outer band only
 const flightPlans = new WeakMap();
 // for the flights gate: how often the voxel map was built, what the last build and plan cost, what the plan chose
-export const clearanceStats = { builds: 0, buildMs: 0, plans: 0, planMs: 0, clear: true, pending: false };
-// The level's clearance map: returns the latest finished one (null before the first is done) and, when the level's
-// solids have changed (a scenario, covers shown or hidden), starts a new one in the background, a few ms a frame.
-function clearanceOf(b) {
+export const clearanceStats = { builds: 0, buildMs: 0, finishedOnTap: 0, plans: 0, planMs: 0, hits: 0, prefetched: 0, clear: true, pending: false };
+// Background work runs in the gaps between frames, never in a frame's own time: a slice takes part of what is left
+// of the gap (at most 4 ms, and only in a gap of 4 ms or more); with no such gap for a second, a 1 ms slice anyway
+// so the work still finishes.
+const whenIdle = f => {
+  if (!window.requestIdleCallback) { setTimeout(() => f(null), 32); return; }
+  const t0 = performance.now();
+  const wait = d => (d.didTimeout || d.timeRemaining() >= 4 || performance.now() - t0 > 1000 ? f(d) : requestIdleCallback(wait, { timeout: 1000 }));
+  requestIdleCallback(wait, { timeout: 1000 });
+};
+const idleBudget = d => (d && !d.didTimeout && d.timeRemaining() >= 4 ? Math.min(4, d.timeRemaining() - 1) : 1);
+// The level's clearance map for what is on screen now (a layer's flows count, so each layer has its own; a level
+// keeps the last four). Returns it when built. If not: starts building it in the background, and either returns null
+// (a plan made ahead can wait) or, with `now` (a move about to fly), finishes it on the spot, so no move ever flies
+// unplanned because the reader was quick. The background build usually wins: it starts as the level opens.
+function clearanceOf(b, { now = false } = {}) {
   // Walked fresh each time (solidsOf caches its list at the first framing, before late assets such as the hall's
   // Blender finish have joined the scene). Anything that reads as a surface counts: opaque-looking meshes, including
   // the wide flow ribbons that draw without depth (a camera inside a glowing cable tray fills the frame with it), but
@@ -682,7 +723,21 @@ function clearanceOf(b) {
     if (mats.some(m => m && m.visible !== false && !m.isLineMaterial && m.side !== THREE.BackSide && m.blending !== THREE.AdditiveBlending && !(m.transparent && m.opacity < 0.6))) solids.push(o);
   });
   const sig = `${solids.length}:${solids.reduce((n, o) => n + o.id, 0)}`;
-  if (b._clearance?.sig === sig || b._clearanceNext?.sig === sig) return b._clearance || null;
+  const maps = b._clearanceMaps ||= new Map();
+  if (maps.has(sig)) return maps.get(sig);
+  const finish = next => {
+    const map = { sig, occ: next.builder.result };
+    maps.set(sig, map); if (maps.size > 4) maps.delete(maps.keys().next().value);
+    b._clearanceNext = null;
+    clearanceStats.builds++; clearanceStats.buildMs = next.ms; clearanceStats.pending = false;
+    return map;
+  };
+  if (b._clearanceNext?.sig === sig) {
+    if (!now) return null;
+    const next = b._clearanceNext, t0 = performance.now();
+    next.builder.step(); next.ms += performance.now() - t0; clearanceStats.finishedOnTap++;
+    return finish(next);
+  }
   // the surroundings (ground, a horizon's ridgeline, a studio floor: flat and as wide as the level) are never flown
   // into and would stretch the map's cells to the horizon: they stay out of it
   const span = new THREE.Box3(), size = new THREE.Vector3(), box = new THREE.Box3();
@@ -695,16 +750,16 @@ function clearanceOf(b) {
   });
   const next = b._clearanceNext = { sig, builder: occupancyBuilder(rest), ms: 0 };
   clearanceStats.pending = true;
-  const slice = () => {
-    if (b._clearanceNext !== next || !built.includes(b)) return;   // superseded, or the level disposed
-    const t0 = performance.now(), done = next.builder.step(6);
+  if (now) return clearanceOf(b, { now });
+  const slice = deadline => {
+    if (b._clearanceNext !== next || !built.includes(b)) return;   // superseded, finished on a tap, or level disposed
+    const t0 = performance.now(), done = next.builder.step(idleBudget(deadline));
     next.ms += performance.now() - t0;
-    if (!done) { requestAnimationFrame(slice); return; }
-    b._clearance = { sig, occ: next.builder.result }; b._clearanceNext = null;
-    clearanceStats.builds++; clearanceStats.buildMs = next.ms; clearanceStats.pending = false;
+    if (!done) { whenIdle(slice); return; }
+    finish(next);
   };
-  requestAnimationFrame(slice);
-  return b._clearance || null;
+  whenIdle(slice);
+  return null;
 }
 // How badly one step of a path is obstructed: 0 clear, 1 inside the margin, 100 through a surface (any number of
 // skimmed steps is better than one through a wall). `home`: the start and end framings, each with the radius around
@@ -714,29 +769,60 @@ function stepHits(cl, home, a, c) {
   // passing close by the aim point mid-move must not shrink its margins to nothing)
   const D = q => Math.max(q.pos.distanceTo(q.target), home[0].d + (home[1].d - home[0].d) * q.u);
   if (home.some(h => a.pos.distanceTo(h.pos) <= h.r && c.pos.distanceTo(h.pos) <= h.r)) return 0;
+  // the orbit controls hold the camera within their distance and below-the-horizon limits every frame; a path that
+  // leaves them would not be flown as planned (and the ends are within them already)
+  if (c.u > 0 && c.u < 1) {
+    const [r, phi] = polar(c.pos, c.target), L = home.limits;
+    if (r < L.r0 * 0.999 || r > L.r1 * 1.001 || phi > L.phi1 + 1e-3 || phi < L.phi0 - 1e-3) return 100;
+  }
   const taper = u => CLEAR * Math.sin(Math.PI * u);
   const ra = taper(a.u) * D(a), rc = taper(c.u) * D(c);
   // the framing at either end is the part's own, whoever is beside it: test the step up to it, not the pose itself
   const ends = { from: a.u > 0, to: c.u < 1 };
   if (!cl.occ) return 0;
-  if (cl.occ.segment(a.pos, c.pos, ra, rc, ends)) return cl.occ.segment(a.pos, c.pos, 0, 0, ends) ? 100 : 1;
+  // graded by depth: the outer band costs little (kept clear when it can be), and each tier further in costs more,
+  // so a move with no fully clear path still keeps as much margin as it can
+  if (cl.occ.segment(a.pos, c.pos, ra, rc, ends)) {
+    if (cl.occ.segment(a.pos, c.pos, 0, 0, ends)) return 100;
+    for (let i = MARGIN_TIERS.length - 1; i >= 0; i--) if (cl.occ.segment(a.pos, c.pos, ra * MARGIN_TIERS[i][0], rc * MARGIN_TIERS[i][0], ends)) return MARGIN_TIERS[i][1];
+    return BAND;
+  }
   // and the view: mid-move, nothing may stand right in front of the camera on its way to the aim point (a roof or a
   // wall filling the frame is what flying through a building looks like, even when the camera itself clears it)
   const sight = SIGHT * Math.sin(Math.PI * c.u) * D(c);
   if (sight > 1e-9) {
     _sightEnd.subVectors(c.target, c.pos).setLength(sight).add(c.pos);
-    if (cl.occ.segment(c.pos, _sightEnd, 1e-9, 1e-9, { from: false })) return 1;   // (a hair over 0: the conservative test)
+    if (cl.occ.segment(c.pos, _sightEnd, 1e-9, 1e-9, { from: false })) {          // (a hair over 0: the conservative test)
+      for (let i = MARGIN_TIERS.length - 1; i >= 0; i--) {
+        _sightEnd.subVectors(c.target, c.pos).setLength(sight * MARGIN_TIERS[i][0]).add(c.pos);
+        if (cl.occ.segment(c.pos, _sightEnd, 1e-9, 1e-9, { from: false })) return MARGIN_TIERS[i][1];
+      }
+      return BAND;
+    }
   }
   return 0;
 }
-const _sightEnd = new THREE.Vector3();
-function clearTween(tw) {
+const _sightEnd = new THREE.Vector3(), _off = new THREE.Vector3();
+const polar = (pos, target) => { const o = _off.subVectors(pos, target), r = o.length(); return [r, Math.acos(THREE.MathUtils.clamp(o.y / Math.max(r, 1e-12), -1, 1))]; };
+// the controls' limits, widened to take in both end framings (a framing a little outside them is the scene's own)
+function limitsFor(tw) {
+  const [ra, pa] = polar(tw.p0, tw.t0), [rb, pb] = polar(tw.p1, tw.t1);
+  return { r0: Math.min(controls.minDistance, ra, rb), r1: Math.max(controls.maxDistance, ra, rb),
+    phi0: Math.min(controls.minPolarAngle, pa, pb), phi1: Math.max(controls.maxPolarAngle, pa, pb) };
+}
+// record: a move about to fly (its plan goes into clearanceStats); a plan made ahead of time is only cached
+function clearTween(tw, record = true) {
+  const g = planTween(tw, record);
+  while (!g.next().done);
+}
+// the plan for a move, found and applied; yields between candidates so a plan made ahead can run in slices
+function* planTween(tw, record) {
   const b = built[ui.scene]; if (!b) return;
   const r = v => v.toArray().map(x => x.toPrecision(5)).join(',');
   const key = [r(tw.p0), r(tw.t0), r(tw.p1), r(tw.t1), tw.arc ? `${tw.arc.lift},${tw.arc.pull}` : 'line'].join('|');
   let plans = flightPlans.get(b); if (!plans) flightPlans.set(b, plans = new Map());
-  const cl = clearanceOf(b);
-  if (!cl) return;                                        // the level's map is still being built: fly as authored
+  const cl = clearanceOf(b, { now: record });
+  if (!cl) return;                                        // (a plan ahead, while the map is still building: later)
   let plan = plans.get(key);
   if (!plan || plan.sig !== cl.sig) {
     const t0 = performance.now();
@@ -744,15 +830,21 @@ function clearTween(tw) {
     const cell = 2 * (cl.occ?.cell || 0);
     const d0 = tw.p0.distanceTo(tw.t0), d1 = tw.p1.distanceTo(tw.t1);
     const home = [{ pos: tw.p0, d: d0, r: Math.max(cell, HOME * d0) }, { pos: tw.p1, d: d1, r: Math.max(cell, HOME * d1) }];
-    const got = clearPath(tw, (a, c) => stepHits(cl, home, a, c), { n: 32, through: 100, budgetMs: 40 });
-    plan = { sig: cl.sig, arc: tw.arc && { xlift: tw.arc.xlift || 0, xpull: tw.arc.xpull || 0, xturn: tw.arc.xturn || 0 }, hop: tw.hop || null, stretch: got.stretch };
+    home.limits = limitsFor(tw);
+    const got = yield* planPath(tw, (a, c) => stepHits(cl, home, a, c), { n: 32, through: 100, maxTries: 320, goodEnough: BAND });
+    plan = { sig: cl.sig, arc: tw.arc && { xlift: tw.arc.xlift || 0, xpull: tw.arc.xpull || 0, xturn: tw.arc.xturn || 0 }, hop: tw.hop || null, via: tw.via || null,
+      stretch: got.stretch, good: got.good, tries: got.tries, costs: got.costs, ms: performance.now() - t0 };
     if (plans.size > 96) plans.delete(plans.keys().next().value);
     plans.set(key, plan);
-    clearanceStats.plans++; clearanceStats.planMs = performance.now() - t0; clearanceStats.clear = got.clear; clearanceStats.costs = got.costs;
-    clearanceStats.chosen = plan.arc || plan.hop;
+    if (record) { clearanceStats.plans++; clearanceStats.planMs = plan.ms; }
+    else clearanceStats.prefetched++;
+  } else if (record) clearanceStats.hits++;
+  if (record) {
+    clearanceStats.clear = plan.good; clearanceStats.costs = plan.costs; clearanceStats.tries = plan.tries;
+    clearanceStats.chosen = plan.via ? { via: plan.via.length } : plan.arc || plan.hop;
   }
   if (plan.arc) Object.assign(tw.arc, plan.arc);
-  tw.hop = plan.hop;
+  tw.hop = plan.hop; tw.via = plan.via;
   // a longer way round takes a little longer, so the detour still reads as one smooth move
   tw.dur *= Math.min(1.6, 1 + 0.6 * Math.max(0, plan.stretch - 1));
 }
@@ -765,6 +857,7 @@ function stepTween(dt) {
     const still = tween.still;
     tween = null;
     if (cinema && !reduced && !still) startDrift();
+    else if (still) prefetchNeighbours();
   }
 }
 // while a part is on screen: orbit a little and push in, if the part stays in clear view the whole way

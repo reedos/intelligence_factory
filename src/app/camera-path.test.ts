@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { poseAt, samplePath, clearPath, pathLength } from './camera-path.js';
+import { poseAt, samplePath, clearPath, planPath, pathLength } from './camera-path.js';
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 function arcMove(p0: THREE.Vector3, t0: THREE.Vector3, p1: THREE.Vector3, t1: THREE.Vector3, lift = 0.055, pull = 0.025) {
@@ -80,15 +80,45 @@ describe('clearing a path', () => {
   });
   it('keeps the authored move when every detour still passes through something', () => {
     const m = line(V(-10, 2, 0), V(-10, 0, -5), V(10, 2, 0), V(10, 0, -5));
-    const got = clearPath(m, (a: { u: number; pos: THREE.Vector3 }, b: { pos: THREE.Vector3 }) => (m.hop ? (a.u === 0.5 ? 100 : 0) : through(4)(a, b) ? 100 : 0), { through: 100 });
+    const got = clearPath(m, (a: { u: number; pos: THREE.Vector3 }, b: { pos: THREE.Vector3 }) => (m.hop || (m as { via?: unknown }).via ? (a.u === 0.5 ? 100 : 0) : through(4)(a, b) ? 100 : 0), { through: 100 });
     expect(got).toMatchObject({ clear: false, stretch: 1 });
     expect(m.hop).toBeNull();
   });
   it('passes through a surface is worse than skimming one', () => {
     const m = line(V(-10, 2, 0), V(-10, 0, -5), V(10, 2, 0), V(10, 0, -5));
     // the straight path passes through (2); every hop skims once (1): a hop is kept though none is clear
-    const got = clearPath(m, (a: { u: number; pos: THREE.Vector3 }, b: { pos: THREE.Vector3 }) => (m.hop ? (a.u === 0.5 ? 1 : 0) : through(4)(a, b) ? 2 : 0));
+    const got = clearPath(m, (a: { u: number; pos: THREE.Vector3 }, b: { pos: THREE.Vector3 }) => (m.hop || (m as { via?: unknown }).via ? (a.u === 0.5 ? 1 : 0) : through(4)(a, b) ? 2 : 0));
     expect(got.clear).toBe(false);
     expect(m.hop).not.toBeNull();
+  });
+  it('routes through waypoints when no bump clears: out along the start view, in along the end view', () => {
+    // the end framing sits in a slot: walls on both sides and above, open only behind the camera (+z)
+    const p0 = V(-10, 1, 6), t0 = V(-10, 0, 0), p1 = V(0, 1, 2), t1 = V(0, 0, -3);
+    const boxes = [new THREE.Box3(V(-1.5, -1, -4), V(-0.5, 3, 4)), new THREE.Box3(V(0.5, -1, -4), V(1.5, 3, 4)), new THREE.Box3(V(-1.5, 3, -4), V(1.5, 3.5, 4))];
+    const hits = (a: { pos: THREE.Vector3 }, b: { pos: THREE.Vector3 }) => {
+      const d = b.pos.clone().sub(a.pos), len = d.length(); if (len < 1e-9) return 0;
+      const r = new THREE.Ray(a.pos, d.normalize()), q = new THREE.Vector3();
+      return boxes.some(bx => r.intersectBox(bx, q) && q.distanceTo(a.pos) <= len) ? 100 : 0;
+    };
+    // (every bump is ruled out here, to make the waypoints the only way)
+    const m = line(p0, t0, p1, t1), got = clearPath(m, (a: { pos: THREE.Vector3 }, b: { pos: THREE.Vector3 }) => (m.hop ? 100 : hits(a, b)));
+    expect(got.clear).toBe(true);
+    expect((m as { via?: THREE.Vector3[] }).via?.length).toBeGreaterThan(0);
+    const pts = samplePath(m, 64);
+    for (let k = 1; k < pts.length; k++) expect(hits(pts[k - 1], pts[k])).toBe(0);
+    expect(pts[64].pos.distanceTo(p1)).toBeLessThan(1e-6);
+  });
+  it('runs in slices to the same plan', () => {
+    const mk = () => line(V(-10, 2, 0), V(-10, 0, -5), V(10, 2, 0), V(10, 0, -5));
+    const a = mk(), b = mk(), g = planPath(b, through(4));
+    const whole = clearPath(a, through(4));
+    let r = g.next(), slices = 0; while (!r.done) { slices++; r = g.next(); }
+    expect(slices).toBeGreaterThan(0);
+    expect(r.value).toEqual(whole);
+    expect(b.hop).toEqual(a.hop);
+  });
+  it('is bounded by a count of tries, not by time', () => {
+    const m = line(V(-10, 2, 0), V(-10, 0, -5), V(10, 2, 0), V(10, 0, -5));
+    expect(clearPath(m, () => 1, { maxTries: 7 }).tries).toBe(7);
   });
 });
