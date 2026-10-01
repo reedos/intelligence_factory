@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import { buildIdentityPlugin } from './tools/build-identity.mjs';
 
-// Relative base so the same build runs at reedos.github.io/intelligence_factory/ and as a claude.ai artifact.
+// Relative base so the same build runs at reedos.dev/intelligence_factory/ and as a claude.ai artifact.
 export default defineConfig({
   base: './',
   plugins: [buildIdentityPlugin()],

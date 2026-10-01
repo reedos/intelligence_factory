@@ -32,7 +32,7 @@ npm run build      # static site in dist/, relative paths, ready for GitHub Page
 npm run artifact   # dist-artifact/: the same page shaped for a claude.ai artifact
 ```
 
-Live at https://reedos.github.io/intelligence_factory/ (noindex for now). Deploy by hand:
+Live at https://reedos.dev/intelligence_factory/. Deploy by hand:
 `gh workflow run pages.yml` (typechecks, tests and builds first).
 
 The project's own code and text are under the MIT license ([`LICENSE`](LICENSE)). Third-party code, fonts and data
