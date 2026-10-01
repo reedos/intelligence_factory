@@ -9,6 +9,7 @@ import { frameCompute } from './compute-framing.js';
 import { componentView } from '../app/housing-frame.js';
 import { printDecals, textTexture } from './print-kit.js';
 import { nicLabel, labelLines } from './lid-labels.js';
+import { etch, GPU_NAME } from './package-marks.js';
 
 // Printed lid labels on the modules seated in the NIC cages: the scenario's NIC-side class (lid-labels.js).
 export function trayLidLabels(scene, accel, placements, size) {
@@ -419,6 +420,8 @@ function buildHGX({ quality }) {
   finishCompute(scene, finish);
   scene.userData.computeGeneration = { id: 'h100', gpus: 8, cpus: 2, fans: 12, dpuCount: 0, nicCount: 8, storageNicCount: 2, opticalPorts: 4, representative: true };
   return {
+    // the GPU name etched on each package's substrate, ahead of the die inside the stiffener ring (package-marks.js)
+    printSpots: [etch('GPU package marking', GPU_NAME.h100, [.16, .036], gpus.map(([x, z]) => ({ from: [x, fy + .104, z + .188], dir: [0, -1, 0] })))],
     scene, flows,
     look: { env: 'studio', envIntensity: 0.5, exposure: 0.95, bloom: 0.38, threshold: 2.0, ao: 0.14, dof: true },
     camera: { pos: [9.2, 8.4, 4.6], target: [0, 0.7, -0.2], near: 0.02, far: 400, min: 1, max: 30 },
@@ -721,6 +724,8 @@ function buildNVL({ quality, model }) {
   finishCompute(scene, finish);
   scene.userData.computeGeneration = { id: model.accel.id, gpus: 4, cpus: 2, fans: 6, dpuCount: dpuX.length, nicCount: 4, nic: ultra ? 'ConnectX-8' : 'ConnectX-7', memoryModules: 'soldered LPDDR5X', nicBoards: ultra ? 2 : 4, representative: true };
   return {
+    // the GPU name etched on each package's front substrate margin, clear of its capacitor ring (package-marks.js)
+    printSpots: [etch('GPU package marking', GPU_NAME[model.accel.id], [.2, .055], gpus.map(([x, z]) => ({ from: [x - .15, floorY + .075, z + .40], dir: [0, -1, 0] })))],
     scene, flows,
     look: { env: 'studio', envIntensity: 0.5, exposure: 0.98, bloom: 0.36, threshold: 2.0, ao: 0.12, dof: true },
     camera: { pos: [5.9, 6.4, 8.3], target: [0, 0.1, -0.5], near: 0.02, far: 400, min: 1, max: 30 },

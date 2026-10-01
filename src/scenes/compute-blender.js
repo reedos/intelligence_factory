@@ -7,7 +7,7 @@ import { build as chip } from './chip.js';
 import { applyPcb } from './tray-pcb.js';
 import { rackMarks } from './electrical-marks.js';
 import { rackManifoldMarks } from './cooling-marks.js';
-import { surfaceHit } from './print-kit.js';
+import { surfaceHit, realizeSpots } from './print-kit.js';
 
 const cache = new Map(), pending = new Map();
 const physical = o => o.isMesh && !o.isReflector && !o.userData.computeDynamic && !o.userData.printed
@@ -17,7 +17,7 @@ const assetKey = (kind, model) => `compute-${kind}-${variant(kind, model)}`;
 
 async function load(key) {
   if (cache.has(key)) return;
-  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=traylbl1`)
+  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=traylbl2`)
     .then(gltf => { cache.set(key, gltf.scene); pending.delete(key); })
     .catch(error => { pending.delete(key); throw error; }));
   await pending.get(key);
@@ -105,6 +105,8 @@ function build(kind, native, options) {
   if (kind === 'tray') applyPcb(hardware, accel, { mobile });
   if (kind === 'rack') applyPcb(hardware, accel, { lod: 'rack', rects: rackBoards(accel) });
   built.scene.add(hardware);
+  // Package markings and other prints requested by the native builder, on the authored surfaces.
+  realizeSpots(hardware, built.scene, built.printSpots);
   if (kind === 'rack' && built.printMarks) {
     // Voltage marks print on the authored surfaces: the busway's front face and the busbar's rear face.
     const tag = built.printMarks.busbar;

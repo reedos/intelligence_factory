@@ -4,6 +4,7 @@ import { THREE, MAT, Builder, flow, canvasTex, texMat } from '../kit.js';
 import { rbox } from '../fx.js';
 import { componentView } from '../app/housing-frame.js';
 import { computeMaterials, finishCompute, boardFinish } from './compute-finish.js';
+import { etch } from './package-marks.js';
 export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,trayLidLabels}) {
  const scene=new THREE.Scene();lights(scene,quality);
  const S=new Builder(),N=new Builder(),flows=[],dataFlows=[],heatFlows=[],finish=computeMaterials();
@@ -22,7 +23,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  const midplane=new THREE.Mesh(new THREE.BoxGeometry(4.1,.24,.04),MAT.pcbBlack);midplane.name='Rubin PCIe Gen6 midplane';midplane.position.set(0,.23,1.12);scene.add(midplane);
  for(const x of [-1.1,1.1]){S.box(2.02,.025,4.9,MAT.pcb,x,.075,-1.52);boardFinish(N,finish,x,.087,-1.52,2.02,4.9);}
  const top=texMat(dieTex(),{rough:.22,metal:.3}),labels=new Map();
- // One material per label: the eight CX9 packages share one texture.
+ // One material per label: the eight ConnectX-9 packages share one texture.
  const labelMat=label=>{if(!labels.has(label))labels.set(label,texMat(pkgTex(label),{rough:.4}));return labels.get(label);};
  const packageAt=(name,x,z,w,d,label,lid,interposer)=>{
   N.box(w*.92,.024,d*.92,MAT.black,x,.1,z);                                   // ball field / socket under the substrate
@@ -51,8 +52,8 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  });
  // Quad-SuperNIC boards are represented by two service assemblies, with the
  // published aggregate GPU connectivity. Fine pin/trace routing is illustrative.
- nic.forEach(([x,z],i)=>{S.box(1.35,.035,2.15,MAT.pcb,x,.105,z);boardFinish(N,finish,x,.124,z,1.35,2.15);for (const dx of [-.3,.3]) for (const dz of [-.47,.47]) packageAt(`ConnectX-9 ${i*4+(dx<0?0:2)+(dz<0?1:2)}`,x+dx,z+dz,.40,.52,'CX9',true);});
- S.box(.85,.035,2.15,MAT.pcb,0,.105,2.85);boardFinish(N,finish,0,.124,2.85,.85,2.15);packageAt('BlueField-4 DPU',0,2.85,.66,.75,'BF4',true);
+ nic.forEach(([x,z],i)=>{S.box(1.35,.035,2.15,MAT.pcb,x,.105,z);boardFinish(N,finish,x,.124,z,1.35,2.15);for (const dx of [-.3,.3]) for (const dz of [-.47,.47]) packageAt(`ConnectX-9 ${i*4+(dx<0?0:2)+(dz<0?1:2)}`,x+dx,z+dz,.40,.52,'ConnectX-9',true);});
+ S.box(.85,.035,2.15,MAT.pcb,0,.105,2.85);boardFinish(N,finish,0,.124,2.85,.85,2.15);packageAt('BlueField-4 DPU',0,2.85,.66,.75,'BlueField-4',true);
  // Power board and exposed supply clip are representative, not a wiring drawing.
  S.box(4.1,.035,.58,MAT.pcbBlack,0,.095,-4.05);
  for(const x of [-1.5,-.5,.5,1.5]){S.box(.65,.12,.42,MAT.nickel,x,.2,-4.02);for(let i=0;i<4;i++)N.box(.08,.08,.16,MAT.inductor,x-.19+i*.125,.29,-4.02);}
@@ -152,7 +153,8 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  const hotspots={osfp:hs([-1.35,.5,4.25]),clip:hs([0,.45,-4.5],[2.4,2,-3]),ibc:hs([-1.5,.45,-4]),vrm:hs([1.6,.2,-2.04],[-.5,1.9,2.4]),gpu:{pos:[1.6,.3,-2.7],view:componentView([1.6,.16,-2.7],[-.25,.4,1.3],[.6,.2,.6])},grace:hs([-1.1,.32,-.65]),lpddr:hs([1.74,.3,-.65],[0,2.1,.5]),coldplates:hs([-1.1,.82,-.65]),nic:hs([1.35,.8,2.85]),nvconn:hs([1.75,.4,-4.35],[2,2,-3])};
  finishCompute(scene,finish);
  scene.userData.computeGeneration={id:'rubin',gpus:4,cpus:2,fans:0,internalHoses:0,midplane:true,nicAssemblies:2,nicCount:8,dpuCount:1,opticalPorts:8,representative:true};
- return {scene,flows,dataFlows,heatFlows,hotspots,
+ // the GPU name etched on each package's front substrate margin, ahead of the interposer (package-marks.js)
+ return {printSpots:[etch('GPU package marking','Rubin',[.3,.065],gp.map(([x,z])=>({from:[x,.4,z+.43],dir:[0,-1,0]})))],scene,flows,dataFlows,heatFlows,hotspots,
   heatHotspots:{osfp:hotspots.osfp,coldplates:hotspots.coldplates,gpuheat:hotspots.gpu,manifold:hs([-2.02,.8,0]),qd:hs([2.02,.8,-4.48],[2,2,-3])},
   dataHotspots:{nvconn:hotspots.nvconn,c2c:hs([-1.1,.4,-1.5]),cx:hotspots.nic,osfp:hotspots.osfp,dpu:hs([0,.8,2.85]),gpu:hotspots.gpu},
   camera:{pos:[5.9,6.4,8.3],target:[0,.2,-.5],near:.02,far:400,min:1,max:30},

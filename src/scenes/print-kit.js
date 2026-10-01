@@ -236,3 +236,16 @@ export function pipeMarkers(parent, { texture, radius, length, placements, name 
   parent.add(mesh);
   return mesh;
 }
+
+/**
+ * Marks that native builders request and an authored-hardware wrapper prints once its geometry is in place.
+ * groups: [{ name, lines, text: textTexture options, size: [w, h], material, lift, spots: [{ from, dir, roll, up }] }].
+ * Each spot casts a ray at `root`; the mark faces back along the ray.
+ */
+export function realizeSpots(root, parent, groups = []) {
+  for (const g of groups) {
+    const solid = o => !isPrinted(o) && !(Array.isArray(o.material) ? o.material : [o.material]).every(m => m?.transparent && m.opacity < 1);
+    const placements = g.spots.map(s => stick(root, s.from, s.dir, solid, { roll: s.roll, up: s.up })).filter(Boolean);
+    printDecals(parent, { texture: textTexture(g.lines, g.text), size: g.size, placements, lift: g.lift ?? .0005, name: g.name, material: g.material || { roughness: .55 } });
+  }
+}

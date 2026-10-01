@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ACCELERATORS } from '../model/engine';
 import { switchLabel, nicLabel, labelLines, MODULE_LABEL, COHERENT_LABEL, COPPER_LABELS } from './lid-labels.js';
+import { GPU_NAME, CPU_NAME } from './package-marks.js';
 
 // The printed lid labels follow the scenario's hardware tier (H100/GB200 400G per GPU, GB300 800G, Vera Rubin 1.6T).
 describe('lid labels', () => {
@@ -27,5 +28,9 @@ describe('lid labels', () => {
   it('print the form factor on its own line', () => {
     expect(labelLines('OSFP 800G 2xDR4')).toEqual(['OSFP', '800G 2xDR4']);
     expect(labelLines('800ZR')).toEqual(['800ZR']);
+  });
+  it('mark each GPU and CPU package with its device name', () => {
+    expect(GPU_NAME).toEqual({ h100: 'H100', gb200: 'B200', gb300: 'B300', rubin: 'Rubin' });
+    expect(CPU_NAME.rubin).toBe('VERA'); expect(CPU_NAME.gb300).toBe('GRACE');
   });
 });
