@@ -1067,6 +1067,19 @@ export function build({ quality, model }) {
   // below the light rails so no diffuser sits in the line of sight (the back-row unit faced the wall).
   const cduHero = cduMx[(rowZs.length - 1) * groups];
   const cduSpot = { pos: [cduHero.x, 2.75, cduHero.z], view: { pos: [cduHero.x - 3.4, 3.1, cduHero.z + 4.6], target: [cduHero.x + .2, 1.35, cduHero.z] } };
+  // The switch faces are true size: a lid label is 19 x 9.5 mm and a cage number 3.2 mm tall. These two part views
+  // stand close (about 0.35 m on a desktop, 0.26 m on a phone, whose view is narrower), looking down ~38 degrees so
+  // both the printed lids and the numbers on the face above each cage read; the stage lets the orbit come this close
+  // only while one of them is selected (`close`). The pins sit on the top chassis edge, inside these frames.
+  const leafTop = 1.52 + (bigSwitch ? SWITCH_FORMS.q3400.h : 2 * SWITCH_FORMS.qm9700.h + .0009), leafMid = (1.52 + leafTop) / 2;
+  const faceView = (x, faceZ, d, side = 0) => ({ pos: [x + side, leafMid + d * .62, faceZ + d * .78], target: [x, leafMid, faceZ + .02] });
+  const closeSpot = (x, faceZ, dDesk, dPhone, side) => ({
+    pos: [x, leafTop + .012, faceZ + .02],
+    view: { ...faceView(x, faceZ, dDesk, side), close: true, portrait: faceView(x, faceZ, dPhone, side * dPhone / dDesk) },
+  });
+  const leafSpot = closeSpot(leafX - .05, rowZs[3] + facing[3] * .6, .36, .26, -.08);      // row 4's leaf switches
+  const opticsSpot = closeSpot(leafX + .07, rowZs[1] + facing[1] * .6, .38, .28, -.04);      // row 2's, with the multimode modules and splitters
+
   const built = {
     scene, flows,
     // Desktop overview sits ~15% closer than before so the hall fills the frame; the target is offset
@@ -1083,7 +1096,7 @@ export function build({ quality, model }) {
     // Phones only: with cameraByMode set, a layer switch re-opens that layer's overview, which desktop keeps as is.
     ...(quality.mobile ? { cameraByMode: { data: { portrait: { pos: [5, 58, 36], target: [5, 1, 3] } } } } : {}),
     hotspots: {
-      optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .37, 1.74, -6.72], target: [leafX + .02, 1.57, -7.6] } },   // ~0.9 m off the cages so the true-size OSFP modules and their jumpers fill the frame
+      optics: opticsSpot,
       cpo: cpoSpot,
       unitsub: { pos: [usX, 3.3, usZ], view: { pos: [usX - 6.6, 5.0, usZ + 6.4], target: [usX + 1.2, 1.3, usZ] } },
       swgr: { pos: [-27, 2.8, -15.6], view: { pos: [-25, 6, -4], target: [-27, 1.3, -15.6] } },
@@ -1120,12 +1133,10 @@ export function build({ quality, model }) {
       pp: { pos: [front[0].x - 0.3, 2.6, rowZs[5]], view: { pos: [front[4].x, 7.5, rowZs[5] + 7.5], target: [front[4].x, 2.3, rowZs[5] - 1.5] } },
       dp: { pos: [front[6].x, 2.6, rowZs[5]], view: { pos: [front[10].x, 9, rowZs[5] + 10], target: [front[12].x, 2, rowZs[3]] } },
       uplinks: { pos: [rackMx.filter(k => k.z === -4.6)[10].x, 3.4, -4.6], view: { pos: [-1.2, 2.9, -7.0], target: [4.5, 3.2, -4.9] } },
-      // At true size a 1U QM9700 is 44 mm tall, so the view stands in the aisle ~1.6 m from the row-end
-      // network rack, level with its switch pair; the pin sits on that rack's face, not its roof.
-      leaf: { pos: [leafX, 1.8, -.95], view: { pos: [leafX - .65, 1.85, .4], target: [leafX, 1.5, -1.0] } },
+      leaf: leafSpot,
       spine: { pos: [rowX0 + 4, 2.7, 10.5], view: { pos: [rowX0 + 5, 5, 18], target: [rowX0 + 5, 1.2, 10.5] } },
       runways: { pos: [rowX1 + 0.45, 4.7, 4], view: { pos: [rowX1 - 6, 8, 12], target: [rowX1, 4, 2] } },
-      optics: { pos: [leafX, 1.75, -7.55], view: { pos: [leafX + .37, 1.74, -6.72], target: [leafX + .02, 1.57, -7.6] } },   // ~0.9 m off the cages so the true-size OSFP modules and their jumpers fill the frame
+      optics: opticsSpot,
       cpo: cpoSpot,
       racks: { pos: [front[18].x, 2.6, rowZs[5]], view: { pos: [front[18].x + 1.6, 3.5, 12], target: [front[18].x, 1.25, rowZs[5]] } },
     },

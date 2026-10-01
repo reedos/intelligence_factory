@@ -30,6 +30,7 @@ import { applyComputeArtDirection } from '../scenes/compute-art-direction.js';
 import { cameraPresetFor } from './camera-presets.js';
 import { poseAt, planPath } from './camera-path.js';
 import { occupancyBuilder } from './occupancy.js';
+import { buildTriGrid } from './tri-grid.js';
 import { fitHousing, fitComponent } from './housing-frame.js';
 import { overlapsRect, pinLabelBox, declutterPins } from './pin-layout.js';
 
@@ -543,17 +544,42 @@ function onScreen(pos, target, part, box) {
   const v = part.clone().project(_cam);
   return v.z < 1 && v.x > box.x0 && v.x < box.x1 && v.y > box.y0 && v.y < box.y1;
 }
+// Large meshes (the hall's racks are one of about a million triangles) are tested through a triangle grid built
+// as the level opens (tri-grid.js: the same answer as three's raycast, a few hundred times faster); the rest, and any
+// mesh moved since its grid was made, through three's raycast as before.
 function clearLine(b, pos, part) {
-  const d = part.clone().sub(pos), dist = d.length();
-  _ray.set(pos, d.normalize()); _ray.near = 0; _ray.far = dist * 0.85;
-  return _ray.intersectObjects(solidsOf(b), false).length === 0;
+  const d = part.clone().sub(pos), dist = d.length(), far = dist * 0.85;
+  d.normalize();
+  const rest = [];
+  for (const o of solidsOf(b)) {
+    const g = b._triGrids?.get(o);
+    if (g?.fresh()) { if (g.hits(pos, d, far)) return false; } else rest.push(o);
+  }
+  _ray.set(pos, d); _ray.near = 0; _ray.far = far;
+  return _ray.intersectObjects(rest, false).length === 0;
 }
+// the triangle grids for a level's large solid meshes: built as the level opens, behind the veil, and for meshes that
+// join later (a level's late-loading model), between frames once the level's solids change
+function buildTriGrids(b) {
+  const grids = b._triGrids ||= new Map(), tried = b._triTried ||= new WeakSet(), t0 = performance.now();
+  b.scene.traverse(o => {
+    if (!(o.isMesh || o.isInstancedMesh) || o.isSprite || tried.has(o)) return;
+    tried.add(o);
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    if (!mats.some(m => m && m.depthWrite !== false && !(m.transparent && m.opacity < 0.6))) return;
+    o.updateMatrixWorld();
+    const g = buildTriGrid(o); if (g) grids.set(o, g);
+  });
+  clearanceStats.gridMs += performance.now() - t0; clearanceStats.grids = grids.size;
+}
+// a part's view for the view's shape: a part may carry its own `portrait` view for tall (phone) frames
+const viewFor = h => (h.view.portrait && view.clientWidth / Math.max(1, view.clientHeight) < 0.9 ? h.view.portrait : h.view);
 export function frame(b, h) {
-  const part = V(h.pos), box = safeBox();
-  const preset = h.view.detailSize ? fitComponent(h.view, view.clientWidth, view.clientHeight, box) : h.view;
+  const part = V(h.pos), box = safeBox(), hv = viewFor(h);
+  const preset = hv.detailSize ? fitComponent(hv, view.clientWidth, view.clientHeight, box) : hv;
   let pos = V(preset.pos), target = V(preset.target);
   // 1. on screen: slide the aim toward the part until it lands in the clear area
-  for (let k = 0.25; k <= 1.001 && !onScreen(pos, target, part, box); k += 0.25) target = V(h.view.target).lerp(part, k);
+  for (let k = 0.25; k <= 1.001 && !onScreen(pos, target, part, box); k += 0.25) target = V(hv.target).lerp(part, k);
   if (clearLine(b, pos, part)) return { pos: pos.toArray(), target: target.toArray() };
   // 2. line of sight: orbit the camera about the aim point, keeping the distance
   const off = pos.clone().sub(target), s = new THREE.Spherical().setFromVector3(off);
@@ -698,7 +724,7 @@ const CLEAR = 0.075, HOME = 0.03, SIGHT = 0.55;
 const MARGIN_TIERS = [[0.85, 0.3], [0.7, 1], [0.45, 3], [0.2, 10]], BAND = 0.05;   // BAND: the outer band only
 const flightPlans = new WeakMap();
 // for the flights gate: how often the voxel map was built, what the last build and plan cost, what the plan chose
-export const clearanceStats = { builds: 0, buildMs: 0, standIn: 0, unplanned: 0, plans: 0, planMs: 0, hits: 0, prefetched: 0, clear: true, pending: false };
+export const clearanceStats = { gridMs: 0, grids: 0, overlays: 0, overlayMs: 0, builds: 0, buildMs: 0, standIn: 0, unplanned: 0, plans: 0, planMs: 0, hits: 0, prefetched: 0, clear: true, pending: false };
 // Background work runs in the gaps between frames: a slice takes part of what is left of a gap (at most 4 ms, in a
 // gap of 4 ms or more). A page that leaves no such gap (a heavy level on a phone) still gets a 3 ms slice every
 // 100 ms, so the work finishes in seconds, not minutes, at a cost of about 3% of the main thread meanwhile.
@@ -709,11 +735,14 @@ const whenIdle = f => {
   requestIdleCallback(wait, { timeout: 100 });
 };
 const idleBudget = d => (d && !d.didTimeout && d.timeRemaining() >= 4 ? Math.min(4, d.timeRemaining() - 1) : 3);
-// The level's clearance map for what is on screen now (a layer's flows count, so each layer has its own; a level
-// keeps the last four). Returns { map, exact }: the map for what is on screen, or, while that one is still building,
-// the level's latest map as a stand-in (the same buildings, another layer's flows); null before the level has any.
-// A missing map starts building in the background, in the gaps between frames, so a tap never waits for one. `load`
-// is time it may take at once instead: a level opening behind its veil builds most or all of its first map then.
+// The level's clearance map for what is on screen now. It is two maps queried together: a base map of the level as
+// it opened (built whole behind the veil), and a small overlay of whatever has appeared since, which is mostly a
+// layer's own flows and parts (a few hundred to a few tens of thousands of triangles, a few ms to build, so a layer
+// switch costs next to nothing). Things the base holds that a layer hides stay in it: the planner keeps clear of
+// them too, which only makes it more careful. When much more appears than an overlay should carry (a level's
+// late-loading model), a new base builds in the gaps between frames and the old one stands in meanwhile.
+// Returns { map, exact } (exact: false while standing in), or null before the level has a base.
+const OVERLAY_MAX = 60000;                                 // triangles: more than this rebuilds the base instead
 function clearanceOf(b, { load = 0 } = {}) {
   // Walked fresh each time (solidsOf caches its list at the first framing, before late assets such as the hall's
   // Blender finish have joined the scene). Anything that reads as a surface counts: opaque-looking meshes, including
@@ -727,22 +756,9 @@ function clearanceOf(b, { load = 0 } = {}) {
     if (mats.some(m => m && m.visible !== false && !m.isLineMaterial && m.side !== THREE.BackSide && m.blending !== THREE.AdditiveBlending && !(m.transparent && m.opacity < 0.6))) solids.push(o);
   });
   const sig = `${solids.length}:${solids.reduce((n, o) => n + o.id, 0)}`;
-  const maps = b._clearanceMaps ||= new Map();
-  if (maps.has(sig)) return { map: maps.get(sig), exact: true };
-  const standIn = () => (b._clearanceLatest ? { map: b._clearanceLatest, exact: false } : null);
-  const finish = next => {
-    const map = { sig, occ: next.builder.result };
-    maps.set(sig, map); if (maps.size > 4) maps.delete(maps.keys().next().value);
-    b._clearanceNext = null; b._clearanceLatest = map;
-    clearanceStats.builds++; clearanceStats.buildMs = next.ms; clearanceStats.pending = false;
-    return map;
-  };
-  const run = (next, ms) => {                              // up to `ms` of the build now
-    const t0 = performance.now(), done = next.builder.step(ms);
-    next.ms += performance.now() - t0;
-    return done ? { map: finish(next), exact: true } : null;
-  };
-  if (b._clearanceNext?.sig === sig) return (load && run(b._clearanceNext, load)) || standIn();
+  const base = b._clearanceBase;
+  const maps = b._clearanceMaps ||= new Map(), key = base ? `${base.id}|${sig}` : null;
+  if (key && maps.has(key)) return { map: maps.get(key), exact: true };
   // the surroundings (ground, a horizon's ridgeline, a studio floor: flat and as wide as the level) are never flown
   // into and would stretch the map's cells to the horizon: they stay out of it
   const span = new THREE.Box3(), size = new THREE.Vector3(), box = new THREE.Box3();
@@ -753,19 +769,49 @@ function clearanceOf(b, { load = 0 } = {}) {
     const across = Math.max(size.x, size.z);
     return !(size.y < 0.02 * across && across >= 0.9 * wide);
   });
-  const next = b._clearanceNext = { sig, builder: occupancyBuilder(rest), ms: 0 };
-  clearanceStats.pending = true;
-  const slice = deadline => {
-    if (b._clearanceNext !== next || !built.includes(b)) return;   // superseded, finished at load, or level disposed
-    const t0 = performance.now(), done = next.builder.step(idleBudget(deadline));
-    next.ms += performance.now() - t0;
-    if (!done) { whenIdle(slice); return; }
-    finish(next);
+  const tris = o => { const g = o.geometry, n = g?.index ? g.index.count : g?.attributes?.position?.count || 0; return n / 3 * (o.isInstancedMesh ? o.count : 1); };
+  const extra = base ? rest.filter(o => !base.set.has(o)) : rest;
+  const extraTris = extra.reduce((n, o) => n + tris(o), 0);
+  const compose = (bm, ov) => ({
+    cell: bm.occ?.cell ?? ov?.cell ?? 1,
+    near: (p, r) => !!(bm.occ?.near(p, r) || ov?.near(p, r)),
+    segment: (a, c, r0, r1, o) => !!(bm.occ?.segment(a, c, r0, r1, o) || ov?.segment(a, c, r0, r1, o)),
+  });
+  if (base && extraTris <= OVERLAY_MAX) {
+    // a small overlay, built now
+    const t0 = performance.now(), ov = extra.length ? occupancyBuilder(extra, { maxCells: 8_000_000 }) : null;
+    if (ov) ov.step();
+    const map = { sig: key, occ: compose(base, ov?.result) };
+    maps.set(key, map); if (maps.size > 6) maps.delete(maps.keys().next().value);
+    clearanceStats.overlays++; clearanceStats.overlayMs = Math.max(clearanceStats.overlayMs, performance.now() - t0);
+    return { map, exact: true };
+  }
+  // a new base: now (behind the veil), or between frames with the old base standing in
+  const finish = next => {
+    const nb = { id: (base?.id || 0) + 1, set: new Set(next.rest), occ: next.builder.result };
+    b._clearanceBase = nb; b._clearanceNext = null; maps.clear();
+    clearanceStats.builds++; clearanceStats.buildMs = next.ms; clearanceStats.pending = false;
   };
-  const now = load ? run(next, load) : null;
-  if (now) return now;
-  whenIdle(slice);
-  return standIn();
+  if (b._clearanceNext?.sig !== sig) {
+    if (!load) whenIdle(() => { if (built.includes(b)) buildTriGrids(b); });   // solids changed: grids for any new ones
+    b._clearanceNext = { sig, rest, builder: occupancyBuilder(rest), ms: 0 };
+    clearanceStats.pending = true;
+    const next = b._clearanceNext;
+    const slice = deadline => {
+      if (b._clearanceNext !== next || !built.includes(b)) return;   // superseded, finished at load, or level disposed
+      const t0 = performance.now(), done = next.builder.step(idleBudget(deadline));
+      next.ms += performance.now() - t0;
+      if (!done) { whenIdle(slice); return; }
+      finish(next);
+    };
+    if (!load) whenIdle(slice);
+  }
+  if (load) {
+    const next = b._clearanceNext, t0 = performance.now();
+    if (next.builder.step(load)) { next.ms += performance.now() - t0; finish(next); return clearanceOf(b); }
+    next.ms += performance.now() - t0;
+  }
+  return base ? { map: { sig: `${base.id}|standin`, occ: compose(base, null) }, exact: false } : null;
 }
 // How badly one step of a path is obstructed: 0 clear, 1 inside the margin, 100 through a surface (any number of
 // skimmed steps is better than one through a wall). `home`: the start and end framings, each with the radius around
@@ -1052,12 +1098,16 @@ export function select(id, fly) {
   const go_ = $('card-go'), to = drillOf(p), inw = isInward(ui.scene, to); go_.hidden = p.drill === undefined;
   if (p.drill !== undefined) go_.textContent = `${inw ? 'Go inside' : 'Back out'}: ${SCENES()[to].title} ${inw ? '→' : '↑'}`;
   go_.onclick = () => (p.drill === 'out' ? backOut() : go(drillOf(p), id));
-  if (fly) { const h = hotspotsFor(ui.scene)[id]; if (h?.view) { const f = frame(built[ui.scene], h); flyTo(f.pos, f.target, 1.1, { detail: !!h.view.detailSize }); } }
+  // a close part view (a switch face read at true size) may bring the orbit nearer than the level's own limit, for as
+  // long as that part is selected
+  const hs = hotspotsFor(ui.scene)[id];
+  controls.minDistance = hs?.view?.close ? Math.min(levelMin, 0.8 * V(viewFor(hs).pos).distanceTo(V(viewFor(hs).target))) : levelMin;
+  if (fly) { const h = hs; if (h?.view) { const f = frame(built[ui.scene], h); flyTo(f.pos, f.target, 1.1, { detail: !!h.view.detailSize }); } }
   revealInPane([document.querySelector(`#parts button[data-id="${id}"]`)?.closest('li'), $('card')]);
   emit('select', { scene: ui.scene, mode: ui.mode, id });
 }
 export function deselect() {
-  ui.selected = null; $('card').hidden = true;
+  ui.selected = null; $('card').hidden = true; controls.minDistance = levelMin;
   pins.forEach(p => p.el.classList.remove('on'));
   document.querySelectorAll('#parts button').forEach(b => b.setAttribute('aria-pressed', String(b.hasAttribute('data-overview'))));
 }
@@ -1139,7 +1189,7 @@ function jumpLabel(from, to) {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------- scene switching ----------
-let busy = false, queued = null, goingTo = -1;
+let busy = false, queued = null, goingTo = -1, levelMin = 0;
 export async function go(i, fromId, { force = false, keepCamera = false, fromShow = false } = {}) {
   if (!force && !fromShow) showSeq++;                      // the reader moved: drop any jump still waiting for its scene
   if (busy) { queued = [i, fromId, { force, keepCamera }]; return; }   // the latest request runs when this switch lands
@@ -1207,7 +1257,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   if (mobile) built.forEach((bb, j) => { if (bb && Math.abs(j - i) > 1) { disposeScene(bb); disposeComposer(composers[j]); built[j] = undefined; composers[j] = undefined; } });
   const c = (isSide(i) && b.cameraFrom?.[sideVia]) || overviewCamera(b);   // the side level opens on the half you came in for
   camera.near = c.near; camera.far = c.far; camera.updateProjectionMatrix();
-  controls.minDistance = c.min; controls.maxDistance = c.max;
+  levelMin = c.min; controls.minDistance = c.min; controls.maxDistance = c.max;
   renderer.toneMappingExposure = lookOf(i).exposure;
   let openAt = null, arrive = null;
   if (!keepCamera) {
@@ -1239,6 +1289,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   resize();
   // the level's clearance map, built whole while its veil is still up, so the reader's first tap is always planned
   // (another layer's map, built later between frames, stands in for it until then: the same buildings)
+  buildTriGrids(b);
   clearanceOf(b, { load: Infinity });
   hush(1500);
   if (travel) {
@@ -1443,7 +1494,9 @@ function updatePins() {
 // surfaces then bleed through and flicker (z-fighting). Keep near at about 1% of the
 // distance to what the camera is looking at.
 function fitDepthRange(c) {
-  const near = Math.max(c.near, camera.position.distanceTo(controls.target) * 0.01);
+  // a hundredth of the view distance, but no more than a tenth of it: a close part view (a switch face from 0.3 m)
+  // would otherwise lose its nearest cables to the level's own near plane
+  const d = camera.position.distanceTo(controls.target), near = Math.max(Math.min(c.near, d * 0.1), d * 0.01);
   if (Math.abs(near - camera.near) / camera.near > 0.05) { camera.near = near; camera.updateProjectionMatrix(); }
 }
 
