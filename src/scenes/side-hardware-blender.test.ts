@@ -91,11 +91,35 @@ describe('coherent packaging qualifications remain visible in the interactive sc
     const first=(points:number[][],box:THREE.Box3)=>points.findIndex(p=>insideXZ(box,new THREE.Vector3(...p)));
     for(const p of routes.lineTx) {expect(first(p,driver)).toBeGreaterThan(-1);expect(first(p,modulator)).toBeGreaterThan(first(p,driver));}
     for(const p of routes.lineRx) {expect(first(p,receiver)).toBe(0);expect(first(p,tia)).toBeGreaterThan(0);}
-    for(const p of routes.hostTx) expect(p.at(-1)[0]).toBeCloseTo(-2.065);
-    for(const p of routes.hostRx) expect(p[0][0]).toBeCloseTo(-2.065);
-    for(const p of routes.lineTx) expect(p[0][0]).toBeCloseTo(-.915);
-    for(const p of routes.lineRx) expect(p.at(-1)[0]).toBeCloseTo(-.915);
+    for(const p of routes.hostTx) expect(p.at(-1)[0]).toBeCloseTo(-2.875);
+    for(const p of routes.hostRx) expect(p[0][0]).toBeCloseTo(-2.875);
+    for(const p of routes.lineTx) expect(p[0][0]).toBeCloseTo(-1.725);
+    for(const p of routes.lineRx) expect(p.at(-1)[0]).toBeCloseTo(-1.725);
 
+  });
+  it('keeps DSP-to-driver and TIA-to-DSP routes short and direct, with the laser off the RF path (OIF packaging order)',()=>{
+    const b=build(1),asset=b.scene.children.find((o:THREE.Object3D)=>o.name.startsWith('Blender'));
+    asset.updateMatrixWorld(true);
+    const laser=new THREE.Box3();for(const m of meshes(asset).filter(m=>m.name.includes('_itla_')))laser.union(new THREE.Box3().setFromObject(m));
+    const bounds=(id:string)=>new THREE.Box3().setFromObject(asset.getObjectByName(`coherent-hardware_${id}_ceramic`));
+    const driver=bounds('driver'),tia=bounds('tia'),modulator=bounds('cdm'),receiver=bounds('icr');
+    // Order along the module: DSP, then the analog chips, then the optics, then the laser.
+    expect(laser.min.x).toBeGreaterThan(Math.max(modulator.max.x,receiver.max.x));
+    const routes=b.scene.userData.coherentRouting;
+    expect(routes.rfEndFacesDsp).toBe(true);
+    const length=(pts:number[][])=>pts.slice(1).reduce((n,p,i)=>n+Math.hypot(p[0]-pts[i][0],p[2]-pts[i][2]),0);
+    for(const p of routes.lineTx) {
+      const k=p.findIndex((q:number[])=>q[0]>=driver.min.x-.1);
+      expect(length(p.slice(0,k+1))).toBeLessThan(.75);   // die edge to the driver's input pads, under 7.5 mm
+      expect(Math.max(...p.map((q:number[])=>q[0]))).toBeLessThan(laser.min.x);
+    }
+    for(const p of routes.lineRx) {
+      const k=p.findIndex((q:number[])=>q[0]<tia.min.x);
+      expect(length(p.slice(k-1))).toBeLessThan(.75);
+      expect(Math.max(...p.map((q:number[])=>q[0]))).toBeLessThan(laser.min.x);
+    }
+    // Every optical port of both optics is on their fiber end, facing away from the DSP.
+    for(const path of [routes.carrierPath,routes.loPath]) expect(path.at(-1)[0]).toBeCloseTo(modulator.max.x-.04,1);
   });
   it('keeps DSP electrical routes outside the tunable laser and host routes clear of the power components',()=>{
     const b=build(1),asset=b.scene.children.find((o:THREE.Object3D)=>o.name.startsWith('Blender'));
@@ -314,8 +338,9 @@ describe('complete link housings',()=>{
  it('coherent optical-package power feeds clear the laser case with their full pulse radius',()=>{
   const b=build(1),asset=b.scene.children.find((o:THREE.Object3D)=>o.name.startsWith('Blender'));asset.updateMatrixWorld(true);
   const laser=new THREE.Box3();for(const m of meshes(asset).filter(m=>m.name.includes('_itla_')))laser.union(new THREE.Box3().setFromObject(m));
-  const feeds=b.flows.filter((f:any)=>f.cls==='core'&&f.path.getPoint(1).x>laser.max.x);
-  expect(feeds).toHaveLength(4);
+  // Every DC feed except the laser's own (which ends inside its case).
+  const feeds=b.flows.filter((f:any)=>f.cls==='core'&&!laser.containsPoint(f.path.getPoint(1)));
+  expect(feeds).toHaveLength(5);
   for(const f of feeds) {
    const padded=laser.clone().expandByScalar(f.size);
    for(let n=0;n<=200;n++)expect(padded.containsPoint(f.path.getPoint(n/200))).toBe(false);

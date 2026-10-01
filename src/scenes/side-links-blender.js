@@ -14,7 +14,7 @@ let pending;
 export function preloadLinks() {
   if (cached.size === 2) return Promise.resolve();
   if (!pending) pending = Promise.all(['coherent', 'copper'].map(async name => {
-    const gltf = await new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 19 : 14}`);
+    const gltf = await new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 19 : 15}`);
     cached.set(name, gltf.scene);
   })).catch(error => { pending = null; throw error; });
   return pending;
@@ -164,7 +164,7 @@ function build(name, nativeBuilder, options) {
     built.scene.add(bench);
   }
   built.inspection.scope = name === 'coherent'
-    ? 'Discrete board-level design: the driver and TIA are each in their own electronic package, physically separate from the IQ modulator and receiver optical assemblies. No shared package or substrate joins electronics to optics here. This packaging choice, dimensions and RF routing are representative assumptions, not a teardown of a shipping 800ZR. Exact die placement varies. OSFP shell footprint and the nano-ITLA case envelope are to scale; the remaining layout is representative. The pull tab is representative; with it the model stays within the 116 mm maximum length Cisco lists for its OSFP 800G modules with pull tab. Layers are separated for inspection; transfer across display gaps is schematic. The same tunable laser supplies the transmit carrier and receive local oscillator. Heat paths are qualitative; pulse counts do not represent power ratios.'
+    ? 'Discrete board-level design: the driver and TIA are each in their own electronic package, physically separate from the IQ modulator and receiver optical assemblies. No shared package or substrate joins electronics to optics here. This packaging choice, dimensions and RF routing are representative assumptions, not a teardown of a shipping 800ZR. The order along the board follows the OIF HB-CDM, micro-ICR and IC-TROSA agreements, which put each optical package’s RF interface at the end facing the DSP and its fibers at the opposite end: DSP, then driver and TIA, then the optics, with the laser toward the fiber end and off the RF path. Exact die placement varies. OSFP shell footprint and the nano-ITLA case envelope are to scale; the remaining layout is representative. The label sits where OSFP MSA Fig. 3-4 recommends, a 15 × 20 mm field on top at the fiber end; its wording and stock are representative. The pull tab is representative in shape; it is drawn white, the OSFP MSA color for 1550 nm modules up to 80 km, because the MSA table has no coherent row. With it the model stays within the 116 mm maximum length Cisco lists for its OSFP 800G modules with pull tab. Layers are separated for inspection; transfer across display gaps is schematic. The same tunable laser supplies the transmit carrier and receive local oscillator. Heat paths are qualitative; pulse counts do not represent power ratios.'
     : 'Representative DAC, ACC and AEC circuits in a two-piece die-cast clamshell at QSFP112 width and height (about 18.4 by 8.5 mm), informed by public exterior photographs rather than a teardown. The body is drawn shorter than a 72.4 mm Type 1 module; the nose, card supports, latch sliders, grounding fingers and internal placement are illustrative. Four transmit and four receive pairs are shown. Layers, pair shields and the upper half of the cable jacket are opened for inspection, and the cable is cut short behind the boot to show a representative cross-section. Every signal path is electrical. The ACC redriver handles receive; the AEC retimer handles both directions. Heat motion shows qualitative transfer from active chips to the case and surroundings across exploded gaps; it does not encode watts or a power ratio. Release hardware adds no signal connections.';
   built.inspection.scope += ' Lids lift straight above their bodies without lateral displacement. Their surfaces use an x-ray inspection treatment to keep internal paths visible; this is not transparent metal. In Heat, each lid is an x-ray thermal target.';
   const view = (label, hotspot) => ({ label, ...hotspot.view });
@@ -175,6 +175,7 @@ function build(name, nativeBuilder, options) {
     tia: view('TIA IC', built.dataHotspots.tia),
     transmit: view('Transmit optics', built.dataHotspots.cdm),
     receive: view('Coherent receiver', built.dataHotspots.icr),
+    pluggable: view('Pull tab and label', built.dataHotspots.pluggable),
   } : {
     diagram: { label: 'Three plug ends', ...built.camera },
     dac: view('DAC · passive', built.dataHotspots.dac),
@@ -202,8 +203,8 @@ function build(name, nativeBuilder, options) {
     }
   }
   // Printed marks (lid-labels.js). Copper: each lifted upper half carries its cable class on the lid, printed in the
-  // same x-ray treatment as the lid it sits on. Coherent: the finned lid has no flat field, so 800ZR is printed
-  // on the die-cast lower case's long wall facing the reader.
+  // same x-ray treatment as the lid it sits on. Coherent: a module label on the top housing's flat top skin.
+  let coherentLabel = null;
   if (name === 'copper') {
     for (const [kind, x] of [['dac', -4.6], ['acc', 0], ['aec', 4.6]]) {
       const hit = surfaceHit(model, [x, 12, -1.7], [0, -1, 0], o => /lifted cover/i.test(o.material?.name || ''));
@@ -214,10 +215,14 @@ function build(name, nativeBuilder, options) {
     }
   }
   if (name === 'coherent') {
-    const hit = surfaceHit(model, [-2.25, .33, 8], [0, 0, -1], o => /lower case/i.test(o.material?.name || ''));
-    if (hit) printDecals(built.scene, { texture: textTexture([{ text: COHERENT_LABEL, size: .8, weight: 600 }], { px: 128, aspect: 4, ink: '#3b414a', align: 'center' }),
-      size: [1.1, .27], placements: [{ p: hit.point.toArray(), face: 'front' }], lift: .004, name: 'Coherent 800ZR case print',
-      material: { roughness: .65, metalness: .3 } });
+    // OSFP MSA rev 5.22 Fig. 3-4: the recommended label location is a 15 x 20 mm field on the top face at the fiber
+    // end. The closed-top housing's flat top skin carries it in a shallow pocket (Blender), so the print lands on the
+    // pocket floor. Light label stock with dark ink, so it reads against the x-ray lid; wording representative.
+    const hit = surfaceHit(model, [4.14, 9, 0], [0, -1, 0], o => /lifted cover/i.test(o.material?.name || ''));
+    if (hit) coherentLabel = printDecals(built.scene, { texture: textTexture([{ text: 'OSFP', size: .17, weight: 600 }, { text: COHERENT_LABEL, size: .36, weight: 800 }, { text: 'C-BAND DWDM', size: .14, weight: 600 }],
+      { px: 96, aspect: .75, ink: '#1c2228', align: 'center', plate: '#e6e9ec', gap: .08 }),
+      size: [1.5, 2.0], placements: [{ p: hit.point.toArray(), face: 'top' }], lift: .004, name: 'Coherent 800ZR lid label',
+      material: { roughness: .8, opacity: .72 } });
   }
   const coverPositions = new Map(covers.map(cover => [cover, cover.position.clone()]));
   const coverMaterials = new Set(covers.flatMap(cover => Array.isArray(cover.material) ? cover.material : [cover.material]));
@@ -261,6 +266,11 @@ function build(name, nativeBuilder, options) {
       material.opacity = coverOpacity(material);
     };
     for (const cover of covers) cover.onBeforeRender = fade;
+    // The lid label fades with the lid in part close-ups, so it never sits over the part being inspected.
+    if (coherentLabel) coherentLabel.onBeforeRender = (renderer, scene, camera) => {
+      const near = THREE.MathUtils.smoothstep(coverBox.distanceToPoint(camera.position), 4, 10);
+      coherentLabel.material.opacity = .72 * (options.state.mode === 'heat' ? .6 + .4 * near : .12 + .88 * near);
+    };
   }
   let coversDirty = false;
   built.inspection.setCovers = () => {
