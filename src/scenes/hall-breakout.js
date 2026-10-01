@@ -14,7 +14,9 @@
 // Representative here: which leaf port, which racks the ends land in, the end modules' slot in the rack, where
 // along the cable the split happens, cable routing and the drawn cable thickness (about twice the published
 // 3 mm so it reads at hall scale, like the yellow jumpers beside it).
-import { THREE, Builder, textSprite } from '../kit.js';
+import { THREE, textSprite } from '../kit.js';
+import { SiteBuilder as Builder } from './site-blender-construction.js';
+const _I = new THREE.Matrix4();
 import { managedRoute, HALL_RUNWAY } from './fiber-routing.js';
 
 // leaf row and ports used: the second QM9700 in the row-end rack of the second row (z = -8.2), whose ports
@@ -24,37 +26,24 @@ export const breakoutDrawn = model => model.accel.nicPortGbps === 400 && model.a
 // switch ports whose black pull tab gives way to the multimode module's tan one
 export function multimodeTabKeys(model, leafX, rowZs) {
   if (!breakoutDrawn(model)) return new Set();
-  return new Set([TOP + STRAIGHT_C].map(i => `${leafX}:${rowZs[ROW]}:${i}`));
+  return new Set([TOP + STRAIGHT_C, TOP + SPLIT_C].map(i => `${leafX}:${rowZs[ROW]}:${i}`));
 }
 
-// A smooth cable: rings at every route point, oriented by a parallel-transported frame and the joint bisector,
-// so rounded corners read as one bent jacket instead of a chain of cylinders.
-const _I = new THREE.Matrix4();
-function polyTube(points, r, radial) {
-  const P = points.map(p => new THREE.Vector3(...p)).filter((p, i, a) => !i || p.distanceTo(a[i - 1]) > 1e-5);
-  const n = P.length, pos = [], nor = [], idx = [];
-  const T = P.map((p, i) => {
-    const a = i ? p.clone().sub(P[i - 1]).normalize() : null, b = i < n - 1 ? P[i + 1].clone().sub(p).normalize() : null;
-    return a && b ? a.add(b).normalize() : (a || b);
-  });
-  let N = new THREE.Vector3(0, 1, 0); if (Math.abs(N.dot(T[0])) > .9) N.set(1, 0, 0);
-  N.sub(T[0].clone().multiplyScalar(N.dot(T[0]))).normalize();
-  for (let i = 0; i < n; i++) {
-    if (i) { const q = new THREE.Quaternion().setFromUnitVectors(T[i - 1], T[i]); N.applyQuaternion(q).normalize(); }
-    const Bn = new THREE.Vector3().crossVectors(T[i], N);
-    for (let k = 0; k < radial; k++) {
-      const t = k / radial * Math.PI * 2, c = Math.cos(t), s = Math.sin(t);
-      const d = N.clone().multiplyScalar(c).addScaledVector(Bn, s);
-      pos.push(P[i].x + d.x * r, P[i].y + d.y * r, P[i].z + d.z * r); nor.push(d.x, d.y, d.z);
-    }
+// A smooth cable: straight runs are cylinders and each rounded corner is a short tube along the same quadratic
+// corner managedRoute() draws, so corners read as one bent jacket instead of a chain of cylinders. Both go through
+// the hall's SiteBuilder, which swaps them for the Blender-authored cylinder and tube modules.
+function cableInto(B, points, r, mat, seg, radius = .03) {
+  const p = points.map(v => new THREE.Vector3(...v));
+  let from = p[0];
+  for (let i = 1; i < p.length - 1; i++) {
+    const a = p[i - 1], b = p[i], c = p[i + 1], rr = Math.min(radius, a.distanceTo(b) * .4, b.distanceTo(c) * .4);
+    const s0 = b.clone().add(a.clone().sub(b).normalize().multiplyScalar(rr)), s1 = b.clone().add(c.clone().sub(b).normalize().multiplyScalar(rr));
+    B.strut(from.toArray(), s0.toArray(), r, mat, seg);
+    if (rr > 1e-5) B.addM(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(s0, b.clone(), s1), 10, r, seg, false), mat, _I);
+    from = s1;
   }
-  for (let i = 0; i < n - 1; i++) for (let k = 0; k < radial; k++) {
-    const a = i * radial + k, b = i * radial + (k + 1) % radial, c = a + radial, d = b + radial;
-    idx.push(a, b, c, b, d, c);
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setIndex(idx);
-  return g;
+  B.strut(from.toArray(), p.at(-1).toArray(), r, mat, seg);
+  return managedRoute(points, radius);
 }
 
 const AQUA = 0x37c6c0;                          // industry-standard multimode jacket colour (published: "Aqua")
@@ -64,14 +53,14 @@ const mats = () => ({
   boot: new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: .6, metalness: .05, name: 'Connector boot' }),
   tan: new THREE.MeshStandardMaterial({ color: 0xc9a77a, roughness: .55, metalness: .05, name: 'Multimode pull tab (tan)' }),
   metal: new THREE.MeshStandardMaterial({ color: 0xcfd3d8, roughness: .28, metalness: .85, name: 'OSFP shell' }),
-  band: new THREE.MeshStandardMaterial({ color: 0xe9ecef, roughness: .5, metalness: 0, name: 'Splitter label band' }),
+  band: new THREE.MeshStandardMaterial({ color: 0xb9bec4, roughness: .5, metalness: 0, name: 'Splitter label band' }),
 });
 
 export function buildBreakout({ model, scene, layer, leafX, rowZs, ports, racks, quality }) {
   if (!breakoutDrawn(model) || !ports || ports.length < 64) return null;
   const M = mats(), B = new Builder(), rowZ = rowZs[ROW], seg = quality.mobile ? 6 : 8;
   const group = new THREE.Group(); group.name = 'Multimode links and 1:2 splitters (representative)';
-  const cable = (pts, r) => { const p = managedRoute(pts, .03); B.addM(polyTube(p, r, seg), M.aqua, _I); return p; };
+  const cable = (pts, r) => cableInto(B, pts, r, M.aqua, seg);
   // switch side: tan pull tab under the module (the chassis skips its black one here), two green MPO shells
   const switchModule = port => {
     const [x, y, z] = port.point, f = port.f;
@@ -96,9 +85,14 @@ export function buildBreakout({ model, scene, layer, leafX, rowZs, ports, racks,
   };
   // up the rack face, into the row runway, along it to the leaf, down to the switch
   const runToRack = (start, k, lane, upX) => {
-    const f = k.f, zf = start[2] + ports[0].f * .03, rail = k.x + .232, rz = k.z + f * .67, ry = rowZ + lane;
+    const zf = start[2] + ports[0].f * .03;
+    return [start, [start[0], start[1], zf], [upX, start[1] + .03, zf], ...overhead(zf, k, lane, upX)];
+  };
+  // from the leaf face up into the leaf runway, along the row runway, down the rack face to the adapter
+  const overhead = (zf, k, lane, upX) => {
+    const f = k.f, rail = k.x + .232, rz = k.z + f * .67, ry = rowZ + lane;
     const end = adapterEnd(k);
-    return [start, [start[0], start[1], zf], [upX, start[1] + .03, zf], [upX, HALL_RUNWAY.entryY, zf], [upX, HALL_RUNWAY.entryY, ry], [upX, HALL_RUNWAY.cableY, ry],
+    return [[upX, HALL_RUNWAY.entryY, zf], [upX, HALL_RUNWAY.entryY, ry], [upX, HALL_RUNWAY.cableY, ry],
       [rail, HALL_RUNWAY.cableY, ry], [rail, HALL_RUNWAY.entryY, ry], [rail, HALL_RUNWAY.entryY, rz], [rail, end[1] + .05, rz],
       [rail, end[1], rz], [end[0], end[1], rz], end];
   };
@@ -106,12 +100,33 @@ export function buildBreakout({ model, scene, layer, leafX, rowZs, ports, racks,
   // straight: each MPO port carries one 4-channel cable to one 400G adapter (MFP7E10 in NVIDIA's documentation)
   const straight = ports[TOP + STRAIGHT_C], sEnds = switchModule(straight);
   sEnds.forEach((p, i) => routes.push(cable(runToRack(p, racks[racks.length - 1 - i], -.1 + i * .03, p[0] + (i ? .004 : -.004)), .0032)));
-  // label in the data layer only, where the overlay labels live
-  const tagS = textSprite('Multimode, straight · representative', '#7fe3dc', .013);
-  tagS.position.set(straight.point[0] + .1, straight.point[1] + .07, straight.point[2] + straight.f * .03);
-  layer.add(tagS);
+  // 1:2 splitters: both MPO ports of the second module take one (NVIDIA: a twin-port's two ports must be the same
+  // type, straight or splitter). Each 4-channel trunk rises to a breakout boot; two 2-channel legs leave it, each
+  // to its own 400G adapter, which then runs at 200G on two lit lanes (MFP7E20 / MMA4Z00-NS400 documentation).
+  const split = ports[TOP + SPLIT_C], f = split.f, pEnds = switchModule(split);
+  const boots = [];
+  pEnds.forEach((p, i) => {
+    const s = i ? 1 : -1, zf = p[2] + f * (.03 + i * .012), bx = p[0] + s * .011, yB = p[1] + .07, len = .045;
+    routes.push(cable([p, [p[0], p[1], zf], [bx, p[1] + .025, zf], [bx, yB - len / 2, zf]], .0032));
+    B.cyl(.0062, len, M.boot, bx, yB, zf, seg + 4);                                   // breakout boot
+    B.cyl(.0065, .005, M.band, bx, yB + .008, zf, seg + 4);                           // its label band
+    B.cyl(.0045, .006, M.boot, bx, yB - len / 2 - .002, zf, seg + 4);                 // strain-relief nose, trunk side
+    B.cyl(.0045, .006, M.boot, bx, yB + len / 2 + .002, zf, seg + 4);                 // and leg side
+    boots.push([bx, yB, zf]);
+    [-1, 1].forEach((t, j) => {
+      const n = i * 2 + j, legX = bx + t * .0115, top = [bx + t * .0022, yB + len / 2 + .005, zf];
+      const k = racks[racks.length - 3 - n];
+      routes.push(cable([top, [legX, top[1] + .03, zf], ...overhead(zf, k, .04 + n * .03, legX)], .0026));
+    });
+  });
+  // labels in the data layer only, where the overlay labels live; set just in front of the cables so none hides them
+  const tagS = textSprite('Multimode, straight · 2 × 400G', '#7fe3dc', .013);
+  tagS.position.set(straight.point[0] - .078, straight.point[1] + .1, straight.point[2] + f * .09);
+  const tagB = textSprite('1:2 splitters · 4 × 200G · representative', '#7fe3dc', .013);
+  tagB.position.set(split.point[0] + .004, boots[0][1] + .15, split.point[2] + f * .09);
+  layer.add(tagS, tagB);
   const mesh = B.build({ cast: false, receive: true });
   group.add(mesh); scene.add(group);
-  group.userData.breakout = { routes: routes.length, ports: [TOP + STRAIGHT_C], rowZ };
+  group.userData.breakout = { routes: routes.length, ports: [TOP + STRAIGHT_C, TOP + SPLIT_C], splitters: 2, rowZ };
   return { group, routes };
 }
