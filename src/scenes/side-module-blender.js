@@ -94,7 +94,8 @@ export function build({ quality, state }) {
     }
   });
   const matched = typeof location !== 'undefined' && new URLSearchParams(location.search).get('finish') === 'matched';
-  const look = matched ? undefined : { ...applyArtDirection({ scene, model, quality }), grain: 0.008, vignette: 0.22 };
+  const { setLabelLpo, ...art } = matched ? {} : applyArtDirection({ scene, model, quality });
+  const look = matched ? undefined : { ...art, grain: 0.008, vignette: 0.22 };
   let amount = 1, targetAmount = 1, startAmount = 1, assemblyTime = 0;
   const assemblyObjects = Object.entries(EXPLODED).map(([name, offset]) => [object(name), offset]);
 
@@ -305,6 +306,7 @@ export function build({ quality, state }) {
     lpo = !!on;
     dspGroup.visible = thermal.visible = dspTraces.visible = !lpo;
     bypassMesh.visible = ghost.visible = lpoTag.visible = lpo;
+    setLabelLpo?.(lpo);   // the lid print names the variant: OSFP 1.6T 2xDR4, or ... LPO
     syncFlows();
   }
   function syncFlows() {

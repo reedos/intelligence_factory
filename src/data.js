@@ -1254,7 +1254,7 @@ export function content(M) {
   ];
   PARTS_HEAT.module = [
     { id: 'dsp', title: 'DSP', kicker: 'A major heat source', body: 'The shared DSP is a major heat source. One gap pad carries its heat up into the shell. The LPO comparison removes both the DSP and its thermal pad; an outline marks the absent chip’s footprint.', specs: [dspW, marvellW] },
-    { id: 'shell', title: 'Shell and fins', kicker: 'Cooled by the host’s air', body: 'The module has no fan of its own. Its finned top sits in the air the switch or server moves past the cages.', specs: [osfpSize, lay] },
+    { id: 'shell', title: 'Shell and fins', kicker: 'Cooled by the host’s air', body: 'The module has no fan of its own. Its finned top sits in the air the switch or server moves past the cages.', specs: [osfpSize, ['Lid print', 'OSFP 1.6T 2xDR4; the LPO view adds LPO', 'assumed', { assume: 'module-lid-labels' }], lay] },
   ];
   const lossRow = ['Electrical loss, NVIDIA figures', '≈4 dB, from 20–22 dB', 'vendor', { refs: [ref('nvidia-cpo-scaling-blog', 'body text: 22 dB for the pluggable path against approximately 4 dB with co-packaged optics'), ref('lambda-q3450-unboxing', '"Signal loss drops from roughly 20dB to 4dB"')], vs: 'the path to a pluggable module, 20–22 dB' }];
   const ringRow = ['Modulators, NVIDIA figure', 'micro-rings, 200G PAM4 per wavelength', 'vendor', { refs: [ref('nvidia-cpo-industry-collaboration-blog', 'How TSMC helped solve Micro Ring Modulator problems: NVIDIA identifies microring modulation and a direct 200 Gb/s PAM4 rate per wavelength.')], vs: 'NVIDIA’s stated per-wavelength operating rate; not a comparison against another modulator design' }];
