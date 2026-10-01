@@ -13,6 +13,7 @@ export function addRackOptics(built, accel) {
   const h100 = accel === 'h100', rubin = accel === 'rubin', U = .04445;
   const hardware = new Builder(), modules = [], links = [], storageCages = [];
   const lidLabels = [];
+  const mpoTags = [];   // cable flags on each patch lead, just behind its connector boot
   const portNumbers = new Map();   // printed cage numbers on the tray faces, by number (realized on the authored hardware)
   const jacket = new THREE.MeshStandardMaterial({ color: FIBER_JACKET, roughness: .48, metalness: .08 });
   jacket.name = 'Optical patch cable jacket';
@@ -64,6 +65,8 @@ export function addRackOptics(built, accel) {
         const side = Math.sign(x), rail = side*(.252+(index%6)*.0028);
         const managerZ=(h100?-.575:.575)+direction*(Math.floor(index/6)*.007+lane*.0032);
         const start=[cx,y,z+direction*.044], end=[rail,2.32,managerZ];
+        // one tag per module, hanging under its lead or straddling a twin pair, clear of the connector faces
+        if (lane === 0) mpoTags.push({ p: [x, y - .0058, z + direction * .066], n: [0, 0, direction] });
         // Short faceplate run, then a controlled side return for the extended
         // service tray. Neighboring leads share a narrow, combed riser corridor.
         const exitZ=z+direction*(.085+lane*.008);
@@ -134,6 +137,11 @@ export function addRackOptics(built, accel) {
     }
   }
   const mesh=hardware.build();mesh.name='Rack optical population and passive patch terminations';built.scene.add(mesh);
+  // MPO-12 flag tags: thin printed sleeves hanging off each lead, readable from either side (MPO-12/APC leads, as the
+  // module datasheets give; the tag form is representative).
+  const pair = h100 || accel === 'gb300';
+  printDecals(built.scene, { texture: textTexture([{ text: pair ? '2× MPO-12' : 'MPO-12', size: .62, weight: 700 }], { px: 64, aspect: pair ? 3.2 : 2.6, ink: '#1b1e22', align: 'center', plate: '#eef0f1' }),
+    size: pair ? [.019, .0059] : [.0154, .0059], placements: mpoTags, name: 'MPO patch lead tags', material: { roughness: .7, side: THREE.DoubleSide } });
   // Lid print: the NIC-side module class for this scenario (lid-labels.js), etched dark on the nickel shell.
   printDecals(built.scene, { texture: textTexture(labelLines(nicLabel(accel)), { px: 72, aspect: 2, ink: '#474d55', pad: .05 }),
     size: [.019, .0088], placements: lidLabels, lift: .00008, name: 'NIC module lid labels', material: { roughness: .7, metalness: .25 } });

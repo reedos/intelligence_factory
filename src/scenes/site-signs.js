@@ -49,3 +49,12 @@ export function rackUnits(scene, { X, ZF, U, H }) {
   printAtlas(scene, { placements, size: [.0105, .0066], cell: [64, 40], lines: t => [{ text: t, size: .8, weight: 700 }],
     text: { ink: '#1f2327' }, lift: .0006, name: 'Rack rail U numbers', material: { roughness: .5 } });
 }
+
+/** Hall: a nameplate on each coolant distribution unit, its size marked as the model's (ASSUMPTIONS cdu-module-mw). */
+export function cduPlates(scene, { cduMx }) {
+  const cdu = scene.getObjectByName('Blender hall finish HALL_CDU');
+  if (!cdu || !cduMx.length) return;
+  const placements = cduMx.map(c => stick(cdu, [c.x, 1.98, c.z + c.f * 3], [0, 0, -c.f])).filter(Boolean);
+  printDecals(scene, { texture: plateTexture([{ text: 'COOLANT DISTRIBUTION UNIT', size: .3, weight: 700 }, { text: '≈1.25 MW · MODELED', size: .3 }], { aspect: 3.2 }),
+    size: [.42, .13], placements, lift: .002, name: 'CDU nameplates', material: { roughness: .5 } });
+}

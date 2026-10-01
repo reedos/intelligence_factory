@@ -56,11 +56,11 @@ export function textTexture(lines, { px = 64, aspect = 4, ...opts } = {}) {
 }
 const pow2 = v => 2 ** Math.round(Math.log2(Math.min(4096, Math.max(16, v))));
 
-export function printMaterial(map, { color = 0xffffff, roughness = 0.62, metalness = 0, emissive = 0, emissiveIntensity = 0, opacity = 1, name = 'Printed mark' } = {}) {
+export function printMaterial(map, { color = 0xffffff, roughness = 0.62, metalness = 0, emissive = 0, emissiveIntensity = 0, opacity = 1, side = THREE.FrontSide, name = 'Printed mark' } = {}) {
   const m = new THREE.MeshStandardMaterial({ map, color, roughness, metalness, transparent: true, opacity, depthWrite: false,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, alphaTest: 0.02 });
   if (emissive) { m.emissive = new THREE.Color(emissive); m.emissiveIntensity = emissiveIntensity; m.emissiveMap = map; }
-  m.name = name;
+  m.side = side; m.name = name;
   return m;
 }
 

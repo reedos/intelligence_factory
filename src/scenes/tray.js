@@ -725,7 +725,11 @@ function buildNVL({ quality, model }) {
   scene.userData.computeGeneration = { id: model.accel.id, gpus: 4, cpus: 2, fans: 6, dpuCount: dpuX.length, nicCount: 4, nic: ultra ? 'ConnectX-8' : 'ConnectX-7', memoryModules: 'soldered LPDDR5X', nicBoards: ultra ? 2 : 4, representative: true };
   return {
     // the GPU name etched on each package's front substrate margin, clear of its capacitor ring (package-marks.js)
-    printSpots: [etch('GPU package marking', GPU_NAME[model.accel.id], [.2, .055], gpus.map(([x, z]) => ({ from: [x - .15, floorY + .075, z + .40], dir: [0, -1, 0] })))],
+    printSpots: [etch('GPU package marking', GPU_NAME[model.accel.id], [.2, .055], gpus.map(([x, z]) => ({ from: [x - .15, floorY + .075, z + .40], dir: [0, -1, 0] }))),
+      // GB300: Lenovo's LP2357 guide lists E1.S drives of 7.68 TB (and 3.84 TB); each sled's release paddle carries it
+      ...(ultra ? [{ name: 'E1.S drive capacity', lines: [{ text: 'E1.S', size: .34, weight: 700 }, { text: '7.68 TB', size: .4, weight: 700 }],
+        text: { px: 96, aspect: 1.6, ink: '#c9cfd6', align: 'center', pad: .04 }, size: [.11, .068],
+        spots: [0, 1, 2, 3].map(i => ({ from: [-1.95 + i * 0.26, .29, ZF + .7], dir: [0, 0, -1] })), material: { roughness: .5 } }] : [])],
     scene, flows,
     look: { env: 'studio', envIntensity: 0.5, exposure: 0.98, bloom: 0.36, threshold: 2.0, ao: 0.12, dof: true },
     camera: { pos: [5.9, 6.4, 8.3], target: [0, 0.1, -0.5], near: 0.02, far: 400, min: 1, max: 30 },
