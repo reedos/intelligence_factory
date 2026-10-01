@@ -4,7 +4,7 @@ import { THREE, MAT, Builder, flow, canvasTex, texMat } from '../kit.js';
 import { rbox } from '../fx.js';
 import { componentView } from '../app/housing-frame.js';
 import { computeMaterials, finishCompute, boardFinish } from './compute-finish.js';
-export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) {
+export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,trayLidLabels}) {
  const scene=new THREE.Scene();lights(scene,quality);
  const S=new Builder(),N=new Builder(),flows=[],dataFlows=[],heatFlows=[],finish=computeMaterials();
  const gp=[[-1.60,-2.7],[-.62,-2.7],[.62,-2.7],[1.60,-2.7]],cp=[[-1.1,-.65],[1.1,-.65]];
@@ -107,8 +107,13 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
   out.push(pts[pts.length-1]);return out;};
  const nvX=[-1.75,-.7,.7,1.75],ports=[-1.66,-1.04,1.04,1.66];
  for(const x of nvX)nvConnector(S,N,x,.18,-4.35,.5,.22,.26);
+ // A module seated in every cage: its nose stands 10 mm proud of the mouth, inside the extraction bail,
+ // with its MPO receptacle on the face and the lid label on the exposed top (lid-labels.js).
+ const lidAt=[];
  for(const x of ports)for(const y of [.16,.34]){
   S.box(.29,.13,.46,MAT.galv,x,y,4.21);N.box(.25,.085,.015,MAT.black,x,y,4.455);
+  N.box(.19,.08,.12,MAT.nickel,x,y,4.50);N.box(.14,.045,.006,MAT.polymer,x,y,4.563);
+  lidAt.push({p:[x,y+.04,4.515],face:'top',yaw:0});
  }
  // Small service IO remains visibly distinct from optical ports.
  for(const x of [-.28,-.10,.10,.28]){S.box(.12,.08,.10,MAT.darkSteel,x,.16,4.35);N.box(.09,.05,.018,MAT.black,x,.16,4.41);}
@@ -142,7 +147,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
  flows.push(flow([[0,.25,-4.75],[0,.28,-4.05],[-1.5,.28,-4.02]],'dc',{count:12,speed:.9,size:.03,trail:false}));
  for(const x of [-1.1,1.1])flows.push(flow([[Math.sign(x)*1.5,.28,-4.02],[x,.3,-3.55],[x,.22,-1.24]],'bus12',{count:14,speed:.7,size:.025,trail:false}));
  for(const [x,z] of [...nic,dpu])flows.push(flow([[x,.18,1.45],[x,.18,z]],'bus12',{count:8,speed:.8,size:.022,trail:false}));
- scene.add(S.build(),N.build({cast:false}));for(const list of [flows,dataFlows,heatFlows])for(const f of list)scene.add(f.group);
+ scene.add(S.build(),N.build({cast:false}));trayLidLabels(scene,model.accel,lidAt,[.165,.07]);for(const list of [flows,dataFlows,heatFlows])for(const f of list)scene.add(f.group);
  const hs=(p,off=[2.2,2.8,3.5])=>({pos:p,view:{pos:p.map((v,i)=>v+off[i]),target:p}});
  const hotspots={osfp:hs([-1.35,.5,4.25]),clip:hs([0,.45,-4.5],[2.4,2,-3]),ibc:hs([-1.5,.45,-4]),vrm:hs([1.6,.2,-2.04],[-.5,1.9,2.4]),gpu:{pos:[1.6,.3,-2.7],view:componentView([1.6,.16,-2.7],[-.25,.4,1.3],[.6,.2,.6])},grace:hs([-1.1,.32,-.65]),lpddr:hs([1.74,.3,-.65],[0,2.1,.5]),coldplates:hs([-1.1,.82,-.65]),nic:hs([1.35,.8,2.85]),nvconn:hs([1.75,.4,-4.35],[2,2,-3])};
  finishCompute(scene,finish);
