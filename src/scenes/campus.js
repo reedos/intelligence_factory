@@ -588,7 +588,7 @@ export function build({ quality, model }) {
   if (nHalls > 1) dataGroup.add(palette(D).build({ cast: false }));
   // the line-terminal hut's inside, cut away beside it (src/scenes/dwdm-terminal.js)
   const lineTerm = addLineTerminalCutaway(dataGroup, { x: hutA[0] + 17, z: hutA[1] - 12, mobile: quality.mobile });
-  dataFlows.push(...lineTerm.flows); moverGroups.push(lineTerm);
+  dataFlows.push(...lineTerm.flows); plumeUpdates.push(lineTerm.update);   // its group already sits in dataGroup; only the LEDs tick
   scene.add(dataGroup);
 
   // ---------- the rest of a big campus: representative authored hall exteriors ----------
