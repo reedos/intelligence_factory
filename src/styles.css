@@ -983,7 +983,7 @@ body.story .pane-tabs { display: none; }
   .level-menu { width: 100vw; left: 0; }
   .hud.vl { top: 10px; }   /* the layer switch no longer sits over the view */
 }
-@media (max-width: 379px) { .hud.vl { top: 64px; } }   /* too narrow to share the top with Back outside */
+@media (max-width: 520px) { .hud.vl { top: 64px; } }   /* the three-way module toggle is too wide to share the top with Back outside */
 
 /* ---------- the part list: a level's parts in view at once ---------- */
 body.app #intro:not(.open) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }

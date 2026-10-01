@@ -4,6 +4,7 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { THREE, flow, setup, label, FLOW, COL, note, unitCol } from './side-kit.js';
 import { applyArtDirection } from './module-art-direction.js';
+import { MODULE_VARIANTS, LRO_COLOR, inVariant, splitByZ, lroDieTop, lroIntro, lroPartCopy } from './module-lro.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
 import { hardwareBounds, componentView } from '../app/housing-frame.js';
 
@@ -105,7 +106,7 @@ export function build({ quality, state }) {
   boardOverlay.position.set(...EXPLODED['02_BOARD']); scene.add(boardOverlay);
   const flows = [], dataFlows = [], heatFlows = [], dspOnly = new Set(), lpoOnly = new Set();
   const lists = { power: flows, data: dataFlows, heat: heatFlows };
-  let lpo = false;
+  let lpo = false, kind = 'dsp';   // kind: 'dsp' | 'lro' | 'lpo' (module-lro.js)
   const sourceRoute = name => {
     const route = routes.get(name);
     if (!route || route.assembly !== '02_BOARD' || route.points?.length < 2) {
@@ -180,6 +181,9 @@ export function build({ quality, state }) {
   const bypassMesh = new THREE.Group(), authoredBypass = object('LPO_BYPASS');
   bypassMesh.name = 'LPO bypass copper';
   authoredBypass.parent.add(bypassMesh); bypassMesh.add(authoredBypass);
+  // LRO keeps the DSP's transmit copper and the LPO layout's receive copper: each merged copper mesh splits by direction
+  const firstMesh = root => { let found; root.traverse(n => { if (!found && n.isMesh) found = n; }); return found; };
+  const dspCopper = splitByZ(firstMesh(object('PART_DSP_TRACES'))), bypassCopper = splitByZ(firstMesh(authoredBypass));
 
   const anchorLocal = name => {
     const anchor = metadata.anchors[name];
@@ -290,6 +294,12 @@ export function build({ quality, state }) {
       new THREE.MeshBasicMaterial({ color: 0x8fd3ff, transparent: true, opacity: 0.12, depthWrite: false }));
     outline.position.set(dspLocal[0], 0.279, dspLocal[2]); ghost.add(outline);
   }
+  // LRO: the same package marked as a transmit-only retimer (representative, evidence 'module-lro-drawing')
+  const lroMark = lroDieTop({ w: 1.0, d: 1.0 }); lroMark.position.set(dspLocal[0], dspLocal[1] + 0.0015, dspLocal[2]);
+  boardOverlay.add(lroMark);
+  const dspCapacity = objects.get(key('SHARED_DSP_CAPACITY'));
+  const lroTag = label(scene, 'LRO · DSP retimes transmit only; receive runs linear, TIA to host',
+    [dspAnchor[0], dspAnchor[1] + 0.6, dspAnchor[2]], LRO_COLOR, 0.15);
   const lpoTag = label(scene, 'LPO · direct host lanes to the linear driver and TIA',
     [dspAnchor[0], dspAnchor[1] + 0.6, dspAnchor[2]], '#8fd3ff', 0.15);
   label(scene, 'Pluggable module · 1.6T twin-port OSFP, 2 × DR4', [0.6, -0.35, 2.6], '#e8ecf2', 0.32);
@@ -301,12 +311,18 @@ export function build({ quality, state }) {
     [0.6, -1.32, 2.6], note, 0.14);
   const diagramLabels = scene.children.filter(o => o.isSprite);
 
-  function setLpo(on) {
-    lpo = !!on;
+  function setVariant(next) {
+    kind = MODULE_VARIANTS.includes(next) ? next : 'dsp'; lpo = kind === 'lpo';
     dspGroup.visible = thermal.visible = dspTraces.visible = !lpo;
-    bypassMesh.visible = ghost.visible = lpoTag.visible = lpo;
+    bypassMesh.visible = kind !== 'dsp'; ghost.visible = lpoTag.visible = lpo;
+    dspCopper.source.visible = bypassCopper.source.visible = kind !== 'lro';
+    dspCopper.tx.visible = bypassCopper.rx.visible = kind === 'lro';
+    lroMark.visible = kind === 'lro'; if (dspCapacity) dspCapacity.visible = kind !== 'lro';
     syncFlows();
   }
+  const setLpo = on => setVariant(on ? 'lpo' : 'dsp');
+  // a flow's direction for the LRO split: receive lanes, and the DSP heat arrows on its receive side
+  const rxFlow = f => /^RX-/.test(f.route.id) || /^heat-dsp-[012]$/.test(f.route.id);
   function syncFlows() {
     // Reveal the buried connector escape only in the open data diagram.
     for (const window of breakoutWindows) {
@@ -315,11 +331,12 @@ export function build({ quality, state }) {
       window.material.depthWrite = !revealed;
     }
     for (const [mode, list] of Object.entries(lists)) for (const f of list) {
-      f.group.visible = amount === 1 && targetAmount === 1 && state.mode === mode && !(lpo ? dspOnly.has(f) : lpoOnly.has(f));
+      f.group.visible = amount === 1 && targetAmount === 1 && state.mode === mode && inVariant(kind, f.route.variant, rxFlow(f));
     }
     for (const sprite of diagramLabels) sprite.visible = amount === 1 && targetAmount === 1 && !state.selected;
     modeNote.visible = amount === 1 && targetAmount === 1 && state.mode !== 'data' && !state.selected;
     lpoTag.visible = amount === 1 && targetAmount === 1 && lpo;
+    lroTag.visible = amount === 1 && targetAmount === 1 && kind === 'lro' && !state.selected;
   }
   function applyAssembly() {
     for (const [o, offset] of assemblyObjects) o.position.set(...offset.map(v => v / CM * amount));
@@ -373,8 +390,9 @@ export function build({ quality, state }) {
     dataHotspots: { fingers: hs.fingers, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers, mzm: hs.mzm, mpo: hs.mpo, pd: hs.pd, tia: hs.tia },
     heatHotspots: { dsp: dspHeat, shell: hs.shell },
     variant: {
-      get lpo() { return lpo; }, setLpo,
+      get lpo() { return lpo; }, setLpo, get kind() { return kind; }, set: setVariant,
       intro(mode) {
+        if (kind === 'lro') return lroIntro(mode);
         if (!lpo) return null;
         return {
           data: 'LPO leaves out the module DSP. Host transmit lanes feed the linear driver, then the modulators and outgoing fibers. Incoming light reaches the photodiodes, whose current the TIA converts for the host. The lasers feed transmit only. Internal placement and RF routing are representative.',
@@ -383,6 +401,7 @@ export function build({ quality, state }) {
         }[mode];
       },
       partCopy(part, mode) {
+        if (kind === 'lro') return lroPartCopy(part, mode);
         if (!lpo) return part;
         if (part.id === 'dsp') return { ...part, title: 'DSP footprint, absent in LPO', kicker: 'Removed in this variant', body: 'The blue outline marks the shared DSP footprint for comparison. This LPO view contains no module DSP, DSP power branch or DSP thermal pad. The host provides the signal processing the linear optical link needs.', specs: [] };
         if (part.id === 'dcdc') return { ...part, body: 'The host supplies the module. Its converters provide the rails for the linear driver, TIA, laser sources and control circuitry. This LPO comparison has no module DSP power branch.' };
@@ -406,12 +425,12 @@ export function build({ quality, state }) {
       }
       syncFlows();
       // Without the DSP (LPO) the analog chips remain the sources, so the warm band moves and dims.
-      shellHeat.value = state.mode === 'heat' && amount === 1 ? (lpo ? 0.15 : 0.26) + 0.04 * Math.sin(t * 2) : 0;
+      shellHeat.value = state.mode === 'heat' && amount === 1 ? (lpo ? 0.15 : kind === 'lro' ? 0.2 : 0.26) + 0.04 * Math.sin(t * 2) : 0;
       heatX.value = lpo ? anchorWorld('driver')[0] : dspAnchor[0];
       coverBase.value = cover.position.y * CM + 0.615;
       for (const material of analogHeat) material.emissiveIntensity = state.mode === 'heat' ? 0.25 + 0.05 * Math.sin(t * 2 + 1) : 0;
       for (const material of heatMaterials) material.emissiveIntensity = state.mode === 'heat' && !lpo
-        ? 0.5 + 0.08 * Math.sin(t * 2) : 0;
+        ? (kind === 'lro' ? 0.36 : 0.5) + 0.08 * Math.sin(t * 2) : 0;
       return moving;
     },
   };
