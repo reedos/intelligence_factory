@@ -44,7 +44,6 @@ img { max-width: 100%; }
   /* ---------- stage ---------- */
   .stage { border-block: 1px solid var(--line); overflow: hidden; background: var(--ground); }
   .steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
-  .steps:has(.step.side:not([hidden])) { grid-template-columns: repeat(7, minmax(0, 1fr)); }   /* inside the optics: its own step at the end */
   .step { all: unset; box-sizing: border-box; cursor: pointer; padding: 16px 18px 15px; display: grid; gap: 4px; border-left: 1px solid var(--line); position: relative; min-width: 0; }
   .step:first-child { border-left: 0; }
   .step:hover { background: var(--surface); }
@@ -258,7 +257,6 @@ img { max-width: 100%; }
     .calc-in, .calc-out { padding-inline: 0; }
     .step .n { font-size: 12px; }
     .steps { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-    .steps:has(.step.side:not([hidden])) { grid-template-columns: repeat(7, minmax(0, 1fr)); }
     .step { padding: 10px 8px; }
     .step .t, .step .meta span:last-child { display: none; }
     .step .top { justify-content: center; }
@@ -932,6 +930,24 @@ body.story .pane-tabs { display: none; }
 .toprow { position: relative; z-index: 20; display: flex; align-items: stretch; border-bottom: 1px solid var(--line); background: var(--ground); }
 .toprow .steps { flex: 1 1 auto; min-width: 0; border-bottom: 0; }
 .level-pick, .mode-slot:empty { display: none; }
+/* two groups in one bar: the six levels (numbered, so their label is for screen readers), then a divider and the four
+   interconnects (side levels) under a small label of their own, amber while one of them is on show */
+body.app .toprow .steps { display: flex; align-items: stretch; }
+.step-group { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; }
+.steps-main { flex: 1 1 0; grid-template-rows: minmax(0, 1fr); }
+.steps-side { flex: 0 0 clamp(440px, 35vw, 560px); border-left: 1px solid var(--line-2); }
+.steps-h { padding: 8px 10px 0; font: 500 9.5px/1.2 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.steps-main .steps-h { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.step-group.on .steps-h { color: var(--accent); }
+.step-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); min-width: 0; }
+body.app .steps-side .step { padding: 3px 10px 10px; align-content: start; }
+/* tight: the interconnects drop their subtitles first and set their names a little smaller; the six keep theirs */
+@media (max-width: 1360px) {
+  .steps-side { flex-basis: 420px; }
+  body.app .steps-side .step .meta { display: none; }
+  body.app .steps-side .step .t { font-size: 15.5px; }
+  body.app .steps-main .step { padding-inline: 10px; }
+}
 .more-btn { all: unset; box-sizing: border-box; flex: none; width: 56px; display: grid; place-items: center; cursor: pointer; border-left: 1px solid var(--line); color: var(--ink); font: 600 24px/1 var(--sans); }
 .more-btn:hover, .more-btn[aria-expanded="true"] { background: var(--surface); }
 .more-btn[aria-expanded="true"] { color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
@@ -973,16 +989,20 @@ body.story .pane-tabs { display: none; }
   body.app .step .t { font-size: 17px; }
   body.app .step .meta { font-size: 10.5px; gap: 6px; }
 }
-/* phones: "Level 3 of 6" and the level's name, the layer switch, the menu: one row */
-@media (max-width: 760px) {
+/* phones and tablets: ten tabs do not fit, so one picker names the level on show and opens both groups */
+@media (max-width: 1240px) {
   body.app .toprow .steps { display: none; }
   body.app .level-pick { all: unset; box-sizing: border-box; position: relative; flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: center; column-gap: 8px; row-gap: 2px; min-height: 54px; padding: 6px 8px 7px 14px; cursor: pointer; }
   body.app .level-pick::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--c, var(--accent)); }
-  body.app .level-pick[aria-expanded="true"] { background: var(--surface); }
+  body.app .level-pick:hover, body.app .level-pick[aria-expanded="true"] { background: var(--surface); }
   .lp-k { grid-column: 1; font: 500 9.5px/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
   .lp-t { grid-column: 1; font: 600 16px/1.02 var(--display); text-transform: uppercase; color: var(--ink); }
   .level-pick i { grid-column: 2; grid-row: 1 / span 2; align-self: center; width: 7px; height: 7px; margin: 0 4px 4px; border-right: 2px solid var(--ink); border-bottom: 2px solid var(--ink); transform: rotate(45deg); }
   .level-pick[aria-expanded="true"] i { transform: rotate(225deg); margin: 4px 4px 0; }
+}
+@media (min-width: 761px) and (max-width: 1240px) { .lp-t { font-size: 19px; } body.app .level-pick { padding-left: 18px; } }
+/* phones: "Level 3 of 6" and the level's name, the layer switch, the menu: one row */
+@media (max-width: 760px) {
   body.app .mode-slot { display: flex; align-items: center; flex: none; border-left: 1px solid var(--line); }
   body.app .mode-slot .mode { background: none; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; height: 100%; }
   body.app .mode-slot .mode button { min-height: 44px; height: 100%; padding: 0 7px; gap: 5px; font-size: 10px; letter-spacing: .05em; }

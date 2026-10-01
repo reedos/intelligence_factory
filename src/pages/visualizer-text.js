@@ -21,7 +21,7 @@ function specLine(row, SOURCES) {
 // default scenario; `drillHref` points a part at its in-3D view the same way the Evidence page's "See it in 3D" does
 export function buildLevels(M, C, SOURCES) {
   return C.SCENES.map((sc, i) => ({
-    id: sc.id, n: sc.n, title: sc.title, scale: sc.scale, side: !!sc.side,
+    id: sc.id, n: sc.n, title: sc.title, kicker: sc.kicker, scale: sc.scale, side: !!sc.side,
     modes: MODES.map(([mode, label, key]) => ({
       mode, label,
       parts: (C[key][sc.id] || []).map(p => ({
@@ -48,7 +48,7 @@ function partHtml(p, mode) {
     <p class="ev-back">${esc(p.kicker)}</p><p>${esc(p.body)}</p>${specListHtml(p.specs)}</article>`;
 }
 function levelHtml(lv) {
-  return `<section class="ev-level"><h2 class="ev-lt">${lv.n !== undefined ? `<span>${esc(String(lv.n))}</span>` : ''}${esc(lv.title)}<small>${esc(lv.scale)}</small></h2>
+  return `<section class="ev-level"><h2 class="ev-lt">${lv.n !== undefined ? `<span>${esc(String(lv.n))}</span>` : ''}${esc(lv.title)}<small>${lv.kicker ? `${esc(lv.kicker)} · ` : ''}${esc(lv.scale)}</small></h2>
     ${lv.modes.map(m => m.parts.map(p => partHtml(p, m.mode)).join('')).join('')}</section>`;
 }
 
