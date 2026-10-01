@@ -237,6 +237,12 @@ img { max-width: 100%; }
   .bom-col dt { font-size: 13px; color: var(--muted); }
   .bom-col dd { margin: 0; font: 600 26px/1.05 var(--display); font-variant-numeric: tabular-nums; }
 
+  /* ---------- closing section: how the site itself was built ---------- */
+  .made { display: grid; gap: 18px; }
+  .made-body { display: grid; gap: 14px; max-width: 72ch; font-size: 15px; line-height: 1.65; color: var(--muted); }
+  .made-body p { margin: 0; }
+  .made-body code { font: 400 13px/1 var(--mono); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 2px 5px; }
+
   .sources { display: grid; gap: 16px; border-top: 1px solid var(--line); padding-top: 32px; font-size: 13px; color: var(--muted); }
   .sources ul { margin: 0; padding-left: 18px; columns: 2; column-gap: 32px; }
   .sources li { margin-bottom: 6px; break-inside: avoid; }

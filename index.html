@@ -255,6 +255,44 @@
     <div class="bom-grid" id="bom"></div>
   </section>
 
+  <section class="made" aria-labelledby="made-h">
+    <div class="sec-head">
+      <p class="eyebrow">How this site is built</p>
+      <h2 id="made-h">How it was made</h2>
+    </div>
+    <div class="made-body">
+      <p>The page is written in TypeScript, drawn with <a href="https://threejs.org">Three.js</a> (version 0.183.2)
+      — which describes itself as a “JavaScript 3D Library” — and bundled with <a href="https://vite.dev">Vite</a>
+      (version 8.3.1), which calls itself “a build tool that aims to provide a faster and leaner development
+      experience for modern web projects.” The build is static and deployed to GitHub Pages.</p>
+      <p>Most of the hardware you see was modeled by hand in <a href="https://www.blender.org">Blender</a> —
+      “Free and Open Source software, forever,” in its own words — and exported as glTF/GLB, the
+      <a href="https://www.khronos.org/gltf/">Khronos Group</a>’s “royalty-free specification for the efficient
+      transmission and loading of 3D scenes and models by engines and applications.” Twenty-five of those files,
+      built from this project’s own Blender sources by its own scripts, cover the racks, trays, compute chips,
+      campus buildings and vehicles, and the optical and co-packaged-optics modules; everything else in the scene
+      is procedural, built by code from the model’s numbers, so it recounts and resizes itself when you change the
+      scenario.</p>
+      <p>Every figure on the page is labeled by what backs it: Spec, Vendor, Reported, Calc. or Assumed, with its
+      sources one click away. The <a href="evidence.html">Evidence</a> page lists every figure that way, and the
+      <a href="method.html">Method</a> page lists every calculation and assumption behind them. Underneath, a
+      scenario engine turns four choices — campus size, accelerator, power path and cooling — into every number,
+      chart and sentence on the page.</p>
+      <p>Automated checks run before anything ships: Vitest unit tests (1,342 tests across 36 files, as of this
+      writing) cover the engine, the content and the links; <a href="https://playwright.dev">Playwright</a> drives
+      a real browser through checks named for what they look for — <code>cycle</code> (every scenario, scene and layer, watching for errors),
+      <code>views</code> (every part framed clear of overlays), <code>coplanar</code> (flush surfaces that would
+      flicker), <code>parts</code> (every numbered part has a pin) and <code>ui</code> (the page’s controls stay
+      out of each other’s way, on phone and desktop alike). A quality governor adapts the 3D rendering to the
+      device it’s running on, with Max quality, Auto quality and Battery saver settings for when you want to
+      choose yourself.</p>
+      <p>The code, 3D models and automated checks were written with AI coding assistants, mainly Anthropic’s Claude
+      and OpenAI’s Codex. I decided what to show, set the rule that every figure comes from a cited public source
+      or a labeled assumption, and reviewed the work, sending back what was wrong or unsupported. The Evidence
+      page and the automated checks let anyone verify the result.</p>
+    </div>
+  </section>
+
   <footer class="sources">
     <div class="basis-key"><span class="chip spec">Spec</span> the maker or a standard states it <span class="chip vendor">Vendor</span> a vendor's own claim, not checked independently <span class="chip reported">Reported</span> a named third party states it <span class="chip derived">Derived</span> this page calculates it <span class="chip assumed">Assumed</span> chosen here, no single figure applies — click any chip for that figure's own evidence, or see <a href="method.html">Method</a> and <a href="evidence.html">Evidence</a>. A few figures not yet traced this way still carry an older "Typical" or "Est." label.</div>
     <p>Key sources: </p>
