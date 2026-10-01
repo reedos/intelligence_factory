@@ -2,14 +2,15 @@
 // to part 1, then from each part to the next in list order, the way a reader stepping down the parts list does; record
 // the camera's position every frame of each flight, and raycast each step (one frame's position to the next) against
 // the level's solid geometry: visible meshes that read as surfaces (not mostly transparent, not lines or additive
-// glows or sky domes; a wide flow ribbon counts, depth or not: flying inside one fills the frame), less the surroundings
-// (ground, ridgeline, studio floor: flat and as wide as the level) where the camera stays above them. A step that
-// crosses one is a flight through a building. Mid-flight the camera must also keep a margin from surfaces (6% of its
-// distance from the aim point, or of the end framings' if larger) and a clear view ahead (nothing solid in the first
-// 25% of the way to the aim point for three frames running), both tapering to nothing at the two ends, whose framing
-// is the part's own: skimming a roof two metres under a camera framing a building 40 m off, or a facade filling the
-// frame, reads as flying through it (Reed, 09/30: campus data 1→2 and 2→3, hall data 11→12). The stage plans with a
-// wider margin and a longer view. Pins and labels (HTML), sprites, particles and flow lines are not surfaces.
+// glows, sky domes or printed decals; a wide flow ribbon counts, depth or not: flying inside one fills the frame),
+// less the surroundings (ground, ridgeline, studio floor: flat and as wide as the level) where the camera stays above
+// them. A step that crosses one is a flight through a building. Mid-flight the camera must also keep a margin from
+// surfaces (6% of its distance from the aim point, or of the end framings' if larger) and a clear view ahead (nothing
+// solid in the first 45% of the way to the aim point for three frames running), both tapering to nothing at the two
+// ends, whose framing is the part's own: skimming a roof two metres under a camera framing a building 40 m off, or a
+// facade filling the frame, reads as flying through it (Reed, 09/30: campus data 1→2 and 2→3, hall data 11→12). The
+// stage plans with a wider margin and a longer view. Pins and labels (HTML), sprites, particles and flow lines are
+// not surfaces.
 // Within 3% of the aim distance of the start or end framing, whatever is there belongs to that framing (a hall view
 // that sits a centimetre from a hanging cable), not to the flight, whose ends are fixed: those steps are not counted.
 // Usage: node tools/flights.mjs [desktop|phone]   (URL env for the page; IFX_GATE_GPU=1 for the real GPU;
@@ -38,7 +39,7 @@ const fly = async ({ id }) => {
   const t0 = performance.now(), cs = ifx.clearance ? { ...ifx.clearance } : null;
   if (id) ifx.select(id, true);
   const selectMs = performance.now() - t0, ce = ifx.clearance;
-  const plan = cs && { built: ce.finishedOnTap > cs.finishedOnTap ? ce.buildMs : null, planned: ce.plans > cs.plans ? ce.planMs : null, ready: ce.hits > cs.hits, clear: ce.clear, chosen: ce.chosen, costs: ce.costs };
+  const plan = cs && { standIn: ce.standIn > cs.standIn, unplanned: ce.unplanned > cs.unplanned, planned: ce.plans > cs.plans ? ce.planMs : null, ready: ce.hits > cs.hits, clear: ce.clear, chosen: ce.chosen, costs: ce.costs };
   await new Promise(res => {
     let still = 0, n = 0;
     const tick = () => {
@@ -51,7 +52,7 @@ const fly = async ({ id }) => {
   ifx.settle();
   const shown = o => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
   const solid = o => {
-    if (!(o.isMesh || o.isInstancedMesh) || o.isSprite || o.isLine2 || o.isLineSegments2 || !shown(o)) return false;
+    if (!(o.isMesh || o.isInstancedMesh) || o.isSprite || o.isLine2 || o.isLineSegments2 || o.userData.printed || !shown(o)) return false;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     return mats.some(m => m && m.visible !== false && !m.isLineMaterial && m.side !== T.BackSide && m.blending !== T.AdditiveBlending && !(m.transparent && m.opacity < 0.6));
   };
@@ -107,14 +108,15 @@ const plan = await p.evaluate(() => ifx.store.C.SCENES.map((s, i) => ({ i, id: s
 const only = process.env.ONLY ? process.env.ONLY.split(':') : null;
 const fails = [], counts = [], selects = [], plans = [], builds = [];
 let ready = 0;
+const standIns = [], unplanned = [];
 for (const { i, id: level } of plan) {
   if (only && only[0] !== level) continue;
   for (const mode of ['power', 'data', 'heat']) {
     if (only?.[1] && only[1] !== mode) continue;
     await p.evaluate(async ({ i, mode }) => { await ifx.show({ scene: i, mode, part: null }, { scroll: false }); ifx.settle(); }, { i, mode });
     await p.waitForTimeout(400);
-    // the level's clearance map builds in the background between frames; a reader's first tap may beat it (the map is
-    // then finished on that tap, which the summary counts)
+    // the level's clearance map builds as the level opens and between frames after; a reader's first tap may beat it
+    // (the move then plans on a stand-in map, or flies as authored, which the summary lists)
     await p.waitForFunction(() => !ifx.clearance?.pending, null, { timeout: 30000 }).catch(() => {});
     await p.evaluate(() => ifx.settle());
     const parts = await p.evaluate(() => [...document.querySelectorAll('#parts button[data-id]')].map(b => b.dataset.id));
@@ -124,8 +126,9 @@ for (const { i, id: level } of plan) {
       const r = await p.evaluate(`(${fly})(${JSON.stringify({ id })})`);
       selects.push(r.selectMs);
       if (r.plan?.planned != null) plans.push(r.plan.planned);
+      if (r.plan?.standIn) standIns.push(`${level}:${mode}:${from}→${id}`);
+      if (r.plan?.unplanned) unplanned.push(`${level}:${mode}:${from}→${id}`);
       if (r.plan?.ready) ready++;
-      if (r.plan?.built != null) builds.push(r.plan.built);
       if (r.hits) { bad++; fails.push(`${level}:${mode}:${from}→${id}  (${r.hits} of ${r.frames - 1} steps, first at frame ${r.first.frame} ${r.first.kind}: ${r.first.what}${r.plan && !r.plan.clear ? "; the planner found no clear path" : ""})`); if (process.env.DEBUG) fails.push(`    ${JSON.stringify(r.plan)}`); }
       from = id;
     }
@@ -137,7 +140,7 @@ for (const c of counts) { const l = byLevel[c.level] ||= { flights: 0, bad: 0 };
 for (const [level, c] of Object.entries(byLevel)) console.log(`${level}: ${c.flights} flights, ${c.bad} through geometry`);
 for (const f of fails) console.log(`  ${f}`);
 const stat = a => (a.sort((x, y) => x - y), a.length ? `median ${a[a.length >> 1].toFixed(1)} ms, max ${a.at(-1).toFixed(1)} ms` : 'none');
-console.log(`select, all of it: ${stat(selects)}; path planning on the tap: ${stat(plans)} (${plans.length} plans; ${ready} more planned ahead while idle); clearance map finished on a tap ${builds.length}x${builds.length ? ` (${stat(builds)})` : ''}`);
+console.log(`select, all of it: ${stat(selects)}; path planning on the tap: ${stat(plans)} (${plans.length} plans; ${ready} more planned ahead while idle); flown on a stand-in map (the layer's own still building) ${standIns.length}x${standIns.length ? `: ${standIns.join(', ')}` : ''}; flown unplanned (no map yet) ${unplanned.length}x${unplanned.length ? `: ${unplanned.join(', ')}` : ''}`);
 console.log(errors.length ? `errors: ${[...new Set(errors)].join(' | ')}` : 'no page errors');
 console.log(`${form}: ${fails.length} flight${fails.length === 1 ? '' : 's'} through geometry`);
 await b.close();

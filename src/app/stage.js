@@ -661,15 +661,16 @@ function makeTween(pos, target, dur, { detail = false } = {}) {
   }
   return { p0: camera.position.clone(), t0: controls.target.clone(), p1, t1, u: 0, dur, arc, still: detail && !cinema };
 }
-// Once a part's move has landed, plan the moves to the parts either side of it in the list while the page is idle,
-// so stepping on (Next, Previous, the next row) finds its plan waiting instead of searching on the tap.
+// Once a move has landed, plan the moves the reader is likely to make next while the page is idle: from a part, to
+// the parts either side of it in the list; from the overview, to the first part. Stepping on (Next, Previous, the next
+// row) then finds its plan waiting instead of searching on the tap.
 let prefetchFor = null;
 function prefetchNeighbours() {
-  if (reduced || cinema || !ui.selected) return;
+  if (reduced || cinema) return;
   const key = `${ui.scene}:${ui.mode}:${ui.selected}`; if (prefetchFor === key) return;
   prefetchFor = key;
   const parts = partsFor(ui.scene), i = parts.findIndex(q => q.id === ui.selected);
-  const next = [parts[i + 1], parts[i - 1]].filter(Boolean);
+  const next = (ui.selected ? [parts[i + 1], parts[i - 1]] : [parts[0]]).filter(Boolean);
   let job = null;
   const step = deadline => {
     if (tween || prefetchFor !== key || `${ui.scene}:${ui.mode}:${ui.selected}` !== key) return;   // the reader moved on
@@ -697,48 +698,51 @@ const CLEAR = 0.075, HOME = 0.03, SIGHT = 0.55;
 const MARGIN_TIERS = [[0.85, 0.3], [0.7, 1], [0.45, 3], [0.2, 10]], BAND = 0.05;   // BAND: the outer band only
 const flightPlans = new WeakMap();
 // for the flights gate: how often the voxel map was built, what the last build and plan cost, what the plan chose
-export const clearanceStats = { builds: 0, buildMs: 0, finishedOnTap: 0, plans: 0, planMs: 0, hits: 0, prefetched: 0, clear: true, pending: false };
-// Background work runs in the gaps between frames, never in a frame's own time: a slice takes part of what is left
-// of the gap (at most 4 ms, and only in a gap of 4 ms or more); with no such gap for a second, a 1 ms slice anyway
-// so the work still finishes.
+export const clearanceStats = { builds: 0, buildMs: 0, standIn: 0, unplanned: 0, plans: 0, planMs: 0, hits: 0, prefetched: 0, clear: true, pending: false };
+// Background work runs in the gaps between frames: a slice takes part of what is left of a gap (at most 4 ms, in a
+// gap of 4 ms or more). A page that leaves no such gap (a heavy level on a phone) still gets a 3 ms slice every
+// 100 ms, so the work finishes in seconds, not minutes, at a cost of about 3% of the main thread meanwhile.
 const whenIdle = f => {
-  if (!window.requestIdleCallback) { setTimeout(() => f(null), 32); return; }
+  if (!window.requestIdleCallback) { setTimeout(() => f(null), 100); return; }
   const t0 = performance.now();
-  const wait = d => (d.didTimeout || d.timeRemaining() >= 4 || performance.now() - t0 > 1000 ? f(d) : requestIdleCallback(wait, { timeout: 1000 }));
-  requestIdleCallback(wait, { timeout: 1000 });
+  const wait = d => (d.didTimeout || d.timeRemaining() >= 4 || performance.now() - t0 > 100 ? f(d) : requestIdleCallback(wait, { timeout: 100 }));
+  requestIdleCallback(wait, { timeout: 100 });
 };
-const idleBudget = d => (d && !d.didTimeout && d.timeRemaining() >= 4 ? Math.min(4, d.timeRemaining() - 1) : 1);
+const idleBudget = d => (d && !d.didTimeout && d.timeRemaining() >= 4 ? Math.min(4, d.timeRemaining() - 1) : 3);
 // The level's clearance map for what is on screen now (a layer's flows count, so each layer has its own; a level
-// keeps the last four). Returns it when built. If not: starts building it in the background, and either returns null
-// (a plan made ahead can wait) or, with `now` (a move about to fly), finishes it on the spot, so no move ever flies
-// unplanned because the reader was quick. The background build usually wins: it starts as the level opens.
-function clearanceOf(b, { now = false } = {}) {
+// keeps the last four). Returns { map, exact }: the map for what is on screen, or, while that one is still building,
+// the level's latest map as a stand-in (the same buildings, another layer's flows); null before the level has any.
+// A missing map starts building in the background, in the gaps between frames, so a tap never waits for one. `load`
+// is time it may take at once instead: a level opening behind its veil builds most or all of its first map then.
+function clearanceOf(b, { load = 0 } = {}) {
   // Walked fresh each time (solidsOf caches its list at the first framing, before late assets such as the hall's
   // Blender finish have joined the scene). Anything that reads as a surface counts: opaque-looking meshes, including
   // the wide flow ribbons that draw without depth (a camera inside a glowing cable tray fills the frame with it), but
-  // not lines, additive glows, faint veils or sky domes (seen from inside).
+  // not lines, additive glows, faint veils, sky domes (seen from inside) or printed decals (flush on a surface that
+  // already counts).
   const solids = [], shown = o => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
   b.scene.traverse(o => {
-    if (!(o.isMesh || o.isInstancedMesh) || o.isSprite || o.isLine2 || o.isLineSegments2 || !shown(o)) return;
+    if (!(o.isMesh || o.isInstancedMesh) || o.isSprite || o.isLine2 || o.isLineSegments2 || o.userData.printed || !shown(o)) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     if (mats.some(m => m && m.visible !== false && !m.isLineMaterial && m.side !== THREE.BackSide && m.blending !== THREE.AdditiveBlending && !(m.transparent && m.opacity < 0.6))) solids.push(o);
   });
   const sig = `${solids.length}:${solids.reduce((n, o) => n + o.id, 0)}`;
   const maps = b._clearanceMaps ||= new Map();
-  if (maps.has(sig)) return maps.get(sig);
+  if (maps.has(sig)) return { map: maps.get(sig), exact: true };
+  const standIn = () => (b._clearanceLatest ? { map: b._clearanceLatest, exact: false } : null);
   const finish = next => {
     const map = { sig, occ: next.builder.result };
     maps.set(sig, map); if (maps.size > 4) maps.delete(maps.keys().next().value);
-    b._clearanceNext = null;
+    b._clearanceNext = null; b._clearanceLatest = map;
     clearanceStats.builds++; clearanceStats.buildMs = next.ms; clearanceStats.pending = false;
     return map;
   };
-  if (b._clearanceNext?.sig === sig) {
-    if (!now) return null;
-    const next = b._clearanceNext, t0 = performance.now();
-    next.builder.step(); next.ms += performance.now() - t0; clearanceStats.finishedOnTap++;
-    return finish(next);
-  }
+  const run = (next, ms) => {                              // up to `ms` of the build now
+    const t0 = performance.now(), done = next.builder.step(ms);
+    next.ms += performance.now() - t0;
+    return done ? { map: finish(next), exact: true } : null;
+  };
+  if (b._clearanceNext?.sig === sig) return (load && run(b._clearanceNext, load)) || standIn();
   // the surroundings (ground, a horizon's ridgeline, a studio floor: flat and as wide as the level) are never flown
   // into and would stretch the map's cells to the horizon: they stay out of it
   const span = new THREE.Box3(), size = new THREE.Vector3(), box = new THREE.Box3();
@@ -751,16 +755,17 @@ function clearanceOf(b, { now = false } = {}) {
   });
   const next = b._clearanceNext = { sig, builder: occupancyBuilder(rest), ms: 0 };
   clearanceStats.pending = true;
-  if (now) return clearanceOf(b, { now });
   const slice = deadline => {
-    if (b._clearanceNext !== next || !built.includes(b)) return;   // superseded, finished on a tap, or level disposed
+    if (b._clearanceNext !== next || !built.includes(b)) return;   // superseded, finished at load, or level disposed
     const t0 = performance.now(), done = next.builder.step(idleBudget(deadline));
     next.ms += performance.now() - t0;
     if (!done) { whenIdle(slice); return; }
     finish(next);
   };
+  const now = load ? run(next, load) : null;
+  if (now) return now;
   whenIdle(slice);
-  return null;
+  return standIn();
 }
 // How badly one step of a path is obstructed: 0 clear, 1 inside the margin, 100 through a surface (any number of
 // skimmed steps is better than one through a wall). `home`: the start and end framings, each with the radius around
@@ -822,8 +827,12 @@ function* planTween(tw, record) {
   const r = v => v.toArray().map(x => x.toPrecision(5)).join(',');
   const key = [r(tw.p0), r(tw.t0), r(tw.p1), r(tw.t1), tw.arc ? `${tw.arc.lift},${tw.arc.pull}` : 'line'].join('|');
   let plans = flightPlans.get(b); if (!plans) flightPlans.set(b, plans = new Map());
-  const cl = clearanceOf(b, { now: record });
-  if (!cl) return;                                        // (a plan ahead, while the map is still building: later)
+  const got = clearanceOf(b);
+  // no map yet (a tap in the first moments of a level, before its veil has even lifted): fly as authored; a plan
+  // ahead waits for the real map rather than caching one made on a stand-in
+  if (!got || (!got.exact && !record)) { if (record) clearanceStats.unplanned++; return; }
+  if (!got.exact) clearanceStats.standIn++;
+  const cl = got.map;
   let plan = plans.get(key);
   if (!plan || plan.sig !== cl.sig) {
     const t0 = performance.now();
@@ -858,7 +867,7 @@ function stepTween(dt) {
     const still = tween.still;
     tween = null;
     if (cinema && !reduced && !still) startDrift();
-    else if (still) prefetchNeighbours();
+    else if (!cinema) prefetchNeighbours();
   }
 }
 // while a part is on screen: orbit a little and push in, if the part stays in clear view the whole way
@@ -1228,6 +1237,9 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   renderSteps();
   applyTier(i);
   resize();
+  // the level's clearance map, built whole while its veil is still up, so the reader's first tap is always planned
+  // (another layer's map, built later between frames, stands in for it until then: the same buildings)
+  clearanceOf(b, { load: Infinity });
   hush(1500);
   if (travel) {
     // Reed, 09/27: the level's name flashed by. It now stays up long enough to read (about 1.4 s at Full, 0.85 s at

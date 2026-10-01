@@ -19,7 +19,9 @@ export function occupancyBuilder(meshes, { maxCells = 32_000_000 } = {}) {
   const nx = Math.max(1, Math.ceil(size.x / h)), ny = Math.max(1, Math.ceil(size.y / h)), nz = Math.max(1, Math.ceil(size.z / h));
   const bits = new Uint32Array(Math.ceil((nx * ny * nz) / 32)), ox = bounds.min.x, oy = bounds.min.y, oz = bounds.min.z;
   const reach = h * 0.87;                                   // half a cell's diagonal
-  const set = i => { bits[i >>> 5] |= 1 << (i & 31); };
+  // and a coarse layer over it, one byte per 4×4×4 block of cells, so a query in open space skips whole blocks
+  const bx = Math.ceil(nx / 4), by = Math.ceil(ny / 4), bz = Math.ceil(nz / 4), blocks = new Uint8Array(bx * by * bz);
+  const set = (i, j, k) => { const n = (k * ny + j) * nx + i; bits[n >>> 5] |= 1 << (n & 31); blocks[((k >> 2) * by + (j >> 2)) * bx + (i >> 2)] = 1; };
   const has = i => (bits[i >>> 5] >>> (i & 31)) & 1;
   const clampI = (v, n) => (v < 0 ? 0 : v >= n ? n - 1 : v);
   let V = new Float32Array(0);
@@ -30,7 +32,7 @@ export function occupancyBuilder(meshes, { maxCells = 32_000_000 } = {}) {
     const j0 = clampI(Math.floor((Math.min(ay, by, cy) - oy) / h), ny), j1 = clampI(Math.floor((Math.max(ay, by, cy) - oy) / h), ny);
     const k0 = clampI(Math.floor((Math.min(az, bz, cz) - oz) / h), nz), k1 = clampI(Math.floor((Math.max(az, bz, cz) - oz) / h), nz);
     if ((i1 - i0 + 1) * (j1 - j0 + 1) * (k1 - k0 + 1) <= 8) {
-      for (let k = k0; k <= k1; k++) for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) set((k * ny + j) * nx + i);
+      for (let k = k0; k <= k1; k++) for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) set(i, j, k);
       return;
     }
     // a big triangle: the cells within reach of its plane, inside its box (a superset of the triangle's own)
@@ -48,17 +50,17 @@ export function occupancyBuilder(meshes, { maxCells = 32_000_000 } = {}) {
     if (qx >= qy && qx >= qz) {
       for (let k = k0; k <= k1; k++) for (let j = j0; j <= j1; j++) {
         const [a0, a1] = band(px, py * (oy + (j + 0.5) * h), pz * (oz + (k + 0.5) * h), ox, i0, i1, h), row = (k * ny + j) * nx;
-        for (let i = a0; i <= a1; i++) set(row + i);
+        for (let i = a0; i <= a1; i++) set(i, j, k);
       }
     } else if (qy >= qz) {
       for (let k = k0; k <= k1; k++) for (let i = i0; i <= i1; i++) {
         const [a0, a1] = band(py, px * (ox + (i + 0.5) * h), pz * (oz + (k + 0.5) * h), oy, j0, j1, h);
-        for (let j = a0; j <= a1; j++) set((k * ny + j) * nx + i);
+        for (let j = a0; j <= a1; j++) set(i, j, k);
       }
     } else {
       for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
         const [a0, a1] = band(pz, px * (ox + (i + 0.5) * h), py * (oy + (j + 0.5) * h), oz, k0, k1, h);
-        for (let k = a0; k <= a1; k++) set((k * ny + j) * nx + i);
+        for (let k = a0; k <= a1; k++) set(i, j, k);
       }
     }
   };
@@ -88,18 +90,21 @@ export function occupancyBuilder(meshes, { maxCells = 32_000_000 } = {}) {
   };
   const near = (p, r) => {
     const R = r + reach, R2 = R * R;
-    const i0 = Math.floor((p.x - R - ox) / h), i1 = Math.floor((p.x + R - ox) / h);
-    const j0 = Math.floor((p.y - R - oy) / h), j1 = Math.floor((p.y + R - oy) / h);
-    const k0 = Math.floor((p.z - R - oz) / h), k1 = Math.floor((p.z + R - oz) / h);
-    if (i1 < 0 || j1 < 0 || k1 < 0 || i0 >= nx || j0 >= ny || k0 >= nz) return false;
-    for (let k = Math.max(0, k0); k <= Math.min(nz - 1, k1); k++) {
-      const dz = oz + (k + 0.5) * h - p.z;
-      for (let j = Math.max(0, j0); j <= Math.min(ny - 1, j1); j++) {
-        const dy = oy + (j + 0.5) * h - p.y, row = (k * ny + j) * nx;
-        for (let i = Math.max(0, i0); i <= Math.min(nx - 1, i1); i++) {
-          if (!has(row + i)) continue;
-          const dx = ox + (i + 0.5) * h - p.x;
-          if (r <= 0 ? (Math.abs(dx) <= h / 2 && Math.abs(dy) <= h / 2 && Math.abs(dz) <= h / 2) : dx * dx + dy * dy + dz * dz <= R2) return true;
+    const i0 = Math.max(0, Math.floor((p.x - R - ox) / h)), i1 = Math.min(nx - 1, Math.floor((p.x + R - ox) / h));
+    const j0 = Math.max(0, Math.floor((p.y - R - oy) / h)), j1 = Math.min(ny - 1, Math.floor((p.y + R - oy) / h));
+    const k0 = Math.max(0, Math.floor((p.z - R - oz) / h)), k1 = Math.min(nz - 1, Math.floor((p.z + R - oz) / h));
+    if (i1 < i0 || j1 < j0 || k1 < k0) return false;
+    for (let K = k0 >> 2; K <= k1 >> 2; K++) for (let J = j0 >> 2; J <= j1 >> 2; J++) for (let I = i0 >> 2; I <= i1 >> 2; I++) {
+      if (!blocks[(K * by + J) * bx + I]) continue;
+      for (let k = Math.max(k0, K * 4); k <= Math.min(k1, K * 4 + 3); k++) {
+        const dz = oz + (k + 0.5) * h - p.z;
+        for (let j = Math.max(j0, J * 4); j <= Math.min(j1, J * 4 + 3); j++) {
+          const dy = oy + (j + 0.5) * h - p.y, row = (k * ny + j) * nx;
+          for (let i = Math.max(i0, I * 4); i <= Math.min(i1, I * 4 + 3); i++) {
+            if (!has(row + i)) continue;
+            const dx = ox + (i + 0.5) * h - p.x;
+            if (r <= 0 ? (Math.abs(dx) <= h / 2 && Math.abs(dy) <= h / 2 && Math.abs(dz) <= h / 2) : dx * dx + dy * dy + dz * dz <= R2) return true;
+          }
         }
       }
     }
