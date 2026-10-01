@@ -9,6 +9,7 @@ on:
     inputs:
       mount: { description: 'Path under reedos.dev to serve the site at', default: 'intelligence_factory', required: true }
       html_handling: { description: 'Workers assets html_handling', default: 'none', required: true }
+      remove: { description: 'Delete the Worker (and its route) for this mount instead of deploying', type: boolean, default: false }
 permissions: { contents: read }
 concurrency: { group: 'cloudflare-${{ inputs.mount }}', cancel-in-progress: false }
 jobs:
@@ -19,13 +20,22 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - run: npx tsc --noEmit -p .
-      - run: npm test
+      - if: ${{ !inputs.remove }}
+        run: npx tsc --noEmit -p .
+      - if: ${{ !inputs.remove }}
+        run: npm test
       - run: npm run build
       - name: Stage the build under its mount path
         run: node tools/cloudflare-stage.mjs "${{ inputs.mount }}" "${{ inputs.html_handling }}"
       - name: Deploy the Worker and its route
+        if: ${{ !inputs.remove }}
         run: npx wrangler@4 deploy --config cf-stage/wrangler.json
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Delete the Worker and its route
+        if: ${{ inputs.remove }}
+        run: npx wrangler@4 delete --config cf-stage/wrangler.json --force
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
