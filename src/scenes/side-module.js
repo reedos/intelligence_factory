@@ -6,6 +6,7 @@
 // chip partition is representative; independent ports do not establish physical chip counts.
 // TX: host → DSP → driver → Mach-Zehnder modulators, lit by CW lasers → fiber → connector.
 // RX: connector → fiber → photodiodes → TIA → DSP → host.
+import { MODULE_VARIANTS, LRO_COLOR, inVariant, lroDieTop, lroIntro, lroPartCopy } from './module-lro.js';
 import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, bondWire, label, lidBox, outline, FLOW, COL, note, unitCol, finTex, glowMat, canvasTex } from './side-kit.js';
 
 // A representative shared PIC: eight TX lanes, eight RX lanes; four CW sources feed TX only.
@@ -42,9 +43,10 @@ function ePicTex() {
 export function build({ quality, state }) {
   const scene = setup(quality, 9), M = materials();
   const S = new Builder(), N = new Builder(), TD = new Builder(), TL = new Builder();   // TD: traces with a DSP, TL: the LPO module's
+  const TDr = new Builder(), TLr = new Builder();   // their receive halves, apart so LRO can keep DSP transmit + linear receive
   const flows = [], dataFlows = [], heatFlows = [];
-  const dspOnly = new Set(), lpoOnly = new Set();
-  const lpo = { on: false };
+  const dspOnly = new Set(), lpoOnly = new Set(), rxSide = new Set();
+  const lpo = { on: false, kind: 'dsp' };
 
   const LEN = 10.78, MW = 2.258, MX0 = -LEN / 2, MX1 = LEN / 2, mx = u => MX0 + u;
   const Y = { shell: 0, pcb: 1.3, top: 1.35, lid: 3.4 };
@@ -126,9 +128,9 @@ export function build({ quality, state }) {
     const pair = (B, pts) => { for (const d of [-0.022, 0.022]) for (let k = 0; k < pts.length - 1; k++) trace(B, [pts[k][0], pts[k][1] + d], [pts[k + 1][0], pts[k + 1][1] + d], Y.top + 0.002, 0.018); };
     for (let i = 0; i < 8; i++) for (const rx of [false, true]) {
       const z = hostZ(i, rx), lz = lineZ(i, rx);
-      pair(TD, [[mx(0.62), z], [DSPX - 1.1, z], [DSPX - 0.5, z * 0.7]]);              // host side
-      pair(TD, [[DSPX + 0.5, z * 0.7], [DRVX - 0.7, lz], [DRVX - CW_ / 2, lz]]);       // line side
-      pair(TL, [[mx(0.62), z], [DRVX - 1.4, z], [DRVX - 0.7, lz], [DRVX - CW_ / 2, lz]]);   // LPO: straight from the host to the linear driver / TIA
+      pair(rx ? TDr : TD, [[mx(0.62), z], [DSPX - 1.1, z], [DSPX - 0.5, z * 0.7]]);              // host side
+      pair(rx ? TDr : TD, [[DSPX + 0.5, z * 0.7], [DRVX - 0.7, lz], [DRVX - CW_ / 2, lz]]);       // line side
+      pair(rx ? TLr : TL, [[mx(0.62), z], [DRVX - 1.4, z], [DRVX - 0.7, lz], [DRVX - CW_ / 2, lz]]);   // LPO: straight from the host to the linear driver / TIA
     }
 
     // ======================= this engine's flows =======================
@@ -141,7 +143,7 @@ export function build({ quality, state }) {
       const c = flow([[MX1 + 0.6, mpoY, pos(...rxEnd(i))], ...fiberPath(rxRow(i), rxEnd(i), 0.4).reverse(), [PICX1, picTopY + 0.01, rxRow(i)], [cx(EMZ.pdX), picTopY + 0.01, rxRow(i)]], 'rx', FLOW.light);
       const d = flow([[cx(EMZ.rxPadX), picTopY + 0.02, rxRow(i)], [DRVX + CW_ / 2, yC, lzr], [DRVX - CW_ / 2, yT, lzr], [DRVX - 0.7, yT, lzr], [DSPX + 0.5, yD, zr * 0.7], [DSPX - 0.5, yT, zr * 0.7], [DSPX - 1.1, yT, zr], [mx(0.62), yT, zr], [MX0 - 0.9, yT, zr]], 'eth', FLOW.elec);
       const dL = flow([[cx(EMZ.rxPadX), picTopY + 0.02, rxRow(i)], [DRVX + CW_ / 2, yC, lzr], [DRVX - CW_ / 2, yT, lzr], [DRVX - 0.7, yT, lzr], [DRVX - 1.4, yT, zr], [mx(0.62), yT, zr], [MX0 - 0.9, yT, zr]], 'eth', FLOW.elec);
-      dataFlows.push(a, b, c, d, aL, dL); dspOnly.add(a).add(d); lpoOnly.add(aL).add(dL);
+      dataFlows.push(a, b, c, d, aL, dL); dspOnly.add(a).add(d); lpoOnly.add(aL).add(dL); rxSide.add(d).add(dL);
     }
     // laser light, no data: from each laser into the chip's left edge, split to its two lanes' modulators
     lasers.forEach((z, k) => { for (const j of [0, 1]) dataFlows.push(flow([[LZX, picTopY + 0.01, z], [cx(EMZ.split), picTopY + 0.01, z], [cx(EMZ.split + 30), picTopY + 0.01, txRow(2 * k + j)], [cx(EMZ.mzIn), picTopY + 0.01, txRow(2 * k + j)]], 'cw', FLOW.cw)); });
@@ -175,7 +177,9 @@ export function build({ quality, state }) {
   const e1 = buildEngine();
 
   const tracesDsp = TD.build({ cast: false }), tracesLpo = TL.build({ cast: false }); tracesLpo.visible = false;
-  scene.add(tracesDsp, tracesLpo);
+  const tracesDspRx = TDr.build({ cast: false }), tracesLpoRx = TLr.build({ cast: false }); tracesLpoRx.visible = false;
+  scene.add(tracesDsp, tracesLpo, tracesDspRx, tracesLpoRx);
+  const lroMark = lroDieTop({ w: 0.66, d: 1.06 }); lroMark.position.set(DSPX, Y.top + 0.161, 0); lroMark.visible = false; scene.add(lroMark);
 
   // ---- shell top with fins, lifted ----
   lidBox(scene, M, LEN, MW, [0, Y.lid, 0]);
@@ -194,13 +198,16 @@ export function build({ quality, state }) {
   label(scene, 'Light · waveguides on the chip', [PICX, 2.1, -1.45], COL.tx, 0.14);
   label(scene, 'Light · glass fiber', [(FAUX + MPOX) / 2 + 0.2, 1.9, -1.45], COL.tx, 0.14);
   const lpoTag = label(scene, 'LPO · no DSP: host lanes go straight to the linear driver and TIA', [DSPX, 2.25, 0], '#8fd3ff', 0.15); lpoTag.visible = false;
+  const lroTag = label(scene, 'LRO · DSP retimes transmit only; receive runs linear, TIA to host', [DSPX, 2.25, 0], LRO_COLOR, 0.15); lroTag.visible = false;
 
-  function setLpo(on) {
-    lpo.on = on;
+  function setVariant(next) {
+    const kind = lpo.kind = MODULE_VARIANTS.includes(next) ? next : 'dsp', on = lpo.on = kind === 'lpo';
     dspGroup.visible = pad.visible = !on; ghost.visible = ghostEdge.visible = on;
-    lpoTag.visible = on;
-    tracesDsp.visible = !on; tracesLpo.visible = on;
+    lpoTag.visible = on; lroTag.visible = lroMark.visible = kind === 'lro';
+    tracesDsp.visible = !on; tracesDspRx.visible = kind === 'dsp';
+    tracesLpo.visible = on; tracesLpoRx.visible = kind !== 'dsp';
   }
+  const setLpo = on => setVariant(on ? 'lpo' : 'dsp');
   const view = (p, v, t) => ({ pos: p, view: { pos: v, target: t } });
   const hs = {
     fingers: view([mx(0.3), Y.top + 0.1, 0.9], [mx(-1.6), 3.6, 3.6], [mx(0.8), Y.top, 0]),
@@ -214,12 +221,15 @@ export function build({ quality, state }) {
     hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: e1.hs.dsp, driver: e1.hs.driver, lasers: e1.hs.lasers },
     dataHotspots: { fingers: hs.fingers, dsp: e1.hs.dsp, driver: e1.hs.driver, lasers: e1.hs.lasers, mzm: e1.hs.mzm, mpo: hs.mpo, pd: e1.hs.pd, tia: e1.hs.tia },
     heatHotspots: { dsp: e1.hs.dsp, shell: hs.shell },
-    variant: { get lpo() { return lpo.on; }, setLpo },
+    variant: { get lpo() { return lpo.on; }, setLpo, get kind() { return lpo.kind; }, set: setVariant,
+      intro: mode => lpo.kind === 'lro' ? lroIntro(mode) : null, partCopy: (part, mode) => lpo.kind === 'lro' ? lroPartCopy(part, mode) : part },
     update(t) {
       const m = state.mode;
       // a flow shows in its own layer, and only in the variant whose path it follows
-      const show = (list, mode) => list.forEach(f => (f.group.visible = m === mode && !(lpo.on ? dspOnly.has(f) : lpoOnly.has(f))));
+      const owner = f => dspOnly.has(f) ? 'dsp' : lpoOnly.has(f) ? 'lpo' : 'common';
+      const show = (list, mode) => list.forEach(f => (f.group.visible = m === mode && inVariant(lpo.kind, owner(f), rxSide.has(f))));
       show(flows, 'power'); show(dataFlows, 'data'); show(heatFlows, 'heat');
+      lroTag.visible = lpo.kind === 'lro' && !state.selected;
       const em = m === 'heat' ? 0.5 + 0.08 * Math.sin(t * 2) : 0;
       dspTop.emissiveIntensity = em;
     },

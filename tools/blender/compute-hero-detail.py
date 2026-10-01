@@ -74,12 +74,12 @@ def enhance(kind,accel,m,box,cylinder,p3,material):
                 front_frame('Drive sled face',x,.20,4.468,.222,.33,.019,u)
                 box('Drive release paddle',(x,.20,4.485),(.13,.22,.018),ceramic,u,.018)
                 for z in [3.49,3.67,3.85,4.03,4.21]:box('Drive shell rib',(x,.376,z),(.193,.015,.028),titanium,u,.006)
-            # Four existing OSFP cages; an open front frame and pull loop leave
-            # the electrical/optical teaching routes free through the apertures.
+            # Four existing OSFP cages with an open folded front frame. Each holds a
+            # seated module (native nose, pull tab and printed lid), so the cage no
+            # longer carries a separate pull loop across the module's nose.
             for x in [.2,.7,1.2,1.7]:
                 front_frame('Folded OSFP cage mouth',x,.24,4.52,.22,.164,.014,u,trim)
                 for sx in [-1,1]:box('OSFP insertion guide',(x+sx*.103,.245,4.21),(.014,.15,.47),titanium,u,.005)
-                front_frame('OSFP extraction bail',x,.23,4.58,.18,.118,.012,u,titanium)
             # Substantial perimeter treatment over the existing DPU package.
             for center in ([-.35] if accel=='gb300' else [-.8,-.3]):
                 for x in [center-.16,center+.16]:box('DPU thermal edge shoulder',(x,.385,3.65),(.025,.065,.58),titanium,u,.01)

@@ -224,8 +224,9 @@ def rubin_hardware(m):
         for y in [.16,.34]:
             for sy in [-1,1]:box('Rubin cage folded mouth',(x,y+sy*.071,4.452),(.31,.014,.024),m['bright'],u,.006)
             for sx in [-1,1]:box('Rubin cage folded mouth',(x+sx*.151,y,4.452),(.014,.128,.024),m['bright'],u,.006)
-            for sx in [-1,1]:box('Rubin module bail arm',(x+sx*.105,y-.035,4.49),(.012,.012,.07),m['graphite'],u,.004)
-            box('Rubin module bail',(x,y-.035,4.525),(.222,.014,.012),m['graphite'],u,.005)
+            # The bail clears the seated module's nose (native, to z=4.566).
+            for sx in [-1,1]:box('Rubin module bail arm',(x+sx*.105,y-.035,4.515),(.012,.012,.12),m['graphite'],u,.004)
+            box('Rubin module bail',(x,y-.035,4.578),(.222,.014,.012),m['graphite'],u,.005)
     # Machined bosses on the nine native cold-plate caps (cap top y=.729): a
     # raised inlet/outlet pair with an O-ring groove, plus a service etch.
     plates=[(x,-2.7,.88,1.0) for x in [-1.6,-.62,.62,1.6]]+[(x,-.65,.80,.85) for x in [-1.1,1.1]]+[(x,2.85,1.08,1.65) for x in [-1.35,1.35]]+[(0,2.85,.76,1.65)]

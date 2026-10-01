@@ -5,16 +5,19 @@ import { build as rack } from './rack.js';
 import { build as tray } from './tray.js';
 import { build as chip } from './chip.js';
 import { applyPcb } from './tray-pcb.js';
+import { rackMarks } from './electrical-marks.js';
+import { rackManifoldMarks } from './cooling-marks.js';
+import { surfaceHit, realizeSpots } from './print-kit.js';
 
 const cache = new Map(), pending = new Map();
-const physical = o => o.isMesh && !o.isReflector && !o.userData.computeDynamic && !o.userData.nativeOverlay   // nativeOverlay: kept native, never baked (rack-mgmt.js)
+const physical = o => o.isMesh && !o.isReflector && !o.userData.computeDynamic && !o.userData.nativeOverlay && !o.userData.printed   // nativeOverlay: kept native, never baked (rack-mgmt.js)
   && (Array.isArray(o.material) ? o.material : [o.material]).some(m => !m.isMeshBasicMaterial && !m.isShaderMaterial);
 const variant = (_kind, model) => model.accel.id;
 const assetKey = (kind, model) => `compute-${kind}-${variant(kind, model)}`;
 
 async function load(key) {
   if (cache.has(key)) return;
-  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=traypcb2`)
+  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=traylbl2`)
     .then(gltf => { cache.set(key, gltf.scene); pending.delete(key); })
     .catch(error => { pending.delete(key); throw error; }));
   await pending.get(key);
@@ -102,6 +105,19 @@ function build(kind, native, options) {
   if (kind === 'tray') applyPcb(hardware, accel, { mobile });
   if (kind === 'rack') applyPcb(hardware, accel, { lod: 'rack', rects: rackBoards(accel) });
   built.scene.add(hardware);
+  // Package markings and other prints requested by the native builder, on the authored surfaces.
+  realizeSpots(hardware, built.scene, built.printSpots);
+  if (kind === 'rack' && built.printMarks) {
+    // Voltage marks print on the authored surfaces: the busway's front face and the busbar's rear face.
+    const tag = built.printMarks.busbar;
+    const hit = tag && surfaceHit(hardware, [tag.x, tag.y, tag.z - 1], [0, 0, 1]);
+    rackMarks(built.scene, options.model, { root: hardware, busway: built.printMarks.busway, busbar: hit ? { p: hit.point.toArray(), n: [0, 0, -1] } : null });
+    // the rack loop's pipe markers on the manifolds' rear faces
+    rackManifoldMarks(built.scene, built.printMarks.manifolds.map(m => {
+      const hit = surfaceHit(hardware, [m.x, m.y, m.z - 1], [0, 0, 1]);
+      return hit && { p: hit.point.toArray(), side: m.side };
+    }).filter(Boolean));
+  }
   built.scene.traverse(o => { if (o.userData.computeCoverOutline === 'ihs') covers.push(o); });
   const showCovers = () => { for (const o of covers) o.visible = options.state.mode === 'heat'; };
   showCovers();
@@ -115,7 +131,7 @@ function build(kind, native, options) {
     return result;
   };
   built.scene.userData.blenderCompute = { asset: `${key}.glb`, completeStaticHardware: true, replacedNativeMeshes: obsolete.length,
-    representative: true, runtimeExceptions: ['flow and heat overlays', 'token sprites and cache effects', 'status light effects', 'lights', 'camera', 'hotspots', 'Blender rotor and solder instancing', 'native overlays (rack management leads)'] };
+    representative: true, runtimeExceptions: ['flow and heat overlays', 'token sprites and cache effects', 'status light effects', 'lights', 'camera', 'hotspots', 'Blender rotor and solder instancing', 'native overlays (rack management leads)', 'printed labels'] };
   return built;
 }
 // Pulled-tray boards in rack metres -> the matching tray boards in tray units

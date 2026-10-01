@@ -226,7 +226,7 @@ describe('complete Blender compute hardware',()=>{
     expect(b.scene.userData.blenderCompute.replacedNativeMeshes).toBeGreaterThan(10);
     const dynamic=new Set();for(const key of ['flows','dataFlows','heatFlows'])for(const f of b[key]||[])f.group.traverse((o:any)=>dynamic.add(o));
     hardware.traverse((o:any)=>dynamic.add(o));
-    const outside=meshes(b.scene).filter(o=>!dynamic.has(o)&&!o.isReflector&&!o.userData.computeDynamic&&!o.userData.nativeOverlay&&(Array.isArray(o.material)?o.material:[o.material]).some((m:any)=>!m.isMeshBasicMaterial&&!m.isShaderMaterial));
+    const outside=meshes(b.scene).filter(o=>!dynamic.has(o)&&!o.isReflector&&!o.userData.computeDynamic&&!o.userData.nativeOverlay&&!o.userData.printed&&(Array.isArray(o.material)?o.material:[o.material]).some((m:any)=>!m.isMeshBasicMaterial&&!m.isShaderMaterial));
     expect(outside.length).toBe(0);
     expect(meshes(hardware).every(o=>Array.from(o.geometry.attributes.position.array).every(Number.isFinite))).toBe(true);
     expect(meshes(hardware).every(o=>o.geometry.userData.authoredIn==='Blender')).toBe(true);

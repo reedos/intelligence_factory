@@ -6,6 +6,8 @@ import { directLink } from './link-art-direction.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
 import { hardwareBounds } from '../app/housing-frame.js';
 import { THREE } from './side-kit.js';
+import { printDecals, textTexture, surfaceHit } from './print-kit.js';
+import { COHERENT_LABEL, COPPER_LABELS } from './lid-labels.js';
 
 const cached = new Map();
 let pending;
@@ -96,7 +98,7 @@ function build(name, nativeBuilder, options) {
   const dynamic = new Set(), diagrams = new Map(), staticMeshes = [];
   for (const key of ['flows', 'dataFlows', 'heatFlows']) for (const f of built[key] || []) f.group.traverse(o => dynamic.add(o));
   built.scene.traverse(o => {
-    if (!o.isMesh || dynamic.has(o)) return;
+    if (!o.isMesh || dynamic.has(o) || o.userData.printed) return;
     const materials = Array.isArray(o.material) ? o.material : [o.material];
     if (!materials.some(m => !m.isMeshBasicMaterial && !m.isShaderMaterial)) return;
     for (const material of materials) if (material.map && !diagrams.has(material.map)) diagrams.set(material.map, material);
@@ -198,6 +200,24 @@ function build(name, nativeBuilder, options) {
       const edges = new THREE.LineSegments(new THREE.EdgesGeometry(cover.geometry, 29), outline);
       edges.name = 'Copper lifted cover outline'; edges.raycast = () => {}; edges.onBeforeRender = outline.userData.track; cover.add(edges);
     }
+  }
+  // Printed marks (lid-labels.js). Copper: each lifted upper half carries its cable class on the lid, printed in the
+  // same x-ray treatment as the lid it sits on. Coherent: the finned lid has no flat field, so 800ZR is printed
+  // on the die-cast lower case's long wall facing the reader.
+  if (name === 'copper') {
+    for (const [kind, x] of [['dac', -4.6], ['acc', 0], ['aec', 4.6]]) {
+      const hit = surfaceHit(model, [x, 12, -1.7], [0, -1, 0], o => /lifted cover/i.test(o.material?.name || ''));
+      if (!hit) continue;
+      printDecals(built.scene, { texture: textTexture([{ text: COPPER_LABELS[kind], size: .78, weight: 600 }], { px: 128, aspect: 2.5, ink: '#dfe7ef', align: 'center' }),
+        size: [1.15, .46], placements: [{ p: hit.point.toArray(), face: 'top' }], lift: .004, name: `Copper ${kind.toUpperCase()} lid print`,
+        material: { roughness: .6, opacity: .5 } });
+    }
+  }
+  if (name === 'coherent') {
+    const hit = surfaceHit(model, [-2.25, .33, 8], [0, 0, -1], o => /lower case/i.test(o.material?.name || ''));
+    if (hit) printDecals(built.scene, { texture: textTexture([{ text: COHERENT_LABEL, size: .8, weight: 600 }], { px: 128, aspect: 4, ink: '#3b414a', align: 'center' }),
+      size: [1.1, .27], placements: [{ p: hit.point.toArray(), face: 'front' }], lift: .004, name: 'Coherent 800ZR case print',
+      material: { roughness: .65, metalness: .3 } });
   }
   const coverPositions = new Map(covers.map(cover => [cover, cover.position.clone()]));
   const coverMaterials = new Set(covers.flatMap(cover => Array.isArray(cover.material) ? cover.material : [cover.material]));

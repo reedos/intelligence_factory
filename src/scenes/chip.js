@@ -1,6 +1,7 @@
 // Scene 5: the GPU package, exploded, and the tokens that leave it. World unit = 1 cm.
 // Blackwell and Rubin: two dies, HBM above and below. H100: one die, HBM sites left and right.
 import { THREE, MAT, Builder, flow, canvasTex, glowMat } from '../kit.js';
+import { etch, GPU_NAME } from './package-marks.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { computeMaterials, finishCompute, boardFinish } from './compute-finish.js';
 import { STREAM_TPS, buildCycle, sampleAt, tick } from '../model/token-script.js';
@@ -489,6 +490,8 @@ function buildPackage({ quality, state, model }) {
     mobileAnchor: [1.1, 12.5, -0.6], mobileScale: 0.85, mobileView: componentView([1.0, 9.2, -0.4], [6, 4.6, 11], [5.4, 12.4, 2.5]) });
   const nvphyHS = twin ? { pos: [2.62, Y.dies + 0.1, -1.2], view: { pos: [8, 5, 1], target: [3, 2.6, 0] } } : { pos: [0.9, Y.dies + 0.1, 1.62], view: { pos: [2, 5.5, 8], target: [0, 2.6, 2.2] } };
   return {
+    // the GPU's name, laser-etched on the substrate margin between two capacitor clusters (package-marks.js)
+    printSpots: [etch('GPU package marking', GPU_NAME[A.id] || A.short, [1.3, .36], [{ from: [1.1, 12, 3.38], dir: [0, -1, 0] }])],
     scene, flows,
     look: { env: 'studio', envIntensity: 0.45, exposure: 0.94, bloom: 0.32, threshold: 2.0, ao: 0.12, dof: true },
     camera: { pos: [9.5, 8.2, 11.5], target: [0, 2.3, 0], near: 0.05, far: 500, min: 2, max: 40 },

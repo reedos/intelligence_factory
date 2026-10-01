@@ -7,6 +7,8 @@ import { computeMaterials, finishCompute } from './compute-finish.js';
 import { frameCompute } from './compute-framing.js';
 import { addRackOptics } from './rack-optics.js';
 import { addRackMgmt } from './rack-mgmt.js';
+import { etch } from './package-marks.js';
+import { rackUnits } from './site-signs.js';
 import { componentView } from '../app/housing-frame.js';
 
 const U = 0.04445;
@@ -114,6 +116,9 @@ export function build(opts) {
   finishCompute(result.scene, computeMaterials());
   addRackOptics(result, opts.model.accel.id);
   if (opts.model.accel.gpusPerRack === 72) addRackMgmt(result, opts.model.accel.id, opts.quality);   // 1 GbE management leads (rack-mgmt.js)
+  // Where compute-blender prints the voltage marks once the authored hardware is in place (electrical-marks.js):
+  // the busway housing's front face and, on NVL72 racks, the busbar's free span at the management slot.
+  result.printMarks = { manifolds: result.manifoldTags || [], busway: { x0: -0.6 - 1.6, x1: -0.6 + 1.6, y: 3.2 - 0.035, zFront: -0.25 + 0.075 }, busbar: result.busbarTag || null };
   frameCompute(result, 'rack', opts.model.accel.id);
   return result;
 }
@@ -153,6 +158,7 @@ function room(scene, quality, S, N, W, H, D) {
     }
   }
   rbox(N, W - 0.04, 0.008, D - 0.025, MAT.darkSteel, 0, H + 0.004, 0, { r: 0.28 });
+  rackUnits(scene, { X, ZF, U, H });   // U numbers beside the rail holes (site-signs.js)
 }
 
 // Overhead plug-in busway and the rack's two tap-off units (the A and B feeds).
@@ -543,6 +549,8 @@ function buildHGX({ quality, state }) {
 
   const srv = { pos: [0.2, py + 0.12, pz + 0.3], view: { pos: [0.7, 1.9, 1.8], target: [0, py, pz] } };
   return {
+    // the server's model name on each closed server's bezel, upper left, text only (package-marks.js etch style)
+    printSpots: [etch('DGX H100 bezel name', 'DGX H100', [.1, .02], inRack.map(k => ({ from: [-.12, sy(k) + SU * 0.3, ZF + 1], dir: [0, 0, -1] })), { ink: '#d5dbe2' })],
     scene, flows,
     camera: { pos: [3.1, 2.3, -3.7], target: [0, 1.0, -0.1], near: 0.01, far: 200, min: 0.4, max: 9 },
     hotspots: {
@@ -731,6 +739,9 @@ function buildNVL({ quality, model, state }) {
       N.box(0.036, 0.002, 0.012, CONTACT, cx, y + U * 0.25 + 0.001, ZB + 0.09);
     });
   });
+  // The voltage tag sits on the right-hand bar's rear face in the gap between two trays' contact lands, at the
+  // height the busbar close-up frames (electrical-marks.js).
+  const busbarTag = { x: 0.018, y: trayY(16) + U / 2, z: bbZ };
   // Busbar: a tin-plated contact land on each bar where every tray's clip grabs it.
   const TIN = new THREE.MeshStandardMaterial({ color: 0xc9ccd0, roughness: 0.42, metalness: 0.9 }); TIN.name = 'Busbar tin-plated contact';
   layout.forEach((k, i) => {
@@ -748,6 +759,7 @@ function buildNVL({ quality, model, state }) {
   const KNURL = new THREE.MeshStandardMaterial({ color: 0x5d646c, roughness: 0.55, metalness: 0.8 }); KNURL.name = 'Coupler knurled sleeve';
   const HOSE = new THREE.MeshStandardMaterial({ color: 0x16181b, roughness: 0.7, metalness: 0.05 }); HOSE.name = 'EPDM coolant hose';
   const mTop = bbTop + 0.1, mBot = trayY(3) - 0.08, mMid = (mTop + mBot) / 2, mLen = mTop - mBot;
+  const manifoldTags = mX.map((x, side) => ({ x, y: mMid, z: mZ, side }));   // pipe markers' spots (cooling-marks.js)
   mX.forEach((x, side) => {
     const band = side ? MAT.pipeRed : MAT.pipeBlue, out = Math.sign(x);
     rbox(S, 0.045, mLen, 0.048, STAINLESS, x, mMid, mZ, { r: 0.12 });
@@ -871,6 +883,8 @@ function buildNVL({ quality, model, state }) {
   // housings read beside the busbar instead of a flat rear elevation.
   const spineHot = { pos: [0.2, trayY(18), cartZ], view: componentView([0.1, trayY(16), ZB + 0.06], [0.85, 0.3, -0.95], [0.5, 0.75, 0.25]) };
   return {
+    manifoldTags,
+    busbarTag,
     scene, flows,
     camera: { pos: [3.1, 2.3, -3.7], target: [0, 1.1, -0.1], near: 0.01, far: 200, min: 0.4, max: 9 },
     hotspots: {

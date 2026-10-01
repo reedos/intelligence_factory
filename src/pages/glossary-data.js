@@ -1243,7 +1243,7 @@ export const TERMS = [
  },
  {
   "term": "Accelerator",
-  "def": "This page's word for a GPU generation and its rack platform together, since a GPU's power draw, memory, and cooling needs change together from one generation to the next. It tracks four: H100, GB200, GB300, and the pre-launch Rubin.",
+  "def": "This page's word for a GPU generation and its rack platform together, since a GPU's power draw, memory, and cooling needs change together from one generation to the next. It tracks four: H100, GB200, GB300, and the pre-launch Vera Rubin.",
   "layer": "compute",
   "link": {
    "scene": 4,
@@ -1253,7 +1253,7 @@ export const TERMS = [
  },
  {
   "term": "NVLink-C2C",
-  "def": "A coherent chip-to-chip link between a GPU and its paired CPU, fast enough that the GPU can treat the CPU's memory as a slower extension of its own. GB200 and GB300 run it at 900 GB/s; the pre-launch Rubin is expected at 1.8 TB/s, an estimate.",
+  "def": "A coherent chip-to-chip link between a GPU and its paired CPU, fast enough that the GPU can treat the CPU's memory as a slower extension of its own. GB200 and GB300 run it at 900 GB/s; the pre-launch Vera Rubin is expected at 1.8 TB/s, an estimate.",
   "layer": "data",
   "sources": [
    "nvidia-gb200-nvl72",

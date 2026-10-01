@@ -72,21 +72,22 @@ const SIDE_PARENT = { 6: 4, 7: 2, 8: 0, 9: 3 };           // module: the tray; C
 // where a part's go-button leads: a number, or 'out' for the side level's way back
 const backTarget = () => sideEntered ? sideFrom : SIDE_PARENT[ui.scene] ?? 4;
 export const drillOf = p => p?.drill === 'out' ? backTarget() : p?.drill;
-// the pluggable module inside the optics, with its DSP or without (LPO); a view of the module only, since the
-// fabric this scenario counts still uses DSP modules
-let lpoOn = false;
+// the pluggable module inside the optics: full DSP, half-retimed (LRO: DSP on transmit only) or no DSP (LPO); a view of
+// the module only, since the fabric this scenario counts still uses DSP modules
+let moduleVariant = 'dsp';
 // tours always narrate the DSP module, so entering one puts the view back on it
-export function resetVariant() { if (lpoOn) { lpoOn = false; applyVariant(); } }
+export function resetVariant() { if (moduleVariant !== 'dsp') { moduleVariant = 'dsp'; applyVariant(); } }
 function applyVariant() {
-  built[MODULE_LEVEL]?.variant?.setLpo(lpoOn);
-  document.querySelectorAll('[data-variant]').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.variant === 'lpo') === lpoOn)));
+  const v = built[MODULE_LEVEL]?.variant;
+  if (v?.set) v.set(moduleVariant); else v?.setLpo?.(moduleVariant === 'lpo');
+  document.querySelectorAll('[data-variant]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.variant === moduleVariant)));
   if (ui.scene === MODULE_LEVEL && built[MODULE_LEVEL]) {
     buildPanel(MODULE_LEVEL);
     if (ui.selected) select(ui.selected, false);
     emit('module-variant');
   }
 }
-document.querySelectorAll('[data-variant]').forEach(b => b.addEventListener('click', () => { lpoOn = b.dataset.variant === 'lpo'; applyVariant(); }));
+document.querySelectorAll('[data-variant]').forEach(b => b.addEventListener('click', () => { moduleVariant = b.dataset.variant; applyVariant(); }));
 // whether moving from one level to another goes in: a side level counts as inside whatever it was entered from, and
 // moving between two side levels (a tour crossing from the module to the CPO package) goes across, drawn as in
 export const isInward = (from, to) => isSide(to) ? true : isSide(from) ? false : to > from;
