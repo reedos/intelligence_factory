@@ -32,7 +32,7 @@ writeFileSync('cf-stage/public/_redirects', [
 ].join(String.fromCharCode(10)) + String.fromCharCode(10));
 
 writeFileSync('cf-stage/wrangler.json', JSON.stringify({
-  name: mount === 'intelligence_factory' ? 'intelligence-factory' : `if-${mount}`.replace(/_/g, '-').toLowerCase(),
+  name: mount === 'intelligence_factory' ? 'intelligence-factory-site' : `if-${mount}`.replace(/_/g, '-').toLowerCase(),
   compatibility_date: '2026-09-01',
   workers_dev: false,
   assets: { directory: './public', html_handling: htmlHandling, not_found_handling: 'none' },
