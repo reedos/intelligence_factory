@@ -12,6 +12,7 @@ import { preloadCampusArchitecture, hasCampusArchitecture, addBlenderCampusArchi
 import { preloadCampusCatalog, campusCatalogInstances, campusCatalogRotor, campusCatalogBuilder } from './campus-blender-catalog.js';
 import { preloadCampusVehicles, hasCampusVehicles, campusVehicleInstances } from './campus-blender-vehicles.js';
 import { palette } from './campus-palette.js';
+import { campusMarks } from './electrical-marks.js';
 import { preloadCampusTransformer, hasCampusTransformer, campusTransformerInstances } from './campus-blender-transformer.js';
 export const preload = () => Promise.all([preloadCampusArchitecture(), preloadCampusCatalog(), preloadSiteConstruction(), preloadCampusVehicles(), preloadCampusTransformer()]);
 
@@ -914,6 +915,8 @@ export function build({ quality, model }) {
       plumeUpdates.forEach(u => u(t));
     },
   };
+  // Nameplates and hazard signs on the main transformers and switchgear e-houses (electrical-marks.js).
+  campusMarks(scene, model, { mptX, mptZ, ehouses: [[-378, -178], [-378, -122]] });
   attachFlowRibbons(built, { width: 2.4, glow: 5.8, brightness: 2.65, mobile: quality.mobile });
   return built;
 }

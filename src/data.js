@@ -433,7 +433,7 @@ export function content(M) {
       body: dc
         ? `Breakers protect each 34.5 kV feed into the solid-state transformers and switch between utility and ${bat ? 'the site batteries' : 'generator power'} when the grid drops.`
         : `A lineup of drawout breakers protects every outgoing circuit and switches the room between utility and ${bat ? 'the site batteries' : 'generator'} when the grid drops.`,
-      specs: [['Transfer', bat ? 'automatic, utility ↔ site batteries' : 'automatic, utility ↔ generator', 'assumed', { assume: bat ? 'site-battery-carries-campus' : 'hall-standard-practice' }]] },
+      specs: [['Transfer', bat ? 'automatic, utility ↔ site batteries' : 'automatic, utility ↔ generator', 'assumed', { assume: bat ? 'site-battery-carries-campus' : 'hall-standard-practice' }], ['Markings', 'nameplate and arc-flash signs, representative', 'assumed', { assume: 'electrical-marks' }]] },
     dc
       ? { id: 'sst', title: 'Solid-state transformers', kicker: '34.5 kV AC → 800 V DC',
         body: 'Power electronics switching at high frequency replace the 60 Hz transformer, the UPS and the rack rectifiers with one conversion. NVIDIA and partners such as Navitas, Delta and Infineon/SolarEdge target these for 2027 racks; the efficiency here is a vendor claim.',

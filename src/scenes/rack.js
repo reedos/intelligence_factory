@@ -112,6 +112,9 @@ export function build(opts) {
   const result = opts.model.accel.gpusPerRack === 72 ? buildNVL(opts) : buildHGX(opts);
   finishCompute(result.scene, computeMaterials());
   addRackOptics(result, opts.model.accel.id);
+  // Where compute-blender prints the voltage marks once the authored hardware is in place (electrical-marks.js):
+  // the busway housing's front face and, on NVL72 racks, the busbar's free span at the management slot.
+  result.printMarks = { busway: { x0: -0.6 - 1.6, x1: -0.6 + 1.6, y: 3.2 - 0.035, zFront: -0.25 + 0.075 }, busbar: result.busbarTag || null };
   frameCompute(result, 'rack', opts.model.accel.id);
   return result;
 }
@@ -729,6 +732,9 @@ function buildNVL({ quality, model, state }) {
       N.box(0.036, 0.002, 0.012, CONTACT, cx, y + U * 0.25 + 0.001, ZB + 0.09);
     });
   });
+  // The voltage tag sits on the right-hand bar's rear face in the gap between two trays' contact lands, at the
+  // height the busbar close-up frames (electrical-marks.js).
+  const busbarTag = { x: 0.018, y: trayY(16) + U / 2, z: bbZ };
   // Busbar: a tin-plated contact land on each bar where every tray's clip grabs it.
   const TIN = new THREE.MeshStandardMaterial({ color: 0xc9ccd0, roughness: 0.42, metalness: 0.9 }); TIN.name = 'Busbar tin-plated contact';
   layout.forEach((k, i) => {
@@ -869,6 +875,7 @@ function buildNVL({ quality, model, state }) {
   // housings read beside the busbar instead of a flat rear elevation.
   const spineHot = { pos: [0.2, trayY(18), cartZ], view: componentView([0.1, trayY(16), ZB + 0.06], [0.85, 0.3, -0.95], [0.5, 0.75, 0.25]) };
   return {
+    busbarTag,
     scene, flows,
     camera: { pos: [3.1, 2.3, -3.7], target: [0, 1.1, -0.1], near: 0.01, far: 200, min: 0.4, max: 9 },
     hotspots: {

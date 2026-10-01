@@ -10,6 +10,7 @@ export const preload=()=>Promise.all([preloadCampusCatalog(),preloadSiteConstruc
 import { rbox, bundle, blinkers, lamps, plumes, movers, floorMirror } from '../fx.js';
 import { printDecals, textTexture } from './print-kit.js';
 import { switchLabel, labelLines } from './lid-labels.js';
+import { hallMarks } from './electrical-marks.js';
 
 // Cabinet front textures (drawn once).
 function frontTex(kind) {
@@ -1008,6 +1009,10 @@ export function build({ quality, model }) {
   // the nickel lid, small enough to fade into the lid tone at overview distance.
   printDecals(scene, { texture: textTexture(labelLines(switchLabel(model.accel)), { px: 72, aspect: 2, ink: '#474d55', pad: 0.05 }),
     size: [.019, .0095], placements: lidLabels, lift: .00008, name: 'Switch module lid labels', material: { roughness: .7, metalness: .25 } });
+  // Nameplates, voltage stencils and hazard signs on the power gear (electrical-marks.js).
+  hallMarks(scene, model, { usX, usZ, swgr: { x0: -33.5, w: .9, n: 14, zFront: -15.6 + .75 },
+    busways: [{ from: -22.55, to: -12.25, y: 5.6, z: -6.5, depth: .6 },
+      ...rowZs.map((z, r) => ({ from: rowX0 - 5, to: rowX1, y: 3.5, z: z + facing[r] * .25, depth: .18 }))] });
   flows.forEach(f => scene.add(f.group));
   dataFlows.forEach(f => scene.add(f.group));
   heatFlows.forEach(f => scene.add(f.group));
