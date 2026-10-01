@@ -2,10 +2,10 @@
 // Writes cf-stage/wrangler.json, cf-stage/public/<mount>/** (the build) and cf-stage/public/_headers.
 // The Worker has no script: every request is a static-asset request, which Cloudflare serves without a Worker
 // invocation. Usage: node tools/cloudflare-stage.mjs <mount> [html_handling]
-import { cpSync, mkdirSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { cpSync, mkdirSync, rmSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 
 const mount = process.argv[2] || 'intelligence_factory';
-const htmlHandling = process.argv[3] || 'auto-trailing-slash';
+const htmlHandling = process.argv[3] || 'none';
 if (!/^[a-z0-9_-]+$/i.test(mount)) throw new Error(`bad mount: ${mount}`);
 if (!existsSync('dist/index.html')) throw new Error('run npm run build first');
 
@@ -21,6 +21,15 @@ writeFileSync('cf-stage/public/_headers', [
   `/${mount}/*.html`, '  Cache-Control: public, max-age=0, must-revalidate', '',
   `/${mount}/`, '  Cache-Control: public, max-age=0, must-revalidate', '',
 ].join('\n'));
+
+// html_handling 'none' serves /page.html as is (the URLs the canonicals, sitemap and shared links use), so add back
+// what it drops: the mount's root serves index.html, and the extensionless forms GitHub Pages also answers redirect
+// to the .html page (query kept).
+const pages = readdirSync('dist').filter(f => f.endsWith('.html') && f !== 'index.html').map(f => f.slice(0, -5));
+writeFileSync('cf-stage/public/_redirects', [
+  `/${mount}/ /${mount}/index.html 200`,
+  ...pages.map(pg => `/${mount}/${pg} /${mount}/${pg}.html 301`),
+].join(String.fromCharCode(10)) + String.fromCharCode(10));
 
 writeFileSync('cf-stage/wrangler.json', JSON.stringify({
   name: mount === 'intelligence_factory' ? 'intelligence-factory' : `if-${mount}`.replace(/_/g, '-').toLowerCase(),

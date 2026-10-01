@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       mount: { description: 'Path under reedos.dev to serve the site at', default: 'intelligence_factory', required: true }
-      html_handling: { description: 'Workers assets html_handling', default: 'auto-trailing-slash', required: true }
+      html_handling: { description: 'Workers assets html_handling', default: 'none', required: true }
 permissions: { contents: read }
 concurrency: { group: 'cloudflare-${{ inputs.mount }}', cancel-in-progress: false }
 jobs:
