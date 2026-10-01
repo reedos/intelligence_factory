@@ -1,0 +1,29 @@
+# Branch previews on Cloudflare Pages: every push to a branch other than main builds the site and uploads it to
+# https://<branch>.intelligence-factory.pages.dev (slashes in the branch name become dashes). Cloudflare marks preview
+# deployments noindex. Production stays on GitHub Pages (pages.yml); nothing here touches reedos.dev.
+name: preview
+on:
+  push: { branches-ignore: [main] }
+  workflow_dispatch:
+permissions: { contents: read, deployments: write }
+concurrency: { group: 'preview-${{ github.ref_name }}', cancel-in-progress: true }
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx tsc --noEmit -p .
+      - run: npm run build
+      - name: Create the Pages project on first use
+        run: npx wrangler@4 pages project create intelligence-factory --production-branch=main || true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Upload the preview
+        run: npx wrangler@4 pages deploy dist --project-name=intelligence-factory --branch="${{ github.ref_name }}" --commit-hash="${{ github.sha }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
