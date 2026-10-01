@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="canonical" href="https://reedos.dev/intelligence_factory/method.html">
+<link rel="canonical" href="https://reedos.dev/intelligence_factory/parts.html">
 <!-- Cloudflare Web Analytics: cookieless page counts for reedos.dev -->
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "7d357826b1264eb38e3db3ba16dd8319"}'></script>
-<title>Method · The Intelligence Factory</title>
+<title>Parts index · The Intelligence Factory</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%273%27 y=%273%27 width=%2726%27 height=%2726%27 rx=%275%27 fill=%27%230b0e13%27 stroke=%27%23e6ba82%27 stroke-width=%272.5%27/%3E%3Crect x=%2710%27 y=%2710%27 width=%2712%27 height=%2712%27 rx=%271.5%27 fill=%27%23e6ba82%27/%3E%3C/svg%3E">
-<meta name="description" content="How The Intelligence Factory makes its numbers: the scenario model, the power chain and PUE, the network, heat and water, the clocks, tokens, the real campuses, and how the site is tested.">
+<meta name="description" content="Every level and every part of the visualizer, in plain text: title, what it is, and its figures with where each comes from, for the site's one reference scenario.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -25,26 +25,24 @@
     <a href="index.html#tokens">Tokens</a>
     <span class="sep" aria-hidden="true"></span>
     <a href="evidence.html">Evidence</a>
-    <a href="method.html" aria-current="page">Method</a>
+    <a href="method.html">Method</a>
     <a href="glossary.html">Glossary</a>
-    <a href="parts.html">Parts</a>
+    <a href="parts.html" aria-current="page">Parts</a>
   </nav>
   <a class="btn go top-cta" id="top-cta" href="visualizer.html">Open the visualizer <span aria-hidden="true">→</span></a>
   <button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="topnav"><span aria-hidden="true"></span>Menu</button>
 </header>
 
 <main class="wrap page-wrap">
-  <header class="page-head" style="--c: var(--accent)">
-    <p class="eyebrow">Method</p>
-    <h1 class="page-t">How the numbers are made</h1>
-    <p class="lede">The site is a scenario model of one campus. Four choices set up its hardware, and every hardware figure on every page follows from them through the code described below. Token estimates add their own workload and environment inputs on top of that hardware model, and the Evidence page always shows one stated reference scenario rather than following the campus you last set. This page names the constants, shows where each comes from, and says what the model leaves out. The names in <code>code</code> are the site's own, in <code>src/model/engine.ts</code> and its neighbors.</p>
+  <header class="page-head" style="--c: var(--nvl)">
+    <p class="eyebrow">Parts index</p>
+    <h1 class="page-t">Every level, every part, in text</h1>
+    <p class="lede">This is a plain-text walk through everything the <a href="visualizer.html">visualizer</a> shows in 3D: the six scales from the grid to a GPU die, the four side views inside the links, and every part card at each, with the figures each one states and where they come from. It is the same content the 3D view renders, generated from the same code, for the site's one reference scenario — not a photograph of a real building and not whichever campus you may have set on the visualizer.</p>
+    <p class="note" id="pt-scenario"></p>
   </header>
-  <div class="mt-layout">
-    <nav class="mt-toc" id="mt-toc" aria-label="On this page"></nav>
-    <div class="mt-body" id="mt-body"></div>
-  </div>
+  <div id="pt-list"></div>
   <p class="pub-note">Personal educational project based on cited public sources. Not an official publication of my employer or the companies discussed. Models are schematic; estimates and assumptions are identified.</p>
 </main>
-<script type="module" src="/src/pages/method.js"></script>
+<script type="module" src="/src/pages/parts.js"></script>
 </body>
 </html>
