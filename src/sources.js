@@ -120,7 +120,7 @@ export const SOURCES = {
   // networking, optics, fiber
   'nvidia-xdr-switch-specs': { title: 'Quantum-X800 XDR switch systems, specifications', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/xdrswitcheshw/specifications', published: '09/02/2026', accessed: '09/27/2026', kind: 'primary' },
   'nvidia-sn5000-specs': { title: 'SN5000 switch systems, specifications', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/sn5000hw/specifications', published: '2026', dated: "Last updated: June 15, 2026", accessed: '09/27/2026', kind: 'primary' },
-  'nvidia-superpod-gb200-network-fabrics': { title: 'Network Fabrics, NVIDIA DGX SuperPOD reference architecture (DGX GB200)', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx-superpod/reference-architecture-scalable-infrastructure-gb200/latest/network-fabrics.html', published: 'undated', dated: 'live documentation', accessed: '09/28/2026', kind: 'primary' },
+  'nvidia-superpod-gb200-network-fabrics': { title: 'Network Fabrics, NVIDIA DGX SuperPOD reference architecture (DGX GB200)', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx-superpod/reference-architecture-scalable-infrastructure-gb200/latest/network-fabrics.html', published: 'undated', dated: 'live documentation', accessed: '09/30/2026', kind: 'primary' },
   'nvidia-superpod-gb200-components': { title: 'Key Components of the DGX SuperPOD (DGX GB200)', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx-superpod/reference-architecture-scalable-infrastructure-gb200/latest/dgx-superpod-components.html', published: 'undated', dated: 'live documentation', accessed: '09/28/2026', kind: 'primary' },
   'nvidia-superpod-b300-management-servers': { title: 'Management Servers, NVIDIA DGX SuperPOD reference architecture (DGX B300)', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx-superpod/reference-architecture/scalable-infrastructure-b300/latest/management-servers.html', published: '11/19/2025', dated: '11/19/2025', accessed: '09/28/2026', kind: 'primary' },
   'nvidia-missioncontrol-northsouth': { title: 'Networking Planning and Design, NVIDIA Mission Control North-South Network Configuration Guide 2.0.0', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/mission-control/docs/north-south-network-deployment-guide/2.0.0/nsnetcfg-network-planning-design.html', published: 'undated', dated: 'v2.0.0', accessed: '09/28/2026', kind: 'primary' },
@@ -549,7 +549,7 @@ export const PART_SOURCES = {
   'data:rack:optical': ['google-ironwood-tpu', 'google-ironwood-codesign', 'semianalysis-tpuv7-ironwood', 'google-tpuv4-ocs-paper', 'semianalysis-google-apollo-ocs', 'google-jupiter-evolving-paper'],
   'data:rack:uplinks': ['nvidia-h100-datasheet'],
   'data:rack:compute': [],
-  'data:rack:mgmt': [],
+  'data:rack:mgmt': ['nvidia-dgx-gb200-hardware', 'nvidia-superpod-gb200-network-fabrics', 'nvidia-sn2201-specs'],
   'data:rack:servers': ['nvidia-h100-datasheet'],
 
   'data:tray:nvconn': ['nvidia-gb200-nvl72'],

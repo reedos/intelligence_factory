@@ -788,6 +788,13 @@ export function content(M) {
   // none between CPU, GPU and NIC, because the NIC sits on a mezzanine connector; so none are drawn, and this row says so.
   const gb200Retimers = ['PCIe retimers, CPU to GPU', 'none on the reference board', 'reported', { refs: [ref('semianalysis-gb200-hw', 'Compute Tray Diagrams & Cabling: "there is no longer any need for switches or retimers between the CPU and GPU on the reference design." Frontend Networking: with hyperscalers’ own backend NICs, "a dedicated PCIe switch from Broadcom / Astera Labs will be required"')] }];
 
+  // The rack's management leads (src/scenes/rack-mgmt.js): NVIDIA's GB200 reference architecture names what joins the
+  // out-of-band network and the switch; the lead per tray, its jack and its routing are drawn as representative.
+  const mgmtLeadRows = [
+    ['Out-of-band network, GB200 reference', 'every compute and switch tray’s management port, on SN2201 switches', 'spec', { refs: [ref('nvidia-superpod-gb200-network-fabrics', 'Out-of-Band Management Network: "The OOB management network use SN2201 switches"; "It connects the management ports of all devices including DGX GB200 compute trays, switch trays, and management servers, storage, networking gear, rack PDUs, and all other devices"; "The OOB network carries all IPMI related control traffic"')] }],
+    ['Leads as drawn', 'one RJ45 copper lead per tray, to the 1 GbE ports', 'assumed', { assume: 'mgmt-tray-leads', refs: [ref('nvidia-sn2201-specs', 'Connector/Port Specifications: "48 RJ45 ports of 1GbE and 4 QSFP28 ports of 100GbE"')] }],
+  ];
+
   // ---------- data-mode parts per scene. Positions come from each scene's dataHotspots ----------
   const PARTS_DATA = {
     across: [
@@ -930,7 +937,7 @@ export function content(M) {
         specs: (() => { const l = nvl72LayoutEv(); return [['GPUs', '4', l.basis, l.ev]]; })() },
       { id: 'mgmt', title: 'Management switch', kicker: 'Out-of-band',
         body: 'A small copper switch at the top runs the rack’s management network: firmware, sensors and power control, separate from the fabrics that move model data.',
-        specs: [['Rate', '1–10 GbE class', 'assumed', { assume: 'bmc-network-speed' }], ['TOR switches', '2', 'spec', { refs: [ref('nvidia-dgx-gb200-hardware', 'Hardware: "2x TOR Switches for management"')] }], ['Ports as drawn', '48 × 1 GbE + 4 × 100 GbE', 'assumed', { assume: 'tor-switch-ports', refs: [ref('nvidia-sn2201-specs', 'Connector/Port Specifications: "48 RJ45 ports of 1GbE and 4 QSFP28 ports of 100GbE"')] }], ['Free units above', 'cable manager + blanking panels', 'assumed', { assume: 'rack-elevation-fill' }]] },
+        specs: [['Rate', '1–10 GbE class', 'assumed', { assume: 'bmc-network-speed' }], ['TOR switches', '2', 'spec', { refs: [ref('nvidia-dgx-gb200-hardware', 'Hardware: "2x TOR Switches for management"')] }], ...mgmtLeadRows, ['Ports as drawn', '48 × 1 GbE + 4 × 100 GbE', 'assumed', { assume: 'tor-switch-ports', refs: [ref('nvidia-sn2201-specs', 'Connector/Port Specifications: "48 RJ45 ports of 1GbE and 4 QSFP28 ports of 100GbE"')] }], ['Free units above', 'cable manager + blanking panels', 'assumed', { assume: 'rack-elevation-fill' }]] },
     ] : [
       { id: 'tp', title: 'Tensor parallel', kicker: 'Inside one server',
         body: 'The chattiest work, splitting each layer’s math, has to fit inside one 8-GPU server. That is why Llama 3 405B ran tensor parallel 8 on H100: eight was the whole NVLink domain.',
