@@ -12,5 +12,5 @@ export default defineConfig({
   build: { target: 'es2022', chunkSizeWarningLimit: 1500, rollupOptions: { input: { main: 'index.html', visualizer: 'visualizer.html', evidence: 'evidence.html', method: 'method.html', glossary: 'glossary.html' } } },
   // agent worktrees live under .claude/; their edits must not reload this server's page
   server: { watch: { ignored: ['**/.claude/**', '**/shots/**', '**/dist*/**'] } },
-  test: { include: ['src/**/*.test.ts'] },
+  test: { include: ['src/**/*.test.ts'], testTimeout: 30000 },   // scene builds run 5+ s on the CI runners
 });
