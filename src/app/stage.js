@@ -526,7 +526,9 @@ function safeBox() {
   // the clear area in normalized device coordinates, from the overlays actually on screen
   const vr = view.getBoundingClientRect(), box = { x0: -0.82, x1: 0.82, y0: -0.8, y1: 0.8 };
   const toY = px => 1 - 2 * (px - vr.top) / vr.height;
-  for (const sel of ['.hud.tl', '.hud.tr', '#hud-btns']) {        // the clock and the phone buttons sit below the view
+  // a level whose overview carries captions under its hardware (the module) also keeps them off the bottom HUD
+  const bottom = built[ui.scene]?.presentation?.clearBottomHud ? ['.hud.bl .hint', '.hud.bl .scalebar', '#legend'] : [];
+  for (const sel of ['.hud.tl', '.hud.tr', '#hud-btns', ...bottom]) {        // the clock and the phone buttons sit below the view
     const el = document.querySelector(sel); if (!el || el.hidden || getComputedStyle(el).display === 'none') continue;
     const r = el.getBoundingClientRect(); if (!r.width) continue;
     if (r.top - vr.top < vr.height / 2) box.y1 = Math.min(box.y1, toY(r.bottom + 14));   // overlay along the top

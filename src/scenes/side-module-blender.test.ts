@@ -781,3 +781,26 @@ describe('module level cards follow the scenario', () => {
     expect(C.PARTS_DATA.tray.find((p: any) => p.id === 'osfp').doorName).toBe(label);
   });
 });
+
+describe('hall and tray optics cards name only modules their scenario uses', () => {
+  const refsOf = (rows: any[]) => rows.flatMap(r => (r.at(-1)?.refs || []).map((x: any[]) => x[0]));
+  it('Vera Rubin’s hall optics card cites no MMS4A00 and no power figure for its unpublished module', () => {
+    const C = content(compute({ ...DEFAULT_SCENARIO, accel: 'rubin' } as any)) as any;
+    for (const P of [C.PARTS_DATA.hall]) {
+      const card = P.find((p: any) => p.id === 'optics');
+      expect(refsOf(card.specs)).not.toContain('nvidia-mms4a00');
+      expect(refsOf(card.specs)).not.toContain('nvidia-mms4a00-specs');
+      expect(card.specs.some((r: any[]) => /33\.5 W/.test(r[1]))).toBe(false);
+      const sw = card.specs.find((r: any[]) => r[0] === 'At the switch: OSFP 1.6T');
+      expect(sw[1]).toMatch(/exact type unpublished/); expect(sw[2]).toBe('assumed');
+    }
+  });
+  it.each([['gb200', '9 W max'], ['h100', '17 W max'], ['gb300', null], ['rubin', null]])('%s tray door power rows fit its NIC modules', (id, want) => {
+    const C = content(compute({ ...DEFAULT_SCENARIO, accel: id } as any)) as any;
+    for (const P of [C.PARTS.tray, C.PARTS_HEAT.tray]) {
+      const rows = P.find((p: any) => p.id === 'osfp').specs;
+      if (want) { expect(rows[0][1]).toBe(want); expect(rows.some((r: any[]) => /1\.6T/.test(r[0]))).toBe(false); }
+      else expect(rows.filter((r: any[]) => /1\.6T/.test(r[0])).every((r: any[]) => /switch-end/.test(r[0]))).toBe(true);
+    }
+  });
+});

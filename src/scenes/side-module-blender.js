@@ -327,6 +327,13 @@ export function build({ quality, state, model: scenario }) {
   const modeNote = label(scene, 'Power and heat arrows are schematic across the exploded assembly.',
     [0.6, -1.32, 2.6], note, 0.14);
   const diagramLabels = scene.children.filter(o => o.isSprite);
+  // The overview frames the captions with the hardware, so the fit keeps them inside the clear view and off the
+  // bottom HUD (the drag hint, the scale bar, the legend): see presentation.clearBottomHud and stage.js safeBox.
+  const captionBounds = new THREE.Box3();
+  for (const sprite of diagramLabels) if (sprite.userData.caption && sprite.position.y < 0) {
+    const { x, y, z } = sprite.position, w = sprite.scale.x / 2, h = sprite.scale.y / 2;
+    captionBounds.expandByPoint(new THREE.Vector3(x - w, y - h, z)).expandByPoint(new THREE.Vector3(x + w, y + h, z));
+  }
 
   function setVariant(next) {
     kind = MODULE_VARIANTS.includes(next) ? next : 'dsp'; lpo = kind === 'lpo';
@@ -401,7 +408,7 @@ export function build({ quality, state, model: scenario }) {
     tier: tier.key, scope: `Representative single-DSP implementation: eight ${tier.lane} lanes per direction, split across two ${tier.port} optical ports. Exterior informed by public OSFP photographs. Exploded spacing; internals are illustrative.` };
   const built = {
     scene, flows, dataFlows, heatFlows, look,
-    housingBounds: hardwareBounds(model),
+    housingBounds: hardwareBounds(model).union(captionBounds),
     camera: { pos: quality.mobile ? [1.6, 13.5, 20.5] : [1.6, 12, 17.5], target: [0.5, 2.1, 0], near: 0.05, far: 300, min: 1.2, max: 40,
       portrait: { pos: [4.2, 9.5, 12], target: [0.9, 2.1, 0.2] } },
     hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers },
@@ -430,7 +437,7 @@ export function build({ quality, state, model: scenario }) {
       },
     },
     presentation: {
-      compactPins: true,
+      compactPins: true, clearBottomHud: true,
       get explode() { return targetAmount; }, get amount() { return amount; },
       get hidePins() { return amount !== 1 || targetAmount !== 1; }, setExplode,
       assembledCamera: { pos: quality.mobile ? [3.5, 10, 18] : [7.5, 8, 13], target: [0.6, 0.5, 0] },
