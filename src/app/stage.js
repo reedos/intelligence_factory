@@ -28,6 +28,8 @@ import * as sideCopper from '../scenes/side-copper.js';
 import { applyVisualDirection } from '../scenes/visual-direction.js';
 import { applyComputeArtDirection } from '../scenes/compute-art-direction.js';
 import { cameraPresetFor } from './camera-presets.js';
+import { poseAt, clearPath } from './camera-path.js';
+import { occupancyBuilder } from './occupancy.js';
 import { fitHousing, fitComponent } from './housing-frame.js';
 import { overlapsRect, pinLabelBox, declutterPins } from './pin-layout.js';
 
@@ -625,11 +627,11 @@ export function setTransitions(v) {
   transitions = v;
   try { localStorage.setItem('ifx-transitions', v); } catch { /* not remembered, still works */ }
 }
-const ease = u => (u < 0.5 ? 4 * u ** 3 : 1 - Math.pow(-2 * u + 2, 3) / 2);
 const easeIn = u => u * u * u, easeOut = u => 1 - (1 - u) ** 3, easeIn2 = u => u * u;
 // a straight move with its own easing, for the level transitions: no arc, no drift when it lands
 function glide(pos, target, dur, curve) {
   drift = null;
+  if (built[ui.scene]) clearanceOf(built[ui.scene]);     // a level opening: start its clearance map now
   tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos.clone(), t1: target.clone(), u: 0, dur: reduced ? 0.01 : dur, arc: null, curve, still: true };
 }
 export function flyTo(pos, target, dur = 1.1, { detail = false } = {}) {
@@ -652,21 +654,113 @@ export function flyTo(pos, target, dur = 1.1, { detail = false } = {}) {
     }
   }
   tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1, t1, u: 0, dur, arc, still: detail && !cinema };
+  if (!reduced && dur > 0.05) clearTween(tween);
+}
+// ---------- clearance: a move never passes through (or skims) anything solid ----------
+// Sample the move's path with the same math the playback uses, test each step against the level's solid geometry,
+// and detour the path (see camera-path.js) until it is clear. Mid-move the camera keeps a margin from surfaces that
+// grows with its distance from the aim point (a roof two metres under a camera framing a building 40 m off reads as
+// flying through it), tapering to nothing at the two ends, whose framing is fixed. The geometry is tested through a
+// voxel map built once per level (occupancy.js); plans are cached per move, so stepping back and forth through a
+// level's parts plans each flight once.
+// per unit of aim distance: the margin around the camera, a framing's own reach, the clear view ahead (all mid-move)
+const CLEAR = 0.075, HOME = 0.03, SIGHT = 0.55;
+const flightPlans = new WeakMap();
+// for the flights gate: how often the voxel map was built, what the last build and plan cost, what the plan chose
+export const clearanceStats = { builds: 0, buildMs: 0, plans: 0, planMs: 0, clear: true, pending: false };
+// The level's clearance map: returns the latest finished one (null before the first is done) and, when the level's
+// solids have changed (a scenario, covers shown or hidden), starts a new one in the background, a few ms a frame.
+function clearanceOf(b) {
+  // Walked fresh each time (solidsOf caches its list at the first framing, before late assets such as the hall's
+  // Blender finish have joined the scene). Anything that reads as a surface counts: opaque-looking meshes, including
+  // the wide flow ribbons that draw without depth (a camera inside a glowing cable tray fills the frame with it), but
+  // not lines, additive glows, faint veils or sky domes (seen from inside).
+  const solids = [], shown = o => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
+  b.scene.traverse(o => {
+    if (!(o.isMesh || o.isInstancedMesh) || o.isSprite || o.isLine2 || o.isLineSegments2 || !shown(o)) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    if (mats.some(m => m && m.visible !== false && !m.isLineMaterial && m.side !== THREE.BackSide && m.blending !== THREE.AdditiveBlending && !(m.transparent && m.opacity < 0.6))) solids.push(o);
+  });
+  const sig = `${solids.length}:${solids.reduce((n, o) => n + o.id, 0)}`;
+  if (b._clearance?.sig === sig || b._clearanceNext?.sig === sig) return b._clearance || null;
+  // the surroundings (ground, a horizon's ridgeline, a studio floor: flat and as wide as the level) are never flown
+  // into and would stretch the map's cells to the horizon: they stay out of it
+  const span = new THREE.Box3(), size = new THREE.Vector3(), box = new THREE.Box3();
+  solids.forEach(o => span.expandByObject(o));
+  const wide = Math.max(span.max.x - span.min.x, span.max.z - span.min.z);
+  const rest = solids.filter(o => {
+    box.setFromObject(o).getSize(size);
+    const across = Math.max(size.x, size.z);
+    return !(size.y < 0.02 * across && across >= 0.9 * wide);
+  });
+  const next = b._clearanceNext = { sig, builder: occupancyBuilder(rest), ms: 0 };
+  clearanceStats.pending = true;
+  const slice = () => {
+    if (b._clearanceNext !== next || !built.includes(b)) return;   // superseded, or the level disposed
+    const t0 = performance.now(), done = next.builder.step(6);
+    next.ms += performance.now() - t0;
+    if (!done) { requestAnimationFrame(slice); return; }
+    b._clearance = { sig, occ: next.builder.result }; b._clearanceNext = null;
+    clearanceStats.builds++; clearanceStats.buildMs = next.ms; clearanceStats.pending = false;
+  };
+  requestAnimationFrame(slice);
+  return b._clearance || null;
+}
+// How badly one step of a path is obstructed: 0 clear, 1 inside the margin, 100 through a surface (any number of
+// skimmed steps is better than one through a wall). `home`: the start and end framings, each with the radius around
+// it that belongs to the framing, not the flight.
+function stepHits(cl, home, a, c) {
+  // the move's scale at a point: its distance from the aim point, but never less than the end framings' own (a camera
+  // passing close by the aim point mid-move must not shrink its margins to nothing)
+  const D = q => Math.max(q.pos.distanceTo(q.target), home[0].d + (home[1].d - home[0].d) * q.u);
+  if (home.some(h => a.pos.distanceTo(h.pos) <= h.r && c.pos.distanceTo(h.pos) <= h.r)) return 0;
+  const taper = u => CLEAR * Math.sin(Math.PI * u);
+  const ra = taper(a.u) * D(a), rc = taper(c.u) * D(c);
+  // the framing at either end is the part's own, whoever is beside it: test the step up to it, not the pose itself
+  const ends = { from: a.u > 0, to: c.u < 1 };
+  if (!cl.occ) return 0;
+  if (cl.occ.segment(a.pos, c.pos, ra, rc, ends)) return cl.occ.segment(a.pos, c.pos, 0, 0, ends) ? 100 : 1;
+  // and the view: mid-move, nothing may stand right in front of the camera on its way to the aim point (a roof or a
+  // wall filling the frame is what flying through a building looks like, even when the camera itself clears it)
+  const sight = SIGHT * Math.sin(Math.PI * c.u) * D(c);
+  if (sight > 1e-9) {
+    _sightEnd.subVectors(c.target, c.pos).setLength(sight).add(c.pos);
+    if (cl.occ.segment(c.pos, _sightEnd, 1e-9, 1e-9, { from: false })) return 1;   // (a hair over 0: the conservative test)
+  }
+  return 0;
+}
+const _sightEnd = new THREE.Vector3();
+function clearTween(tw) {
+  const b = built[ui.scene]; if (!b) return;
+  const r = v => v.toArray().map(x => x.toPrecision(5)).join(',');
+  const key = [r(tw.p0), r(tw.t0), r(tw.p1), r(tw.t1), tw.arc ? `${tw.arc.lift},${tw.arc.pull}` : 'line'].join('|');
+  let plans = flightPlans.get(b); if (!plans) flightPlans.set(b, plans = new Map());
+  const cl = clearanceOf(b);
+  if (!cl) return;                                        // the level's map is still being built: fly as authored
+  let plan = plans.get(key);
+  if (!plan || plan.sig !== cl.sig) {
+    const t0 = performance.now();
+    // (at least two of the map's cells: closer than that to a framing, the map cannot tell its sides apart)
+    const cell = 2 * (cl.occ?.cell || 0);
+    const d0 = tw.p0.distanceTo(tw.t0), d1 = tw.p1.distanceTo(tw.t1);
+    const home = [{ pos: tw.p0, d: d0, r: Math.max(cell, HOME * d0) }, { pos: tw.p1, d: d1, r: Math.max(cell, HOME * d1) }];
+    const got = clearPath(tw, (a, c) => stepHits(cl, home, a, c), { n: 32, through: 100, budgetMs: 40 });
+    plan = { sig: cl.sig, arc: tw.arc && { xlift: tw.arc.xlift || 0, xpull: tw.arc.xpull || 0, xturn: tw.arc.xturn || 0 }, hop: tw.hop || null, stretch: got.stretch };
+    if (plans.size > 96) plans.delete(plans.keys().next().value);
+    plans.set(key, plan);
+    clearanceStats.plans++; clearanceStats.planMs = performance.now() - t0; clearanceStats.clear = got.clear; clearanceStats.costs = got.costs;
+    clearanceStats.chosen = plan.arc || plan.hop;
+  }
+  if (plan.arc) Object.assign(tw.arc, plan.arc);
+  tw.hop = plan.hop;
+  // a longer way round takes a little longer, so the detour still reads as one smooth move
+  tw.dur *= Math.min(1.6, 1 + 0.6 * Math.max(0, plan.stretch - 1));
 }
 function stepTween(dt) {
   if (drift && !tween) stepDrift(dt);
   if (!tween) return;
   tween.u = Math.min(1, tween.u + dt / tween.dur);
-  const e = (tween.curve || ease)(tween.u), a = tween.arc;
-  controls.target.lerpVectors(tween.t0, tween.t1, e);
-  if (a) {
-    const bump = Math.sin(Math.PI * tween.u);
-    const s = new THREE.Spherical(
-      Math.exp(Math.log(a.s0.radius) + (Math.log(a.s1.radius) - Math.log(a.s0.radius)) * e) * (1 + a.pull * bump),
-      Math.max(0.1, a.s0.phi + (a.s1.phi - a.s0.phi) * e - a.lift * bump),
-      a.s0.theta + a.dTheta * e);
-    camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(s));
-  } else camera.position.lerpVectors(tween.p0, tween.p1, e);
+  poseAt(tween, tween.u, camera.position, controls.target);   // the same path the clearance check sampled
   if (tween.u >= 1) {
     const still = tween.still;
     tween = null;
