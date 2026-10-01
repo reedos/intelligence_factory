@@ -6,6 +6,7 @@ import { SiteBuilder as Builder, preloadSiteConstruction, finalizeSiteGeometry, 
 import { THREE, MAT, mtx, flow, insulator, canvasTex, sky, person, glowMat, textSprite, spinners } from '../kit.js';
 import { preloadCampusCatalog, hasCampusCatalog, campusCatalogBuilder, campusCatalogRotor, campusCatalogInstances } from './campus-blender-catalog.js';
 import { preloadHallFinish, hasHallFinish, hallFinishInstances } from './hall-blender-finish.js';
+import { buildBreakout, multimodeTabKeys } from './hall-breakout.js';
 export const preload=()=>Promise.all([preloadCampusCatalog(),preloadSiteConstruction(),preloadHallFinish()]);
 import { rbox, bundle, blinkers, lamps, plumes, movers, floorMirror } from '../fx.js';
 import { printDecals, textTexture, printTexture, SANS } from './print-kit.js';
@@ -169,7 +170,9 @@ export function build({ quality, model }) {
   const elsMetal = new THREE.MeshStandardMaterial({ color: 0xbcc2c9, roughness: 0.3, metalness: 0.7 });
   const fiberJacket = new THREE.MeshStandardMaterial({ color: FIBER_JACKET, roughness: 0.5, metalness: 0.1 });
   const networkPorts = new Map(), fiberRoutes = [];
+  let tanTabs = new Set();                             // multimode modules (hall-breakout.js) carry their own tan pull tab
   const portLedItems = [];                              // link LEDs on the switch ports (the racks keep ledItems)
+  const mmLidLabels = [];                               // multimode (2xSR4) modules print their own class
   const lidLabels = [];                                 // printed lid labels, one per pluggable module (lid-labels.js)
   // Switch chassis drawn at true size with pluggable OSFP modules (22.58 mm wide x 13 mm tall, OSFP MSA).
   // 400G fabrics: Quantum-2 QM9700, 1U (43.6 mm) x 438 mm, 32 OSFP cages (nvidia-quantum2-qm9700-specs).
@@ -188,8 +191,9 @@ export function build({ quality, model }) {
       const bank = form === 'q3400' ? (r < 2 ? -1 : 1) * .012 : 0;
       const x = cx + (c - (cols - 1) / 2) * pitchX, y = yc + (r - (rows - 1) / 2) * pitchY + bank;
       N.box(.0226, .013, .02, moduleMetal, x, y, faceZ + fs * .02);                           // OSFP module, ~18 mm proud
-      lidLabels.push({ p: [x, y + .0065, faceZ + fs * .02], face: 'top', yaw: fs > 0 ? 0 : Math.PI });
-      N.box(.004, .0035, .03, pullTabMat, x, y - .0045, faceZ + fs * .027);                    // pull tab
+      const mm = tanTabs.has(`${cx}:${cz}:${ports.length}`);
+      (mm ? mmLidLabels : lidLabels).push({ p: [x, y + .0065, faceZ + fs * .02], face: 'top', yaw: fs > 0 ? 0 : Math.PI });
+      if (!mm) N.box(.004, .0035, .03, pullTabMat, x, y - .0045, faceZ + fs * .027);   // pull tab (multimode modules carry a tan one)
       ports.push({ point: [x, y, faceZ + fs * .03], f: fs, cx, i: ports.length, under: yb - .012 });
       portLedItems.push({ p: [x + .008, y + .0047, faceZ + fs * .0305], color: (r + c) % 3 ? '#5cf29a' : '#ffb347', rate: 0.35 + ((r * cols + c) * 0.37) % 1.2 });
     }
@@ -666,6 +670,7 @@ export function build({ quality, model }) {
     scene.add(taps, hallFinishInstances('BUS_JOINT', jointMx));
   }
   // leaf faceplates: pluggable OSFP modules, fiber pigtails rising into the runway overhead
+  tanTabs = multimodeTabKeys(model, leafX, rowZs);
   rowZs.forEach((z, r) => { pluggableFace(leafX, z, facing[r], { forms: bigSwitch ? ['q3400'] : ['qm9700', 'qm9700'], y0: 1.52 }); });
   N.box(.3,.04,23,runwayMat,leafX,HALL_RUNWAY.floorY,-.8);
   // Open T-junctions: the row fibers must not pass through a solid tray wall.
@@ -883,6 +888,7 @@ export function build({ quality, model }) {
   ['1', '2', '3', '4'].forEach((t, i) => { const s = textSprite(t, stageCol[i], 0.28); s.position.set(front[i].x, 2.75, rowZs[5] + 0.6); par.add(s); });
   for (let g = 0; g < 4; g++) { const s = textSprite(`replica ${g + 1}`, g ? '#a6f35a' : '#e8ecf2', 0.3); s.position.set((front[g * 4 + 1].x + front[g * 4 + 2].x) / 2, 3.25, rowZs[5] + 0.6); par.add(s); }
   scene.add(par);
+  buildBreakout({ model, scene, layer: par, leafX, rowZs, ports: networkPorts.get(`${leafX}:${rowZs[1]}`), racks: rackMx.filter(k => k.z === rowZs[1]), quality });
   scene.userData.hallCoolant=coolantAudit;
   // headers leave through the roof to the facility cooling plant
   if (!hasHallFinish()) { S.cyl(0.26, 3, MAT.pipeBlue, X0 + 2, hdrY + 1.4, -16.4, 16); S.cylZ(0.26, 1.6, MAT.pipeRed, X0 + 2.8, hdrY - .7, -15.6, 16); S.cyl(0.26, 3.6, MAT.pipeRed, X0 + 2.8, hdrY + 1.1, returnRiserZ, 16); }
@@ -1038,6 +1044,8 @@ export function build({ quality, model }) {
   // the nickel lid, small enough to fade into the lid tone at overview distance.
   printDecals(scene, { texture: textTexture(labelLines(switchLabel(model.accel)), { px: 72, aspect: 2, ink: '#474d55', pad: 0.05 }),
     size: [.019, .0095], placements: lidLabels, lift: .00008, name: 'Switch module lid labels', material: { roughness: .7, metalness: .25 } });
+  if (mmLidLabels.length) printDecals(scene, { texture: textTexture(labelLines('OSFP 800G 2xSR4'), { px: 72, aspect: 2, ink: '#474d55', pad: 0.05 }),
+    size: [.019, .0095], placements: mmLidLabels, lift: .00008, name: 'Switch module lid labels, multimode', material: { roughness: .7, metalness: .25 } });   // NVIDIA MMA4Z00-NS: 800G twin-port OSFP, 2xSR4
   for (const [form, placements] of facePrints) printDecals(scene, { texture: faceTexture(form), size: [.438, SWITCH_FORMS[form].h - .002],
     placements, lift: .0002, name: `Switch face print ${form}`, material: { roughness: .6 } });
   // Rack labels and the hall's name over the back-wall pipework (site-signs.js).
