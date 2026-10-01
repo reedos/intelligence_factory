@@ -50,7 +50,7 @@ Loaded from Google Fonts at page load; no font files are stored in this reposito
 - **3D scenes and diagrams**: a mix of procedural geometry and this project's own modeled geometry, both its own
   work. Most of the scene in `src/scenes/` is built by code at runtime from the model's numbers. Twenty-five pieces of
   hardware (`public/models/*.glb`: racks, trays, compute chips, campus buildings and vehicles, the optical and
-  co-packaged-optics modules, and more) were instead modeled by hand in Blender from this project's own `.blend`
+  co-packaged-optics modules, and more) were instead built in Blender by this project's own Python build scripts, from its own `.blend`
   files (`tools/blender/`) and exported to glTF/GLB by this project's own build scripts (`tools/blender/build-*.py`),
   then loaded into the scene alongside the procedural geometry. No CAD files, vendor models or textures were
   imported from outside the project. All of it, procedural and modeled alike, is schematic, not a vendor's own
