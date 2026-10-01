@@ -417,6 +417,11 @@ export const SOURCES = {
   'canarymedia-xai-battery': { title: "xAI has quietly built a massive battery at its Memphis data center", publisher: 'Canary Media', url: 'https://www.canarymedia.com/articles/batteries/xai-massive-battery-memphis-data-center', published: '09/11/2026', accessed: '09/27/2026', kind: 'secondary' },
   'nvidia-gb200-nvl72-blog': { title: 'NVIDIA GB200 NVL72 Delivers Trillion-Parameter LLM Training and Real-Time Inference', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/nvidia-gb200-nvl72-delivers-trillion-parameter-llm-training-and-real-time-inference/', published: '03/18/2024', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'nvidia-connectx8-specs-page': { title: 'Specifications | NVIDIA ConnectX-8 SuperNIC User Manual', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/connectx8hw/specifications', accessed: '09/27/2026', kind: 'primary' },
+  // ---- 09/30/2026, interconnect: in-campus reach tiers (DR / FR4 / LR4) ----
+  'nvidia-linkx-interconnect': { title: 'LinkX: Transceivers and Cables for AI Factory Networks', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/networking/interconnect/', published: 'undated', dated: 'live product page', accessed: '09/30/2026', kind: 'primary', marketing: true },
+  'nvidia-mms4x50-nm': { title: 'MMS4X50-NM 800Gbps Twin-port OSFP 2xFR4, 2x400Gb/s Single Mode, 2km: specifications', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/mms4x50nm800g2kmpub/specifications', published: 'undated', dated: 'live product documentation', accessed: '09/30/2026', kind: 'primary' },
+  'ieee-802-3cu-lr4-baseline': { title: '400GBASE-LR4 Baseline Proposal (lewis_3cu_02a_0519)', publisher: 'IEEE 802.3cu Task Force', url: 'https://www.ieee802.org/3/cu/public/May19/lewis_3cu_02a_0519.pdf', published: '05/23/2019', dated: 'May 2019 task force meeting', accessed: '09/30/2026', kind: 'primary' },
+  'tiafotc-400gbase-fr4': { title: '400GBASE-FR4: single-mode Ethernet standards update', publisher: 'TIA Fiber Optics Technology Consortium', url: 'https://www.tiafotc.org/ieee-802-3-ethernet-standards-update/singlemode-standards-update/400gbase-fr4/', published: 'undated', dated: 'live page', accessed: '09/30/2026', kind: 'secondary' },
 
 };
 
@@ -518,7 +523,7 @@ export const PART_SOURCES = {
 
   'data:campus:fiber': ['zayo-route-diversity'],
   'data:campus:dci': ['ciena-wavelogic6'],
-  'data:campus:interhall': [],
+  'data:campus:interhall': ['nvidia-linkx-interconnect', 'nvidia-mms4x50-nm', 'tiafotc-400gbase-fr4', 'ieee-802-3cu-lr4-baseline'],
   'data:campus:ductbank': ['prysmian-flexribbon'],
   'data:campus:hall': [],
   'data:campus:longhaul': [],
