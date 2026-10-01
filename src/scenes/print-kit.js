@@ -103,3 +103,11 @@ export function printDecals(parent, { texture, size, placements, lift = 0, name 
 
 /** True for decals added by printDecals (skip them where static hardware is collected or replaced). */
 export const isPrinted = o => !!o?.userData?.printed;
+
+/** First visible mesh surface along a ray (world space), optionally filtered; null when nothing is hit. */
+export function surfaceHit(root, from, dir, filter = () => true) {
+  root.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster(new THREE.Vector3(...from), new THREE.Vector3(...dir).normalize());
+  const shown = o => { for (let q = o; q; q = q.parent) if (!q.visible) return false; return true; };
+  return ray.intersectObject(root, true).find(h => h.object.isMesh && !isPrinted(h.object) && shown(h.object) && filter(h.object)) || null;
+}
