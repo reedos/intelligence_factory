@@ -7,7 +7,7 @@ import { build as chip } from './chip.js';
 import { applyPcb } from './tray-pcb.js';
 
 const cache = new Map(), pending = new Map();
-const physical = o => o.isMesh && !o.isReflector && !o.userData.computeDynamic
+const physical = o => o.isMesh && !o.isReflector && !o.userData.computeDynamic && !o.userData.nativeOverlay   // nativeOverlay: kept native, never baked (rack-mgmt.js)
   && (Array.isArray(o.material) ? o.material : [o.material]).some(m => !m.isMeshBasicMaterial && !m.isShaderMaterial);
 const variant = (_kind, model) => model.accel.id;
 const assetKey = (kind, model) => `compute-${kind}-${variant(kind, model)}`;
@@ -115,7 +115,7 @@ function build(kind, native, options) {
     return result;
   };
   built.scene.userData.blenderCompute = { asset: `${key}.glb`, completeStaticHardware: true, replacedNativeMeshes: obsolete.length,
-    representative: true, runtimeExceptions: ['flow and heat overlays', 'token sprites and cache effects', 'status light effects', 'lights', 'camera', 'hotspots', 'Blender rotor and solder instancing'] };
+    representative: true, runtimeExceptions: ['flow and heat overlays', 'token sprites and cache effects', 'status light effects', 'lights', 'camera', 'hotspots', 'Blender rotor and solder instancing', 'native overlays (rack management leads)'] };
   return built;
 }
 // Pulled-tray boards in rack metres -> the matching tray boards in tray units
