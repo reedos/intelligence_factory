@@ -70,6 +70,7 @@
   <header class="chapter" id="power" style="--c: var(--mv)">
     <p class="ch-k"><span>02</span>Power</p>
     <p class="ch-s">From the meter to the die: where every megawatt goes and why the voltage steps down.</p>
+    <p class="note">The regional map names real campuses by their own power source — Meta's Hyperion runs on new gas-fired plants (<a href="visualizer.html?view=0.power.site-hyperion">see it on the map</a>) — and this campus has its own perimeter <a href="visualizer.html?view=1.power.security">security</a> and <a href="visualizer.html?view=1.power.ops">operations center</a> watching it.</p>
   </header>
   <section class="ledger" aria-labelledby="ledger-h">
     <div class="sec-head">
@@ -99,6 +100,7 @@
   <header class="chapter" id="data" style="--c: var(--nvl)">
     <p class="ch-k"><span>03</span>Data</p>
     <p class="ch-s">Copper inside the rack, light across the hall, fiber between campuses: how fast each link is, what carries it, and how a model is split to fit.</p>
+    <p class="note">Shared <a href="visualizer.html?view=2.data.storage">storage</a> and the <a href="visualizer.html?view=1.data.border">meet-me room</a> where outside networks cross-connect each ride a network of their own, apart from the GPU fabric.</p>
   </header>
   <section class="stairs" aria-labelledby="bw-h">
     <div class="sec-head">
@@ -156,6 +158,7 @@
   <header class="chapter" id="heat" style="--c: var(--warm)">
     <p class="ch-k"><span>04</span>Heat</p>
     <p class="ch-s">Every watt ends as heat. The path from a GPU die to the outside air, and what it costs in power and water.</p>
+    <p class="note">Air-sampling <a href="visualizer.html?view=2.heat.fire">fire detection</a> watches the hall continuously, so it can find smoke before a fire grows.</p>
   </header>
   <section class="stairs" aria-labelledby="temps-h">
     <div class="sec-head">
@@ -172,6 +175,7 @@
   <header class="chapter" id="tokens" style="--c: var(--core)">
     <p class="ch-k"><span>05</span>Tokens</p>
     <p class="ch-s">What the whole machine makes, and what each token costs in energy, carbon and water, with the parts list it takes.</p>
+    <p class="note">Open the Tokens card in the visualizer and click <a href="visualizer.html?view=5.power.tokens">Show the math</a> to see one decode step worked out as a single matrix-vector multiply.</p>
   </header>
   <section class="tokens" aria-labelledby="tokens-h">
     <div class="sec-head">
@@ -253,6 +257,45 @@
       <p id="bom-lede">Sized from the same assumptions as the ledger: 100 MW at the meter, PUE 1.2, 132 kW racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale.</p>
     </div>
     <div class="bom-grid" id="bom"></div>
+  </section>
+
+  <section class="made" aria-labelledby="made-h">
+    <div class="sec-head">
+      <p class="eyebrow">How this site is built</p>
+      <h2 id="made-h">How it was made</h2>
+    </div>
+    <div class="made-body">
+      <p>The page is written in TypeScript, drawn with <a href="https://threejs.org">Three.js</a> (version 0.183.2)
+      — which describes itself as a “JavaScript 3D Library” — and bundled with <a href="https://vite.dev">Vite</a>
+      (version 8.3.1), which calls itself “a build tool that aims to provide a faster and leaner development
+      experience for modern web projects.” The build is static and deployed to GitHub Pages.</p>
+      <p>Most of the hardware you see was built in <a href="https://www.blender.org">Blender</a> —
+      “Free and Open Source software, forever,” in its own words — by this project’s own Python build scripts
+      rather than modeled by hand, and exported as glTF/GLB, the
+      <a href="https://www.khronos.org/gltf/">Khronos Group</a>’s “royalty-free specification for the efficient
+      transmission and loading of 3D scenes and models by engines and applications.” Twenty-five of those files,
+      built from this project’s own Blender sources by its own scripts, cover the racks, trays, compute chips,
+      campus buildings and vehicles, and the optical and co-packaged-optics modules; everything else in the scene
+      is procedural, built by code from the model’s numbers, so it recounts and resizes itself when you change the
+      scenario.</p>
+      <p>Every figure on the page is labeled by what backs it: Spec, Vendor, Reported, Calc. or Assumed, with its
+      sources one click away. The <a href="evidence.html">Evidence</a> page lists every figure that way, and the
+      <a href="method.html">Method</a> page lists every calculation and assumption behind them. Underneath, a
+      scenario engine turns four choices — campus size, accelerator, power path and cooling — into every number,
+      chart and sentence on the page.</p>
+      <p>Automated checks run before anything ships: Vitest unit tests (1,342 tests across 36 files, as of this
+      writing) cover the engine, the content and the links; <a href="https://playwright.dev">Playwright</a> drives
+      a real browser through checks named for what they look for — <code>cycle</code> (every scenario, scene and layer, watching for errors),
+      <code>views</code> (every part framed clear of overlays), <code>coplanar</code> (flush surfaces that would
+      flicker), <code>parts</code> (every numbered part has a pin) and <code>ui</code> (the page’s controls stay
+      out of each other’s way, on phone and desktop alike). A quality governor adapts the 3D rendering to the
+      device it’s running on, with Max quality, Auto quality and Battery saver settings for when you want to
+      choose yourself.</p>
+      <p>The code, 3D models and automated checks were written with AI coding assistants, mainly Anthropic’s Claude
+      and OpenAI’s Codex. I decided what to show, set the rule that every figure comes from a cited public source
+      or a labeled assumption, and reviewed the work, sending back what was wrong or unsupported. The Evidence
+      page and the automated checks let anyone verify the result.</p>
+    </div>
   </section>
 
   <footer class="sources">

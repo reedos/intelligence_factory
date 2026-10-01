@@ -47,8 +47,14 @@ Loaded from Google Fonts at page load; no font files are stored in this reposito
 
 ## Images and 3D models
 
-- **3D scenes and diagrams**: drawn by this project's own code from primitive shapes and the model's numbers. No
-  imported models, CAD files or textures. They are schematic, not vendor drawings.
+- **3D scenes and diagrams**: a mix of procedural geometry and this project's own modeled geometry, both its own
+  work. Most of the scene in `src/scenes/` is built by code at runtime from the model's numbers. Twenty-five pieces of
+  hardware (`public/models/*.glb`: racks, trays, compute chips, campus buildings and vehicles, the optical and
+  co-packaged-optics modules, and more) were instead built in Blender by this project's own Python build scripts, from its own `.blend`
+  files (`tools/blender/`) and exported to glTF/GLB by this project's own build scripts (`tools/blender/build-*.py`),
+  then loaded into the scene alongside the procedural geometry. No CAD files, vendor models or textures were
+  imported from outside the project. All of it, procedural and modeled alike, is schematic, not a vendor's own
+  drawing.
 - **Hero images** (`public/hero/campus*.webp`): generated with OpenAI's image-generation tool, run on 09/27/2026 by
   another AI agent working on this project, from a written brief (`design/hero/BRIEF.md`) and a render of this site's
   own 3D campus as the layout reference (`design/hero/reference-campus.png`). The tool did not disclose which model
