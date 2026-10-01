@@ -204,25 +204,25 @@ export function content(M) {
     // line of six): a module from a tray's cages or the hall's pluggables, the CPO package from the hall's CPO switch,
     // the coherent module from the line terminals, the copper cables from an NVL72 rack's NVLink spine
     {
-      id: 'module', n: '+', side: true, title: 'Inside the module', scale: '10.8 cm long', unit: 0.01, volt: 'v33', dataVolt: 'mod16', heatVolt: 'hot', heatShort: 'fins',
+      id: 'module', n: '+', side: true, title: 'Inside the module', tab: 'Pluggable module', scale: '10.8 cm long', unit: 0.01, volt: 'v33', dataVolt: 'mod16', heatVolt: 'hot', heatShort: 'fins',
       intro: `A 1.6T twin-port optical module, opened up: its footprint drawn to its published size, its layers pulled apart vertically, its parts representative. This class of module sits in a switch’s cages and carries two 800G links: one shared eight-lane DSP serves a representative photonics chip, with eight transmit channels grouped on one side and eight receive channels on the other. Four channels in each direction feed each optical port. The internal placement and separate analog chips are representative, not a documented teardown.${A.nicGbps === 400 ? ' This scenario’s 400G fabric uses its predecessor, the 800G twin-port, with the same parts at 100G per lane.' : A.nicGbps === 1600 ? ' This scenario models two 800G links per GPU; its switch-side twin-port module is this class. The network and transceiver selection are illustrative.' : ''} Everything that turns the host’s electrical lanes into light, and back, is inside. The toggle also shows a half-retimed (LRO) version, with the DSP on transmit only, and the LPO version, with no DSP.`,
       dataIntro: 'One eight-channel transmit bank and one eight-channel receive bank, serving two optical ports. Internal placement and chip partitioning are representative. Out: the host’s lanes, the shared eight-lane DSP, a driver, electrical connections to the modulators, which put each lane onto the lasers’ light, then glass fiber to the connector. In: fiber from the connector to a photodiode, electrical connections to the TIA, the DSP, and back to the host.',
       heatIntro: 'The DSP is a major heat source. Its heat crosses a gap pad into the shell and leaves through the fins, in the air the switch or server blows past its cages.',
     },
     {
-      id: 'cpo', n: '+', side: true, title: 'Inside the CPO package', scale: 'package, representative', unit: 0.01, volt: 'core', dataVolt: 'cpo288', heatVolt: 'hot', heatShort: 'one cold plate',
+      id: 'cpo', n: '+', side: true, title: 'Inside the CPO package', tab: 'Co-packaged optics', scale: 'package, representative', unit: 0.01, volt: 'core', dataVolt: 'cpo288', heatVolt: 'hot', heatShort: 'one cold plate',
       intro: 'A switch package with its optics built around the switch chip, in the style NVIDIA ships: 18 optical engines in six groups of three. The counts are NVIDIA’s; the package’s size and layout are drawn to show its parts. One engine is lifted out beside it as a detail.',
       dataIntro: 'Electrical lanes leave the switch chip’s SerDes through short copper traces in the package to each engine. In the engine, the electronic chip’s drivers swing ring modulators on the photonic chip below; photodiodes there read incoming light for its TIAs. Laser light arrives separately, by fiber, from modules at the front panel.',
       heatIntro: 'The switch chip and every engine sit in one package, cooled with liquid; the single cold plate drawn over it is representative. Its two short pipes mark supply and return connections to the switch’s cooling loop outside this package view.',
     },
     {
-      id: 'coherent', n: '+', side: true, title: 'Inside the coherent module', scale: '10.8 cm long', unit: 0.01, volt: 'v33', dataVolt: 'zr800', heatVolt: 'hot', heatShort: 'fins',
+      id: 'coherent', n: '+', side: true, title: 'Data center interconnect', tab: 'Data center interconnect', kicker: 'Coherent 800ZR module', door: 'data center interconnect', scale: '10.8 cm long', unit: 0.01, volt: 'v33', dataVolt: 'zr800', heatVolt: 'hot', heatShort: 'fins',
       intro: 'An 800ZR coherent pluggable carries 800G between campuses on one wavelength. This representative design uses discrete board-mounted driver and TIA packages, separate from the transmit and receive optical assemblies. Parts sit in the order the OIF packaging agreements imply: the DSP, then the driver and TIA beside it, then the optics with their fibers facing the front, and the laser toward the fiber end, off the electrical path. Only the OSFP envelope and the cited nano-ITLA case are to scale; the other parts and their exact placement are illustrative.',
       dataIntro: 'Follow the separately packaged electronics and optical assemblies: DSP → driver IC → IQ modulator on transmit; receiver photodiodes → TIA IC → DSP on receive. The driver and TIA carry electrical signals, not light. One laser feeds the modulator and the receiver’s local oscillator. This discrete package arrangement is a design assumption, not a teardown of a specific product.',
       heatIntro: 'The DSP, laser, driver IC and TIA IC are distinct heat sources. The optical components also have losses. Qualitative motion shows heat reaching the shell; pulse counts do not specify watts, temperatures or power ratios.',
     },
     {
-      id: 'copper', n: '+', side: true, title: 'Inside the copper cables', scale: 'one plug end', unit: 0.01, volt: 'v33', dataVolt: 'cu', heatVolt: 'hot', heatShort: 'little',
+      id: 'copper', n: '+', side: true, title: 'Inside the copper cables', tab: 'Copper cables', scale: 'one plug end', unit: 0.01, volt: 'v33', dataVolt: 'cu', heatVolt: 'hot', heatShort: 'little',
       intro: 'Three copper cables, one end of each, opened up: a passive copper cable (DAC) with nothing in the signal path, an active copper cable with one redriver, and an active electrical cable with a retimer in each end. No light anywhere; copper the whole way.',
       dataIntro: 'Transmit pairs on the left of each card, receive pairs on the right. In a passive copper cable they run straight from the fingers into the twinax. An ACC passes the receive pairs through one analog redriver; an AEC passes both directions through a DSP retimer.',
       heatIntro: 'A passive copper cable makes very little heat: a little in its ID memory, and some loss in the copper itself. The chips in active cables draw power from the port, and it ends up as heat in the plug.',
@@ -841,7 +841,7 @@ export function content(M) {
         specs: [['NVIDIA’s name for it', 'the edge network', 'spec', evRefs([['nvidia-missioncontrol-northsouth', '"Edge Network is the network that connects the SuperPOD to the customer’s network."']])],
           ['Meet-me room', 'where carriers physically interconnect', 'reported', evRefs([['wikipedia-meet-me-room', '"a place within a colocation center (or carrier hotel) where telecommunications companies can physically connect to one another"']])]] },
       { id: 'dci', title: 'Line terminal hut', kicker: 'Coherent DWDM',
-        body: 'Coherent transceivers here each produce or receive one wavelength, hundreds of gigabits to over a terabit; a multiplexer combines dozens of them onto each fiber pair bound for other campuses, and amplifiers along the route keep the combined signal alive without converting it back to electricity.',
+        body: 'Coherent transceivers here each produce or receive one wavelength, hundreds of gigabits to over a terabit; a multiplexer combines dozens of them onto each fiber pair bound for other campuses, and amplifiers along the route keep the combined signal alive without converting it back to electricity. The cutaway beside it shows the gear inside.',
         specs: [
           ['Per wavelength, Ciena WaveLogic 6', 'up to 1.6 Tb/s', 'spec', evRefs([['ciena-wavelogic6', 'press release: "transmission at rates of up to 1.6 Tbps via a single carrier"'], ['lightwaveonline-wavelogic6', 'coverage of the same announcement, same figure']])],
           ['400ZR reach, amplified', 'up to ≈120 km', 'reported', evRefs([['smartoptics-400zr-dci', 'knowledge-bank post: the 400ZR project focused on "400G Ethernet with amplified point-to-point DWDM links over DCI up to 120 KM"']])],
@@ -1412,10 +1412,11 @@ export function content(M) {
     { id: 'acc', title: 'Redriver heat', kicker: 'Qualitative heat transfer', body: 'The analog redriver draws power from the port and warms the plug. Moving marks illustrate heat reaching the case and surroundings. The case is lifted for inspection: the display gap is not a real thermal interface, and pulse count does not represent watts.', specs: [accChip, headLay] },
     { id: 'aec', title: 'Retimer heat', kicker: 'Qualitative heat transfer', body: 'The retimer handles both signal directions and draws power from the port. Its heat must leave through the plug and its surroundings. This representative animation shows that transfer across the exploded display gap; it does not specify cooling hardware, temperature or an ACC-to-AEC power ratio.', specs: [aecChip, headLay] },
   ];
-  // doors: the NVL72 rack's NVLink spine opens the copper cables, the line terminals the coherent module
+  // doors: the NVL72 rack's NVLink spine opens the copper cables; the line terminals at Scale across and the campus's
+  // line-terminal cutaway open the data center interconnect's coherent module
   for (const P of [PARTS.rack, PARTS_DATA.rack]) { const sp = P?.find(p => p.id === 'spine'); if (sp) Object.assign(sp, { drill: 9, trip: 'copper' }); }
   { const d = PARTS_DATA.across?.find(p => p.id === 'dci'); if (d) Object.assign(d, { drill: 8, trip: 'coherent' }); }
-  { const d = PARTS_DATA.campus?.find(p => p.id === 'dci'); if (d) Object.assign(d, { drill: 8 }); }
+  { const d = PARTS_DATA.campus?.find(p => p.id === 'lineterm'); if (d) Object.assign(d, { drill: 8 }); }   // the cutaway, with the router's coherent pluggables; the hut card points to it (Reed, 10/01/2026)
 
   // doors into the side level for the power and heat layers, never a level's last card (a trip comes back out to its
   // level before the tour moves on) (the data layer's are the tray's module cages and the

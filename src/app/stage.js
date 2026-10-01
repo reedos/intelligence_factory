@@ -937,50 +937,73 @@ function stepDrift(dt) {
 export function settle() { drift = null; if (tween) { camera.position.copy(tween.p1); controls.target.copy(tween.t1); tween = null; controls.update(); } }
 
 // ---------- steps, panel, pins ----------
-const stepsEl = $('steps');
-for (let i = 0; i < BUILDERS.length; i++) {
-  const b = document.createElement('button');
-  b.className = 'step'; b.type = 'button';
-  b.addEventListener('click', () => go(i));
-  stepsEl.appendChild(b);
+// Two groups in one bar: the six levels in a line, then the four interconnects (the side levels), each under a small
+// label of its own. Wide screens show all ten as tabs; narrower ones a picker whose menu has the same two sections
+// (Reed, 10/01/2026: the interconnects stay off the 1-6 zoom path, but in plain sight).
+const GROUPS = [['steps-main', 'Levels 1–6', false], ['steps-side', 'Interconnects', true]];
+const whereOf = s => (s.side ? 'Interconnects' : `Level ${s.n} of ${MAIN_LEVELS}`);
+const tabName = s => s.tab || s.title;
+const metaOf = (s, v) => `${s.kicker ? `${s.kicker} · ` : ''}${v.short} · ${s.scale}`;
+const stepsEl = $('steps'), stepBtns = [], stepGroups = [];
+for (const [cls, label, side] of GROUPS) {
+  const g = document.createElement('div'), h = document.createElement('span'), row = document.createElement('div');
+  g.className = `step-group ${cls}`; g.setAttribute('role', 'group'); g.setAttribute('aria-labelledby', `${cls}-h`);
+  h.className = 'steps-h'; h.id = `${cls}-h`; h.textContent = label;
+  row.className = 'step-row';
+  for (let i = 0; i < BUILDERS.length; i++) {
+    if (isSide(i) !== side) continue;
+    const b = document.createElement('button');
+    b.className = side ? 'step side' : 'step'; b.type = 'button';
+    b.addEventListener('click', () => go(i));
+    row.appendChild(b); stepBtns[i] = b;
+  }
+  g.append(h, row); stepsEl.appendChild(g); stepGroups.push([g, side]);
 }
-// phones: one level picker in place of the six tabs; its menu lists the four levels inside the links as well
+// narrower screens: one level picker in place of the tabs; its menu lists the same two groups
 const levelPick = $('level-pick'), levelMenu = $('level-menu'), levelItems = [];
 if (levelMenu) {
-  const main = document.createElement('div'), side = document.createElement('div');
-  main.className = 'lm-group'; side.className = 'lm-group'; side.innerHTML = '<p class="mm-h">Inside the links</p>';
-  for (let i = 0; i < BUILDERS.length; i++) {
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'lm-item'; b.dataset.level = String(i);
-    b.addEventListener('click', () => go(i));
-    (isSide(i) ? side : main).append(b); levelItems.push(b);
+  for (const [cls, label, side] of GROUPS) {
+    const g = document.createElement('div'), h = document.createElement('p');
+    g.className = 'lm-group'; g.setAttribute('role', 'group'); g.setAttribute('aria-labelledby', `lm-${cls}-h`);
+    h.className = 'mm-h'; h.id = `lm-${cls}-h`; h.textContent = label; g.append(h);
+    for (let i = 0; i < BUILDERS.length; i++) {
+      if (isSide(i) !== side) continue;
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'lm-item'; b.dataset.level = String(i);
+      b.addEventListener('click', () => go(i));
+      g.append(b); levelItems[i] = b;
+    }
+    levelMenu.append(g);
   }
-  levelMenu.append(main, side);
 }
 function renderLevelPick() {
   if (!levelPick) return;
   const cur = ui.scene >= 0 ? ui.scene : 0, s = SCENES()[cur];
-  const where = isSide(cur) ? 'Inside the links' : `Level ${s.n} of ${MAIN_LEVELS}`;
-  $('lp-k').textContent = where; $('lp-t').textContent = s.title;
+  $('lp-k').textContent = whereOf(s); $('lp-t').textContent = s.title;
   levelPick.style.setProperty('--c', voltFor(s).css);
-  levelPick.setAttribute('aria-label', `${where}: ${s.title}. Choose a level`);
+  levelPick.setAttribute('aria-label', `${whereOf(s)}: ${s.title}. Choose a level`);
   levelItems.forEach((b, i) => {
     const t = SCENES()[i], v = voltFor(t);
     b.style.setProperty('--c', v.css);
-    b.innerHTML = `<span class="n">${t.side ? '+' : t.n}</span><span class="t">${t.title}</span><span class="meta"><span class="dot"></span><span>${v.short} · ${t.scale}</span></span>`;
+    b.innerHTML = `<span class="n">${t.side ? '+' : t.n}</span><span class="t">${tabName(t)}</span><span class="meta"><span class="dot"></span><span>${metaOf(t, v)}</span></span>`;
     if (i === cur) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
   });
 }
+function markCurrent(i) {
+  stepBtns.forEach((b, n) => { if (n === i) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+  stepGroups.forEach(([g, side]) => g.classList.toggle('on', i >= 0 && isSide(i) === side));
+}
 function renderSteps() {
   renderLevelPick();
-  [...stepsEl.children].forEach((b, i) => {
+  stepBtns.forEach((b, i) => {
     const s = SCENES()[i], v = voltFor(s);
     b.style.setProperty('--c', v.css);
-    b.innerHTML = `<span class="top"><span class="n">${s.n}</span><span class="t">${s.title}</span></span><span class="meta"><span class="dot"></span><span>${v.short} · ${s.scale}</span></span>`;
-    b.setAttribute('aria-label', `${s.n}. ${s.title}, ${v.name}`);
-    if (i === ui.scene) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
-    if (isSide(i)) { b.classList.add('side'); b.hidden = ui.scene !== i; }
+    b.innerHTML = s.side
+      ? `<span class="top"><span class="t">${tabName(s)}</span></span><span class="meta"><span class="dot"></span><span>${s.kicker || s.scale}</span></span>`
+      : `<span class="top"><span class="n">${s.n}</span><span class="t">${s.title}</span></span><span class="meta"><span class="dot"></span><span>${v.short} · ${s.scale}</span></span>`;
+    b.setAttribute('aria-label', s.side ? `${tabName(s)}${s.kicker ? `, ${s.kicker}` : ''}, ${v.name}` : `${s.n}. ${s.title}, ${v.name}`);
   });
+  markCurrent(ui.scene);
 }
 
 // ---------- power / data / heat layer ----------
@@ -1035,9 +1058,9 @@ function buildPanel(i) {
     back.innerHTML = `<span class="bo-action">← Back outside</span><span class="bo-destination">${t}</span>`;
     back.setAttribute('aria-label', `Back outside to ${t}`);
   }
-  $('hud-sub').textContent = `${voltFor(s).name} · ${s.scale}`;
+  $('hud-sub').textContent = `${s.kicker ? `${s.kicker} · ` : ''}${voltFor(s).name} · ${s.scale}`;
   const list = $('parts'); list.innerHTML = '';
-  $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · ${s.side ? 'inside the links' : `level ${s.n}`} · ${parts.length} parts`;
+  $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · ${s.side ? 'interconnects' : `level ${s.n}`} · ${parts.length} parts`;
   const tabN = $('parts-n'); if (tabN) { tabN.textContent = parts.length; tabN.setAttribute('aria-label', `, ${parts.length} parts`); }
   const playThese = $('play-these');
   if (playThese) { playThese.textContent = `▶ Play 1 to ${parts.length}`; playThese.hidden = !parts.length; }
@@ -1066,7 +1089,7 @@ function buildPanel(i) {
     return { el, id: p.id, pos: V(hs[p.id].pos) };
   });
   $('legend').innerHTML = legends(store.M)[ui.mode][i].map(([k, l]) => `<span class="legend-item" style="--c:${VOLT[k].css}"><span class="sw"></span>${l}</span>`).join('');
-  [...stepsEl.children].forEach((b, n) => { if (n === i) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+  markCurrent(i);
   $('card').hidden = true; ui.selected = null;
 }
 // bring the selected row and its card into the side pane's view, scrolling the pane alone (never the page): both
@@ -1096,7 +1119,7 @@ export function select(id, fly) {
   const key = `card:${ui.mode}:${SCENES()[ui.scene].id}:${id}`;   // each row's chip opens that row's own evidence
   $('card-s').innerHTML = p.specs.map(([k, v, b], i) => `<div><dt>${k}</dt><dd>${v}</dd>${basisChip(b, `${key}:${i}`, k)}</div>`).join('');
   const go_ = $('card-go'), to = drillOf(p), inw = isInward(ui.scene, to); go_.hidden = p.drill === undefined;
-  if (p.drill !== undefined) go_.textContent = `${inw ? 'Go inside' : 'Back out'}: ${SCENES()[to].title} ${inw ? '→' : '↑'}`;
+  if (p.drill !== undefined) go_.textContent = `${inw ? 'Go inside' : 'Back out'}: ${SCENES()[to].door || SCENES()[to].title} ${inw ? '→' : '↑'}`;
   go_.onclick = () => (p.drill === 'out' ? backOut() : go(drillOf(p), id));
   // a close part view (a switch face read at true size) may bring the orbit nearer than the level's own limit, for as
   // long as that part is selected
@@ -1183,7 +1206,7 @@ function stepIris(dt) {
 }
 function jumpLabel(from, to) {
   const a = SCENES()[from], b = SCENES()[to];
-  const where = isSide(to) && isSide(from) ? 'Across' : isSide(to) ? `In · inside level ${SCENES()[sideEntered ? from : SIDE_PARENT[to]].n}` : isSide(from) ? `Out · level ${b.n} of ${MAIN_LEVELS}` : `${to > from ? 'In' : 'Out'} · level ${b.n} of ${MAIN_LEVELS}`;
+  const where = isSide(to) && isSide(from) ? 'Across' : isSide(to) ? `In · Interconnects · from level ${SCENES()[sideEntered ? from : SIDE_PARENT[to]].n}` : isSide(from) ? `Out · level ${b.n} of ${MAIN_LEVELS}` : `${to > from ? 'In' : 'Out'} · level ${b.n} of ${MAIN_LEVELS}`;
   return `<div class="jump"><span class="jump-k">${where}</span><b>${b.title}</b><span class="jump-s">${a.scale} → ${b.scale}</span></div>`;
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));

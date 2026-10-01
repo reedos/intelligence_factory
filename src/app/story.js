@@ -161,7 +161,7 @@ function goButton(b) {
   if (tour !== 'here') return '';                          // the narrated tours already go in; a way out mid-story is noise
   const p = partOf(b.link); if (!p || p.drill === undefined) return '';
   const d = drillOf(p), inward = isInward(b.link.scene, d), to = store.C.SCENES[d];
-  return `<button type="button" class="btn go beat-go" data-drill="${d}" data-from="${p.id}" data-scene="${b.link.scene}">${inward ? 'Go inside' : 'Back out'}: ${to.title} ${inward ? '→' : '↑'}</button>`;
+  return `<button type="button" class="btn go beat-go" data-drill="${d}" data-from="${p.id}" data-scene="${b.link.scene}">${inward ? 'Go inside' : 'Back out'}: ${to.door || to.title} ${inward ? '→' : '↑'}</button>`;
 }
 function nextSteps() {
   const acts = ['<button type="button" class="btn" data-restart>↺ Start over</button>'], S = store.C.SCENES;
