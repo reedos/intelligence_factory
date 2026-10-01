@@ -16,6 +16,7 @@ import './app/toprow.js';
 import './app/page-sheet.js';
 import { setGo } from './app/links.js';
 import { moreCue } from './app/more-cue.js';
+import './app/ocs-figure.js';
 
 stage.start();
 // links to a part move the 3D view here, rather than opening a page
