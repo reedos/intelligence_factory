@@ -32,8 +32,16 @@ npm run build      # static site in dist/, relative paths, ready for GitHub Page
 npm run artifact   # dist-artifact/: the same page shaped for a claude.ai artifact
 ```
 
-Live at https://reedos.dev/intelligence_factory/. Deploy by hand:
-`gh workflow run pages.yml` (typechecks, tests and builds first).
+Live at https://reedos.dev/intelligence_factory/, served by a Cloudflare Worker with static assets on the route
+`reedos.dev/intelligence_factory/*` (the rest of reedos.dev is GitHub Pages). Deploy by hand, both typecheck, test
+and build first:
+
+- `gh workflow run cloudflare.yml --ref main` — production (`tools/cloudflare-stage.mjs` mounts the build under the
+  path, adds `_headers` caching and `_redirects` for the root and extensionless URLs).
+- `gh workflow run pages.yml --ref main` — GitHub Pages, kept current as the fallback: delete the Worker route and
+  GitHub serves the same build again.
+
+Every push to another branch also builds a preview at `https://<branch>.intelligence-factory-dly.pages.dev/`.
 
 The project's own code and text are under the MIT license ([`LICENSE`](LICENSE)). Third-party code, fonts and data
 keep their own terms, and the hero images' rights status is unresolved: see
