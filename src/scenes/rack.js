@@ -7,6 +7,7 @@ import { computeMaterials, finishCompute } from './compute-finish.js';
 import { frameCompute } from './compute-framing.js';
 import { addRackOptics } from './rack-optics.js';
 import { etch } from './package-marks.js';
+import { rackUnits } from './site-signs.js';
 import { componentView } from '../app/housing-frame.js';
 
 const U = 0.04445;
@@ -155,6 +156,7 @@ function room(scene, quality, S, N, W, H, D) {
     }
   }
   rbox(N, W - 0.04, 0.008, D - 0.025, MAT.darkSteel, 0, H + 0.004, 0, { r: 0.28 });
+  rackUnits(scene, { X, ZF, U, H });   // U numbers beside the rail holes (site-signs.js)
 }
 
 // Overhead plug-in busway and the rack's two tap-off units (the A and B feeds).

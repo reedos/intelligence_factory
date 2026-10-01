@@ -12,6 +12,7 @@ import { printDecals, textTexture, printTexture, SANS } from './print-kit.js';
 import { switchLabel, labelLines } from './lid-labels.js';
 import { hallMarks } from './electrical-marks.js';
 import { hallPipeMarks } from './cooling-marks.js';
+import { hallIds } from './site-signs.js';
 
 // Cabinet front textures (drawn once).
 function frontTex(kind) {
@@ -1039,6 +1040,8 @@ export function build({ quality, model }) {
     size: [.019, .0095], placements: lidLabels, lift: .00008, name: 'Switch module lid labels', material: { roughness: .7, metalness: .25 } });
   for (const [form, placements] of facePrints) printDecals(scene, { texture: faceTexture(form), size: [.438, SWITCH_FORMS[form].h - .002],
     placements, lift: .0002, name: `Switch face print ${form}`, material: { roughness: .6 } });
+  // Rack labels and the hall's name over the back-wall pipework (site-signs.js).
+  hallIds(scene, { rackMx, rowZs, rowX0, wall: { p: [-4, 6.98, Z0 + .03] } });
   // Nameplates, voltage stencils and hazard signs on the power gear (electrical-marks.js).
   hallMarks(scene, model, { usX, usZ, swgr: { x0: -33.5, w: .9, n: 14, zFront: -15.6 + .75 },
     busways: [{ from: -22.55, to: -12.25, y: 5.6, z: -6.5, depth: .6 },

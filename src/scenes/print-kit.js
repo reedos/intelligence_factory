@@ -250,3 +250,33 @@ export function realizeSpots(root, parent, groups = []) {
     printDecals(parent, { texture: textTexture(g.lines, g.text), size: g.size, placements, lift: g.lift ?? .0005, name: g.name, material: g.material || { roughness: .55 } });
   }
 }
+
+/**
+ * Many different short labels in one draw: the texts are packed into one atlas and each instance picks its cell
+ * through a per-instance UV offset. placements: [{ p, n, up?, roll?, text }]. Cells are cellW x cellH pixels.
+ */
+export function printAtlas(parent, { placements, size, cell = [256, 64], lines = t => [{ text: t, size: .7, weight: 700 }], text = {}, lift = 0, name = 'Printed IDs', material = {} }) {
+  if (!hasDom() || !placements.length) return null;
+  const texts = [...new Set(placements.map(p => p.text))];
+  const cols = Math.max(1, Math.min(texts.length, Math.floor(4096 / cell[0]))), rows = Math.ceil(texts.length / cols);
+  const W = cols * cell[0], H = rows * cell[1];
+  const tex = printTexture(W, H, g => texts.forEach((t, i) => {
+    const cx = (i % cols) * cell[0], cy = Math.floor(i / cols) * cell[1];
+    g.save(); g.translate(cx, cy); g.beginPath(); g.rect(0, 0, cell[0], cell[1]); g.clip();
+    drawLines(g, cell[0], cell[1], lines(t), { align: 'center', pad: .04, ...text }); g.restore();
+  }));
+  if (!tex) return null;
+  tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter;   // cells must not bleed into each other
+  const mesh = printDecals(parent, { texture: tex, size, placements, lift, name, material });
+  const offsets = new Float32Array(placements.length * 2);
+  placements.forEach((pl, i) => { const k = texts.indexOf(pl.text); offsets[i * 2] = (k % cols) / cols; offsets[i * 2 + 1] = 1 - (Math.floor(k / cols) + 1) / rows; });
+  mesh.geometry.setAttribute('ifxCell', new THREE.InstancedBufferAttribute(offsets, 2));
+  const scale = new THREE.Vector2(1 / cols, 1 / rows);
+  mesh.material.onBeforeCompile = shader => {
+    shader.uniforms.ifxCellScale = { value: scale };
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 ifxCell;\nuniform vec2 ifxCellScale;')
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\n#ifdef USE_MAP\nvMapUv = vMapUv * ifxCellScale + ifxCell;\n#endif');
+  };
+  mesh.material.customProgramCacheKey = () => `ifx-atlas-${cols}x${rows}`;
+  return mesh;
+}
