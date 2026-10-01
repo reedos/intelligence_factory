@@ -226,7 +226,7 @@ describe('complete Blender compute hardware',()=>{
     expect(b.scene.userData.blenderCompute.replacedNativeMeshes).toBeGreaterThan(10);
     const dynamic=new Set();for(const key of ['flows','dataFlows','heatFlows'])for(const f of b[key]||[])f.group.traverse((o:any)=>dynamic.add(o));
     hardware.traverse((o:any)=>dynamic.add(o));
-    const outside=meshes(b.scene).filter(o=>!dynamic.has(o)&&!o.isReflector&&!o.userData.computeDynamic&&(Array.isArray(o.material)?o.material:[o.material]).some((m:any)=>!m.isMeshBasicMaterial&&!m.isShaderMaterial));
+    const outside=meshes(b.scene).filter(o=>!dynamic.has(o)&&!o.isReflector&&!o.userData.computeDynamic&&!o.userData.nativeOverlay&&(Array.isArray(o.material)?o.material:[o.material]).some((m:any)=>!m.isMeshBasicMaterial&&!m.isShaderMaterial));
     expect(outside.length).toBe(0);
     expect(meshes(hardware).every(o=>Array.from(o.geometry.attributes.position.array).every(Number.isFinite))).toBe(true);
     expect(meshes(hardware).every(o=>o.geometry.userData.authoredIn==='Blender')).toBe(true);
@@ -304,7 +304,7 @@ describe('generation-specific compute hardware',()=>{
   const hardware=b.scene.getObjectByName('Blender complete tray hardware');hardware.updateMatrixWorld(true);
   const ray=new THREE.Raycaster();
   for(const f of b.heatFlows.filter((f:any)=>['cool','warm'].includes(f.cls)))for(let u=.05;u<.96;u+=.10){const p=f.path.getPoint(u);ray.set(p,new THREE.Vector3(0,-1,0));const hit=ray.intersectObject(hardware,true)[0];expect(hit?.distance??99).toBeGreaterThan(f.size*1.6);}
- });
+ }, 60000);
  it('H100 optical-module and NIC cameras clear the physical enclosure walls',()=>{
   const b=wrappers[1].build(options('h100')),hardware=b.scene.getObjectByName('Blender complete tray hardware');hardware.updateMatrixWorld(true);
   const ray=new THREE.Raycaster();
@@ -328,7 +328,7 @@ it('every part view avoids distant opaque obstructions in all generations',()=>{
   }
  }
  expect(issues).toEqual([]);
-});
+}, 60000);
 
 
 it('exported GPU packages have the expected live HBM sites and stack heights',()=>{

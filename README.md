@@ -32,16 +32,18 @@ npm run build      # static site in dist/, relative paths, ready for GitHub Page
 npm run artifact   # dist-artifact/: the same page shaped for a claude.ai artifact
 ```
 
-Live at https://reedos.github.io/intelligence_factory/ (noindex for now). Deploy by hand:
+Live at https://reedos.dev/intelligence_factory/. Deploy by hand:
 `gh workflow run pages.yml` (typechecks, tests and builds first).
 
 The project's own code and text are under the MIT license ([`LICENSE`](LICENSE)). Third-party code, fonts and data
 keep their own terms, and the hero images' rights status is unresolved: see
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
-Links: `?mw=&accel=&power=&cooling=&site=` sets the scenario and `?view=scene.layer.part` opens a view;
-`#story`, `#watt`, `#request` and `#heat` start a tour. The page keeps its address bar current, and
-Share copies it.
+Links: `?mw=&accel=&power=&cooling=&site=` sets the scenario and `?view=scene.layer.part` opens a view. The
+visualizer's guided tours and clock strip are built but not wired into the live page (`src/visualizer.js` loads
+the exploration UI only); old tour links such as `#story`, `#watt`, `#request` and `#heat` still work, but
+`index.html` now forwards them, along with any `?view=` or `?clock=` link, straight into the visualizer at the
+right part instead of starting a tour. The page keeps its address bar current, and Share copies it.
 
 ## Layout
 

@@ -38,7 +38,7 @@ await fs.mkdir(referenceDirectory, { recursive: true });
 export const server = await createServer({ root: ROOT, server: { middlewareMode: true, hmr: false }, appType: 'custom', logLevel: 'error' });
 
 export function isPhysicalMesh(object) {
-  if (!object.isMesh || object.isReflector || object.userData.computeDynamic) return false;
+  if (!object.isMesh || object.isReflector || object.userData.computeDynamic || object.userData.nativeOverlay) return false;   // nativeOverlay: runtime-only hardware (rack-mgmt.js)
   const materials = Array.isArray(object.material) ? object.material : [object.material];
   // Additive light markers/cache bands/status indicators are teaching effects.
   return materials.some(m => !m.isMeshBasicMaterial && !m.isShaderMaterial);

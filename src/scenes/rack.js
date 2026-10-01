@@ -6,6 +6,7 @@ import { rbox, bundle, blinkers, plumes, floorMirror } from '../fx.js';
 import { computeMaterials, finishCompute } from './compute-finish.js';
 import { frameCompute } from './compute-framing.js';
 import { addRackOptics } from './rack-optics.js';
+import { addRackMgmt } from './rack-mgmt.js';
 import { componentView } from '../app/housing-frame.js';
 
 const U = 0.04445;
@@ -112,6 +113,7 @@ export function build(opts) {
   const result = opts.model.accel.gpusPerRack === 72 ? buildNVL(opts) : buildHGX(opts);
   finishCompute(result.scene, computeMaterials());
   addRackOptics(result, opts.model.accel.id);
+  if (opts.model.accel.gpusPerRack === 72) addRackMgmt(result, opts.model.accel.id, opts.quality);   // 1 GbE management leads (rack-mgmt.js)
   frameCompute(result, 'rack', opts.model.accel.id);
   return result;
 }

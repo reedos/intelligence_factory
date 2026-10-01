@@ -120,7 +120,7 @@ export const SOURCES = {
   // networking, optics, fiber
   'nvidia-xdr-switch-specs': { title: 'Quantum-X800 XDR switch systems, specifications', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/xdrswitcheshw/specifications', published: '09/02/2026', accessed: '09/27/2026', kind: 'primary' },
   'nvidia-sn5000-specs': { title: 'SN5000 switch systems, specifications', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/sn5000hw/specifications', published: '2026', dated: "Last updated: June 15, 2026", accessed: '09/27/2026', kind: 'primary' },
-  'nvidia-superpod-gb200-network-fabrics': { title: 'Network Fabrics, NVIDIA DGX SuperPOD reference architecture (DGX GB200)', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx-superpod/reference-architecture-scalable-infrastructure-gb200/latest/network-fabrics.html', published: 'undated', dated: 'live documentation', accessed: '09/28/2026', kind: 'primary' },
+  'nvidia-superpod-gb200-network-fabrics': { title: 'Network Fabrics, NVIDIA DGX SuperPOD reference architecture (DGX GB200)', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx-superpod/reference-architecture-scalable-infrastructure-gb200/latest/network-fabrics.html', published: 'undated', dated: 'live documentation', accessed: '09/30/2026', kind: 'primary' },
   'nvidia-superpod-gb200-components': { title: 'Key Components of the DGX SuperPOD (DGX GB200)', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx-superpod/reference-architecture-scalable-infrastructure-gb200/latest/dgx-superpod-components.html', published: 'undated', dated: 'live documentation', accessed: '09/28/2026', kind: 'primary' },
   'nvidia-superpod-b300-management-servers': { title: 'Management Servers, NVIDIA DGX SuperPOD reference architecture (DGX B300)', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx-superpod/reference-architecture/scalable-infrastructure-b300/latest/management-servers.html', published: '11/19/2025', dated: '11/19/2025', accessed: '09/28/2026', kind: 'primary' },
   'nvidia-missioncontrol-northsouth': { title: 'Networking Planning and Design, NVIDIA Mission Control North-South Network Configuration Guide 2.0.0', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/mission-control/docs/north-south-network-deployment-guide/2.0.0/nsnetcfg-network-planning-design.html', published: 'undated', dated: 'v2.0.0', accessed: '09/28/2026', kind: 'primary' },
@@ -381,6 +381,8 @@ export const SOURCES = {
   'nvidia-bf3-networking-docs': { title: 'Introduction, NVIDIA BlueField-3 Networking Platform User Guide', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/bf3dpu/introduction', dated: 'unknown page-specific date; current NVIDIA docs', accessed: '09/27/2026', kind: 'primary' },
   'nvidia-bluefield4-blog': { title: 'NVIDIA Launches BlueField-4: The Processor Powering the Operating System of AI Factories', publisher: 'NVIDIA', url: 'https://blogs.nvidia.com/blog/bluefield-4-ai-factory/', published: '2026', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'semianalysis-google-apollo-ocs': { title: "Google's Apollo: The $3 Billion Optical Circuit Switching Game", publisher: 'SemiAnalysis', url: 'https://newsletter.semianalysis.com/p/google-apollo-the-3-billion-game', accessed: '09/27/2026', kind: 'secondary' },
+  'google-tpuv4-ocs-paper': { title: 'TPU v4: An Optically Reconfigurable Supercomputer for Machine Learning with Hardware Support for Embeddings', publisher: 'Google (Jouppi et al., ISCA 2023)', url: 'https://arxiv.org/pdf/2304.01433', published: '2023', dated: 'ISCA 2023 camera-ready', accessed: '09/30/2026', kind: 'primary' },
+  'google-jupiter-evolving-paper': { title: 'Jupiter Evolving: Transforming Google’s Datacenter Network via Optical Circuit Switches and Software-Defined Networking', publisher: 'Google (Poutievski et al., SIGCOMM 2022)', url: 'https://web.stanford.edu/class/cs244/papers/poutievski-sigcomm22.pdf', published: '08/2022', dated: 'SIGCOMM ’22, August 22-26, 2022', accessed: '09/30/2026', kind: 'primary' },
   'flex-gb200-power-shelf': { title: 'Custom power shelves for NVIDIA GB200 (ORv3, 33 kW, six 5.5 kW PSUs, up to 97.5% peak efficiency)', publisher: 'Flex', url: 'https://flex.com/resources/power-shelves', dated: 'unknown page-specific date; current Flex product page', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'liteon-gtc-2026-prnewswire': { title: 'LITEON Showcases Next-Generation 800 VDC and NVIDIA Vera Rubin Platform Solutions at NVIDIA GTC 2026', publisher: 'LITEON, via PR Newswire', url: 'https://www.prnewswire.com/news-releases/liteon-showcases-next-generation-800-vdc-and-nvidia-vera-rubin-platform-solutions-at-nvidia-gtc-2026-302715737.html', published: '03/17/2026', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'nvidia-hopper-architecture-page': { title: 'Hopper Architecture', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/technologies/hopper-architecture/', dated: 'unknown page-specific date; current NVIDIA product page', accessed: '09/27/2026', kind: 'primary', marketing: true },
@@ -417,6 +419,15 @@ export const SOURCES = {
   'canarymedia-xai-battery': { title: "xAI has quietly built a massive battery at its Memphis data center", publisher: 'Canary Media', url: 'https://www.canarymedia.com/articles/batteries/xai-massive-battery-memphis-data-center', published: '09/11/2026', accessed: '09/27/2026', kind: 'secondary' },
   'nvidia-gb200-nvl72-blog': { title: 'NVIDIA GB200 NVL72 Delivers Trillion-Parameter LLM Training and Real-Time Inference', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/nvidia-gb200-nvl72-delivers-trillion-parameter-llm-training-and-real-time-inference/', published: '03/18/2024', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'nvidia-connectx8-specs-page': { title: 'Specifications | NVIDIA ConnectX-8 SuperNIC User Manual', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/connectx8hw/specifications', accessed: '09/27/2026', kind: 'primary' },
+  // ---- 09/30/2026, interconnect: in-campus reach tiers (DR / FR4 / LR4) ----
+  'nvidia-linkx-interconnect': { title: 'LinkX: Transceivers and Cables for AI Factory Networks', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/networking/interconnect/', published: 'undated', dated: 'live product page', accessed: '09/30/2026', kind: 'primary', marketing: true },
+  'nvidia-mms4x50-nm': { title: 'MMS4X50-NM 800Gbps Twin-port OSFP 2xFR4, 2x400Gb/s Single Mode, 2km: specifications', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/mms4x50nm800g2kmpub/specifications', published: 'undated', dated: 'live product documentation', accessed: '09/30/2026', kind: 'primary' },
+  'ieee-802-3cu-lr4-baseline': { title: '400GBASE-LR4 Baseline Proposal (lewis_3cu_02a_0519)', publisher: 'IEEE 802.3cu Task Force', url: 'https://www.ieee802.org/3/cu/public/May19/lewis_3cu_02a_0519.pdf', published: '05/23/2019', dated: 'May 2019 task force meeting', accessed: '09/30/2026', kind: 'primary' },
+  'tiafotc-400gbase-fr4': { title: '400GBASE-FR4: single-mode Ethernet standards update', publisher: 'TIA Fiber Optics Technology Consortium', url: 'https://www.tiafotc.org/ieee-802-3-ethernet-standards-update/singlemode-standards-update/400gbase-fr4/', published: 'undated', dated: 'live page', accessed: '09/30/2026', kind: 'secondary' },
+  // ---- 09/30/2026, interconnect: inside the DWDM line terminal ----
+  'ciena-6500-rls-datasheet': { title: '6500 Reconfigurable Line System data sheet (DS365)', publisher: 'Ciena', url: 'https://telecomcauliffe.com/wp-content/uploads/2023/10/Ciena_6500_Reconfigurable_Line_System_DS.pdf', published: '09/2023', dated: 'DS365 9.2023, copyright 2023 Ciena', via: 'reseller-hosted copy of the Ciena data sheet', accessed: '09/30/2026', kind: 'primary', marketing: true },
+  'fs-64ch-cband-mux': { title: '64 Channels DWDM Mux Demux, Super C-band 75GHz', publisher: 'FS.com', url: 'https://www.fs.com/products/166004.html', published: 'undated', dated: 'live product page', accessed: '09/30/2026', kind: 'secondary', marketing: true },
+  'wikipedia-roadm': { title: 'Reconfigurable optical add-drop multiplexer', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Reconfigurable_optical_add-drop_multiplexer', published: 'undated', dated: 'live article', accessed: '09/30/2026', kind: 'secondary' },
 
 };
 
@@ -485,7 +496,7 @@ export const PART_SOURCES = {
   'power:rack:manifold': [],
   'power:rack:pdu': [],
   'power:rack:servers': ['nvidia-dgx-h100', 'nvidia-h100-datasheet'],
-  'power:rack:psus': ['fs-com-dgx-h100'],
+  'power:rack:psus': ['fs-com-dgx-h100', 'semianalysis-gb200-hw'],
   'power:rack:cabling': [],
   'power:rack:mgmt': [],
 
@@ -510,7 +521,7 @@ export const PART_SOURCES = {
   'power:chip:tokens': ['google-inference-impact', 'samsi-words-to-watts'],
 
   // ---- data ----
-  'data:across:dci': ['ciena-wavelogic6', 'marvell-colorz-800', 'ciena-wavelogic6-nano'],
+  'data:across:dci': ['ciena-wavelogic6', 'marvell-colorz-800', 'ciena-wavelogic6-nano', 'ciena-6500-rls-datasheet'],
   'data:across:ila': [],
   'data:across:route': ['microsoft-hollow-core-fiber', 'coherent-full-cband-pols'],
   'data:across:remote': ['microsoft-ai-wan', 'nvidia-spectrum-xgs', 'deepmind-decoupled-diloco'],
@@ -518,7 +529,8 @@ export const PART_SOURCES = {
 
   'data:campus:fiber': ['zayo-route-diversity'],
   'data:campus:dci': ['ciena-wavelogic6'],
-  'data:campus:interhall': [],
+  'data:campus:lineterm': ['cisco-800g-zr-datasheet', 'ciena-6500-rls-datasheet', 'fs-64ch-cband-mux', 'wikipedia-roadm'],
+  'data:campus:interhall': ['nvidia-linkx-interconnect', 'nvidia-mms4x50-nm', 'tiafotc-400gbase-fr4', 'ieee-802-3cu-lr4-baseline'],
   'data:campus:ductbank': ['prysmian-flexribbon'],
   'data:campus:hall': [],
   'data:campus:longhaul': [],
@@ -544,15 +556,15 @@ export const PART_SOURCES = {
   'data:rack:tp': ['meta-llama3-herd-parallelism'],
   'data:rack:nvswitch': ['nvidia-nvl72-reference-arch'],
   'data:rack:spine': ['nvidia-gb200-ocp', 'servethehome-dgx-gb200', 'nvidia-dgx-gb200-user-guide', 'viksnewsletter-acc-power'],
-  'data:rack:optical': ['google-ironwood-tpu', 'google-ironwood-codesign'],
+  'data:rack:optical': ['google-ironwood-tpu', 'google-ironwood-codesign', 'semianalysis-tpuv7-ironwood', 'google-tpuv4-ocs-paper', 'semianalysis-google-apollo-ocs', 'google-jupiter-evolving-paper'],
   'data:rack:uplinks': ['nvidia-h100-datasheet'],
   'data:rack:compute': [],
-  'data:rack:mgmt': [],
+  'data:rack:mgmt': ['nvidia-dgx-gb200-hardware', 'nvidia-superpod-gb200-network-fabrics', 'nvidia-sn2201-specs'],
   'data:rack:servers': ['nvidia-h100-datasheet'],
 
   'data:tray:nvconn': ['nvidia-gb200-nvl72'],
   'data:tray:c2c': ['nvidia-gb200-nvl72', 'naddod-gb200-interconnect'],
-  'data:tray:cx': ['nvidia-dsx-data-center-architecture', 'nvidia-coreweave-gb200-400g', 'nvidia-connectx8-datasheet', 'fs-com-dgx-h100'],
+  'data:tray:cx': ['nvidia-dsx-data-center-architecture', 'nvidia-coreweave-gb200-400g', 'nvidia-connectx8-datasheet', 'fs-com-dgx-h100', 'semianalysis-gb200-hw'],
   // inside the links: one diagram each for the module, the CPO package, the coherent module and the copper cables
   'power:hall:optics': ['osfp-msa'],
   'power:module:fingers': ['osfp-msa', 'ascentoptics-osfp-form-factor'],

@@ -237,6 +237,12 @@ img { max-width: 100%; }
   .bom-col dt { font-size: 13px; color: var(--muted); }
   .bom-col dd { margin: 0; font: 600 26px/1.05 var(--display); font-variant-numeric: tabular-nums; }
 
+  /* ---------- closing section: how the site itself was built ---------- */
+  .made { display: grid; gap: 18px; }
+  .made-body { display: grid; gap: 14px; max-width: 72ch; font-size: 15px; line-height: 1.65; color: var(--muted); }
+  .made-body p { margin: 0; }
+  .made-body code { font: 400 13px/1 var(--mono); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 2px 5px; }
+
   .sources { display: grid; gap: 16px; border-top: 1px solid var(--line); padding-top: 32px; font-size: 13px; color: var(--muted); }
   .sources ul { margin: 0; padding-left: 18px; columns: 2; column-gap: 32px; }
   .sources li { margin-bottom: 6px; break-inside: avoid; }
@@ -750,6 +756,8 @@ body.scrolled .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--
 .chapter .ch-k span { font: 500 12px/1 var(--mono); letter-spacing: .16em; color: var(--c); }
 .chapter .ch-k span::after { content: " / 05"; color: var(--faint); }
 .chapter .ch-s { margin: 0; max-width: 62ch; font-size: 17px; line-height: 1.6; color: var(--muted); }
+.chapter .note { max-width: 62ch; }
+.chapter .note a { color: var(--c); }
 .wrap { padding-block: 72px 96px; }
 @media (max-width: 760px) { .chapter { margin-bottom: -20px; } .chapter .ch-s { font-size: 15.5px; } }
 
