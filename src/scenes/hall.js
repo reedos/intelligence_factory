@@ -8,6 +8,8 @@ import { preloadCampusCatalog, hasCampusCatalog, campusCatalogBuilder, campusCat
 import { preloadHallFinish, hasHallFinish, hallFinishInstances } from './hall-blender-finish.js';
 export const preload=()=>Promise.all([preloadCampusCatalog(),preloadSiteConstruction(),preloadHallFinish()]);
 import { rbox, bundle, blinkers, lamps, plumes, movers, floorMirror } from '../fx.js';
+import { printDecals, textTexture } from './print-kit.js';
+import { switchLabel, labelLines } from './lid-labels.js';
 
 // Cabinet front textures (drawn once).
 function frontTex(kind) {
@@ -165,6 +167,7 @@ export function build({ quality, model }) {
   const fiberJacket = new THREE.MeshStandardMaterial({ color: FIBER_JACKET, roughness: 0.5, metalness: 0.1 });
   const networkPorts = new Map(), fiberRoutes = [];
   const portLedItems = [];                              // link LEDs on the switch ports (the racks keep ledItems)
+  const lidLabels = [];                                 // printed lid labels, one per pluggable module (lid-labels.js)
   // Switch chassis drawn at true size with pluggable OSFP modules (22.58 mm wide x 13 mm tall, OSFP MSA).
   // 400G fabrics: Quantum-2 QM9700, 1U (43.6 mm) x 438 mm, 32 OSFP cages (nvidia-quantum2-qm9700-specs).
   // 800G and up: Quantum-X800 Q3400, 4U (177.8 mm) x 438 mm, 72 OSFP cages (nvidia-xdr-switch-specs,
@@ -182,6 +185,7 @@ export function build({ quality, model }) {
       const bank = form === 'q3400' ? (r < 2 ? -1 : 1) * .012 : 0;
       const x = cx + (c - (cols - 1) / 2) * pitchX, y = yc + (r - (rows - 1) / 2) * pitchY + bank;
       N.box(.0226, .013, .02, moduleMetal, x, y, faceZ + fs * .02);                           // OSFP module, ~18 mm proud
+      lidLabels.push({ p: [x, y + .0065, faceZ + fs * .02], face: 'top', yaw: fs > 0 ? 0 : Math.PI });
       N.box(.004, .0035, .03, pullTabMat, x, y - .0045, faceZ + fs * .027);                    // pull tab
       ports.push({ point: [x, y, faceZ + fs * .03], f: fs, cx, i: ports.length, under: yb - .012 });
       portLedItems.push({ p: [x + .008, y + .0047, faceZ + fs * .0305], color: (r + c) % 3 ? '#5cf29a' : '#ffb347', rate: 0.35 + ((r * cols + c) * 0.37) % 1.2 });
@@ -1000,6 +1004,10 @@ export function build({ quality, model }) {
 
   scene.add(S.build({ cast: true, receive: true }));
   scene.add(N.build({ cast: false, receive: true }));
+  // Lid print on every switch-side module: the class the scenario's fabric uses (lid-labels.js), etched dark on
+  // the nickel lid, small enough to fade into the lid tone at overview distance.
+  printDecals(scene, { texture: textTexture(labelLines(switchLabel(model.accel)), { px: 72, aspect: 2, ink: '#474d55', pad: 0.05 }),
+    size: [.019, .0095], placements: lidLabels, lift: .00008, name: 'Switch module lid labels', material: { roughness: .7, metalness: .25 } });
   flows.forEach(f => scene.add(f.group));
   dataFlows.forEach(f => scene.add(f.group));
   heatFlows.forEach(f => scene.add(f.group));
