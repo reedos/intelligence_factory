@@ -3,6 +3,7 @@ import { THREE, MAT, Builder, flow } from '../kit.js';
 import { managedRoute, RACK_RUNWAY, FIBER_JACKET } from './fiber-routing.js';
 import { printDecals, textTexture } from './print-kit.js';
 import { nicLabel, labelLines } from './lid-labels.js';
+import { etch } from './package-marks.js';
 
 // Representative optical population, not an exact customer cable schedule.
 // GB200/GB300: four compute-fabric OSFP cages; H100: four twin-port OSFP
@@ -12,6 +13,7 @@ export function addRackOptics(built, accel) {
   const h100 = accel === 'h100', rubin = accel === 'rubin', U = .04445;
   const hardware = new Builder(), modules = [], links = [], storageCages = [];
   const lidLabels = [];
+  const portNumbers = new Map();   // printed cage numbers on the tray faces, by number (realized on the authored hardware)
   const jacket = new THREE.MeshStandardMaterial({ color: FIBER_JACKET, roughness: .48, metalness: .08 });
   jacket.name = 'Optical patch cable jacket';
   const connector = new THREE.MeshStandardMaterial({ color: 0x266c50, roughness: .42, metalness: .1 });
@@ -28,6 +30,14 @@ export function addRackOptics(built, accel) {
     // Show a few populated links per tray with the remaining cages inspectable.
     ports.forEach(({x,dy},port) => {
       const y=rowY+dy;
+      // Cage numbers read left to right from the aisle; stacked Vera Rubin cages number top then bottom per
+      // column, the lower number printed under its cage. Order is representative.
+      if (!h100) {   // the DGX H100's rear cages sit under riding heat sinks and patch leads: no room for a number
+        const order = [...ports].sort((a, b) => (a.x - b.x) * direction || b.dy - a.dy), n = order.indexOf(ports[port]) + 1;
+        const below = rubin && dy === 0, ny = y + (below ? -.0098 : .0098);
+        if (!portNumbers.has(n)) portNumbers.set(n, []);
+        portNumbers.get(n).push({ p: [x, ny, z - direction * .006], n: [0, 0, direction] });   // on the tray face, flush with the cage plane
+      }
       const occupied = port === 0 || port === ports.length-1;
       // Rolled metal mouth is a hollow frame, not a painted black rectangle.
       for (const s of [-1,1]) {
@@ -128,6 +138,7 @@ export function addRackOptics(built, accel) {
   printDecals(built.scene, { texture: textTexture(labelLines(nicLabel(accel)), { px: 72, aspect: 2, ink: '#474d55', pad: .05 }),
     size: [.019, .0088], placements: lidLabels, lift: .00008, name: 'NIC module lid labels', material: { roughness: .7, metalness: .25 } });
   built.scene.userData.rackOptics={modules,links,storageCages,cagesPerTray:ports.length,representative:true,termination:'passive patch strip'};
+  built.printSpots = [...(built.printSpots || []), ...[...portNumbers].map(([n, spots]) => etch(`Cage number ${n}`, String(n), [.008, .0045], spots, { ink: '#c9cfd6' }))];
   const hero=modules.find(m=>m.pulled && (h100 ? m.position[0]>0 : true));
   if(hero && built.dataHotspots.uplinks) {
     const [x,y,z]=hero.position;

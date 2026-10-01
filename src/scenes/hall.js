@@ -8,7 +8,7 @@ import { preloadCampusCatalog, hasCampusCatalog, campusCatalogBuilder, campusCat
 import { preloadHallFinish, hasHallFinish, hallFinishInstances } from './hall-blender-finish.js';
 export const preload=()=>Promise.all([preloadCampusCatalog(),preloadSiteConstruction(),preloadHallFinish()]);
 import { rbox, bundle, blinkers, lamps, plumes, movers, floorMirror } from '../fx.js';
-import { printDecals, textTexture } from './print-kit.js';
+import { printDecals, textTexture, printTexture, SANS } from './print-kit.js';
 import { switchLabel, labelLines } from './lid-labels.js';
 import { hallMarks } from './electrical-marks.js';
 import { hallPipeMarks } from './cooling-marks.js';
@@ -193,10 +193,35 @@ export function build({ quality, model }) {
       portLedItems.push({ p: [x + .008, y + .0047, faceZ + fs * .0305], color: (r + c) % 3 ? '#5cf29a' : '#ffb347', rate: 0.35 + ((r * cols + c) * 0.37) % 1.2 });
     }
   }
+  // Printed chassis face: port numbers in the gaps above each cage and, where the face has room, the model name
+  // (Quantum-X800 Q3400 in the band over its ports; QM9700 up the narrow strip beside the first column). One texture
+  // per chassis form, laid on the face just behind the modules. Numbering order is representative.
+  const facePrints = new Map();
+  const SWITCH_NAMES = { q3400: 'Quantum-X800 Q3400', qm9700: 'QM9700' };
+  function faceTexture(form) {
+    const { h, rows, cols } = SWITCH_FORMS[form], W = 4096, H = Math.round(W * h / .438), k = W / .438, pitchX = .0235, pitchY = .0172;
+    return printTexture(W, H, (g) => {
+      g.fillStyle = '#c3c8ce'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = `600 ${Math.round(.0032 * k)}px ${SANS}`;
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const bank = form === 'q3400' ? (r < 2 ? -1 : 1) * .012 : 0;
+        const x = (c - (cols - 1) / 2) * pitchX, y = (r - (rows - 1) / 2) * pitchY + bank + .0065 + .0021;
+        g.fillText(String(c * rows + (rows - 1 - r) + 1), W / 2 + x * k, H / 2 - y * k);
+      }
+      const name = SWITCH_NAMES[form];
+      if (form === 'q3400') { g.fillStyle = '#a3aab2'; g.font = `600 ${Math.round(.0095 * k)}px ${SANS}`; g.fillText(name, W / 2, H / 2 - .066 * k); }
+      else if (name) { g.save(); g.translate(W / 2 - .194 * k, H / 2); g.rotate(-Math.PI / 2); g.font = `600 ${Math.round(.0075 * k)}px ${SANS}`; g.fillText(name, 0, 0); g.restore(); }
+    });
+  }
   function pluggableFace(cx, cz, fs, { forms, y0 }) {
     const ports = [];
     let yb = y0;
-    for (const form of forms) { switchChassis(cx, cz, fs, form, yb, ports); yb += SWITCH_FORMS[form].h + .0009; }
+    for (const form of forms) {
+      switchChassis(cx, cz, fs, form, yb, ports);
+      if (!facePrints.has(form)) facePrints.set(form, []);
+      facePrints.get(form).push({ p: [cx, yb + SWITCH_FORMS[form].h / 2, cz + fs * 0.6 + fs * .012], n: [0, 0, fs] });
+      yb += SWITCH_FORMS[form].h + .0009;
+    }
     networkPorts.set(`${cx}:${cz}`, ports); return ports;
   }
   // the co-packaged optics switch, drawn with the Quantum-X Photonics Q3450's published front-panel counts:
@@ -1012,6 +1037,8 @@ export function build({ quality, model }) {
   // the nickel lid, small enough to fade into the lid tone at overview distance.
   printDecals(scene, { texture: textTexture(labelLines(switchLabel(model.accel)), { px: 72, aspect: 2, ink: '#474d55', pad: 0.05 }),
     size: [.019, .0095], placements: lidLabels, lift: .00008, name: 'Switch module lid labels', material: { roughness: .7, metalness: .25 } });
+  for (const [form, placements] of facePrints) printDecals(scene, { texture: faceTexture(form), size: [.438, SWITCH_FORMS[form].h - .002],
+    placements, lift: .0002, name: `Switch face print ${form}`, material: { roughness: .6 } });
   // Nameplates, voltage stencils and hazard signs on the power gear (electrical-marks.js).
   hallMarks(scene, model, { usX, usZ, swgr: { x0: -33.5, w: .9, n: 14, zFront: -15.6 + .75 },
     busways: [{ from: -22.55, to: -12.25, y: 5.6, z: -6.5, depth: .6 },

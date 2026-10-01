@@ -6,6 +6,7 @@ import { rbox, bundle, blinkers, plumes, floorMirror } from '../fx.js';
 import { computeMaterials, finishCompute } from './compute-finish.js';
 import { frameCompute } from './compute-framing.js';
 import { addRackOptics } from './rack-optics.js';
+import { etch } from './package-marks.js';
 import { componentView } from '../app/housing-frame.js';
 
 const U = 0.04445;
@@ -544,6 +545,8 @@ function buildHGX({ quality, state }) {
 
   const srv = { pos: [0.2, py + 0.12, pz + 0.3], view: { pos: [0.7, 1.9, 1.8], target: [0, py, pz] } };
   return {
+    // the server's model name on each closed server's bezel, upper left, text only (package-marks.js etch style)
+    printSpots: [etch('DGX H100 bezel name', 'DGX H100', [.1, .02], inRack.map(k => ({ from: [-.12, sy(k) + SU * 0.3, ZF + 1], dir: [0, 0, -1] })), { ink: '#d5dbe2' })],
     scene, flows,
     camera: { pos: [3.1, 2.3, -3.7], target: [0, 1.0, -0.1], near: 0.01, far: 200, min: 0.4, max: 9 },
     hotspots: {
