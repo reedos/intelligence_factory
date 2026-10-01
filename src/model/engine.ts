@@ -83,7 +83,7 @@ export const ACCELERATORS: Record<AccelId, Accel> = {
     publishedRackKW: [135, 155], coolingOptions: ['liquid', 'warm'], dc800: true, basis: 'typical',
   },
   rubin: {
-    id: 'rubin', name: 'NVIDIA Vera Rubin NVL72', short: 'Rubin', rackName: 'Vera Rubin NVL72', year: '2026–27',
+    id: 'rubin', name: 'NVIDIA Vera Rubin NVL72', short: 'Vera Rubin', rackName: 'Vera Rubin NVL72', year: '2026–27',
     gpuW: 1800, gpusPerRack: 72, cpusPerRack: 36, cpuW: 400, cpuName: 'Vera CPUs + LPDDR5X',
     scaleupKW: 14, nicKW: 7.5, otherKW: 2.6, busbarKW: 0.4,
     hbmShare: 0.16, vrmEff: 0.915, ibcEff: 0.983, psuEff: 0.975, liquidShare: 1,

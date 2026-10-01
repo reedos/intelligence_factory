@@ -7,6 +7,8 @@ import { goAttr } from './links.js';
 import { calc, tokenFigures } from '../model/tokens.js';
 import { MEDIA_LADDER, FIGURE_CLAIMS, copperWallSVG, opticsCutawaySVG } from '../diagrams/links-media.js';
 export { calc, tokenFigures };
+// The platform is Vera Rubin; the GPU itself is Rubin. Other generations use one name for both.
+const gpuShort = a => (a.id === 'rubin' ? 'Rubin' : a.short);
 
 const $ = id => document.getElementById(id);
 // the story page draws everything below; the contained visualizer (visualizer.html) has none of these sections, but
@@ -325,7 +327,7 @@ function renderTokens() {
   $('tps-v').textContent = tpsTxt;
   $('util-v').textContent = utilTxt; $('carbon-v').textContent = carbonTxt;
   $('train-v').textContent = trainTxt; $('life-v').textContent = lifeTxt;
-  $('calc-from').innerHTML = `PUE <b>${M.pue.toFixed(2)}</b> · WUE <b>${M.wue.toFixed(2)} L/kWh IT</b> · <b>${n0(M.gpus)}</b> ${M.mixed ? `GPUs (${M.fleet.map(m => `${n0(m.gpus)} ${m.accel.short}`).join(' + ')})` : `${M.accel.short} GPUs`}, from the scenario above`;
+  $('calc-from').innerHTML = `PUE <b>${M.pue.toFixed(2)}</b> · WUE <b>${M.wue.toFixed(2)} L/kWh IT</b> · <b>${n0(M.gpus)}</b> ${M.mixed ? `GPUs (${M.fleet.map(m => `${n0(m.gpus)} ${gpuShort(m.accel)}`).join(' + ')})` : `${gpuShort(M.accel)} GPUs`}, from the scenario above`;
   $('o-j').textContent = sig(f.j); $('o-kwh').textContent = big(3.6e6 / f.j);
   $('o-wh').textContent = sig(f.whReply, 3); $('o-co2').textContent = sig(f.co2Reply, 3);
   $('o-water').textContent = sig(f.waterReply, 3); $('o-train').textContent = `${sig(f.jTrain / f.j * 100, 1)}%`;
