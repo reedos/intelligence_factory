@@ -11,6 +11,7 @@ import { rbox, bundle, blinkers, lamps, plumes, movers, floorMirror } from '../f
 import { printDecals, textTexture } from './print-kit.js';
 import { switchLabel, labelLines } from './lid-labels.js';
 import { hallMarks } from './electrical-marks.js';
+import { hallPipeMarks } from './cooling-marks.js';
 
 // Cabinet front textures (drawn once).
 function frontTex(kind) {
@@ -785,6 +786,8 @@ export function build({ quality, model }) {
       N.cylZ(0.12, 0.08, MAT.orange, c.x - 0.15, hdrY - 0.35, c.z, 12);                      // valve handwheel
     });
   }
+  // ASME A13.1-style markers with flow arrows on the headers, risers and CDU drops (cooling-marks.js)
+  hallPipeMarks(scene, model, { X0, hdrY, headerEndX, returnRiserZ, cduMx, risers: hasHallFinish() });
   // rack loop from each CDU along its rack group, over the rack tops (liquid-cooled racks only)
   if (!air) rowZs.forEach((z, r) => {
     const lz = z - facing[r] * 0.35;

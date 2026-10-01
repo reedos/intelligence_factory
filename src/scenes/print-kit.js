@@ -214,7 +214,7 @@ export function pipeMarkers(parent, { texture, radius, length, placements, name 
   if (!texture || !placements.length) return null;
   const pos = [], uv = [], idx = [];
   for (let k = 0; k <= segments; k++) {
-    const t = k / segments * Math.PI * 2;
+    const t = k / segments * Math.PI * 2 - Math.PI / 2;   // the texture's middle (v = 0.5) faces +z, and -z
     for (const s of [0, 1]) { pos.push((s - 0.5), Math.sin(t), Math.cos(t)); uv.push(s, k / segments * 2); }
   }
   for (let k = 0; k < segments; k++) { const a = k * 2; idx.push(a, a + 1, a + 3, a, a + 3, a + 2); }

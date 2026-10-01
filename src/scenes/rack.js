@@ -114,7 +114,7 @@ export function build(opts) {
   addRackOptics(result, opts.model.accel.id);
   // Where compute-blender prints the voltage marks once the authored hardware is in place (electrical-marks.js):
   // the busway housing's front face and, on NVL72 racks, the busbar's free span at the management slot.
-  result.printMarks = { busway: { x0: -0.6 - 1.6, x1: -0.6 + 1.6, y: 3.2 - 0.035, zFront: -0.25 + 0.075 }, busbar: result.busbarTag || null };
+  result.printMarks = { manifolds: result.manifoldTags || [], busway: { x0: -0.6 - 1.6, x1: -0.6 + 1.6, y: 3.2 - 0.035, zFront: -0.25 + 0.075 }, busbar: result.busbarTag || null };
   frameCompute(result, 'rack', opts.model.accel.id);
   return result;
 }
@@ -752,6 +752,7 @@ function buildNVL({ quality, model, state }) {
   const KNURL = new THREE.MeshStandardMaterial({ color: 0x5d646c, roughness: 0.55, metalness: 0.8 }); KNURL.name = 'Coupler knurled sleeve';
   const HOSE = new THREE.MeshStandardMaterial({ color: 0x16181b, roughness: 0.7, metalness: 0.05 }); HOSE.name = 'EPDM coolant hose';
   const mTop = bbTop + 0.1, mBot = trayY(3) - 0.08, mMid = (mTop + mBot) / 2, mLen = mTop - mBot;
+  const manifoldTags = mX.map((x, side) => ({ x, y: mMid, z: mZ, side }));   // pipe markers' spots (cooling-marks.js)
   mX.forEach((x, side) => {
     const band = side ? MAT.pipeRed : MAT.pipeBlue, out = Math.sign(x);
     rbox(S, 0.045, mLen, 0.048, STAINLESS, x, mMid, mZ, { r: 0.12 });
@@ -875,6 +876,7 @@ function buildNVL({ quality, model, state }) {
   // housings read beside the busbar instead of a flat rear elevation.
   const spineHot = { pos: [0.2, trayY(18), cartZ], view: componentView([0.1, trayY(16), ZB + 0.06], [0.85, 0.3, -0.95], [0.5, 0.75, 0.25]) };
   return {
+    manifoldTags,
     busbarTag,
     scene, flows,
     camera: { pos: [3.1, 2.3, -3.7], target: [0, 1.1, -0.1], near: 0.01, far: 200, min: 0.4, max: 9 },
