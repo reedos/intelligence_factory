@@ -1,6 +1,8 @@
 import { THREE, MAT, Builder, flow } from '../kit.js';
 
 import { managedRoute, RACK_RUNWAY, FIBER_JACKET } from './fiber-routing.js';
+import { printDecals, textTexture } from './print-kit.js';
+import { nicLabel, labelLines } from './lid-labels.js';
 
 // Representative optical population, not an exact customer cable schedule.
 // GB200/GB300: four compute-fabric OSFP cages; H100: four twin-port OSFP
@@ -9,6 +11,7 @@ import { managedRoute, RACK_RUNWAY, FIBER_JACKET } from './fiber-routing.js';
 export function addRackOptics(built, accel) {
   const h100 = accel === 'h100', rubin = accel === 'rubin', U = .04445;
   const hardware = new Builder(), modules = [], links = [], storageCages = [];
+  const lidLabels = [];
   const jacket = new THREE.MeshStandardMaterial({ color: FIBER_JACKET, roughness: .48, metalness: .08 });
   jacket.name = 'Optical patch cable jacket';
   const connector = new THREE.MeshStandardMaterial({ color: 0x266c50, roughness: .42, metalness: .1 });
@@ -37,6 +40,8 @@ export function addRackOptics(built, accel) {
       const length = pulled ? .1078 : .020;
       hardware.box(.02258,.013,length,shell,x,y,z-direction*(length/2-.017));
       hardware.box(.020,.010,.004,MAT.black,x,y,z+direction*.019);
+      // printed lid label on the nose ahead of the cage lip (lip to z+.006, nose to z+.017), read from the aisle
+      lidLabels.push({ p: [x, y + .0065, z + direction * .0118], face: 'top', yaw: direction > 0 ? 0 : Math.PI });
       if (h100) {
         hardware.box(.025,.003,.075,shell,x,y+.009,z+.042);
         for(let fin=0;fin<8;fin++)hardware.box(.0012,.010,.073,shell,x-.0105+fin*.003,y+.015,z+.042);
@@ -119,6 +124,9 @@ export function addRackOptics(built, accel) {
     }
   }
   const mesh=hardware.build();mesh.name='Rack optical population and passive patch terminations';built.scene.add(mesh);
+  // Lid print: the NIC-side module class for this scenario (lid-labels.js), etched dark on the nickel shell.
+  printDecals(built.scene, { texture: textTexture(labelLines(nicLabel(accel)), { px: 72, aspect: 2, ink: '#474d55', pad: .05 }),
+    size: [.019, .0088], placements: lidLabels, lift: .00008, name: 'NIC module lid labels', material: { roughness: .7, metalness: .25 } });
   built.scene.userData.rackOptics={modules,links,storageCages,cagesPerTray:ports.length,representative:true,termination:'passive patch strip'};
   const hero=modules.find(m=>m.pulled && (h100 ? m.position[0]>0 : true));
   if(hero && built.dataHotspots.uplinks) {

@@ -96,7 +96,7 @@ function build(name, nativeBuilder, options) {
   const dynamic = new Set(), diagrams = new Map(), staticMeshes = [];
   for (const key of ['flows', 'dataFlows', 'heatFlows']) for (const f of built[key] || []) f.group.traverse(o => dynamic.add(o));
   built.scene.traverse(o => {
-    if (!o.isMesh || dynamic.has(o)) return;
+    if (!o.isMesh || dynamic.has(o) || o.userData.printed) return;
     const materials = Array.isArray(o.material) ? o.material : [o.material];
     if (!materials.some(m => !m.isMeshBasicMaterial && !m.isShaderMaterial)) return;
     for (const material of materials) if (material.map && !diagrams.has(material.map)) diagrams.set(material.map, material);
