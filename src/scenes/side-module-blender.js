@@ -4,7 +4,8 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { THREE, flow, setup, label, FLOW, COL, note, unitCol } from './side-kit.js';
 import { applyArtDirection } from './module-art-direction.js';
-import { MODULE_VARIANTS, LRO_COLOR, inVariant, splitByZ, lroDieTop, lroIntro, lroPartCopy } from './module-lro.js';
+import { MODULE_VARIANTS, LRO_COLOR, inVariant, splitByZ, lroDieTop, lroIntro, lroPartCopy, dspMarkingTop } from './module-lro.js';
+import { moduleLabel, moduleTier } from './lid-labels.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
 import { hardwareBounds, componentView } from '../app/housing-frame.js';
 
@@ -60,8 +61,14 @@ function cloneAsset(source) {
   return copy;
 }
 
-export function build({ quality, state }) {
+// The level opens the scenario's switch-side module (lid-labels.js moduleTier): the 800G twin-port for H100 and GB200,
+// the 1.6T twin-port for GB300, a 1.6T-class module of unpublished type for Vera Rubin. Both twin-ports are finned
+// OSFPs with eight lanes each way, so one drawing serves both; the captions, DSP marking and lid print follow the tier
+// (evidence.js 'module-follows-scenario').
+/** @param {{ quality: any, state: any, model?: any }} options */
+export function build({ quality, state, model: scenario }) {
   if (!cached) throw new Error('Blender module must finish preload() before build().');
+  const accel = scenario?.accel, tier = moduleTier(accel);
   const scene = setup(quality, 9), model = cloneAsset(cached.scene);
   const objects = new Map();
   model.traverse(object => {
@@ -95,7 +102,7 @@ export function build({ quality, state }) {
     }
   });
   const matched = typeof location !== 'undefined' && new URLSearchParams(location.search).get('finish') === 'matched';
-  const { setLabelLpo, ...art } = matched ? {} : applyArtDirection({ scene, model, quality });
+  const { setLabelLpo, labelText, ...art } = matched ? {} : applyArtDirection({ scene, model, quality, accel });
   const look = matched ? undefined : { ...art, grain: 0.008, vignette: 0.22 };
   let amount = 1, targetAmount = 1, startAmount = 1, assemblyTime = 0;
   const assemblyObjects = Object.entries(EXPLODED).map(([name, offset]) => [object(name), offset]);
@@ -296,16 +303,25 @@ export function build({ quality, state }) {
     outline.position.set(dspLocal[0], 0.279, dspLocal[2]); ghost.add(outline);
   }
   // LRO: the same package marked as a transmit-only retimer (representative, evidence 'module-lro-drawing')
-  const lroMark = lroDieTop({ w: 1.0, d: 1.0 }); lroMark.position.set(dspLocal[0], dspLocal[1] + 0.0015, dspLocal[2]);
+  const lroMark = lroDieTop({ w: 1.0, d: 1.0, lanes: `8 × ${tier.lane}` }); lroMark.position.set(dspLocal[0], dspLocal[1] + 0.0015, dspLocal[2]);
   boardOverlay.add(lroMark);
-  const dspCapacity = objects.get(key('SHARED_DSP_CAPACITY'));
+  // The asset's DSP carries a modeled 1.6T marking (DSP / 8 × 200G / 1.6T); an 800G scenario covers it with its own.
+  let dspCapacity = objects.get(key('SHARED_DSP_CAPACITY'));
+  if (dspCapacity && tier.laneGbps !== 200) {
+    dspCapacity.visible = false;
+    // same place and size as the modeled marking: its box, in the board overlay's frame
+    const box = new THREE.Box3().setFromObject(dspCapacity), at = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
+    const top = dspMarkingTop({ w: size.x * 1.1, d: size.z * 1.1, lines: ['DSP', `8 × ${tier.lane}`, tier.rate] });
+    top.position.set(at.x - EXPLODED['02_BOARD'][0], box.max.y - EXPLODED['02_BOARD'][1] + 0.0005, at.z - EXPLODED['02_BOARD'][2]);
+    boardOverlay.add(top); dspCapacity = top;
+  }
   const lroTag = label(scene, 'LRO · DSP retimes transmit only; receive runs linear, TIA to host',
     [dspAnchor[0], dspAnchor[1] + 0.6, dspAnchor[2]], LRO_COLOR, 0.15);
   const lpoTag = label(scene, 'LPO · direct host lanes to the linear driver and TIA',
     [dspAnchor[0], dspAnchor[1] + 0.6, dspAnchor[2]], '#8fd3ff', 0.15);
-  label(scene, 'Pluggable module · 1.6T twin-port OSFP, 2 × DR4', [0.6, -0.35, 2.6], '#e8ecf2', 0.32);
+  label(scene, `Pluggable module · ${tier.published ? `${tier.rate} twin-port OSFP, 2 × DR4` : `${tier.rate} OSFP, type unpublished`}`, [0.6, -0.35, 2.6], '#e8ecf2', 0.32);
   label(scene, '107.8 × 22.58 mm footprint · exploded spacing · representative internals', [0.6, -0.72, 2.6], note, 0.17);
-  label(scene, 'One DSP · 1.6T · 8 TX + 8 RX · two 800G ports', [0.6, -1.02, 2.6], unitCol, 0.17);
+  label(scene, `One DSP · ${tier.rate} · 8 TX + 8 RX · two ${tier.port} ports`, [0.6, -1.02, 2.6], unitCol, 0.17);
   // End-to-end TX/RX explanations live in the panel. Placing them at the host
   // connector would imply that light enters or leaves that electrical interface.
   const modeNote = label(scene, 'Power and heat arrows are schematic across the exploded assembly.',
@@ -318,8 +334,8 @@ export function build({ quality, state }) {
     bypassMesh.visible = kind !== 'dsp'; ghost.visible = lpoTag.visible = lpo;
     dspCopper.source.visible = bypassCopper.source.visible = kind !== 'lro';
     dspCopper.tx.visible = bypassCopper.rx.visible = kind === 'lro';
-    lroMark.visible = kind === 'lro'; if (dspCapacity) dspCapacity.visible = kind !== 'lro';
-    setLabelLpo?.(lpo);   // the lid print names the variant: OSFP 1.6T 2xDR4, or ... LPO (LRO keeps the plain print: no source names it on a lid)
+    lroMark.visible = kind === 'lro'; if (dspCapacity) dspCapacity.visible = kind === 'dsp';   // the 800G overlay sits outside the DSP group, so LPO hides it here too
+    setLabelLpo?.(lpo);   // the lid print names the variant: the scenario's switch label, or ... LPO (LRO keeps the plain print: no source names it on a lid)
     syncFlows();
   }
   const setLpo = on => setVariant(on ? 'lpo' : 'dsp');
@@ -382,7 +398,7 @@ export function build({ quality, state }) {
   })() };
   setLpo(false);
   scene.userData.blenderModule = { version: metadata.version, units: 'cm', source: 'osfp-module-runtime.glb',
-    scope: 'Representative single-DSP implementation: eight 200G lanes per direction, split across two 800G optical ports. Exterior informed by public OSFP photographs. Exploded spacing; internals are illustrative.' };
+    tier: tier.key, scope: `Representative single-DSP implementation: eight ${tier.lane} lanes per direction, split across two ${tier.port} optical ports. Exterior informed by public OSFP photographs. Exploded spacing; internals are illustrative.` };
   const built = {
     scene, flows, dataFlows, heatFlows, look,
     housingBounds: hardwareBounds(model),
@@ -393,6 +409,8 @@ export function build({ quality, state }) {
     heatHotspots: { dsp: dspHeat, shell: hs.shell },
     variant: {
       get lpo() { return lpo; }, setLpo, get kind() { return kind; }, set: setVariant,
+      // what the lid prints now: the hall's switch label for this scenario, plus LPO in the LPO view
+      get lid() { return labelText?.() ?? moduleLabel(accel, lpo); }, tier,
       intro(mode) {
         if (kind === 'lro') return lroIntro(mode);
         if (!lpo) return null;

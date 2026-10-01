@@ -47,7 +47,7 @@ export function splitByZ(mesh) {
 
 // The die-top marking a transmit-only retimer gets in this drawing: the transmit half lit and named, the receive half
 // hatched and dark. The texture's bottom edge faces +z (the transmit lanes, toward the default camera).
-export function lroDieTop({ w, d }) {
+export function lroDieTop({ w, d, lanes = '8 × 200G' }) {
   const tex = canvasTex(512, 512, (g, W, H) => {
     g.fillStyle = '#20283a'; g.fillRect(0, 0, W, H);
     // receive half (far, -z): no DSP processing on this side
@@ -64,7 +64,7 @@ export function lroDieTop({ w, d }) {
     const grad = g.createLinearGradient(0, H / 2, 0, H); grad.addColorStop(0, '#2c4a3a'); grad.addColorStop(1, '#1f3329');
     g.fillStyle = grad; g.fillRect(0, H / 2 + 3, W, H / 2 - 3);
     g.fillStyle = '#e9ffe0'; g.font = 'bold 50px monospace'; g.fillText('TX RETIMER', W / 2, H * 0.66);
-    g.fillStyle = '#a6f35a'; g.font = 'bold 38px monospace'; g.fillText('8 × 200G', W / 2, H * 0.83);
+    g.fillStyle = '#a6f35a'; g.font = 'bold 38px monospace'; g.fillText(lanes, W / 2, H * 0.83);
   });
   tex.anisotropy = 8;
   const material = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.38, metalness: 0.35, envMapIntensity: 0.4,
@@ -93,4 +93,25 @@ export function lroPartCopy(part, mode) {
   if (part.id === 'tia') return { ...part, body: 'The transimpedance amplifier turns each photodiode’s current into a voltage. In this half-retimed (LRO) view it sends that voltage straight to the host over the linear receive copper, as in an LPO module; the host’s own signal processing recovers the data.' };
   if (part.id === 'dcdc') return { ...part, body: 'The host supplies one voltage. Small converters on the module make the rails for the transmit-only DSP, the driver, the TIA and the lasers.' };
   return part;
+}
+
+// A die-top capacity marking printed on a transparent plane, for a scenario whose module rate differs from the one
+// modeled into the asset (DSP / 8 × 200G / 1.6T): the 800G twin-port's DSP reads DSP / 8 × 100G / 800G. The
+// texture's top edge faces -z, as the modeled text reads.
+export function dspMarkingTop({ w, d, lines }) {
+  const W = 512, H = Math.max(64, Math.round(512 * d / w));
+  const tex = canvasTex(W, H, (g, cw, ch) => {
+    g.clearRect(0, 0, cw, ch);
+    g.fillStyle = '#e4e8ee'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const px = Math.floor(Math.min(ch / (lines.length * 1.2), cw / 6.2));
+    g.font = `bold ${px}px monospace`;
+    lines.forEach((t, i) => g.fillText(t, cw / 2, ch / 2 + (i - (lines.length - 1) / 2) * px * 1.15));
+  });
+  tex.anisotropy = 8;
+  const material = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 0.5, metalness: 0,
+    emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.15, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const top = new THREE.Mesh(new THREE.PlaneGeometry(w, d), material);
+  top.rotation.x = -Math.PI / 2; top.name = 'DSP capacity marking';
+  top.userData.capacityMarking = lines.join('\n');
+  return top;
 }

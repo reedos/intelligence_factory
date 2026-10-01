@@ -13,15 +13,15 @@
 //   NIC, GB300          OSFP 800G DR4     "NVIDIA single port transceiver, 800Gbps, OSFP DR4", platform NIC
 //                                         (nvidia-quantum-x800-clusters)
 //   Vera Rubin, both    OSFP 1.6T         module type not published: rate and form factor only
-//   module side level   OSFP 1.6T 2xDR4 (+ LPO): LPO naming as vendors list it (stordis-s-osfpc-16tdr4l,
-//                                         eoptolink-800g-lpo-osfp)
+//   module side level   the scenario's switch label (+ " LPO" in its LPO view): the level opens the switch-side
+//                                         module, so it prints what the hall prints. LPO naming as vendors list it
+//                                         (stordis-s-osfpc-16tdr4l, eoptolink-800g-lpo-osfp)
 //   coherent            800ZR             OIF 800ZR (the side level's own sources)
 //   copper heads        DAC / ACC / AEC   the cable class each head belongs to
 const SWITCH = { 400: 'OSFP 800G 2xDR4', 800: 'OSFP 1.6T 2xDR4', 1600: 'OSFP 1.6T' };
 const NIC = { h100: 'OSFP 800G 2xDR4', gb200: 'OSFP 400G DR4', gb300: 'OSFP 800G DR4', rubin: 'OSFP 1.6T' };
 const NIC_TIER = { 400: 'OSFP 400G DR4', 800: 'OSFP 800G DR4', 1600: 'OSFP 1.6T' };
 
-export const MODULE_LABEL = { dsp: 'OSFP 1.6T 2xDR4', lpo: 'OSFP 1.6T 2xDR4 LPO' };
 export const COHERENT_LABEL = '800ZR';
 export const COPPER_LABELS = { dac: 'DAC', acc: 'ACC', aec: 'AEC' };
 
@@ -36,6 +36,18 @@ export function switchLabel(accel) {
 export function nicLabel(accel) {
   const a = accelOf(accel);
   return NIC[a.id] || NIC_TIER[tierOf(a)] || NIC.gb200;
+}
+/** Lid print of the module side level: the scenario's switch-side module, plus LPO in the LPO view (LRO keeps the plain print). */
+export function moduleLabel(accel, lpo = false) {
+  return switchLabel(accel) + (lpo ? ' LPO' : '');
+}
+/** The switch-side twin-port module the module side level opens for this scenario: H100 and GB200 use the 800G
+ *  twin-port (NVIDIA MMS4X00, 2 × 400G DR4, 8 × 100G PAM4 each way), GB300 the 1.6T twin-port (MMS4A00, 2 × 800G DR4,
+ *  8 × 200G PAM4), and Vera Rubin a 1.6T-class module whose exact type is unpublished (drawn as the 1.6T twin-port). */
+export function moduleTier(accel) {
+  const t = tierOf(accelOf(accel)) ?? 400, label = switchLabel(accel);
+  if (t === 400) return { key: '800g', label, rate: '800G', port: '400G', lane: '100G', laneGbps: 100, part: 'MMS4X00', published: true };
+  return { key: t === 800 ? '1.6t' : 'rubin', label, rate: '1.6T', port: '800G', lane: '200G', laneGbps: 200, part: t === 800 ? 'MMS4A00' : null, published: t === 800 };
 }
 /** Two printed lines: the form factor, then the rate and optics. */
 export function labelLines(text) {

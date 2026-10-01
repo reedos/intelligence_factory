@@ -1096,7 +1096,8 @@ export function select(id, fly) {
   const key = `card:${ui.mode}:${SCENES()[ui.scene].id}:${id}`;   // each row's chip opens that row's own evidence
   $('card-s').innerHTML = p.specs.map(([k, v, b], i) => `<div><dt>${k}</dt><dd>${v}</dd>${basisChip(b, `${key}:${i}`, k)}</div>`).join('');
   const go_ = $('card-go'), to = drillOf(p), inw = isInward(ui.scene, to); go_.hidden = p.drill === undefined;
-  if (p.drill !== undefined) go_.textContent = `${inw ? 'Go inside' : 'Back out'}: ${SCENES()[to].title} ${inw ? '→' : '↑'}`;
+  // a door may name what it opens (the module level's door names this scenario's switch module: OSFP 800G 2xDR4)
+  if (p.drill !== undefined) go_.textContent = `${inw ? 'Go inside' : 'Back out'}: ${SCENES()[to].title}${inw && p.doorName ? ` · ${p.doorName}` : ''} ${inw ? '→' : '↑'}`;
   go_.onclick = () => (p.drill === 'out' ? backOut() : go(drillOf(p), id));
   // a close part view (a switch face read at true size) may bring the orbit nearer than the level's own limit, for as
   // long as that part is selected

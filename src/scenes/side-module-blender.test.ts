@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { ACCELERATORS, compute, DEFAULT_SCENARIO } from '../model/engine';
 import { content } from '../data.js';
+import { switchLabel } from './lid-labels.js';
 import { heat, layer, light, request, story, watt } from '../app/journeys.js';
 
 // The browser checks own rendering and performance. Here the real GLB parser, geometry, scene graph,
@@ -717,5 +718,66 @@ describe('twin-port authored module correction', () => {
       const name=`${prefix} LPO copper ${i} ${sign}`;
       expect(metadata.routes.find(r=>r.name===name),name).toBeDefined();
     }
+  });
+});
+
+// The module level opens the scenario's switch-side module: its lid prints the hall's switch label, and its captions
+// and DSP marking carry that module's lane rate (800G twin-port, 8 × 100G, for H100 / GB200; 1.6T, 8 × 200G, otherwise).
+describe('module level follows the scenario', () => {
+  const want = { h100: ['100G', '800G', '400G'], gb200: ['100G', '800G', '400G'], gb300: ['200G', '1.6T', '800G'], rubin: ['200G', '1.6T', '800G'] } as const;
+  it.each(Object.keys(want))('%s: lid print, captions and DSP marking', id => {
+    const accel = (ACCELERATORS as any)[id], [lane, rate, port] = want[id as keyof typeof want];
+    const state = { mode: 'data' };
+    const result = module.build({ quality: { shadows: false }, state, model: { accel } });
+    builds.push(result); result.update(0);
+    expect(result.variant.lid).toBe(switchLabel(accel));
+    result.variant.set('lpo'); expect(result.variant.lid).toBe(`${switchLabel(accel)} LPO`);
+    result.variant.set('lro'); expect(result.variant.lid, 'LRO keeps the plain print').toBe(switchLabel(accel));
+    result.variant.set('dsp'); expect(result.variant.lid).toBe(switchLabel(accel));
+    const captions: string[] = [];
+    result.scene.traverse((o: THREE.Object3D) => { if (o.userData.caption) captions.push(o.userData.caption.text); });
+    expect(captions).toContain(`One DSP · ${rate} · 8 TX + 8 RX · two ${port} ports`);
+    expect(captions.some(t => t.startsWith(`Pluggable module · ${rate}`)), captions.join(' | ')).toBe(true);
+    if (id === 'rubin') expect(captions.some(t => /type unpublished/.test(t))).toBe(true);
+    // the DSP's printed capacity: the asset's modeled 1.6T text, or the 800G overlay in its place
+    const marks: string[] = [];
+    result.scene.traverse((o: THREE.Object3D) => { if (o.visible && o.userData.capacityMarking && /DSP/.test(o.userData.capacityMarking)) marks.push(o.userData.capacityMarking); });
+    expect(marks).toEqual([`DSP\n8 × ${lane}\n${rate}`]);
+    // no capacity marking floats over the empty footprint in LPO, nor over the LRO retimer marking
+    const shown = (o: THREE.Object3D | null): boolean => !o || (o.visible && shown(o.parent));
+    for (const kind of ['lpo', 'lro']) {
+      result.variant.set(kind);
+      const left: string[] = [];
+      result.scene.traverse((o: THREE.Object3D) => { if (o.userData.capacityMarking && /DSP/.test(o.userData.capacityMarking) && shown(o)) left.push(o.name); });
+      expect(left, kind).toEqual([]);
+    }
+    result.variant.set('dsp');
+    expect(result.scene.userData.blenderModule.scope).toContain(`eight ${lane} lanes`);
+  });
+});
+
+describe('module level cards follow the scenario', () => {
+  const spec = (parts: any[], id: string, label: string) => parts.find(p => p.id === id)?.specs.find((r: any[]) => r[0] === label);
+  it.each(Object.keys(ACCELERATORS))('%s', id => {
+    const C = content(compute({ ...DEFAULT_SCENARIO, accel: id } as any)) as any, accel = (ACCELERATORS as any)[id];
+    const label = switchLabel(accel), lane = accel.nicGbps === 400 ? '100G' : '200G';
+    const scene = C.SCENES.find((s: any) => s.id === 'module');
+    expect(scene.intro).toContain(`This scenario’s switch module: ${label}`);
+    expect(scene.dataIntro).toContain(`This scenario’s switch module, ${label}: `);
+    expect(scene.dataIntro).toContain(`at ${lane} per lane`);
+    expect(spec(C.PARTS_DATA.module, 'fingers', 'Host lanes')[1]).toContain(`8 × ${lane}`);
+    expect(C.PARTS_DATA.module.find((p: any) => p.id === 'dsp').body).toContain(`at ${lane} per lane`);
+    expect(spec(C.PARTS_HEAT.module, 'shell', 'Lid print')[1].startsWith(label)).toBe(true);
+    const mod = spec(C.PARTS.module, 'fingers', 'This scenario’s switch module');
+    expect(mod[1]).toMatch(id === 'rubin' ? /not published/ : accel.nicGbps === 400 ? /MMS4X00, 800G/ : /MMS4A00, 1\.6T/);
+    const lanes = spec(C.PARTS_DATA.module, 'dsp', accel.nicGbps === 400 ? 'Optical lanes, MMS4X00' : 'Optical lanes, MMS4A00');
+    if (id === 'rubin') expect(lanes).toBeUndefined();
+    else expect(lanes[1]).toContain(`8 × ${lane} PAM4`);
+    const power = C.PARTS.module.find((p: any) => p.id === 'fingers').specs.find((r: any[]) => /^Max power/.test(r[0]));
+    expect(power?.[1]).toBe(id === 'rubin' ? undefined : accel.nicGbps === 400 ? '17 W' : '33.5 W');
+    // the doors into the level name the module they open
+    for (const P of [C.PARTS_DATA.hall, C.PARTS.hall]) expect(P.find((p: any) => p.id === 'optics').doorName).toBe(label);
+    expect(C.PARTS_DATA.hall.find((p: any) => p.id === 'optics').body).toContain(`Go inside to open this scenario’s switch module: ${label}`);
+    expect(C.PARTS_DATA.tray.find((p: any) => p.id === 'osfp').doorName).toBe(label);
   });
 });
