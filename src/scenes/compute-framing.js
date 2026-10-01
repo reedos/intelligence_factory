@@ -10,7 +10,9 @@ export function frameCompute(built, kind, accel) {
     built.camera = { ...built.camera, ...componentView([0, h100 ? 1.6 : .4, -.1], [7, 7, 9], [4.9, h100 ? 3.7 : 1.3, 10.0]) };
   } else if (kind === 'chip') {
     built.camera = { ...built.camera, ...componentView([0, 2.5, 0], [9, 6, 11], [9.2, 5.0, 9.2]) };
-    built.cameraByMode.power = { ...componentView([0, 2.35, 0], [10, 3.4, 12], [9.2, 4.7, 9.2]) };
+    // The fit box stops just above the HBM tops (about 3.5 cm), so the exploded
+    // stack fills the frame instead of leaving a band of empty space above it.
+    built.cameraByMode.power = { ...componentView([0, 2.0, 0], [10, 3.4, 12], [9.2, 4.0, 9.2]) };
   }
   const rackSizes = {
     feed: [.55,.7,.45], shelves: [.55,.18,.30], busbar: [.18,1.15,.15],
@@ -21,7 +23,7 @@ export function frameCompute(built, kind, accel) {
   const traySizes = {
     osfp: [1.4,.65,1.8], clip: [1.4,.6,.9], ibc: [1.6,.7,1.3],
     vrm: [1.1,.65,1.4], gpu: [1.65,1.35,1.65], gpuheat: [1.65,1.35,1.65],
-    grace: [1.5,1.1,1.5], cpu: [1.6,1.3,1.7], lpddr: [1.4,.6,1.4],
+    grace: [1.5,1.1,1.5], cpu: [1.6,1.3,1.7], lpddr: [.9,.4,1.0],
     coldplates: [1.6,1.3,1.7], nic: [1.3,.8,1.3], cx: [1.3,.8,1.3],
     nvconn: [1.5,.65,1.1], fans: h100 ? [4.4,3.4,.65] : [3.9,.65,.65],
     qd: [1,.7,1.0], c2c: [1.6,.65,2.0], dpu: [1.3,.8,1.3],

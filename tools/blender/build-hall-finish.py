@@ -1,7 +1,7 @@
 """Hall architectural and cabinet finish, representative physical construction.
 No added equipment, network ports or services. All dimensions in metres.
 """
-import pathlib
+import pathlib, bmesh
 HERE=pathlib.Path(__file__).resolve().parent
 exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque building envelope.')[0])
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
@@ -203,6 +203,7 @@ g='PIPE_HANGER'
 bpy.ops.mesh.primitive_torus_add(major_radius=1.1,minor_radius=.1,major_segments=32,minor_segments=8,location=(0,0,0),rotation=(0,math.pi/2,0))
 o=bpy.context.object;o.name='Clevis band';o.parent=groups[g];o.data.materials.append(unistrut);bpy.ops.object.shade_smooth()
 box('Clevis yoke',(0,1.3,0),(.14,.4,.5),unistrut,g,.02)
+# Budget (56 cells): bellmouth and guard rings carry just enough segments to read round at hotspot range.
 # ---- Fan-wall cell: one 1.8 m x 1.4 m bay of a fan array, front face at z=0 facing +z (the viewer
 # turns it to face the room). Folded galvanised frame, spun inlet bellmouth, finger guard and motor
 # hub; the rotor is instanced separately and spins. Cell size and count are representative.
@@ -214,13 +215,13 @@ for sx in [-1,1]:box('Cell stile',(sx*.868,0,-.24),(.044,1.37,.48),galv,g,.008)
 for sy in [-1,1]:box('Cell rail',(0,sy*.664,-.242),(1.69,.04,.476),galv,g,.008)
 box('Cell face plate',(0,0,-.014),(1.69,1.288,.012),galv,g,0)
 box('Plenum back',(0,0,-.455),(1.69,1.288,.02),cellBack,g,0)
-bpy.ops.mesh.primitive_cone_add(vertices=40,radius1=.58,radius2=.64,depth=.3,end_fill_type='NOTHING',location=pt((0,0,-.14)),rotation=(math.pi/2,0,0))
+bpy.ops.mesh.primitive_cone_add(vertices=32,radius1=.58,radius2=.64,depth=.3,end_fill_type='NOTHING',location=pt((0,0,-.14)),rotation=(math.pi/2,0,0))
 o=bpy.context.object;o.name='Spun inlet bellmouth';o.parent=groups[g];o.data.materials.append(galv);bpy.ops.object.shade_smooth()
-bpy.ops.mesh.primitive_torus_add(major_radius=.64,minor_radius=.022,major_segments=40,minor_segments=6,location=pt((0,0,.008)),rotation=(math.pi/2,0,0))
+bpy.ops.mesh.primitive_torus_add(major_radius=.64,minor_radius=.022,major_segments=32,minor_segments=4,location=pt((0,0,.008)),rotation=(math.pi/2,0,0))
 o=bpy.context.object;o.name='Bellmouth rolled lip';o.parent=groups[g];o.data.materials.append(galv);bpy.ops.object.shade_smooth()
 cyl('Motor hub',(0,0,-.16),.15,.2,cellBack,g,'z',20)
 for r_ in [.34,.6]:
- bpy.ops.mesh.primitive_torus_add(major_radius=r_,minor_radius=.007,major_segments=36,minor_segments=4,location=pt((0,0,.22)),rotation=(math.pi/2,0,0))
+ bpy.ops.mesh.primitive_torus_add(major_radius=r_,minor_radius=.007,major_segments=28,minor_segments=3,location=pt((0,0,.22)),rotation=(math.pi/2,0,0))
  o=bpy.context.object;o.name='Finger guard ring';o.parent=groups[g];o.data.materials.append(guardM)
 for k in range(8):
  a_=math.pi*k/8;beam('Finger guard wire',(-.6*math.cos(a_),-.6*math.sin(a_),.22),(.6*math.cos(a_),.6*math.sin(a_),.22),.012,.012,guardM,g)
@@ -273,8 +274,11 @@ for i in range(38):
  y=.2+i*.0508
  box('1U fibre housing',(0,y,.12),(.56,.044,.3),housingM,g,.003)
  for c in range(8):box('MPO cassette adapter',(-.2+c*.057,y,.2745),(.04,.022,.012),aqua,g,0)
+ # the adapter's back face (Blender +y is the script's -z) sits on the housing front, never seen: drop it
+ for o in [o for o in groups[g].children if o.name.startswith('MPO cassette adapter') and o.type=='MESH' and not o.get('trimmed')]:
+  bm_=bmesh.new();bm_.from_mesh(o.data);bmesh.ops.delete(bm_,geom=[max(bm_.faces,key=lambda f:f.calc_center_median().y)],context='FACES');bm_.to_mesh(o.data);bm_.free();o['trimmed']=1
 def jumper(pts,m=jumperY,r=.0035):
- cd=bpy.data.curves.new('Patch jumper','CURVE');cd.dimensions='3D';cd.bevel_depth=r;cd.bevel_resolution=1;cd.resolution_u=4
+ cd=bpy.data.curves.new('Patch jumper','CURVE');cd.dimensions='3D';cd.bevel_depth=r;cd.bevel_resolution=0;cd.resolution_u=4
  sp=cd.splines.new('BEZIER');sp.bezier_points.add(len(pts)-1)
  for bp,p in zip(sp.bezier_points,pts):bp.co=pt(p);bp.handle_left_type=bp.handle_right_type='AUTO'
  o=bpy.data.objects.new('Patch jumper',cd);S.collection.objects.link(o);o.parent=groups[g];cd.materials.append(m)

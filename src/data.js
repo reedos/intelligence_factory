@@ -3,6 +3,7 @@
 // report cites its sources, a calculation names how the model makes it, an assumption says why.
 // The page shows the basis beside the figure; the chip opens its evidence.
 import { BASIS } from './evidence.js';
+import { tokenMathRows } from './model/token-math.js';
 export { BASIS };
 
 // Voltage classes: one color per class, used by every flow, chip and chart.
@@ -558,7 +559,7 @@ export function content(M) {
       specs: [['Feeds', 'A + B', 'assumed', { assume: 'dual-feed-redundancy' }], ['Tap-off hardware as drawn', 'representative', 'assumed', { assume: 'busway-tapoff-hardware' }]] },
     { id: 'pdu', title: 'Rack power strips', kicker: '415 V three-phase → 240 V outlets',
       body: 'Vertical power strips at the back split each three-phase feed into single-phase outlets. Line to neutral, 415 V three-phase is 240 V, which is what server power supplies take.',
-      specs: [['Per strip', 'high-30s kW class', 'reported', { refs: [ref('lv-distribution-busway', '"a 415V three-phase PDU at the same amperage [60A] clears the high-30s [kW]"; its 208V/415V density-tier table separately puts the 17–20 kW class at 208V, not 415V')] }], ['Outlets', 'C19/C21', 'reported', { refs: [ref('lv-distribution-busway', 'density-tier table, 30–80 kW row: "415V/400V busway + tap-off... IEC 60309 feed, C19/C21"')] }]] },
+      specs: [['Per strip', 'high-30s kW class', 'reported', { refs: [ref('lv-distribution-busway', '"a 415V three-phase PDU at the same amperage [60A] clears the high-30s [kW]"; its 208V/415V density-tier table separately puts the 17–20 kW class at 208V, not 415V')] }], ['Outlets', 'C19, taking each cord’s C20 plug', 'reported', { refs: [ref('lv-distribution-busway', 'density-tier table, 30–80 kW row: "415V/400V busway + tap-off... IEC 60309 feed, C19/C21"'), ref('nvidia-dgxh100-user-guide', 'Power Cord Specification: "Plug Standard | C19/C20", so the strip end of each cord is a C20 plug in a C19 outlet')] }], ['Strips as drawn', 'representative', 'assumed', { assume: 'h100-pdu-cords' }]] },
     { id: 'servers', title: 'DGX H100 servers', kicker: '4 per rack, 8U each',
       body: 'Each server holds eight H100 GPUs on one baseboard, two Xeon CPUs, and its own power supplies and fans.',
       specs: [['Per server', '≈10.2 kW max', 'spec', { refs: [ref('nvidia-dgxh100-user-guide', 'Power Specifications table: "10.2 kW max." in the unlabeled column between Input and Specification for Each Power Supply — the system-level figure, distinct from the 3,300 W per-PSU column')] }], ['GPUs per server', '8', 'spec', { refs: [ref('nvidia-dgxh100-user-guide', 'Component Descriptions: "8 x NVIDIA H100 GPUs"')] }], ['Height', '8U, 356 mm', 'spec', { refs: [ref('nvidia-dgxh100-user-guide', 'Mechanical Specifications: "Form Factor: 8U Rackmount", "Height: 14\\" (356 mm)"')] }], ['Front', 'metal-foam bezel with handles', 'spec', { refs: [ref('nvidia-dgxh100-safety', 'NVIDIA Bezel: "The bezel’s decorative metal foam contains some nickel"; "use the handles to remove, attach or carry the bezel"'), ref('nvidia-dgxh100-user-guide', 'Front Panel (With Bezel): Power Button, ID Button, Fault LED')] }], ['Bezel and rear as drawn', 'representative', 'assumed', { assume: 'dgx-h100-bezel-rear' }]], drill: 4 },
@@ -581,7 +582,7 @@ export function content(M) {
       specs: [['Efficiency', '≈97–98%', 'assumed', { assume: 'ibc-efficiency' }], ['Loss, campus-wide', lossTxt('Bus converters'), 'derived', { calc: 'conversion-loss-campus' }]] },
     { id: 'vrm', title: 'Voltage regulators', kicker: '12 V → ≈0.8 V',
       body: 'Dozens of switching phases ring each GPU, each an inductor and a power stage switching at around a megahertz. They sit as close to the chip as they can, because every millimeter at a thousand amps costs power.',
-      specs: [['Phases per GPU', '≈20–30', 'assumed', { assume: 'vrm-phases' }], ['Efficiency', `≈${Math.round(A.vrmEff * 100)}%`, 'assumed', { assume: 'vrm-efficiency' }], ['Loss, campus-wide', lossTxt('Voltage regulators'), 'derived', { calc: 'conversion-loss-campus' }], ['Core current', `≈${n0(coreA)} A`, 'derived', { calc: 'core-current' }]] },
+      specs: [['Phases per GPU', '≈20–30', 'assumed', { assume: 'vrm-phases' }], ['Efficiency', `≈${Math.round(A.vrmEff * 100)}%`, 'assumed', { assume: 'vrm-efficiency' }], ['Loss, campus-wide', lossTxt('Voltage regulators'), 'derived', { calc: 'conversion-loss-campus' }], ['Core current', `≈${n0(coreA)} A`, 'derived', { calc: 'core-current' }], ['Board layout, traces and passives', 'representative', 'assumed', { assume: 'tray-mechanical-detail' }]] },
     { id: 'gpu', title: X.gpus, kicker: `4 per tray, ${n0(A.gpuW)} W each`,
       body: `Each GPU package is two large dies and ${stacksTxt} of HBM. It is where most of the power in the building finally goes.`,
       specs: (() => { const p = gpuPowerEv(), t = transistorsEv(), m = hbmMemEv();
@@ -602,7 +603,7 @@ export function content(M) {
       specs: (() => { const p = gpuPowerEv(); return [['Heat per GPU', `≈${(A.gpuW / 1000).toFixed(1)} kW`, p.basis, p.ev], ['Plate, fitting and screw shapes', 'representative', 'assumed', { assume: 'tray-mechanical-detail' }]]; })() },
     { id: 'nic', title: 'NICs, DPU and SSDs', kicker: 'The front of the tray',
       body: `${X.nic} cards carry scale-out traffic to the spine, ${A.dpusPerTray} BlueField ${A.dpusPerTray === 1 ? 'DPU handles' : 'DPUs handle'} storage and security, and E1.S drives hold local data.`,
-      specs: (() => { const n = nicPerGpuEv(); return [['Scale-out', `${nicTxt} per GPU`, n.basis, n.ev], ...(A.id === 'gb300' ? [['NIC boards', '2 mezzanine boards × 2 ConnectX-8', 'spec', { refs: [ref('nvidia-nvl72-reference-arch', 'GB300 compute tray list: "2 Mezzanine Network Boards with 2 ConnectX-8 silicon chips in each, for a total of 4 ConnectX-8 Host Channel Adapters (HCA)"')] }]] : [])]; })() },
+      specs: (() => { const n = nicPerGpuEv(); return [['Scale-out', `${nicTxt} per GPU`, n.basis, n.ev], ...(A.id === 'gb300' ? [['NIC boards', '2 mezzanine boards × 2 ConnectX-8', 'spec', { refs: [ref('nvidia-nvl72-reference-arch', 'GB300 compute tray list: "2 Mezzanine Network Boards with 2 ConnectX-8 silicon chips in each, for a total of 4 ConnectX-8 Host Channel Adapters (HCA)"')] }], ['Front cages', '4 OSFP on 2 OSFP boards, 2 ports each', 'spec', { refs: [ref('lenovo-gb300-guide', 'compute tray slots: "Two PCIe Gen5 x16 Slot (OSFP Boards)"; Figure 5 labels "Bottom 2x OSFP Boards" and "2x CX8 Board"')] }], ['NIC board to cage board', 'internal cable assemblies', 'assumed', { assume: 'tray-nic-cage-cabling', refs: [ref('lenovo-gb300-guide', 'parts list: "GB300 PCIe Riser Cable"')] }], ['E1.S bays', 'up to 8, 4 populated', 'spec', { refs: [ref('lenovo-gb300-guide', 'storage: "Each Compute Tray supports up to 8x EDSFF E1.S NVMe SSDs, installed in 8 internal drive bays (non-hot-swap)"; only 4 are populated in the reference architecture')] }]] : A.id === 'gb200' ? [['NIC mounting', 'mezzanine boards on Mirror Mezz connectors', 'reported', { refs: [ref('semianalysis-gb200-hw', '"the ConnectX-7/8 ICs now sit directly on top of the Bianca board using a mezzanine board via Mirror Mezz connectors"')] }], ['To the front cages', 'DensiLink flyover cables', 'reported', { refs: [ref('semianalysis-gb200-hw', '"The electrical lanes are routed to the OSFP cages at the front of the chassis with DensiLink connectors from the mezzanine board."')] }], ['Cable path and cage board', 'representative', 'assumed', { assume: 'tray-nic-cage-cabling' }]] : [])]; })() },
     { id: 'nvconn', title: 'NVLink connectors', kicker: 'To the spine',
       body: 'High-density connectors at the rear mate with the copper spine when the tray is pushed home.',
       specs: (() => { const b = nvlPerGpuEv(); return [['Per GPU', `${A.nvlink.gen}, ${nvlTB}`, b.basis, b.ev]]; })() },
@@ -615,7 +616,7 @@ export function content(M) {
       specs: [['Efficiency', '≈98%', 'assumed', { assume: 'ibc-efficiency' }], ['Loss, campus-wide', lossTxt('Bus converters'), 'derived', { calc: 'conversion-loss-campus' }]] },
     { id: 'vrm', title: 'Voltage regulators', kicker: '12 V → ≈0.8 V',
       body: 'Switching phases around each GPU make the final step to under a volt.',
-      specs: [['Efficiency', `≈${Math.round(A.vrmEff * 100)}%`, 'assumed', { assume: 'vrm-efficiency' }], ['Loss, campus-wide', lossTxt('Voltage regulators'), 'derived', { calc: 'conversion-loss-campus' }], ['Core current', `≈${n0(coreA)} A`, 'derived', { calc: 'core-current' }]] },
+      specs: [['Efficiency', `≈${Math.round(A.vrmEff * 100)}%`, 'assumed', { assume: 'vrm-efficiency' }], ['Loss, campus-wide', lossTxt('Voltage regulators'), 'derived', { calc: 'conversion-loss-campus' }], ['Core current', `≈${n0(coreA)} A`, 'derived', { calc: 'core-current' }], ['Board layout, traces and passives', 'representative', 'assumed', { assume: 'tray-mechanical-detail' }]] },
     { id: 'gpu', title: 'H100 GPUs', kicker: '8 per server, 700 W each',
       body: 'Each SXM5 module is one large die with five working HBM3 stacks beside it, mounted face-down on the baseboard under a heat sink.',
       specs: [['Power', '700 W', 'spec', { refs: [ref('nvidia-h100-product-page', 'spec table: "Max thermal design power (TDP) | Up to 700W (configurable)"')] }], ['Transistors', X.transistors, 'spec', { refs: [ref('nvidia-hopper-architecture-page', '"Built with over 80 billion transistors using a cutting edge TSMC 4N process"')] }], ['Memory', hbmSpec, 'spec', { refs: [ref('nvidia-h100-product-page', 'spec table: "GPU Memory | 80GB" with "3.35TB/s" bandwidth')] }]], drill: 5 },
@@ -629,8 +630,8 @@ export function content(M) {
       body: 'Four third-generation NVSwitch chips connect all eight GPUs, so any GPU reads any other’s memory at full speed.',
       specs: [['Per GPU', '18 NVLink 4 links, 900 GB/s', 'spec', { refs: [ref('nvidia-dgxh100-user-guide', 'Component Descriptions: "4 x 4th generation NVLinks that provide 900 GB/s"')] }]] },
     { id: 'nic', title: 'ConnectX-7 NICs', kicker: 'One per GPU',
-      body: 'Eight 400 Gb/s network cards carry scale-out traffic, grouped two to a twin-port optical cage at the back.',
-      specs: [['Scale-out', '400 Gb/s per GPU', 'spec', { refs: [ref('nvidia-dgxh100-user-guide', 'Component Descriptions: "4 x OSFP ports for 8 x NVIDIA ConnectX-7 Single Port" cards, "Up to 400Gbps"')] }]] },
+      body: 'Eight 400 Gb/s network cards carry scale-out traffic, grouped two to a twin-port optical cage at the back. Short flyover cables, one per NIC, carry each card’s lanes to its cage.',
+      specs: [['Scale-out', '400 Gb/s per GPU', 'spec', { refs: [ref('nvidia-dgxh100-user-guide', 'Component Descriptions: "4 x OSFP ports for 8 x NVIDIA ConnectX-7 Single Port" cards, "Up to 400Gbps"')] }], ['To the cages', 'DensiLink flyover cables', 'reported', { refs: [ref('semianalysis-gb200-hw', '"This is similar to how Nvidia used DensiLink on their gold plated DGX H100 chassis to route from the ConnectX-7 to the OSFP cages."')] }], ['Cable path and cage boards', 'representative', 'assumed', { assume: 'tray-nic-cage-cabling' }]] },
   ];
   // ---------- level 6 evidence: the GPU package, one basis + citation per accelerator per fact ----------
   // NVIDIA confirms some of these facts identically across generations (die-to-die bandwidth, packaging family);
@@ -705,7 +706,7 @@ export function content(M) {
       body: `Each stack, from suppliers such as SK hynix, Micron and Samsung, is ${A.hbm.layers} DRAM dies thinned and stacked with through-silicon vias. Moving model weights out of HBM for every token is a large share of inference energy.`,
       specs: [['Capacity', `${A.hbm.gb} GB${A.id === 'gb200' ? ' nominal; rack total implies ≈186 GB' : A.id === 'gb300' ? ' nominal; rounded rack total implies ≈278 GB' : ''}`, EV6.hbm.basis, EV6.hbm.ev], ['Bandwidth', hbmTB, EV6.hbm.basis, EV6.hbm.ev],
         ['Layers per stack', `${A.hbm.layers}`, EV6.layers.basis, EV6.layers.ev], ['Share of GPU power', '≈8–15%', 'assumed', { assume: 'hbm-power-share' }], ['Stack height, as drawn', 'about 3× real', 'assumed', { assume: 'hbm-stack-drawing' }]] },
-    { id: 'tokens', title: 'Tokens', kicker: 'What leaves',
+    { id: 'tokens', title: 'Tokens', kicker: 'What leaves', math: tokenMathRows(M),
       body: 'Every token a model writes is a pass through billions of weights. Run the numbers below to see how many a kilowatt-hour buys.',
       specs: [
         ['Google, median Gemini text prompt', '0.24 Wh, all-in', 'spec', { refs: [['google-inference-impact', 'body text: "the median Gemini Apps text prompt uses 0.24 watt-hours (Wh) of energy"']] }],
@@ -950,11 +951,12 @@ export function content(M) {
           : A.nicGbps === 800
             ? 'Pluggable modules at the front turn the SuperNIC’s electrical signal into light. NVIDIA lists a single-port 800G module for ConnectX-8, four lanes each way; at the switch end, one twin-port 1.6T module carries two of these links.'
             : 'Eight modeled 800 Gb/s optical links serve the four GPUs, giving each GPU 1.6 Tb/s aggregate scale-out bandwidth. The selected InfiniBand fabric and module mechanics are representative; the eight ConnectX-9 devices per tray are documented.',
-        specs: A.nicGbps === 400
+        specs: [...(A.id === 'gb300' ? [['Cages', '4 OSFP on 2 OSFP boards, cabled from the CX8 boards', 'spec', { refs: [ref('lenovo-gb300-guide', 'compute tray slots: "Two PCIe Gen5 x16 Slot (OSFP Boards)"; Figure 5 labels "Bottom 2x OSFP Boards"')] }], ['Cable path', 'representative', 'assumed', { assume: 'tray-nic-cage-cabling' }]]
+          : A.id === 'gb200' ? [['NIC to cage', 'DensiLink flyover cables', 'reported', { refs: [ref('semianalysis-gb200-hw', '"The electrical lanes are routed to the OSFP cages at the front of the chassis with DensiLink connectors from the mezzanine board."')] }], ['Cable path', 'representative', 'assumed', { assume: 'tray-nic-cage-cabling' }]] : []), ...(A.nicGbps === 400
           ? [['A 400G module, e.g.', 'NVIDIA single-port 400G OSFP, DR4', 'spec', { refs: [ref('nvidia-mms4x00-ns400', 'specifications: single-port 400G OSFP DR4 transceiver')] }], ['Its power', '9 W max', 'spec', { refs: [ref('nvidia-mms4x00-ns400', 'specifications table: "Maximum Power consumption (400G)", 9 W')] }]]
           : A.nicGbps === 800
             ? [['At the SuperNIC', 'single-port 800G OSFP, DR4', 'spec', { refs: [ref('nvidia-quantum-x800-clusters', 'transceiver list: "NVIDIA single port transceiver, 800Gbps, OSFP DR4, MPO, APC 1310nm SMF", platform: NIC')] }], ['At the switch', 'twin-port 1.6T OSFP, 2 × DR4', 'spec', { refs: [ref('nvidia-quantum-x800-clusters', 'transceiver list: "NVIDIA twin port transceiver, 1600Gbps, OSFP 2xDR4", platform: switch')] }]]
-            : [['Module links, modeled', '8 × 800 Gb/s per tray; 2 per GPU', 'assumed', { assume: 'rubin-nic-module', refs: [ref('nvidia-vera-rubin-pod-blog', 'Compute tray: eight ConnectX-9 SuperNICs, four Rubin GPUs; 1.6 Tb/s aggregate scale-out per GPU.')] }]] },
+            : [['Module links, modeled', '8 × 800 Gb/s per tray; 2 per GPU', 'assumed', { assume: 'rubin-nic-module', refs: [ref('nvidia-vera-rubin-pod-blog', 'Compute tray: eight ConnectX-9 SuperNICs, four Rubin GPUs; 1.6 Tb/s aggregate scale-out per GPU.')] }]])] },
       { id: 'dpu', title: 'BlueField DPU', kicker: 'Front-end network',
         body: `A separate network carries user requests, storage and management. This tray has ${A.dpusPerTray} ${A.id === 'rubin' ? 'BlueField-4' : 'BlueField-3'} ${A.dpusPerTray === 1 ? 'DPU' : 'DPUs'} to offload network, storage and security work.`,
         specs: [['DPUs per tray', String(A.dpusPerTray), 'spec', { refs: [ref(A.id === 'rubin' ? 'nvidia-vera-rubin-pod-blog' : A.id === 'gb300' ? 'nvidia-dgx-gb300' : 'nvidia-dgx-gb200-hardware', A.id === 'rubin' ? 'Compute tray includes one BlueField-4.' : A.id === 'gb300' ? '18 BlueField-3 DPUs across 18 compute trays.' : 'Compute tray includes two BlueField-3 DPUs.')] }], A.id === 'rubin'
@@ -1002,7 +1004,7 @@ export function content(M) {
       { id: 'cpo', title: 'Light on the package', kicker: 'What comes next',
         body: 'Today the GPU speaks copper and a module turns it into light. Switches already carry optical engines on the package; bringing them to the GPU would let scale-up reach beyond one rack.',
         specs: [[A.short, 'electrical I/O only', 'reported', { refs: [['nvidia-dgx-gb200-user-guide', 'hardware overview: "connected by NVLink through the NVLink passive copper cable cartridge backplane"']] }]] },
-      { id: 'tokens', title: 'Tokens', kicker: 'What leaves',
+      { id: 'tokens', title: 'Tokens', kicker: 'What leaves', math: tokenMathRows(M),
         body: 'After all those links, the output is small: a few bytes per token, sent back out the front-end network to whoever asked.',
         specs: [['Per token of text', 'a few bytes', 'assumed', { assume: 'token-byte-size' }]] },
     ],

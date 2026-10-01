@@ -13,8 +13,8 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
  S.box(4.4,.035,9,MAT.galv,0,.0175,0);
  for(const x of [-2.2,2.2])S.box(.035,.44,9,MAT.galv,x,.22,0);
  // Midplane: blind-mate connector housings on both faces instead of one solid
- // bar. Housing count and pin rows are representative; lanes at the four
- // PCIe crossings stay open above the housings (y > .31).
+ // bar. Housing count and pin rows are representative; the PCIe runs cross
+ // through the housing pairs at x = +/-.795 and +/-1.325.
  S.box(4.32,.05,.16,MAT.darkSteel,0,.06,1.1);
  for(let i=0;i<8;i++){const x=-1.855+i*.53;
   for(const zf of [.955,1.245]){S.box(.40,.2,.13,MAT.black,x,.19,zf);for(let r=0;r<2;r++)N.box(.34,.014,.008,MAT.gold,x,.15+r*.06,zf+(zf<1.1?-.066:.066));}
@@ -24,17 +24,20 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
  const top=texMat(dieTex(),{rough:.22,metal:.3}),labels=new Map();
  // One material per label: the eight CX9 packages share one texture.
  const labelMat=label=>{if(!labels.has(label))labels.set(label,texMat(pkgTex(label),{rough:.4}));return labels.get(label);};
- const packageAt=(name,x,z,w,d,label,lid)=>{
+ const packageAt=(name,x,z,w,d,label,lid,interposer)=>{
   N.box(w*.92,.024,d*.92,MAT.black,x,.1,z);                                   // ball field / socket under the substrate
   S.box(w,.055,d,MAT.pcbBlack,x,.14,z);
-  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w*.85,.025,d*.80),[MAT.silicon,MAT.silicon,label?labelMat(label):top,MAT.silicon,MAT.silicon,MAT.silicon]);
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w*.85,.025,d*.80),[MAT.silicon,MAT.silicon,label?labelMat(label):interposer?MAT.silicon:top,MAT.silicon,MAT.silicon,MAT.silicon]);
   mesh.name=name;mesh.position.set(x,.185,z);scene.add(mesh);
   if(lid)S.box(w*.46,.014,d*.44,MAT.nickel,x+w*.12,.205,z-d*.1);    // small stiffener lid; the label corner stays visible
  };
  // Representative VRM row: inductors with bright caps and power stages beside them.
  const vrmRow=(x0,z,n,pitch,inward)=>{for(let k=0;k<n;k++){const x=x0+k*pitch;S.box(.1,.07,.09,MAT.inductor,x,.124,z);N.box(.072,.012,.065,MAT.alu,x,.163,z);N.box(.06,.012,.05,MAT.black,x,.094,z+inward*.085);}};
  const capRing=(x,z,w,d)=>{for(let k=0;k<8;k++){const u=-w/2+(k+.5)*w/8;for(const s of [-1,1])N.box(.018,.014,.012,MAT.beige,x+u,.095,z+s*d/2);}};
- gp.forEach(([x,z],i)=>{packageAt(`Rubin GPU ${i+1}`,x,z,.83,.95);for(const dx of [-.29,.29])for(const dz of [-.32,-.11,.11,.32]){N.box(.13,.05,.13,MAT.hbm,x+dx,.21,z+dz);}
+ // Rubin GPU: two reticle-size compute dies side by side on the interposer,
+ // four HBM4 stacks along each long edge (die size and spacing representative).
+ gp.forEach(([x,z],i)=>{packageAt(`Rubin GPU ${i+1}`,x,z,.83,.95,null,false,true);
+  for(const dx of [-.105,.105]){const die=new THREE.Mesh(new THREE.BoxGeometry(.19,.02,.66),[MAT.silicon,MAT.silicon,top,MAT.silicon,MAT.silicon,MAT.silicon]);die.name=`Rubin GPU ${i+1} compute die`;die.position.set(x+dx,.2075,z);scene.add(die);}for(const dx of [-.29,.29])for(const dz of [-.32,-.11,.11,.32]){N.box(.13,.05,.13,MAT.hbm,x+dx,.21,z+dz);}
   vrmRow(x-.36,z-.66,7,.12,1);vrmRow(x-.36,z+.66,7,.12,-1);capRing(x,z,.9,1.08);});
  cp.forEach(([x,z],i)=>{
   packageAt(`Vera CPU ${i+1}`,x,z,.75,.77,'VERA',true);
@@ -95,9 +98,13 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
  }
  // Spine connectors remain at the back; eight front 800G port positions are
  // represented as four pairs so each GPU has 1.6T of scale-out capacity.
- // One continuous cable-like run over the midplane (it passes through every
- // original control point), instead of straight segments that read as a zigzag.
- const smooth=pts=>new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)),false,'centripetal').getPoints(pts.length*8).map(v=>v.toArray());
+ // Routed runs: straight legs joined by short bends (45-degree jogs, a dip
+ // into the midplane connector pair), read as board routing rather than a wave.
+ const routed=(pts,r=.04)=>{const V=pts.map(p=>new THREE.Vector3(...p)),out=[pts[0]];
+  for(let i=1;i<V.length-1;i++){const a=V[i-1],b=V[i],c=V[i+1],d1=b.clone().sub(a),d2=c.clone().sub(b),rr=Math.min(r,d1.length()/2,d2.length()/2);
+   const p0=b.clone().addScaledVector(d1.normalize(),-rr),p1=b.clone().addScaledVector(d2.normalize(),rr);
+   for(let k=0;k<=6;k++){const t=k/6;out.push(p0.clone().multiplyScalar((1-t)**2).addScaledVector(b,2*t*(1-t)).addScaledVector(p1,t*t).toArray());}}
+  out.push(pts[pts.length-1]);return out;};
  const nvX=[-1.75,-.7,.7,1.75],ports=[-1.66,-1.04,1.04,1.66];
  for(const x of nvX)nvConnector(S,N,x,.18,-4.35,.5,.22,.26);
  for(const x of ports)for(const y of [.16,.34]){
@@ -106,15 +113,20 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
  // Small service IO remains visibly distinct from optical ports.
  for(const x of [-.28,-.10,.10,.28]){S.box(.12,.08,.10,MAT.darkSteel,x,.16,4.35);N.box(.09,.05,.018,MAT.black,x,.16,4.41);}
  gp.forEach(([x,z],i)=>{
-  flows.push(flow([[Math.sign(x)*1.5,.28,-4.02],[x,.28,-3.35],[x,.25,z]],'bus12',{count:10,speed:.8,size:.028,trailR:.009}));
-  for(const side of [-1,1])flows.push(flow([[x+side*.40,.24,z],[x+side*.15,.24,z]],'core',{count:4,speed:.35,size:.018,trail:false}));
+ // 12 V ends at the rear VRM row (not on the package); core power runs from
+ // both VRM rows into the substrate edge, below the die and HBM tops.
+  flows.push(flow([[Math.sign(x)*1.5,.28,-4.02],[x,.26,-3.62],[x,.2,z-.74]],'bus12',{count:6,speed:.8,size:.028,trailR:.009}));
+  for(const side of [-1,1])for(const dx of [-.2,.2])flows.push(flow([[x+dx,.125,z+side*.6],[x+dx,.125,z+side*.4]],'core',{count:3,speed:.35,size:.018,trail:false}));
   dataFlows.push(flow([[x,.29,z-.25],[nvX[i],.31,-3.75],[nvX[i],.31,-4.35]],'nvl',{count:10,speed:.9,size:.03,trailR:.01}));
   // NVIDIA SuperPOD RA Figure 2: NIC PCIe is rooted at Vera, not a
   // direct GPU-to-NIC trace. Each CPU serves its four CX9 endpoints.
   const cpu=cp[Math.floor(i/2)];
-  const lane=ports[i],route=[[cpu[0],.30,cpu[1]+.385],[lane,.29,.50],[lane,.29,.75],[lane,.50,.90],[lane,.50,1.32],[lane,.29,1.55],[lane,.29,2.12]];
-  // Midplane connector crossing is electrical; no exposed trace penetrates its body.
-  const input=flow(smooth(route),'pcie',{count:10,speed:.9,size:.026,trailR:.009});input.rubinPcieRoot=Math.floor(i/2);dataFlows.push(input);
+  // The crossing goes through a blind-mate connector pair (the housing
+  // nearest the lane, inward), so the run enters one housing and leaves the
+  // other rather than hopping over the midplane.
+  const lane=ports[i],hx=Math.sign(lane)*(Math.abs(lane)<1.3?.795:1.325),j1=Math.abs(hx-cpu[0]),j2=Math.abs(lane-hx);
+  const route=[[cpu[0],.30,cpu[1]+.385],[cpu[0],.30,.1],[hx,.30,.1+j1],[hx,.30,.74],[hx,.19,.82],[hx,.19,1.38],[hx,.29,1.44],[lane,.29,1.44+j2],[lane,.29,2.12]];
+  const input=flow(routed(route),'pcie',{count:10,speed:.9,size:.026,trailR:.009});input.rubinPcieRoot=Math.floor(i/2);dataFlows.push(input);
   // Each GPU is represented by two CX9 packages on one column. The branch
   // placement is illustrative; both ends touch actual package regions.
   const flank=lane+(i%2===0?-.23:.23);
@@ -128,11 +140,11 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector}) 
  cp.forEach(([x,z],i)=>{for(const gpu of gp.slice(i*2,i*2+2))for(const reverse of [false,true]){const pts=[[x,.30,z-.32],[gpu[0],.30,gpu[1]+.38]];if(reverse)pts.reverse();dataFlows.push(flow(pts,'c2c',{count:5,speed:.6,size:.025,trailR:.008}));}});
  dataFlows.push(flow([[0,.28,3.3],[0,.28,4.38]],'serdes',{count:5,speed:.6,size:.024,trail:false}));
  flows.push(flow([[0,.25,-4.75],[0,.28,-4.05],[-1.5,.28,-4.02]],'dc',{count:12,speed:.9,size:.03,trail:false}));
- for(const x of [-1.1,1.1])flows.push(flow([[Math.sign(x)*1.5,.28,-4.02],[x,.3,-3.55],[x,.3,-.65]],'bus12',{count:14,speed:.7,size:.025,trail:false}));
+ for(const x of [-1.1,1.1])flows.push(flow([[Math.sign(x)*1.5,.28,-4.02],[x,.3,-3.55],[x,.22,-1.24]],'bus12',{count:14,speed:.7,size:.025,trail:false}));
  for(const [x,z] of [...nic,dpu])flows.push(flow([[x,.18,1.45],[x,.18,z]],'bus12',{count:8,speed:.8,size:.022,trail:false}));
  scene.add(S.build(),N.build({cast:false}));for(const list of [flows,dataFlows,heatFlows])for(const f of list)scene.add(f.group);
  const hs=(p,off=[2.2,2.8,3.5])=>({pos:p,view:{pos:p.map((v,i)=>v+off[i]),target:p}});
- const hotspots={osfp:hs([-1.35,.5,4.25]),clip:hs([0,.45,-4.5],[2.4,2,-3]),ibc:hs([-1.5,.45,-4]),vrm:hs([1.6,.2,-2.04],[-.5,1.9,2.4]),gpu:{pos:[1.6,.3,-2.7],view:componentView([1.6,.22,-2.7],[-.3,.2,1.35],[.9,.4,.9])},grace:hs([-1.1,.32,-.65]),lpddr:hs([1.74,.3,-.65],[0,2.1,.5]),coldplates:hs([-1.1,.82,-.65]),nic:hs([1.35,.8,2.85]),nvconn:hs([1.75,.4,-4.35],[2,2,-3])};
+ const hotspots={osfp:hs([-1.35,.5,4.25]),clip:hs([0,.45,-4.5],[2.4,2,-3]),ibc:hs([-1.5,.45,-4]),vrm:hs([1.6,.2,-2.04],[-.5,1.9,2.4]),gpu:{pos:[1.6,.3,-2.7],view:componentView([1.6,.16,-2.7],[-.25,.4,1.3],[.6,.2,.6])},grace:hs([-1.1,.32,-.65]),lpddr:hs([1.74,.3,-.65],[0,2.1,.5]),coldplates:hs([-1.1,.82,-.65]),nic:hs([1.35,.8,2.85]),nvconn:hs([1.75,.4,-4.35],[2,2,-3])};
  finishCompute(scene,finish);
  scene.userData.computeGeneration={id:'rubin',gpus:4,cpus:2,fans:0,internalHoses:0,midplane:true,nicAssemblies:2,nicCount:8,dpuCount:1,opticalPorts:8,representative:true};
  return {scene,flows,dataFlows,heatFlows,hotspots,

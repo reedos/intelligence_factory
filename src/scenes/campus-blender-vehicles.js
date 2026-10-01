@@ -1,5 +1,6 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { Builder } from '../kit.js';
+import { palette } from './campus-palette.js';
 let source,pending;
 export const hasCampusVehicles=()=>!!source;
 export function preloadCampusVehicles(){
@@ -22,4 +23,4 @@ export function campusVehicleBuilder(name,target=new Builder()){
  target.geometries=()=>{const result=geometries();for(const [mat,geo] of result)if(target.parts.get(mat).every(p=>p.userData.blender))geo.userData.blender={asset:'campus-vehicles',part:name};return result;};
  return target;
 }
-export function campusVehicleInstances(name,matrices){const g=campusVehicleBuilder(name).instance(matrices);g.name=`Blender fleet ${name}`;g.userData.blenderAsset=name;return g;}
+export function campusVehicleInstances(name,matrices){const g=palette(campusVehicleBuilder(name)).instance(matrices);g.name=`Blender fleet ${name}`;g.userData.blenderAsset=name;return g;}

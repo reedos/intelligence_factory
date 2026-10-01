@@ -13,6 +13,14 @@ const EXPLODED = {
   '01_BASE': [0, 0, 0], '02_BOARD': [0, 1.5, 0], '03_THERMAL': [0, 2.8, 0],
   '04_COVER': [0, 4, 0], '05_PULL_TAB': [0, 0, 0],
 };
+// Pin offsets from each exported anchor, cm. The driver pin sits at the driver's
+// front-left corner (clear of its DRV marking) and the laser pin at the front of the
+// laser row, so the two no longer touch at overview distance. The DSP pin sits on the
+// substrate margin in front of the die, off the die's printed marking.
+const PIN_OFFSET = {
+  driver: [-0.22, 0, 0.24], lasers: [0.05, 0, 0.2], tia: [-0.2, 0, -0.23],
+  dsp: [0.3, -0.03, 0.63],
+};
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
 
@@ -116,8 +124,10 @@ export function build({ quality, state }) {
     // materials and high bloom threshold. Smaller cores preserve lane separation.
     const finish = matched ? {} : { size: style.size * (kind === 'cw' ? 0.7 : 0.8), k: style.k * 1.35, trailR: 0.0045, trailK: 0.25 };
     // Power rails read as dimly as the light paths once did: give them a lit trace and
-    // brighter, more frequent pulses so the power layer carries the same visual weight.
-    if (!matched && kind === 'power') Object.assign(finish, { size: style.size * 0.95, k: style.k * 2.3, count: 6, trail: true, trailR: 0.009, trailK: 0.8 });
+    // more frequent pulses so the power layer carries the same visual weight. The pulse
+    // gain is capped below bloom blow-out where the white sub-volt rails converge on the
+    // converters and the DSP.
+    if (!matched && kind === 'power') Object.assign(finish, { size: style.size * 0.9, k: style.k * 1.55, count: 6, trail: true, trailR: 0.009, trailK: 0.5 });
     const f = flow(path, cls, { ...style, ...finish, ...options });
     // Diagnostics describe real runtime paths, including their physical source.
     f.route = { id, source, assembly, mode, kind, variant, from, to,
@@ -334,13 +344,23 @@ export function build({ quality, state }) {
       driver: [[-.65, 1.0, 2.3], [1.25, .35, 1.2]],
       lasers: [[-.65, .9, 2.2], [1.2, .45, 1.15]],
       mzm: [[.85, 1.1, 2.4], [2.0, .35, 1.4]],
-      mpo: [[2.7, .75, 1.15], [1.2, .95, 2.3]],
-      pd: [[1.25, 1.15, -1.0], [.55, .25, .8]],
-      tia: [[-.75, 1.3, -1.35], [.75, .3, .8]],
+      mpo: [[2.4, 1.35, 1.75], [1.2, .95, 2.3]],
+      pd: [[.35, 1.7, 1.2], [.55, .25, .8]],
+      tia: [[-.45, 1.6, 1.25], [.75, .3, .8]],
       shell: [[-2.5, 2.0, 4.0], [7.5, .7, 2.5]],
     })[name];
-    hs[name] = { pos: p, view: componentView(p, offset, size) };
+    // A pin marks its part without sitting on the part's printed marking, and neighbouring
+    // parts' pins stay apart: the pin moves to a free corner, the camera keeps the anchor.
+    const pin = PIN_OFFSET[name] || [0, 0, 0];
+    hs[name] = { pos: p.map((v, i) => v + pin[i]), view: componentView(p, offset, size) };
   }
+  // Heat mode frames the DSP with its gap pad above it: the aim rises between the two
+  // so the pad sits in clear space below the HUD hint, not under it. The pin and the
+  // focus stay on the DSP.
+  const dspHeat = { ...hs.dsp, view: (() => {
+    const focus = hs.dsp.view.focus, target = [focus[0], focus[1] + 0.55, focus[2]];
+    return { pos: [target[0] - 1.0, target[1] + 1.1, target[2] + 3.4], target, focus: [...focus], detailSize: [2.35, 1.3, 1.8] };
+  })() };
   setLpo(false);
   scene.userData.blenderModule = { version: metadata.version, units: 'cm', source: 'osfp-module-runtime.glb',
     scope: 'Representative single-DSP implementation: eight 200G lanes per direction, split across two 800G optical ports. Exterior informed by public OSFP photographs. Exploded spacing; internals are illustrative.' };
@@ -348,10 +368,10 @@ export function build({ quality, state }) {
     scene, flows, dataFlows, heatFlows, look,
     housingBounds: hardwareBounds(model),
     camera: { pos: quality.mobile ? [1.6, 13.5, 20.5] : [1.6, 12, 17.5], target: [0.5, 2.1, 0], near: 0.05, far: 300, min: 1.2, max: 40,
-      portrait: { pos: [6.2, 11.5, 10], target: [1.1, 2.1, 0.2] } },
+      portrait: { pos: [4.2, 9.5, 12], target: [0.9, 2.1, 0.2] } },
     hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers },
     dataHotspots: { fingers: hs.fingers, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers, mzm: hs.mzm, mpo: hs.mpo, pd: hs.pd, tia: hs.tia },
-    heatHotspots: { dsp: hs.dsp, shell: hs.shell },
+    heatHotspots: { dsp: dspHeat, shell: hs.shell },
     variant: {
       get lpo() { return lpo; }, setLpo,
       intro(mode) {

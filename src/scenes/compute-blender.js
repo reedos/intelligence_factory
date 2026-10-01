@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { build as rack } from './rack.js';
 import { build as tray } from './tray.js';
 import { build as chip } from './chip.js';
+import { applyPcb } from './tray-pcb.js';
 
 const cache = new Map(), pending = new Map();
 const physical = o => o.isMesh && !o.isReflector && !o.userData.computeDynamic
@@ -13,7 +14,7 @@ const assetKey = (kind, model) => `compute-${kind}-${variant(kind, model)}`;
 
 async function load(key) {
   if (cache.has(key)) return;
-  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=inspection12`)
+  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=traypcb2`)
     .then(gltf => { cache.set(key, gltf.scene); pending.delete(key); })
     .catch(error => { pending.delete(key); throw error; }));
   await pending.get(key);
@@ -69,7 +70,9 @@ function build(kind, native, options) {
     const materials = Array.isArray(o.material) ? o.material : [o.material];
     const transparent = materials.some(m => m.transparent || m.opacity < 1);
     if (materials.some(m => m.userData.ifxCoverSurface === 'ihs')) covers.push(o);
-    o.castShadow = !!options.quality.shadows && !transparent;
+    // Millimetre-scale SMD parts cast no visible shadow; skipping the shadow pass saves draw calls.
+    const tiny = materials.some(m => /^PCB passive/.test(m.name));
+    o.castShadow = !!options.quality.shadows && !transparent && !tiny;
     o.receiveShadow = !!options.quality.shadows;
     for (const material of materials) {
       if (transparent) material.depthWrite = false;
@@ -94,6 +97,10 @@ function build(kind, native, options) {
       target.name = `Blender-authored ${target.userData.computeDynamic}`;
     }
   }
+  // Board surfaces: the painted PCB atlas, projected by position (tray-pcb.js).
+  const accel = options.model.accel.id, mobile = !!options.quality.mobile;
+  if (kind === 'tray') applyPcb(hardware, accel, { mobile });
+  if (kind === 'rack') applyPcb(hardware, accel, { lod: 'rack', rects: rackBoards(accel) });
   built.scene.add(hardware);
   built.scene.traverse(o => { if (o.userData.computeCoverOutline === 'ihs') covers.push(o); });
   const showCovers = () => { for (const o of covers) o.visible = options.state.mode === 'heat'; };
@@ -110,6 +117,16 @@ function build(kind, native, options) {
   built.scene.userData.blenderCompute = { asset: `${key}.glb`, completeStaticHardware: true, replacedNativeMeshes: obsolete.length,
     representative: true, runtimeExceptions: ['flow and heat overlays', 'token sprites and cache effects', 'status light effects', 'lights', 'camera', 'hotspots', 'Blender rotor and solder instancing'] };
   return built;
+}
+// Pulled-tray boards in rack metres -> the matching tray boards in tray units
+// ([x0, x1, z0, z1]); positions follow rack.js.
+function rackBoards(accel) {
+  if (accel === 'h100') return [
+    { from: [-0.21, 0.21, 0.915, 1.415], to: [-2.1, 2.1, -1.2, 3.8], y: 0.887 },
+    { from: [-0.21, 0.21, 0.595, 0.975], to: [-2.1, 2.1, -4.25, -1.3], y: 1.079 },
+  ];
+  const [z0, z1] = accel === 'rubin' ? [-3.97, 0.93] : [-3.25, 2.55];
+  return [{ from: [-0.209, -0.007, 0.636, 1.194], to: [-2.1, -0.1, z0, z1] }, { from: [0.007, 0.209, 0.636, 1.194], to: [0.1, 2.1, z0, z1] }];
 }
 export const rackBuilder = { preload: ({ model }) => preloadCompute('rack', model), build: options => build('rack', rack, options) };
 export const trayBuilder = { preload: ({ model }) => preloadCompute('tray', model), build: options => build('tray', tray, options) };

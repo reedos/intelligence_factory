@@ -107,6 +107,8 @@ export const SOURCES = {
   'servethehome-dgx-gb200': { title: 'This is the NVIDIA DGX GB200 NVL72', publisher: 'ServeTheHome', url: 'https://www.servethehome.com/this-is-the-nvidia-dgx-gb200-nvl72/', published: '03/19/2024', accessed: '09/27/2026', kind: 'secondary' },
   'naddod-gb200-interconnect': { title: 'NVIDIA GB200 Interconnect Architecture Analysis: NVLink, InfiniBand and Future Trends', publisher: 'NADDOD', url: 'https://www.naddod.com/blog/nvidia-gb200-interconnect-architecture-analysis-nvlink-infiniband-and-future-trends', published: '04/05/2024', dated: "04/05/2024 (published); modified 05/08/2026", accessed: '09/27/2026', kind: 'secondary', marketing: true },
   'amphenol-paladin-hd': { title: 'Paladin HD 224Gb/s Backplane Interconnect System', publisher: 'Amphenol', url: 'https://www.amphenol-cs.com/product-series/paladin-hd.html', unchecked: "blocked: 403 on WebFetch + 2x curl attempts. Search snippet shows matching title/URL indexed, but unconfirmed directly today.", kind: 'primary', marketing: true },
+  'semianalysis-gb200-hw': { title: 'GB200 Hardware Architecture and Component Supply Chain & BOM', publisher: 'SemiAnalysis', url: 'https://newsletter.semianalysis.com/p/gb200-hardware-architecture-and-component', published: '07/17/2024', accessed: '09/30/2026', kind: 'secondary' },
+  'lenovo-gb300-guide': { title: 'Lenovo NVIDIA GB300 NVL72 Rack Scale AI Product Guide (LP2357)', publisher: 'Lenovo Press', url: 'https://lenovopress.lenovo.com/lp2357.pdf', accessed: '09/30/2026', kind: 'primary' },
   'semianalysis-nvl72-optics': { title: "NVIDIA's Optical Boogeyman: NVL72, InfiniBand", publisher: 'SemiAnalysis', url: 'https://newsletter.semianalysis.com/p/nvidias-optical-boogeyman-nvl72-infiniband', published: '03/25/2024', accessed: '09/27/2026', kind: 'secondary' },
   'semianalysis-gb200-nvl72-specs': { title: 'NVIDIA GB200 NVL72 Specs, Pricing & AI Inference Benchmarks', publisher: 'SemiAnalysis / InferenceX', url: 'https://inferencex.semianalysis.com/chips/gb200-nvl72', accessed: '09/27/2026', kind: 'secondary' },
 
@@ -175,6 +177,8 @@ export const SOURCES = {
   'micron-hbm3e-brief': { title: 'HBM3E product brief', publisher: 'Micron', url: 'https://assets.micron.com/adobe/assets/urn:aaid:aem:b710d8f2-7f66-44c1-a234-456e2b986347/original/as/hbm3e-product-brief.pdf', published: '10/2023', dated: "footer reads \"Rev. C 10/2023\"", accessed: '09/27/2026', via: 'Wayback Machine copy (the live URL is WAF-blocked)', kind: 'primary', marketing: true },
 
   // tokens, training, carbon, models
+  'meta-llama-3-1-model-card': { title: 'Llama 3.1 model card', publisher: 'Meta', url: 'https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/MODEL_CARD.md', published: '07/23/2024', dated: 'model release date 07/23/2024', accessed: '09/30/2026', kind: 'primary' },
+  'nvidia-llama-3-1-70b-fp8': { title: 'Llama-3.1-70B-Instruct-FP8 model card', publisher: 'NVIDIA, on Hugging Face', url: 'https://huggingface.co/nvidia/Llama-3.1-70B-Instruct-FP8', accessed: '09/30/2026', kind: 'primary' },
   'samsi-words-to-watts': { title: 'From Words to Watts: Benchmarking the Energy Costs of Large Language Model Inference', publisher: 'Samsi et al., arXiv', url: 'https://arxiv.org/pdf/2310.03003', published: '2023', dated: "4 Oct 2023 (v1)", accessed: '09/27/2026', kind: 'primary' },
   'semianalysis-inferencemax': { title: 'InferenceMAX: Open Source Inference Benchmarking', publisher: 'SemiAnalysis', url: 'https://newsletter.semianalysis.com/p/inferencemax-open-source-inference', published: '2025', dated: "Oct 09, 2025", accessed: '09/27/2026', kind: 'secondary' },
   'google-inference-impact': { title: 'Measuring the environmental impact of AI inference', publisher: 'Google Cloud', url: 'https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference/', published: '2025', dated: "August 21, 2025", accessed: '09/27/2026', kind: 'primary', marketing: true },
@@ -492,7 +496,7 @@ export const PART_SOURCES = {
   'power:tray:grace': ['nvidia-gb200-nvl72'],
   'power:tray:lpddr': ['nvidia-gb200-nvl72'],
   'power:tray:coldplates': [],
-  'power:tray:nic': ['nvidia-dsx-data-center-architecture', 'nvidia-coreweave-gb200-400g', 'nvidia-connectx8-datasheet', 'nvidia-gb300-nvl72', 'nvidia-ethernet-supernic', 'nvidia-bf3-networking-docs'],
+  'power:tray:nic': ['lenovo-gb300-guide', 'semianalysis-gb200-hw', 'nvidia-dsx-data-center-architecture', 'nvidia-coreweave-gb200-400g', 'nvidia-connectx8-datasheet', 'nvidia-gb300-nvl72', 'nvidia-ethernet-supernic', 'nvidia-bf3-networking-docs'],
   'power:tray:nvconn': ['nvidia-gb200-nvl72'],
   'power:tray:psu': ['fs-com-dgx-h100'],
   'power:tray:cpu': [],
@@ -597,7 +601,7 @@ export const PART_SOURCES = {
   'heat:tray:osfp': ['marvell-ara-1-6t-prnewswire', 'broadcom-sian3-200g-lane-dsp', 'ascentoptics-osfp-form-factor'],
   'power:hall:cpo': ['nvidia-cpo-scaling-blog', 'lambda-q3450-unboxing'],
   'heat:hall:cpo': ['lambda-q3450-unboxing'],
-  'data:tray:osfp': ['nvidia-mms4x00-ns400', 'nvidia-quantum-x800-clusters', 'nvidia-mma4z00-ns', 'nvidia-mms4x00-ns', 'nvidia-800g-dr8-datasheet'],
+  'data:tray:osfp': ['lenovo-gb300-guide', 'semianalysis-gb200-hw', 'nvidia-mms4x00-ns400', 'nvidia-quantum-x800-clusters', 'nvidia-mma4z00-ns', 'nvidia-mms4x00-ns', 'nvidia-800g-dr8-datasheet'],
   'data:tray:dpu': ['nvidia-dgx-gb200-hardware', 'nvidia-bluefield4-datasheet', 'nvidia-dgxh100-user-guide'],
   'data:tray:gpu': [],
   'data:tray:nvswitch': ['nvidia-h100-datasheet'],

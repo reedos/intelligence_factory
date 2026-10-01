@@ -27,7 +27,9 @@ const FINISHES = [
   [/Bare silicon/i, { metalness: 0.6, roughness: 0.25, envMapIntensity: 0.7 }],
   [/Silkscreen|Label stock/i, { metalness: 0, roughness: 0.68, envMapIntensity: 0.35 }],
   [/Connector ferrule/i, { metalness: 0, roughness: 0.48, envMapIntensity: 0.45 }],
-  [/Molded optical ports/i, { metalness: 0, roughness: 0.55, envMapIntensity: 0.45 }],
+  // Receptacle bodies: a charcoal glass-filled moulding with a soft sheen, so their
+  // walls, latch arms and openings separate from the black void at overview distance.
+  [/Molded optical ports/i, { metalness: 0, roughness: 0.42, envMapIntensity: 0.9 }],
   [/Pull tab ochre/i, { metalness: 0.02, roughness: 0.4, envMapIntensity: 0.6 }],
   [/TX optical paths/i, { metalness: 0, roughness: 0.29, envMapIntensity: 0.6, emissiveIntensity: 0.12 }],
   [/RX optical paths/i, { metalness: 0, roughness: 0.29, envMapIntensity: 0.6, emissiveIntensity: 0.12 }],
@@ -113,6 +115,7 @@ export function applyArtDirection({ scene, model, quality = {} }) {
       seen.add(material);
       const finish = FINISHES.find(([pattern]) => pattern.test(material.name));
       if (finish) Object.assign(material, finish[1]);
+      if (/Molded optical ports/i.test(material.name)) material.color.set(0x4b5059);
       if (/Thermal interface pad/i.test(material.name) && !material.normalMap) {
         const peel = orangePeelNormal();
         if (peel) { material.normalMap = peel; material.normalScale.set(0.3, 0.3); material.needsUpdate = true; }

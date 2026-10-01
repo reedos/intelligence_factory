@@ -78,6 +78,10 @@ img { max-width: 100%; }
   .pin-group b { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: #0b0e13; font-weight: 600; }
   .pin-group::before { content: ""; position: absolute; inset: -10px; }   /* a finger-sized target */
   .pin-group:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+  /* the first badge a reader meets pulses three times: it is a button, and it opens */
+  .pin-group.cue { animation: group-cue 0.9s ease-out 0.4s 3 backwards; }
+  @keyframes group-cue { 0% { box-shadow: 0 0 0 1.5px var(--ink), 0 2px 10px rgba(0,0,0,.5), 0 0 0 0 rgba(230,186,130,.9); } 100% { box-shadow: 0 0 0 1.5px var(--ink), 0 2px 10px rgba(0,0,0,.5), 0 0 0 18px rgba(230,186,130,0); } }
+  @media (prefers-reduced-motion: reduce) { .pin-group.cue { animation: none; } }
   .hud { position: absolute; z-index: 3; pointer-events: none; }
   .hud.tl { left: var(--gutter); top: 22px; display: grid; gap: 6px; }
   .hud.tl .ttl { font: 600 clamp(26px, 3vw, 40px)/.95 var(--display); text-transform: uppercase; text-shadow: 0 1px 10px #000; }
@@ -526,11 +530,13 @@ body.playing .beat.on .beat-bar { visibility: visible; }
 .hud-btns { position: absolute; z-index: 3; top: 90px; right: 22px; display: grid; justify-items: end; gap: 8px; pointer-events: none; }
 .hud-row { display: flex; gap: 6px; pointer-events: auto; }
 body.looked .hint, body.story .hint { display: none; }
-/* the key hints sit over the scene until the reader first moves it: give them a dark backing so they read over bright hardware */
-.hud-btns .hint { padding: 5px 9px; color: var(--muted); background: rgba(0,0,0,.62); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+/* the key hints sit over the scene until the reader first moves it: low in the corner above the scale bar, where
+   close-ups keep foreground rather than the part, small, on a dark backing so they read over bright hardware.
+   Absolute, so the scale bar's box (which pins step around) stays the scale bar's own */
+.hud.bl .hint { position: absolute; left: 0; bottom: calc(100% + 10px); width: max-content; max-width: 46vw; padding: 5px 9px; border-radius: 4px; font-size: 10.5px; line-height: 1.45; text-align: left; color: var(--muted); background: rgba(0,0,0,.62); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 @media (pointer: coarse) { .hint { display: none; } }  /* mouse and key hints mean nothing on a touch screen */
 /* ...and fade on their own after ten seconds, so they stop covering hotspot labels in part close-ups */
-.hud-btns .hint { animation: hint-out .8s ease 10s forwards; }
+.hud.bl .hint { animation: hint-out .8s ease 10s forwards; }
 @keyframes hint-out { to { opacity: 0; visibility: hidden; } }
 /* the layer legend gets the same dark backing, so it reads over busy fiber ribbons and board corners */
 .hud.br:has(.legend-item) { padding: 5px 9px; border-radius: 6px; background: rgba(0,0,0,.55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }

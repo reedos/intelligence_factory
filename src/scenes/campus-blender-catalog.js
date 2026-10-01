@@ -1,5 +1,6 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { THREE, Builder } from '../kit.js';
+import { palette } from './campus-palette.js';
 let source, pending;
 export function preloadCampusCatalog() {
   if (source) return Promise.resolve(source);
@@ -25,7 +26,7 @@ export function campusCatalogBuilder(name, target=new Builder()) {
   return target;
 }
 export function campusCatalogInstances(name, matrices, options) {
-  const g=campusCatalogBuilder(name).instance(matrices,options);g.name=`Blender ${name}`;g.userData.blenderAsset=name;return g;
+  const g=palette(campusCatalogBuilder(name)).instance(matrices,options);g.name=`Blender ${name}`;g.userData.blenderAsset=name;return g;
 }
 export function campusCatalogRotor(mesh) {
   if(!source)return;

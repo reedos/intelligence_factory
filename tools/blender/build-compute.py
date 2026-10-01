@@ -110,6 +110,11 @@ def refine_reference(kind,accel):
         # Re-beveling those small repeated curves adds export weight without
         # a visible silhouette improvement at rack inspection distances.
         if kind=='rack':continue
+        # Swept twinax ribbons already have a rounded, lobed section, and 0402/0201
+        # passives are a millimetre long: an angle bevel only folds sub-millimetre
+        # slivers and triples their triangles.
+        if any(m and (m.name.startswith('Twinax flyover jacket') or m.name.startswith('PCB passive')) for m in o.data.materials):
+            o.modifiers.new('Precision surface normals','WEIGHTED_NORMAL');continue
         mod=o.modifiers.new('Blender manufactured edge finish','BEVEL')
         mod.width={'rack':.00035,'tray':.00022,'chip':.000025}[kind]
         mod.segments=2;mod.limit_method='ANGLE';mod.angle_limit=.65;mod.use_clamp_overlap=True

@@ -49,6 +49,28 @@ describe('coherent packaging qualifications remain visible in the interactive sc
       expect(blockers.map(hit=>({name:hit.object.name,point:hit.point.toArray()})),id).toEqual([]);
     }
   });
+  it('laser pigtail, snout and boot clear the driver and TIA packages by at least 1 mm',()=>{
+    const b=build(1),asset=b.scene.children.find((o:THREE.Object3D)=>o.name.startsWith('Blender'));
+    asset.updateMatrixWorld(true);
+    const islands=['driver','tia'].map(id=>new THREE.Box3().setFromObject(asset.getObjectByName(`coherent-hardware_${id}_ceramic`)).expandByVector(new THREE.Vector3(.1,0,.1)));
+    const hitsXZ=(p:THREE.Vector3)=>islands.some(box=>p.x>=box.min.x&&p.x<=box.max.x&&p.z>=box.min.z&&p.z<=box.max.z);
+    // Boot and snout surfaces (x < 4 cm keeps the LC strain reliefs out).
+    const pigtail:THREE.Vector3[]=[];
+    for(const m of meshes(asset)) {
+      const names=(Array.isArray(m.material)?m.material:[m.material]).map(x=>x.name).join();
+      if(!/Molded black cable boot|Kovar fiber feedthrough/.test(names)) continue;
+      const pos=m.geometry.attributes.position;
+      for(let j=0;j<pos.count;j++){const p=new THREE.Vector3().fromBufferAttribute(pos,j).applyMatrix4(m.matrixWorld);if(p.x<4)pigtail.push(p);}
+    }
+    expect(pigtail.length).toBeGreaterThan(0);
+    expect(pigtail.filter(hitsXZ)).toEqual([]);
+    // The fiber from the boot to the tap, as a 0.12 mm-radius tube.
+    const trunk=b.scene.userData.coherentRouting.laserTrunk.map((p:number[])=>new THREE.Vector3(...p));
+    for(let i=1;i<trunk.length;i++) for(let t=0;t<=1;t+=.05) {
+      const p=trunk[i-1].clone().lerp(trunk[i],t);
+      for(const dz of [-.012,.012]) expect(hitsXZ(p.clone().setZ(p.z+dz)),`trunk ${i}`).toBe(false);
+    }
+  });
   it('keeps analog IC mounting islands separate from optics and optical paths outside electronics',()=>{
     const b=build(1),asset=b.scene.children.find((o:THREE.Object3D)=>o.name.startsWith('Blender'));
     asset.updateMatrixWorld(true);
@@ -139,7 +161,7 @@ function meshes(root:THREE.Object3D){const m:THREE.Mesh[]=[];root.traverse(o=>{i
 describe('Blender mechanical layers preserve native technical diagrams',()=>{
   it('CPO exposes buried electrical routes only through a qualified interposer x-ray',()=>{
     const opts=options(),b=wrappers[0].build(opts);
-    const interposer=b.scene.getObjectByName('CPO_PACKAGE__Photonic_die_passivation') as THREE.Mesh;
+    const interposer=b.scene.getObjectByName('CPO_PACKAGE__Silicon_interposer') as THREE.Mesh;
     expect(interposer).toBeDefined();
     b.scene.updateMatrixWorld(true);
     const path=b.dataFlows.find((f:any)=>f.cls==='eth').path;
@@ -265,7 +287,7 @@ describe('Blender mechanical layers preserve native technical diagrams',()=>{
       const end=f.path.getPoint(1);expect(Math.abs(end.x)).toBeLessThan(ASIC_HALF);expect(Math.abs(end.z)).toBeLessThan(ASIC_HALF);
     }
     const dieHeat=b.heatFlows.filter((f:any)=>Math.abs(f.path.getPoint(0).y-1.68)<1e-5);
-    expect(dieHeat.length).toBe(26);
+    expect(dieHeat.length).toBe(14);
     for(const f of dieHeat) {
       const start=f.path.getPoint(0);expect(Math.abs(start.x)).toBeLessThan(ASIC_HALF);expect(Math.abs(start.z)).toBeLessThan(ASIC_HALF);
     }
@@ -275,9 +297,9 @@ describe('Blender mechanical layers preserve native technical diagrams',()=>{
 describe('shared CPO interposer correction',()=>{
  it('spans the ASIC and all 18 engines, with elevated carriers above its top',()=>{
   const asset=assets.get('cpo').scene;asset.updateMatrixWorld(true);
-  const interposer=asset.getObjectByName('CPO_PACKAGE__Photonic_die_passivation');
+  const interposer=asset.getObjectByName('CPO_PACKAGE__Silicon_interposer');
   let target:THREE.Object3D|undefined;
-  asset.traverse((o:THREE.Object3D)=>{if(o.name.replaceAll('_',' ').includes('CPO PACKAGE  Photonic die passivation'))target=o;});
+  asset.traverse((o:THREE.Object3D)=>{if(o.name.replaceAll('_',' ').includes('CPO PACKAGE  Silicon interposer'))target=o;});
   const bounds=new THREE.Box3().setFromObject(interposer||target!);
   const size=bounds.getSize(new THREE.Vector3());
   expect(size.x*100).toBeCloseTo(9,4);expect(size.z*100).toBeCloseTo(9,4);
@@ -323,13 +345,14 @@ describe('complete link housings',()=>{
     opts.state.mode=mode;b.update(1,1/60);asset.updateMatrixWorld(true);
     const aspect=width/height,preset=cameraPresetFor(b.camera,width,height),camera=new THREE.PerspectiveCamera(aspect<.9?48:35,aspect,.05,300);
     camera.position.fromArray(preset.pos);camera.lookAt(new THREE.Vector3().fromArray(preset.target));camera.updateMatrixWorld();
-    let edge=0,minX=Infinity,maxX=-Infinity;
+    let edge=0,minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
     for(const m of meshes(asset)) {
      const positions=m.geometry.attributes.position,p=new THREE.Vector3();
-     for(let j=0;j<positions.count;j++) {p.fromBufferAttribute(positions,j).applyMatrix4(m.matrixWorld).project(camera);edge=Math.max(edge,Math.abs(p.x),Math.abs(p.y));minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);}
+     for(let j=0;j<positions.count;j++) {p.fromBufferAttribute(positions,j).applyMatrix4(m.matrixWorld).project(camera);edge=Math.max(edge,Math.abs(p.x),Math.abs(p.y));minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y);}
     }
     expect(edge,`${mode} ${width}×${height}`).toBeLessThan(.96);
-    if(width===390 && height===445)expect((maxX-minX)/2,`${mode}: useful mobile canvas width`).toBeGreaterThan(.75);
+    // A phone view may lay the module across the canvas or diagonally up it; either way it must fill one axis.
+    if(width===390 && height===445)expect(Math.max(maxX-minX,maxY-minY)/2,`${mode}: useful mobile canvas span`).toBeGreaterThan(.75);
    }
   });
  }

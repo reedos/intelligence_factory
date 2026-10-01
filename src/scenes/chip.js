@@ -6,6 +6,7 @@ import { computeMaterials, finishCompute, boardFinish } from './compute-finish.j
 import { STREAM_TPS, buildCycle, sampleAt, tick } from '../model/token-script.js';
 import { frameCompute } from './compute-framing.js';
 import { componentView } from '../app/housing-frame.js';
+import { installTokenMath } from './token-math.js';
 
 // The visible top of a flip-chip die is its polished silicon backside. A faint
 // roughness pattern (a grayscale map) lets the key light break across it.
@@ -78,7 +79,7 @@ export function build(options) {
   if (options.quality?.mobile) {
     // Portrait phones are width-limited: a steeper view and a tighter fit on the
     // 8.4 cm package (the board is context) let the stack fill more of the height.
-    result.camera = { ...result.camera, ...componentView([0, 2.9, 0], [6, 11, 7.5], [7.9, 5.6, 7.9]) };
+    result.camera = { ...result.camera, ...componentView([0.35, 2.7, 0.45], [6, 11, 7.5], [7.9, 5.6, 7.9]) };
     result.cameraByMode.power = { ...componentView([0, 2.3, 0], [8, 5.6, 9.8], [8.1, 5.0, 8.1]) };
   }
   return result;
@@ -115,34 +116,44 @@ function buildPackage({ quality, state, model }) {
     const m = new THREE.Mesh(g, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; scene.add(m); return m;
   };
 
-  // board beneath, cut square
+  // board beneath, cut square: 10.8 cm, a 1.2 cm margin around the package, so
+  // the whole cut board still fits a portrait phone frame
+  const BOARD = 10.8;
   // Host board under the package: solder mask with the BGA land pattern (gold
   // pads on the ball grid), a via field and trace bundles fanning out, darkening
   // toward the cut edge. Representative host board.
-  const boardTex = canvasTex(1024, 1024, (g, w, h) => {
-    const px = w / 12, c = w / 2;
+  const boardTex = canvasTex(2048, 2048, (g, w, h) => {
+    const px = w / BOARD, c = w / 2;
     g.fillStyle = '#0d2a26'; g.fillRect(0, 0, w, h);
     let seed = 9; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    g.strokeStyle = 'rgba(46,92,80,0.6)'; g.lineWidth = 2;
-    for (let k = 0; k < 64; k++) {                                     // trace bundles leaving the BGA field
-      const a = (Math.floor(k / 16) * Math.PI / 2) + (k % 16 - 7.5) * 0.035, r0 = 4.1 * px, r1 = 6.2 * px;
-      const ox = Math.cos(a), oz = Math.sin(a);
-      g.beginPath(); g.moveTo(c + ox * r0, c + oz * r0); g.lineTo(c + ox * (r0 + 0.5 * px) + oz * (k % 16 - 7.5) * 3, c + oz * (r0 + 0.5 * px) - ox * (k % 16 - 7.5) * 3); g.lineTo(c + ox * r1 + oz * (k % 16 - 7.5) * 9, c + oz * r1 - ox * (k % 16 - 7.5) * 9); g.stroke();
+    // Trace fan-out on every side of the BGA field, the outer rows jogging 45
+    // degrees toward the corners so the corners carry routing too.
+    // Copper under the green mask reads lighter than the bare laminate; each
+    // trace ends on a tented via, the escape pattern a BGA breakout uses.
+    g.strokeStyle = 'rgba(80,150,124,0.78)'; g.lineWidth = w / 560;
+    for (let side = 0; side < 4; side++) for (let k = 0; k < 24; k++) {
+      const t = (k - 11.5) / 11.5, along = t * 3.6 * px, r0 = 3.95 * px, r1 = 5.25 * px, jog = t * Math.abs(t) * 1.3 * px;
+      const pt = (r, a) => side === 0 ? [c + r, c + a] : side === 1 ? [c - r, c - a] : side === 2 ? [c - a, c + r] : [c + a, c - r];
+      g.beginPath(); g.moveTo(...pt(r0, along)); g.lineTo(...pt(r0 + 0.35 * px, along)); g.lineTo(...pt(r0 + 0.35 * px + Math.abs(jog), along + jog)); g.lineTo(...pt(r1, along + jog)); g.stroke();
+      const [vx, vy] = pt(r1, along + jog);
+      g.fillStyle = 'rgba(150,196,164,0.9)'; g.beginPath(); g.arc(vx, vy, 0.05 * px, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(12,30,26,1)'; g.beginPath(); g.arc(vx, vy, 0.022 * px, 0, Math.PI * 2); g.fill();
     }
     g.fillStyle = 'rgba(110,140,120,0.5)';
-    for (let k = 0; k < 500; k++) { const x = rnd() * w, y = rnd() * h; if (Math.max(Math.abs(x - c), Math.abs(y - c)) > 4.0 * px) { g.beginPath(); g.arc(x, y, 1.8, 0, Math.PI * 2); g.fill(); } }
+    for (let k = 0; k < 500; k++) { const x = rnd() * w, y = rnd() * h; if (Math.max(Math.abs(x - c), Math.abs(y - c)) > 4.0 * px) { g.beginPath(); g.arc(x, y, 0.018 * px, 0, Math.PI * 2); g.fill(); } }
     for (let i = 0; i < 26; i++) for (let j = 0; j < 26; j++) {          // BGA land pattern, ENIG gold, with a via beside each pad
       const x = c + (-3.75 + i * 0.3) * px, y = c + (-3.75 + j * 0.3) * px;
       g.fillStyle = '#c9a54f'; g.beginPath(); g.arc(x, y, 0.075 * px, 0, Math.PI * 2); g.fill();
       g.fillStyle = 'rgba(20,40,34,0.9)'; g.beginPath(); g.arc(x + 0.15 * px, y + 0.15 * px, 0.025 * px, 0, Math.PI * 2); g.fill();
     }
-    const fade = g.createRadialGradient(c, c, 4.6 * px, c, c, 8.4 * px);
+    const fade = g.createRadialGradient(c, c, 4.4 * px, c, c, 7.7 * px);
     fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(1, 'rgba(4,8,10,0.92)');
     g.fillStyle = fade; g.fillRect(0, 0, w, h);
   });
-  const boardMat = new THREE.MeshStandardMaterial({ map: boardTex, roughness: 0.5, metalness: 0.12 }); boardMat.name = 'Host board solder mask';
-  texBox(12, 0.16, 12, boardMat, 0, -0.08, 0, 12);
-  boardFinish(N, finish, 0, -0.01, 0, 12, 12, 3);
+  boardTex.anisotropy = 8;                                            // the solder-ball camera looks across it at a low angle
+  const boardMat = new THREE.MeshStandardMaterial({ map: boardTex, roughness: 0.6, metalness: 0.08, envMapIntensity: 0.6 }); boardMat.name = 'Host board solder mask';
+  texBox(BOARD, 0.16, BOARD, boardMat, 0, -0.08, 0, BOARD);
+  boardFinish(N, finish, 0, -0.01, 0, BOARD, BOARD, 3);
   // BGA balls
   const ball = new THREE.SphereGeometry(0.1, 10, 8);
   const pitch = 0.3, nB = 26, balls = new THREE.InstancedMesh(ball, MAT.nickel, nB * nB);
@@ -206,9 +217,19 @@ function buildPackage({ quality, state, model }) {
   interMat.name = cowosL ? 'CoWoS-L organic redistribution interposer' : 'CoWoS-S silicon interposer';
   if (cowosL) S.box(IW, 0.1, ID, interMat, 0, Y.inter, 0); else texBox(IW, 0.1, ID, interMat, 0, Y.inter, 0, 0.5);
   if (cowosL) {
-    const bridge = new THREE.MeshStandardMaterial({ color: 0xc8d0dc, roughness: 0.12, metalness: 0.6 }); bridge.name = 'Embedded silicon bridge';
-    S.box(0.3, 0.02, 2.6, bridge, 0, Y.inter + 0.045, 0);                                   // under the die-to-die seam
-    for (const x of [-2.02, -0.7, 0.7, 2.02]) for (const z of [-1.72, 1.72]) S.box(0.8, 0.02, 0.36, bridge, x, Y.inter + 0.045, z);   // die-to-HBM edges
+    // Bright polished silicon against the dark organic body, each span reaching
+    // under both sides of the edge it joins, with a crisp rim so the bridges
+    // still read as separate inlays through the microbump fields above them.
+    const bridge = new THREE.MeshStandardMaterial({ color: 0xd2dae6, roughness: 0.1, metalness: 0.55, emissive: 0x3c4a60, emissiveIntensity: 0.6 }); bridge.name = 'Embedded silicon bridge';
+    const rim = new THREE.LineBasicMaterial({ color: 0xe8f0fa, transparent: true, opacity: 0.7 });
+    const bridges = new THREE.Group(); bridges.name = 'Embedded silicon bridges';
+    const inlay = (w, d, x, z) => {
+      S.box(w, 0.02, d, bridge, x, Y.inter + 0.045, z);
+      const e = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, 0.02, d)), rim); e.position.set(x, Y.inter + 0.045, z); bridges.add(e);
+    };
+    inlay(0.46, 2.9, 0, 0);                                                                  // under the die-to-die seam
+    for (const x of [-2.02, -0.7, 0.7, 2.02]) for (const z of [-1.72, 1.72]) inlay(0.84, 0.62, x, z);   // die-to-HBM edges
+    scene.add(bridges);
   }
   // GPU dies: polished silicon backside with a dark sidewall; the floorplan is a
   // separate x-ray decal (runtime overlay) shown in the data and heat layers.
@@ -280,7 +301,7 @@ function buildPackage({ quality, state, model }) {
   });
   // Underfill with the microbump field under every die and HBM site, on the
   // interposer: what each exploded gap connects to (pitch representative).
-  const underfill = new THREE.MeshPhysicalMaterial({ color: 0x8a6a3a, map: dots(12, 3.2, '#6b5230', '#d8c08a'), roughness: 0.45, metalness: 0.2, transparent: true, opacity: 0.8 });
+  const underfill = new THREE.MeshPhysicalMaterial({ color: 0x8a6a3a, map: dots(12, 3.2, '#6b5230', '#d8c08a'), roughness: 0.45, metalness: 0.2, transparent: true, opacity: cowosL ? 0.62 : 0.8 });
   underfill.name = 'Underfill and microbumps';
   for (const dx of dieX) texBox(2.6, 0.012, 3.3, underfill, dx, Y.inter + 0.072, 0, 1.2);
   for (const [x, z] of hbmPos) texBox(HW, 0.012, HD, underfill, x, Y.inter + 0.072, z, 1.2);
@@ -336,8 +357,10 @@ function buildPackage({ quality, state, model }) {
   let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   // Sample inside actual silicon, never in the visible seam between twin dies.
   const dieSampleX = () => twin ? ((rnd() < 0.5 ? -1 : 1) * 1.36 + (rnd() - 0.5) * 2.4) : (rnd() - 0.5) * 2.4;
+  // Current columns stay a few millimeters inside each die's edge: columns that
+  // ended right at the exposed front corner stacked into one bloom hot spot there.
   for (let i = 0; i < 28; i++) {
-    const x = dieSampleX(), z = (rnd() - 0.5) * 3.0;
+    const x = dieSampleX() * 0.9, z = (rnd() - 0.5) * 2.6;
     flows.push(flow([[x, -1.4, z], [x, Y.balls, z], [x, Y.sub, z], [x, Y.bumps, z], [x, Y.inter, z], [x, Y.dies, z]], 'core', { count: 3, speed: 1.6 + rnd(), size: 0.03, k: 2.8, trail: false }));
   }
   // die-to-die traffic across NV-HBI
@@ -450,12 +473,20 @@ function buildPackage({ quality, state, model }) {
   }
 
   const d0 = dieX[0], [hx, hz] = live[live.length - 1], hy = hb + stackH + 0.03;
+  // H100's single die pin sits toward the die's far corner, clear of the HBM pin on its right edge
+  const diePin = twin ? [d0, Y.dies + 0.1, 0.4] : [-0.9, Y.dies + 0.1, -1.3];
   // the pin sits on the stack's outer corner, clear of the dies pin in the overview and interposer views
   const hbmHS = { pos: [hx + Math.sign(hx) * 0.42, hy, hz + Math.sign(hz) * 0.4], view: { pos: [hx + 3.5, hy + 4.5, hz + 4.2], target: [hx * 0.8, Y.dies + 0.5, hz * 0.9] } };
   // Tokens: frame the top of the package and the live readout above it, so the
   // generated text is legible; the pin sits beside the rows, never on them.
   const TOKEN_ROWS = [2.2, 7.6, -1];
-  const tokensHS = { pos: [TOKEN_ROWS[0] + 4.1, TOKEN_ROWS[1] - 1.3, TOKEN_ROWS[2]], view: componentView([2.0, 5.7, -0.5], [6, 4.6, 11], [9.4, 5.2, 5.0]) };
+  // The pin rides just above the back of the package, where the answer tokens
+  // leave the die, so in the overviews it marks a place rather than empty air.
+  const tokensHS = { pos: [2.0, Y.dies + 1.5, -2.2], view: componentView([2.0, 5.7, -0.5], [6, 4.6, 11], [9.4, 5.2, 5.0]) };
+  // "Show the math" on the Tokens card: one decode step as a matrix-vector multiply, beside the readout (token-math.js)
+  const tokenMath = installTokenMath({ scene, state, quality, hotspot: tokensHS, liveHbm: live, hbmTopY: hy, dieX, dieY: Y.dies,
+    anchor: [-4.4, 6.95, 2.4], view: componentView([-1.8, 5.9, 0.9], [6, 4.6, 11], [7.8, 7.8, 3]),
+    mobileAnchor: [1.1, 12.5, -0.6], mobileScale: 0.85, mobileView: componentView([1.0, 9.2, -0.4], [6, 4.6, 11], [5.4, 12.4, 2.5]) });
   const nvphyHS = twin ? { pos: [2.62, Y.dies + 0.1, -1.2], view: { pos: [8, 5, 1], target: [3, 2.6, 0] } } : { pos: [0.9, Y.dies + 0.1, 1.62], view: { pos: [2, 5.5, 8], target: [0, 2.6, 2.2] } };
   return {
     scene, flows,
@@ -465,15 +496,17 @@ function buildPackage({ quality, state, model }) {
     // Data and heat retain their higher view of silicon and the heat spreader.
     cameraByMode: { power: { pos: [10.5, 4.4, 12], target: [0, 2.1, 0] } },
     hotspots: {
-      balls: { pos: [3.75, .20, 3.75], view: { pos: [7, .6, 7], target: [2.8, .15, 2.8] } },
+      // raised to about 13 degrees: the board's traces and via field read between
+      // the ball rows and the fan-out past the field, still under the substrate edge
+      balls: { pos: [3.75, .20, 3.75], view: { pos: [7.2, 1.6, 7.2], target: [2.8, .15, 2.8] } },
       interposer: { pos: [3.1, Y.inter, 0], view: { pos: [7.5, 4.2, 4.5], target: [1.5, 2.2, 0] } },
-      dies: { pos: [d0, Y.dies + 0.1, 0.4], view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
+      dies: { pos: diePin, view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
       hbm: hbmHS,
       tokens: tokensHS,
     },
     dataFlows, heatFlows,
     heatHotspots: {
-      junction: { pos: [d0, Y.dies + 0.1, 0.4], view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
+      junction: { pos: diePin, view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
       flux: { pos: [dieX[dieX.length - 1], Y.dies + 0.1, -0.8], view: { pos: [4, 6.5, 4], target: [1, 3.1, 0] } },
       tim: { pos: [3.2, Y.lid + 0.1, 3.0], view: { pos: [9, 7.5, 9], target: [0, 4, 0] } },
       hbm: hbmHS,
@@ -485,7 +518,7 @@ function buildPackage({ quality, state, model }) {
       cpo: { pos: [-4.2, Y.sub + 0.3, 3.8], view: { pos: [-8, 5, 9], target: [-2.5, 1.5, 2] } },
       tokens: tokensHS,
     },
-    dispose() { cache.forEach(({ tex }) => tex.dispose()); },
+    dispose() { cache.forEach(({ tex }) => tex.dispose()); tokenMath.dispose(); },
     update(t, dt) {
       const e = tick(genLen);
       if (e < genLastE) { genCycle = buildCycle(model); genLen = genCycle.timings.totalS; resetGen(); }
@@ -495,6 +528,7 @@ function buildPackage({ quality, state, model }) {
       feedLane('reasoning', genCycle.reasoning, s.reasoningOut);
       feedLane('answer', genCycle.answer, s.answerOut);
       genShown.prompt = s.promptOut; genShown.reasoning = s.reasoningOut; genShown.answer = s.answerOut;
+      tokenMath.update(t, dt, genCycle, s);
 
       animLane(pools.prompt, LIFE.prompt, dt, (item, u) => {
         const ez = u * u;                                                        // ease in: accelerates toward the die
