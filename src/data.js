@@ -784,6 +784,10 @@ export function content(M) {
     ['Jupiter data center network', 'an OCS layer replaces the spine', 'spec', { refs: [ref('google-jupiter-evolving-paper', 'Section 1, Introduction: OCSes "move Jupiter from a Clos to a block-level direct-connect topology that eliminates the spine switching layer and its associated challenges altogether"')] }],
   ];
 
+  // PCIe/CXL retimers: no GB200 compute tray source shows any. The one report on the reference board says it needs
+  // none between CPU, GPU and NIC, because the NIC sits on a mezzanine connector; so none are drawn, and this row says so.
+  const gb200Retimers = ['PCIe retimers, CPU to GPU', 'none on the reference board', 'reported', { refs: [ref('semianalysis-gb200-hw', 'Compute Tray Diagrams & Cabling: "there is no longer any need for switches or retimers between the CPU and GPU on the reference design." Frontend Networking: with hyperscalers’ own backend NICs, "a dedicated PCIe switch from Broadcom / Astera Labs will be required"')] }];
+
   // ---------- data-mode parts per scene. Positions come from each scene's dataHotspots ----------
   const PARTS_DATA = {
     across: [
@@ -955,7 +959,7 @@ export function content(M) {
           : [['Bandwidth', X.c2c, 'assumed', { assume: 'grace-gpu-c2c-bandwidth', refs: [ref('nvidia-grace-cpu-page', '"The Grace CPU Superchip is composed of two Grace CPUs connected coherently over NVIDIA NVLink-C2C at 900 GB/s" — Grace-to-Grace, not Grace-to-GPU'), ref('nvidia-grace-hopper-superchip', '"900 gigabytes per second (GB/s) of coherent interface" for the Grace-to-Hopper CPU-to-GPU link, one generation earlier')] }]] },
       { id: 'cx', title: 'SuperNICs', kicker: A.id === 'rubin' ? 'Eight per tray' : 'Four per tray',
         body: A.id === 'rubin' ? 'Two front networking assemblies carry eight ConnectX-9 SuperNICs in total. They provide the four GPUs with scale-out connectivity through the PCB midplane; the quoted per-GPU bandwidth is aggregate, not a count of physical NICs.' : `Four ${X.nic} interfaces carry the four GPUs’ scale-out traffic, allowing communication with other racks without passing through the CPU.`,
-        specs: (() => { const n = nicPerGpuEv(); return [['NIC', X.nic, n.basis, n.ev], ['Per GPU', X.nicNote, n.basis, n.ev]]; })() },
+        specs: (() => { const n = nicPerGpuEv(); return [['NIC', X.nic, n.basis, n.ev], ['Per GPU', X.nicNote, n.basis, n.ev], ...(A.id === 'gb200' ? [gb200Retimers] : [])]; })() },
       // the tray's own modules: a single-port module per NIC port; the twin-port module that carries two of these
       // links sits at the switch end (the one opened up in the module diagram)
       { id: 'osfp', title: 'Optical modules', kicker: 'Electrons become light', drill: 6, trip: 'module',

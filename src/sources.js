@@ -487,7 +487,7 @@ export const PART_SOURCES = {
   'power:rack:manifold': [],
   'power:rack:pdu': [],
   'power:rack:servers': ['nvidia-dgx-h100', 'nvidia-h100-datasheet'],
-  'power:rack:psus': ['fs-com-dgx-h100'],
+  'power:rack:psus': ['fs-com-dgx-h100', 'semianalysis-gb200-hw'],
   'power:rack:cabling': [],
   'power:rack:mgmt': [],
 
@@ -554,7 +554,7 @@ export const PART_SOURCES = {
 
   'data:tray:nvconn': ['nvidia-gb200-nvl72'],
   'data:tray:c2c': ['nvidia-gb200-nvl72', 'naddod-gb200-interconnect'],
-  'data:tray:cx': ['nvidia-dsx-data-center-architecture', 'nvidia-coreweave-gb200-400g', 'nvidia-connectx8-datasheet', 'fs-com-dgx-h100'],
+  'data:tray:cx': ['nvidia-dsx-data-center-architecture', 'nvidia-coreweave-gb200-400g', 'nvidia-connectx8-datasheet', 'fs-com-dgx-h100', 'semianalysis-gb200-hw'],
   // inside the links: one diagram each for the module, the CPO package, the coherent module and the copper cables
   'power:hall:optics': ['osfp-msa'],
   'power:module:fingers': ['osfp-msa', 'ascentoptics-osfp-form-factor'],
