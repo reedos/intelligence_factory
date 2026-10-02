@@ -18,6 +18,8 @@ const VP = {
 const STATES = {
   explore: async p => { await p.evaluate(() => ifx.go(2)); },
   side: async p => { await p.evaluate(() => ifx.go(6)); },
+  // the CPO package, its engine toggle on the widest view
+  cpo: async p => { await p.evaluate(() => { ifx.go(7); ifx.setCpoVariant?.('mzm'); }); },
   clock: async p => { await p.evaluate(() => { ifx.go(1); document.getElementById('clock-btn').click(); }); },
   // the visualizer page has no hero button: start the overview through the player, then play it
   tour: async p => { await p.evaluate(() => { const h = document.getElementById('story-hero-play'); if (h) h.click(); else { window.ifx.enterStory('story'); document.getElementById('tour-play').click(); } }); },
@@ -41,7 +43,7 @@ const measure = () => {
   const named = [
     ['top bar', '.topbar'], ['scale tabs', '.steps'], ['title', '.hud.tl'], ['layer switch', '.hud.tr .mode'], ['view buttons', '.hud-row'], ['key hints', '.hint'],
     ['scale bar', '.hud.bl'], ['legend', '.hud.br'], ['clock', '#clock'], ['transport', '.transport'], ['tour picker', '.tour-pick'],
-    ['tally', '#tally'], ['beat', '.beat.on'], ['part card', '#card'],
+    ['tally', '#tally'], ['beat', '.beat.on'], ['part card', '#card'], ['engine toggle', '#cpo-variant'],
   ];
   // a beat's box can reach under the sticky head while its words sit clear; judge the words
   const inked = el => { const r = vis(el); if (!r || !el.matches('.beat')) return r; const k = [...el.children].map(c => c.getBoundingClientRect()).filter(c => c.height);
@@ -90,7 +92,7 @@ for (const form of forms) {
     await p.waitForFunction(() => window.ifx && ifx.state.scene === 0, null, { timeout: 90000 });
     await p.evaluate(() => document.querySelector('.stage').scrollIntoView());
     // tours and the clock left the visualizer (Reed, 09/2026); their states run only on a page that still has them
-    const offered = await p.evaluate(n => ['explore', 'side'].includes(n) || (n === 'clock' ? !!document.getElementById('clock-btn') : typeof window.ifx.enterStory === 'function'), name);
+    const offered = await p.evaluate(n => ['explore', 'side', 'cpo'].includes(n) || (n === 'clock' ? !!document.getElementById('clock-btn') : typeof window.ifx.enterStory === 'function'), name);
     if (!offered) { console.log(`${form} ${name}: not on this page, skipped`); await p.close(); continue; }
     await run(p);
     await p.waitForTimeout(+process.env.WAIT || 6000);

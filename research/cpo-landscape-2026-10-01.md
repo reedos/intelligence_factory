@@ -239,3 +239,76 @@ differ: separate driver and TIA chips (Marvell 2021), driver and TIA functions o
 - Ciena's completion of the Nubis deal (10/07/2025): search results only.
 - NVIDIA's earlier "Quantum-X Photonics commercially available early 2026" statements: search results only.
 - Lightmatter L200 shipping status in 2026: not found.
+
+## Engine views on the CPO level (toggle, 10/01/2026)
+
+Reed approved a toggle on "Inside the CPO package" that redraws the 18 engines three ways; the package and
+every count stay NVIDIA's. Sources below were opened in Chrome (Playwright, channel 'chrome') on 10/01/2026;
+quotes are exact.
+
+### Ring, stacked (NVIDIA-style): partition upgraded to Reported
+
+30. **Co-Packaged Optics (CPO) Book – Scaling with Light for the Next Wave of Interconnect** — SemiAnalysis
+    (Dylan Patel, Daniel Nishball, Myron Xie and others), 01/01/2026,
+    https://newsletter.semianalysis.com/p/co-packaged-optics-cpo-book-scaling — secondary; paid post, the
+    free part read (already `semianalysis-cpo-newsletter`, title and date corrected).
+    - Quantum-X Photonics section: "Each optical engine integrates a Photonic Integrated Circuit (PIC) built on a mature N65 process node, and an Electronic Integrated Circuit (EIC) fabricated on an advanced N6 node. ... In contrast, the EIC includes drivers, TIAs, and control logic, which benefit significantly from higher transistor density and improved power efficiency enabled by advanced nodes."
+    - Same section: "on the optical side, 8 Micro-Ring Modulators (MRMs) use PAM4 modulation to achieve 200G per modulator" (the article does state NVIDIA's modulator type; the site keeps citing NVIDIA's own blog for the rings).
+    - TSMC COUPE section, Die fabrication: "The EIC is manufactured on the N7 node, integrating high-speed optical modulator drivers and TIAs."
+    - "Ayar Labs, who has previously relied on Global Foundries’ Fotonix platform for monolithic optical engines, now also has COUPE on their roadmap."
+    - Modulators: Mach-Zehnder "Large form factor with dimensions measured in millimeter scale for length (compared to MRM in micron scale), since they require two waveguide arms and a combining region"; rings "The are extremely compact (scale in the tens of microns)" [sic].
+    - Power: "While an 800G DR4 optical transceiver consumes about 16-17W, we estimate that the optical engine together with external laser sources used in Nvidia’s Q3450 CPO switch consume about 4-5W per 800G of bandwidth, a 73% reduction in power." (Meta's ECOC 2025 Bailly figure, 65%, is also in the article; the site already cites Broadcom's own 65 percent.)
+    - Site: the driver/TIA partition is now a Reported row ("Engine partition, as reported"); the eight-driver,
+      eight-TIA floorplan stays Assumed (`cpo-circuit-partition`, retitled "CPO electronic die floorplan, as drawn").
+
+### Mach-Zehnder, stacked (Broadcom-style, as reported)
+
+- Re-opened the Tencent write-up (item 28). Beyond the partition it describes the transmit drive: a CDR that
+  "对来自主机的输入数据进行重定时和串并转换" (retimes and deserializes the host's data), a TX DSP feeding the MZM driver,
+  and "3个驱动器分段——第一个分段分配给LSB，后两个分配给MSB" (three driver segments: the first for the LSB, the
+  other two for the MSB). So the drawing uses **three electrode segments per modulator**, each with its own driver
+  pad, not one traveling-wave electrode. Receive: "TIA差分输出通过有机基板直接驱动主机交换ASIC" (the TIA output drives
+  the host switch ASIC directly through the organic substrate). Lanes: "64条106.25Gb/s PAM-4通道"; generation:
+  "用于51.2T交换". SemiAnalysis ISSCC (item 29): "The optical engines were tested in a Tomahawk 5 51.2T CPO system."
+- A paragraph on that page about silicon MZMs over 3 mm long and traveling-wave versus segmented designs belongs
+  to a different, linked article (a UC Berkeley/MediaTek/Ayar Labs coherent transmitter), not Broadcom's; not cited.
+
+### One die (Ranovus Odin / Ayar Labs TeraPHY-style)
+
+31. Ranovus (item 24), re-opened: "a groundbreaking monolithic Electronic and Photonic Integrated Circuit (EPIC)
+    platform"; "monolithic integration of silicon photonics, RF drivers, transimpedance amplifiers (TIA), and control
+    logic"; "patented silicon photonics-based Micro Ring Modulators (MRM)".
+32. Ayar Labs 2020 release (item 18), re-opened: "patented monolithic electronic/photonic solution"; CEO: "Ayar Labs
+    has been perfecting our micro-ring based monolithic electronic/photonic solution for nearly a decade."
+33. **Ayar Labs prepares to fulfil its optical input-output (I/O) vision** — Gazettabyte, 01/08/2026,
+    https://gazettabyte.com/ayar-labs-prepares-to-fulfil-its-optical-input-output-i-o-vision/ — secondary. Opened.
+    - "The 8Tbps TeraPHY device is built using GlobalFoundries’ 45SPCLO 45nm silicon-photonics process"
+    - "But the design can also be migrated to TSMC’s more advanced CMOS nodes for the electrical IC while benefiting from TSMC’s silicon photonics and packaging flows."
+    - "using 16 silicon photonics micro-ring resonators, there are 16 wavelengths per fibre"
+    - Ayar Labs' own TeraPHY page (https://ayarlabs.com/teraphy/) was opened by a research pass and does not say
+      "single die" or "monolithic"; the wording "integrating both electrical and photonic circuits onto a single
+      die" was seen only in search summaries and is not cited.
+
+### Marvell: no fourth view
+
+34. **Marvell Demonstrates Industry’s First 200G 3D Silicon Photonics Engine to Scale Accelerated
+    Infrastructure** — Marvell, 03/25/2024,
+    https://www.marvell.com/company/newsroom/marvell-demonstrates-industrys-first-200g-3d-silicon-photonics-engine-to-scale-accelerated-infrastructure.html — primary, marketing. Opened.
+    - "the industry’s first highly integrated SiPho engine featuring 32 channels of 200G electrical and optical interfaces"
+    - "The Marvell 3D SiPho engine combines hundreds of components such as waveguides and modulators, photodetectors, modulator drivers, trans-impedance amplifiers, microcontrollers, and a host of other passive components into a single, unified device"
+    - "The SiPho Engine leverages advanced 3D packaging and other Marvell technologies to integrate hundreds of components into a single device."
+35. **Marvell Announces Breakthrough Co-Packaged Optics Architecture for Custom AI Accelerators** — Marvell,
+    01/06/2025, https://www.marvell.com/company/newsroom/marvell-co-packaged-optics-architecture-custom-ai-accelerators.html — primary, marketing. Opened.
+    - "The Marvell 6.4T 3D SiPho Engine is a highly integrated optical engine with 32 channels of 200G electrical and optical interfaces"
+36. Marvell's 11/03/2025 blog (item 13) names "four Marvell 6.4T light engines" per XPU and says nothing about
+    the engine's modulators or die stack.
+37. Marvell 2021 blog (item 23), re-opened: separate SiGe driver and TIA chips flip-chipped onto the silicon
+    photonics chip, in a two-wavelength 100G light engine that "shrinking the footprint of a QSFP-28 module into a
+    single integrated chip".
+- Decision: no fourth view. Marvell's current engine is documented only as 32 × 200G with modulators, drivers and
+  TIAs in "a single, unified device" with "advanced 3D packaging"; its modulator type and how its dies stack are not
+  published in anything opened. A SemiAnalysis-attributed "3D-stacked EIC ... 2-3 pJ/bit" sentence surfaced only in a
+  search summary and is not on the pages opened. The 2021 separate-chip engine predates the current one and was a
+  module-scale demonstrator, so drawing it as Marvell's CPO engine would mislabel it. The site carries a "Marvell’s
+  6.4T engine" row and a sentence on the ring view's electronic-chip card, and the `cpo-engine-variants`
+  assumption says why it is not drawn.

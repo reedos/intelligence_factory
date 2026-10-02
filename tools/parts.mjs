@@ -27,10 +27,15 @@ for (const s of combos) {
       await ifx.go(i, null, { force: true, keepCamera: true });
       await new Promise(r => { const t = () => (ifx.built[i] && ifx.built[i].model === ifx.store.M && ifx.state.scene === i ? r() : requestAnimationFrame(t)); t(); });
       const bb = ifx.built[i];
-      for (const m of ['power', 'data', 'heat']) {
-        const hs = { power: bb.hotspots, data: bb.dataHotspots, heat: bb.heatHotspots }[m] || {};
-        const list = (by[m][C.SCENES[i].id] || []).map(x => x.id);
-        out.push({ level: i + 1, mode: m, missing: list.filter(id => !hs[id]), extra: Object.keys(hs).filter(id => !list.includes(id)) });
+      // the CPO package draws its engines three ways; every view must pin every listed part
+      for (const variant of C.SCENES[i].id === 'cpo' && ifx.setCpoVariant ? ['ring', 'mzm', 'mono'] : [null]) {
+        if (variant) ifx.setCpoVariant(variant);
+        for (const m of ['power', 'data', 'heat']) {
+          const hs = { power: bb.hotspots, data: bb.dataHotspots, heat: bb.heatHotspots }[m] || {};
+          const list = (by[m][C.SCENES[i].id] || []).map(x => x.id);
+          out.push({ level: i + 1 + (variant && variant !== 'ring' ? ` (${variant})` : ''), mode: m, missing: list.filter(id => !hs[id] || !hs[id].pos?.every(Number.isFinite)), extra: Object.keys(hs).filter(id => !list.includes(id)) });
+        }
+        if (variant) ifx.setCpoVariant('ring');
       }
     }
     return { key, out };

@@ -512,7 +512,7 @@ onTick(dt => {
   }
 });
 // the reader looking around holds the tour; it carries on HOLD_MS after the last touch, drag or wheel
-const lookAround = e => { if (!e.target.closest?.('.story-head, .beat-acts, .pace-menu, #story-hero-play, #clock, #optics-variant')) hold(); };   // a tap on a control is not looking around
+const lookAround = e => { if (!e.target.closest?.('.story-head, .beat-acts, .pace-menu, #story-hero-play, #clock, #optics-variant, #cpo-variant')) hold(); };   // a tap on a control is not looking around
 for (const el of [panel, $('view')]) for (const ev of ['wheel', 'touchstart', 'touchmove', 'pointerdown', 'pointermove']) el?.addEventListener(ev, e => { if (ev !== 'pointermove' || e.buttons) lookAround(e); }, { passive: true });
 addEventListener('wheel', e => { if (narrow.matches) lookAround(e); }, { passive: true });
 addEventListener('touchmove', e => { if (narrow.matches) lookAround(e); }, { passive: true });

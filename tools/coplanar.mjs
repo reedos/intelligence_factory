@@ -16,6 +16,8 @@ const names = ['across', 'campus', 'hall', 'rack', 'tray', 'chip', 'module', 'cp
 for (let sc = 0; sc < 10; sc++) {   // six levels and the four side levels inside the links
   if (process.env.ONLY_SCENE && !process.env.ONLY_SCENE.split(',').includes(String(sc))) continue;
   await p.evaluate(i => window.ifx.go(i), sc); await p.waitForFunction(i => window.ifx.state.scene === i, sc);
+  for (const variant of sc === 7 && await p.evaluate(() => !!window.ifx.setCpoVariant) ? ['ring', 'mzm', 'mono'] : [null]) {
+  if (variant) await p.evaluate(v => { window.ifx.setCpoVariant(v); window.ifx.built[7].update(0, 0); }, variant);
   const res = await p.evaluate(() => {
     const w = window.ifx, B = w.built[w.state.scene], cam = B.camera;
     const d = Math.hypot(cam.pos[0] - cam.target[0], cam.pos[1] - cam.target[1], cam.pos[2] - cam.target[2]);
@@ -95,7 +97,9 @@ for (let sc = 0; sc < 10; sc++) {   // six levels and the four side levels insid
     hits.sort((a, c) => c.area - a.area);
     return { d: +d.toFixed(2), tol: +tol.toExponential(1), faces: faces.length, hits: hits.slice(0, 25) };
   });
-  console.log(`\n== ${names[sc]}: view distance ${res.d}, tol ${res.tol}, ${res.faces} axis faces, ${res.hits.length} overlap groups`);
+  console.log(`\n== ${names[sc]}${variant ? ` (${variant} engines)` : ''}: view distance ${res.d}, tol ${res.tol}, ${res.faces} axis faces, ${res.hits.length} overlap groups`);
   for (const h of res.hits) console.log(`  ${h.axis} @ ${h.plane}  area ${h.area}  at ${h.at}  ${h.mats}  [${h.names.join(', ')}]`);
+  }
+  if (sc === 7) await p.evaluate(() => window.ifx.setCpoVariant?.('ring'));
 }
 await b.close();

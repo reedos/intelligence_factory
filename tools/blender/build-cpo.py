@@ -41,7 +41,8 @@ def material(name, color, metal=0, rough=.4, alpha=1):
 
 # Materials named in UV_MATERIALS keep a 0-1 top-face UV; side-cpo-blender.js
 # paints their face textures at runtime (no embedded images in the GLB).
-UV_MATERIALS={'Electronic die face','Detail electronic die face','Detail EIC hybrid-bond face','Transmit ribbon','Receive ribbon','Switch ASIC silicon','Midnight laminate'}
+UV_MATERIALS={'Electronic die face','Detail electronic die face','Detail EIC hybrid-bond face','Transmit ribbon','Receive ribbon','Switch ASIC silicon','Midnight laminate',
+    'MZM electronic die face','Detail MZM electronic die face','Monolithic die face','Detail monolithic die face'}
 
 nickel = material('Satin nickel retainers', (.5,.57,.62), .82,.29)
 edge = material('Polished screw heads', (.68,.73,.76), .9,.22)
@@ -85,7 +86,16 @@ ringGlow = material('Ring modulator rim', (.37,.80,.90), 0,.25)
 # per-lane driver/TIA macros, die lettering) and its hybrid-bond underside.
 detailEic = material('Detail electronic die face', (.05,.06,.08), .35,.3)
 bondFace = material('Detail EIC hybrid-bond face', (.25,.18,.12), .6,.35)
-for m,k in [(ringGlow,3.0)]:
+# The other engine views (runtime paints their faces: cpo-variants.js eicMzmTex, monoFaceTex). The Mach-Zehnder
+# arms glow like the rings so the modulator reads at its hotspot; electrode segments are plated metal.
+mzmEicFace = material('MZM electronic die face', (.03,.045,.07), .1,.25)
+detailMzmEic = material('Detail MZM electronic die face', (.05,.06,.08), .35,.3)
+monoFace = material('Monolithic die face', (.03,.045,.07), .1,.25)
+detailMono = material('Detail monolithic die face', (.05,.06,.08), .35,.3)
+mzArm = material('Mach-Zehnder arm', (.37,.80,.90), 0,.25)
+electrode = material('Mach-Zehnder electrode', (.72,.55,.30), .85,.3)
+# The arms glow far less than the rings: sixteen long arms at the rings' strength bloomed into one white sheet.
+for m,k in [(ringGlow,3.0),(mzArm,.45)]:
     b=m.node_tree.nodes.get('Principled BSDF'); b.inputs['Emission Color'].default_value=m.diffuse_color; b.inputs['Emission Strength'].default_value=k
 vgroove = material('Fiber array V-groove block', (.04,.05,.06), .1,.35)
 lidGlass = material('Fiber array lid glass', (.6,.8,.95), 0,.05,.25)
@@ -102,7 +112,9 @@ red = material('Return coolant pipe', (.38,.07,.035), .38,.28)
 def group(name):
     o = bpy.data.objects.new(name, None); S.collection.objects.link(o); return o
 
-groups = {name: group(name) for name in ['CPO_BOARD','CPO_PACKAGE','CPO_RETAINERS','CPO_INTERFACES','CPO_ELS','CPO_COLDPLATE','CPO_DETAIL','CPO_DIES','CPO_CONDUCTORS','CPO_FIBERS']}
+VARIANTS=['ring','mzm','mono']
+groups = {name: group(name) for name in ['CPO_BOARD','CPO_PACKAGE','CPO_RETAINERS','CPO_INTERFACES','CPO_ELS','CPO_COLDPLATE','CPO_DETAIL','CPO_DIES','CPO_CONDUCTORS','CPO_FIBERS']
+    +[f'CPO_{k.upper()}_{part}' for k in VARIANTS for part in ['ENGINES','DETAIL']]}
 
 def world(p): return (p[0]*CM, -p[2]*CM, p[1]*CM)
 
@@ -353,47 +365,96 @@ for z in [-5.2,5.2]:
 for x in [-5.2,5.2]:
     for y in [.82,.94]:box('Substrate laminate',(x,y,0),(.012,.012,10.4),laminate,'CPO_PACKAGE',.002)
 
-def photonic_die(cx,cy,cz,scale,angle,exploded=False):
-    role='CPO_DETAIL' if exploded else 'CPO_DIES'
+# The engine toggle (Reed, 10/01/2026): three engine views share the package, the fibers and the photonic-die
+# frame (512 x 384 px, side-kit RING), and each draws its own dies in its own groups, which the runtime shows one at
+# a time. Layout numbers come from side-geometry.js through link-layout.json (CPO_MZM, CPO_MONO).
+#   ring  EIC stacked on a micro-ring PIC (NVIDIA-style, the original drawing)
+#   mzm   EIC stacked on a PIC with segmented Mach-Zehnder modulators (Broadcom-style, as reported)
+#   mono  one die: rings, photodiodes and the circuits beside them (Ranovus Odin / Ayar Labs TeraPHY-style)
+VAR=LAYOUT['variants']; MZ=VAR['mzm']; MO=VAR['mono']
+def photonic_die(cx,cy,cz,scale,angle,kind,exploded=False):
+    role=f'CPO_{kind.upper()}_DETAIL' if exploded else f'CPO_{kind.upper()}_ENGINES'
     pw,pd=1.35*scale,.95*scale
     def w(x,y,z):return(cx+x*math.cos(angle)-z*math.sin(angle),cy+y,cz+x*math.sin(angle)+z*math.cos(angle))
     def px(v):return -pw/2+v/512*pw
     def pz(v):return -pd/2+v/384*pd
-    box('Photonic PIC',w(0,0,0),(pw,.15 if exploded else .06,pd),detailPic if exploded else pic,role,.005*scale,angle)
-    ey=.95 if exploded else .073
-    # In the package the EIC sits back from the fiber edge so the photonic die's
-    # fiber-array landing shows, on a thin dark hybrid-bond line (representative).
-    ex0=0 if exploded else -.05
-    box('Electronic EIC',w(ex0,ey,0),(1.23*scale,.12 if exploded else .07,.902*scale),detailEic if exploded else eicFace,role,.005*scale,angle,uv_top=True)
-    if not exploded: box('Hybrid bond line',w(ex0,.0340,0),(1.21,.007,.88),bondLine,role,0,angle)
+    if kind=='mono':
+        # One die: no electronic chip on top. Its face is painted at runtime with the photonics and the driver and
+        # TIA circuits beside them (cpo-variants.js monoFaceTex); the packaged die is as tall as the stacked pair's PIC
+        # plus most of its EIC.
+        box('Monolithic engine die',w(0,0 if exploded else .02,0),(pw,.15 if exploded else .1,pd),detailMono if exploded else monoFace,role,.005*scale,angle,uv_top=True)
+    else:
+        box('Photonic PIC',w(0,0,0),(pw,.15 if exploded else .06,pd),detailPic if exploded else pic,role,.005*scale,angle)
+        ey=.95 if exploded else .073
+        # In the package the EIC sits back from the fiber edge so the photonic die's
+        # fiber-array landing shows, on a thin dark hybrid-bond line (representative).
+        ex0=0 if exploded else -.05
+        face={'ring':(detailEic,eicFace),'mzm':(detailMzmEic,mzmEicFace)}[kind]
+        box('Electronic EIC',w(ex0,ey,0),(1.23*scale,.12 if exploded else .07,.902*scale),face[0] if exploded else face[1],role,.005*scale,angle,uv_top=True)
+        if not exploded: box('Hybrid bond line',w(ex0,.0340,0),(1.21,.007,.88),bondLine,role,0,angle)
     if not exploded: return
-    # The underside: a hybrid-bond pad array (painted, representative pitch) on a
-    # thin face just below the die, seen when the exploded view is orbited low.
-    box('EIC hybrid-bond face',w(ex0,ey-.06,0),(1.21*scale,.004,.88*scale),bondFace,role,0,angle,uv_top=True,uv_face=2)
     top=.082;radius=.0045
-    path('CW bus',[w(px(512),top,pz(24)),w(px(24),top,pz(24)),w(px(24),top,pz(190))],radius,fiberCw,role)
+    # Upper bond pads hang just below the electronic die's hybrid-bond face (.888-.892), not flush with its top.
+    if kind!='mono':
+        # The underside: a hybrid-bond pad array (painted, representative pitch) on a
+        # thin face just below the die, seen when the exploded view is orbited low.
+        box('EIC hybrid-bond face',w(0,ey-.06,0),(1.21*scale,.004,.88*scale),bondFace,role,0,angle,uv_top=True,uv_face=2)
+    if kind=='ring':
+        path('CW bus',[w(px(512),top,pz(24)),w(px(24),top,pz(24)),w(px(24),top,pz(190))],radius,fiberCw,role)
+        for i in range(8):
+            row=50+i*20;rx=110+i*40;ringz=row-10
+            path('CW branch',[w(px(24),top,pz(row)),w(px(rx-14),top,pz(row))],radius,fiberCw,role)
+            path('TX waveguide',[w(px(rx-14),top,pz(row)),w(px(512),top,pz(row))],radius,fiberTx,role)
+            pts=[w(px(rx+6*math.cos(k*math.tau/32)),top,pz(ringz+6*math.sin(k*math.tau/32))) for k in range(33)]
+            tube('Ring modulator',pts,.0065,ringGlow,role,6)
+            # The ring's bond pad sits beside the ring at its center height (RING.bondAt in side-kit.js), clear of
+            # both its own waveguide and the previous lane's.
+            for bx,bz,br in [(px(rx+13),pz(ringz),.020)]:
+                for by in [.09,.875]:cylinder('Face bonding pad',w(bx,by,bz),br,.025,gold,role,12)
+    if kind=='mzm':
+        # Each lane: split, two long arms, rejoin. Three electrode segments lie between the arms; each segment's
+        # driver bond is a pad at its input end (three driver segments per modulator, as Broadcom's are reported).
+        path('CW bus',[w(px(512),top,pz(MZ['busY'])),w(px(MZ['manX']),top,pz(MZ['busY'])),w(px(MZ['manX']),top,pz(MZ['rows'][7]))],radius,fiberCw,role)
+        a=MZ['arm']
+        for row in MZ['rows']:
+            path('CW branch',[w(px(MZ['manX']),top,pz(row)),w(px(MZ['split']),top,pz(row))],radius,fiberCw,role)
+            for sgn in [-1,1]:
+                path('Mach-Zehnder arm',[w(px(MZ['split']),top,pz(row)),w(px(MZ['armIn']),top,pz(row+sgn*a)),w(px(MZ['armOut']),top,pz(row+sgn*a)),w(px(MZ['join']),top,pz(row))],radius,mzArm,role)
+            path('TX waveguide',[w(px(MZ['join']),top,pz(row)),w(px(512),top,pz(row))],radius,fiberTx,role)
+            for (s0,s1),pad in zip(MZ['segs'],MZ['pads']):
+                box('Mach-Zehnder electrode segment',w(px((s0+s1)/2),.078,pz(row)),((s1-s0)/512*pw,.006,MZ['segW']/384*pd),electrode,role,0,angle)
+                for by in [.09,.875]:cylinder('Face bonding pad',w(px(pad),by,pz(row)),.020,.025,gold,role,12)
+    if kind=='mono':
+        path('CW bus',[w(px(512),top,pz(MO['busY'])),w(px(MO['manX']),top,pz(MO['busY'])),w(px(MO['manX']),top,pz(MO['rows'][7]))],radius,fiberCw,role)
+        for row,(rx,ringz) in zip(MO['rows'],MO['rings']):
+            path('CW branch',[w(px(MO['manX']),top,pz(row)),w(px(rx-14),top,pz(row))],radius,fiberCw,role)
+            path('TX waveguide',[w(px(rx-14),top,pz(row)),w(px(512),top,pz(row))],radius,fiberTx,role)
+            r=MO['ringR'];pts=[w(px(rx+r*math.cos(k*math.tau/32)),top,pz(ringz+r*math.sin(k*math.tau/32))) for k in range(33)]
+            tube('Ring modulator',pts,.0065,ringGlow,role,6)
     for i in range(8):
-        row=50+i*20;rx=110+i*40;ringz=row-10;rxrow=214+i*20
-        path('CW branch',[w(px(24),top,pz(row)),w(px(rx-14),top,pz(row))],radius,fiberCw,role)
-        path('TX waveguide',[w(px(rx-14),top,pz(row)),w(px(512),top,pz(row))],radius,fiberTx,role)
-        pts=[w(px(rx+6*math.cos(k*math.tau/32)),top,pz(ringz+6*math.sin(k*math.tau/32))) for k in range(33)]
-        tube('Ring modulator',pts,.0065,ringGlow,role,6)
+        rxrow=214+i*20
         path('RX waveguide',[w(px(512),top,pz(rxrow)),w(px(90),top,pz(rxrow))],radius,fiberRx,role)
         box('Photodiode',w(px(77),top,pz(rxrow)),(26/512*pw,.012,12/384*pd),tia,role,.004,angle)
-        # The ring's bond pad sits beside the ring at its center height (RING.bondAt in side-kit.js), clear of
-        # both its own waveguide and the previous lane's.
-        for bx,bz,br in [(px(rx+13),pz(ringz),.020),(px(77),pz(rxrow),.033)]:
-            for by in [.09,.88]:cylinder('Face bonding pad',w(bx,by,bz),br,.025,gold,role,12)
+        if kind!='mono':
+            for by in [.09,.875]:cylinder('Face bonding pad',w(px(77),by,pz(rxrow)),.033,.025,gold,role,12)
+    # A stub of package trace into the die that holds the circuits: the EIC, or the one die itself.
+    ex,ty=(-pw/2,.08) if kind=='mono' else (-1.23*scale/2,.95)
+    for j in range(6):box('Detail electrical trace',w(ex-.8,ty,-.55+j*.22),(1.6,.01,.05),traceCu,role,.002,angle)
+
+def detail_fibers(cx,cy,cz,scale,angle):
+    # Shared by every engine view: the fiber attach and its 18 fibers stay in place.
+    role='CPO_DETAIL'; pw,pd=1.35*scale,.95*scale
+    def w(x,y,z):return(cx+x*math.cos(angle)-z*math.sin(angle),cy+y,cz+x*math.sin(angle)+z*math.cos(angle))
+    def pz(v):return -pd/2+v/384*pd
     box('Glass fiber attach',w(pw/2+.2,.1,0),(.4,.4,pd-.2),glass,role,.01,angle)
     for i in range(8):
         for ry,zz,m in [(.1,pz(50+i*20),fiberTx),(.14,pz(214+i*20),fiberRx)]:
             path('Detail fiber',[w(pw/2+.4,ry,zz),w(pw/2+2.6,ry,zz)],.02,m,role)
     for d in [-.07,.07]:path('Detail laser fiber',[w(pw/2+.4,.1,pz(24)+d),w(pw/2+2.6,.1,pz(24)+d)],.02,fiberCw,role)
-    for j in range(6):box('Detail electrical trace',w(-1.23*scale/2-.8,.95,-.55+j*.22),(1.6,.01,.05),traceCu,role,.002,angle)
 
 for i,(e,conn) in enumerate(zip(LAYOUT['engines'],LAYOUT['connectors'])):
     x,z=e['x'],e['z'];out,tan=e['out'],e['tan'];angle=e['rot']
-    photonic_die(x,1.65,z,1,angle)
+    for kind in VARIANTS: photonic_die(x,1.65,z,1,angle,kind)
     # Fiber-array unit (representative): a V-groove block holds each lane under
     # a clear lid, epoxied to the photonic die's edge.
     def fp(r,t,y): return (x+out[0]*r+tan[0]*t,y,z+out[1]*r+tan[1]*t)
@@ -423,7 +484,8 @@ for i,(e,conn) in enumerate(zip(LAYOUT['engines'],LAYOUT['connectors'])):
     box('Connector strain relief boot',cp(.22,0,1.2),(.08,.13,.66),boot,'CPO_INTERFACES',.02,angle)
     for t in [-.4,.4]: segment('Connector guide pin',cp(.17,t,1.2),cp(.3,t,1.2),.035,pinSteel,'CPO_INTERFACES',8)
 
-photonic_die(-11.4,1.4,-8.4,2.5,math.pi,True)
+for kind in VARIANTS: photonic_die(-11.4,1.4,-8.4,2.5,math.pi,kind,True)
+detail_fibers(-11.4,1.4,-8.4,2.5,math.pi)
 for i in range(5):box('Laser aperture',(7.24,1.5,-4.4+i*2.2),(.04,.18,.5),fiberCw,'CPO_ELS',.004)
 for x,m in [(-1.4,blue),(1.4,red)]:cylinder('Coolant pipe',(x,5.5,-4.2),.28,2.6,m,'CPO_COLDPLATE')
 
@@ -447,12 +509,12 @@ for parent in groups.values():
         bpy.context.object.name=parent.name+'__'+matname
 root=group('IFX_CPO_HARDWARE')
 for o in groups.values():o.parent=root
-root['ifx']=json.dumps({'version':5,'units':'m','coordinates':'gltf-root-rest','representative':True,
+root['ifx']=json.dumps({'version':6,'units':'m','coordinates':'gltf-root-rest','representative':True,
     'engineCount':len(LAYOUT['engines']),'subassemblyCount':len(LAYOUT['subassemblies']),
     'interposerCm':[9.0,.1,9.0], 'interposerCenterCm':[0,1.45,0],
     'enginesCm':[[e['x'],1.65,e['z']] for e in LAYOUT['engines']],
     'scope':'all static physical geometry; runtime owns animated overlays, labels and selection guides',
-    'physicalMeshes':'Blender authored', 'fiberRoutesCm':LAYOUT['fiberRoutes'], 'detailRingCount':8,'txFibersPerEngine':8,'rxFibersPerEngine':8,'laserFibersPerEngine':2})
+    'physicalMeshes':'Blender authored', 'fiberRoutesCm':LAYOUT['fiberRoutes'], 'detailRingCount':8,'engineVariants':VARIANTS,'variantGroups':{k:[f'CPO_{k.upper()}_ENGINES',f'CPO_{k.upper()}_DETAIL'] for k in VARIANTS},'txFibersPerEngine':8,'rxFibersPerEngine':8,'laserFibersPerEngine':2})
 out=ROOT/'public/models/cpo-hardware.glb'; out.parent.mkdir(parents=True,exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=str(HERE/'cpo-hardware.blend'))
 bpy.ops.export_scene.gltf(filepath=str(out),export_format='GLB',export_extras=True,export_yup=True,export_cameras=False,export_lights=False)

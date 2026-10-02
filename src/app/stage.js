@@ -64,7 +64,7 @@ if (!['native', 'original'].includes(new URLSearchParams(location.search).get('m
   coherentBuilder = links.coherentBuilder; copperBuilder = links.copperBuilder;
 }
 const BUILDERS = [across, campus, hall, rackBuilder, trayBuilder, chipBuilder, moduleBuilder, cpoBuilder, coherentBuilder, copperBuilder];
-export const MAIN_LEVELS = 6, MODULE_LEVEL = 6;
+export const MAIN_LEVELS = 6, MODULE_LEVEL = 6, CPO_LEVEL = 7;
 export const isSide = i => i >= MAIN_LEVELS;
 // how the reader entered the side levels: the level, the door part and the layer, restored by Back out. A link opened
 // straight into a side level has none, and Back out goes to the level that holds that diagram instead.
@@ -76,8 +76,27 @@ export const drillOf = p => p?.drill === 'out' ? backTarget() : p?.drill;
 // the pluggable module inside the optics: full DSP, half-retimed (LRO: DSP on transmit only) or no DSP (LPO); a view of
 // the module only, since the fabric this scenario counts still uses DSP modules
 let moduleVariant = 'dsp';
-// tours always narrate the DSP module, so entering one puts the view back on it
-export function resetVariant() { if (moduleVariant !== 'dsp') { moduleVariant = 'dsp'; applyVariant(); } }
+// the CPO package's engines: ring modulators under a stacked electronic die (NVIDIA-style), Mach-Zehnder modulators
+// under one (Broadcom-style, as reported) or one die holding both (Ranovus Odin / Ayar Labs-style); a view of the
+// engines only, since the package and its counts stay NVIDIA's (scenes/cpo-variants.js)
+let cpoVariant = 'ring';
+// tours always narrate the DSP module and the ring engines, so entering one puts both views back
+export function resetVariant() {
+  if (moduleVariant !== 'dsp') { moduleVariant = 'dsp'; applyVariant(); }
+  if (cpoVariant !== 'ring') { cpoVariant = 'ring'; applyCpoVariant(); }
+}
+function applyCpoVariant() {
+  built[CPO_LEVEL]?.variant?.set?.(cpoVariant);
+  document.querySelectorAll('[data-cpo-variant]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cpoVariant === cpoVariant)));
+  if (ui.scene === CPO_LEVEL && built[CPO_LEVEL]) {
+    buildPanel(CPO_LEVEL);
+    if (ui.selected) select(ui.selected, false);
+    emit('module-variant');
+  }
+}
+export function setCpoVariant(kind) { cpoVariant = kind; applyCpoVariant(); }
+export const cpoVariantNow = () => cpoVariant;
+document.querySelectorAll('[data-cpo-variant]').forEach(b => b.addEventListener('click', () => setCpoVariant(b.dataset.cpoVariant)));
 function applyVariant() {
   const v = built[MODULE_LEVEL]?.variant;
   if (v?.set) v.set(moduleVariant); else v?.setLpo?.(moduleVariant === 'lpo');
@@ -1052,6 +1071,7 @@ function buildPanel(i) {
   }
   $('hud-title').textContent = s.side ? s.title : `${s.n}. ${s.title}`;
   $('optics-variant').hidden = i !== MODULE_LEVEL;
+  const cpoToggle = $('cpo-variant'); if (cpoToggle) cpoToggle.hidden = i !== CPO_LEVEL;
   // Back outside on every level below the top: a side level goes back the way the reader came in, a main level to
   // the one above it
   const back = $('back-out'); back.hidden = i <= 0;
@@ -1309,6 +1329,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
     }
   }
   if (i === MODULE_LEVEL) applyVariant();
+  if (i === CPO_LEVEL) built[CPO_LEVEL]?.variant?.set?.(cpoVariant);
   buildPanel(i);
   renderSteps();
   applyTier(i);

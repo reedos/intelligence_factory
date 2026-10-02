@@ -2,7 +2,8 @@
 // runtime signal paths, hotspots, labels and schematic registration guides.
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { build as buildDiagram } from './side-cpo.js';
-import { engineLayout } from './side-geometry.js';
+import { engineLayout, CPO_VARIANTS } from './side-geometry.js';
+import { eicMzmTex, monoFaceTex } from './cpo-variants.js';
 import { THREE, label, note, eicTex, eicBondTex } from './side-kit.js';
 import { directLink } from './link-art-direction.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
@@ -10,7 +11,7 @@ import { attachFlowRibbons } from '../flow-ribbons.js';
 let source, pending;
 export function preload() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=21`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=22`)
     .then(gltf => { source = gltf.scene; return source; })
     .catch(error => { pending = undefined; throw error; });
 }
@@ -98,6 +99,7 @@ export function build(args) {
   });
   const engines = engineLayout();
   if (meta?.units !== 'm' || meta.engineCount !== engines.length || meta.subassemblyCount !== 6
+    || String(meta.engineVariants) !== String(CPO_VARIANTS)
     || engines.some((e,i)=>Math.abs(meta.enginesCm[i][0]-e.x)>1e-5 || Math.abs(meta.enginesCm[i][1]-1.65)>1e-5 || Math.abs(meta.enginesCm[i][2]-e.z)>1e-5)) {
     throw new Error('CPO asset does not match the technical layout');
   }
@@ -112,11 +114,19 @@ export function build(args) {
       const m = node.material; m.map = boardFace(); m.bumpMap = m.map; m.bumpScale = .6; m.color.set(0xffffff); m.needsUpdate = true;
     }
   });
-  const eicMap = eicTex();
+  // The engine views' faces: the ring view's EIC, the Mach-Zehnder view's EIC (its driver blocks over the electrode
+  // segments) and the one-die view's face (photonics and circuits side by side). One texture each, shared by the 18
+  // packaged engines and the exploded detail.
+  const eicMap = eicTex(), faceMaps = {
+    'Electronic die face': eicMap, 'Detail electronic die face': eicMap,
+    'MZM electronic die face': eicMzmTex(), 'Monolithic die face': monoFaceTex(),
+  };
+  faceMaps['Detail MZM electronic die face'] = faceMaps['MZM electronic die face'];
+  faceMaps['Detail monolithic die face'] = faceMaps['Monolithic die face'];
   asset.traverse(node => {
     const face = node.isMesh && node.material.name;
-    if ((face === 'Electronic die face' || face === 'Detail electronic die face') && !node.material.map) {
-      const m = node.material; m.map = eicMap; m.bumpMap = eicMap; m.bumpScale = .25; m.color.set(0xffffff); m.needsUpdate = true;
+    if (faceMaps[face] && !node.material.map) {
+      const m = node.material, map = faceMaps[face]; m.map = map; m.bumpMap = map; m.bumpScale = .25; m.color.set(0xffffff); m.needsUpdate = true;
     }
     if (face === 'Detail EIC hybrid-bond face' && !node.material.map) {
       node.material.map = eicBondTex(); node.material.color.set(0xffffff); node.material.needsUpdate = true;
@@ -218,7 +228,7 @@ export function build(args) {
     hasCovers: { value: true }, coverLabel: { value: 'cold plate' },
   });
   built.inspection.setCovers = value => { showPlate = !!value; syncPlate(); };
-  built.inspection.scope = 'Representative package and mechanics; six groups of three engines. Package layers and the cold plate are separated for inspection. Data and Power show the interposer in x-ray to expose buried electrical routes; it is not transparent silicon. Power shows the board and package ceramic in x-ray, with the ASIC partially translucent so its footprint and the schematic supply paths from below remain visible. TX/RX fibers continue outward to front-panel ports outside this diagram; separate lower amber fibers supply laser light. Fiber routing is representative, with surface coupling unfolded for clarity rather than a literal edge-coupled NVIDIA die. Heat view shows the cold plate and coolant pipes in x-ray so their internal flow is visible; the fin channels inside the plate are representative. Moving marks show direction, not lane counts, speed or watts. Electrical and heat motion across display gaps is schematic. The separate engine detail is enlarged 2.5×: its EIC/PIC faces are bonded in hardware, and its dashed leader identifies the enlarged engine.';
+  built.inspection.scope = 'Representative package and mechanics; six groups of three engines. Package layers and the cold plate are separated for inspection. Data and Power show the interposer in x-ray to expose buried electrical routes; it is not transparent silicon. Power shows the board and package ceramic in x-ray, with the ASIC partially translucent so its footprint and the schematic supply paths from below remain visible. TX/RX fibers continue outward to front-panel ports outside this diagram; separate lower amber fibers supply laser light. Fiber routing is representative, with surface coupling unfolded for clarity rather than a literal edge-coupled NVIDIA die. Heat view shows the cold plate and coolant pipes in x-ray so their internal flow is visible; the fin channels inside the plate are representative. Moving marks show direction, not lane counts, speed or watts. Electrical and heat motion across display gaps is schematic. The separate engine detail is enlarged 2.5×: its EIC/PIC faces are bonded in hardware, and its dashed leader identifies the enlarged engine. The engine toggle redraws only the 18 engines and the detail: ring modulators under a stacked electronic die (NVIDIA-style), segmented Mach-Zehnder modulators under one (Broadcom-style, as reported), or one die holding the drivers and TIAs beside the rings and photodiodes (Ranovus Odin / Ayar Labs-style); every floorplan is representative, and the package and its counts stay NVIDIA’s.';
   built.inspection.views = {
     diagram: { label: 'Complete diagram', ...built.camera },
     package: { label: 'Package', pos: [14, 18, 27], target: [1, 1.1, 0],
@@ -226,9 +236,27 @@ export function build(args) {
     detail: { label: 'Engine detail · 2.5×', pos: [-10.7, 8.2, 1.8], target: [-11.7, 1.9, -8.4],
       portrait: { pos: [-10.7, 11, 6], target: [-11.7, 1.9, -8.4] } },
   };
+  // Each engine view's authored dies, bonds, waveguides and electrode segments sit in its own two groups (packaged
+  // engines, exploded detail); the toggle shows one view's groups and the scene's own flows and captions follow.
+  const viewGroups = Object.fromEntries(CPO_VARIANTS.map(k => [k, meta.variantGroups[k].map(name => {
+    const group = asset.getObjectByName(name);
+    if (!group) throw new Error(`CPO asset is missing engine view group ${name}`);
+    return group;
+  })]));
+  const setNative = built.variant.set;
+  built.variant.set = next => {
+    setNative(next);
+    for (const k of CPO_VARIANTS) for (const group of viewGroups[k]) group.visible = k === built.variant.kind;
+    dirty = true;
+  };
+  built.variant.groups = viewGroups;
+  built.variant.set(built.variant.kind);
+  const viewSprites = built.scene.children.filter(o => o.isSprite && o.userData.cpoVariant);
   const update = built.update;
   built.update = (t, dt) => {
     const changed = update(t, dt); syncPlate();
+    // captions that name another engine view's chips stay hidden whatever the annotation setting
+    for (const sprite of viewSprites) if (!built.variant.spriteVisible(sprite)) sprite.visible = false;
     const moved = dirty; dirty = false; return moved || changed;
   };
   built.update(0, 0);
