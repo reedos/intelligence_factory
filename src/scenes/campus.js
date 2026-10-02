@@ -939,7 +939,10 @@ export function build({ quality, model }) {
   const built = {
     scene, flows,
     cinematography: { compactPins: true, views: {
-      campus: extra ? campusWide : { pos: [560, 240, 670], target: [-40, 10, -70], portrait: { pos: [650, 360, 780], target: [-60, 15, -50] } },
+      // Base (non-extra) scenario: pos/target keep their original offset (so the opening frame is
+      // unchanged) but orbit around the compound's bounding-box centre (the mean of overviewPoints'
+      // corners below, [-70, 25, -40]) instead of a hand-placed point near the halls.
+      campus: extra ? campusWide : { pos: [530, 255, 700], target: [-70, 25, -40], portrait: { pos: [640, 370, 790], target: [-70, 25, -40] } },
       infrastructure: extra
         ? { pos: [reach * 0.55, reach * 0.42, reach * 0.62], target: [reach * 0.3 - 300, 0, -120] }
         : { pos: [700, 470, 790], target: [-60, 18, -50], portrait: { pos: [1120, 930, 1400], target: [-60, 18, -50] } },
@@ -948,8 +951,8 @@ export function build({ quality, model }) {
     } },
     camera: extra
       ? { ...campusWide, near: 0.2, far: Math.max(9000, span * 6), min: 3, max: Math.max(2600, span * 3.2) }
-      : { pos: [560, 240, 670], target: [-40, 10, -70], near: 0.2, far: 9000, min: 3, max: 2600,
-        portrait: { pos: [650, 360, 780], target: [-60, 15, -50] } },
+      : { pos: [530, 255, 700], target: [-70, 25, -40], near: 0.2, far: 9000, min: 3, max: 2600,
+        portrait: { pos: [640, 370, 790], target: [-70, 25, -40] } },
     hotspots: {
       line: { pos: [-990, 50, towerZ], view: { pos: [-1100, 120, 40], target: [-800, 30, -150] } },
       substation: { pos: [-500, 22, -150], view: { pos: [-360, 120, 60], target: [-480, 5, -150] } },

@@ -137,9 +137,13 @@ export function build(args) {
     }
   });
   const built = buildDiagram({ ...args, authoredHardware: true, authoredAsicMaterial: asicMaterial });
-  // Include the entire off-package callout and its fiber ends at desktop widths.
-  built.camera.pos = [-1, 27, 32];
-  built.camera.target = [-1, 1, -2];
+  // Include the entire off-package callout and its fiber ends at desktop widths. pos keeps its
+  // original offset from target (so this opening frame is unchanged) but target now orbits the
+  // hardware's bounding-box centre (tools/orbit-center.mjs), not a hand-placed point beside it.
+  built.camera.pos = [-2.82, 27.17, 32.58];
+  built.camera.target = [-2.82, 1.17, -1.42];
+  // Phones inherit the native builder's portrait pos/target (side-cpo.js); recenter it the same way.
+  built.camera.portrait = { pos: [13.18, 29.47, 26.58], target: [-2.82, 1.17, -1.42] };
   built.scene.add(asset);
   // Notes for the inspection layers, one per design where they differ.
   const tagged = (k, ...a) => { const n = label(built.scene, ...a); n.userData.cpoVariant = k; return n; };

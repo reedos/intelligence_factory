@@ -3,17 +3,24 @@ import { componentView } from '../app/housing-frame.js';
 
 // Inspection regions are in each scene's own units (m, 10 cm, cm). Fit the
 // subject to the available canvas instead of applying blanket phone pullbacks.
+// componentView(focus, offset, size) sets pos = focus + offset and target = focus, so the first
+// argument is always the orbit pivot: the bounding-box centre of the level's hardware (measured
+// live with tools/orbit-center.mjs against the built scene, one accelerator at a time), not the
+// empty-frame aim point a hand-placed camera used before. The offset is the viewing direction and
+// distance from a previous pass and is left alone, so pos translates by the same amount as target
+// and the opening frame is unchanged; only the orbit pivot moves onto the hardware.
 export function frameCompute(built, kind, accel) {
   const h100 = accel === 'h100';
   if (kind === 'rack') {
-    built.camera = {...built.camera,pos:[2.8,2.4,3.7],target:[0,1.2,.28]};
+    // DGX H100 pulled-tray rack and NVL72 rack measure within 0.02 of each other; one pivot serves both.
+    built.camera = {...built.camera,pos:[2.8,3.12,3.42],target:[0,1.92,0]};
   } else if (kind === 'tray') {
-    built.camera = { ...built.camera, ...(h100 ? componentView([0, 1.5, -.2], [9.5, 4.4, 5.6], [4.9, 3.7, 9.6]) : componentView([0, .4, -.1], [7, 7, 9], [4.9, 1.3, 10.0])) };
+    built.camera = { ...built.camera, ...(h100 ? componentView([0, 2.1, -.38], [9.5, 4.4, 5.6], [4.9, 3.7, 9.6]) : componentView([0, .45, .03], [7, 7, 9], [4.9, 1.3, 10.0])) };
   } else if (kind === 'chip') {
-    built.camera = { ...built.camera, ...componentView([0, 2.5, 0], [9, 6, 11], [9.2, 5.0, 9.2]) };
+    built.camera = { ...built.camera, ...componentView([0, 1.64, 0], [9, 6, 11], [9.2, 5.0, 9.2]) };
     // The fit box stops just above the HBM tops (about 3.5 cm), so the exploded
     // stack fills the frame instead of leaving a band of empty space above it.
-    built.cameraByMode.power = { ...componentView([0, 2.0, 0], [10, 3.4, 12], [9.2, 4.0, 9.2]) };
+    built.cameraByMode.power = { ...componentView([0, 1.62, 0], [10, 3.4, 12], [9.2, 4.0, 9.2]) };
   }
   const rackSizes = {
     feed: [.55,.7,.45], shelves: [.55,.18,.30], busbar: [.18,1.15,.15],

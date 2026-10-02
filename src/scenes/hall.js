@@ -1146,19 +1146,22 @@ export function build({ quality, model }) {
 
   const built = {
     scene, flows,
-    // Desktop overview sits ~15% closer than before so the hall fills the frame; the target is offset
-    // right so the risers' pin clears the orbit-hint line at the top left.
-    camera: { pos: [40, 26, 37], target: [-2, 1.5, -4],
-      compact: { pos: [48, 31, 45], target: [-2, 1.5, -4] },
+    // Desktop overview sits ~15% closer than before so the hall fills the frame. Every variant below keeps
+    // its original pos-minus-target offset (so the opening frame is unchanged) but orbits around the hall's
+    // actual bounding-box centre (measured with tools/orbit-center.mjs: [-5.6, 3.94, 0], mesh union excluding
+    // the studio surround, rack-label sprites and the exact-route flow ribbons) instead of a hand-placed
+    // point. The hall's own footprint still keeps the risers' pin clear of the orbit-hint line in practice.
+    camera: { pos: [36.4, 28.44, 41], target: [-5.6, 3.94, 0],
+      compact: { pos: [44.4, 33.44, 49], target: [-5.6, 3.94, 0] },
       // Portrait looks steeply down the hall's diagonal so the 60 m hall fills the tall frame and the
       // power-room pins (1-4) separate from the data-hall ones instead of stacking in one cluster.
-      portrait: { pos: [42, 83, 33], target: [-8, 2.5, -4.5] },
+      portrait: { pos: [44.4, 84.44, 37.5], target: [-5.6, 3.94, 0] },
       near: 0.1, far: 2000, min: 0.6, max: 180 },
     // Phones, data layer: its 13 pins all sit in the data hall, eight of them within ~12 m of the front service
     // aisle, and the shared portrait view (which must also reach the power room) stacked them in one diagonal
     // clump. Looking steeply from the front wall lays the rows across the screen so each pin gets its own spot.
     // Phones only: with cameraByMode set, a layer switch re-opens that layer's overview, which desktop keeps as is.
-    ...(quality.mobile ? { cameraByMode: { data: { portrait: { pos: [5, 58, 36], target: [5, 1, 3] } } } } : {}),
+    ...(quality.mobile ? { cameraByMode: { data: { portrait: { pos: [-5.6, 60.94, 33], target: [-5.6, 3.94, 0] } } } } : {}),
     hotspots: {
       optics: opticsSpot,
       cpo: cpoSpot,
