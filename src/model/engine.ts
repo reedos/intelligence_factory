@@ -156,7 +156,7 @@ export function loopTemps(coolingId: CoolingId): Temps {
 // One physical port per NIC into a non-blocking fat tree; Rubin has two NICs per GPU.
 // gpuModuleW and portModuleW are per-port power allowances. Physical module
 // counts divide by the host/switch port grouping independently (H100 host OSFPs carry two).
-const FABRICS = {
+export const FABRICS = {
   400: { radix: 64, switchKW: 0.75, gpuModuleW: 9, portModuleW: 8.5, portsPerModule: 2, fibersPerLink: 8, switchName: 'Quantum-2, 64 × 400G' },
   800: { radix: 144, switchKW: 2.9, gpuModuleW: 17, portModuleW: 16.75, portsPerModule: 2,   // NVIDIA MMS4A00 1.6T twin-port: 33.5 W max, two ports
         fibersPerLink: 8, switchName: 'Quantum-X800, 144 × 800G' },

@@ -270,8 +270,11 @@ export function build({ quality, model, state = {} }) {
   // (MAP_CAMPUS local x -23.6, beam top 4.9)
   const gantry = ([x, z], k) => [x - 23.6 * k, 4.9 * k, z];
   // heat out of a campus is its power in: the scenario's meter for this campus, each real campus's own (sites.ts)
+  const powerDraw = [];
   const campus = ([x, z], main, watts, id) => {
     const k = main ? 1 : 0.85;
+    // the power layer's glow (src/power-glow.js): each campus hugged by its meter power, the heat streams' watts
+    powerDraw.push({ id, part: id, watts, at: [x, 0.2, z], size: [40 * k, 32 * k], margin: 36 });
     halos.push([x, z, (main ? 150 : 125) * k, main ? 1 : 0.8]);
     // Local heat rejection on exaggerated campus icons, not regional heat
     // transport, exhaust specifications or a quantified thermal simulation.
@@ -701,7 +704,7 @@ export function build({ quality, model, state = {} }) {
   const view = (x, z, d = 200) => ({ pos: [x + d * 0.3, d * 0.9, z + d * 1.1], target: [x, 0, z] });
   const siteSpots = Object.fromEntries(others.map(p => { const [x, z] = world(p.site.lon, p.site.lat); return [placeKey(p), { pos: [x, 12, z], view: view(x - 15, z, 300) }]; }));
   const built = {
-    scene, flows, dataFlows, heatFlows, layers: { power, data },
+    scene, flows, dataFlows, heatFlows, layers: { power, data }, powerDraw,
     look: { exposure: 1.0, bloom: 0.85, threshold: 0.92, ao: 0, env: 'night', envIntensity: 0.5 },
     camera: { pos: [hx - 220, 1380, hz + 1560], target: [hx - 60, 0, hz + 200], near: 1, far: 30000, min: 60, max: 6000 },
     hotspots: {

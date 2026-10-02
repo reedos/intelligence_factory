@@ -86,7 +86,7 @@ export const CPO_VARIANTS = ['ring', 'mzm'];
 const lanes8 = f => Array.from({ length: 8 }, (_, i) => f(i));
 const txRow = i => 50 + i * 20, rxRow = i => 214 + i * 20;
 // Each engine's photonic die, in package cm, and its drawing frame in px (one px scale per die, isotropic).
-export const CPO_DIE = { ring: { L: 1.35, W: .95, fw: 512, fh: 384 }, mzm: { L: 2.7, W: 1.0667, fw: 810, fh: 320 } };
+export const CPO_DIE = { ring: { L: 1.35, W: .95, fw: 512, fh: 384 }, mzm: { L: 1.6, W: 1.0, fw: 480, fh: 300 } };
 // The ring engine, as side-kit's RING draws it: one lane per fiber, each lane's ring above its own waveguide, the
 // eight in a straight row across the lanes with their drivers in a row above them, each bond pad beside its ring
 // (RING.bondAt); the photodiodes near the fiber edge, where the receive waveguides arrive, under their TIAs.
@@ -94,36 +94,42 @@ export const CPO_RING = {
   busY: 24, manX: 24, row: txRow, rxRow, pdX: 440, ringR: 6,
   ringX: _i => 200, ringZ: i => txRow(i) - 10, pad: i => [213, txRow(i) - 10],
 };
-// The Mach-Zehnder tile, frame 810 × 320 (2.7 × 1.07 cm): eight of the engine's 64 lanes, as two FR4 groups of four
-// wavelengths. Per group, a laser fiber enters at the fiber edge on its own bus, a wavelength demultiplexer at the
-// electrical end splits it into four lane branches; each lane splits into two arms, runs three electrode segments
-// alongside both arms under the electronic die (one segment for the PAM4 low bit, two for the high bit, as reported),
-// runs on past it with a bias heater on the upper arm and rejoins; a multiplexer near the fiber edge puts the
-// group's four lanes on one transmit fiber. Receive mirrors it: one fiber per group, a demultiplexer, four
-// photodiodes just inside the electronic die's outer edge, under their TIAs. Drawn arms are far shorter than a real
-// silicon Mach-Zehnder (millimeters) but many times a ring's size.
-const mzTx = i => [24, 40, 56, 72, 96, 112, 128, 144][i], mzRx = i => [178, 194, 210, 226, 250, 266, 282, 298][i];
+// The Mach-Zehnder tile, frame 480 × 300 (1.6 × 1.0 cm, about 2.2 : 1 with its connector, as in Broadcom's package
+// images): ALL 64 lanes each way of a 6.4 Tb/s engine, its sixteen 400G FR4 ports (16 × 4 lanes × 100 Gb/s per
+// direction). Transmit in the upper half: per FR4 group, laser light reaches a wavelength demultiplexer at the
+// electrical end, which feeds four lanes; each lane splits into two arms, runs three electrode segments along them
+// under the electronic die (one segment for the PAM4 low bit, two for the high bit, as reported), runs on past it with
+// a bias heater and rejoins; a multiplexer near the fiber edge puts the group's four lanes on one transmit fiber.
+// Receive in the lower half: one fiber per group, a demultiplexer, four photodiodes under their TIAs near the
+// electronic die's outer edge. Laser light enters on two fibers, each running to a trunk along the electrical end
+// that taps eight groups' demultiplexers (the laser fiber count and that split are representative, not published).
+// Drawn arms are representative in length (real silicon Mach-Zehnder modulators run millimeters).
+const MZ_LANES = 64, MZ_GROUPS = 16, MZ_PITCH = 2, MZ_GROUP = 8.5;
+const mzTx0 = g => 11 + g * MZ_GROUP, mzRx0 = g => 155 + g * MZ_GROUP;
+const mzTx = i => mzTx0(i >> 2) + (i & 3) * MZ_PITCH, mzRx = i => mzRx0(i >> 2) + (i & 3) * MZ_PITCH;
+const lanesN = (n, f) => Array.from({ length: n }, (_, i) => f(i));
+const groupBox = (x0, x1, y0) => [x0, y0 - .8, x1, y0 + 3 * MZ_PITCH + .8];
 export const CPO_MZM = {
-  row: mzTx, rxRow: mzRx, pdX: 300,
-  lasers: [10, 160], txOut: [48, 120], rxIn: [202, 274],             // per FR4 group: laser bus, transmit fiber, receive fiber rows
-  demux: [[30, 4, 60, 78], [30, 88, 60, 166]],                        // the laser wavelength demultiplexers, one per group
-  mux: [[730, 18, 770, 78], [730, 90, 770, 150]],                     // transmit multiplexers
-  rxDemux: [[730, 172, 770, 232], [730, 244, 770, 304]],              // receive demultiplexers
-  split: 150, armIn: 166, armOut: 690, join: 708, arm: 3, strip: 5.5, stripW: 1.4, segments: 3,
-  heater: [560, 640], seg: k => [170 + 52 * k, 216 + 52 * k], pad: k => 178 + 52 * k,
-  // through-silicon via columns drawn in the detail (representative): under the electronic die, between the laser
-  // demultiplexers and the splitters, midway between waveguide rows and clear of the laser buses
-  tsvX: [100, 120], tsvZ: [32, 64, 104, 136, 186, 218, 258, 290],
+  lanes: MZ_LANES, groups: MZ_GROUPS, perGroup: 4, pitch: MZ_PITCH,
+  row: mzTx, rxRow: mzRx, pdX: 170, pdW: 8, pdH: 1.4,
+  lasers: [3, 149], trunkX: 8, feed: g => (g < MZ_GROUPS / 2 ? 0 : 1),           // two laser buses, eight groups each
+  txOut: g => mzTx0(g) + 1.5 * MZ_PITCH, rxIn: g => mzRx0(g) + 1.5 * MZ_PITCH,  // per FR4 group: its transmit and receive fiber rows
+  demux: g => groupBox(12, 20, mzTx0(g)), mux: g => groupBox(440, 452, mzTx0(g)), rxDemux: g => groupBox(440, 452, mzRx0(g)),
+  split: 26, armIn: 30, armOut: 380, join: 384, arm: .6, elecW: 1.6, segments: 3,
+  heater: [290, 330], seg: k => [36 + 40 * k, 72 + 40 * k], pad: k => 40 + 40 * k, coupler: [468, 478],
+  // through-silicon via columns drawn in the detail (representative): under the electronic die, in the receive half
+  // short of the photodiodes, where no waveguide runs, clear of the laser bus and trunk
+  tsvX: [60, 90, 120], tsvZ: [166, 196, 226, 256, 282],
 };
 // The electronic die of each design, as a rect in its photonic frame: the ring's covers the die but for the fiber
 // landing (1.23 × 0.902 cm, set back 0.5 mm from the fiber edge); the Mach-Zehnder tile's covers only the electrical
 // end, over the electrode segments and the photodiodes, so the arms show past it.
-export const CPO_EIC = { ring: [3.8, 9.7, 470.3, 374.3], mzm: [10, 6, 340, 314] };
+export const CPO_EIC = { ring: [3.8, 9.7, 470.3, 374.3], mzm: [4, 4, 200, 296] };
 // Where each design's driver and TIA blocks sit, in its frame: centered on the modulator they drive (the ring; the
 // middle of the Mach-Zehnder electrode run, which its block spans) and on their photodiode.
 export const cpoBlocks = kind => kind === 'ring'
   ? { drivers: lanes8(i => [CPO_RING.ringX(i), CPO_RING.ringZ(i)]), tias: lanes8(i => [CPO_RING.pdX, rxRow(i)]) }
-  : { drivers: lanes8(i => [(CPO_MZM.seg(0)[0] + CPO_MZM.seg(CPO_MZM.segments - 1)[1]) / 2, mzTx(i)]), tias: lanes8(i => [CPO_MZM.pdX, mzRx(i)]) };
+  : { drivers: lanesN(MZ_LANES, i => [(CPO_MZM.seg(0)[0] + CPO_MZM.seg(CPO_MZM.segments - 1)[1]) / 2, mzTx(i)]), tias: lanesN(MZ_LANES, i => [CPO_MZM.pdX, mzRx(i)]) };
 // A frame px to the engine's local frame (package cm; the detail scales by s): x along the engine (fiber edge +).
 export const frameToLocal = (kind, px, py, s = 1) => { const d = CPO_DIE[kind]; return [(-d.L / 2 + px / d.fw * d.L) * s, (-d.W / 2 + py / d.fh * d.W) * s]; };
 // An electronic die rect as a box in the engine's local frame: center along x and z, width along x, depth along z.
@@ -134,9 +140,12 @@ export function eicBox(kind, s = 1) {
 }
 // ---- the Broadcom-style package: eight radial tiles, two per side ----
 // Short edge at the switch chip, fiber connector (Broadcom Fiber Connector, BFC) at the outer end. Tiles on a side
-// sit 2 cm apart, clear of the corner tiles of the next side; their inner ends leave a 4.5 mm band for the package
+// sit 2 cm apart, clear of the corner tiles of the next side; their inner ends leave an 8 mm band for the package
 // traces from the switch chip's SerDes edge. The tile order sets laser-fiber elevations, as for the ring engines.
-export const BAILLY = { n: 8, rIn: 1.65, conn: [4.35, 4.95], t: 1.0, connH: .3 };
+const BAILLY_IN = 2.0, BAILLY_CONN = .6;
+export const BAILLY = { n: 8, rIn: BAILLY_IN, conn: [BAILLY_IN + CPO_DIE.mzm.L, BAILLY_IN + CPO_DIE.mzm.L + BAILLY_CONN], t: 1.0, connH: .3,
+  // the exploded detail of one tile: its scale and center (the die drawn 3.5x, so the 64 lanes' pitch reads)
+  detail: { s: 3.5, DX: -12.2, DY: 1.4, DZ: -8.4 } };
 export function baillyLayout() {
   const { L, W } = CPO_DIE.mzm, list = [];
   for (const side of [1, 3, 0, 2]) for (const t of [-BAILLY.t, BAILLY.t]) {
@@ -164,7 +173,7 @@ export function baillyFiberRoutes(e, i) {
     if (side !== 0) pts.push([r, y, lz]);
     if (side === 1 || side === 3) pts.push([r, y, side === 3 ? -r : r]);
     if (side === 2) pts.push([r, y, r], [-r, y, r]);
-    pts.push(end, point(rc + .6, 1.3, t), point(rc, 1.52, t));
+    pts.push(end, point(Math.max(rc + .6, 5.5), 1.3, t), point(rc, 1.52, t));   // lift clear of the package edge (5.2)
     return pts;
   });
   return { tx: data.slice(0, 16), rx: data.slice(16), cw };
@@ -177,9 +186,11 @@ export function cpoVariantLayout() {
     die: CPO_DIE, eic: CPO_EIC,
     ring: { busY: R.busY, manX: R.manX, rows: lanes8(R.row), rxRows: lanes8(R.rxRow), pdX: R.pdX, ringR: R.ringR,
       rings: lanes8(i => [R.ringX(i), R.ringZ(i)]), pads: lanes8(R.pad) },
-    mzm: { rows: lanes8(M.row), rxRows: lanes8(M.rxRow), pdX: M.pdX, lasers: M.lasers, txOut: M.txOut, rxIn: M.rxIn,
-      demux: M.demux, mux: M.mux, rxDemux: M.rxDemux, split: M.split, armIn: M.armIn, armOut: M.armOut, join: M.join,
-      arm: M.arm, strip: M.strip, stripW: M.stripW, heater: M.heater, tsvX: M.tsvX, tsvZ: M.tsvZ,
+    mzm: { rows: lanesN(M.lanes, M.row), rxRows: lanesN(M.lanes, M.rxRow), pdX: M.pdX, pdW: M.pdW, pdH: M.pdH, lasers: M.lasers, trunkX: M.trunkX,
+      feeds: lanesN(M.groups, M.feed), txOut: lanesN(M.groups, M.txOut), rxIn: lanesN(M.groups, M.rxIn),
+      demux: lanesN(M.groups, M.demux), mux: lanesN(M.groups, M.mux), rxDemux: lanesN(M.groups, M.rxDemux),
+      split: M.split, armIn: M.armIn, armOut: M.armOut, join: M.join, coupler: M.coupler,
+      arm: M.arm, elecW: M.elecW, heater: M.heater, tsvX: M.tsvX, tsvZ: M.tsvZ,
       segs: Array.from({ length: M.segments }, (_, k) => M.seg(k)), pads: Array.from({ length: M.segments }, (_, k) => M.pad(k)) },
     bailly: { ...BAILLY, tiles, taps: tiles.map(asicTap), fiberRoutes: tiles.map(baillyFiberRoutes) },
     ringTaps: engineLayout().map(asicTap),

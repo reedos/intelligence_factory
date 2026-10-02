@@ -5,7 +5,8 @@ import { rbox } from '../fx.js';
 import { componentView } from '../app/housing-frame.js';
 import { computeMaterials, finishCompute, boardFinish } from './compute-finish.js';
 import { etch } from './package-marks.js';
-import { tagHeat, balanceHeat } from '../heat.js';
+import { tagHeat, balanceHeat, PART_W } from '../heat.js';
+import { FABRICS } from '../model/engine.ts';
 export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,trayLidLabels}) {
  const scene=new THREE.Scene();lights(scene,quality);
  const S=new Builder(),N=new Builder(),flows=[],dataFlows=[],heatFlows=[],finish=computeMaterials();
@@ -189,10 +190,23 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  scene.add(S.build(),N.build({cast:false}));trayLidLabels(scene,model.accel,lidAt,[.165,.07]);for(const list of [flows,dataFlows,heatFlows])for(const f of list)scene.add(f.group);
  const hs=(p,off=[2.2,2.8,3.5])=>({pos:p,view:{pos:p.map((v,i)=>v+off[i]),target:p}});
  const hotspots={osfp:hs([-1.35,.5,4.25]),clip:hs([0,.45,-4.5],[2.4,2,-3]),ibc:hs([-1.11,.45,-3.98]),vrm:hs([1.6,.2,-2.04],[-.5,1.9,2.4]),gpu:{pos:[1.6,.3,-2.7],view:componentView([1.6,.16,-2.7],[-.25,.4,1.3],[.6,.2,.6])},grace:hs([-1.1,.32,-.65]),lpddr:hs([1.74,.3,-.65],[0,2.1,.5]),coldplates:hs([-1.1,.82,-.65]),nic:hs([1.35,.8,2.85]),nvconn:hs([1.6,.4,-4.35],[2,2,-3])};
+ // The power layer's glow (src/power-glow.js), on the heat layer's watts: GPUs and their regulator rows, Vera with its
+ // rows and LPDDR5X, the ConnectX-9s and the DPU (the tray's NIC power as the cold plates split it), the bus
+ // converters' loss and each module's fabric allowance.
+ const PD=[],lp=PART_W.superchip.lpddr,loss=w=>w*(1/A.vrmEff-1);
+ gp.forEach(([x,z],i)=>{PD.push({id:`gpu-${i}`,part:'gpu',watts:A.gpuW,volt:'core',at:[x,.09,z],size:[.83,.95]});
+  for(const s of [-1,1])PD.push({id:`vrm-${i}-${s}`,part:'vrm',watts:loss(A.gpuW)/2,at:[x,.09,z+s*.66],size:[.82,.18]});});
+ cp.forEach(([x,z],i)=>{PD.push({id:`cpu-${i}`,part:'grace',watts:A.cpuW-8*lp,volt:'core',at:[x,.09,z],size:[.75,.77]});
+  for(const s of [-1,1])PD.push({id:`cpu-vrm-${i}-${s}`,part:'vrm',watts:loss(A.cpuW)/2,at:[x,.09,z+s*.52],size:[.58,.18]});
+  for(const side of [-1,1])for(let k=0;k<4;k++)PD.push({id:`lpddr-${i}-${side}-${k}`,part:'lpddr',watts:lp,at:[x+side*.64,.141,z-.33+k*.22],size:[.22,.17]});});
+ nic.forEach(([x,z],i)=>{for(const dx of [-.3,.3])for(const dz of [-.47,.47])PD.push({id:`cx9-${i}-${dx}-${dz}`,part:'nic',watts:nicW/4,at:[x+dx,.124,z+dz],size:[.4,.52]});});
+ PD.push({id:'dpu',part:'nic',watts:dpuW,at:[0,.124,2.85],size:[.66,.75]});
+ ibcX.forEach((x,i)=>PD.push({id:`ibc-${i}`,part:'ibc',watts:model.rack.ibcLossKW*1000/18/ibcX.length,at:[x,.114,-3.98],size:[.65,.42]}));
+ for(const x of ports)for(const y of [.16,.34])PD.push({id:`osfp-${x}-${y}`,part:'osfp',watts:FABRICS[A.nicPortGbps].gpuModuleW,volt:'v33',at:[x,y-.063,4.21],size:[.29,.46]});
  finishCompute(scene,finish);
  scene.userData.computeGeneration={id:'rubin',gpus:4,cpus:2,fans:0,internalHoses:0,midplane:true,nicAssemblies:2,nicCount:8,dpuCount:1,opticalPorts:8,representative:true};
  // the GPU name etched on each package's front substrate margin, ahead of the interposer (package-marks.js)
- return {printSpots:[etch('GPU package marking','Rubin',[.3,.065],gp.map(([x,z])=>({from:[x,.4,z+.43],dir:[0,-1,0]})))],scene,flows,dataFlows,heatFlows,hotspots,
+ return {printSpots:[etch('GPU package marking','Rubin',[.3,.065],gp.map(([x,z])=>({from:[x,.4,z+.43],dir:[0,-1,0]})))],scene,flows,dataFlows,heatFlows,hotspots,powerDraw:PD,
   heatHotspots:{osfp:hotspots.osfp,coldplates:hotspots.coldplates,gpuheat:hotspots.gpu,manifold:hs([-2.02,.8,0]),qd:hs([2.02,.8,-4.48],[2,2,-3])},
   // tools/flows.mjs: NVLink and C2C stay over a board (the two compute boards and the power board)
   flowAudit:{floatR:.25,boardCls:['nvl','c2c'],boards:[[-2.11,-.09,-3.97,.93],[.09,2.11,-3.97,.93],[-2.05,2.05,-4.34,-3.76]]},

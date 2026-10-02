@@ -535,6 +535,12 @@ function buildPackage({ quality, state, model }) {
   }
   live.forEach(([x, z], i) => { const f = flow([[x, hb + stackH, z], [x, Y.lid - 0.12, z], [x, Y.lid + 1.2, z]], 'hot', { count: 2, speed: 0.9, size: 0.04, k: 2.4, trail: false }); f.thermalOrigin = 'hbm'; heatFlows.push(tagHeat(f, `hbm-${i}`, stackW)); });
   balanceHeat(heatFlows);
+  // The power layer's glow (src/power-glow.js) on the same watts: each GPU die and each live HBM stack, a halo at its
+  // underside so the part itself covers the inside and the glow hugs its outline; the spacer site draws nothing.
+  const powerDraw = [
+    ...dieX.map((dx, i) => ({ id: `die-${i}`, part: 'dies', watts: siliconW / dieX.length, at: [dx, Y.dies - 0.035, 0], size: [2.6, 3.3] })),
+    ...live.map(([x, z], i) => ({ id: `hbm-${i}`, part: 'hbm', watts: stackW, at: [x, hb + 0.005, z], size: [HW, HD] })),
+  ];
   scene.userData.computePackage = { gpuDies: dieX.length, liveHbmStacks: live.length, hbmDramLayers: layers, spacerSites: spare < 0 ? 0 : 1, nvlinkLinks: A.nvlink.linksPerGpu, explodedRepresentative: true };
   heatFlows.forEach(f => scene.add(f.group));
 
@@ -638,7 +644,7 @@ function buildPackage({ quality, state, model }) {
   return {
     // the GPU's name, laser-etched on the substrate margin between two capacitor clusters (package-marks.js)
     printSpots: [etch('GPU package marking', GPU_NAME[A.id] || A.short, [1.3, .36], [{ from: [1.1, 12, 3.38], dir: [0, -1, 0] }])],
-    scene, flows,
+    scene, flows, powerDraw,
     look: { env: 'studio', envIntensity: 0.45, exposure: 0.94, bloom: 0.32, threshold: 2.0, ao: 0.12, dof: true },
     camera: { pos: [9.5, 8.2, 11.5], target: [0, 2.3, 0], near: 0.05, far: 500, min: 2, max: 40 },
     // Lower power view exposes the exploded BGA/substrate/interposer gaps.

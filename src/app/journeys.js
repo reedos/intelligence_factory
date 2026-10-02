@@ -343,7 +343,7 @@ export function layer(M, mode, only = null) {
   });
   return out;
 }
-const SIDE_NAME = { module: 'the pluggable module', cpo: 'the CPO package', copper: 'the copper cables', coherent: 'the data center interconnect' };
+const SIDE_NAME = { module: 'the pluggable module', cpo: 'the CPO package', copper: 'the copper cables', coherent: 'the coherent optics' };
 // a side trip: every part of the side level a door opens, in that level's own order
 function sideTrip(C, key, mode, name, trip, parent) {
   const side = C.SCENES.findIndex(sc => sc.id === trip), parts = C[key][trip] || [];

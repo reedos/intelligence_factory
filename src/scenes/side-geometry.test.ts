@@ -103,13 +103,15 @@ describe('CPO package geometry', () => {
 describe('Broadcom-style CPO package geometry', () => {
   const tiles = baillyLayout(), { L, W } = CPO_DIE.mzm;
   it('draws its TSV columns under the electronic die, clear of every waveguide and buried part', () => {
-    const [x0, z0, x1, z1] = CPO_EIC.mzm, M = CPO_MZM, rows = [0, 1, 2, 3, 4, 5, 6, 7].flatMap(i => [M.row(i), M.rxRow(i)]);
-    const r = .02 / 2.5 / L * 810;                               // the via radius in frame units (drawn 2.5x in the detail)
+    const [x0, z0, x1, z1] = CPO_EIC.mzm, M = CPO_MZM, s = BAILLY.detail.s;
+    const r = .02 / s / L * CPO_DIE.mzm.fw;                     // the via radius in frame units (drawn at the detail scale)
+    const rx = Array.from({ length: 64 }, (_, i) => M.rxRow(i));
     for (const x of M.tsvX) for (const z of M.tsvZ) {
       expect(x).toBeGreaterThan(x0); expect(x).toBeLessThan(x1); expect(z).toBeGreaterThan(z0); expect(z).toBeLessThan(z1);
-      expect(x - r).toBeGreaterThan(Math.max(...M.demux.map(d => d[2])));      // past the laser demultiplexers
-      expect(x + r).toBeLessThan(M.split);                                      // before the splitters
-      for (const w of [...rows, ...M.lasers]) expect(Math.abs(z - w)).toBeGreaterThan(4);  // between waveguide rows
+      expect(x - r).toBeGreaterThan(M.trunkX + 2);                              // clear of the laser trunk
+      expect(x + r).toBeLessThan(M.pdX - M.pdW / 2 - 2);                         // short of the photodiodes: no receive waveguide here
+      expect(z).toBeGreaterThan(rx[0] - 4); expect(z).toBeLessThan(rx[63] + 4);  // in the receive half, where nothing runs this far in
+      for (const w of M.lasers) expect(Math.abs(z - w)).toBeGreaterThan(4);     // clear of the laser buses
     }
   });
   it('has eight radial tiles, two per side, each tapping the ASIC on the edge it faces', () => {

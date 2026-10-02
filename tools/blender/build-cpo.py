@@ -486,43 +486,51 @@ def mzm_tile(cx,cy,cz,scale,angle,exploded):
         box('Fiber connector',w(pw/2+.3,.09,0),(.6,BL['connH'],pd),bfc,role,.03,angle)
         box('Connector latch',w(pw/2+.3,.09+BL['connH']/2+.02,0),(.3,.04,pd*.5),black,role,.012,angle)
         return
-    top=.082;radius=.0045
+    # All 64 lanes each way, at the lane pitch: thin waveguides (radius r), electrodes and heaters just above them,
+    # bond pads on the electrodes and photodiodes (and under the electronic die), sized to the pitch.
+    top=.082;r=.003;fx=pw/DIE['mzm']['fw'];fz=pd/DIE['mzm']['fh']
     box('EIC hybrid-bond face',w(ex,ey-.06,ez),(ew-.02*scale,.004,ed-.02*scale),bondFace,role,0,angle,uv_top=True,uv_face=2)
     # Through-silicon vias (TSVs): in an EIC-on-PIC stack the package's signals and power reach the electronic die
-    # through vias in the photonic die beneath it. A few columns, representative in count, pitch and size, under the
-    # electronic die and clear of the waveguides (between the laser demultiplexers and the splitters).
+    # through vias in the photonic die beneath it. A few columns, representative in count, pitch and size.
     for tx in MZ['tsvX']:
         for tz in MZ['tsvZ']:cylinder('Through-silicon via',w(px(tx),0,pz(tz)),.02,.17,traceCu,role,8)
-    a,st,sw=MZ['arm'],MZ['strip'],MZ['stripW']
-    for g in range(2):
-        rows=MZ['rows'][4*g:4*g+4]; dm=MZ['demux'][g]; mx=MZ['mux'][g]; rd=MZ['rxDemux'][g]
-        # laser bus in from the fiber edge to the wavelength demultiplexer, four branches out of it
-        path('CW bus',[w(px(810),top,pz(MZ['lasers'][g])),w(px(dm[2]),top,pz(MZ['lasers'][g]))],radius,fiberCw,role)
-        box('Wavelength demultiplexer',w(px((dm[0]+dm[2])/2),.079,pz((dm[1]+dm[3])/2)),((dm[2]-dm[0])/810*pw,.01,(dm[3]-dm[1])/320*pd),wdm,role,0,angle)
-        box('Wavelength multiplexer',w(px((mx[0]+mx[2])/2),.079,pz((mx[1]+mx[3])/2)),((mx[2]-mx[0])/810*pw,.01,(mx[3]-mx[1])/320*pd),wdm,role,0,angle)
-        box('Wavelength demultiplexer',w(px((rd[0]+rd[2])/2),.079,pz((rd[1]+rd[3])/2)),((rd[2]-rd[0])/810*pw,.01,(rd[3]-rd[1])/320*pd),wdm,role,0,angle)
-        path('TX waveguide',[w(px(mx[2]),top,pz(MZ['txOut'][g])),w(px(810),top,pz(MZ['txOut'][g]))],radius,fiberTx,role)
-        path('RX waveguide',[w(px(810),top,pz(MZ['rxIn'][g])),w(px(rd[2]),top,pz(MZ['rxIn'][g]))],radius,fiberRx,role)
-        for row in rows:
-            path('CW branch',[w(px(dm[2]),top,pz(row)),w(px(MZ['split']),top,pz(row))],radius,fiberCw,role)
+    gbox=lambda name,rc,mat:box(name,w(px((rc[0]+rc[2])/2),.079,pz((rc[1]+rc[3])/2)),((rc[2]-rc[0])*fx,.01,(rc[3]-rc[1])*fz),mat,role,0,angle)
+    # the two laser buses: in at the fiber edge, along the die to a trunk at the electrical end
+    for f,lz in enumerate(MZ['lasers']):
+        groups=[g for g,feed in enumerate(MZ['feeds']) if feed==f]; far=MZ['txOut'][groups[0] if f else groups[-1]]
+        path('CW bus',[w(px(MZ['coupler'][1]),top,pz(lz)),w(px(MZ['trunkX']),top,pz(lz)),w(px(MZ['trunkX']),top,pz(far))],.004,fiberCw,role)
+    a=MZ['arm']
+    for g in range(len(MZ['txOut'])):
+        dm,mx,rd=MZ['demux'][g],MZ['mux'][g],MZ['rxDemux'][g]
+        path('CW bus',[w(px(MZ['trunkX']),top,pz(MZ['txOut'][g])),w(px(dm[0]),top,pz(MZ['txOut'][g]))],r,fiberCw,role)
+        gbox('Wavelength demultiplexer',dm,wdm); gbox('Wavelength multiplexer',mx,wdm); gbox('Wavelength demultiplexer',rd,wdm)
+        path('TX waveguide',[w(px(mx[2]),top,pz(MZ['txOut'][g])),w(px(MZ['coupler'][1]),top,pz(MZ['txOut'][g]))],r,fiberTx,role)
+        path('RX waveguide',[w(px(MZ['coupler'][1]),top,pz(MZ['rxIn'][g])),w(px(rd[2]),top,pz(MZ['rxIn'][g]))],r,fiberRx,role)
+        for i in range(4*g,4*g+4):
+            row=MZ['rows'][i]
+            path('CW branch',[w(px(dm[2]),top,pz(row)),w(px(MZ['split']),top,pz(row))],r,fiberCw,role)
             for sgn in [-1,1]:
-                path('Mach-Zehnder arm',[w(px(MZ['split']),top,pz(row)),w(px(MZ['armIn']),top,pz(row+sgn*a)),w(px(MZ['armOut']),top,pz(row+sgn*a)),w(px(MZ['join']),top,pz(row))],radius,mzArm,role)
-                for s0,s1 in MZ['segs']:
-                    box('Mach-Zehnder electrode segment',w(px((s0+s1)/2),.078,pz(row+sgn*st)),((s1-s0)/810*pw,.006,sw/320*pd),electrode,role,0,angle)
+                path('Mach-Zehnder arm',[w(px(MZ['split']),top,pz(row)),w(px(MZ['armIn']),top,pz(row+sgn*a)),w(px(MZ['armOut']),top,pz(row+sgn*a)),w(px(MZ['join']),top,pz(row))],r,mzArm,role,6)
+            # three electrode segments along both arms (one bar per segment over the pair), then the bias heater
+            for s0,s1 in MZ['segs']:
+                box('Mach-Zehnder electrode segment',w(px((s0+s1)/2),.088,pz(row)),((s1-s0)*fx,.004,MZ['elecW']*fz),electrode,role,0,angle)
             h0,h1=MZ['heater']
-            box('Mach-Zehnder bias heater',w(px((h0+h1)/2),.078,pz(row-st)),((h1-h0)/810*pw,.006,sw/320*pd),heaterMat,role,0,angle)
-            path('TX waveguide',[w(px(MZ['join']),top,pz(row)),w(px(mx[0]),top,pz(row))],radius,fiberTx,role)
+            box('Mach-Zehnder bias heater',w(px((h0+h1)/2),.088,pz(row)),((h1-h0)*fx,.004,MZ['elecW']*fz),heaterMat,role,0,angle)
+            path('TX waveguide',[w(px(MZ['join']),top,pz(row)),w(px(mx[0]),top,pz(row))],r,fiberTx,role)
             for pad in MZ['pads']:
-                for by in [.09,.875]:cylinder('Face bonding pad',w(px(pad),by,pz(row-st)),.016,.025,gold,role,12)
-        for row in MZ['rxRows'][4*g:4*g+4]:
-            path('RX waveguide',[w(px(rd[0]),top,pz(row)),w(px(MZ['pdX']+13),top,pz(row))],radius,fiberRx,role)
-            box('Photodiode',w(px(MZ['pdX']),top,pz(row)),(26/810*pw,.012,10/320*pd),tia,role,.004,angle)
-            for by in [.09,.875]:cylinder('Face bonding pad',w(px(MZ['pdX']),by,pz(row)),.026,.025,gold,role,12)
+                cylinder('Face bonding pad',w(px(pad),.097,pz(row)),.0065,.012,gold,role,8)
+                cylinder('Face bonding pad',w(px(pad),.875,pz(row)),.0065,.025,gold,role,8)
+            rr=MZ['rxRows'][i]
+            path('RX waveguide',[w(px(rd[0]),top,pz(rr)),w(px(MZ['pdX']+MZ['pdW']/2),top,pz(rr))],r,fiberRx,role)
+            box('Photodiode',w(px(MZ['pdX']),top,pz(rr)),(MZ['pdW']*fx,.012,MZ['pdH']*fz),tia,role,0,angle)
+            cylinder('Face bonding pad',w(px(MZ['pdX']),.097,pz(rr)),.0065,.012,gold,role,8)
+            cylinder('Face bonding pad',w(px(MZ['pdX']),.875,pz(rr)),.0065,.025,gold,role,8)
     # edge couplers at the fiber edge (Broadcom describes edge-coupled fiber attach): lasers in, transmit out, receive in
+    c0,c1=MZ['coupler']
     for row in MZ['lasers']+MZ['txOut']+MZ['rxIn']:
-        box('Fiber coupler',w(px(795),.079,pz(row)),(22/810*pw,.008,8/320*pd),coupler,role,0,angle)
+        box('Fiber coupler',w(px((c0+c1)/2),.079,pz(row)),((c1-c0)*fx,.008,2.4*fz),coupler,role,0,angle)
     for j in range(6):box('Detail electrical trace',w(ex-ew/2-.8,.95,-.55+j*.22),(1.6,.01,.05),traceCu,role,.002,angle)
-    # the fiber attach and the six fibers drawn: one laser, one transmit and one receive fiber per FR4 group
+    # the fiber attach and every fiber: 16 transmit, 16 receive and the two laser fibers
     box('Glass fiber attach',w(pw/2+.2,.1,0),(.4,.4,pd-.2),glass,role,.01,angle)
     for rows,m,ry in [(MZ['txOut'],fiberTx,.1),(MZ['rxIn'],fiberRx,.14),(MZ['lasers'],fiberCw,.1)]:
         for row in rows: path('Detail fiber',[w(pw/2+.4,ry,pz(row)),w(pw/2+2.6,ry,pz(row))],.02,m,role)
@@ -538,10 +546,10 @@ for i,(e,tap) in enumerate(zip(BL['tiles'],BL['taps'])):
     ribbon('Tile tx ribbon',routes['tx'],ribbonTx,'CPO_MZM_FIBERS',half=.21)
     ribbon('Tile rx ribbon',routes['rx'],ribbonRx,'CPO_MZM_FIBERS',half=.21)
     for points in routes['cw']:tube('Tile cw fiber',round_corners(points,keep_cw,.4),.008,fiberCw,'CPO_MZM_FIBERS')
-# the exploded tile, drawn 2.5x, on its own backing
-MDX=-12.2
-box('Detail die backing',(MDX,1.245,-8.4),(DIE['mzm']['L']*2.5+.15,.15,DIE['mzm']['W']*2.5+.12),ceramic,'CPO_MZM_DETAIL',.04)
-mzm_tile(MDX,1.4,-8.4,2.5,math.pi,True)
+# the exploded tile, drawn at the detail scale (BAILLY.detail), on its own backing
+DT=BL['detail']
+box('Detail die backing',(DT['DX'],DT['DY']-.155,DT['DZ']),(DIE['mzm']['L']*DT['s']+.15,.15,DIE['mzm']['W']*DT['s']+.12),ceramic,'CPO_MZM_DETAIL',.04)
+mzm_tile(DT['DX'],DT['DY'],DT['DZ'],DT['s'],math.pi,True)
 # The Broadcom reference system is air-cooled (Bailly release: "4RU system design with high-efficiency air
 # cooling"): a finned heat sink, x-rayed like the ring package's cold plate, stands in for the plate.
 box('Heat sink base',(0,4.2,0),(9.27,.14,9.27),sinkGhost,'CPO_MZM_HEATSINK',.03)

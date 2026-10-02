@@ -15,7 +15,7 @@ import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, label,
 import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes, CPO_VARIANTS, CPO_RING, eicBox, frameToLocal } from './side-geometry.js';
 import { ringEicTex, cpoIntro, cpoPartCopy } from './cpo-variants.js';
 import { roundCorners, keepCwCorner, CW_BEND, CPO_AUDIT as AU } from './side-cpo-routes.js';
-import { buildBailly, BAILLY_DETAIL } from './cpo-bailly.js';
+import { buildBailly, BAILLY_DETAIL, MY } from './cpo-bailly.js';
 import { tagHeat, balanceHeat, PART_W } from '../heat.js';
 export { roundCorners, keepCwCorner };
 
@@ -218,12 +218,13 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   const viewLabel = (k, ...a) => { const sprite = label(scene, ...a); sprite.userData.cpoVariant = k; return sprite; };
   label(scene, 'Co-packaged optics · one switch package', [0, 0.6, FZ], '#e8ecf2', 0.36);
   viewLabel('ring', 'Size and layout representative · counts are NVIDIA’s', [0, 0.1, FZ], note, 0.2);
-  viewLabel('ring', '18 engines · 28.8T each way · 1 engine = 1.6T each way, like one module', [0, -0.3, FZ], unitCol, 0.2);
+  viewLabel('ring', '18 engines × 1.6 Tb/s = 28.8 Tb/s each way', [0, -0.3, FZ], unitCol, 0.2);
+  viewLabel('ring', 'Each engine: 8 lanes × 200 Gb/s = 1.6 Tb/s each way, like one 1.6T module', [0, -0.65, FZ], unitCol, 0.17);
   viewLabel('ring', 'Detail · one engine, lifted out and exploded · 2.5×', [DX, DY - 0.45, DZ + 2.45], '#e8ecf2', 0.15);
   viewLabel('ring', 'Functional schematic · bonded faces and surface fiber coupling unfolded', [DX, DY - 0.45, DZ + 2.0], note, 0.13);
   viewLabel('ring', 'Electronic chip: drivers (TX) and TIAs (RX)', [DX, DY + 2.35, DZ - 1.6], unitCol, 0.15);
   viewLabel('ring', 'Photonic chip: ring modulators (TX), photodiodes (RX)', [DX, DY + 0.55, DZ + 2.0], unitCol, 0.15);
-  viewLabel('ring', 'Light · 8 TX, 8 RX, 2 laser fibers', [DX - PW / 2 - 1.6, DY + 0.75, DZ], COL.tx, 0.15);
+  viewLabel('ring', 'Light · all 8 lanes each way: 8 TX, 8 RX fibers, 2 laser fibers', [DX - PW / 2 - 1.6, DY + 0.75, DZ], COL.tx, 0.15);
   viewLabel('ring', 'TX / RX fibers → front-panel ports (outside this diagram)', [0, 2.8, 7.8], COL.tx, .16);
   label(scene, 'Lower amber fibers: laser supply only · no engine-to-engine optical loop', [0, .5, 7.8], COL.cw, .14);
   label(scene, 'Electrical · copper traces in the substrate', [0, Y.subTop + 0.5, -2.6], COL.elec, 0.15);
@@ -273,6 +274,19 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
       heat: bailly.heatHotspots,
     },
   };
+  // The power layer's glow (src/power-glow.js): the switch chip, each engine or tile, and each laser module that
+  // lights one, on the interposer or board under it. Both packages keep one reference (the switch chip), and the
+  // toggle switches the other package's parts off.
+  const pw = PART_W.cpo, onSlab = Y.inter + 0.056, lit = list => new Set(list.map(e => e.els));
+  const powerDraw = [
+    ...CPO_VARIANTS.map(k => ({ id: k === 'ring' ? 'asic' : 'mzm-asic', part: k === 'ring' ? 'asic' : 'mzm-asic', variants: [k], watts: pw.asic, at: [0, onSlab, 0], size: [ASIC_HALF * 2, ASIC_HALF * 2] })),
+    ...engines.map((e, i) => ({ id: `engine-${i}`, part: 'engine', variants: ['ring'], watts: pw.engine, volt: 'v33', at: [e.x, Y.eng - 0.035, e.z], size: [1.35, 0.95], yaw: -e.rot })),
+    ...bailly.tiles.map((t, i) => ({ id: `tile-${i}`, part: 'mzm-engine', variants: ['mzm'], watts: pw.tile, volt: 'v33', at: [t.x, MY - 0.035, t.z], size: [t.L, t.W], yaw: -t.rot })),
+    ...CPO_VARIANTS.flatMap(k => els.map(([x, z], i) => ({ id: `${k}-els-${i}`, part: k === 'ring' ? 'els' : 'mzm-laser', variants: [k], watts: lit(k === 'ring' ? engines : bailly.tiles).has(i) ? pw.els : 0,
+      volt: 'v33', at: [x, Y.sub + 0.005, z], size: [1.9, 1.1] }))),
+  ];
+  const glowActive = p => !p.variants || p.variants.includes(kind);
+  let builtRef = null;
   let kind = 'ring';
   const viewSprites = scene.children.filter(o => o.isSprite && o.userData.cpoVariant);
   function setVariant(next) {
@@ -280,6 +294,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     for (const k of CPO_VARIANTS) views[k].group.visible = views[k].flowGroup.visible = k === kind;
     coolingHardware.visible = kind === 'ring';
     for (const sprite of viewSprites) sprite.visible = sprite.userData.cpoVariant === kind;
+    builtRef?.powerGlow?.setActive(glowActive);
   }
   setVariant('ring');
   // The ring and Mach-Zehnder packages measure about 1.2 units apart on x (tools/orbit-center.mjs),
@@ -293,13 +308,14 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     ring: { pos: [-3.27, 24.37, 25.51], target: [-3.27, 3.37, -.99], portrait: { pos: [12.73, 31.67, 27.01], target: [-3.27, 3.37, -.99] } },
     mzm: { pos: [-4.51, 23.5, 25.43], target: [-4.51, 2.5, -1.07], portrait: { pos: [11.49, 30.8, 26.93], target: [-4.51, 2.5, -1.07] } },
   };
-  return {
+  return builtRef = {
     scene, flows, dataFlows, heatFlows, coolingHardware,
+    powerDraw, powerDrawRef: pw.asic, powerDrawActive: glowActive,
     variant: {
       get kind() { return kind; }, set: setVariant, views, bailly,
       intro: mode => cpoIntro(kind, mode),
-      // the subtitle's figure for the Broadcom-style package (the level's own is NVIDIA's 28.8T)
-      sub: mode => kind === 'mzm' && mode === 'data' ? '51.2T per switch chip' : null,
+      // the data subtitle names each package by its engines (the level's own, for the ring package, is in data.js)
+      sub: mode => kind === 'mzm' && mode === 'data' ? '8 Mach-Zehnder engine tiles · 51.2T' : null,
       partCopy: (part, mode) => cpoPartCopy(kind, part, mode),
       spriteVisible: sprite => !sprite.userData.cpoVariant || sprite.userData.cpoVariant === kind,
     },

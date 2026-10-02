@@ -263,6 +263,18 @@ export function build({ quality, state, authoredHardware = false }) {
   }
   balanceHeat(heatFlows);
   [flows, dataFlows, heatFlows].forEach(a => a.forEach(f => scene.add(f.group)));
+  // The power layer's glow (src/power-glow.js): each powered part's footprint on the board, on the same watts. The
+  // modulator's and photodiodes' bias are declared too and fall under the rule's threshold, so they draw none.
+  const onBoard = Y.top + 0.004;
+  const powerDraw = [
+    { id: 'cdsp', watts: P.dsp, at: [DSPX, onBoard, 0], size: [1.7, 1.7] },
+    { id: 'itla', watts: P.itla, at: [ITX, onBoard, 0], size: [ITL, ITW] },
+    { id: 'driver', watts: P.driver, at: [DRX, onBoard, drvZ], size: [0.61, 0.61] },
+    { id: 'tia', watts: P.tia, at: [TIAX, onBoard, tiaZ], size: [0.61, 0.61] },
+    { id: 'cdm', watts: P.modulator, at: [CX_, onBoard, cdmZ], size: [CL + 0.08, 0.72] },
+    { id: 'icr', watts: P.receiverOptics, at: [RX_, onBoard, icrZ], size: [RL + 0.08, 0.72] },
+    { id: 'dcdc', watts: P.dcdc, at: [(INDX[0] + INDX[1]) / 2, onBoard, 0], size: [INDX[1] - INDX[0] + IND, 0.44 + IND] },
+  ];
 
   label(scene, 'Coherent pluggable · 800ZR, OSFP', [0, -0.35, 2.6], '#e8ecf2', 0.34);
   label(scene, 'Footprint to scale · layers pulled apart · the rest representative', [0, -0.75, 2.6], note, 0.18);
@@ -310,7 +322,7 @@ export function build({ quality, state, authoredHardware = false }) {
   for (const [id, [offset, size, shift = [0, 0, 0]]] of Object.entries(detail))
     hs[id].view = componentView(hs[id].pos.map((v, i) => v + shift[i]), offset, size);
   return {
-    scene, flows, dataFlows, heatFlows,
+    scene, flows, dataFlows, heatFlows, powerDraw,
     camera: { pos: [1.2, 10.5, 14.5], target: [0, 1.3, 0], near: 0.05, far: 300, min: 1.2, max: 40, portrait: { pos: [0.6, 12.5, 16.5], target: [0, 0.9, 0.4] } },
     hotspots: { cdsp: hs.cdsp, itla: hs.itla, driver: hs.driver, cdm: hs.cdm, icr: hs.icr, tia: hs.tia },
     dataHotspots: { cdsp: hs.cdsp, driver: hs.driver, cdm: hs.cdm, itla: hs.itla, icr: hs.icr, tia: hs.tia, lc: hs.lc, pluggable: hs.pluggable },
