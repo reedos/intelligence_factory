@@ -10,6 +10,7 @@ import { componentView } from '../app/housing-frame.js';
 import { installTokenMath } from './token-math.js';
 import { tagHeat, balanceHeat } from '../heat.js';
 import { hbmWaterfall, waterfallProfile } from './hbm-waterfall.js';
+import { dieActivity } from './die-activity.js';
 
 // The visible top of a flip-chip die is its polished silicon backside. A faint
 // roughness pattern (a grayscale map) lets the key light break across it.
@@ -34,12 +35,20 @@ function distToSeg(p, a, b) {
   const t = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) : 0;
   return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
 }
+// The floorplan's layout in canvas pixels (1024 x 1300, the die's 2.56 x 3.26 cm face): shared by the x-ray decal and
+// the on-die activity (die-activity.js), so the lights sit on the tiles the decal draws.
+export function floorplanLayout(hbmEdges) {
+  const w = 1024, h = 1300, phy = 70, pad = hbmEdges === 'z' ? phy + 26 : 40, padX = hbmEdges === 'x' ? phy + 26 : 40;
+  const cols = 8, rows = 8, cw = (w - padX * 2) / cols, band = 90, rh = (h - pad * 2 - band) / rows;
+  const tiles = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) tiles.push({ r, c, x: padX + c * cw, y: pad + r * rh + (r >= rows / 2 ? band : 0), w: cw, h: rh });
+  return { w, h, phy, pad, padX, cols, rows, cw, rh, band, tiles };
+}
 export function floorplanTexture(hbmEdges, seam) {
   return canvasTex(1024, 1300, (g, w, h) => {
     g.clearRect(0, 0, w, h);
     const line = (a, width = 2) => { g.strokeStyle = `rgba(150,225,255,${a})`; g.lineWidth = width; };
-    const phy = 70, pad = hbmEdges === 'z' ? phy + 26 : 40, padX = hbmEdges === 'x' ? phy + 26 : 40;
-    const cols = 8, rows = 8, cw = (w - padX * 2) / cols, band = 90, rh = (h - pad * 2 - band) / rows;
+    const { phy, pad, padX, cols, rows, cw, band, rh } = floorplanLayout(hbmEdges);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const x = padX + c * cw, y = pad + r * rh + (r >= rows / 2 ? band : 0);
       line(0.55, 2); g.strokeRect(x + 5, y + 5, cw - 10, rh - 10);
@@ -461,6 +470,18 @@ function buildPackage({ quality, state, model }) {
   }) });
   scene.add(waterfall.group);
   routes.hbmDrawn = waterfall.centerlines;
+  // On-die activity (schematic, evidence 'die-activity-drawing'): compute tiles firing in rolling waves and comet
+  // streaks carrying each waterfall's traffic inward to the L2 band, out to the tiles, and across the NV-HBI seam.
+  // Data layer only: in power the columns of current tell that story, and in heat the dies' own glow does.
+  const layout = floorplanLayout(twin ? 'z' : 'x');
+  const activity = dieActivity({
+    dies: dieX.map(dx => ({ x: dx, rot: dx > 0, tiles: layout.tiles, cw: layout.w, ch: layout.h })), face: [2.56, 3.26], y: Y.dies + 0.05,
+    feeds: live.map(([x, z]) => twin
+      ? { from: [x, Math.sign(z) * (DIE_HALF.z - 0.32)], die: x < 0 ? 0 : 1, axis: 'z' }
+      : { from: [Math.sign(x) * (DIE_HALF.x - 0.32), z], die: 0, axis: 'x' }),
+    seam: twin ? [-1.0, -0.55, -0.1, 0.35, 0.8, 1.25] : [] });
+  scene.add(activity.group);
+  routes.dieActivity = activity.paths; routes.dieTiles = activity.tiles;
   scene.userData.hbmLabels = hbmLabels;
   const serdes = glowMat('#ff5fd2', 0.5);                // an inlaid strip in power and heat, lit in the data layer
   // NVLink leaves the free edges: outer die edges on twins, top/bottom on H100. Below the die each lane takes the
@@ -643,8 +664,8 @@ function buildPackage({ quality, state, model }) {
       cpo: { pos: [-4.2, Y.sub + 0.3, 3.8], view: { pos: [-8, 5, 9], target: [-2.5, 1.5, 2] } },
       tokens: tokensHS,
     },
-    dispose() { cache.forEach(({ tex }) => tex.dispose()); tokenMath.dispose(); waterfall.dispose(); },
-    setRenderTier(tier) { waterfall.setTier(tier); },
+    dispose() { cache.forEach(({ tex }) => tex.dispose()); tokenMath.dispose(); waterfall.dispose(); activity.dispose(); },
+    setRenderTier(tier) { waterfall.setTier(tier); activity.setTier(tier); },
     update(t, dt) {
       const e = tick(genLen);
       if (e < genLastE) { genCycle = buildCycle(model); genLen = genCycle.timings.totalS; resetGen(); }
@@ -706,6 +727,7 @@ function buildPackage({ quality, state, model }) {
       hbmFill.instanceMatrix.needsUpdate = true;
       hbmFill.visible = state.mode === 'data';          // the cache is a data-layer idea: hardware stays hardware in power and heat
       waterfall.update(t, state.mode === 'data');
+      activity.update(t, state.mode === 'data');
 
       pulse.v = Math.max(0, pulse.v - dt * 3);
       const dataOn = state.mode === 'data', xrayOn = dataOn || state.mode === 'heat' || ['dies', 'junction', 'flux', 'hbi'].includes(state.selected);
