@@ -108,7 +108,7 @@ describe('CPO packages: pins, flows and captions', () => {
     const [bx, by] = cpoBlocks(kind).drivers[kind === 'mzm' ? 2 : 6];
     expect(Math.hypot(epx - bx, epy - by)).toBeLessThan(1);
     expect(Math.abs(dpx - (kind === 'ring' ? CPO_RING.pdX : CPO_MZM.pdX))).toBeLessThan(1);
-    expect(Math.abs(dpy - (kind === 'ring' ? CPO_RING.rxRow(4) : CPO_MZM.rxRow(4)))).toBeLessThan(1);
+    expect(Math.abs(dpy - (kind === 'ring' ? CPO_RING.rxRow(4) : CPO_MZM.rxRow(7)))).toBeLessThan(1);
     // the flows on screen are this package's (and the shared switch-chip and laser-module ones)
     const visible = b.dataFlows.filter((f: any) => shown(f.group));
     const own = visible.filter((f: any) => f.group.parent?.name?.startsWith('CPO engine view'));

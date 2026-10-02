@@ -146,7 +146,8 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
     engine: at([EQ.x, MY + 0.15, EQ.z], [EQ.x + 2.5, 5.5, EQ.z + 3.6], [EQ.x, MY, EQ.z]),
     eic: fitted(w(pcx(cpoBlocks('mzm').drivers[2][0]), 1.1, pcz(Z.row(2))), [DX + 2.0, DY + 4.6, DZ + 4.6], stack, stackSize),
     mod: fitted(w(pcx((CPO_EIC.mzm[2] + Z.armOut) / 2), 0.12, pcz(Z.row(3))), [DX - 1.2, DY + 3.8, DZ + 4.2], stack, stackSize),
-    pd: fitted(w(pdx, 0.12, pcz(Z.rxRow(4))), [DX + 1.8, DY + 2.5, DZ - 4.4], stack, stackSize),
+    pd: fitted(w(pdx, 0.12, pcz(Z.rxRow(7))),   // the last receive lane: its label clears the die lettering
+      [DX + 1.8, DY + 2.5, DZ - 4.4], stack, stackSize),
     laser: at([ELSX, Y.sub + 1.0, 0], [ELSX + 3.2, 5, 5.5], [ELSX - 1, Y.sub, 0]),
     fiberout: fitted(fo, [fo[0] + 1.0, 7.5, fo[2] + 5.0], [fo[0], 1.6, fo[2] + 1.0], [3.2, 1.6, 3.0]),
     sink: at([1.5, Y.plate + 0.9, 1.0], [6, 10, 11], [0, 2.4, 0]),
