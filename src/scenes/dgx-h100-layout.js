@@ -8,16 +8,24 @@ export const DGX = {
   deck: 1.4,                                   // the GPU tray's pan: below it is the motherboard tray (tray-pcb.js decks)
   gpuX: [-1.62, -0.54, 0.54, 1.62], gpuZ: [1.2, -0.62], lifted: 3,
   swX: [-1.55, -0.52, 0.52, 1.55], swZ: -2.3,
-  connX: [-1.6, -0.53, 0.53, 1.6],             // midplane connectors, both trays
-  ibcX: [-1.85, -1.3, -0.75, 0.75, 1.3, 1.85], ibcZ: 2.62,
+  // Placement by signal flow (design rules 1-3). GPU tray front edge: a PCIe connector straight in front of each GPU
+  // column, 54 V connectors in the two outer strips and the center, a sideband connector either side; the bus
+  // converters sit straight behind the 54 V connectors, clear of every PCIe channel, beside the regulator rows they feed.
+  connX: [-1.62, -0.54, 0.54, 1.62], gpuPwrX: [-1.97, 0, 1.97], sigX: [-1.08, 1.08],
+  ibcs: [[-1.95, 2.75, 0.3], [-1.95, 2.3, 0.3], [0, 2.75, 0.36], [0, 2.3, 0.36], [1.95, 2.75, 0.3], [1.95, 2.3, 0.3]],
+  // Motherboard tray front edge: GPU PCIe straight in front of each ConnectX-7 column, NVMe in the center channel,
+  // power in the outer strips. On the midplane, PCIe runs down the stiles at +-1.08 and 54 V up the outer and
+  // center stiles, so power and signal never share a channel and nothing sits in front of a fan opening.
+  mbPcieX: [-1.43, -0.71, 0.71, 1.43], mbPwrX: [-1.9, 1.9], nvmeX: [-0.25, 0.25],
+  pciStileX: [-1.08, 1.08], pwrStileX: [-2.08, 0, 2.08], busX: [-2.0, 0, 2.0],
+  cpuPcieDX: 0.18, cpuSwDX: 0.31, cpuVrmX: [-0.07, 0.29], mbPwrRunX: 1.09,
   cpuX: [-1.07, 1.07], cpuZ: -1.15,
   bankX: [-1.74, -0.4, 0.4, 1.74], dimmPitch: 0.072, dimmLen: 1.34,
-  modX: [-1.05, 1.05], modZ: 2.0, cxD: [0.36, 0.32], ny: 0.6275,
-  pcieX: [-0.35, 0.35], pcieZ: -0.15, hgxPcie: [0, 2.62],
+  modX: [-1.07, 1.07], modZ: 2.0, cxD: [0.36, 0.32], ny: 0.6275,
+  pcieX: [-0.35, 0.35], pcieZ: -0.15, hgxPcie: [-1.08, 2.5],
   cageX: [-0.375, -0.125, 0.125, 0.375], cageY: 0.94,
   riserX: 0.66, cardX: 1.42, cardY: [0.93, 1.17], cardZ: -3.62,
-  psuX: i => -1.83 + i * 0.73, psuY: 0.24,
+  psuX: i => -1.825 + i * 0.73, psuY: 0.24,
   fanX: [-1.62, -0.54, 0.54, 1.62], fanY: [0.965, 1.975, 2.985],
   driveX: [-1.68, -0.88, 0.87, 1.67], driveY: [0.35, 0.185],
-  busX: 0.6,
 };

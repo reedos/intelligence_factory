@@ -537,7 +537,7 @@ function buildHGX({ quality, state }) {
   pduX.forEach(x => flows.push(flow([[x * 0.5, TAP.glandY, -0.25], [x * 0.5, H + 0.02, -0.25], [x, pTop + 0.085, pduZ], [x, pBot, pduZ]], 'lv', { count: 16, speed: 0.35, size: 0.012, trailR: 0.004 })));
   cordEnds.forEach(({ from, to }) => flows.push(flow([from, [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2 - 0.04, (from[2] + to[2]) / 2], to], 'lv', { count: 3, speed: 0.2, size: 0.009, trail: false })));
   // 54 V forward along the floor copper under the motherboard tray, up the midplane into the GPU tray
-  flows.push(flow([[tx(DGX.busX), ty(0.1), tz(DGX.ZB + 2.75)], [tx(DGX.busX), ty(0.1), tz(DGX.ZM - 0.1)], [tx(DGX.busX), ty(DGX.gy + 0.04), tz(DGX.ZM - 0.1)], [tx(DGX.busX), ty(DGX.gy + 0.04), tz(2.9)]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
+  flows.push(flow([[tx(DGX.busX[1]), ty(0.1), tz(DGX.ZB + 2.75)], [tx(DGX.busX[1]), ty(0.1), tz(DGX.ZM - 0.1)], [tx(DGX.busX[1]), ty(DGX.gy + 0.04), tz(DGX.ZM - 0.1)], [tx(DGX.busX[1]), ty(DGX.gy + 0.04), tz(2.2)]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
   // scale-up: NVLink only inside the pulled server, GPUs to the switch row
   sinks.forEach(([x, z]) => dataFlows.push(flow([[x, ty(DGX.gy + 0.04), z], [x * 0.95, ty(DGX.gy + 0.04), tz(DGX.swZ + 0.3)]], 'nvl', { count: 3, speed: 0.12, size: 0.006, k: 2.4, trail: false })));
   // heat: cold air in the front of every server, hot air out the back

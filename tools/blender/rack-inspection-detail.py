@@ -92,7 +92,7 @@ def enhance(accel,m,box,cylinder,material):
                         for sy in [-1,1]:cylinder('Inspection fan captive corner',(x+sx*.019,y+sy*.019,z-.003),.002,.002,m['bright'],1,'z')
         # Supplies along the bottom of the rear: top louvers.
         for i in range(6):
-            x=(-1.83+i*.73)*.1
+            x=(-1.825+i*.73)*.1
             for j in range(7):b('PSU intake louver',(x-.024+j*.008,yb+.0455,pz-depth/2+.07),(.003,.003,.095),m['shell'])
     else:
         # Supporting power and network hardware occupies the former bare board

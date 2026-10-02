@@ -140,16 +140,22 @@ function h100Layout() {
   const L = base(), X = x => x + H100_DECK2;
   // ---- GPU deck: HGX baseboard ----
   L.boards.push({ x: 0, z: -0.05, w: 4.2, d: 6.6 });
-  const gpuX = [-1.62, -0.54, 0.54, 1.62], gpuZ = [1.2, -0.62], swX = [-1.55, -0.52, 0.52, 1.55], swZ = -2.3, connX = [-1.6, -0.53, 0.53, 1.6];
+  const gpuX = [-1.62, -0.54, 0.54, 1.62], gpuZ = [1.2, -0.62], swX = [-1.55, -0.52, 0.52, 1.55], swZ = -2.3, connX = gpuX;
   gpuZ.forEach((z, r) => gpuX.forEach((x, c) => L.pkgs.push({ x, z, w: 0.9, d: 1.4, ref: `SXM${r * 4 + c + 1}`, fan: 0, m: 0.01 })));
   swX.forEach((x, i) => {
     L.pkgs.push({ x, z: swZ, w: 0.42, d: 0.42, ref: `U${60 + i}`, fan: 2, m: 0.005 });
     for (const g of [0.04, 0.058]) smdFramePart(L, x, swZ, 0.42, 0.42, g, `NVSwitch ${i + 1} decoupling`);
   });
-  [-1.85, -1.3, -0.75, 0.75, 1.3, 1.85].forEach(x => { part(L, '54 V converter', x, 2.62, 0.42, 0.36); L.pours.push({ x, z: 2.62, w: 0.46, d: 0.42 }); });
-  part(L, '54 V input copper', 0, 2.98, 3.2, 0.14);
-  L.pkgs.push({ x: 0, z: 2.62, w: 0.3, d: 0.3, ref: 'U70', fan: 1, m: 0.01 });
-  connX.forEach((x, i) => L.conns.push({ x, z: 3.19, w: 0.5, d: 0.08, ref: `J${1 + i}` }));
+  // power entry, conversion and point of load in straight lines: 54 V connectors in the outer strips and the center,
+  // their straps and converters straight behind, beside the regulator rows they feed; PCIe channels stay clear of them
+  [[-1.95, 0.3], [0, 0.36], [1.95, 0.3]].forEach(([x, w]) => {
+    for (const z of [2.75, 2.3]) part(L, '54 V converter', x, z, w, 0.36);
+    L.pours.push({ x, z: 2.7, w: w + 0.04, d: 0.9 });
+  });
+  [-1.97, 0, 1.97].forEach((x, i) => L.conns.push({ x, z: 3.19, w: x ? 0.2 : 0.3, d: 0.08, ref: `J${10 + i}` }));
+  [-1.08, 1.08].forEach((x, i) => L.conns.push({ x, z: 3.19, w: 0.2, d: 0.08, ref: `J${13 + i}` }));
+  L.pkgs.push({ x: -1.08, z: 2.5, w: 0.3, d: 0.3, ref: 'U70', fan: 1, m: 0.01 });
+  connX.forEach((x, i) => L.conns.push({ x, z: 3.19, w: 0.4, d: 0.08, ref: `J${1 + i}` }));
   // NVLink: each rear-row module straight back into its NVSwitch; each front-row module out its rear edge, down the
   // gap between the rear-row modules (their footprints are connectors: nothing routes under them) and into a switch's
   // side. A bus dives to an inner layer to pass the switches' decoupling rows.
@@ -162,41 +168,58 @@ function h100Layout() {
     const edge = sw - s * 0.21, via = edge - s * 0.12, start = gx + (c < 2 ? -1 : 1) * 0.17;
     L.buses.push({ id: `NVLink SXM${1 + c}`, pts: [[start, 0.56], [start, 0.29], [gx, 0.29], [gx, swZ], [via, swZ], [edge + s * 0.1, swZ]], pairs: pairs[c], layers: ['top', 'top', 'top', 'top', 'in'] });
     vertical.push([gx, 0.04]);
-    // PCIe forward from each front-row module to its midplane connector, under the converters on an inner layer
-    L.buses.push({ id: `PCIe SXM${1 + c}`, pts: [[x - 0.15, 1.85], [x - 0.15, 2.22], [connX[c], 2.22], [connX[c], 3.17]], pairs: 8, layers: ['top', 'top', 'in'] });
+    // PCIe straight forward from each front-row module to the connector in front of its column, one layer, no via;
+    // the rear-row module's lanes run under the front module on an inner layer and join it at the connector
+    L.buses.push({ id: `PCIe SXM${1 + c}`, pts: [[x, 1.85], [x, 3.17]], pairs: 8 });
   });
   for (const [c, gx, sw, s] of [[0, -1.08, swX[1], 1], [3, 1.08, swX[2], -1]]) {
     const start = gx - s * 0.27;
     L.buses.push({ id: `NVLink SXM${1 + c} b`, pts: [[start, 0.56], [start, 0.41], [gx, 0.41], [gx, swZ - 0.08], [sw - s * 0.12, swZ - 0.08]], pairs: 5, layer: 'in' });
   }
-  for (const sx of [-1, 1]) for (const z of [-3.1, -1.75, 0.29, 2.2]) L.holes.push([sx * 2.03, z, 0.022]);
+  for (const sx of [-1, 1]) for (const z of [-3.1, -1.75, 0.29, 2.02]) L.holes.push([sx * 2.03, z, 0.022]);
   for (let i = 0; i < 25; i++) { const x = -1.8 + i * 0.15; if (vertical.every(([vx, hw]) => Math.abs(x - vx) > hw + 0.04)) L.tps.push([x, -1.72]); }
   // ---- motherboard deck (x + H100_DECK2): motherboard, interposer, then the upper boards ----
   L.boards.push({ x: X(0), z: -2.1, w: 4.2, d: 4.44 }, { x: X(0), z: 1.71, w: 4.2, d: 3.02 });
-  const cpuX = [-1.07, 1.07], cpuZ = -1.15, bankX = [-1.74, -0.4, 0.4, 1.74], modX = [-1.05, 1.05], modZ = 2.0, cageX = [-0.375, -0.125, 0.125, 0.375];
+  const cpuX = [-1.07, 1.07], cpuZ = -1.15, bankX = [-1.74, -0.4, 0.4, 1.74], modX = [-1.07, 1.07], modZ = 2.0, cageX = [-0.375, -0.125, 0.125, 0.375];
   cpuX.forEach((x, k) => {
     L.pkgs.push({ x: X(x), z: cpuZ, w: 0.66, d: 0.56, ref: `CPU${k}`, fan: 1, m: 0.03 });
     for (const s of [-1, 1]) smdRowPart(L, [X(x) - 0.33, cpuZ + s * 0.39], [X(x) + 0.33, cpuZ + s * 0.39], true, `CPU${k} decoupling`);
     const s = Math.sign(x);
     // memory channels to the slot banks either side, on an inner layer
     for (const d of [-1, 1]) L.buses.push({ id: `DDR5 CPU${k} ${d}`, pts: [[X(x + d * 0.26), cpuZ], [X(x + d * 0.42), cpuZ]], pairs: 16, pitch: 0.012, layer: 'in' });
-    // PCIe to the interposer connector at the board's front edge, and to this side's PCIe switch
-    L.buses.push({ id: `PCIe CPU${k} to modules`, pts: [[X(x), cpuZ + 0.2], [X(x), -0.6], [X(x), 0.02]], pairs: 10, layers: ['in', 'top'] });
-    L.conns.push({ x: X(x), z: 0.05, w: 0.5, d: 0.05, ref: `J${10 + k}` });
-    L.buses.push({ id: `PCIe CPU${k} to switch`, pts: [[X(x - s * 0.2), cpuZ + 0.2], [X(x - s * 0.2), -0.37], [X(s * 0.35), -0.37], [X(s * 0.35), -0.2]], pairs: 3, layers: ['in', 'top', 'in'] });
+    // PCIe straight forward to the interposer connector, and to this side's PCIe switch; the regulator row takes the
+    // rest of the CPU's front edge, fed by a pour straight back from the power connector (point of load)
+    const pc = x - s * 0.18;
+    L.buses.push({ id: `PCIe CPU${k} to modules`, pts: [[X(pc), cpuZ + 0.2], [X(pc), -0.6], [X(pc), 0.02]], pairs: 10, layers: ['in', 'top'] });
+    L.conns.push({ x: X(pc), z: 0.05, w: 0.3, d: 0.05, ref: `J${40 + k}` });
+    L.buses.push({ id: `PCIe CPU${k} to switch`, pts: [[X(x - s * 0.31), cpuZ + 0.2], [X(x - s * 0.31), -0.37], [X(s * 0.35), -0.37], [X(s * 0.35), -0.2]], pairs: 3, layers: ['in', 'top', 'in'] });
+    for (let i = 0; i < 5; i++) L.vrms.push({ x: X(x + s * (-0.07 + i * 0.09)), z: cpuZ + 0.53, w: 0.07, d: 0.07 });
+    L.pours.push({ x: X(s * 1.09), z: -0.21, w: 0.06, d: 0.66 });
+    // switch to the storage NIC: out the switch's inner side, down the center channel, behind the banks to the riser
+    L.buses.push({ id: `PCIe switch ${k} to riser`, pts: [[X(s * 0.27), -0.2], [X(s * 0.06), -0.2], [X(s * 0.06), -2.05], [X(s * 0.62), -2.05], [X(s * 0.66), -2.4]], pairs: 3, layers: ['in', 'top', 'top', 'top'] });
+    L.conns.push({ x: X(s * 0.66), z: -3.4, w: 0.06, d: 1.9, ref: '' });
   });
   bankX.forEach((bx, i) => part(L, `DIMM slots ${i + 1}`, X(bx), cpuZ, 0.54, 1.5, { layer: 'all', term: true }));
   for (const x of [-0.35, 0.35]) { L.pkgs.push({ x: X(x), z: -0.15, w: 0.3, d: 0.3, ref: 'U', fan: 1, m: 0.01 }); smdFramePart(L, X(x), -0.15, 0.3, 0.3, 0.03, `PCIe switch ${x} bypass`); }
   modX.forEach((mx, m) => {
-    const s = Math.sign(mx);
-    L.conns.push({ x: X(s * 1.07), z: 0.26, w: 0.5, d: 0.05, ref: `J${20 + m}` });
-    L.buses.push({ id: `PCIe module ${m}`, pts: [[X(s * 1.07), 0.3], [X(s * 1.07), 0.8], [X(mx), 1.0], [X(mx), 1.26]], pairs: 10 });
-    L.conns.push({ x: X(mx), z: 1.29, w: 0.6, d: 0.05, ref: `J${22 + m}` });
-    // drives: from the midplane connector along the outer edge to the board's rear edge, toward the switch
-    L.buses.push({ id: `NVMe ${m}`, pts: [[X(s * 1.6), 3.15], [X(s * 1.6), 2.9], [X(s * 1.9), 2.9], [X(s * 1.9), 0.45], [X(s * 0.35), 0.45], [X(s * 0.35), 0.27]], pairs: 6, layers: ['top', 'top', 'top', 'in', 'in'] });
-    L.conns.push({ x: X(s * 0.35), z: 0.24, w: 0.3, d: 0.05, ref: `J${24 + m}` });
+    const s = Math.sign(mx), pc = s * (1.07 - 0.18);
+    // CPU to its network module, straight through the interposer connector to the module's rear edge
+    L.conns.push({ x: X(pc), z: 0.26, w: 0.3, d: 0.05, ref: `J${20 + m}` });
+    L.buses.push({ id: `PCIe module ${m}`, pts: [[X(pc), 0.3], [X(pc), 1.26]], pairs: 10 });
+    L.conns.push({ x: X(pc), z: 1.29, w: 0.4, d: 0.05, ref: `J${22 + m}` });
+    // drives: straight back down the center channel from their midplane connector to the switch
+    L.buses.push({ id: `NVMe ${m}`, pts: [[X(s * 0.25), 3.15], [X(s * 0.25), 0.27]], pairs: 6 });
+    L.conns.push({ x: X(s * 0.25), z: 0.24, w: 0.2, d: 0.05, ref: `J${24 + m}` });
+    L.conns.push({ x: X(s * 0.3), z: 0.08, w: 0.2, d: 0.05, ref: `J${26 + m}` });
+    L.buses.push({ id: `NVMe ${m} b`, pts: [[X(s * 0.3), 0.045], [X(s * 0.3), -0.05]], pairs: 6, layer: 'in' });
+    // GPU PCIe: from each midplane connector straight back to the ConnectX-7 column in line with it
+    for (const dx of [-0.36, 0.36]) L.buses.push({ id: `GPU PCIe ${mx + dx}`, pts: [[X(mx + dx), 3.15], [X(mx + dx), 2.72]], pairs: 8 });
+    // 54 V: the outer strip from the power connector, across behind the module, then straight back to the CPU regulators
+    L.pours.push({ x: X(s * 1.9), z: 1.73, w: 0.1, d: 2.9 }, { x: X(s * 1.505), z: 0.27, w: 0.89, d: 0.1 });
   });
-  [-1.6, -0.53, 0.53, 1.6].forEach((x, i) => L.conns.push({ x: X(x), z: 3.185, w: 0.5, d: 0.08, ref: `J${30 + i}` }));
+  [-1.43, -0.71, 0.71, 1.43].forEach((x, i) => L.conns.push({ x: X(x), z: 3.185, w: 0.36, d: 0.08, ref: `J${30 + i}` }));
+  [-1.9, 1.9].forEach((x, i) => L.conns.push({ x: X(x), z: 3.185, w: 0.18, d: 0.08, ref: `J${34 + i}` }));
+  [-0.25, 0.25].forEach((x, i) => L.conns.push({ x: X(x), z: 3.185, w: 0.2, d: 0.08, ref: `J${36 + i}` }));
   for (const sx of [-1, 1]) for (const z of [-4.1, -2.6, 0.6, 3.0]) L.holes.push([X(sx * 2.03), z, 0.02]);
   // the rear: the cage board's cable connectors to its four cages
   L.boards.push({ x: X(0), z: -4.17, w: 1.15, d: 0.62 });

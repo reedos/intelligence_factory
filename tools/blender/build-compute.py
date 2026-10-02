@@ -177,7 +177,7 @@ def h100_chassis_detail(m,u):
     # along the bottom edge and a release latch at the right.
     ZB=-4.5
     for i in range(6):
-        px=-1.83+i*.73
+        px=-1.825+i*.73
         for r in range(4):
             for c in range(4):box('PSU grille perforation',(px+.06+c*.07,.12+r*.075,ZB-.004),(.045,.045,.006),m['dark'],u,0)
         for sy in [-1,1]:box('PSU inlet frame',(px-.15,.27+sy*.092,ZB-.03),(.22,.016,.02),m['graphite'],u,.004)
