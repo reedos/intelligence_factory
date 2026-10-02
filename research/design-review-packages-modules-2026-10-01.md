@@ -46,7 +46,7 @@ those are laid out by the rules and labelled "as drawn" (evidence `optics-module
 
 ## Checked and kept
 
-- HBM stacks: twins carry four stacks per die along the edges facing them (2 + 2), H100 three per side (NextPCB).
+- HBM stacks: eight around the two Blackwell dies and six around the H100 die (NextPCB); as drawn, each twin die has two stacks on each of its long-edge neighbours and H100 three per side, each facing its PHY edge.
 - Die-to-die PHY on the seam edge, HBM PHY on the HBM edges, NVLink SerDes on the free edges.
 - Coherent: DSP nearest the host, driver/TIA at the DSP line edge (about 5 mm), RF at the optics' host end, fibers at
   the far end; DSP-to-driver/TIA copper short and uncrossed.
