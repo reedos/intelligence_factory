@@ -55,7 +55,7 @@ def enhance(accel,m,box,cylinder,material):
         for sz in [-1,1]:passives(x,y+.003,z+sz*d*.37,w*.7,10)
     # Folded returns, telescoping bearing channels, captive mounting hardware.
     for x in [-.216,.216]:
-        y=py+4*U*.95 if h100 and x<0 else yb+(.035 if h100 else .042)
+        y=py+4*U*.95 if h100 and x<0 else yb+(.045 if h100 else .042)
         b('rolled chassis return',(x,y,pz),(.008,.0025,depth-.014),m['shell'])
         for dz in [-.36,-.18,0,.18,.36]:screw(x,y+.002,pz+dz)
     for x in [-.254,.254]:
@@ -63,29 +63,37 @@ def enhance(accel,m,box,cylinder,material):
         b('telescopic rail slide',(x,yb+.007,pz-.12),(.006,.004,.81),m['bright'])
         for dz in [-.34,.15,.35]:screw(x,yb+.01,pz+dz,.0023)
     if h100:
-        # Existing eight GPU sinks: socket retainers and captive corners.
-        for dz in [.27,.10]:
-            for i in range(4):
-                x=-.162+i*.108;z=pz+dz
-                frame('GPU assembly outline',x,yb+.010,z,.098,.146)
+        # The pulled DGX H100 (rack.js, laid out as the server level: tray units x .1,
+        # depth x .84/9). GPU modules: socket outlines, captive corners, passives.
+        kz=depth/9
+        T=lambda x,y,z:(x*.1,yb+y*.1,pz+z*kz)
+        for z in [1.2,-.62]:
+            for gx in [-1.62,-.54,.54,1.62]:
+                x,y,zz=T(gx,1.46,z)
+                frame('GPU assembly outline',x,y+.0005,zz,.096,1.72*kz)
                 for sx in [-1,1]:
-                    for sz in [-1,1]:screw(x+sx*.046,yb+.026,z+sz*.065,.0023)
-                passives(x,yb+.011,z-.073,.080,12)
-        # CPU heatsink fin crowns over the two existing CPU base blocks.
-        for x in [-.1,.1]:
-            for i in range(19):b('CPU fin',(x-.027+i*.003,yb+.264,pz-.24),(.0011,.018,.067),m['shell'],.0002)
-            for s in [-1,1]:
-                for k in range(4):
-                    dx=x+s*(.045+k*.007)
-                    for j in range(6):b('DIMM package',(dx+.002,yb+.224,pz-.285+j*.017),(.001,.012,.010),m['graphite'],.0002)
-                    for dz in [-.065,.065]:b('DIMM latch',(dx,yb+.21,pz-.24+dz),(.004,.009,.007),m['shell'])
+                    for sz in [-1,1]:screw(x+sx*.044,yb+.17,zz+sz*.072,.0023)
+                passives(x,y+.001,zz-.085,.080,12)
+        # DIMM latches at both ends of the 32 slots, and the CPU sink retention screws.
+        for bx in [-1.74,-.4,.4,1.74]:
+            for k in range(8):
+                x,y,z=T(bx+(k-3.5)*.072,.545,-1.15)
+                for dz in [-.068,.068]:b('DIMM latch',(x,y+.004,z+dz),(.003,.006,.005),m['shell'])
+        for cx in [-1.07,1.07]:
+            x,y,z=T(cx,.545,-1.15)
+            for sx in [-1,1]:
+                for sz in [-1,1]:screw(x+sx*.031,yb+.07,z+sz*.038,.0022)
+        # Twelve fan modules, two fans each: captive corners on the front frames.
+        for fy in [.965,1.975,2.985]:
+            for fx in [-1.62,-.54,.54,1.62]:
+                for s in [-1,1]:
+                    x,y,z=T(fx+s*.255,fy,4.5)
+                    for sx in [-1,1]:
+                        for sy in [-1,1]:cylinder('Inspection fan captive corner',(x+sx*.019,y+sy*.019,z-.003),.002,.002,m['bright'],1,'z')
+        # Supplies along the bottom of the rear: top louvers.
         for i in range(6):
-            x=-.185+i*.074
-            for dy in [.065,.135]:
-                for sx in [-1,1]:
-                    for sy in [-1,1]:
-                        cylinder('Inspection fan captive corner',(x+sx*.029,yb+dy+sy*.029,pz+depth/2-.012),.002,.002,m['bright'],1,'z')
-            for j in range(7):b('PSU intake louver',(x-.024+j*.008,yb+.081,pz-depth/2+.07),(.003,.003,.095),m['shell'])
+            x=(-1.83+i*.73)*.1
+            for j in range(7):b('PSU intake louver',(x-.024+j*.008,yb+.0455,pz-depth/2+.07),(.003,.003,.095),m['shell'])
     else:
         # Supporting power and network hardware occupies the former bare board
         # fields. Placement is schematic; NIC/DPU counts follow this generation.

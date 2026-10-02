@@ -172,23 +172,45 @@ def h100_chassis_detail(m,u):
         for i in range(17):box('Rack rail fastener hole',(xi+.0015,y,-4.0+i*.5),(.004,.045,.07),m['dark'],u,0)
     box('Service label field',(xi+.0025,1.82,2.9),(.004,.42,.95),m['etch'],u,.004)
     for k in range(4):box('Service label rule',(xi+.0035,1.72+k*.07,2.9),(.003,.012,.8),m['graphite'],u,0)
-    # Six rear power supplies (3.3 kW each, NVIDIA DGX H100 user guide): square
-    # perforated fan grille, pull handle, release latch and a framed inlet.
+    # Six rear power supplies across the bottom (6 x 3.3 kW, NVIDIA DGX H100 user
+    # guide rear figure): perforated exhaust beside the C20 inlet, a pull handle
+    # along the bottom edge and a release latch at the right.
     ZB=-4.5
     for i in range(6):
         px=-1.83+i*.73
-        for r in range(6):
-            for c in range(6):box('PSU grille perforation',(px-.2+c*.08,.2+r*.08,ZB-.0335),(.052,.052,.004),m['dark'],u,0)
-        for sy in [-1,1]:box('PSU handle standoff',(px-.3,.4+sy*.2,ZB-.064),(.04,.04,.11),m['graphite'],u,.01)
-        box('PSU pull handle',(px-.3,.4,ZB-.12),(.035,.44,.035),m['graphite'],u,.014)
-        box('PSU release latch',(px+.29,.1,ZB-.022),(.05,.07,.03),m['bright'],u,.008)
-        for sy in [-1,1]:box('PSU inlet frame',(px+.2,.62+sy*.062,ZB-.08),(.18,.016,.02),m['graphite'],u,.004)
-        for sx in [-1,1]:box('PSU inlet frame',(px+.2+sx*.082,.62,ZB-.08),(.016,.11,.02),m['graphite'],u,.004)
-    # Folded mouths on the four rear OSFP cages; the optical aperture stays open.
-    ty=1.95
-    for x in [-1.65,-1.05,1.05,1.65]:
-        for sy in [-1,1]:box('OSFP cage folded mouth',(x,ty+.35+sy*.085,ZB-.005),(.25,.014,.03),m['bright'],u,.005)
-        for sx in [-1,1]:box('OSFP cage folded mouth',(x+sx*.118,ty+.35,ZB-.005),(.014,.156,.03),m['bright'],u,.005)
+        for r in range(4):
+            for c in range(4):box('PSU grille perforation',(px+.06+c*.07,.12+r*.075,ZB-.004),(.045,.045,.006),m['dark'],u,0)
+        for sy in [-1,1]:box('PSU inlet frame',(px-.15,.27+sy*.092,ZB-.03),(.22,.016,.02),m['graphite'],u,.004)
+        for sx in [-1,1]:box('PSU inlet frame',(px-.15+sx*.102,.27,ZB-.03),(.016,.2,.02),m['graphite'],u,.004)
+        for sx in [-1,1]:box('PSU handle standoff',(px+sx*.25,.07,ZB-.04),(.04,.04,.08),m['graphite'],u,.01)
+        box('PSU pull handle',(px,.07,ZB-.085),(.54,.035,.035),m['graphite'],u,.014)
+        box('PSU release latch',(px+.315,.24,ZB-.02),(.04,.12,.03),m['bright'],u,.008)
+    # Folded mouths on the four OSFP cages in the motherboard tray; apertures stay open.
+    cy=.94
+    for x in [-.375,-.125,.125,.375]:
+        for sy in [-1,1]:box('OSFP cage folded mouth',(x,cy+sy*.079,ZB-.005),(.25,.014,.03),m['bright'],u,.005)
+        for sx in [-1,1]:box('OSFP cage folded mouth',(x+sx*.118,cy,ZB-.005),(.014,.144,.03),m['bright'],u,.005)
+    # Rear service hardware: the GPU tray's two captive thumbscrews (center, low)
+    # and the motherboard tray's ejection levers on both sides, which engage the
+    # midplane connectors (service manual). Shapes are representative.
+    for x in [-.09,.09]:
+        cylinder('GPU tray captive thumbscrew',(x,1.62,ZB-.03),.045,.05,m['bright'],u,'z')
+        box('Thumbscrew drive slot',(x,1.62,ZB-.058),(.05,.008,.006),m['dark'],u,0)
+    for x in [-1.98,1.98]:
+        box('Motherboard tray ejection lever',(x,.95,ZB-.04),(.12,.62,.04),m['graphite'],u,.015)
+        cylinder('Lever captive screw',(x,1.2,ZB-.07),.03,.03,m['bright'],u,'z')
+    # Riser card brackets: two screws each and a vent slot row between the ports.
+    for sx in [-1,1]:
+        for y in [.93,1.17]:
+            for dx in [-.55,.55]:cylinder('Bracket screw',(sx*1.42+dx,y+.12,ZB-.0),.016,.02,m['bright'],u,'z')
+            for k in range(8):box('Bracket vent slot',(sx*1.42+.2+k*.045,y+.08,ZB+.019),(.02,.1,.006),m['dark'],u,0)
+    # U.2 drive carriers: release paddle and a ribbed front, on the eight native carriers.
+    for x in [-1.68,-.88,.87,1.67]:
+        for y in [.35,.185]:
+            box('Drive carrier paddle',(x-.05,y,4.51),(.5,.08,.02),m['graphite'],u,.01)
+            for k in range(6):box('Drive carrier vent rib',(x+.24+k*.02,y,4.506),(.008,.1,.012),m['dark'],u,0)
+    # Front console board: two USB 3.1 ports, VGA, ambient sensor (user guide front figure).
+    cylinder('Ambient temperature sensor window',(.02,.32,4.506),.02,.01,m['dark'],u,'z')
 
 def rubin_hardware(m):
     # NVIDIA public Figure18: independent compute/rear and networking/front bays.

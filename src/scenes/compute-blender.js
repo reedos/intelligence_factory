@@ -17,7 +17,7 @@ const assetKey = (kind, model) => `compute-${kind}-${variant(kind, model)}`;
 
 async function load(key) {
   if (cache.has(key)) return;
-  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=traylbl2`)
+  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=dgxh100a`)
     .then(gltf => { cache.set(key, gltf.scene); pending.delete(key); })
     .catch(error => { pending.delete(key); throw error; }));
   await pending.get(key);
@@ -137,9 +137,15 @@ function build(kind, native, options) {
 // Pulled-tray boards in rack metres -> the matching tray boards in tray units
 // ([x0, x1, z0, z1]); positions follow rack.js.
 function rackBoards(accel) {
+  // DGX H100: the pulled server's GPU-tray baseboard maps to the atlas's GPU deck; its motherboard, interposer and
+  // network-module boards to the motherboard deck, 4.4 units right (tray-pcb.js h100Layout). Network modules first:
+  // they sit within the height tolerance of the boards under them.
   if (accel === 'h100') return [
-    { from: [-0.21, 0.21, 0.915, 1.415], to: [-2.1, 2.1, -1.2, 3.8], y: 0.887 },
-    { from: [-0.21, 0.21, 0.595, 0.975], to: [-2.1, 2.1, -4.25, -1.3], y: 1.079 },
+    { from: [0.034, 0.176, 1.171, 1.2923], to: [5.45 - 0.71, 5.45 + 0.71, 1.35, 2.65], y: 0.9407 },
+    { from: [-0.176, -0.034, 1.171, 1.2923], to: [3.35 - 0.71, 3.35 + 0.71, 1.35, 2.65], y: 0.9407 },
+    { from: [-0.21, 0.21, 0.7323, 1.3483], to: [-2.1, 2.1, -3.35, 3.25], y: 1.0237 },
+    { from: [-0.21, 0.21, 0.6418, 1.0562], to: [2.3, 6.5, -4.32, 0.12], y: 0.9322 },
+    { from: [-0.21, 0.21, 1.0637, 1.3455], to: [2.3, 6.5, 0.2, 3.22], y: 0.9322 },
   ];
   const [z0, z1] = accel === 'rubin' ? [-3.97, 0.93] : [-3.25, 2.55];
   return [{ from: [-0.209, -0.007, 0.636, 1.194], to: [-2.1, -0.1, z0, z1] }, { from: [0.007, 0.209, 0.636, 1.194], to: [0.1, 2.1, z0, z1] }];

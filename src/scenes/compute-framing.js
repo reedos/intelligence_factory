@@ -7,7 +7,7 @@ export function frameCompute(built, kind, accel) {
   if (kind === 'rack') {
     built.camera = {...built.camera,pos:[2.8,2.4,3.7],target:[0,1.2,.28]};
   } else if (kind === 'tray') {
-    built.camera = { ...built.camera, ...componentView([0, h100 ? 1.6 : .4, -.1], [7, 7, 9], [4.9, h100 ? 3.7 : 1.3, 10.0]) };
+    built.camera = { ...built.camera, ...(h100 ? componentView([0, 1.5, -.2], [9.5, 4.4, 5.6], [4.9, 3.7, 9.6]) : componentView([0, .4, -.1], [7, 7, 9], [4.9, 1.3, 10.0])) };
   } else if (kind === 'chip') {
     built.camera = { ...built.camera, ...componentView([0, 2.5, 0], [9, 6, 11], [9.2, 5.0, 9.2]) };
     // The fit box stops just above the HBM tops (about 3.5 cm), so the exploded

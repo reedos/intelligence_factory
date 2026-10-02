@@ -22,10 +22,11 @@ export function addRackOptics(built, accel) {
   const shell = MAT.nickel.clone(); shell.name = 'Inserted flat top OSFP shell';
   shell.roughness=.48;shell.metalness=.6;shell.envMapIntensity=.35;
   const rows = h100 ? [0,1,2,3] : [3,4,5,6,7,8,9,10,20,21,22,23,24,25,26,27,28,29];
-  const ports = rubin ? [-.166,-.104,.104,.166].flatMap(x=>[{x,dy:0},{x,dy:.018}]) : [-.195,-.15,.15,.195].map(x=>({x,dy:0}));
+  // DGX H100: four OSFP side by side in the middle of the motherboard tray's rear (user guide port figure)
+  const ports = rubin ? [-.166,-.104,.104,.166].flatMap(x=>[{x,dy:0},{x,dy:.018}]) : h100 ? [-.0375,-.0125,.0125,.0375].map(x=>({x,dy:0})) : [-.195,-.15,.15,.195].map(x=>({x,dy:0}));
   rows.forEach((row,index) => {
     const pulled = row === (h100 ? 2 : 24);
-    const rowY = h100 ? .16+row*(8*U+.004)+.23 : .12+row*U+U/2-.009;
+    const rowY = h100 ? .16+row*(8*U+.004)+.094 : .12+row*U+U/2-.009;
     const z = h100 ? (pulled ? 1.045-.42 : .465-.84) : pulled ? .965+.45+.011 : .486;
     const direction = h100 ? -1 : 1;
     // Show a few populated links per tray with the remaining cages inspectable.
@@ -92,9 +93,10 @@ export function addRackOptics(built, accel) {
     // Storage/in-band QSFP cages are narrower and separated vertically from
     // the compute ports. Four for two BF3s in GB200 / dual CX7s in this DGX
     // H100 configuration; two for the GB300 BF3 or Rubin BF4 configuration.
-    const storage = h100 ? [-.096,-.069,.069,.096] : rubin ? [-.018,.018] : accel==='gb200' ? [-.187,-.16,.16,.187] : [.16,.187];
+    // DGX H100: the two dual-port storage ConnectX-7 in riser slots 1 and 2, either side of the OSFP row
+    const storage = h100 ? [-.167,-.137,.117,.147] : rubin ? [-.018,.018] : accel==='gb200' ? [-.187,-.16,.16,.187] : [.16,.187];
     for(const x of storage) {
-      const y=rowY+(rubin?.008:.021);
+      const y=rowY+(h100?.0045:rubin?.008:.021);
       for(const s of [-1,1]) {
         hardware.box(.0185,.001,.012,shell,x,y+s*.0048,z);
         hardware.box(.001,.0086,.012,shell,x+s*.0093,y,z);
@@ -107,7 +109,7 @@ export function addRackOptics(built, accel) {
   // comb fingers (representative dressing; lead and connector counts unchanged).
   const strap = new THREE.MeshStandardMaterial({ color: 0x17191c, roughness: .92, metalness: 0 });
   strap.name = 'Hook-and-loop cable strap';
-  const leadTop = Math.min(...rows.map(row => h100 ? .16+row*(8*U+.004)+.23 : .12+row*U+U/2-.009)) + .12;
+  const leadTop = Math.min(...rows.map(row => h100 ? .16+row*(8*U+.004)+.094 : .12+row*U+U/2-.009)) + .12;
   for (const side of [-1,1]) {
     const managerZ=h100?-.575:.575, direction=h100?-1:1;
     for(let y=.31;y<2.29;y+=.18) if(y>leadTop) hardware.box(.022,.012,.028,strap,side*.259,y,managerZ+direction*.011);

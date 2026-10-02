@@ -84,14 +84,13 @@ def enhance(kind,accel,m,box,cylinder,p3,material):
             for center in ([-.35] if accel=='gb300' else [-.8,-.3]):
                 for x in [center-.16,center+.16]:box('DPU thermal edge shoulder',(x,.385,3.65),(.025,.065,.58),titanium,u,.01)
         else:
-            # Existing two-by-six HGX fan wall, no additional fans. Molded
-            # black plastic bezels (the chrome rings read as polished metal).
+            # Twelve front fan modules, four by three, two fans each behind
+            # a molded bezel (DGX H100 user guide front figure).
             molded=material('Hero molded fan bezel',(.022,.025,.029),0,.55)
-            for y in [.9,2.6]:
-                for i in range(6):
-                    x=-1.85+i*.74
-                    ring('HGX molded fan inlet',(x,y,4.43),.303,.023,u,molded)
-                    front_frame('HGX fan cassette',x,y,4.418,.696,.775,.044,u,molded)
+            for y in [.965,1.975,2.985]:
+                for x in [-1.62,-.54,.54,1.62]:
+                    front_frame('DGX fan module bezel',x,y,4.47,1.02,.97,.04,u,molded)
+                    for s in [-1,1]:ring('DGX molded fan inlet',(x+s*.255,y,4.475),.21,.018,u,molded)
     else:
         u=.01
         # The package stiffener is one ring authored in build-compute.py.

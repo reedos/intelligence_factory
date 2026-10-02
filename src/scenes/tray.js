@@ -1,6 +1,7 @@
 // Scene 4: one compute tray, lid off. World unit = 10 cm (the tray is 4.4 units wide).
 // Front faces +z. NVL72 racks: two superchip boards, each one CPU and two GPUs.
-// H100: a DGX H100 server, the GPU baseboard below and the CPU tray cut away above.
+// H100: a DGX H100 server cut open along one side: the GPU tray on top, the motherboard tray under it, the supplies
+// across the bottom of the rear and a midplane behind the front fans (dgx-h100-layout.js).
 import { THREE, MAT, Builder, flow, canvasTex, texMat, glowMat, spinners } from '../kit.js';
 import { rbox, tube, bundle, blinkers, plumes } from '../fx.js';
 import { buildRubin } from './tray-rubin.js';
@@ -10,6 +11,7 @@ import { componentView } from '../app/housing-frame.js';
 import { printDecals, textTexture } from './print-kit.js';
 import { nicLabel, labelLines } from './lid-labels.js';
 import { etch, GPU_NAME } from './package-marks.js';
+import { DGX } from './dgx-h100-layout.js';
 
 // Printed lid labels on the modules seated in the NIC cages: the scenario's NIC-side class (lid-labels.js).
 export function trayLidLabels(scene, accel, placements, size) {
@@ -215,243 +217,360 @@ function lights(scene, quality) {
 }
 
 // ---------- DGX H100: 8U, air-cooled ----------
+// NVIDIA's DGX H100 user guide figures (research/dgx-h100-2026-10-01.md): seen from the rear, the GPU tray fills the
+// top, the motherboard tray sits under it and the six supplies run across the bottom. Twelve fan modules cover the
+// front above a strip of eight U.2 drives and the console board. Both trays slide in from the rear and plug into a
+// midplane behind the fans ("Midplane connectivity: Power, PCIe, sensors and signaling communications"). Inside the
+// motherboard tray, rear to front: PCIe risers and the four OSFP cages, the two CPUs with 32 DIMMs, the two
+// network modules (four ConnectX-7 each) on the interposer board, the midplane connectors. Inside the GPU tray,
+// rear to front: four NVSwitches, the 2 x 4 GPU grid, the midplane. Depths, the midplane's openings, the power
+// distribution under the motherboard tray and the PCIe switch positions are representative.
+
 function buildHGX({ quality }) {
   const scene = new THREE.Scene();
   lights(scene, quality);
   const flows = [], dataFlows = [], heatFlows = [];
   const S = new Builder(), N = new Builder();
   const finish = computeMaterials();
-  const W = 4.4, D = 9, H = 3.56, ZF = D / 2, ZB = -D / 2, fy = 0.03;
+  const { W, D, H, ZF, ZB, ZM, my, gy, gpuX, gpuZ, swX, swZ, connX, ibcX, ibcZ, cpuX, cpuZ, bankX, modX, modZ, ny, pcieX, pcieZ, cageX, cageY, psuX, psuY, fanX, fanY, driveX, driveY, busX } = DGX;
+  const heavy = !quality.mobile;
+  const statusLeds = [], hotTops = [];
+  // Vertical boards (midplane, risers, backplanes) keep a plain mask: the painted atlas is a top-down projection.
+  const vBoard = Object.assign(new THREE.MeshStandardMaterial({ color: 0x0f3a2b, roughness: 0.55, metalness: 0.08 }), { name: 'Vertical board mask' });
+  const heat = (f, watts, note) => Object.assign(f, { watts, wattsBasis: note });
 
-  // chassis: floor, far side, rear wall; the lid is off and the near side is cut low, like a section drawing
+  // ---------- chassis: floor, far wall, rear frame; lid off, the near wall cut down to the supplies, like a section ----------
   S.box(W, 0.03, D, MAT.galv, 0, 0.015, 0);
   S.box(0.03, H, D, MAT.galv, -W / 2, H / 2, 0);
   const CUT = 0.45;
   S.box(0.03, CUT, D, MAT.galv, W / 2, CUT / 2, 0); N.box(0.034, 0.02, D, glowMat('#d9dde2', 0.8), W / 2, CUT + 0.01, 0);
-  // Open rear service frame: the former solid wall covered the actual optical
-  // sockets and incorrectly enclosed their outgoing signal paths.
-  S.box(W, .12, .03, MAT.galv, 0, H - .06, ZB);
-  for (const x of [-W / 2 + .03, W / 2 - .03]) S.box(.06, H - .12, .03, MAT.galv, x, (H - .12) / 2, ZB);
+  S.box(W, .08, .03, MAT.galv, 0, H - .04, ZB);
+  for (const x of [-W / 2 + .03, W / 2 - .03]) S.box(.06, H - .08, .03, MAT.galv, x, (H - .08) / 2, ZB);
+  chassisLip(N, -W / 2, H, D, 1, heavy);
 
-  chassisLip(N, -W / 2, H, D, 1, !quality.mobile);
-
-  // fan wall at the front: two rows of six modules. NVIDIA's service manual
-  // lists two fans per module (front and rear), so each open housing carries a
-  // front and a rear rotor on a motor strut. Module count stays representative.
-  const fanX = i => -1.85 + i * 0.74, frontFans = [];
-  for (const y of [0.9, 2.6]) for (let i = 0; i < 6; i++) {
-    const x = fanX(i);
-    for (const s of [-1, 1]) { S.box(0.7, 0.035, 0.45, MAT.fan, x, y + s * 0.3825, ZF - 0.35); S.box(0.035, 0.73, 0.45, MAT.fan, x + s * 0.3325, y, ZF - 0.35); }
-    for (const z of [ZF - 0.2, ZF - 0.48]) {
-      N.cylZ(0.075, 0.07, MAT.fan, x, y, z, 10);
-      for (const a of [0.5, 2.6, 4.7]) N.box(0.3, 0.018, 0.018, MAT.fan, x + Math.cos(a) * 0.17, y + Math.sin(a) * 0.17, z - 0.04, 0, 0, a);
-      frontFans.push({ p: [x, y, z + 0.045], axis: 'z', r: 0.28 });
+  // ---------- front: twelve fan modules (4 x 3) over eight U.2 drives and the console board ----------
+  const rotors = [];
+  for (const y of fanY) for (const x of fanX) {
+    for (const s of [-1, 1]) { S.box(1.04, 0.03, 0.7, MAT.fan, x, y + s * 0.48, ZF - 0.36); S.box(0.03, 0.93, 0.7, MAT.fan, x + s * 0.505, y, ZF - 0.36); }
+    S.box(0.07, 0.93, 0.7, MAT.fan, x, y, ZF - 0.36);                                         // center web, behind the handle
+    N.box(0.05, 0.8, 0.035, MAT.beige, x, y, ZF + 0.02);                                      // pull handle
+    for (const s of [-1, 1]) {
+      const fx = x + s * 0.255;
+      N.cylZ(0.07, 0.07, MAT.fan, fx, y, ZF - 0.42, 12);                                       // motor hub on its struts
+      for (const a of [0.5, 2.6, 4.7]) N.box(0.4, 0.016, 0.016, MAT.fan, fx + Math.cos(a) * 0.2, y + Math.sin(a) * 0.2, ZF - 0.44, 0, 0, a);
+      rotors.push({ p: [fx, y, ZF - 0.3], axis: 'z', r: 0.21 });
     }
   }
-  const hgxFans = spinners(frontFans, MAT.darkSteel, { speed: 9 }); hgxFans.mesh.userData.computeDynamic = 'rotor'; scene.add(hgxFans.mesh);
+  const fanSpin = spinners(rotors, MAT.darkSteel, { speed: 9 }); fanSpin.mesh.userData.computeDynamic = 'rotor'; scene.add(fanSpin.mesh);
+  for (const x of driveX) for (const y of driveY) {
+    S.box(0.74, 0.14, 1.0, MAT.alu, x, y, ZF - 0.62);                                          // 15 mm U.2 drive in its carrier
+    S.box(0.76, 0.15, 0.12, MAT.fan, x, y, ZF - 0.06);                                         // carrier front with its lever
+    statusLeds.push({ p: [x + 0.33, y + 0.045, ZF + 0.002], color: '#5cf29a', rate: 1.1 + x * 0.2, duty: 0.6 });
+  }
+  S.box(0.8, 0.38, 0.06, MAT.fan, 0, 0.24, ZF - 0.03);                                        // front console board: 2 x USB, VGA, sensor
+  for (const x of [-0.27, -0.13]) N.box(0.1, 0.035, 0.02, MAT.black, x, 0.18, ZF + 0.005);
+  N.box(0.16, 0.07, 0.02, MAT.black, 0.2, 0.18, ZF + 0.005);
+  S.box(W - 0.1, 0.4, 0.03, vBoard, 0, 0.24, ZM + 0.09);                                       // drive backplane
 
-  // GPU baseboard, full width, from behind the fans to the middle of the chassis
-  S.box(W - 0.2, 0.03, 5.0, MAT.pcb, 0, fy + 0.015, 1.3);
-  boardFinish(N, finish, 0, fy + 0.024, 1.3, W - 0.2, 5.0);
-  const gpuX = [-1.62, -0.54, 0.54, 1.62], gpuZ = [2.75, 1.05];
-  const gpus = [];
-  gpuZ.forEach(z => gpuX.forEach(x => gpus.push([x, z])));
-  const LIFT = 1.5;                                  // the front-left heat sink is lifted to show the package
-  const dieM = texMat(dieTex(), { rough: 0.22, metal: 0.3 });
-  const heavy = !quality.mobile;
-  const hotTops = [], nicLeds = [];
-  gpus.forEach(([x, z], i) => {
-    S.box(0.9, 0.03, 1.4, MAT.pcbBlack, x, fy + 0.05, z);                                  // SXM5 module board
-    boardFinish(N, finish, x, fy + 0.06, z, 0.9, 1.4, 0.5);
-    S.box(0.5, 0.03, 0.52, MAT.pcbBlack, x, fy + 0.08, z);                                 // package substrate
-    const d = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.02, 0.32), [MAT.silicon, MAT.silicon, dieM, MAT.silicon, MAT.silicon, MAT.silicon]); d.position.set(x, fy + 0.105, z); scene.add(d);
-    for (const s of [-1, 1]) for (let k = 0; k < 3; k++) S.box(0.09, 0.03, 0.1, k === 2 && s > 0 ? MAT.silicon : MAT.hbm, x + s * 0.2, fy + 0.11, z - 0.12 + k * 0.12);
-    // integrated heat spreader / stiffener lid over the die, and the decoupling caps ringing the package
-    ihsLid(S, N, x, fy + 0.116, z, 0.56, 0.58, heavy);
-    if (heavy) { capField(N, x, z, fy + 0.05, 0.32, 10); connectorPins(N, x - 0.42, x + 0.42, fy + 0.065, z - 0.68, 14); }
-    // VRM rows either side of the module, bright metal caps on top
-    for (const s of [-1, 1]) for (let k = 0; k < 9; k++) { const vx = x + s * 0.4, vz = z - 0.56 + k * 0.14; S.box(0.07, 0.06, 0.07, MAT.inductor, vx, fy + 0.1, vz); inductorTop(N, vx, fy + 0.131, vz, 0.07); }
-    // heat sink: copper base, a stack of fins running front to back
-    const y0 = fy + 0.12 + (i === 0 ? LIFT : 0);
-    S.box(0.86, 0.08, 1.3, MAT.copper, x, y0 + 0.04, z);
-    for (let f = 0; f < 16; f++) N.box(0.018, 1.05, 1.28, MAT.alu, x - 0.4 + f * 0.0533, y0 + 0.6, z);
-    // Representative heat pipes: out of the copper base, up both sides and
-    // across through the fin stack; folded straps and end flanges hold the fins.
-    for (const [k, zz] of [-0.42, -0.14, 0.14, 0.42].entries()) {
-      const sx = k % 2 ? 1 : -1, top = y0 + 0.62 + (k % 2) * 0.28;
-      tube(S, [[x + sx * 0.2, y0 + 0.06, z + zz], [x + sx * 0.445, y0 + 0.16, z + zz], [x + sx * 0.455, top - 0.12, z + zz], [x + sx * 0.33, top, z + zz], [x - sx * 0.36, top, z + zz]], 0.028, MAT.copper, { seg: 10, steps: 18 });
-    }
-    for (const sz of [-1, 1]) { S.box(0.86, 0.014, 0.1, MAT.galv, x, y0 + 1.132, z + sz * 0.45); S.box(0.86, 0.12, 0.014, MAT.galv, x, y0 + 1.07, z + sz * 0.643); }
-    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-      S.cyl(0.022, 0.05, MAT.nickel, x + sx * 0.38, y0 + 0.105, z + sz * 0.58, 12);
-      if (i === 0) S.cyl(0.012, LIFT, MAT.nickel, x + sx * 0.38, fy + 0.12 + LIFT / 2, z + sz * 0.58, 10);   // guide posts: the lift is a service position
-    }
-    hotTops.push([x, y0 + 1.15, z]);
-    // 12 V to the ring, core power into the package
-    flows.push(flow([[x, fy + 0.07, -0.95], [x, fy + 0.07, z - 0.7], [x + 0.4, fy + 0.14, z - 0.56]], 'bus12', { count: 6, speed: 0.9, size: 0.03, trailR: 0.01 }));
-    // Core power leaves the VRM row at board level and enters the package
-    // through the substrate edge, so the die and HBM tops stay clear.
-    if (i === 0) for (const s of [-1, 1]) for (const dz of [-0.3, 0, 0.3]) flows.push(flow([[x + s * 0.36, fy + 0.08, z + dz], [x + s * 0.22, fy + 0.08, z + dz * 0.8]], 'core', { count: 3, speed: 0.35, size: 0.018, trailR: 0.006, k: 2.6, trailK: 0.2 }));
-    // heat: up from the die into the sink, then swept back by the air
-    heatFlows.push(flow([[x, fy + 0.12, z], [x, y0 + 0.1, z]], 'hot', { count: 3, speed: 0.4, size: 0.035, k: 2.6, trail: false }));
-    for (const dx of [-0.25, 0.25]) heatFlows.push(flow([[x + dx, y0 + 0.6, z + 0.9], [x + dx, y0 + 0.6, z - 0.7], [x + dx * 1.1, y0 + 0.65, z - 2.0]], 'air', { count: 4, speed: 1.0, size: 0.045, k: 2.2, opacity: 0.85, trail: false }));
-  });
-  // small local fill so GPU0's lifted-lid package reads clearly from the 'gpu' hotspot, not just lit from the far key
-  const gpuFill = new THREE.PointLight(0xfff2df, 0.9, 3.2, 2); gpuFill.position.set(gpuX[0] - 0.15, 0.7, gpuZ[0] + 1.1); scene.add(gpuFill);
-  // warm rim from behind, low and grazing: catches fin edges, heat pipes and the PSU bay (the site's amber)
-  // without flooding the flat CPU-tray board, which turned olive under a steeper rim
-  const amber = new THREE.DirectionalLight(0xe6ba82, 1.3); amber.name = 'H100 amber rim'; amber.position.set(-5, 1.9, -8); amber.target.position.set(0, 1.2, 0); scene.add(amber, amber.target);
-  // NVSwitch chips behind the GPUs, with small sinks
-  const swX = [-1.5, -0.5, 0.5, 1.5], swZ = -0.25;
-  swX.forEach(x => { S.box(0.42, 0.03, 0.42, MAT.pcbBlack, x, fy + 0.05, swZ); S.box(0.4, 0.5, 0.4, MAT.alu, x, fy + 0.32, swZ); for (let f = 0; f < 8; f++) N.box(0.015, 0.45, 0.42, MAT.galv, x - 0.18 + f * 0.05, fy + 0.35, swZ); });
-  // bus converters 54 → 12 V along the rear edge of the baseboard
-  for (let i = 0; i < 8; i++) S.box(0.3, 0.12, 0.3, MAT.darkSteel, -1.75 + i * 0.5, fy + 0.09, -0.95);
-  // 54 V bus bar from the supplies to the baseboard
-  S.box(0.3, 0.05, 2.6, MAT.copper, 0, fy + 0.06, -2.35);
+  // ---------- midplane: one board behind the fans with openings for the air, connectors for both trays ----------
+  const mpY = [0.03, 3.48];
+  S.box(W - 0.1, 0.47, 0.03, vBoard, 0, 0.255, ZM);                                            // lower band, behind the drives
+  S.box(W - 0.1, 0.24, 0.03, vBoard, 0, 0.62, ZM);                                             // motherboard-tray connector band
+  S.box(W - 0.1, 0.24, 0.03, vBoard, 0, 1.5, ZM);                                              // GPU-tray connector band
+  S.box(W - 0.1, 0.06, 0.03, vBoard, 0, mpY[1] - 0.03, ZM);
+  for (const x of [-2.12, -1.08, 0, 1.08, 2.12]) S.box(0.14, mpY[1] - 0.49, 0.03, vBoard, x, (mpY[1] + 0.49) / 2, ZM);
+  for (const s of [-1, 1]) S.box(0.12, 1.4, 0.012, MAT.copper, s * busX, 0.79, ZM - 0.022);   // 54 V blades up the midplane's rear face
+  for (const x of connX) for (const y of [0.62, 1.5]) S.box(0.52, 0.18, 0.06, MAT.black, x, y, ZM - 0.045);
 
-  // power supplies at the rear, below the CPU tray: fan grille plus a slotted vent field and a status LED
-  const psuX = i => -1.83 + i * 0.73;
-  const psuLeds = [];
+  // ---------- supplies at the rear bottom, power distribution and 54 V copper forward to the midplane ----------
   for (let i = 0; i < 6; i++) {
     const px = psuX(i);
-    S.box(0.68, 0.7, 1.26, MAT.darkSteel, px, 0.4, ZB + 0.62); N.box(0.5, 0.5, 0.02, MAT.fan, px, 0.4, ZB - 0.019);
-    if (heavy) for (let f = 0; f < 5; f++) N.box(0.5, 0.03, 0.02, MAT.black, px, 0.16 + f * 0.1, ZB + 1.245);      // proud of the PSU face, never flush
-    psuLeds.push({ p: [px + 0.28, 0.68, ZB + 1.24], color: '#5cf29a', rate: 0 });
+    S.box(0.68, 0.4, 2.4, MAT.darkSteel, px, psuY, ZB + 1.2);
+    N.box(0.18, 0.16, 0.03, MAT.black, px - 0.15, psuY + 0.03, ZB - 0.01);                    // C20 inlet
+    S.box(0.4, 0.06, 0.3, MAT.black, px, 0.11, ZB + 2.55);                                      // card-edge into the distribution board
+    statusLeds.push({ p: [px + 0.26, psuY + 0.14, ZB - 0.012], color: '#5cf29a', rate: 0 });
   }
+  S.box(W - 0.2, 0.03, 0.5, MAT.pcbBlack, 0, 0.06, ZB + 2.75);                                 // power distribution board
+  for (const s of [-1, 1]) {
+    S.box(0.14, 0.06, ZM - (ZB + 2.75) - 0.05, MAT.copper, s * busX, 0.105, (ZM + ZB + 2.75) / 2 - 0.03);
+    S.box(0.14, 0.5, 0.06, MAT.copper, s * busX, 0.33, ZM - 0.06);
+  }
+  if (heavy) for (const i of [1, 4]) bundle(N, [psuX(i) - 0.15, psuY + 0.03, ZB - 0.03], [psuX(i) - 0.15, 0.03, ZB - 0.7], { n: 1, r: 0.016, sag: 0.1, mats: [MAT.black], seed: i + 3 });
 
-  // CPU tray, cut away over the rear half so the GPUs stay in view
-  const ty = 1.95, tz0 = ZB + 0.15, tz1 = -1.2, tzc = (tz0 + tz1) / 2;
-  S.box(W - 0.1, 0.03, tz1 - tz0, MAT.galv, 0, ty - 0.03, tzc);
-  // formed pan edges and slide rails into the side walls (the near wall is cut away in this section view)
-  for (const s of [-1, 1]) { S.box(0.018, 0.09, tz1 - tz0, MAT.galv, s * (W - 0.13) / 2, ty - 0.09, tzc); S.box(0.06, 0.05, tz1 - tz0 + 0.2, MAT.darkSteel, s * (W / 2 - 0.045), ty - 0.1, tzc - 0.075); }
-  S.box(W - 0.2, 0.025, tz1 - tz0 - 0.1, MAT.pcb, 0, ty, tzc);
-  N.box(W - 0.1, 0.02, 0.03, glowMat('#d9dde2', 0.8), 0, ty - 0.01, tz1 + 0.01);              // lit cut edge
+  // ---------- motherboard tray: pan, motherboard (rear) and interposer board (front) ----------
+  const trayZ0 = -4.48, trayZ1 = ZM - 0.05, trayD = trayZ1 - trayZ0, trayC = (trayZ0 + trayZ1) / 2;
+  S.box(W - 0.1, 0.03, trayD, MAT.galv, 0, 0.495, trayC);
+  S.box(0.03, 0.14, trayD, MAT.galv, -W / 2 + 0.07, 0.58, trayC);
+  S.box(0.03, 0.05, trayD, MAT.galv, W / 2 - 0.07, 0.535, trayC); N.box(0.034, 0.012, trayD, glowMat('#d9dde2', 0.8), W / 2 - 0.07, 0.566, trayC);
+  S.box(4.2, 0.03, 4.44, MAT.pcb, 0, my - 0.015, -2.1);                                        // motherboard, z -4.32 .. 0.12
+  boardFinish(N, finish, 0, my - 0.006, -2.1, 4.2, 4.44);
+  S.box(4.2, 0.03, 3.02, MAT.pcb, 0, my - 0.015, 1.71);                                        // interposer board, z 0.2 .. 3.22
+  boardFinish(N, finish, 0, my - 0.006, 1.71, 4.2, 3.02);
+  for (const x of cpuX) S.box(0.5, 0.05, 0.14, MAT.black, x, my + 0.025, 0.16);                // interposer to CPU connectors
+  for (const x of connX) S.box(0.5, 0.14, 0.08, MAT.black, x, my + 0.07, ZM - 0.115);          // to the midplane
+  // CPUs: socket frame, package, a finned sink with the fins along the airflow
   const cpuTexM = texMat(pkgTex('XEON'), { rough: 0.5 });
-  const cpus = [[-1.0, -2.2], [1.0, -2.2]];
-  cpus.forEach(([x, z]) => {
-    const cp = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.05, 0.75), [MAT.hbm, MAT.hbm, cpuTexM, MAT.hbm, MAT.hbm, MAT.hbm]); cp.position.set(x, ty + 0.04, z); scene.add(cp);
-    for (let f = 0; f < 12; f++) N.box(0.015, 0.55, 0.7, MAT.alu, x - 0.28 + f * 0.05, ty + 0.35, z);   // CPU sink, fins front to back
-    for (const s of [-1, 1]) for (let k = 0; k < 8; k++) {
-      const dx = x + s * (0.42 + k * 0.055);
-      S.box(0.025, 0.32, 1.25, k % 2 ? MAT.black : MAT.pcbBlack, dx, ty + 0.17, z);                    // DDR5 DIMMs
-      if (heavy) dimmChips(N, dx, ty + 0.17, z, 0.15, 6, 1);
-    }
+  cpuX.forEach(x => {
+    S.box(0.74, 0.03, 0.7, MAT.nickel, x, my + 0.015, cpuZ);
+    const cp = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.04, 0.56), [MAT.hbm, MAT.hbm, cpuTexM, MAT.hbm, MAT.hbm, MAT.hbm]); cp.position.set(x, my + 0.05, cpuZ); scene.add(cp);
+    S.box(0.7, 0.05, 0.92, MAT.copper, x, my + 0.095, cpuZ);
+    for (let f = 0; f < 13; f++) N.box(0.014, 0.5, 0.9, MAT.alu, x - 0.312 + f * 0.052, my + 0.37, cpuZ);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) S.cyl(0.022, 0.06, MAT.nickel, x + sx * 0.31, my + 0.15, cpuZ + sz * 0.41, 10);
+    hotTops.push([x, my + 0.65, cpuZ]);
   });
-  // PCIe switches between the CPUs and the NICs
-  const pcieX = [-1.6, -0.55, 0.55, 1.6], pcieZ = -1.55;
-  pcieX.forEach(x => { S.box(0.3, 0.03, 0.3, MAT.pcbBlack, x, ty + 0.03, pcieZ); S.box(0.26, 0.18, 0.26, MAT.alu, x, ty + 0.13, pcieZ); });
-  // Eight compute ConnectX-7 devices grouped behind four twin-port cages; two separate storage ConnectX-7 cards in the middle
-  // Each card sits in line with its twin-port cage; SemiAnalysis reports DGX H100
-  // routes ConnectX-7 to the OSFP cages over DensiLink flyover cables, so the
-  // cards end short of the cages and two cables (one per NIC) reach each cage.
-  const nicX = [-1.65, -1.05, 1.05, 1.65];
-  nicX.forEach(x => { S.box(0.4, 0.02, 0.9, MAT.pcb, x, ty + 0.22, -3.3); for (const z of [-3.05,-3.5]) { S.box(.28,.025,.31,MAT.silicon,x,ty+.255,z);S.box(.28,.03,.31,finish.graphite,x,ty+.2825,z);for (let f = 0; f < 6; f++) S.box(.018,.07,.31,finish.graphite,x-.115+f*.046,ty+.332,z); } nicLeds.push({ p: [x - 0.1, ty + 0.35, -3.14], color: '#5cf29a', rate: 0.4 }, { p: [x + 0.1, ty + 0.35, -3.14], color: '#3fa8ff', rate: 1.6 }); });
-  for (const x of [-0.25, 0.25]) { S.box(0.34, 0.02, 1.3, MAT.pcbBlack, x, ty + 0.3, -3.5); S.box(0.26, 0.12, 0.5, MAT.alu, x, ty + 0.37, -3.5); nicLeds.push({ p: [x, ty + 0.44, -3.28], color: '#e8b23d', rate: 2.2 }); }
-  const cageX = [-1.65, -1.05, 1.05, 1.65];
-  // two cage boards under the four rear cages (representative), on standoffs from the CPU-tray board
-  for (const cx of [-1.35, 1.35]) {
-    S.box(0.95, 0.016, 0.62, MAT.pcb, cx, ty + 0.262, ZB + 0.33);
-    for (const sx of [-1, 1]) for (const z of [ZB + 0.08, ZB + 0.58]) N.cyl(0.012, 0.24, MAT.nickel, cx + sx * 0.43, ty + 0.134, z, 8);
-  }
-  nicFlyovers(S, N, cageX.flatMap(x => [x - 0.065, x + 0.065]), { nicTop: ty + 0.23, cageTop: ty + 0.27, zNic: -3.71, zCage: -3.93, style: 'densilink', width: 0.075, clipZ: -3.74,
-    clips: cageX.map(x => [x - 0.15, x + 0.15]) });
-  if (heavy) cageX.forEach(x => cageFins(N, x, ty + .47, ZB + .3, .2, .4, 4));
-  cageX.forEach(x => { for(const dy of [-.08,.08])S.box(.22,.016,.5,MAT.galv,x,ty+.35+dy,ZB+.25);for(const dx of [-.11,.11])S.box(.016,.144,.5,MAT.galv,x+dx,ty+.35,ZB+.25); N.box(0.16, 0.05, 0.05, MAT.polymer, x, ty + 0.23, ZB - 0.02); nicLeds.push({ p: [x, ty + 0.44, ZB + 0.02], color: '#5cf29a', rate: 0 }); });
-  // A twin-port module seated in each cage: its nose stands 15 mm proud of the rear mouth, two MPO
-  // receptacles on its face and a pull tab below; the lid label prints on the exposed nose.
+  // 32 DDR5 RDIMMs, eight either side of each CPU, slots along the airflow
+  bankX.forEach(bx => { for (let k = 0; k < 8; k++) {
+    const x = bx + (k - 3.5) * DGX.dimmPitch;
+    S.box(0.028, 0.04, DGX.dimmLen + 0.08, MAT.black, x, my + 0.02, cpuZ);
+    S.box(0.022, 0.3, DGX.dimmLen, MAT.darkSteel, x, my + 0.19, cpuZ);
+    for (const s of [-1, 1]) N.box(0.03, 0.06, 0.03, MAT.white, x, my + 0.07, cpuZ + s * (DGX.dimmLen / 2 + 0.03));
+  } });
+  // PCIe switches between the CPUs and the network modules (drives and storage NICs), small finned sinks
+  pcieX.forEach(x => { S.box(0.3, 0.03, 0.3, MAT.pcbBlack, x, my + 0.015, pcieZ); S.box(0.32, 0.03, 0.32, MAT.alu, x, my + 0.045, pcieZ); for (let f = 0; f < 7; f++) N.box(0.014, 0.16, 0.3, MAT.alu, x - 0.135 + f * 0.045, my + 0.14, pcieZ); });
+  // two network modules on the interposer, four ConnectX-7 each under finned sinks
+  const cxPts = [];
+  modX.forEach(mx => {
+    for (const s of [-1, 1]) S.box(0.5, 0.055, 0.14, MAT.black, mx + s * 0.3, my + 0.0275, modZ);
+    S.box(1.42, 0.025, 1.3, MAT.pcb, mx, ny - 0.0125, modZ);
+    boardFinish(N, finish, mx, ny - 0.004, modZ, 1.42, 1.3, 0.6);
+    for (const dx of [-1, 1]) for (const dz of [-1, 1]) {
+      const x = mx + dx * DGX.cxD[0], z = modZ + dz * DGX.cxD[1];
+      cxPts.push([x, z]);
+      S.box(0.26, 0.02, 0.26, MAT.silicon, x, ny + 0.01, z);
+      S.box(0.6, 0.03, 0.56, finish.graphite, x, ny + 0.035, z);
+      for (let f = 0; f < 10; f++) S.box(0.014, 0.26, 0.54, finish.graphite, x - 0.27 + f * 0.06, ny + 0.18, z);
+    }
+    statusLeds.push({ p: [mx - 0.66, ny + 0.03, modZ - 0.6], color: '#5cf29a', rate: 0.4 }, { p: [mx - 0.6, ny + 0.03, modZ - 0.6], color: '#3fa8ff', rate: 1.6 });
+  });
+  // four DensiLink cables, two ports each, from the module's rear edge back over the CPU field to the OSFP cages
+  const cbl = [], cageBoardTop = 0.87, cageZ0 = ZB + 0.25;
+  modX.forEach((mx, m) => [-1, 1].forEach((dx, k) => {
+    const x0 = mx + dx * DGX.cxD[0], cx = cageX[m * 2 + k], a = ny + 0.052, b = cageBoardTop + 0.052;
+    cableHead(S, N, x0, ny, modZ - 0.62, 'densilink', 0.13, -1);
+    cableHead(S, N, cx, cageBoardTop, cageZ0 + 0.33, 'densilink', 0.13, 1);
+    const pts = [[x0, a, modZ - 0.6], [x0, 1.12, modZ - 0.95], [x0 * 0.55, 1.27, 0.2], [cx * 1.2, 1.27, -2.2], [cx, 1.2, -3.0], [cx, b + 0.03, cageZ0 + 0.43], [cx, b, cageZ0 + 0.34]];
+    ribbon(N, pts, 0.09, 0.014, { pairs: 8, steps: 40 });
+    cbl.push(pts);
+  }));
+  // rear: OSFP cage board and four cages with their seated twin-port modules
+  S.box(1.15, 0.016, 0.62, MAT.pcb, 0, cageBoardTop - 0.008, ZB + 0.33);
+  for (const sx of [-1, 1]) for (const z of [ZB + 0.08, ZB + 0.58]) N.cyl(0.012, cageBoardTop - my, MAT.nickel, sx * 0.53, (cageBoardTop + my) / 2, z, 8);
   const lidAt = [];
   cageX.forEach(x => {
-    N.box(.19, .12, .25, MAT.nickel, x, ty + .35, ZB - .025);
-    for (const dx of [-.045, .045]) N.box(.07, .05, .006, MAT.polymer, x + dx, ty + .35, ZB - .153);
-    N.box(.04, .008, .07, MAT.black, x, ty + .286, ZB - .175);
-    lidAt.push({ p: [x, ty + .41, ZB - .09], face: 'top', yaw: Math.PI });
+    for (const dy of [-0.072, 0.072]) S.box(0.22, 0.014, 0.5, MAT.galv, x, cageY + dy, ZB + 0.25);
+    for (const dx of [-0.103, 0.103]) S.box(0.014, 0.13, 0.5, MAT.galv, x + dx, cageY, ZB + 0.25);
+    N.box(0.18, 0.11, 0.25, MAT.nickel, x, cageY, ZB - 0.025);                                  // seated module nose, flat top
+    for (const dx of [-0.045, 0.045]) N.box(0.07, 0.045, 0.006, MAT.polymer, x + dx, cageY, ZB - 0.153);
+    N.box(0.04, 0.008, 0.07, MAT.black, x, cageY - 0.062, ZB - 0.175);
+    lidAt.push({ p: [x, cageY + 0.056, ZB - 0.09], face: 'top', yaw: Math.PI });
+    statusLeds.push({ p: [x - 0.08, cageY + 0.1, ZB - 0.01], color: '#5cf29a', rate: 0 });
   });
-  // board population: decoupling rows around the NVSwitch chips, the SXM
-  // packages and the CPU sockets, bypass rows by the PCIe switches
-  swX.forEach((x, k) => { smdFrame(N, fy + 0.03, x, swZ, 0.42, 0.42, 0.04, 0.03, k); smdFrame(N, fy + 0.03, x, swZ, 0.42, 0.42, 0.058, 0.045, k + 20); });
-  gpus.forEach(([x, z], k) => smdRow(N, fy + 0.065, [x - 0.36, z + 0.3], [x + 0.36, z + 0.3], 16, true, k + 40));
-  cpus.forEach(([x, z], k) => smdFrame(N, ty + 0.0125, x, z, 0.62, 0.75, 0.04, 0.03, k + 60));
-  pcieX.forEach((x, k) => smdFrame(N, ty + 0.0125, x, pcieZ, 0.3, 0.3, 0.03, 0.03, k + 70));
-  // rear AC inlets and power cords
-  for (let i = 0; i < 6; i++) N.box(0.14, 0.1, 0.06, MAT.black, psuX(i) + 0.2, 0.62, ZB - 0.045);
-  if (heavy) for (const i of [1, 4]) bundle(N, [psuX(i) + 0.2, 0.55, ZB - 0.05], [psuX(i) + 0.2, 0.05, ZB - 0.7], { n: 2, r: 0.014, spread: 0.03, sag: 0.12, mats: [MAT.black], seed: i + 3 });
+  if (heavy) cageX.forEach(x => cageFins(N, x, cageY + 0.115, ZB + 0.3, 0.2, 0.4, 4));
+  // rear I/O on the motherboard's edge: BMC and LAN RJ45, UID, power, BMC reset, code display; USB and VGA; COM
+  for (const x of [-0.42, -0.2]) S.box(0.16, 0.13, 0.2, MAT.galv, x, my + 0.065, ZB + 0.12);
+  S.box(0.28, 0.1, 0.05, MAT.black, 0.33, my + 0.07, ZB + 0.03);
+  for (const x of [-1.92, -1.74]) S.box(0.14, 0.07, 0.18, MAT.galv, x, my + 0.035, ZB + 0.1);
+  S.box(0.26, 0.11, 0.1, MAT.pcbBlack, -1.4, my + 0.055, ZB + 0.06);
+  S.box(0.26, 0.11, 0.1, MAT.pcbBlack, 1.45, my + 0.055, ZB + 0.06);
+  statusLeds.push({ p: [0.08, my + 0.08, ZB - 0.005], color: '#4aa8ff', rate: 0 }, { p: [0.15, my + 0.08, ZB - 0.005], color: '#5cf29a', rate: 0 });
+  // two PCIe risers: slots 1 (storage ConnectX-7) and 3 (100 GbE) left, 2 (storage ConnectX-7) and 4 (M.2 boot pair) right
+  const cards = [];
+  for (const s of [-1, 1]) {
+    S.box(0.02, 0.74, 1.9, vBoard, s * DGX.riserX, my + 0.37, DGX.cardZ + 0.25);
+    S.box(0.06, 0.74, 0.12, MAT.black, s * DGX.riserX, my + 0.37, DGX.cardZ + 1.2);
+    DGX.cardY.forEach((y, k) => {
+      const x = s * DGX.cardX, slot = s < 0 ? (k ? 3 : 1) : (k ? 4 : 2);
+      S.box(1.3, 0.02, 1.68, MAT.pcb, x, y, DGX.cardZ);
+      S.box(1.3, 0.2, 0.015, MAT.galv, x, y + 0.08, ZB + 0.03);                              // bracket
+      S.box(0.06, 0.04, 1.5, MAT.gold, s * (DGX.riserX + 0.04), y, DGX.cardZ);                // edge fingers in the riser slot
+      if (slot === 4) for (const dx of [-0.2, 0.2]) { S.box(0.22, 0.012, 0.8, MAT.pcbBlack, x + dx, y + 0.016, DGX.cardZ + 0.1); S.box(0.2, 0.02, 0.7, MAT.alu, x + dx, y + 0.032, DGX.cardZ + 0.1); }
+      else {
+        S.box(0.24, 0.02, 0.24, MAT.silicon, x + s * 0.15, y + 0.02, DGX.cardZ + 0.35);
+        S.box(0.34, 0.025, 0.34, finish.graphite, x + s * 0.15, y + 0.043, DGX.cardZ + 0.35);
+        for (let f = 0; f < 6; f++) S.box(0.014, 0.08, 0.32, finish.graphite, x + s * 0.15 - 0.15 + f * 0.06, y + 0.095, DGX.cardZ + 0.35);
+        for (const dx of [-0.25, 0.05]) S.box(0.2, 0.09, 0.42, MAT.galv, x + dx, y + 0.055, ZB + 0.25);     // QSFP112 cages at the bracket
+      }
+      cards.push({ x, y, slot });
+    });
+  }
+
+  // ---------- GPU tray: pan, rear grille, HGX baseboard ----------
+  S.box(W - 0.1, 0.03, trayD, MAT.galv, 0, DGX.deck + 0.015, trayC);
+  S.box(0.03, 0.22, trayD, MAT.galv, -W / 2 + 0.07, DGX.deck + 0.11, trayC);
+  S.box(0.03, 0.05, trayD, MAT.galv, W / 2 - 0.07, DGX.deck + 0.04, trayC); N.box(0.034, 0.012, trayD, glowMat('#d9dde2', 0.8), W / 2 - 0.07, DGX.deck + 0.071, trayC);
+  {
+    const y0 = DGX.deck + 0.03, y1 = H - 0.08, zg = ZB + 0.03;
+    for (const y of [y0 + 0.03, y1 - 0.03]) S.box(W - 0.16, 0.06, 0.03, MAT.galv, 0, y, zg);
+    for (let i = 1; i < 14; i++) N.box(W - 0.2, 0.014, 0.02, MAT.galv, 0, y0 + i * (y1 - y0) / 14, zg);
+    for (let i = 0; i <= 16; i++) N.box(0.014, y1 - y0, 0.02, MAT.galv, -2.08 + i * 0.26, (y0 + y1) / 2, zg);
+  }
+  S.box(4.2, 0.03, 6.6, MAT.pcb, 0, gy - 0.015, -0.05);                                        // HGX baseboard, z -3.35 .. 3.25
+  boardFinish(N, finish, 0, gy - 0.006, -0.05, 4.2, 6.6);
+  for (const x of connX) S.box(0.5, 0.16, 0.08, MAT.black, x, gy + 0.08, ZM - 0.115);          // to the midplane
+  S.box(3.2, 0.012, 0.14, MAT.copper, 0, gy + 0.006, 2.98);                                    // 54 V input copper behind the connectors
+  ibcX.forEach(x => { S.box(0.42, 0.12, 0.36, MAT.darkSteel, x, gy + 0.06, ibcZ); for (let f = 0; f < 6; f++) N.box(0.012, 0.08, 0.34, MAT.alu, x - 0.18 + f * 0.072, gy + 0.16, ibcZ); });
+  { const [hx, hz] = DGX.hgxPcie; S.box(0.3, 0.03, 0.3, MAT.pcbBlack, hx, gy + 0.015, hz); S.box(0.36, 0.04, 0.36, MAT.alu, hx, gy + 0.05, hz); for (let f = 0; f < 7; f++) N.box(0.014, 0.16, 0.34, MAT.alu, hx - 0.15 + f * 0.05, gy + 0.15, hz); }
+  const gpus = [];
+  gpuZ.forEach(z => gpuX.forEach(x => gpus.push([x, z])));
+  const LIFT = 1.0;                                     // the front-right heat sink is lifted on its guide posts to show the package
+  const dieM = texMat(dieTex(), { rough: 0.22, metal: 0.3 });
+  gpus.forEach(([x, z], i) => {
+    const fy = gy - 0.03;                               // the former baseboard top; the module stack is unchanged above it
+    S.box(0.9, 0.03, 1.4, MAT.pcbBlack, x, fy + 0.05, z);
+    boardFinish(N, finish, x, fy + 0.06, z, 0.9, 1.4, 0.5);
+    S.box(0.5, 0.03, 0.52, MAT.pcbBlack, x, fy + 0.08, z);
+    const d = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.02, 0.32), [MAT.silicon, MAT.silicon, dieM, MAT.silicon, MAT.silicon, MAT.silicon]); d.position.set(x, fy + 0.105, z); scene.add(d);
+    for (const s of [-1, 1]) for (let k = 0; k < 3; k++) S.box(0.09, 0.03, 0.1, k === 2 && s > 0 ? MAT.silicon : MAT.hbm, x + s * 0.2, fy + 0.11, z - 0.12 + k * 0.12);
+    ihsLid(S, N, x, fy + 0.116, z, 0.56, 0.58, heavy);
+    if (heavy) { capField(N, x, z, fy + 0.05, 0.32, 10); connectorPins(N, x - 0.42, x + 0.42, fy + 0.065, z - 0.68, 14); }
+    for (const s of [-1, 1]) for (let k = 0; k < 9; k++) { const vx = x + s * 0.4, vz = z - 0.56 + k * 0.14; S.box(0.07, 0.06, 0.07, MAT.inductor, vx, fy + 0.1, vz); inductorTop(N, vx, fy + 0.131, vz, 0.07); }
+    // heat sink: copper base, 20 fins front to back, heat pipes up through the stack
+    const lifted = i === DGX.lifted, y0 = fy + 0.12 + (lifted ? LIFT : 0);
+    S.box(0.96, 0.08, 1.7, MAT.copper, x, y0 + 0.04, z);
+    for (let f = 0; f < 20; f++) N.box(0.016, 1.55, 1.66, MAT.alu, x - 0.456 + f * 0.048, y0 + 0.855, z);
+    for (const [k, zz] of [-0.6, -0.2, 0.2, 0.6].entries()) {
+      const sx = k % 2 ? 1 : -1, top = y0 + 0.9 + (k % 2) * 0.4;
+      tube(S, [[x + sx * 0.2, y0 + 0.06, z + zz], [x + sx * 0.49, y0 + 0.18, z + zz], [x + sx * 0.5, top - 0.15, z + zz], [x + sx * 0.36, top, z + zz], [x - sx * 0.4, top, z + zz]], 0.028, MAT.copper, { seg: 10, steps: 18 });
+    }
+    for (const sz of [-1, 1]) { S.box(0.96, 0.014, 0.1, MAT.galv, x, y0 + 1.635, z + sz * 0.6); S.box(0.96, 0.14, 0.014, MAT.galv, x, y0 + 1.56, z + sz * 0.843); }
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      S.cyl(0.022, 0.05, MAT.nickel, x + sx * 0.38, y0 + 0.105, z + sz * 0.58, 12);
+      if (lifted) S.cyl(0.012, LIFT, MAT.nickel, x + sx * 0.38, fy + 0.12 + LIFT / 2, z + sz * 0.58, 10);
+    }
+    hotTops.push([x, y0 + 1.65, z]);
+  });
+  // NVSwitch chips behind the GPUs, under wide finned sinks
+  swX.forEach(x => { S.box(0.42, 0.03, 0.42, MAT.pcbBlack, x, gy + 0.015, swZ); S.box(0.9, 0.06, 1.1, MAT.copper, x, gy + 0.06, swZ); for (let f = 0; f < 16; f++) N.box(0.014, 0.9, 1.08, MAT.alu, x - 0.42 + f * 0.056, gy + 0.54, swZ); });
+  // board population: decoupling rows around the NVSwitches, the SXM modules, the CPUs and the PCIe switches
+  swX.forEach((x, k) => { smdFrame(N, gy, x, swZ, 0.42, 0.42, 0.04, 0.03, k); smdFrame(N, gy, x, swZ, 0.42, 0.42, 0.058, 0.045, k + 20); });
+  gpus.forEach(([x, z], k) => smdRow(N, gy + 0.005, [x - 0.36, z + 0.3], [x + 0.36, z + 0.3], 16, true, k + 40));
+  cpuX.forEach((x, k) => { for (const s of [-1, 1]) smdRow(N, my, [x - 0.33, cpuZ + s * 0.39], [x + 0.33, cpuZ + s * 0.39], 22, true, k + 60 + s); });
+  pcieX.forEach((x, k) => smdFrame(N, my, x, pcieZ, 0.3, 0.3, 0.03, 0.03, k + 70));
 
   scene.add(S.build()); scene.add(N.build({ cast: false }));
   trayLidLabels(scene, 'h100', lidAt, [.16, .08]);
 
-  // ---------- power: AC into the supplies, 54 V forward, 12 V to the modules ----------
-  for (let i = 0; i < 6; i++) flows.push(flow([[psuX(i) + 0.2, 0.6, ZB - 0.8], [psuX(i) + 0.2, 0.6, ZB + 0.05]], 'lv', { count: 4, speed: 0.6, size: 0.03, trailR: 0.01 }));
-  for (let i = 0; i < 6; i++) flows.push(flow([[psuX(i), 0.4, ZB + 1.25], [psuX(i) * 0.3, fy + 0.1, -3.4], [0, fy + 0.1, -3.4]], 'dc', { count: 5, speed: 0.8, size: 0.035, trailR: 0.012 }));
-  flows.push(flow([[0, fy + 0.1, -3.6], [0, fy + 0.1, -1.1]], 'dc', { count: 14, speed: 1.0, size: 0.04, trailR: 0.014 }));
-  for (const s of [-1, 1]) flows.push(flow([[0, fy + 0.1, -1.1], [s * 1.75, fy + 0.1, -1.1]], 'dc', { count: 8, speed: 0.9, size: 0.035, trailR: 0.012 }));
-  gpuX.forEach(x => flows.push(flow([[x, fy + 0.16, -0.95], [x, fy + 0.07, -0.95]], 'bus12', { count: 2, speed: 0.3, size: 0.03, trail: false })));
-  flows.push(flow([[psuX(2), 0.8, ZB + 1.25], [psuX(2), ty, -3.0], [-1.0, ty + 0.05, -2.6]], 'dc', { count: 5, speed: 0.6, size: 0.03, trailR: 0.01 }));
+  // ---------- power: AC in, 54 V along the floor copper, up the midplane into both trays, 12 V to the GPU modules ----------
+  for (let i = 0; i < 6; i++) flows.push(flow([[psuX(i) - 0.15, psuY + 0.03, ZB - 0.8], [psuX(i) - 0.15, psuY + 0.03, ZB + 0.05]], 'lv', { count: 4, speed: 0.6, size: 0.03, trailR: 0.01 }));
+  for (let i = 0; i < 6; i++) { const px = psuX(i), s = px < 0 ? -1 : 1; flows.push(flow([[px, 0.15, ZB + 2.42], [px, 0.1, ZB + 2.75], [s * busX, 0.1, ZB + 2.75]], 'dc', { count: 4, speed: 0.6, size: 0.03, trailR: 0.01 })); }
+  for (const s of [-1, 1]) {
+    const x = s * busX;
+    flows.push(flow([[x, 0.15, ZB + 2.75], [x, 0.15, ZM - 0.1], [x, 0.5, ZM - 0.1]], 'dc', { count: 14, speed: 1.0, size: 0.04, trailR: 0.014 }));
+    // up the midplane's copper blade to the GPU tray connector, onto the input copper, out to the converters
+    flows.push(flow([[x, 0.5, ZM - 0.04], [x, gy + 0.04, ZM - 0.04], [x, gy + 0.04, 2.98], [s * 1.85, gy + 0.04, 2.98]], 'dc', { count: 10, speed: 0.9, size: 0.035, trailR: 0.012 }));
+    // and into the motherboard tray, back along the interposer's center channel to the CPU regulators
+    flows.push(flow([[x, 0.62, ZM - 0.04], [s * 0.53, my + 0.02, ZM - 0.16], [s * 0.2, my + 0.02, 2.9], [s * 0.2, my + 0.02, 0.4], [s * cpuX[1], my + 0.02, -0.62]], 'dc', { count: 8, speed: 0.8, size: 0.028, trailR: 0.009 }));
+  }
+  // 12 V from the converters to each module's regulators; rear-row modules are fed down the column gaps
+  gpus.forEach(([x, z], i) => {
+    const ix = ibcX.reduce((a, b) => Math.abs(b - x) < Math.abs(a - x) ? b : a), front = z > 0;
+    const gap = x < -1 ? -1.08 : x < 0 ? -0.02 : x < 1 ? 0.02 : 1.08;
+    const pts = front ? [[ix, gy + 0.04, ibcZ - 0.2], [x + 0.4, gy + 0.04, z + 0.8], [x + 0.4, gy + 0.06, z + 0.56]]
+      : [[ix, gy + 0.04, ibcZ - 0.2], [gap, gy + 0.04, 2.3], [gap, gy + 0.04, z + 0.8], [x + 0.4, gy + 0.06, z + 0.56]];
+    flows.push(flow(pts, 'bus12', { count: front ? 6 : 9, speed: 0.9, size: 0.03, trailR: 0.01 }));
+    if (i === DGX.lifted) for (const s of [-1, 1]) for (const dz of [-0.3, 0, 0.3]) flows.push(flow([[x + s * 0.36, gy + 0.05, z + dz], [x + s * 0.22, gy + 0.05, z + dz * 0.8]], 'core', { count: 3, speed: 0.35, size: 0.018, trailR: 0.006, k: 2.6, trailK: 0.2 }));
+  });
   flows.forEach(f => scene.add(f.group));
 
-  // ---------- data: NVLink to the switches, PCIe up to the switches, NICs out the back ----------
+  // ---------- data: NVLink on the baseboard; PCIe from each GPU through the midplane to its ConnectX-7;
+  // each ConnectX-7 to a CPU; DensiLink to the cages; drives and storage NICs through the PCIe switches ----------
+  const gapOf = x => x < -1 ? -1.08 : x < 0 ? -0.02 : x < 1 ? 0.02 : 1.08;
   gpus.forEach(([x, z], i) => {
-    const sx = swX[i % 4];
-    dataFlows.push(flow([[x + 0.15, fy + 0.13, z - 0.5], [x + 0.15, fy + 0.1, swZ + 0.5], [sx, fy + 0.1, swZ + 0.22]], 'nvl', { count: 6, speed: 0.8, size: 0.03, k: 2.4, trailR: 0.01 }));
-    const px = pcieX[i % 4];
-    dataFlows.push(flow([[x - 0.15, fy + 0.13, z - 0.5], [x - 0.15, fy + 0.13, -1.3], [px, ty - 0.02, -1.3], [px, ty + 0.05, pcieZ]], 'pcie', { count: 4, speed: 0.7, size: 0.028, k: 2.2, trailR: 0.009 }));
+    const c = i % 4, sx = swX[c], front = z > 0, gap = gapOf(x);
+    dataFlows.push(flow(front
+      ? [[x + 0.15, gy + 0.04, z - 0.72], [gap, gy + 0.04, z - 0.88], [gap, gy + 0.04, -1.55], [sx, gy + 0.04, swZ + 0.25]]
+      : [[x + 0.15, gy + 0.04, z - 0.72], [x + 0.15, gy + 0.04, -1.55], [sx, gy + 0.04, swZ + 0.25]], 'nvl', { count: 6, speed: 0.8, size: 0.03, k: 2.4, trailR: 0.01 }));
+    // PCIe: forward to the midplane connector, down the midplane, into the interposer, to this GPU's ConnectX-7
+    const m = c < 2 ? 0 : 1, mx = modX[m], cxX = mx + (c % 2 ? 1 : -1) * DGX.cxD[0], cxZ = modZ + (front ? 1 : -1) * DGX.cxD[1], cn = connX[c];
+    const up = front ? [[x - 0.15, gy + 0.04, z + 0.72], [x - 0.15, gy + 0.04, 2.3]] : [[x - 0.15, gy + 0.04, z + 0.72], [gap, gy + 0.04, z + 0.88], [gap, gy + 0.04, 2.3]];
+    // down the midplane on a solid stile between two fan openings, along the board's connector bands
+    const st = c === 0 ? -1.08 : c === 3 ? 1.08 : c === 1 ? -0.03 : 0.03;
+    const f = flow([...up, [cn, gy + 0.04, 2.9], [cn, gy + 0.04, ZM - 0.04], [st, 1.5, ZM - 0.04], [st, 0.62, ZM - 0.04], [cn, 0.62, ZM - 0.04], [cn, my + 0.02, ZM - 0.2], [mx + (c % 2 ? 0.3 : -0.3), my + 0.02, modZ + 0.3], [cxX, ny + 0.01, cxZ]], 'pcie', { count: 6, speed: 0.75, size: 0.028, k: 2.2, trailR: 0.009 });
+    f.dgxPcie = { gpu: i, module: m }; dataFlows.push(f);
   });
-  pcieX.forEach((x, i) => dataFlows.push(flow([[x, ty + 0.2, pcieZ], [x, ty + 0.2, -2.8], [nicX[i], ty + 0.3, -3.2]], 'pcie', { count: 4, speed: 0.7, size: 0.028, k: 2.2, trailR: 0.009 })));
-  nicX.forEach((x, i) => dataFlows.push(flow([[x, ty + 0.42, -3.28], [x, ty + 0.42, -3.82], [cageX[i], ty + 0.36, -3.97], [cageX[i], ty + 0.35, ZB - 0.9]], 'eth', { count: 6, speed: 0.9, size: 0.03, k: 2.3, trailR: 0.01 })));
-  cpus.forEach(([x, z]) => dataFlows.push(flow([[x, ty + 0.1, z + 0.4], [x * 0.9, ty + 0.1, pcieZ]], 'pcie', { count: 3, speed: 0.5, size: 0.025, k: 2.0, trail: false })));
+  modX.forEach((mx, m) => { const s = Math.sign(mx), f = flow([[mx, my + 0.02, modZ - 0.5], [mx, my + 0.02, 0.4], [s * cpuX[1], my + 0.02, 0.16], [s * cpuX[1], my + 0.02, cpuZ + 0.36]], 'pcie', { count: 5, speed: 0.6, size: 0.026, k: 2.0, trailR: 0.008 }); f.dgxCpuLink = m; dataFlows.push(f); });
+  cbl.forEach((pts, i) => dataFlows.push(flow([...pts.map(([x, y, z]) => [x, y + 0.03, z]), [cageX[i], cageY, ZB + 0.3], [cageX[i], cageY, ZB - 0.9]], 'eth', { count: 7, speed: 0.9, size: 0.03, k: 2.3, trailR: 0.01 })));
+  for (const s of [-1, 1]) {
+    const px = s * 0.35, card = cards.find(c => Math.sign(c.x) === s && (c.slot === 1 || c.slot === 2));
+    dataFlows.push(flow([[s * cpuX[1], my + 0.02, cpuZ + 0.36], [s * 0.7, my + 0.02, -0.4], [px, my + 0.02, pcieZ + 0.15]], 'pcie', { count: 3, speed: 0.5, size: 0.024, k: 2.0, trail: false }));
+    dataFlows.push(flow([[px, my + 0.02, pcieZ - 0.15], [px, my + 0.02, -2.0], [s * DGX.riserX, my + 0.02, -2.6], [s * DGX.riserX, card.y, -2.8], [card.x, card.y + 0.02, DGX.cardZ + 0.35]], 'pcie', { count: 4, speed: 0.6, size: 0.024, k: 2.0, trailR: 0.008 }));
+    // NVMe: four drives on each side through the backplane and midplane, into the interposer's outer edge, to the switch
+    dataFlows.push(flow([[s * 1.67, 0.43, ZF - 1.0], [s * 1.67, 0.43, ZM + 0.12], [s * 1.6, 0.43, ZM - 0.04], [s * 1.6, my + 0.1, ZM - 0.04], [s * 1.6, my + 0.02, ZM - 0.2], [s * 1.95, my + 0.02, 2.8], [s * 1.95, my + 0.02, 0.6], [px, my + 0.02, pcieZ + 0.2]], 'pcie', { count: 6, speed: 0.6, size: 0.024, k: 2.0, trailR: 0.008 }));
+  }
   dataFlows.forEach(f => scene.add(f.group));
-  // air through the whole server, front to back
-  for (let i = 0; i < 6; i++) for (const y of [0.9, 2.6]) heatFlows.push(flow([[fanX(i), y, ZF - 0.6], [fanX(i), y, 0.2], [fanX(i) * 0.95, y, ZB + 1.4], [fanX(i) * 0.9, y + 0.1, ZB - 0.8]], 'air', { count: 5, speed: 1.1, size: 0.05, k: 2.0, opacity: 0.75, trail: false }));
+
+  // ---------- heat: watts on every source (sourced where NVIDIA or Intel publish them; see the comments) ----------
+  gpus.forEach(([x, z], i) => {
+    const y0 = gy + 0.09 + (i === DGX.lifted ? LIFT : 0);
+    heatFlows.push(heat(flow([[x, gy + 0.09, z], [x, y0 + 0.1, z]], 'hot', { count: 3, speed: 0.4, size: 0.035, k: 2.6, trail: false }), 700, 'H100 SXM5 TDP, NVIDIA product page'));
+    for (const dx of [-0.25, 0.25]) heatFlows.push(heat(flow([[x + dx, y0 + 0.9, z + 1.0], [x + dx, y0 + 0.9, z - 0.8], [x + dx * 1.1, y0 + 0.95, z - 2.2]], 'air', { count: 4, speed: 1.0, size: 0.045, k: 2.2, opacity: 0.85, trail: false }), 350, 'half of one GPU’s 700 W'));
+  });
+  swX.forEach(x => heatFlows.push(heat(flow([[x, gy + 0.05, swZ], [x, gy + 0.7, swZ]], 'hot', { count: 2, speed: 0.35, size: 0.03, k: 2.4, trail: false }), 60, 'assumed, NVSwitch power is not published')));
+  cpuX.forEach(x => heatFlows.push(heat(flow([[x, my + 0.07, cpuZ], [x, my + 0.62, cpuZ]], 'hot', { count: 3, speed: 0.4, size: 0.032, k: 2.4, trail: false }), 350, 'Xeon 8480C TDP, Intel')));
+  bankX.forEach(bx => heatFlows.push(heat(flow([[bx, my + 0.2, cpuZ + 0.7], [bx, my + 0.2, cpuZ - 0.75], [bx, my + 0.25, cpuZ - 1.6]], 'air', { count: 3, speed: 0.8, size: 0.03, k: 2.0, opacity: 0.8, trail: false }), 80, 'assumed, eight RDIMMs at about 10 W')));
+  cxPts.forEach(([x, z]) => heatFlows.push(heat(flow([[x, ny + 0.02, z], [x, ny + 0.3, z]], 'hot', { count: 2, speed: 0.35, size: 0.026, k: 2.2, trail: false }), 25, 'ConnectX-7 single-port OSFP card, 24.9 W typical (NVIDIA)')));
+  for (let i = 0; i < 6; i++) heatFlows.push(heat(flow([[psuX(i), psuY, ZB + 2.3], [psuX(i), psuY, ZB + 0.3], [psuX(i), psuY + 0.05, ZB - 0.7]], 'air', { count: 3, speed: 0.8, size: 0.035, k: 2.0, opacity: 0.8, trail: false }), 70, 'assumed: 10.2 kW at about 96% efficiency, shared by six supplies'));
+  // the fan wall: each module's air through the midplane openings and out the rear grille or the motherboard tray's rear
+  fanY.forEach((y, r) => fanX.forEach(x => heatFlows.push(heat(flow([[x, y, ZF - 0.5], [x, y, ZM - 0.3], [x * 0.95, y, -2.0], [x * 0.9, y + (r ? 0.1 : 0), ZB - 0.8]], 'air', { count: 5, speed: 1.1, size: 0.05, k: 2.0, opacity: 0.75, trail: false }), 25, 'assumed fan input power; the stream carries the heat above it'))));
   heatFlows.forEach(f => scene.add(f.group));
 
-  // status LEDs on the NICs, DPU and PSUs; a faint heat shimmer over the hottest heat sinks
-  const leds = blinkers(nicLeds.concat(psuLeds)); scene.add(leds.mesh);
+  const leds = blinkers(statusLeds); scene.add(leds.mesh);
   const shimmer = heavy ? plumes(hotTops.map(p => ({ p, dir: [0, 1, 0] })), { perEmitter: 10, size: 0.16, grow: 2.2, life: 2.2, rise: 0.35, drift: [0.04, 0, 0.02], spread: 0.18, color: '#ffddb0', opacity: 0.12, additive: true }) : null;
   if (shimmer) scene.add(shimmer.points);
 
-  const [g0x, g0z] = gpus[0], [g5x, g5z] = gpus[5];
-  // Inspect through the open gap below the lifted sink, from inside the front
-  // fan wall. The old external view looked directly into the fan cartridges.
-  // A fitted close view (detailSize) so generic reframing cannot pull the
-  // camera back out through the fan wall: the package is the subject.
-  const hsGpu = { pos: [g0x, fy + 0.4, g0z], view: componentView([g0x, fy + 0.13, g0z - 0.05], [0.22, 0.72, 0.8], [0.8, 0.3, 0.75]) };
-  // From the cut-away side, level with the fin tops: both rows of sinks, the
-  // lifted one included, stay in frame (the old view sat over the fan wall).
-  const hsSink = { pos: [g5x, 1.3, g5z], view: { pos: [g5x + 3.6, 2.05, g5z + 1.1], target: [g5x - 0.2, 0.75, g5z + 0.7] } };
+  const [g0x, g0z] = gpus[DGX.lifted], [g5x, g5z] = gpus[5];
+  const fy = gy - 0.03;
+  // Under the lifted sink from the open near side (section cut): the package is the subject.
+  const hsGpu = { pos: [g0x, fy + 0.4, g0z], view: componentView([g0x, fy + 0.13, g0z - 0.05], [0.95, 0.55, 0.45], [0.8, 0.3, 0.75]) };
+  // From the cut-away side above the fin tops: both rows of sinks, the lifted one included.
+  const hsSink = { pos: [g5x, gy + 1.85, g5z], view: { pos: [g5x + 4.2, 4.8, g5z + 1.4], target: [g5x - 0.2, gy + 1.2, g5z + 0.6] } };
+  const cpuV = { pos: [cpuX[1], my + 0.62, cpuZ], view: { pos: [4.2, 1.3, -0.4], target: [cpuX[1], my + 0.35, cpuZ] } };
+  const nicV = { pos: [modX[1] + DGX.cxD[0], ny + 0.3, modZ - DGX.cxD[1]], view: { pos: [4.0, 1.2, 2.3], target: [modX[1], ny + 0.15, modZ] } };
+  const cageV = { pos: [cageX[2], cageY + 0.12, ZB + 0.25], view: { pos: [1.3, 1.75, -7.0], target: [0.1, cageY, ZB + 0.25] } };
+  const psuV = { pos: [psuX(4), psuY + 0.2, ZB + 0.3], view: { pos: [3.2, 1.0, -8.2], target: [0.6, psuY, ZB + 0.6] } };
+  const midV = { pos: [connX[3], 1.05, ZM - 0.05], view: { pos: [4.2, 1.6, 2.0], target: [1.2, 1.0, ZM - 0.05] } };
+  const nvmeV = { pos: [driveX[3], 0.4, ZF], view: { pos: [2.6, 0.9, 7.6], target: [1.2, 0.27, ZF - 0.2] } };
+  const card2 = cards.find(c => c.slot === 2);
   finishCompute(scene, finish);
-  scene.userData.computeGeneration = { id: 'h100', gpus: 8, cpus: 2, fans: 12, dpuCount: 0, nicCount: 8, storageNicCount: 2, opticalPorts: 4, representative: true };
+  scene.userData.computeGeneration = { id: 'h100', gpus: 8, cpus: 2, fans: 12, fanRotors: rotors.length, dimms: 32, drives: 8, psus: 6, dpuCount: 0, nicCount: 8, networkModules: 2, densiLinkCables: cbl.length, storageNicCount: 2, opticalPorts: 4, pcieSwitches: 3, midplane: true, trays: ['GPU tray (top)', 'motherboard tray', 'power supplies (bottom)'], representative: true };
   return {
-    // the GPU name etched on each package's substrate, ahead of the die inside the stiffener ring (package-marks.js)
     printSpots: [etch('GPU package marking', GPU_NAME.h100, [.16, .036], gpus.map(([x, z]) => ({ from: [x, fy + .104, z + .188], dir: [0, -1, 0] })))],
     scene, flows,
     look: { env: 'studio', envIntensity: 0.5, exposure: 0.95, bloom: 0.38, threshold: 2.0, ao: 0.14, dof: true },
-    camera: { pos: [9.2, 8.4, 4.6], target: [0, 0.7, -0.2], near: 0.02, far: 400, min: 1, max: 30 },
+    camera: { pos: [9.2, 6.4, 6.6], target: [0, 1.4, -0.2], near: 0.02, far: 400, min: 1, max: 30 },
     hotspots: {
-      osfp: { pos: [cageX[3], ty + 0.5, ZB + 0.25], view: { pos: [1.6, 6.0, -3.4], target: [1.3, ty + .25, ZB + .28] } },
-      psu: { pos: [psuX(4), 0.9, ZB + 0.65], view: { pos: [3.4, 3.0, -8.0], target: [0.8, 0.5, ZB + 0.6] } },
-      ibc: { pos: [-1.25, 0.3, -0.95], view: { pos: [-1.0, 1.55, -.55], target: [-1.25, .12, -.95] } },
-      vrm: { pos: [g0x + 0.4, 0.25, g0z], view: { pos: [g0x + .72, 1.1, g0z + .8], target: [g0x + .4, .2, g0z] } },
+      osfp: cageV,
+      psu: psuV,
+      ibc: { pos: [ibcX[4], gy + 0.18, ibcZ], view: { pos: [3.6, 3.7, 3.1], target: [ibcX[4], gy, ibcZ] } },
+      vrm: { pos: [g0x + 0.4, gy + 0.12, g0z], view: { pos: [g0x + 1.1, gy + 0.75, g0z + 0.8], target: [g0x + 0.4, gy + 0.05, g0z] } },
       gpu: hsGpu,
-      cpu: { pos: [cpus[1][0], ty + 0.7, cpus[1][1]], view: { pos: [3.2, 4.2, 0.4], target: [1, ty, -2.2] } },
+      cpu: cpuV,
+      dimm: { pos: [bankX[3], my + 0.34, cpuZ], view: { pos: [4.2, 1.25, -0.2], target: [bankX[3], my + 0.2, cpuZ] } },
       heatsinks: hsSink,
-      nvswitch: { pos: [swX[2], 0.7, swZ], view: { pos: [.5, 1.8, .1], target: [.5, .4, swZ] } },
-      nic: { pos: [nicX[3], ty + 0.4, -3.3], view: { pos: [1.4, 6.2, -2.9], target: [1.4, ty + .2, -3.5] } },
+      nvswitch: { pos: [swX[2], gy + 0.95, swZ], view: { pos: [1.6, 3.9, -3.5], target: [swX[2], gy + 0.4, swZ] } },
+      nic: nicV,
+      midplane: midV,
     },
     dataFlows, heatFlows,
     heatHotspots: {
-      osfp: { pos: [cageX[3], ty + 0.5, ZB + 0.25], view: { pos: [1.6, 6.0, -3.4], target: [1.3, ty + .25, ZB + .28] } },
       heatsinks: hsSink,
       gpuheat: hsGpu,
-      fans: { pos: [fanX(3), 3.1, ZF - 0.35], view: { pos: [1.6, 3.8, 8.2], target: [0.2, 1.6, ZF - 0.5] } },
+      cpuheat: cpuV,
+      psuheat: psuV,
+      osfp: cageV,
+      fans: { pos: [fanX[3], fanY[2] + 0.3, ZF - 0.3], view: { pos: [1.6, 3.8, 8.6], target: [0.2, 1.8, ZF - 0.5] } },
     },
     dataHotspots: {
-      nvswitch: { pos: [swX[1], 0.7, swZ], view: { pos: [-.5, 1.8, .1], target: [-.5, .4, swZ] } },
-      pcie: { pos: [pcieX[2], ty + 0.35, pcieZ], view: { pos: [2.2, 3.8, 1.4], target: [0.6, ty, pcieZ] } },
-      cx: { pos: [nicX[0], ty + 0.4, -3.3], view: { pos: [-1.4, 6.2, -2.9], target: [-1.4, ty + .2, -3.5] } },
-      osfp: { pos: [cageX[3], ty + 0.5, ZB + 0.25], view: { pos: [1.6, 6.0, -3.4], target: [1.3, ty + .25, ZB + .28] } },
-      dpu: { pos: [0.25, ty + 0.55, -3.5], view: { pos: [0.8, 4.2, -6.4], target: [0, ty, -3.5] } },
+      nvswitch: { pos: [swX[1], gy + 0.95, swZ], view: { pos: [-.5, 3.9, -3.5], target: [swX[1], gy + 0.4, swZ] } },
+      pcie: { pos: [pcieX[1], my + 0.2, pcieZ], view: { pos: [4.0, 1.25, 0.9], target: [pcieX[1], my + 0.1, pcieZ] } },
+      cx: nicV,
+      osfp: cageV,
+      dpu: { pos: [card2.x - 0.15, card2.y + 0.12, DGX.cardZ + 0.35], view: { pos: [3.8, 1.3, -4.9], target: [card2.x, card2.y, DGX.cardZ + 0.2] } },
       gpu: hsGpu,
+      midplane: midV,
+      nvme: nvmeV,
     },
-    update(t) { hgxFans.update(t); leds.update(t); if (shimmer) shimmer.update(t); },
+    update(t) { fanSpin.update(t); leds.update(t); if (shimmer) shimmer.update(t); },
   };
 }
 

@@ -354,8 +354,8 @@ it('exported GPU packages have the expected live HBM sites and stack heights',()
 it('H100 optical paths exit through an open rear IO plane',()=>{
  const b=wrappers[1].build(options('h100')),hardware=b.scene.getObjectByName('Blender complete tray hardware');hardware.updateMatrixWorld(true);
  const ray=new THREE.Raycaster();
- for(const x of [-1.65,-1.05,1.05,1.65]){
-  ray.set(new THREE.Vector3(x,2.30,-4.8),new THREE.Vector3(0,0,1));
+ for(const x of [-.375,-.125,.125,.375]){
+  ray.set(new THREE.Vector3(x,.94,-4.8),new THREE.Vector3(0,0,1));
   const solid=ray.intersectObject(hardware,true).find((h:any)=>h.point.z>=-4.515&&h.point.z<=-4.485);
   expect(!!solid,`open optical aperture at x=${x}`).toBe(false);
  }

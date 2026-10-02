@@ -17,7 +17,9 @@ import { Clearance, segsOf, pointSeg } from './pcb-check.js';
 
 export const PCB_MATERIAL = 'Tray solder mask';
 export const RACK_PCB_MATERIAL = 'Rack tray solder mask';
-const SPAN = { x0: -2.2, z0: -4.5, w: 4.4, d: 9 };
+const SPAN0 = { x0: -2.2, z0: -4.5, w: 4.4, d: 9 };
+// DGX H100 paints two decks side by side (h100Layout), so its atlas is twice as wide.
+export const spanOf = accel => accel === 'h100' ? { ...SPAN0, w: 8.8 } : SPAN0;
 
 let C = {
   mask: '#0d3a2b', maskHi: '#114434', pour: '#145139', trace: '#1d6849', traceOnPour: '#228058', clear: '#0a3024',
@@ -130,63 +132,87 @@ function nvlLayout(accel) {
   }
   return L;
 }
+// DGX H100 (tray.js DGX): two decks overlap in plan, the GPU tray's HGX baseboard over the motherboard tray. The
+// atlas is twice as wide for this generation: the GPU deck paints at its own x, the motherboard deck 4.4 units to the
+// right (H100_DECK2), and applyPcb sends each board mesh to its deck by height.
+export const H100_DECK2 = 4.4, H100_DECK_Y = 1.4;
 function h100Layout() {
-  const L = base();
-  L.boards.push({ x: 0, z: 1.3, w: 4.2, d: 5.0 });
-  const gpuX = [-1.62, -0.54, 0.54, 1.62], gpuZ = [2.75, 1.05], swX = [-1.5, -0.5, 0.5, 1.5], swZ = -0.25;
+  const L = base(), X = x => x + H100_DECK2;
+  // ---- GPU deck: HGX baseboard ----
+  L.boards.push({ x: 0, z: -0.05, w: 4.2, d: 6.6 });
+  const gpuX = [-1.62, -0.54, 0.54, 1.62], gpuZ = [1.2, -0.62], swX = [-1.55, -0.52, 0.52, 1.55], swZ = -2.3, connX = [-1.6, -0.53, 0.53, 1.6];
   gpuZ.forEach((z, r) => gpuX.forEach((x, c) => L.pkgs.push({ x, z, w: 0.9, d: 1.4, ref: `SXM${r * 4 + c + 1}`, fan: 0, m: 0.01 })));
   swX.forEach((x, i) => {
     L.pkgs.push({ x, z: swZ, w: 0.42, d: 0.42, ref: `U${60 + i}`, fan: 2, m: 0.005 });
     for (const g of [0.04, 0.058]) smdFramePart(L, x, swZ, 0.42, 0.42, g, `NVSwitch ${i + 1} decoupling`);
-    L.pours.push({ x, z: -0.95, w: 0.4, d: 0.36 });
   });
-  for (let i = 0; i < 8; i++) L.vrms.push({ x: -1.75 + i * 0.5, z: -0.95, w: 0.3, d: 0.3 });
-  part(L, '54 V bus bar', 0, -1.125, 0.3, 0.15);
-  // NVLink: each lower GPU straight down into its NVSwitch; each upper GPU down the gaps between the lower modules
-  // (the module footprints are its connectors: nothing routes under them) and into a switch's side. A bus comes
-  // up from or dives to an inner layer to pass the switches' decoupling rows.
+  [-1.85, -1.3, -0.75, 0.75, 1.3, 1.85].forEach(x => { part(L, '54 V converter', x, 2.62, 0.42, 0.36); L.pours.push({ x, z: 2.62, w: 0.46, d: 0.42 }); });
+  part(L, '54 V input copper', 0, 2.98, 3.2, 0.14);
+  L.pkgs.push({ x: 0, z: 2.62, w: 0.3, d: 0.3, ref: 'U70', fan: 1, m: 0.01 });
+  connX.forEach((x, i) => L.conns.push({ x, z: 3.19, w: 0.5, d: 0.08, ref: `J${1 + i}` }));
+  // NVLink: each rear-row module straight back into its NVSwitch; each front-row module out its rear edge, down the
+  // gap between the rear-row modules (their footprints are connectors: nothing routes under them) and into a switch's
+  // side. A bus dives to an inner layer to pass the switches' decoupling rows.
   const vertical = [];
-  swX.forEach((x, c) => { const bx = x + 0.1; L.buses.push({ id: `NVLink SXM${5 + c}`, pts: [[bx, 0.4], [bx, 0.1], [bx, -0.05]], pairs: 12, layers: ['top', 'in'] }); vertical.push([bx, 0.07]); });
+  swX.forEach((x, c) => { const bx = x + 0.1; L.buses.push({ id: `NVLink SXM${5 + c}`, pts: [[bx, -1.25], [bx, -1.85], [bx, -2.1]], pairs: 12, layers: ['top', 'in'] }); vertical.push([bx, 0.07]); });
   const gapX = [-1.08, -0.0365, 0.0365, 1.08], pairs = [6, 5, 5, 6];
   gpuX.forEach((x, c) => {
-    const gx = gapX[c], s = c < 2 ? -1 : 1;                       // toward the switch on this gap's own side
+    const gx = gapX[c], s = c < 2 ? -1 : 1;
     const sw = c === 0 ? swX[0] : c === 3 ? swX[3] : swX[c];
     const edge = sw - s * 0.21, via = edge - s * 0.12, start = gx + (c < 2 ? -1 : 1) * 0.17;
-    L.buses.push({ id: `NVLink SXM${1 + c}`, pts: [[start, 2.1], [start, 1.84], [gx, 1.84], [gx, swZ], [via, swZ], [edge + s * 0.1, swZ]], pairs: pairs[c], layers: ['top', 'top', 'top', 'top', 'in'] });
+    L.buses.push({ id: `NVLink SXM${1 + c}`, pts: [[start, 0.56], [start, 0.29], [gx, 0.29], [gx, swZ], [via, swZ], [edge + s * 0.1, swZ]], pairs: pairs[c], layers: ['top', 'top', 'top', 'top', 'in'] });
     vertical.push([gx, 0.04]);
+    // PCIe forward from each front-row module to its midplane connector, under the converters on an inner layer
+    L.buses.push({ id: `PCIe SXM${1 + c}`, pts: [[x - 0.15, 1.85], [x - 0.15, 2.22], [connX[c], 2.22], [connX[c], 3.17]], pairs: 8, layers: ['top', 'top', 'in'] });
   });
-  // the outer upper modules also reach the next switch inward, on an inner layer under the first link
   for (const [c, gx, sw, s] of [[0, -1.08, swX[1], 1], [3, 1.08, swX[2], -1]]) {
     const start = gx - s * 0.27;
-    L.buses.push({ id: `NVLink SXM${1 + c} b`, pts: [[start, 2.1], [start, 1.96], [gx, 1.96], [gx, swZ - 0.08], [sw - s * 0.12, swZ - 0.08]], pairs: 5, layer: 'in' });
+    L.buses.push({ id: `NVLink SXM${1 + c} b`, pts: [[start, 0.56], [start, 0.41], [gx, 0.41], [gx, swZ - 0.08], [sw - s * 0.12, swZ - 0.08]], pairs: 5, layer: 'in' });
   }
-  for (const sx of [-1, 1]) for (const z of [-1.1, 0.18, 1.9, 3.7]) L.holes.push([sx * 2.03, z, 0.022]);
-  // test points between the module rows and the switches, clear of every bus
-  for (let i = 0; i < 27; i++) { const x = -1.95 + i * 0.15; if (vertical.every(([vx, hw]) => Math.abs(x - vx) > hw + 0.04)) L.tps.push([x, 0.2]); }
-  // CPU tray board, NIC cards and the rear cage boards (upper deck)
-  L.boards.push({ x: 0, z: -2.775, w: 4.2, d: 2.95 });
-  for (const x of [-1.0, 1.0]) {
-    L.pkgs.push({ x, z: -2.2, w: 0.62, d: 0.75, ref: x < 0 ? 'CPU1' : 'CPU2', fan: 1, m: 0.01 });
-    smdFramePart(L, x, -2.2, 0.62, 0.75, 0.04, `CPU ${x} decoupling`);
-    // DDR5 slots, eight either side (tray.js): pressed-in connectors, so a keep-out on every layer
-    for (const s of [-1, 1]) {
-      part(L, `DIMM slots ${x}/${s}`, x + s * 0.6125, -2.2, 0.41, 1.25, { layer: 'all', term: true });
-      L.buses.push({ id: `DDR5 ${x}/${s}`, pts: [[x + s * 0.31, -2.2], [x + s * 0.42, -2.2]], pairs: 16, pitch: 0.012, layer: 'in' });
-    }
-    // PCIe to the two switches on this side: under the CPU's front decoupling, up on top, down again at the switch
+  for (const sx of [-1, 1]) for (const z of [-3.1, -1.75, 0.29, 2.2]) L.holes.push([sx * 2.03, z, 0.022]);
+  for (let i = 0; i < 25; i++) { const x = -1.8 + i * 0.15; if (vertical.every(([vx, hw]) => Math.abs(x - vx) > hw + 0.04)) L.tps.push([x, -1.72]); }
+  // ---- motherboard deck (x + H100_DECK2): motherboard, interposer, then the upper boards ----
+  L.boards.push({ x: X(0), z: -2.1, w: 4.2, d: 4.44 }, { x: X(0), z: 1.71, w: 4.2, d: 3.02 });
+  const cpuX = [-1.07, 1.07], cpuZ = -1.15, bankX = [-1.74, -0.4, 0.4, 1.74], modX = [-1.05, 1.05], modZ = 2.0, cageX = [-0.375, -0.125, 0.125, 0.375];
+  cpuX.forEach((x, k) => {
+    L.pkgs.push({ x: X(x), z: cpuZ, w: 0.66, d: 0.56, ref: `CPU${k}`, fan: 1, m: 0.03 });
+    for (const s of [-1, 1]) smdRowPart(L, [X(x) - 0.33, cpuZ + s * 0.39], [X(x) + 0.33, cpuZ + s * 0.39], true, `CPU${k} decoupling`);
     const s = Math.sign(x);
-    for (const [u, sw] of [[0.25, 1.6], [-0.15, 0.55]]) {
-      const vx = x + s * u, tx = s * sw, side = Math.sign(tx - vx), stop = tx - side * 0.245;
-      L.buses.push({ id: `PCIe CPU${x < 0 ? 1 : 2} → ${sw}`, pts: [[vx, -1.85], [vx, -1.72], [vx, -1.5], [stop, -1.5], [tx - side * 0.05, -1.5]], pairs: 8, layers: ['in', 'top', 'top', 'in'] });
+    // memory channels to the slot banks either side, on an inner layer
+    for (const d of [-1, 1]) L.buses.push({ id: `DDR5 CPU${k} ${d}`, pts: [[X(x + d * 0.26), cpuZ], [X(x + d * 0.42), cpuZ]], pairs: 16, pitch: 0.012, layer: 'in' });
+    // PCIe to the interposer connector at the board's front edge, and to this side's PCIe switch
+    L.buses.push({ id: `PCIe CPU${k} to modules`, pts: [[X(x), cpuZ + 0.2], [X(x), -0.6], [X(x), 0.02]], pairs: 10, layers: ['in', 'top'] });
+    L.conns.push({ x: X(x), z: 0.05, w: 0.5, d: 0.05, ref: `J${10 + k}` });
+    L.buses.push({ id: `PCIe CPU${k} to switch`, pts: [[X(x - s * 0.2), cpuZ + 0.2], [X(x - s * 0.2), -0.37], [X(s * 0.35), -0.37], [X(s * 0.35), -0.2]], pairs: 3, layers: ['in', 'top', 'in'] });
+  });
+  bankX.forEach((bx, i) => part(L, `DIMM slots ${i + 1}`, X(bx), cpuZ, 0.54, 1.5, { layer: 'all', term: true }));
+  for (const x of [-0.35, 0.35]) { L.pkgs.push({ x: X(x), z: -0.15, w: 0.3, d: 0.3, ref: 'U', fan: 1, m: 0.01 }); smdFramePart(L, X(x), -0.15, 0.3, 0.3, 0.03, `PCIe switch ${x} bypass`); }
+  modX.forEach((mx, m) => {
+    const s = Math.sign(mx);
+    L.conns.push({ x: X(s * 1.07), z: 0.26, w: 0.5, d: 0.05, ref: `J${20 + m}` });
+    L.buses.push({ id: `PCIe module ${m}`, pts: [[X(s * 1.07), 0.3], [X(s * 1.07), 0.8], [X(mx), 1.0], [X(mx), 1.26]], pairs: 10 });
+    L.conns.push({ x: X(mx), z: 1.29, w: 0.6, d: 0.05, ref: `J${22 + m}` });
+    // drives: from the midplane connector along the outer edge to the board's rear edge, toward the switch
+    L.buses.push({ id: `NVMe ${m}`, pts: [[X(s * 1.6), 3.15], [X(s * 1.6), 2.9], [X(s * 1.9), 2.9], [X(s * 1.9), 0.45], [X(s * 0.35), 0.45], [X(s * 0.35), 0.27]], pairs: 6, layers: ['top', 'top', 'top', 'in', 'in'] });
+    L.conns.push({ x: X(s * 0.35), z: 0.24, w: 0.3, d: 0.05, ref: `J${24 + m}` });
+  });
+  [-1.6, -0.53, 0.53, 1.6].forEach((x, i) => L.conns.push({ x: X(x), z: 3.185, w: 0.5, d: 0.08, ref: `J${30 + i}` }));
+  for (const sx of [-1, 1]) for (const z of [-4.1, -2.6, 0.6, 3.0]) L.holes.push([X(sx * 2.03), z, 0.02]);
+  // the rear: the cage board's cable connectors to its four cages
+  L.boards.push({ x: X(0), z: -4.17, w: 1.15, d: 0.62 });
+  cageX.forEach(x => { L.conns.push({ x: X(x), z: -3.92, w: 0.16, d: 0.06, ref: '' }); L.buses.push({ id: `cage ${x}`, pts: [[X(x), -3.95], [X(x), -4.4]], pairs: 6 }); });
+  for (const sx of [-1, 1]) for (const z of [-4.42, -3.92]) L.holes.push([X(sx * 0.53), z, 0.014]);
+  // network module boards (upper) with their four ConnectX-7 and the rear-edge DensiLink connectors
+  modX.forEach(mx => {
+    L.boards.push({ x: X(mx), z: modZ, w: 1.42, d: 1.3 });
+    for (const dx of [-0.36, 0.36]) {
+      for (const dz of [-0.32, 0.32]) L.pkgs.push({ x: X(mx + dx), z: modZ + dz, w: 0.26, d: 0.26, ref: '', fan: 1, m: 0.01, hidden: true });
+      L.conns.push({ x: X(mx + dx), z: modZ - 0.6, w: 0.15, d: 0.05, ref: '' });
+      L.buses.push({ id: `module ${mx} ${dx}`, pts: [[X(mx + dx), modZ - 0.45], [X(mx + dx), modZ - 0.58]], pairs: 6 });
     }
-  }
-  for (const x of [-1.6, -0.55, 0.55, 1.6]) { L.pkgs.push({ x, z: -1.55, w: 0.3, d: 0.3, ref: 'U', fan: 1, m: 0.01 }); smdFramePart(L, x, -1.55, 0.3, 0.3, 0.03, `PCIe switch ${x} bypass`); }
-  for (const x of [-1.65, -1.05, 1.05, 1.65]) {
-    L.boards.push({ x, z: -3.3, w: 0.4, d: 0.9 });
-    for (const z of [-3.05, -3.5]) L.pkgs.push({ x, z, w: 0.28, d: 0.31, ref: '', fan: 1, m: 0.005, hidden: true });
-  }
-  for (const x of [-1.35, 1.35]) L.boards.push({ x, z: -4.17, w: 0.95, d: 0.62 });
-  for (const sx of [-1, 1]) for (const z of [-4.1, -2.9, -1.45]) L.holes.push([sx * 2.03, z, 0.02]);
+  });
+  // riser cards (upper): slots 1 and 3 left, 2 and 4 right
+  for (const sx of [-1, 1]) L.boards.push({ x: X(sx * 1.42), z: -3.62, w: 1.3, d: 1.68 });
   return L;
 }
 function rubinLayout() {
@@ -305,7 +331,7 @@ function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width 
 export function paintPcb(accel, { W = 2048, lod = 'tray' } = {}) {
   const key = `${accel}|${W}|${lod}`;
   if (cache.has(key)) return cache.get(key);
-  const H = W * 2, col = makeCanvas(W, H), surf = makeCanvas(W / 2, H / 2);
+  const SPAN = spanOf(accel), H = Math.round(W * 2 * SPAN0.w / SPAN.w), col = makeCanvas(W, H), surf = makeCanvas(W / 2, H / 2);
   const layers = [[col.getContext('2d'), W / SPAN.w, 'c'], [surf.getContext('2d'), W / 2 / SPAN.w, 's']];
   const sz = H / SPAN.d / (W / SPAN.w);            // z stretch relative to x (≈1)
   const each = (cs, ss, fn) => { for (const [g, k, t] of layers) { g.setTransform(k, 0, 0, k * sz, -SPAN.x0 * k, -SPAN.z0 * k * sz); fn(g, t === 'c' ? cs : ss, t); } };
@@ -327,7 +353,7 @@ export function paintPcb(accel, { W = 2048, lod = 'tray' } = {}) {
   };
 
   // background outside boards (never seen) and each board, in order (upper decks paint last)
-  rect(0, 0, SPAN.w, SPAN.d, C.mask, S.mask);
+  rect(SPAN.x0 + SPAN.w / 2, SPAN.z0 + SPAN.d / 2, SPAN.w, SPAN.d, C.mask, S.mask);
   for (const b of L.boards) {
     rect(b.x, b.z, b.w, b.d, C.lam, S.lam);                                   // exposed laminate at the chamfered edge
     const e = Math.max(px * 2.2, 0.0035);
@@ -470,7 +496,7 @@ function textures(accel, W, lod) {
   return { map, data };
 }
 export function pcbMaterial(accel, { mobile = false, lod = 'tray' } = {}) {
-  const rack = lod === 'rack', { map, data } = textures(accel, rack || mobile ? 1024 : 2048, lod);
+  const rack = lod === 'rack', { map, data } = textures(accel, Math.round((rack || mobile ? 1024 : 2048) * spanOf(accel).w / SPAN0.w), lod);
   const opts = { map, roughnessMap: data, metalnessMap: data, bumpMap: data, bumpScale: rack ? 0.6 : 1.4, roughness: 1, metalness: 1, envMapIntensity: 0.55 };
   const m = rack || mobile ? new THREE.MeshStandardMaterial(opts)
     : new THREE.MeshPhysicalMaterial({ ...opts, clearcoat: 0.45, clearcoatRoughness: 0.32 });
@@ -506,7 +532,9 @@ export function applyPcb(root, accel, { mobile = false, lod = 'tray', rects = nu
   root.updateMatrixWorld(true);
   root.traverse(o => { if (o.isMesh && !Array.isArray(o.material) && o.material.name.replace(/\.\d+$/, '') === want) targets.push(o); });
   if (!targets.length) return 0;
-  const material = pcbMaterial(accel, { mobile, lod }), v = new THREE.Vector3();
+  const material = pcbMaterial(accel, { mobile, lod }), v = new THREE.Vector3(), SPAN = spanOf(accel);
+  // DGX H100 tray: the motherboard deck, under the GPU tray's pan, paints H100_DECK2 to the right in the atlas.
+  const decks = accel === 'h100' && !rects;
   for (const mesh of targets) {
     const pos = mesh.geometry.attributes.position, uv = new Float32Array(pos.count * 2);
     for (let i = 0; i < pos.count; i++) {
@@ -517,6 +545,7 @@ export function applyPcb(root, accel, { mobile = false, lod = 'tray', rects = nu
         x = r.to[0] + (x - r.from[0]) / (r.from[1] - r.from[0]) * (r.to[1] - r.to[0]);
         z = r.to[2] + (z - r.from[2]) / (r.from[3] - r.from[2]) * (r.to[3] - r.to[2]);
       }
+      if (decks && v.y < H100_DECK_Y) x += H100_DECK2;
       uv[i * 2] = (x - SPAN.x0) / SPAN.w; uv[i * 2 + 1] = (z - SPAN.z0) / SPAN.d;
     }
     mesh.geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));

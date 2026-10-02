@@ -401,7 +401,12 @@ export const SOURCES = {
   // in favor of NVIDIA's own SuperNIC page; 'arxiv-2601-14342' (a VCSEL co-packaged-optics paper) is no longer
   // cited for the NVLink copper spine, which is unrelated to its subject.
   'nvidia-dgxh100-service-manual-fans': { title: 'NVIDIA DGX H100/H200 Service Manual: Replacing a Front Fan Module', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx/dgxh100-service-manual/front-fan-replacement.html', accessed: '09/30/2026', kind: 'primary' },
-  'nvidia-dgxh100-user-guide': { title: 'Introduction to NVIDIA DGX H100/H200 Systems', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx/dgxh100-user-guide/introduction-to-dgxh100.html', dated: 'unknown page-specific date; part of the current DGX H100/H200 User Guide', accessed: '09/27/2026', kind: 'primary' },
+  'nvidia-dgxh100-user-guide': { title: 'Introduction to NVIDIA DGX H100/H200 Systems', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx/dgxh100-user-guide/introduction-to-dgxh100.html', dated: 'page footer: "Last updated on Jan 26, 2026"; its labeled figures (front, rear, ports, motherboard tray, GPU tray, network modules, system topology) read 10/01/2026', accessed: '10/01/2026', kind: 'primary' },
+  'nvidia-dgxh100-service-manual-mbtray': { title: 'NVIDIA DGX H100/H200 Service Manual: Motherboard Tray - Removal and Installation', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx/dgxh100-service-manual/motherboard-tray-removal-install.html', accessed: '10/01/2026', kind: 'primary' },
+  'nvidia-dgxh100-datasheet': { title: 'NVIDIA DGX H100 datasheet', publisher: 'NVIDIA', url: 'https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/nvidia-dgx-h100-datasheet.pdf', dated: 'print code 2504750, OCT22', accessed: '10/01/2026', kind: 'primary', marketing: true },
+  'intel-xeon-8480c': { title: 'Intel Xeon Platinum 8480C Processor: specifications', publisher: 'Intel', url: 'https://www.intel.com/content/www/us/en/products/sku/231730/intel-xeon-platinum-8480c-processor-105m-cache-2-00-ghz/specifications.html', dated: 'unknown page-specific date; current Intel product specification page', accessed: '10/01/2026', kind: 'primary' },
+  'nvidia-connectx7-specs': { title: 'NVIDIA ConnectX-7 Adapter Cards User Manual: Specifications', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/connectx7hw/Specifications', dated: 'unknown page-specific date; current NVIDIA hardware manual', accessed: '10/01/2026', kind: 'primary' },
+  'nvidia-connectx7-ib-datasheet': { title: 'NVIDIA ConnectX-7 NDR 400G InfiniBand adapter card datasheet', publisher: 'NVIDIA', url: 'https://www.nvidia.com/content/dam/en-zz/Solutions/networking/infiniband-adapters/infiniband-connectx7-data-sheet.pdf', accessed: '10/01/2026', kind: 'primary', marketing: true },
   'nvidia-dgxh100-safety': { title: 'NVIDIA DGX H100/H200 System User Guide: Safety', publisher: 'NVIDIA', url: 'https://docs.nvidia.com/dgx/dgxh100-user-guide/safety.html', dated: 'unknown page-specific date; part of the current DGX H100/H200 User Guide', accessed: '09/30/2026', kind: 'primary' },
   'nvidia-sn2201-specs': { title: 'NVIDIA SN2201 Switch Systems User Manual: Specifications', publisher: 'NVIDIA', url: 'https://networking-docs.nvidia.com/sn2201hw/specifications', dated: 'unknown page-specific date; current NVIDIA hardware manual', accessed: '09/30/2026', kind: 'primary' },
   'nvidia-ethernet-supernic': { title: 'Ethernet SuperNICs (ConnectX-8, ConnectX-9)', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/networking/products/ethernet/supernic/', dated: 'unknown page-specific date; current NVIDIA product page', accessed: '09/27/2026', kind: 'primary', marketing: true },
@@ -544,6 +549,8 @@ export const PART_SOURCES = {
   'power:tray:nic': ['lenovo-gb300-guide', 'semianalysis-gb200-hw', 'nvidia-dsx-data-center-architecture', 'nvidia-coreweave-gb200-400g', 'nvidia-connectx8-datasheet', 'nvidia-gb300-nvl72', 'nvidia-ethernet-supernic', 'nvidia-bf3-networking-docs'],
   'power:tray:nvconn': ['nvidia-gb200-nvl72'],
   'power:tray:psu': ['fs-com-dgx-h100'],
+  'power:tray:midplane': ['nvidia-dgxh100-user-guide', 'nvidia-dgxh100-service-manual-mbtray'],
+  'power:tray:dimm': ['nvidia-dgxh100-user-guide', 'intel-xeon-8480c'],
   'power:tray:cpu': [],
   'power:tray:heatsinks': [],
   'power:tray:nvswitch': ['nvidia-h100-datasheet'],
@@ -656,7 +663,9 @@ export const PART_SOURCES = {
   'data:tray:dpu': ['nvidia-dgx-gb200-hardware', 'nvidia-bluefield4-datasheet', 'nvidia-dgxh100-user-guide'],
   'data:tray:gpu': [],
   'data:tray:nvswitch': ['nvidia-h100-datasheet'],
-  'data:tray:pcie': [],
+  'data:tray:pcie': ['nvidia-dgxh100-user-guide', 'nvidia-connectx7-ib-datasheet'],
+  'data:tray:midplane': ['nvidia-dgxh100-user-guide'],
+  'data:tray:nvme': ['nvidia-dgxh100-user-guide', 'nvidia-dgxh100-datasheet'],
 
   'data:chip:hbm': ['micron-hbm3e-brief'],
   'data:chip:hbi': ['wccftech-nv-hbi'],
@@ -690,7 +699,9 @@ export const PART_SOURCES = {
 
   'heat:tray:coldplates': [],
   'heat:tray:gpuheat': [],
-  'heat:tray:fans': [],
+  'heat:tray:fans': ['nvidia-dgxh100-user-guide', 'nvidia-dgxh100-service-manual-fans'],
+  'heat:tray:cpuheat': ['intel-xeon-8480c', 'nvidia-connectx7-specs'],
+  'heat:tray:psuheat': ['nvidia-dgxh100-user-guide'],
   'heat:tray:qd': [],
   'heat:tray:heatsinks': [],
 

@@ -10,6 +10,7 @@ import { addRackMgmt } from './rack-mgmt.js';
 import { etch } from './package-marks.js';
 import { rackUnits } from './site-signs.js';
 import { componentView } from '../app/housing-frame.js';
+import { DGX } from './dgx-h100-layout.js';
 
 const U = 0.04445;
 // product-shot trim: the champagne bezel band from the server texture, in real geometry; and quick-disconnect collars
@@ -327,9 +328,11 @@ function foamMaps(w = 512, h = 400, seed = 7) {
   return mat;
 }
 
-// DGX H100 rear: six supplies across the bottom (the six-PSU count is published),
-// an exhaust field above them and a dark I/O band behind the real OSFP cages.
-// The arrangement is representative (ASSUMPTIONS 'dgx-h100-bezel-rear').
+// DGX H100 rear, as the user guide's rear figure lays it out: the GPU tray's
+// perforated exhaust over the top 60%, the motherboard tray's I/O band under it
+// (riser slots either side, the OSFP cages in the middle, the management row),
+// six supplies across the bottom. Hole size and port shapes are representative
+// (ASSUMPTIONS 'dgx-h100-bezel-rear').
 function serverRearTex() {
   return canvasTex(512, 406, (g, w, h) => {
     g.fillStyle = '#4a515a'; g.fillRect(0, 0, w, h);
@@ -338,21 +341,23 @@ function serverRearTex() {
       g.fillStyle = '#07080a';
       for (let y = y0, row = 0; y < y1; y += step * 0.87, row++) for (let x = x0 + (row % 2) * step / 2; x < x1; x += step) { g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill(); }
     };
-    // exhaust fields, framed by folded sheet seams
-    for (const [y0, y1] of [[10, 118], [178, 300]]) { g.fillStyle = '#3a4048'; g.fillRect(8, y0 - 4, w - 16, y1 - y0 + 8); perforate(16, y0 + 4, w - 12, y1, 9, 3.1); }
-    // I/O band behind the cage row, with management ports and USB on one side
-    g.fillStyle = '#1c2026'; g.fillRect(8, 124, w - 16, 48);
-    for (let i = 0; i < 3; i++) { g.fillStyle = '#050607'; g.fillRect(214 + i * 30, 138, 22, 18); g.fillStyle = '#5a6068'; g.fillRect(214 + i * 30, 138, 22, 3); }
-    g.fillStyle = '#050607'; g.fillRect(308, 140, 10, 16); g.fillRect(324, 140, 10, 16);
+    // GPU tray exhaust, framed by folded sheet seams
+    g.fillStyle = '#3a4048'; g.fillRect(8, 6, w - 16, 238); perforate(16, 14, w - 12, 240, 9, 3.1);
+    // motherboard tray I/O band: riser brackets either side, the cage window in the middle, the management row below
+    g.fillStyle = '#1c2026'; g.fillRect(8, 249, w - 16, 100);
+    for (const x0 of [14, 330]) for (const y0 of [256, 284]) { g.fillStyle = '#4a515a'; g.fillRect(x0, y0, 168, 24); g.fillStyle = '#050607'; g.fillRect(x0 + 50, y0 + 6, 26, 12); g.fillRect(x0 + 82, y0 + 6, 26, 12); }
+    g.fillStyle = '#2b3037'; g.fillRect(190, 262, 132, 46);
+    for (let i = 0; i < 2; i++) { g.fillStyle = '#050607'; g.fillRect(200 + i * 30, 318, 22, 18); g.fillStyle = '#5a6068'; g.fillRect(200 + i * 30, 318, 22, 3); }
+    g.fillStyle = '#050607'; g.fillRect(30, 322, 14, 10); g.fillRect(50, 322, 14, 10); g.fillRect(80, 320, 30, 14); g.fillRect(270, 318, 40, 16); g.fillRect(400, 320, 30, 14);
     // six supplies: grille, pull handle, C20 inlet, status window
     for (let i = 0; i < 6; i++) {
-      const x = 10 + i * 82, y = 306;
+      const x = 10 + i * 82, y = 355;
       g.fillStyle = '#5b626b'; g.fillRect(x, y, 78, h - y - 6);
       g.fillStyle = '#0a0b0d'; g.fillRect(x, y, 78, 2); g.fillRect(x, y, 2, h - y - 6);
       perforate(x + 8, y + 10, x + 44, h - 12, 6, 2.1);
-      g.fillStyle = '#090a0c'; g.fillRect(x + 50, y + 18, 20, 16); g.fillStyle = '#2b2f35'; g.fillRect(x + 53, y + 22, 3, 8); g.fillRect(x + 59, y + 22, 3, 8); g.fillRect(x + 65, y + 22, 3, 8);
-      g.fillStyle = '#b8bfc6'; g.fillRect(x + 52, y + 52, 16, 4);
-      g.fillStyle = r() < 2 ? '#1c3a2a' : '#000'; g.fillRect(x + 50, y + 42, 5, 5);
+      g.fillStyle = '#090a0c'; g.fillRect(x + 50, y + 8, 20, 16); g.fillStyle = '#2b2f35'; g.fillRect(x + 53, y + 12, 3, 8); g.fillRect(x + 59, y + 12, 3, 8); g.fillRect(x + 65, y + 12, 3, 8);
+      g.fillStyle = '#b8bfc6'; g.fillRect(x + 52, y + 36, 16, 4);
+      g.fillStyle = r() < 2 ? '#1c3a2a' : '#000'; g.fillRect(x + 50, y + 28, 5, 5);
     }
   });
 }
@@ -448,29 +453,45 @@ function buildHGX({ quality, state }) {
   blanking(scene, N, topY + U, H - 0.05, ZF - 0.07 + 0.001, sw);
   mgmtHardware(N, topY + U / 2, ZF - 0.07, !quality.mobile);
 
-  // the pulled server, lid off: fans at the front, eight heat sinks, the CPU tray behind
+  // The pulled server, lid off and its near wall cut low, laid out like the server level (tray.js DGX, 10 cm units
+  // scaled to the 0.84 m chassis): twelve fan modules over eight drives at the front, the GPU tray on top with eight
+  // heat sinks and four NVSwitch sinks, the motherboard tray under it (CPUs, 32 DIMMs, two network modules), six
+  // supplies across the bottom of the rear and the midplane behind the fans.
   const py = sy(PULLED), pz = ZF - 0.07 - sd / 2 + out, yb = py - SU / 2;
+  const kz = sd / DGX.D, tx = x => x * 0.1, ty = y => yb + y * 0.1, tz = z => pz + z * kz;
   const pulled = new Builder();
   pulled.box(sw, 0.004, sd, MAT.galv, 0, yb + 0.004, pz);
   pulled.box(0.004, SU * 0.95, sd, MAT.galv, -sw / 2, py, pz);
   // Right wall is a teaching cutaway, matching the dedicated server view.
-  pulled.box(0.004, .035, sd, MAT.galv, sw / 2, yb + .0175, pz);
-  pulled.box(sw - 0.02, 0.003, 0.5, TRAY_PCB, 0, yb + 0.008, pz + 0.12);
+  pulled.box(0.004, .045, sd, MAT.galv, sw / 2, yb + .0225, pz);
   const fanItems = [];
-  for (let i = 0; i < 6; i++) { const fx0 = -0.185 + i * 0.074; pulled.box(0.068, 0.15, 0.045, MAT.fan, fx0, yb + 0.1, pz + sd / 2 - 0.04); fanItems.push({ p: [fx0, yb + 0.065, pz + sd / 2 - 0.015], axis: 'z', r: 0.026 }, { p: [fx0, yb + 0.135, pz + sd / 2 - 0.015], axis: 'z', r: 0.026 }); }
+  for (const y of DGX.fanY) for (const x of DGX.fanX) {
+    pulled.box(0.1, 0.095, 0.06, MAT.fan, tx(x), ty(y), tz(DGX.ZF - 0.36));
+    for (const s of [-1, 1]) fanItems.push({ p: [tx(x + s * 0.255), ty(y), tz(DGX.ZF) + 0.002], axis: 'z', r: 0.021 });
+  }
+  for (const x of DGX.driveX) for (const y of DGX.driveY) pulled.box(0.074, 0.014, 0.1, MAT.alu, tx(x), ty(y), tz(DGX.ZF - 0.6));
+  pulled.box(sw - 0.01, 0.34, 0.003, MAT.pcbBlack, 0, ty(1.75), tz(DGX.ZM));                                           // midplane
+  // GPU tray: pan, baseboard, eight sinks, four NVSwitch sinks
+  pulled.box(sw - 0.01, 0.003, sd * 0.86, MAT.galv, 0, ty(DGX.deck), tz(-0.615));
+  pulled.box(0.42, 0.003, 6.6 * kz, TRAY_PCB, 0, ty(DGX.gy - 0.015), tz(-0.05));
   const sinks = [];
   // fins get their own material, not the shared MAT.alu: at close range under the studio env, MAT.alu's high
   // metalness+low roughness blows out to featureless white; the fins are the closest, densest metal in the shot
   const FIN = new THREE.MeshStandardMaterial({ color: 0xb8bfc6, roughness: 0.6, metalness: 0.45, envMapIntensity: 0.5 });
-  for (const z of [0.27, 0.1]) for (let i = 0; i < 4; i++) {
-    const x = -0.162 + i * 0.108; sinks.push([x, pz + z]);
-    pulled.box(0.086, 0.008, 0.13, MAT.copper, x, yb + 0.02, pz + z);
-    for (let f = 0; f < 24; f++) pulled.box(0.0012, 0.1, 0.128, FIN, x - 0.038 + f * (0.076 / 23), yb + 0.075, pz + z);
+  for (const z of DGX.gpuZ) for (const x of DGX.gpuX) {
+    sinks.push([tx(x), tz(z)]);
+    pulled.box(0.094, 0.008, 1.7 * kz, MAT.copper, tx(x), ty(DGX.gy + 0.16), tz(z));
+    for (let f = 0; f < 20; f++) pulled.box(0.0014, 0.155, 1.66 * kz, FIN, tx(x - 0.456 + f * 0.048), ty(DGX.gy + 0.98), tz(z));
   }
-  for (let i = 0; i < 4; i++) pulled.box(0.04, 0.045, 0.04, MAT.alu, -0.15 + i * 0.1, yb + 0.035, pz - 0.03);         // NVSwitch sinks
-  pulled.box(sw - 0.02, 0.003, 0.38, TRAY_PCB, 0, yb + 0.2, pz - 0.26);                                              // CPU tray, upper rear
-  for (const x of [-0.1, 0.1]) { pulled.box(0.06, 0.05, 0.07, MAT.alu, x, yb + 0.23, pz - 0.24); for (const s of [-1, 1]) for (let k = 0; k < 4; k++) pulled.box(0.003, 0.03, 0.12, MAT.black, x + s * (0.045 + k * 0.007), yb + 0.22, pz - 0.24); }
-  for (let i = 0; i < 6; i++) pulled.box(0.068, 0.07, 0.12, MAT.darkSteel, -0.185 + i * 0.074, yb + 0.045, pz - sd / 2 + 0.07);   // supplies
+  for (const x of DGX.swX) pulled.box(0.088, 0.09, 1.08 * kz, MAT.alu, tx(x), ty(DGX.gy + 0.5), tz(DGX.swZ));
+  // motherboard tray: pan, boards, CPU sinks, DIMMs, network modules
+  pulled.box(sw - 0.01, 0.003, sd * 0.86, MAT.galv, 0, ty(0.495), tz(-0.615));
+  pulled.box(0.42, 0.003, 4.44 * kz, TRAY_PCB, 0, ty(DGX.my - 0.015), tz(-2.1));
+  pulled.box(0.42, 0.003, 3.02 * kz, TRAY_PCB, 0, ty(DGX.my - 0.015), tz(1.71));
+  for (const x of DGX.cpuX) pulled.box(0.07, 0.055, 0.92 * kz, MAT.alu, tx(x), ty(DGX.my + 0.32), tz(DGX.cpuZ));
+  for (const bx of DGX.bankX) for (let k = 0; k < 8; k++) pulled.box(0.0022, 0.03, DGX.dimmLen * kz, MAT.darkSteel, tx(bx + (k - 3.5) * DGX.dimmPitch), ty(DGX.my + 0.19), tz(DGX.cpuZ));
+  for (const mx of DGX.modX) { pulled.box(0.142, 0.0025, 1.3 * kz, TRAY_PCB, tx(mx), ty(DGX.ny - 0.0125), tz(DGX.modZ)); for (const dx of [-0.36, 0.36]) for (const dz of [-0.32, 0.32]) pulled.box(0.06, 0.03, 0.56 * kz, MAT.darkSteel, tx(mx + dx), ty(DGX.ny + 0.18), tz(DGX.modZ + dz)); }
+  for (let i = 0; i < 6; i++) pulled.box(0.068, 0.04, 2.4 * kz, MAT.darkSteel, tx(DGX.psuX(i)), ty(DGX.psuY), tz(DGX.ZB + 1.22));   // supplies
   for (const x of [-0.26, 0.26]) pulled.box(0.012, 0.012, sd + out, MAT.galv, x, yb + 0.006, pz - out / 2);
   scene.add(pulled.build());
   const fans = spinners(fanItems, MAT.darkSteel, { blades: 7, speed: 7 });
@@ -481,7 +502,7 @@ function buildHGX({ quality, state }) {
   // server, three from each strip) plugged into the supplies across the bottom
   // of each server's rear panel. Supply inlet positions follow serverRearTex().
   const pduX = [-0.22, 0.22], pduZ = ZB + 0.105, pTop = sy(3) + SU / 2, pBot = sy(0) - SU / 2;
-  const psuX = i => 0.1598 - 0.0705 * i, psuY = k => sy(k) - 0.111, psuZ = ZF - 0.07 - sd - 0.0105;
+  const psuX = i => 0.1598 - 0.0705 * i, psuY = k => sy(k) - 0.147, psuZ = ZF - 0.07 - sd - 0.0105;
   const PDUBODY = new THREE.MeshStandardMaterial({ color: 0x454b53, roughness: 0.46, metalness: 0.45 }); PDUBODY.name = 'PDU extrusion';
   const PLUG = new THREE.MeshStandardMaterial({ color: 0x121316, roughness: 0.55, metalness: 0.05 }); PLUG.name = 'Molded C19/C20 plug';
   const outletFace = new THREE.MeshStandardMaterial({ map: pduTex(8), roughness: 0.55, metalness: 0.3 });
@@ -515,15 +536,16 @@ function buildHGX({ quality, state }) {
   // ---------- flows ----------
   pduX.forEach(x => flows.push(flow([[x * 0.5, TAP.glandY, -0.25], [x * 0.5, H + 0.02, -0.25], [x, pTop + 0.085, pduZ], [x, pBot, pduZ]], 'lv', { count: 16, speed: 0.35, size: 0.012, trailR: 0.004 })));
   cordEnds.forEach(({ from, to }) => flows.push(flow([from, [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2 - 0.04, (from[2] + to[2]) / 2], to], 'lv', { count: 3, speed: 0.2, size: 0.009, trail: false })));
-  flows.push(flow([[0, yb + 0.06, pz - sd / 2 + 0.14], [0, yb + 0.03, pz - 0.05], [0, yb + 0.03, pz + 0.25]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
+  // 54 V forward along the floor copper under the motherboard tray, up the midplane into the GPU tray
+  flows.push(flow([[tx(DGX.busX), ty(0.1), tz(DGX.ZB + 2.75)], [tx(DGX.busX), ty(0.1), tz(DGX.ZM - 0.1)], [tx(DGX.busX), ty(DGX.gy + 0.04), tz(DGX.ZM - 0.1)], [tx(DGX.busX), ty(DGX.gy + 0.04), tz(2.9)]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
   // scale-up: NVLink only inside the pulled server, GPUs to the switch row
-  sinks.forEach(([x, z]) => dataFlows.push(flow([[x, yb + 0.03, z], [x * 0.9, yb + 0.03, pz - 0.03]], 'nvl', { count: 3, speed: 0.12, size: 0.006, k: 2.4, trail: false })));
+  sinks.forEach(([x, z]) => dataFlows.push(flow([[x, ty(DGX.gy + 0.04), z], [x * 0.95, ty(DGX.gy + 0.04), tz(DGX.swZ + 0.3)]], 'nvl', { count: 3, speed: 0.12, size: 0.006, k: 2.4, trail: false })));
   // heat: cold air in the front of every server, hot air out the back
   [0, 1, 3].forEach(k => { for (const x of [-0.14, 0, 0.14]) for (const dy of [-0.08, 0.08]) {
     heatFlows.push(flow([[x, sy(k) + dy, ZF + 0.8], [x, sy(k) + dy, ZF]], 'cool', { count: 3, speed: 0.4, size: 0.02, k: 2.0, opacity: 0.8, trail: false }));
     heatFlows.push(flow([[x, sy(k) + dy, ZB], [x * 1.3, sy(k) + dy + 0.1, ZB - 0.8]], 'air', { count: 3, speed: 0.45, size: 0.024, k: 2.4, opacity: 0.9, trail: false }));
   } });
-  sinks.forEach(([x, z]) => heatFlows.push(flow([[x, yb + 0.08, pz + sd / 2 - 0.08], [x, yb + 0.08, z], [x, yb + 0.1, pz - sd / 2 - 0.2]], 'air', { count: 3, speed: 0.25, size: 0.012, k: 2.4, trail: false })));
+  sinks.forEach(([x, z]) => heatFlows.push(flow([[x, ty(2.4), pz + sd / 2 - 0.08], [x, ty(2.4), z], [x, ty(2.5), pz - sd / 2 - 0.2]], 'air', { count: 3, speed: 0.25, size: 0.012, k: 2.4, trail: false })));
   [flows, dataFlows, heatFlows].forEach(list => list.forEach(f => scene.add(f.group)));
 
   // ---------- activity: status LEDs and warm exhaust shimmer (all four servers are air-cooled) ----------
@@ -535,14 +557,14 @@ function buildHGX({ quality, state }) {
   inRack.forEach((k, i) => {
     ledItems.push({ p: [0.155, sy(k) + SU * 0.3 + 0.024, bzFront + 0.0075], color: '#5cf29a', rate: 0 });
     if (i === 1) ledItems.push({ p: [0.155, sy(k) + SU * 0.3, bzFront + 0.0075], color: '#4aa8ff', rate: 0.5, duty: 0.5 });
-    if (!quality.mobile) for (let s = 0; s < 6; s++) ledItems.push({ p: [0.2 - s * 0.0705 - 0.03, sy(k) - SU * 0.49 + 0.052, ZF - 0.07 - sd - 0.003], color: '#5cf29a', rate: 0 });
+    if (!quality.mobile) for (let s = 0; s < 6; s++) ledItems.push({ p: [0.2 - s * 0.0705 - 0.03, sy(k) - SU * 0.49 + 0.0165, ZF - 0.07 - sd - 0.003], color: '#5cf29a', rate: 0 });
   });
   for (let b = 0; b < 4; b++) portLeds.push({ p: [-0.22 + (140 + b * 170 + 64) / 1024 * 0.44, topY + U / 2 + U * 0.36, ZF - 0.067], color: '#5cf29a', rate: 1.3 + b * 0.37, duty: 0.35 });
   const leds = blinkers(ledItems, { size: 0.008 }), links = blinkers(portLeds, { size: 0.0032 });
   scene.add(links.mesh);
   scene.add(leds.mesh);
   const haze = plumes(
-    [...inRack.map(k => ({ p: [0, sy(k) + 0.02, ZB - 0.12], dir: [0, 1, 0] })), { p: [0, yb + 0.1, pz - sd / 2 - 0.22], dir: [0, 1, 0] }],
+    [...inRack.map(k => ({ p: [0, sy(k) + 0.02, ZB - 0.12], dir: [0, 1, 0] })), { p: [0, ty(2.4), pz - sd / 2 - 0.22], dir: [0, 1, 0] }],
     { perEmitter: quality.mobile ? 5 : 14, size: 0.045, grow: 2.4, life: 2.6, rise: 0.3, drift: [0, 0.12, -0.4], spread: 0.05, color: AIR_HAZE, opacity: 0.14, additive: true },
   );
   scene.add(haze.points);
@@ -559,7 +581,7 @@ function buildHGX({ quality, state }) {
       // into the rack) and its plugged cords are in view, not its blank back.
       pdu: { pos: [pduX[1] - 0.03, sy(1) + 0.1, pduZ], view: componentView([pduX[1] - 0.03, sy(1) + 0.05, pduZ], [-0.62, 0.2, -0.72], [0.22, 0.62, 0.22]) },
       servers: srv,
-      psus: { pos: [0.15, yb + 0.1, pz - sd / 2 + 0.07], view: { pos: [0.9, 1.5, -0.9], target: [0, yb, pz - 0.4] } },
+      psus: { pos: [tx(DGX.psuX(4)), ty(DGX.psuY + 0.2), pz - sd / 2 + 0.03], view: { pos: [0.9, 1.5, -0.9], target: [0, yb, pz - 0.4] } },
       cabling: { pos: [pduX[0] * 0.7, sy(0), ZB + 0.15], view: { pos: [-0.8, 0.9, -1.5], target: [0, 0.6, ZB] } },
       mgmt: { pos: [0.22, topY + U / 2, ZF - 0.03], view: componentView([0.02, topY + U / 2, ZF - 0.02], [0.32, 0.16, 0.9], [0.5, 0.12, 0.2]) },
     },
@@ -570,7 +592,7 @@ function buildHGX({ quality, state }) {
       servers: srv,
     },
     dataHotspots: {
-      tp: { pos: [-0.1, yb + 0.14, pz + 0.18], view: { pos: [0.5, 1.6, 1.5], target: [0, py, pz] } },
+      tp: { pos: [tx(DGX.gpuX[1]), ty(DGX.gy + 1.7), tz(DGX.gpuZ[0])], view: { pos: [0.5, 1.6, 1.5], target: [0, py, pz] } },
       servers: srv,
       uplinks: { pos: [fx, H + 0.2, fz], view: { pos: [1.3, 2.9, -1.6], target: [0.2, 2.2, fz] } },
       // The rear cage rows, the combed fiber manager and its patch strip: the
