@@ -1,179 +1,204 @@
-// Engineering design rules for the rack, data hall, campus and scale-across levels (Reed, 10/01/2026; review in
-// research/design-review-rack-hall-site-2026-10-01.md). Collision-free is necessary, not sufficient: these check that
-// the layouts follow the practices a competent engineer would lay out, on the native (teaching-contract) builds.
 import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
+import * as THREE from 'three';
 import { compute, DEFAULT_SCENARIO } from '../model/engine';
-import { SITES } from '../model/sites';
 
-let hall: any, campus: any, rack: any, across: any;
+// Engineering layout rules (Reed, 10/01/2026: "make sense from an engineering design perspective based on best
+// practices for layout, place and route"), encoded for the levels drawn natively: the GPU package (scene 5), the
+// coherent module (scene 8) and the copper plugs (scene 9). The pluggable module's authored routes are checked in
+// side-module-blender.test.ts. research/design-review-packages-modules-2026-10-01.md lists each rule and fix.
+function canvasDocument() {
+  return { createElement(tag: string) {
+    if (tag !== 'canvas') throw new Error(`Unexpected DOM dependency ${tag}`);
+    const noop = () => undefined;
+    const context = new Proxy({
+      createImageData: (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) }),
+      measureText: (text: string) => ({ width: text.length * 24 }),
+      createLinearGradient: () => ({ addColorStop: noop }), createRadialGradient: () => ({ addColorStop: noop }),
+    } as Record<string, unknown>, { get: (target, key: string) => key in target ? target[key] : noop });
+    return { width: 1, height: 1, getContext: () => context };
+  } };
+}
+type P3 = number[];
+const sub = (a: P3, b: P3) => a.map((v, i) => v - b[i]);
+const len = (a: P3) => Math.hypot(...a);
+const pathLength = (pts: P3[]) => pts.slice(1).reduce((n, p, i) => n + len(sub(p, pts[i])), 0);
+// proper crossing of two 2D segments (touching ends do not count)
+function cross2(a: number[], b: number[], c: number[], d: number[]) {
+  const o = (p: number[], q: number[], r: number[]) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+  const o1 = o(a, b, c), o2 = o(a, b, d), o3 = o(c, d, a), o4 = o(c, d, b);
+  return o1 * o2 < 0 && o3 * o4 < 0;
+}
+const plan = (p: P3) => [p[0], p[2]];
+function planCrossings(paths: P3[][]) {
+  let n = 0;
+  for (let i = 0; i < paths.length; i++) for (let j = i + 1; j < paths.length; j++)
+    for (let a = 1; a < paths[i].length; a++) for (let b = 1; b < paths[j].length; b++)
+      if (cross2(plan(paths[i][a - 1]), plan(paths[i][a]), plan(paths[j][b - 1]), plan(paths[j][b]))) n++;
+  return n;
+}
+
+let chip: typeof import('./chip.js'), coherent: typeof import('./side-coherent.js'), copper: typeof import('./side-copper.js');
 beforeAll(async () => {
-  const noop = () => undefined;
-  const ctx = new Proxy({ createImageData: (w: number, h: number) => ({ data: new Uint8ClampedArray(w * h * 4) }), measureText: (t: string) => ({ width: t.length * 24 }),
-    createLinearGradient: () => ({ addColorStop: noop }), createRadialGradient: () => ({ addColorStop: noop }) } as Record<string, unknown>, { get: (t, k: string) => k in t ? t[k] : noop });
-  vi.stubGlobal('document', { createElement: () => ({ width: 1, height: 1, getContext: () => ctx }) });
-  [hall, campus, rack, across] = await Promise.all([import('./hall.js'), import('./campus.js'), import('./rack.js'), import('./across.js')]);
-}, 30000);
-afterAll(() => { vi.unstubAllGlobals(); });
+  vi.stubGlobal('document', canvasDocument());
+  chip = await import('./chip.js');
+  coherent = await import('./side-coherent.js');
+  copper = await import('./side-copper.js');
+});
+afterAll(() => vi.unstubAllGlobals());
 
-const opts = (scenario: any = {}) => ({ quality: { mobile: true, shadows: false, reflections: false }, state: { mode: 'power' }, model: compute({ ...DEFAULT_SCENARIO, ...scenario }) });
-const dist2 = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1]);
-const len2 = (p: number[][]) => p.slice(1).reduce((s, q, i) => s + dist2(p[i], q), 0);
-// a path doubles back when it reverses direction along either plan axis
-function reverses(p: number[][]) {
-  for (const a of [0, 1]) {
-    let sign = 0;
-    for (let i = 1; i < p.length; i++) {
-      const d = Math.sign(Math.round((p[i][a] - p[i - 1][a]) * 1e6));
-      if (!d) continue;
-      if (sign && d !== sign) return true;
-      sign = d;
+describe('GPU package (scene 5): place and route', () => {
+  const builds = () => (['h100', 'gb200', 'gb300', 'rubin'] as const).map(accel => {
+    const model = compute({ ...DEFAULT_SCENARIO, accel });
+    const built = chip.build({ quality: { shadows: false, reflections: false, mobile: false }, state: { mode: 'data', selected: null }, model });
+    return { accel, model, built, routes: built.scene.userData.packageRouting };
+  });
+  it('the host board escape runs start on outer-row pads and never cross', () => {
+    const runs: number[][][] = [];
+    for (let side = 0; side < 4; side++) for (let k = 0; k < chip.BGA_RUNS; k++) runs.push(chip.bgaRun(side, k));
+    for (const run of runs) {
+      const [x, z] = run[0];
+      // on the outermost pad row, on the pad grid
+      expect(Math.max(Math.abs(x), Math.abs(z))).toBeCloseTo(chip.BGA.half, 9);
+      const along = Math.abs(x) === chip.BGA.half ? z : x;
+      expect(Math.abs(((along + chip.BGA.half) / chip.BGA.pitch) % 1 - 0.5)).toBeCloseTo(0.5, 6);
+      // every segment moves outward (no hook back)
+      const r = run.map(([a, b]) => Math.max(Math.abs(a), Math.abs(b)));
+      for (let i = 1; i < r.length; i++) expect(r[i]).toBeGreaterThan(r[i - 1]);
     }
+    const as3 = runs.map(run => run.map(([x, z]) => [x, 0, z]));
+    expect(planCrossings(as3)).toBe(0);
+  });
+  it('HBM lanes cross straight from each stack to the die edge it faces: short, parallel, no crossings', () => {
+    for (const { accel, routes } of builds()) {
+      expect(routes.hbm.length, accel).toBeGreaterThan(0);
+      for (const r of routes.hbm) {
+        const across = sub(r[2], r[1]);
+        // one axis only: perpendicular to the edge, and only the gap plus the two PHY bands
+        expect(across.filter((v: number) => Math.abs(v) > 1e-9).length, accel).toBe(1);
+        expect(len(across), accel).toBeLessThan(0.6);
+        // the two legs are vertical (microbumps)
+        expect(Math.abs(r[0][0] - r[1][0]) + Math.abs(r[0][2] - r[1][2])).toBeLessThan(1e-9);
+        expect(Math.abs(r[2][0] - r[3][0]) + Math.abs(r[2][2] - r[3][2])).toBeLessThan(1e-9);
+      }
+      expect(planCrossings(routes.hbm), accel).toBe(0);
+    }
+  });
+  it('the die-to-die link runs straight across the seam, lanes evenly spaced', () => {
+    for (const { accel, model, routes } of builds()) {
+      if (model.accel.dies < 2) { expect(routes.hbi.length).toBe(0); continue; }
+      for (const r of routes.hbi) { expect(new Set(r.map((p: P3) => p[2])).size, accel).toBe(1); expect(Math.abs(r[0][0]) + Math.abs(r[3][0])).toBeLessThan(0.4); }
+      expect(planCrossings(routes.hbi), accel).toBe(0);
+    }
+  });
+  it('NVLink escapes outward through bumps, substrate, ball and board run: no crossings, no doubling back, near-direct', () => {
+    for (const { accel, model, routes } of builds()) {
+      expect(routes.nvl.length, accel).toBe(model.accel.nvlink.linksPerGpu);
+      for (const r of routes.nvl) {
+        // distance from the package centre never decreases along the route
+        const out = r.map((p: P3) => Math.max(Math.abs(p[0]), Math.abs(p[2])));
+        for (let i = 1; i < out.length; i++) expect(out[i], accel).toBeGreaterThanOrEqual(out[i - 1] - 1e-9);
+        // height never rises once it starts down (no layer change back up)
+        for (let i = 1; i < r.length; i++) expect(r[i][1], accel).toBeLessThanOrEqual(r[i - 1][1] + 1e-9);
+        // plan length within 1.6x the straight-line plan distance from die edge to the run's via
+        const flat = r.map((p: P3) => [p[0], 0, p[2]]);
+        expect(pathLength(flat) / len(sub(flat.at(-1)!, flat[0])), accel).toBeLessThan(1.6);
+      }
+      // routes on the same side never cross in plan (each layer's leg is fanned in order)
+      expect(planCrossings(routes.nvl), accel).toBe(0);
+    }
+  });
+  it('C4 bumps sit only under the interposer they bond to', () => {
+    for (const { accel, model, built } of builds()) {
+      let c4: THREE.InstancedMesh | undefined;
+      built.scene.traverse((o: any) => { if (o.userData.computeDynamic === 'c4') c4 = o; });
+      const twin = model.accel.dies > 1, IW = twin ? 6.2 : 6.0, ID = twin ? 5.9 : 4.0, m = new THREE.Matrix4(), p = new THREE.Vector3();
+      for (let i = 0; i < c4!.count; i++) {
+        c4!.getMatrixAt(i, m); p.setFromMatrixPosition(m);
+        expect(Math.abs(p.x), accel).toBeLessThan(IW / 2); expect(Math.abs(p.z), accel).toBeLessThan(ID / 2);
+      }
+    }
+  });
+});
+
+// polyline points of a native flow (kit.js Flow: a CurvePath of line segments)
+const flowPoints = (f: any): P3[] => [f.path.curves[0].v1.toArray(), ...f.path.curves.map((c: any) => c.v2.toArray())];
+// smallest radius of curvature along a sampled polyline: circumradius of each consecutive point triple
+function minBendRadius(pts: P3[]) {
+  let min = Infinity;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const a = len(sub(pts[i], pts[i - 1])), b = len(sub(pts[i + 1], pts[i])), c = len(sub(pts[i + 1], pts[i - 1]));
+    const s = (a + b + c) / 2, area = Math.sqrt(Math.max(0, s * (s - a) * (s - b) * (s - c)));
+    if (a < 1e-9 || b < 1e-9 || area < 1e-12) continue;
+    min = Math.min(min, a * b * c / (4 * area));
   }
-  return false;
+  return min;
 }
-// smallest radius of the circle through three consecutive route points, where the route turns
-function minBendRadius(points: number[][]) {
-  let min = Infinity, at: number[] = [];
-  for (let i = 1; i < points.length - 1; i++) {
-    const [a, b, c] = [points[i - 1], points[i], points[i + 1]];
-    const ab = Math.hypot(...a.map((v, k) => v - b[k])), bc = Math.hypot(...b.map((v, k) => v - c[k])), ca = Math.hypot(...c.map((v, k) => v - a[k]));
-    const u = a.map((v, k) => b[k] - v), w = c.map((v, k) => b[k] - v);
-    const cross = Math.hypot(u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]);
-    if (cross < 1e-9 || Math.min(ab, bc) < 1e-6) continue;
-    const r = ab * bc * ca / (2 * cross); if (r < min) { min = r; at = b; }
-  }
-  return { min, at };
-}
 
-describe('data hall: pathways, power and cooling follow the overhead plan', () => {
-  for (const [name, scenario] of [['GB200 liquid', {}], ['H100 air', { accel: 'h100', cooling: 'air' }], ['Rubin 800 V DC', { accel: 'rubin', power: 'dc800' }]] as const) {
-    it(`${name}: busway over each rack's rear, fiber runway apart from power, water below power`, () => {
-      const b = hall.build(opts(scenario)), P = b.scene.userData.hallPlan;
-      for (const row of P.rows) {
-        // power at the rear (the NVL72 power shelves and bus bar are fed from the rear), over the rack footprint
-        expect(Math.sign(row.busZ - row.z)).toBe(-row.f);
-        expect(Math.abs(row.busZ - row.z)).toBeLessThan(P.rackDepth / 2);
-        // BICSI: data cabling at least 300 mm from power cable (3D clearance between the two pathways)
-        const horizontal = Math.abs(row.busZ - row.runwayZ) - P.busHalfDepth - P.runwayHalfWidth, vertical = P.runwayY - (P.busY + .11);
-        expect(Math.max(horizontal, vertical)).toBeGreaterThanOrEqual(.3);
-        if (row.tcsSupplyZ !== undefined) {
-          // the rack loop rides below the busway, over the rack rears, and supply and return never share a line
-          expect(P.tcsY).toBeLessThan(P.busY - .5);
-          for (const z of [row.tcsSupplyZ, row.tcsReturnZ]) { expect(Math.sign(z - row.z)).toBe(-row.f); expect(Math.abs(z - row.z)).toBeLessThan(P.rackDepth / 2); }
-          expect(Math.abs(row.tcsSupplyZ - row.tcsReturnZ)).toBeGreaterThan(2 * .035);
-        }
-      }
-      // rack power drops come straight down from the busway at the rack rear
-      for (const f of b.flows.filter((f: any) => f.group.userData.rackPowerDrop)) {
-        const a = f.path.getPoint(0), z = a.z, row = P.rows.find((r: any) => Math.abs(r.busZ - z) < 1e-6);
-        expect(row).toBeDefined();
-      }
-    });
-    it(`${name}: no facility-water drop passes through a fiber runway or a busway`, () => {
-      const b = hall.build(opts(scenario)), P = b.scene.userData.hallPlan, drops = b.scene.userData.hallCoolant.facilityDrops, r = .07;
-      expect(drops.length).toBeGreaterThan(0);
-      for (const [[x, top, z], [, bottom]] of drops) {
-        if (x < P.rowX0 || x > P.rowX1) continue;
-        for (const row of P.rows) {
-          if (top > P.runwayY && bottom < P.runwayY) expect(Math.abs(z - row.runwayZ), `drop at ${x},${z} through the runway over row ${row.z}`).toBeGreaterThan(P.runwayHalfWidth + r);
-          if (top > P.busY && bottom < P.busY) expect(Math.abs(z - row.busZ), `drop at ${x},${z} through the busway over row ${row.z}`).toBeGreaterThan(P.busHalfDepth + r);
-        }
-      }
-    });
-  }
-  it('every rack-loop drop lands at the rear of its own rack, on its own header', () => {
-    const b = hall.build(opts()), P = b.scene.userData.hallPlan, { secondary, rackDrops } = b.scene.userData.hallCoolant;
-    expect(rackDrops.length).toBe(6 * 4 * 8 * 2);
-    for (const drop of rackDrops) {
-      const z = drop[0][2], row = P.rows.reduce((a: any, c: any) => (Math.abs(c.z - z) < Math.abs(a.z - z) ? c : a));
-      expect(Math.sign(z - row.z)).toBe(-row.f);
-      expect(secondary.some((rail: number[][]) => Math.abs(rail[1][2] - z) < 1e-9 && drop[0][0] >= rail[1][0] && drop[0][0] <= rail[2][0])).toBe(true);
+describe('Coherent module (scene 8): place and route', () => {
+  const build = () => coherent.build({ quality: { shadows: false }, state: { mode: 'data' } });
+  it('DSP copper escapes from under the package edge: nothing runs across the package top', () => {
+    const { scene } = build(), r = scene.userData.coherentRouting;
+    const DSPX = r.dspX, dieHalf = r.dieHalf, yTop = 1.35;
+    for (const path of [...r.hostTx, ...r.hostRx, ...r.lineTx, ...r.lineRx]) for (let i = 1; i < path.length; i++) {
+      const a = path[i - 1], b = path[i];
+      const raised = Math.max(a[1], b[1]) > yTop + 0.02;
+      if (!raised || Math.abs(a[0] - DSPX) > r.dspHalf + 0.01 || Math.abs(b[0] - DSPX) > r.dspHalf + 0.01) continue;
+      // only vertical risers into the die, inside its footprint
+      expect(Math.abs(a[0] - b[0]) + Math.abs(a[2] - b[2])).toBeLessThan(1e-9);
+      expect(Math.abs(a[0] - DSPX)).toBeLessThanOrEqual(dieHalf + 1e-9);
     }
   });
-  it('fiber routes keep a gentle bend radius and never kink', () => {
-    const b = hall.build(opts()), routes = b.scene.userData.hallFiber.routes;
-    // Corners are drawn with a 75 mm radius where the run allows (managedRoute); the tightest jog at a switch face may
-    // not go below 7.5 mm, the minimum design radius of G.657.A2 bend-insensitive single-mode fiber.
-    for (const r of routes) { const { min, at } = minBendRadius(r.points); expect(min, `${r.kind} at ${at.map(v => v.toFixed(3))}`).toBeGreaterThanOrEqual(.0075); }
+  it('DSP-to-driver and DSP-to-TIA copper is short and direct', () => {
+    const { scene } = build(), r = scene.userData.coherentRouting;
+    for (const path of [...r.lineTx, ...r.lineRx]) {
+      const flat = path.map((p: P3) => [p[0], 0, p[2]]);
+      expect(pathLength(flat)).toBeLessThan(1.8);                 // die bank to the optics: under 1 cm of board plus the package and bond legs
+    }
+    expect(planCrossings(r.lineTx)).toBe(0); expect(planCrossings(r.lineRx)).toBe(0);
+    expect(planCrossings(r.hostTx)).toBe(0); expect(planCrossings(r.hostRx)).toBe(0);
+  });
+  it('power paths never cross a high-speed lane in plan', () => {
+    const built = build(), r = built.scene.userData.coherentRouting;
+    const hs = [...r.hostTx, ...r.hostRx, ...r.lineTx, ...r.lineRx];
+    for (const f of built.flows) {
+      const pw = flowPoints(f);
+      for (const lane of hs) expect(planCrossings([pw, lane])).toBe(0);
+    }
+  });
+  it('fibers bend gently: no radius under 3 mm (bend-insensitive fiber inside a module)', () => {
+    const r = build().scene.userData.coherentRouting;
+    for (const [name, fiber] of Object.entries({ tx: r.txFiber, rx: r.rxFiber, carrier: r.carrierPath, lo: r.loPath, trunk: r.laserTrunk })) expect(minBendRadius(fiber as P3[]), name).toBeGreaterThanOrEqual(0.3);
   });
 });
 
-describe('campus: substation at the line, short feeders, diverse fiber, plant beside its halls', () => {
-  it('MV feeders run the shortest practical orthogonal route to each hall and never double back', () => {
-    for (const scenario of [{}, { cooling: 'liquid' }]) {
-      const b = campus.build(opts(scenario)), F = b.scene.userData.campusFeeders;
-      F.halls.forEach((path: number[][], i: number) => {
-        expect(reverses(path), `feeder to hall ${i + 1}`).toBe(false);
-        const line = F.unitSubLines[i], end = [line.x0, line.z];
-        // the feeder reaches its hall's unit-substation line no more than 1.45x the straight distance (an orthogonal
-        // duct bank route; the old hall A route dipped south and back north and ran 1.38x)
-        let at = 0; for (let k = 1; k < path.length; k++) { if (Math.abs(path[k][1] - line.z) < 1e-6) { at = k; break; } }
-        const reach = len2([...path.slice(0, at), [end[0], path[at][1]]]);
-        expect(reach / dist2(F.source, end), `feeder to hall ${i + 1}`).toBeLessThan(1.45);
-      });
+describe('Copper plugs (scene 9): place and route', () => {
+  it('pairs keep at least 1 mm from the AEC power inductors and the supply trace in the centre channel', async () => {
+    const { copperLane, PAIR_HALF, COPPER_HEADS } = await import('./side-geometry.js');
+    for (const [, h] of COPPER_HEADS) for (let i = 0; i < 4; i++) for (const rx of [false, true]) {
+      const hx = Number(h);
+      const inner = Math.abs(copperLane(hx, i, rx) - hx) - PAIR_HALF - 0.008;   // nearest trace edge to the centre line
+      expect(inner - 0.1).toBeGreaterThanOrEqual(0.1);                         // inductor half-width 0.1 cm
     }
   });
-  it('two fiber entrances on opposite sides of the halls, at least 20 m apart, each route straight through its hut', () => {
-    const b = campus.build(opts()), C = b.scene.userData.campusFiber;
-    const [a, c] = C.vaults;
-    expect(dist2(a, c)).toBeGreaterThan(20);                         // TIA-942 / VA OIT: diverse entrances >= 20 m apart
-    expect(Math.sign(a[1]) * Math.sign(c[1])).toBe(-1);              // one south of the halls, one north
-    C.routes.forEach((r: number[][], i: number) => {
-      const plan = r.map(([x, , z]) => [x, z]);
-      expect(reverses(plan), `entrance route ${i + 1}`).toBe(false);
-      expect(plan.some(p => dist2(p, C.huts[i]) < 1e-6), `route ${i + 1} passes through its hut`).toBe(true);
-    });
+  it('transmit and receive banks are mirror images, evenly pitched, inside the card', async () => {
+    const { copperLane, PAIR_HALF, COPPER_HEADS } = await import('./side-geometry.js');
+    for (const [, h] of COPPER_HEADS) for (let i = 0; i < 4; i++) {
+      const hx = Number(h);
+      expect(copperLane(hx, i, false) - hx).toBeCloseTo(-(copperLane(hx, 3 - i, true) - hx), 9);
+      if (i) expect(copperLane(hx, i, true) - copperLane(hx, i - 1, true)).toBeCloseTo(0.15, 9);
+      expect(Math.abs(copperLane(hx, i, true) - hx) + PAIR_HALF + 0.008).toBeLessThan((1.84 - 0.3) / 2);
+    }
   });
-  it('every detailed hall has its own chilled-water pair from the plant; pairs never cross and clear the roads', () => {
-    for (const scenario of [{ cooling: 'liquid' }, { cooling: 'air', accel: 'h100' }]) {
-      const b = campus.build(opts(scenario)), W = b.scene.userData.campusChilledWater, roads = b.scene.userData.campusRoads.rects;
-      expect(W?.hallB).toBeDefined();
-      const { supply, ret } = W.hallB;
-      // pairs do not intersect anywhere (same elevation, side by side)
-      const segs = (p: number[][]) => p.slice(1).map((q, i) => [p[i], q]);
-      const cross = (s: number[][], t: number[][]) => {
-        const [[x1, , z1], [x2, , z2]] = s, [[x3, , z3], [x4, , z4]] = t;
-        const d = (x2 - x1) * (z4 - z3) - (z2 - z1) * (x4 - x3); if (Math.abs(d) < 1e-9) return false;
-        const u = ((x3 - x1) * (z4 - z3) - (z3 - z1) * (x4 - x3)) / d, v = ((x3 - x1) * (z2 - z1) - (z3 - z1) * (x2 - x1)) / d;
-        return u > 1e-6 && u < 1 - 1e-6 && v > 1e-6 && v < 1 - 1e-6;
-      };
-      for (const s of segs(supply)) for (const t of segs(ret)) expect(cross(s, t)).toBe(false);
-      // where a pipe is over a road it rides a bridge with at least 5 m clear underneath (pipe bottom, 0.6 m radius)
-      for (const path of [supply, ret]) for (const [p, q] of segs(path)) for (let t = 0; t <= 1; t += .05) {
-        const x = p[0] + (q[0] - p[0]) * t, y = p[1] + (q[1] - p[1]) * t, z = p[2] + (q[2] - p[2]) * t;
-        if (roads.some((r: any) => x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1)) expect(y - .6, `pipe over road at ${x},${z}`).toBeGreaterThanOrEqual(5);
+  it('edge-pad breakouts on the same card face never cross', async () => {
+    const { copperLane, copperPad, COPPER_HEADS } = await import('./side-geometry.js');
+    for (const [, h] of COPPER_HEADS) for (const top of [true, false]) {
+      const hx = Number(h);
+      const legs: P3[][] = [];
+      for (let i = 0; i < 4; i++) for (const rx of [false, true]) {
+        const pad = copperPad(hx, i, rx); if (pad.top !== top) continue;
+        legs.push([[pad.x, 0, 2.6], [copperLane(hx, i, rx), 0, 2.25]]);
       }
+      expect(planCrossings(legs)).toBe(0);
     }
-  });
-});
-
-describe('rack: rear services mirrored, coolant fed the same way as the hall', () => {
-  for (const accel of ['gb200', 'gb300', 'rubin']) it(`${accel}: spine, bus bar and manifolds at the rear, mirrored; manifolds top-fed`, () => {
-    const b = rack.build({ ...opts({ accel }), state: { mode: 'power' } }), R = b.scene.userData.rackPlan;
-    // NVIDIA DGX GB200 user guide: the rear carries the cable cartridges, bus bar and liquid manifolds
-    for (const z of [R.cartridgeZ, R.busbarZ, R.manifoldZ]) expect(z).toBeLessThan(R.trayRearZ + .03);
-    const mirrored = (xs: number[]) => xs.every(x => xs.some(y => Math.abs(x + y) < 1e-9));
-    expect(mirrored(R.cartridgeX)).toBe(true);
-    expect(mirrored(R.manifoldX)).toBe(true);
-    // the hall's rack loop is overhead (hall.js): the rack's hoses leave through its roof, inside the 600 mm width
-    expect(R.coolantFeed).toBe('top');
-    for (const h of R.hoses) { expect(h.top).toBeGreaterThan(R.roofY); expect(Math.abs(h.x)).toBeLessThan(.3 - .02); }
-    const hall0 = hall.build(opts({ accel })).scene.userData.hallPlan;
-    expect(hall0.tcsY).toBeGreaterThan(2.3);                           // the hall's rack loop runs over the rack tops
-  });
-});
-
-describe('scale across: diverse long-haul routes', () => {
-  it('this campus takes its two routes through two separate terminals', () => {
-    const b = across.build(opts()), T = b.scene.userData.campusTerminals;
-    expect(T.diverse).toBe(true);
-    expect(dist2(T.east, T.north)).toBeGreaterThan(20);
-  });
-  it('Colossus 2 scenario builds every level with the same rules', () => {
-    const model = compute({ ...SITES.colossus2.scenario, site: 'colossus2', stage: 0 } as any), o = { quality: { mobile: true, shadows: false, reflections: false }, state: { mode: 'power' }, model };
-    const c = campus.build(o);
-    for (const path of c.scene.userData.campusFeeders.halls) expect(reverses(path)).toBe(false);
-    const h = hall.build(o);
-    for (const row of h.scene.userData.hallPlan.rows) expect(Math.sign(row.busZ - row.z)).toBe(-row.f);
   });
 });

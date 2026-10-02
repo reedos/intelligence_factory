@@ -121,8 +121,8 @@ export function build({ quality, state, authoredHardware = false }) {
       }
       const drainY = Math.sqrt((DIEL + 0.0175) ** 2 - DIEL ** 2);
       N.add(sweep(curve, 0, 1, { oy: drainY, rx: 0.0175, seg: 5, steps: 10 }), drain);
-      // drain wire down to its ground pad beside the pair
-      const gx = x + 0.08;
+      // drain wire down to its ground pad beside the pair, on its centre-channel side (mirror-symmetric banks)
+      const gx = x + (rx ? -0.075 : 0.075);
       N.strut([x, cardTop + DIEL + drainY, cardRear - 0.02], [gx, cardTop + 0.012, term - 0.03], 0.0175, drain, 6);
       N.box(0.05, 0.005, 0.13, MAT.copper, gx, cardTop + 0.0025, term - 0.02);
       N.add(new THREE.SphereGeometry(1, 8, 5), solder, gx, cardTop + 0.007, term - 0.03, 0, 0, 0, 0.026, 0.011, 0.06);
