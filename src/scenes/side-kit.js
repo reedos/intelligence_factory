@@ -129,7 +129,10 @@ export function mzmPicTex() {
 // along the top edge, a manifold at the left splits it into eight lane waveguides, and each lane passes its own
 // micro-ring, drawn beside the waveguide with a coupling gap, then carries on to its fiber (the ring modulates the
 // light passing it; the output is the same waveguide). Receive: eight waveguides from the fiber edge to photodiodes.
-export const RING = { busY: 24, manX: 24, row: i => 50 + i * 20, ringX: i => 110 + i * 40, ringR: 6, ringGap: 4, rxRow: i => 214 + i * 20, pdX: 77, w: 512, h: 384 };
+// Each ring's bond to the driver above sits beside the ring, level with its center: between its own waveguide and the
+// previous lane's, clear of both (a pad above the ring would land on the previous lane's waveguide, 20 px up).
+export const RING = { busY: 24, manX: 24, row: i => 50 + i * 20, ringX: i => 110 + i * 40, ringR: 6, ringGap: 4, rxRow: i => 214 + i * 20, pdX: 77, w: 512, h: 384,
+  bondAt: i => [110 + i * 40 + 13, 50 + i * 20 - 10] };
 export function ringPicTex() {
   return canvasTex(RING.w, RING.h, (g, w, h) => {
     g.fillStyle = '#4a5468'; g.fillRect(0, 0, w, h); g.lineCap = 'round'; g.lineJoin = 'round';
@@ -140,7 +143,7 @@ export function ringPicTex() {
       g.strokeStyle = 'rgba(255,179,71,0.9)'; g.beginPath(); g.moveTo(RING.manX, y); g.lineTo(rx - 14, y); g.stroke();   // unmodulated, up to the ring
       g.strokeStyle = 'rgba(98,230,255,0.95)'; g.lineWidth = 3; g.beginPath(); g.moveTo(rx - 14, y); g.lineTo(w - 12, y); g.stroke();   // modulated, past it
       g.lineWidth = 2.5; g.beginPath(); g.arc(rx, y - RING.ringR - RING.ringGap, RING.ringR, 0, Math.PI * 2); g.stroke();       // the ring, a gap above
-      g.fillStyle = 'rgba(201,161,74,0.9)'; g.fillRect(rx - 3, y - RING.ringR * 2 - RING.ringGap - 7, 6, 5);                   // its bond to the driver above
+      const [bx, by] = RING.bondAt(i); g.fillStyle = 'rgba(201,161,74,0.9)'; g.fillRect(bx - 3, by - 3, 6, 6);   // its bond to the driver above
       g.strokeStyle = 'rgba(98,230,255,0.95)'; g.lineWidth = 3;
     }
     g.fillStyle = 'rgba(255,255,255,0.4)'; g.fillRect(0, (RING.row(7) + RING.rxRow(0)) / 2, w, 2);

@@ -119,7 +119,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   if (!authoredHardware) die(scene, M, EW, 0.12, ED, eicTex(), ...w(0, 0.95, 0), Math.PI);
   const pcx = px => -PW / 2 + px / RING.w * PW, pcz = py => -PD / 2 + py / RING.h * PD;
   const ringAt = i => [pcx(RING.ringX(i)), pcz(RING.row(i) - RING.ringR - RING.ringGap)], txRowZ = i => pcz(RING.row(i)), rxRowZ = i => pcz(RING.rxRow(i)), pdX = pcx(RING.pdX);
-  const ringBondAt = i => [pcx(RING.ringX(i)), pcz(RING.row(i) - RING.ringR * 2 - RING.ringGap - 4.5)];
+  const ringBondAt = i => { const [bx, bz] = RING.bondAt(i); return [pcx(bx), pcz(bz)]; };
   // Paired pads mark face-to-face bonding; dashed registration guides cross the
   // exploded gap. They are not centimeter-long copper bond wires in a real engine.
   const bondGuides = [];

@@ -390,7 +390,9 @@ def photonic_die(cx,cy,cz,scale,angle,exploded=False):
         tube('Ring modulator',pts,.0065,ringGlow,role,6)
         path('RX waveguide',[w(px(512),top,pz(rxrow)),w(px(90),top,pz(rxrow))],radius,fiberRx,role)
         box('Photodiode',w(px(77),top,pz(rxrow)),(26/512*pw,.012,12/384*pd),tia,role,.004,angle)
-        for bx,bz,br in [(px(rx),pz(row-12-4-4.5),.020),(px(77),pz(rxrow),.033)]:
+        # The ring's bond pad sits beside the ring at its center height (RING.bondAt in side-kit.js), clear of
+        # both its own waveguide and the previous lane's.
+        for bx,bz,br in [(px(rx+13),pz(ringz),.020),(px(77),pz(rxrow),.033)]:
             for by in [.09,.88]:cylinder('Face bonding pad',w(bx,by,bz),br,.025,gold,role,12)
     box('Glass fiber attach',w(pw/2+.2,.1,0),(.4,.4,pd-.2),glass,role,.01,angle)
     for i in range(8):
