@@ -9,10 +9,10 @@
 // stacked electronic die (the original, NVIDIA-style), segmented Mach-Zehnder modulators under one (Broadcom-style, as
 // reported), or one die holding both (Ranovus Odin / Ayar Labs TeraPHY-style). Each view's dies, bonds, guides,
 // captions and detail flows sit in their own groups; only the engines change.
-import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, label, lidBox, outline, FLOW, COL, note, unitCol, asicTex, ringPicTex, RING, eicTex, glowMat } from './side-kit.js';
+import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, label, lidBox, outline, FLOW, COL, note, unitCol, asicTex, ringPicTex, RING, glowMat } from './side-kit.js';
 
-import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes, CPO_VARIANTS, CPO_MZM, CPO_MONO } from './side-geometry.js';
-import { eicMzmTex, monoFaceTex, mzmCpoPicTex, cpoIntro, cpoPartCopy } from './cpo-variants.js';
+import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes, CPO_VARIANTS, CPO_RING, CPO_MZM, CPO_MONO, CPO_EIC, eicBox } from './side-geometry.js';
+import { ringEicTex, eicMzmTex, monoFaceTex, mzmCpoPicTex, cpoIntro, cpoPartCopy } from './cpo-variants.js';
 
 // Fiber cannot fold at a point. The route contract (side-geometry.js) stays a
 // reviewed polyline; the drawn fiber and its moving light follow the same path
@@ -84,11 +84,12 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     }
   }
   if (!authoredHardware) {
-    const faces = { ring: [ringPicTex(), eicTex()], mzm: [mzmCpoPicTex(), eicMzmTex()], mono: [monoFaceTex()] };
-    engines.forEach(({ x, z, rot }) => {
+    const faces = { ring: [ringPicTex(), ringEicTex()], mzm: [mzmCpoPicTex(), eicMzmTex()], mono: [monoFaceTex()] };
+    engines.forEach(({ x, z, out, rot }) => {
       for (const k of ['ring', 'mzm']) {
+        const e = eicBox(k);   // the electronic die over its own part of the photonic die; local +x is outward
         die(views[k].group, M, 1.35, 0.06, 0.95, faces[k][0], x, Y.eng, z, -rot);
-        die(views[k].group, M, 1.23, 0.07, 0.902, faces[k][1], x, Y.eng + 0.065, z, -rot);
+        die(views[k].group, M, e.w, 0.07, e.d, faces[k][1], x + out[0] * e.cx, Y.eng + 0.065, z + out[1] * e.cx, -rot);
       }
       die(views.mono.group, M, 1.35, 0.1, 0.95, faces.mono[0], x, Y.eng + 0.02, z, -rot);   // one die, no stack
     });
@@ -135,12 +136,14 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   // leave to the left, away from everything
   const s = 2.5, DX = -(SUB / 2 + 6.2), DY = 1.4, DZ = -(SUB / 2 + 3.2), w = (lx, ly, lz) => [DX - lx, DY + ly, DZ - lz];
   const PW = 1.35 * s, PD = 0.95 * s;
-  const EW = 1.23 * s, ED = 0.902 * s, electricalEdge = -EW / 2;
+  // each stacked view's electronic die over its own rect of the photonic die; its electrical edge faces the switch
+  const eicD = { ring: eicBox('ring', s), mzm: eicBox('mzm', s) }, edgeOf = k => eicD[k].cx - eicD[k].w / 2;
+  const electricalEdge = edgeOf('ring');
   if (!authoredHardware) {
     die(views.ring.group, M, PW, 0.15, PD, ringPicTex(), DX, DY, DZ, Math.PI);
-    die(views.ring.group, M, EW, 0.12, ED, eicTex(), ...w(0, 0.95, 0), Math.PI);
+    die(views.ring.group, M, eicD.ring.w, 0.12, eicD.ring.d, ringEicTex(), ...w(eicD.ring.cx, 0.95, 0), Math.PI);
     die(views.mzm.group, M, PW, 0.15, PD, mzmCpoPicTex(), DX, DY, DZ, Math.PI);
-    die(views.mzm.group, M, EW, 0.12, ED, eicMzmTex(), ...w(0, 0.95, 0), Math.PI);
+    die(views.mzm.group, M, eicD.mzm.w, 0.12, eicD.mzm.d, eicMzmTex(), ...w(eicD.mzm.cx, 0.95, 0), Math.PI);
     die(views.mono.group, M, PW, 0.15, PD, monoFaceTex(), DX, DY, DZ, Math.PI);
   }
   const pcx = px => -PW / 2 + px / RING.w * PW, pcz = py => -PD / 2 + py / RING.h * PD;
@@ -151,13 +154,13 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   const M_ = CPO_MZM, O_ = CPO_MONO;
   const bondsOf = {
     ring: Array.from({ length: 8 }, (_, i) => [ringBondAt(i), [pdX, rxRowZ(i)]]).flat(),
-    mzm: Array.from({ length: 8 }, (_, i) => [...Array.from({ length: M_.segments }, (_, k) => [pcx(M_.pad(k)), pcz(M_.row(i))]), [pdX, rxRowZ(i)]]).flat(),
+    mzm: Array.from({ length: 8 }, (_, i) => [...Array.from({ length: M_.segments }, (_, k) => [pcx(M_.pad(k)), pcz(M_.row(i) - M_.strip)]), [pdX, rxRowZ(i)]]).flat(),
     mono: [],
   };
   for (const k of CPO_VARIANTS) {
     const bondGuides = [];
     for (const [px, pz] of bondsOf[k]) {
-      for (const y of [0.09, 0.88]) views[k].B.cyl(0.033, 0.025, MAT.gold, ...w(px, y, pz), 8);
+      for (const y of [0.09, 0.875]) views[k].B.cyl(0.033, 0.025, MAT.gold, ...w(px, y, pz), 8);
       bondGuides.push(...w(px, 0.12, pz), ...w(px, 0.85, pz));
     }
     if (!bondGuides.length) continue;
@@ -179,7 +182,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   for (const d of [-0.07, 0.07]) strand(N, [w(PW / 2 + 0.4, 0.1, pcz(RING.busY) + d), w(PW / 2 + 2.6, 0.1, pcz(RING.busY) + d)], M.fiberCw, 0.02);
   // the electrical side: a stub of package trace from the switch chip into the electronic chip
   for (let j = 0; j < 6; j++) {
-    for (const k of ['ring', 'mzm']) views[k].B.box(1.6, 0.01, 0.05, MAT.copper, ...w(electricalEdge - 0.8, 0.95, -0.55 + j * 0.22));
+    for (const k of ['ring', 'mzm']) views[k].B.box(1.6, 0.01, 0.05, MAT.copper, ...w(edgeOf(k) - 0.8, 0.95, -0.55 + j * 0.22));
     views.mono.B.box(1.6, 0.01, 0.05, MAT.copper, ...w(-PW / 2 - 0.8, 0.08, -0.55 + j * 0.22));
   }
   const EQ = engines[6];                                 // a back-side engine, the one nearest the detail
@@ -240,12 +243,12 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     rxIn('ring', i);
     viewFlow('ring', flow([w(pdX, 0.09, rxRowZ(i)), w(pdX, 0.89, rxRowZ(i)), w(electricalEdge, 0.96, zOut), w(electricalEdge - 1.6, 0.96, zOut)], 'eth', FLOW.elec));
     // Mach-Zehnder: each sampled lane feeds a different one of its three electrode segments
-    const row = M_.row(i), zr = pcz(row), s1 = M_.seg(n)[1], padX = pcx(M_.pad(n));
-    viewFlow('mzm', flow([w(electricalEdge - 1.6, 0.96, zIn), w(electricalEdge, 0.96, zIn), w(padX, 0.89, zr), w(padX, 0.09, zr), w(pcx(s1), 0.09, zr)], 'eth', FLOW.elec));
+    const row = M_.row(i), zr = pcz(row), zs = pcz(row - M_.strip), s1 = M_.seg(n)[1], padX = pcx(M_.pad(n)), mEdge = edgeOf('mzm');
+    viewFlow('mzm', flow([w(mEdge - 1.6, 0.96, zIn), w(mEdge, 0.96, zIn), w(padX, 0.89, zs), w(padX, 0.09, zs), w(pcx(s1), 0.09, zs)], 'eth', FLOW.elec));
     cwIn('mzm', M_.manX, M_.busY, row, pcx(M_.split));
     viewFlow('mzm', flow([w(pcx(M_.split), 0.09, zr), w(pcx(M_.armIn), 0.09, pcz(row - M_.arm)), w(pcx(M_.armOut), 0.09, pcz(row - M_.arm)), w(pcx(M_.join), 0.09, zr), w(PW / 2, 0.09, zr), w(PW / 2 + 2.6, 0.1, zr)], 'tx', FLOW.light));
     rxIn('mzm', i);
-    viewFlow('mzm', flow([w(pdX, 0.09, rxRowZ(i)), w(pdX, 0.89, rxRowZ(i)), w(electricalEdge, 0.96, zOut), w(electricalEdge - 1.6, 0.96, zOut)], 'eth', FLOW.elec));
+    viewFlow('mzm', flow([w(pdX, 0.09, rxRowZ(i)), w(pdX, 0.89, rxRowZ(i)), w(mEdge, 0.96, zOut), w(mEdge - 1.6, 0.96, zOut)], 'eth', FLOW.elec));
     // one die: everything at the surface, just above the waveguides
     const [d0, d1, d2, d3] = O_.driver(i), [t0, , t2] = O_.tia(i), ringX = O_.ringX(i), ringZ = O_.ringZ(i);
     viewFlow('mono', flow([w(-PW / 2 - 1.6, 0.09, zIn), w(-PW / 2, 0.09, zIn), w(pcx((d0 + d2) / 2), 0.09, pcz((d1 + d3) / 2)), w(pcx(ringX - O_.ringR), 0.09, pcz(ringZ))], 'eth', FLOW.elec));
@@ -276,11 +279,11 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   viewLabel('ring', 'Electronic chip: drivers (TX) and TIAs (RX)', [DX, DY + 2.35, DZ - 1.6], unitCol, 0.15);
   viewLabel('ring', 'Photonic chip: ring modulators (TX), photodiodes (RX)', [DX, DY + 0.55, DZ + 2.0], unitCol, 0.15);
   viewLabel('mzm', 'Functional schematic · bonded faces and surface fiber coupling unfolded', [DX, DY - 0.45, DZ + 2.0], note, 0.13);
-  viewLabel('mzm', 'Electronic chip: 3 driver segments per lane (TX), TIAs (RX)', [DX, DY + 2.35, DZ - 1.6], unitCol, 0.15);
+  viewLabel('mzm', 'Electronic chip: drivers over the electrode ends (TX), TIAs (RX)', [DX, DY + 2.35, DZ - 1.6], unitCol, 0.15);
   viewLabel('mzm', 'Photonic chip: Mach-Zehnder modulators (TX), photodiodes (RX)', [DX, DY + 0.55, DZ + 2.0], unitCol, 0.15);
   viewLabel('mono', 'Functional schematic · one die · surface fiber coupling unfolded', [DX, DY - 0.45, DZ + 2.0], note, 0.13);
   viewLabel('mono', 'One die: drivers beside the rings (TX), TIAs beside the photodiodes (RX)', [DX, DY + 0.55, DZ + 2.0], unitCol, 0.15);
-  viewLabel('mzm', 'Engines drawn Broadcom-style: Mach-Zehnder, as reported · representative', [0, -0.7, FZ], CPO_VIEW_NOTE, 0.18);
+  viewLabel('mzm', 'Engines drawn Broadcom-style: Mach-Zehnder, as reported · 8 of 64 lanes · representative', [0, -0.7, FZ], CPO_VIEW_NOTE, 0.18);
   viewLabel('mono', 'Engines drawn as one die each, Odin / TeraPHY-style · representative', [0, -0.7, FZ], CPO_VIEW_NOTE, 0.18);
   label(scene, 'Light · 8 TX, 8 RX, 2 laser fibers', [DX - PW / 2 - 1.6, DY + 0.75, DZ], COL.tx, 0.15);
   label(scene, 'TX / RX fibers → front-panel ports (outside this diagram)', [0, 2.8, 7.8], COL.tx, .16);
@@ -312,8 +315,8 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   };
   // Pins that move with the engine view: the electronics, the modulator and the photodiode each sit on that view's part.
   const pinAt = {
-    ring: { eic: w(1.2, 1.1, 1.0), rings: w(r3x, 0.12, r3z), pd: w(pdX, 0.12, rxRowZ(4)) },
-    mzm: { eic: w(1.2, 1.1, 1.0), rings: w(pcx((M_.armIn + M_.armOut) / 2), 0.12, pcz(M_.row(3))), pd: w(pdX, 0.12, rxRowZ(4)) },
+    ring: { eic: w(pcx(CPO_RING.ringX(6)), 1.1, pcz(CPO_RING.ringZ(6))), rings: w(r3x, 0.12, r3z), pd: w(pdX, 0.12, rxRowZ(4)) },
+    mzm: { eic: w(pcx(240), 1.1, pcz(M_.row(6))), rings: w(pcx((CPO_EIC.mzm[2] + M_.armOut) / 2), 0.12, pcz(M_.row(3))), pd: w(pdX, 0.12, rxRowZ(4)) },
     mono: (() => { const [d0, d1, d2, d3] = O_.driver(6); return { eic: w(pcx((d0 + d2) / 2), 0.12, pcz((d1 + d3) / 2)), rings: w(pcx(O_.ringX(3)), 0.12, pcz(O_.ringZ(3))), pd: w(pdX, 0.12, rxRowZ(4)) }; })(),
   };
   let kind = 'ring';

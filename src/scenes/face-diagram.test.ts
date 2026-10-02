@@ -104,7 +104,7 @@ describe('freehand faces (recorded and audited)', () => {
   const faces: [string, () => Promise<() => unknown>][] = [
     ['module PIC (side-kit mzmPicTex)', async () => (await import('./side-kit.js')).mzmPicTex],
     ['CPO ring PIC (side-kit ringPicTex)', async () => (await import('./side-kit.js')).ringPicTex],
-    ['CPO electronic chip (eicTex)', async () => (await import('./side-kit.js')).eicTex],
+    ['CPO ring view electronic chip (ringEicTex)', async () => (await import('./cpo-variants.js')).ringEicTex],
     ['CPO Mach-Zehnder view electronic chip (eicMzmTex)', async () => (await import('./cpo-variants.js')).eicMzmTex],
     ['CPO one-die view face (monoFaceTex)', async () => (await import('./cpo-variants.js')).monoFaceTex],
     ['CPO Mach-Zehnder photonic die, native (mzmCpoPicTex)', async () => (await import('./cpo-variants.js')).mzmCpoPicTex],
@@ -127,7 +127,10 @@ describe('freehand faces (recorded and audited)', () => {
 import cpoScript from '../../tools/blender/build-cpo.py?raw';
 it('Blender CPO ring bond pads follow RING.bondAt', async () => {
   const { RING } = await import('./side-kit.js');   // after the canvas stand-in: kit.js paints at import
+  const { cpoVariantLayout } = await import('./side-geometry.js');
   expect(RING.bondAt(0)).toEqual([RING.ringX(0) + 13, RING.row(0) - RING.ringR - RING.ringGap]);
-  expect(cpoScript).toContain('(px(rx+13),pz(ringz),.020)');
-  expect(cpoScript).toMatch(/ringz=row-10/);
+  // the Blender build reads the ring layout (rings and pads) from link-layout.json, written from side-geometry
+  expect(cpoVariantLayout().ring.pads).toEqual(Array.from({ length: 8 }, (_, i) => RING.bondAt(i)));
+  expect(cpoVariantLayout().ring.rings).toEqual(Array.from({ length: 8 }, (_, i) => [RING.ringX(i), RING.row(i) - RING.ringR - RING.ringGap]));
+  expect(cpoScript).toContain("zip(RG['rows'],RG['rings'],RG['pads'])");
 });

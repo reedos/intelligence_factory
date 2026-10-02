@@ -94,6 +94,8 @@ monoFace = material('Monolithic die face', (.03,.045,.07), .1,.25)
 detailMono = material('Detail monolithic die face', (.05,.06,.08), .35,.3)
 mzArm = material('Mach-Zehnder arm', (.37,.80,.90), 0,.25)
 electrode = material('Mach-Zehnder electrode', (.72,.55,.30), .85,.3)
+heaterMat = material('Mach-Zehnder bias heater', (.42,.10,.06), .5,.4)
+coupler = material('Fiber coupler', (.55,.70,.80), .1,.2)
 # The arms glow far less than the rings: sixteen long arms at the rings' strength bloomed into one white sheet.
 for m,k in [(ringGlow,3.0),(mzArm,.45)]:
     b=m.node_tree.nodes.get('Principled BSDF'); b.inputs['Emission Color'].default_value=m.diffuse_color; b.inputs['Emission Strength'].default_value=k
@@ -367,11 +369,16 @@ for x in [-5.2,5.2]:
 
 # The engine toggle (Reed, 10/01/2026): three engine views share the package, the fibers and the photonic-die
 # frame (512 x 384 px, side-kit RING), and each draws its own dies in its own groups, which the runtime shows one at
-# a time. Layout numbers come from side-geometry.js through link-layout.json (CPO_MZM, CPO_MONO).
+# a time. Layout numbers come from side-geometry.js through link-layout.json (CPO_RING, CPO_MZM, CPO_MONO, CPO_EIC).
+# Every engine follows the signal path: electrical edge (frame x 0, local -x) toward the switch chip, fiber edge
+# (x 512, local +x) toward the package edge; transmit rows 50..190, receive rows 214..354, in fiber order.
 #   ring  EIC stacked on a micro-ring PIC (NVIDIA-style, the original drawing)
-#   mzm   EIC stacked on a PIC with segmented Mach-Zehnder modulators (Broadcom-style, as reported)
+#   mzm   EIC over the electrical end of a PIC with segmented Mach-Zehnder modulators whose arms run on past it
 #   mono  one die: rings, photodiodes and the circuits beside them (Ranovus Odin / Ayar Labs TeraPHY-style)
-VAR=LAYOUT['variants']; MZ=VAR['mzm']; MO=VAR['mono']
+VAR=LAYOUT['variants']; RG=VAR['ring']; MZ=VAR['mzm']; MO=VAR['mono']; EICR=VAR['eic']
+def eic_box(kind,scale):
+    x0,y0,x1,y1=EICR[kind]
+    return ((-1.35/2+(x0+x1)/2/512*1.35)*scale,(-.95/2+(y0+y1)/2/384*.95)*scale,(x1-x0)/512*1.35*scale,(y1-y0)/384*.95*scale)
 def photonic_die(cx,cy,cz,scale,angle,kind,exploded=False):
     role=f'CPO_{kind.upper()}_DETAIL' if exploded else f'CPO_{kind.upper()}_ENGINES'
     pw,pd=1.35*scale,.95*scale
@@ -380,50 +387,51 @@ def photonic_die(cx,cy,cz,scale,angle,kind,exploded=False):
     def pz(v):return -pd/2+v/384*pd
     if kind=='mono':
         # One die: no electronic chip on top. Its face is painted at runtime with the photonics and the driver and
-        # TIA circuits beside them (cpo-variants.js monoFaceTex); the packaged die is as tall as the stacked pair's PIC
-        # plus most of its EIC.
+        # TIA circuits beside them (cpo-variants.js monoFaceTex).
         box('Monolithic engine die',w(0,0 if exploded else .02,0),(pw,.15 if exploded else .1,pd),detailMono if exploded else monoFace,role,.005*scale,angle,uv_top=True)
     else:
         box('Photonic PIC',w(0,0,0),(pw,.15 if exploded else .06,pd),detailPic if exploded else pic,role,.005*scale,angle)
         ey=.95 if exploded else .073
-        # In the package the EIC sits back from the fiber edge so the photonic die's
-        # fiber-array landing shows, on a thin dark hybrid-bond line (representative).
-        ex0=0 if exploded else -.05
+        # The electronic die over its own rect of the photonic die (CPO_EIC): the ring view's sets back from the
+        # fiber landing; the Mach-Zehnder view's covers only the electrical end, so the arms show past it.
+        ex,ez,ew,ed=eic_box(kind,scale)
         face={'ring':(detailEic,eicFace),'mzm':(detailMzmEic,mzmEicFace)}[kind]
-        box('Electronic EIC',w(ex0,ey,0),(1.23*scale,.12 if exploded else .07,.902*scale),face[0] if exploded else face[1],role,.005*scale,angle,uv_top=True)
-        if not exploded: box('Hybrid bond line',w(ex0,.0340,0),(1.21,.007,.88),bondLine,role,0,angle)
+        box('Electronic EIC',w(ex,ey,ez),(ew,.12 if exploded else .07,ed),face[0] if exploded else face[1],role,.005*scale,angle,uv_top=True)
+        if not exploded: box('Hybrid bond line',w(ex,.0340,ez),(ew-.02,.007,ed-.022),bondLine,role,0,angle)
     if not exploded: return
     top=.082;radius=.0045
-    # Upper bond pads hang just below the electronic die's hybrid-bond face (.888-.892), not flush with its top.
     if kind!='mono':
         # The underside: a hybrid-bond pad array (painted, representative pitch) on a
         # thin face just below the die, seen when the exploded view is orbited low.
-        box('EIC hybrid-bond face',w(0,ey-.06,0),(1.21*scale,.004,.88*scale),bondFace,role,0,angle,uv_top=True,uv_face=2)
+        box('EIC hybrid-bond face',w(ex,ey-.06,ez),(ew-.02*scale,.004,ed-.022*scale),bondFace,role,0,angle,uv_top=True,uv_face=2)
+    # Upper bond pads hang just below the electronic die's hybrid-bond face (.888-.892), not flush with its top.
     if kind=='ring':
-        path('CW bus',[w(px(512),top,pz(24)),w(px(24),top,pz(24)),w(px(24),top,pz(190))],radius,fiberCw,role)
-        for i in range(8):
-            row=50+i*20;rx=110+i*40;ringz=row-10
-            path('CW branch',[w(px(24),top,pz(row)),w(px(rx-14),top,pz(row))],radius,fiberCw,role)
+        path('CW bus',[w(px(512),top,pz(RG['busY'])),w(px(RG['manX']),top,pz(RG['busY'])),w(px(RG['manX']),top,pz(RG['rows'][7]))],radius,fiberCw,role)
+        for row,(rx,ringz),(bx,bz) in zip(RG['rows'],RG['rings'],RG['pads']):
+            path('CW branch',[w(px(RG['manX']),top,pz(row)),w(px(rx-14),top,pz(row))],radius,fiberCw,role)
             path('TX waveguide',[w(px(rx-14),top,pz(row)),w(px(512),top,pz(row))],radius,fiberTx,role)
-            pts=[w(px(rx+6*math.cos(k*math.tau/32)),top,pz(ringz+6*math.sin(k*math.tau/32))) for k in range(33)]
+            r=RG['ringR'];pts=[w(px(rx+r*math.cos(k*math.tau/32)),top,pz(ringz+r*math.sin(k*math.tau/32))) for k in range(33)]
             tube('Ring modulator',pts,.0065,ringGlow,role,6)
             # The ring's bond pad sits beside the ring at its center height (RING.bondAt in side-kit.js), clear of
-            # both its own waveguide and the previous lane's.
-            for bx,bz,br in [(px(rx+13),pz(ringz),.020)]:
-                for by in [.09,.875]:cylinder('Face bonding pad',w(bx,by,bz),br,.025,gold,role,12)
+            # both its own waveguide and the previous lane's; its driver block on the EIC is centered over the ring.
+            for by in [.09,.875]:cylinder('Face bonding pad',w(px(bx),by,pz(bz)),.020,.025,gold,role,12)
     if kind=='mzm':
-        # Each lane: split, two long arms, rejoin. Three electrode segments lie between the arms; each segment's
-        # driver bond is a pad at its input end (three driver segments per modulator, as Broadcom's are reported).
+        # Each lane: split, two long arms, rejoin. Three electrode segments run alongside both arms under the
+        # electronic die (three driver segments per modulator, as Broadcom's are reported); each segment's bond pad
+        # sits on its upper strip. Past the electronic die the arms run on, a bias heater on the upper arm.
         path('CW bus',[w(px(512),top,pz(MZ['busY'])),w(px(MZ['manX']),top,pz(MZ['busY'])),w(px(MZ['manX']),top,pz(MZ['rows'][7]))],radius,fiberCw,role)
-        a=MZ['arm']
+        a,st,sw=MZ['arm'],MZ['strip'],MZ['stripW']
         for row in MZ['rows']:
             path('CW branch',[w(px(MZ['manX']),top,pz(row)),w(px(MZ['split']),top,pz(row))],radius,fiberCw,role)
             for sgn in [-1,1]:
                 path('Mach-Zehnder arm',[w(px(MZ['split']),top,pz(row)),w(px(MZ['armIn']),top,pz(row+sgn*a)),w(px(MZ['armOut']),top,pz(row+sgn*a)),w(px(MZ['join']),top,pz(row))],radius,mzArm,role)
+                for s0,s1 in MZ['segs']:
+                    box('Mach-Zehnder electrode segment',w(px((s0+s1)/2),.078,pz(row+sgn*st)),((s1-s0)/512*pw,.006,sw/384*pd),electrode,role,0,angle)
+            h0,h1=MZ['heater']
+            box('Mach-Zehnder bias heater',w(px((h0+h1)/2),.078,pz(row-st)),((h1-h0)/512*pw,.006,sw/384*pd),heaterMat,role,0,angle)
             path('TX waveguide',[w(px(MZ['join']),top,pz(row)),w(px(512),top,pz(row))],radius,fiberTx,role)
-            for (s0,s1),pad in zip(MZ['segs'],MZ['pads']):
-                box('Mach-Zehnder electrode segment',w(px((s0+s1)/2),.078,pz(row)),((s1-s0)/512*pw,.006,MZ['segW']/384*pd),electrode,role,0,angle)
-                for by in [.09,.875]:cylinder('Face bonding pad',w(px(pad),by,pz(row)),.020,.025,gold,role,12)
+            for pad in MZ['pads']:
+                for by in [.09,.875]:cylinder('Face bonding pad',w(px(pad),by,pz(row-st)),.016,.025,gold,role,12)
     if kind=='mono':
         path('CW bus',[w(px(512),top,pz(MO['busY'])),w(px(MO['manX']),top,pz(MO['busY'])),w(px(MO['manX']),top,pz(MO['rows'][7]))],radius,fiberCw,role)
         for row,(rx,ringz) in zip(MO['rows'],MO['rings']):
@@ -437,9 +445,13 @@ def photonic_die(cx,cy,cz,scale,angle,kind,exploded=False):
         box('Photodiode',w(px(77),top,pz(rxrow)),(26/512*pw,.012,12/384*pd),tia,role,.004,angle)
         if kind!='mono':
             for by in [.09,.875]:cylinder('Face bonding pad',w(px(77),by,pz(rxrow)),.033,.025,gold,role,12)
-    # A stub of package trace into the die that holds the circuits: the EIC, or the one die itself.
-    ex,ty=(-pw/2,.08) if kind=='mono' else (-1.23*scale/2,.95)
-    for j in range(6):box('Detail electrical trace',w(ex-.8,ty,-.55+j*.22),(1.6,.01,.05),traceCu,role,.002,angle)
+    # Fiber couplers at the fiber edge, one per lane and one per laser input (representative tapers).
+    for row in [24]+[50+i*20 for i in range(8)]+[214+i*20 for i in range(8)]:
+        box('Fiber coupler',w(px(503),.079,pz(row)),(14/512*pw,.008,7/384*pd),coupler,role,0,angle)
+    # A stub of package trace into the die that holds the circuits: the EIC's electrical edge, or the one die's.
+    if kind=='mono': edge,ty=-pw/2,.08
+    else: edge,ty=ex-ew/2,.95
+    for j in range(6):box('Detail electrical trace',w(edge-.8,ty,-.55+j*.22),(1.6,.01,.05),traceCu,role,.002,angle)
 
 def detail_fibers(cx,cy,cz,scale,angle):
     # Shared by every engine view: the fiber attach and its 18 fibers stay in place.

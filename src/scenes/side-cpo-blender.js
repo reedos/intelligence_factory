@@ -3,8 +3,8 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { build as buildDiagram } from './side-cpo.js';
 import { engineLayout, CPO_VARIANTS } from './side-geometry.js';
-import { eicMzmTex, monoFaceTex } from './cpo-variants.js';
-import { THREE, label, note, eicTex, eicBondTex } from './side-kit.js';
+import { ringEicTex, eicMzmTex, monoFaceTex } from './cpo-variants.js';
+import { THREE, label, note, eicBondTex } from './side-kit.js';
 import { directLink } from './link-art-direction.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
 
@@ -17,7 +17,7 @@ export function preload() {
 }
 
 // Representative die faces painted at runtime onto the GLB's 0-1 top-face UVs.
-// Not floorplans: dark silicon and a seal ring. The EIC face (side-kit eicTex) is
+// Not floorplans: dark silicon and a seal ring. The EIC faces (cpo-variants.js) are
 // shared by the eighteen packaged engines and the exploded detail.
 const srgb = v => Math.round(255 * Math.min(1, Math.max(0, v)) ** (1 / 2.2));
 function paintFace(W, H, shade) {
@@ -117,7 +117,7 @@ export function build(args) {
   // The engine views' faces: the ring view's EIC, the Mach-Zehnder view's EIC (its driver blocks over the electrode
   // segments) and the one-die view's face (photonics and circuits side by side). One texture each, shared by the 18
   // packaged engines and the exploded detail.
-  const eicMap = eicTex(), faceMaps = {
+  const eicMap = ringEicTex(), faceMaps = {
     'Electronic die face': eicMap, 'Detail electronic die face': eicMap,
     'MZM electronic die face': eicMzmTex(), 'Monolithic die face': monoFaceTex(),
   };
