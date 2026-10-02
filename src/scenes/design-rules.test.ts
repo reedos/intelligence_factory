@@ -83,6 +83,22 @@ describe('GPU package (scene 5): place and route', () => {
       expect(planCrossings(routes.hbm), accel).toBe(0);
     }
   });
+  it('the drawn HBM arcs (schematic, lifted for visibility) stay parallel and drop into the die on the stack's side', () => {
+    for (const { accel, model, routes } of builds()) {
+      const twin = model.accel.dies > 1;
+      expect(routes.hbmDrawn.length, accel).toBe(routes.hbm.length);
+      for (const r of routes.hbmDrawn) {
+        const along = r.map((p: P3) => twin ? p[0] : p[2]), across = r.map((p: P3) => twin ? p[2] : p[0]);
+        expect(new Set(along.map((v: number) => v.toFixed(9))).size, `${accel}: one lane, no convergence`).toBe(1);
+        // moves only toward the die, and lands on it from the stack's side: inside the die edge, short of its centre line
+        for (let i = 1; i < across.length; i++) expect(Math.abs(across[i]), accel).toBeLessThanOrEqual(Math.abs(across[i - 1]) + 1e-9);
+        const end = Math.abs(across.at(-1)!), edge = twin ? 1.65 : 1.3;
+        expect(end, accel).toBeLessThan(edge); expect(end, accel).toBeGreaterThan(edge / 2);
+        expect(Math.sign(across.at(-1)!), accel).toBe(Math.sign(across[0]));
+      }
+      expect(planCrossings(routes.hbmDrawn), accel).toBe(0);
+    }
+  });
   it('the die-to-die link runs straight across the seam, lanes evenly spaced', () => {
     for (const { accel, model, routes } of builds()) {
       if (model.accel.dies < 2) { expect(routes.hbi.length).toBe(0); continue; }

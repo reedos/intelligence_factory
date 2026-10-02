@@ -401,7 +401,7 @@ function buildPackage({ quality, state, model }) {
   // partner; NVLink continues down through the C4 bumps, out through the substrate to its ball and onto the host
   // board's escape runs. Lanes of one link run parallel and evenly spaced, straight across the edge they cross.
   const DIE_HALF = { x: 1.3, z: 1.65 }, yUnder = Y.dies - 0.04, yRdl = Y.inter + 0.085, ySub = Y.sub;
-  const routes = { hbi: [], hbm: [], nvl: [] };
+  const routes = { hbi: [], hbm: [], hbmDrawn: [], nvl: [] };
   if (twin) for (let i = 0; i < 7; i++) {
     // NV-HBI: straight across the seam over the long bridge under it, both directions (bridge spans |x| < 0.23)
     const z = -1.2 + i * 0.4, x0 = 0.15;
@@ -420,6 +420,25 @@ function buildPackage({ quality, state, model }) {
         pts = [[hx0, hb, z + d], [hx0, yRdl, z + d], [dx0, yRdl, z + d], [dx0, yUnder, z + d]]; }
       routes.hbm.push(pts);
       dataFlows.push(flow(pts, 'hbm', { count: 4, speed: 0.9, size: 0.042, k: 4.0, trail: false }));
+    }
+    // The drawn "waterfall" (schematic, evidence 'hbm-flow-drawing'): the buried route above sits under the dies and
+    // stacks and is hard to see from above, so each stack also shows its traffic lifted onto the surfaces. Three lanes
+    // per stack arc off the stack's top, over its inner edge (the edge whose PHY faces the die) and the gap, and drop
+    // into the die from above on that side (Reed, 10/01/2026: "have it drop into the die still, the viewer will get the
+    // idea"). The lanes stay parallel and keep to the stack's own stretch of the die edge.
+    const top = hb + stackH + 0.03, dieTop = Y.dies + 0.065;
+    for (let k = 0; k < 3; k++) {
+      const d = (k - 1) * (twin ? HW : HD) * 0.3;
+      // a point at distance r from the package centre toward the stack, offset t along the shared edge
+      const P = twin ? (r, y) => [x + d, y, Math.sign(z) * r] : (r, y) => [Math.sign(x) * r, y, z + d];
+      const far = twin ? Math.abs(z) : Math.abs(x), inner = far - (twin ? HD : HW) / 2, dieEdge = twin ? DIE_HALF.z : DIE_HALF.x;
+      const gap = (inner + dieEdge) / 2;
+      // an arc: up off the stack's top, over its die-facing edge and the gap, down onto the die's top from that side
+      const pts = [P(inner + 0.35, top), P(inner + 0.1, top + 0.12), P(gap, top + 0.2), P(dieEdge - 0.3, top + 0.16),
+        P(dieEdge - 0.6, dieTop + 0.08), P(dieEdge - 0.85, dieTop)];
+      routes.hbmDrawn.push(pts);
+      dataFlows.push(flow(pts, 'hbm', { count: 5, speed: 0.8, size: 0.045, k: 3.4, trailR: 0.016, trailK: 0.9,
+        audit: { why: 'schematic lift of the HBM traffic over the stack, the gap and the die edge (the wires run beneath: microbumps, bridge or interposer, PHY)' } }));
     }
   });
   const serdes = glowMat('#ff5fd2', 0.5);                // an inlaid strip in power and heat, lit in the data layer

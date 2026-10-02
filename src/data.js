@@ -1075,8 +1075,8 @@ export function content(M) {
     ],
     chip: [
       { id: 'hbm', title: A.hbm.type, kicker: `${hbmTB}, millimeters away`,
-        body: 'The fastest link in the building is the shortest: thousands of wires through the interposer between each HBM stack and the dies.',
-        specs: [['Bandwidth', hbmTB, EV6.hbm.basis, EV6.hbm.ev]] },
+        body: `The fastest link in the building is the shortest: thousands of wires between each HBM stack and the die edge it faces. The arcs drawn from each stack into the die are lifted over the parts so they can be seen; the real wires run underneath, from the stack's microbumps through ${A.id === 'h100' ? 'the silicon interposer' : 'a silicon bridge in the interposer'} to the HBM interface along the die's edge.`,
+        specs: [['Bandwidth', hbmTB, EV6.hbm.basis, EV6.hbm.ev], ['Drawn flow', 'lifted over the parts; the wires run beneath', 'assumed', { assume: 'hbm-flow-drawing' }]] },
       ...(A.dies > 1 ? [{ id: 'hbi', title: 'NV-HBI', kicker: '10 TB/s die to die',
         body: 'The two dies join across their seam fast enough that software sees one GPU.',
         specs: [['Bandwidth', '10 TB/s', EV6.dieRow.basis, EV6.dieRow.ev]] }] : []),
