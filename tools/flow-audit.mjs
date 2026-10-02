@@ -27,7 +27,7 @@
 //     along all six axis directions, for levels that declare a float radius.
 export function auditFlows(built, THREE, opts = {}) {
   const o = { samples: 260, endRun: 0.5, boardEnd: 0, layers: ['flows', 'dataFlows'], skipCls: ['hot', 'warm', 'cool', 'air'],
-    conduit: /copper|busbar|bus bar|bus-bar|busway|cable|wire|jumper|twinax|fiber|fibre|hose|pipe|conductor|lead frame|trace/i, ...(built.flowAudit || {}), ...opts };
+    conduit: /copper|busbar|bus bar|bus-bar|busway|cable|wire|jumper|twinax|fiber|fibre|hose|pipe|conductor|lead frame|trace|waveguide|optical paths|carrier paths|busway|bus duct|tapoff|tap-off|bus_joint|patch termination|guide ring/i, ...(built.flowAudit || {}), ...opts };
   const V = THREE.Vector3, M4 = THREE.Matrix4;
   const scene = built.scene; scene.updateMatrixWorld(true);
   const flowNodes = new Set();
@@ -114,7 +114,16 @@ export function auditFlows(built, THREE, opts = {}) {
       tri[t] = c;
       for (let k = 0; k < 3; k++) { const vi = idx ? idx.getX(t * 3 + k) : t * 3 + k, b = box[c], P = [pos.getX(vi), pos.getY(vi), pos.getZ(vi)]; for (let a = 0; a < 3; a++) { b[a] = Math.min(b[a], P[a]); b[a + 3] = Math.max(b[a + 3], P[a]); } }
     }
-    const out = { tri, box }; shells.set(g, out); return out;
+    // an open shell (a sheet, a terrain skirt, a box missing faces) has no inside: parity there means nothing
+    const edges = new Map(), shellEdges = new Int32Array(remap.size), shellOpen = new Int32Array(remap.size);
+    for (let t = 0; t < n; t++) for (let c = 0; c < 3; c++) {
+      const a = tv[t * 3 + c], b = tv[t * 3 + (c + 1) % 3], k = a < b ? `${a},${b}` : `${b},${a}`;
+      edges.set(k, (edges.get(k) || 0) + 1);
+      if (!edges.has(k + 's')) edges.set(k + 's', tri[t]);
+    }
+    for (const [k, v] of edges) { if (k.endsWith('s')) continue; const c = edges.get(k + 's'); shellEdges[c]++; if (v === 1) shellOpen[c]++; }
+    const open = Array.from(shellEdges, (e, c) => e > 0 && shellOpen[c] / e > 0.1);
+    const out = { tri, box, open }; shells.set(g, out); return out;
   };
   // crossings of the ray from local point q along +axis (dir 1) or -axis (dir -1): the count and the nearest distance;
   // with `per`, crossings are also counted per shell
@@ -140,10 +149,10 @@ export function auditFlows(built, THREE, opts = {}) {
   // the shells of one mesh copy that contain p: odd crossings on at least two of three axis rays
   const inside = (it, p) => {
     if (!it.box.containsPoint(p)) return [];
-    const g = it.mesh.geometry, l = toLocal(it, p), { box } = shellsFor(g), votes = new Map();
+    const g = it.mesh.geometry, l = toLocal(it, p), { box, open } = shellsFor(g), votes = new Map();
     for (let a = 0; a < 3; a++) {
       const per = new Map(); cast(g, l, a, 1, per);
-      for (const [c, n] of per) if (n % 2) { const b = box[c]; if (l[0] >= b[0] && l[0] <= b[3] && l[1] >= b[1] && l[1] <= b[4] && l[2] >= b[2] && l[2] <= b[5]) votes.set(c, (votes.get(c) || 0) + 1); }
+      for (const [c, n] of per) if (n % 2 && !open[c]) { const b = box[c]; if (l[0] >= b[0] && l[0] <= b[3] && l[1] >= b[1] && l[1] <= b[4] && l[2] >= b[2] && l[2] <= b[5]) votes.set(c, (votes.get(c) || 0) + 1); }
     }
     return [...votes].filter(([, v]) => v >= 2).map(([c]) => c);
   };
@@ -184,6 +193,8 @@ export function auditFlows(built, THREE, opts = {}) {
   let flowCount = 0, sampleCount = 0;
   for (const layer of o.layers) for (const [fi, f] of (built[layer] || []).entries()) {
     if (o.skipCls.includes(f.cls) || !f.path?.curves?.length || !(f.len > 0)) continue;
+    let hidden = false; for (let q = f.group; q; q = q.parent) if (!q.visible) hidden = true;
+    if (hidden) continue;                                   // a variant's route not drawn now (e.g. the LPO lanes while a DSP module shows)
     flowCount++;
     f.group.updateMatrixWorld(true);
     const mw = f.group.matrixWorld, through = f.audit?.through;
@@ -204,7 +215,14 @@ export function auditFlows(built, THREE, opts = {}) {
     let tail = pts.length - 1; while (tail >= 0 && hits[tail].length && 1 - pts[tail].u <= o.endRun) tail--;
     // group mid-path inside samples into runs per item
     const open = new Map();
+    // a lone sample just under a shell's skin is a touch (a conductor on its insulator's clamp), not a crossing
+    const touch = (key, s) => {
+      const [i, c] = key.split(':').map(Number), it = items[i], b = shellsFor(it.mesh.geometry).box[c], l = toLocal(it, pts[s].p);
+      const dims = [b[3] - b[0], b[4] - b[1], b[5] - b[2]], depth = Math.min(...[0, 1, 2].map(a => Math.min(l[a] - b[a], b[a + 3] - l[a])));
+      return depth < 0.05 * Math.min(...dims);
+    };
     const close = (idx, run) => {
+      if (run.from === run.to && touch(idx, run.from)) return;
       const nm = label(idx), conduit = o.conduit.test(nm), declared = through === true || (!!through?.test && through.test(nm));
       const lenRun = (pts[run.to].u - pts[run.from].u) * len;
       issues.push({ kind: declared ? 'declared' : conduit ? 'conduit' : 'inside', part: nm, at: pts[run.from].p.toArray().map(v => +v.toFixed(3)), to: pts[run.to].p.toArray().map(v => +v.toFixed(3)), len: +lenRun.toFixed(4), samples: run.to - run.from + 1 });

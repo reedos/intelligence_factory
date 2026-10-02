@@ -62,7 +62,7 @@ export function addRackOptics(built, accel) {
         const cx=x+(connectorCount===2?(lane-.5)*.009:0);
         hardware.box(connectorCount===2?.0075:.014,.007,.018,connector,cx,y,z+direction*.03);
         for(let rib=0;rib<4;rib++)hardware.box(connectorCount===2?.0078:.0143,.0074,.0012,MAT.black,cx,y,z+direction*(.035+rib*.002));
-        const side = Math.sign(x), rail = side*(.252+(index%6)*.0028);
+        const side = Math.sign(x), rail = side*(.2685+(index%6)*.0022);   // outboard of the pulled trays' slide rails
         const managerZ=(h100?-.575:.575)+direction*(Math.floor(index/6)*.007+lane*.0032);
         const start=[cx,y,z+direction*.044], end=[rail,2.32,managerZ];
         // one tag per module, hanging under its lead or straddling a twin pair, clear of the connector faces
@@ -70,8 +70,10 @@ export function addRackOptics(built, accel) {
         // Short faceplate run, then a controlled side return for the extended
         // service tray. Neighboring leads share a narrow, combed riser corridor.
         const exitZ=z+direction*(.085+lane*.008);
-        const points=managedRoute([start,[cx,y,exitZ],[rail,y,exitZ],
-          [rail,y,managerZ],[rail,y+.10,managerZ],end]);
+        // the run into the manager passes between its comb fingers (every .18 from .22), never through one
+        const finger=.22+Math.round((y-.22)/.18)*.18,runY=Math.abs(y-finger)<.013?finger+(y>=finger?.014:-.014):y;
+        const points=managedRoute([start,[cx,y,exitZ],[cx,runY,exitZ+direction*.004],[rail,runY,exitZ+direction*.004],
+          [rail,runY,managerZ],[rail,runY+.10,managerZ],end]);
         const motion=flow(points,'eth',{count:8,speed:.30,size:.0013,k:1,trail:false});
         // Many neighboring fibers must remain individually readable; their
         // moving cores use less ribbon emission than the single backbone.
@@ -110,7 +112,7 @@ export function addRackOptics(built, accel) {
   const leadTop = Math.min(...rows.map(row => h100 ? .16+row*(8*U+.004)+.23 : .12+row*U+U/2-.009)) + .12;
   for (const side of [-1,1]) {
     const managerZ=h100?-.575:.575, direction=h100?-1:1;
-    for(let y=.31;y<2.29;y+=.18) if(y>leadTop) hardware.box(.022,.012,.028,strap,side*.259,y,managerZ+direction*.011);
+    for(let y=.31;y<2.29;y+=.18) if(y>leadTop) hardware.box(.022,.012,.028,strap,side*.274,y,managerZ+direction*.011);
   }
   for (const side of [-1,1]) {
     const center=side*.259,managerZ=h100?-.575:.575;
