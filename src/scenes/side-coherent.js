@@ -89,7 +89,7 @@ export function build({ quality, state, authoredHardware = false }) {
   // A fused tap (about 1 x 1 x 3 mm, on a mount in the Blender asset) splits the
   // laser's light between the transmit carrier and the receiver's local oscillator.
   // It sits at pigtail height, so the pigtail runs straight in with no bend.
-  const tap = [0.85, Y.top + 0.33, 0];
+  const TAPX = 0.85, tap = [TAPX, Y.top + 0.33, 0];
   S.box(0.3, 0.1, 0.1, M.glass, tap[0], tap[1], 0);
   // Two-by-two board layout: closed electronic packages beside the DSP's
   // line-side edge, distinct optical assemblies right after them, fibers out of
@@ -161,7 +161,7 @@ export function build({ quality, state, authoredHardware = false }) {
   // at the DSP and resume from its other interface: no false lane-for-lane wire
   // through the DSP. Four path groups illustrate routing, not a host pin count.
   const hostTx=[],hostRx=[],lineTx=[],lineRx=[];
-  const yTrace=Y.top+.004, yDie=Y.top+.16, dieHalf=.575;
+  const yTrace=Y.top+.004, yDie=Y.top+.13, dieHalf=.575;   // yDie: the die's mid-height, so a riser ends inside its die
   const pair3=pts=>{for(const d of [-.006,.006]) strand(N,pts.map(p=>[p[0],p[1],p[2]+d]),MAT.copper,.002,4);};
   for(let i=0;i<4;i++) {
     const ht=-.93+i*.07,hr=.72+i*.07;
@@ -208,15 +208,27 @@ export function build({ quality, state, authoredHardware = false }) {
 
   // ======================= flows =======================
   const yT = Y.top + 0.01;
+  // Declared pass-throughs (tools/flow-audit.mjs), world boxes for the parts a lane or rail legitimately enters on its
+  // way: the card-edge gold contacts it starts from; the DSP package (it runs under the package edge to its balls and
+  // rises through the substrate into the die); the driver and TIA packages and the modulator and receiver carriers
+  // (the signal goes into each package at its pads and out at its bond lands); the PMIC the 3.3 V feed enters first.
+  const pkgBox = (x, z, hx, hz, top = .3) => [x - hx, Y.top - .06, z - hz, x + hx, Y.top + top, z + hz];
+  const contacts = [MX0 - .1, Y.pcb - .1, -1, mx(.62), Y.top + .05, 1];
+  const packages = [pkgBox(DSPX, 0, DH + .03, DH + .03), pkgBox(DRX, drvZ, EW / 2 + .12, .33), pkgBox(TIAX, tiaZ, EW / 2 + .12, .33),
+    pkgBox(CX_, cdmZ, CL / 2 + .08, .38), pkgBox(RX_, icrZ, RL / 2 + .08, .38)];
+  const intoPackages = { within: [contacts, ...packages], why: 'from the card-edge contacts, under the DSP package edge to its balls, through the driver/TIA packages and into the optics at their RF pads' };
   for(const routes of [hostTx,hostRx,lineTx,lineRx])
-    for(const path of routes) dataFlows.push(flow(path,'eth',FLOW.elec));
-  dataFlows.push(flow(laserTrunk,'cw',FLOW.cw));
-  dataFlows.push(flow(carrierPath, 'cw', FLOW.cw));
-  dataFlows.push(flow(loPath, 'cw', FLOW.cw));
+    for(const path of routes) dataFlows.push(flow(path,'eth',{ ...FLOW.elec, audit: intoPackages }));
+  // Light rides inside the fiber strand drawn for it (an unnamed material, so the checker cannot match it as a
+  // conduit by name): out of the laser's pigtail and the tap, into the dies' ports and the LC receptacle.
+  const inFiber = { through: true, why: 'inside its own fiber strand, from the laser pigtail or tap to a die port or the LC receptacle' };
+  dataFlows.push(flow(laserTrunk,'cw',{ ...FLOW.cw, audit: inFiber }));
+  dataFlows.push(flow(carrierPath, 'cw', { ...FLOW.cw, audit: inFiber }));
+  dataFlows.push(flow(loPath, 'cw', { ...FLOW.cw, audit: inFiber }));
   // The modulated light leaves from the combiner's output port and the received signal stops at the PBS's input
   // port: the face drawings carry the paths inside the dies, so no flow cuts across them in a straight line.
-  dataFlows.push(flow([face(CX0, CL, cdmZ, 640, 610, 128), cdmOut, ...txLead, lcTx, [MX1 + 0.7, LCY, -0.3]], 'tx', FLOW.light));
-  dataFlows.push(flow([[MX1 + 0.7, LCY, 0.3], lcRx, ...rxLead, icrSig, face(RX0, RL, icrZ, 512, 448, 128)], 'rx', FLOW.light));
+  dataFlows.push(flow([face(CX0, CL, cdmZ, 640, 610, 128), cdmOut, ...txLead, lcTx, [MX1 + 0.7, LCY, -0.3]], 'tx', { ...FLOW.light, audit: inFiber }));
+  dataFlows.push(flow([[MX1 + 0.7, LCY, 0.3], lcRx, ...rxLead, icrSig, face(RX0, RL, icrZ, 512, 448, 128)], 'rx', { ...FLOW.light, audit: inFiber }));
   // Power enters on the card edge's 15/16 power pad (centre of the edge, between the host lane banks) and goes
   // straight to the converters behind it. Their rails stay in the centre channel, apart from every high-speed
   // bank: the DSP rail into the balls under the die, and one rail under the DSP's centre (an inner plane) out to
@@ -225,13 +237,20 @@ export function build({ quality, state, authoredHardware = false }) {
   const PWR_Z = -0.95 + 14 * 0.066 + 0.033, LX = INDX, LZ = [-0.22, 0.22];
   // one feed down the gap between the four converters, a short branch into each
   for (const lx of LX) for (const lz of LZ)
-    flows.push(flow([[MX0 - 1.1, yT, PWR_Z], [mx(0.3), yT, PWR_Z], [LX[0] - 0.3, yT, 0], [lx, yT, 0], [lx, Y.top + 0.12, lz]], 'v33', FLOW.power));
+    flows.push(flow([[MX0 - 1.1, yT, PWR_Z], [mx(0.3), yT, PWR_Z], [LX[0] - 0.3, yT, 0], [lx, yT, 0], [lx, Y.top + 0.1, lz]], 'v33',
+      { ...FLOW.power, audit: { within: [contacts, pkgBox(mx(.785), 0, .13, .13, .1)], why: 'its VCC contact on the card edge, then into the PMIC controller' } }));
   const railX0 = INDX[1], under = DSPX - 0.3;
-  flows.push(flow([[railX0, yT, 0], [under, yT, 0], [under, Y.top + 0.12, 0]], 'core', FLOW.power));
+  const underDsp = { within: [packages[0]], why: 'a power plane under the DSP package, up through its balls' };
+  // the branches also enter the optics' ceramic carriers at their bias pads on the way into the dies
+  const railIn = { within: packages, why: 'a power plane under the DSP package, then into each part through its carrier or package pads' };
+  flows.push(flow([[railX0, yT, 0], [under, yT, 0], [under, Y.top + 0.12, 0]], 'core', { ...FLOW.power, audit: underDsp }));
   const chan = [[railX0, yT, -0.02], [DSPX + DH + 0.05, yT, -0.02]];
-  for (const [x, z, toTop] of [[DRX, drvZ, .25], [TIAX, tiaZ, .25], [CX_, cdmZ, .12], [RX_, icrZ, .12], [ITX - ITL / 2, 0, .2]]) {
-    const end = x === ITX - ITL / 2 ? [[x, yT, -0.02], [x + 0.25, Y.top + toTop, -0.02]] : [[x, yT, -0.02], [x, yT, z - Math.sign(z) * 0.36], [x, Y.top + toTop, z - Math.sign(z) * 0.3]];
-    flows.push(flow([...chan, ...end], 'core', FLOW.power));
+  // each branch ends inside its part (the driver's and TIA's packages, the optics' dies, the laser case); the laser's
+  // branch steps off the centre line before the fused tap's mount, which sits on it
+  for (const [x, z, into] of [[DRX, drvZ, .14], [TIAX, tiaZ, .14], [CX_, cdmZ, .08], [RX_, icrZ, .08], [ITX - ITL / 2, 0, .3]]) {
+    const end = x === ITX - ITL / 2 ? [[TAPX - .35, yT, -0.02], [TAPX - .25, yT, -0.18], [x + 0.25, yT, -0.18], [x + 0.25, Y.top + into, -0.18]]
+      : [[x, yT, -0.02], [x, yT, z - Math.sign(z) * 0.36], [x, Y.top + into, z - Math.sign(z) * 0.3]];
+    flows.push(flow([...chan, ...end], 'core', { ...FLOW.power, audit: railIn }));
   }
   // Heat streams follow the site's one log rule (src/heat.js) on each part's assumed watts (PART_W.coherent):
   // the DSP, the laser, the driver and the TIA. The modulator's and photodiodes' bias, well under half a watt, draws none.
