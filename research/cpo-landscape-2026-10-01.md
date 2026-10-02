@@ -26,10 +26,13 @@ Accessed 10/01/2026 for every source below.
 - **Not CPO:** Google's Apollo optical circuit switches steer light between ordinary transceivers with
   MEMS mirrors; they are not optics on a chip package. Cisco's 02/10/2026 G300 launch ships pluggable
   1.6T OSFP and LPO, no CPO product.
-- **Driver/TIA partition:** no source opened says what is inside NVIDIA's or Broadcom's electronic die.
-  Designs differ: Marvell's 2021 light engine flip-chips a *separate* driver chip and TIA chip onto the
-  photonics chip; Ranovus Odin and Ayar Labs TeraPHY put electronics and photonics on one monolithic
-  die. So "driver and TIA on one EIC" stays **Assumed** for the drawn NVIDIA-style engine.
+- **Driver/TIA partition:** Broadcom's 6.4T engine (51.2T / Tomahawk 5 generation) is reported, from
+  write-ups of its ISSCC 2026 paper 23.4, as one 7 nm electronic die carrying all 64 transmit and
+  receive channels (MZM drivers and TIAs) 3D-packaged with the photonic chip: **Reported** for
+  Broadcom. NVIDIA has not published what its electronic die holds, so the drawn NVIDIA-style
+  partition stays **Assumed**. Designs differ: Marvell's 2021 light engine flip-chips a *separate*
+  driver chip and TIA chip; Ranovus Odin and Ayar Labs TeraPHY are monolithic. Broadcom's engines
+  use Mach-Zehnder modulators; NVIDIA's use micro-rings.
 - **Correction to the earlier scratch note (cpo-eic-partition.md):** the sentence "The driver and
   transimpedance amplifier are electrical circuitry contained in the 'EIC' ... N7" is NOT in Broadcom's
   TH6-Davisson release (checked against the full release text via the Investing News Network copy, and
@@ -201,10 +204,28 @@ Accessed 10/01/2026 for every source below.
 27. Daudlin et al., OFC 2021 (already cited): research prototype with drivers/TIAs on an EIC bonded to a PIC.
 
 Conclusion for the site: keep "driver and TIA on one electronic die" as **Assumed** for the drawn
-NVIDIA-style engine. NVIDIA and TSMC document one electronic die stacked on one photonic die per
-engine; neither, nor Broadcom's TH6 release, says which circuits that die holds. Published designs
+NVIDIA-style engine, with Broadcom's reported partition (items 28-29) shown as a Reported row.
+NVIDIA and TSMC document one electronic die stacked on one photonic die per engine; neither, nor
+Broadcom's TH6 release, says which circuits that die holds. Published designs
 differ: separate driver and TIA chips (Marvell 2021), driver and TIA functions on one bonded EIC
 (Daudlin 2021), everything on one monolithic die (Ranovus Odin, Ayar Labs TeraPHY).
+
+## Broadcom ISSCC 2026 paper 23.4 (added after the lead's 10/01/2026 note)
+
+28. **ISSCC 2026：Broadcom基于7nm ASIC＋硅光MZM的3D集成6.4Tb/s 4.5pJ/b CPO** — 光芯 (column 光芯前沿),
+    Tencent Cloud developer community, posted 03/02/2026 (original 02/22/2026),
+    https://cloud.tencent.cn/developer/article/2633143 — secondary (technical write-up). Opened.
+    - "Broadcom在2026 IEEE国际固态电路会议（ISSCC）上发布了一款用于51.2T交换的6.4Tb/s CPO专用ASIC，该7nm ASIC与硅光芯片PIC进行3D封装" (at ISSCC 2026 Broadcom presented a 6.4 Tb/s CPO ASIC for 51.2T switching; the 7 nm ASIC is 3D-packaged with the silicon-photonics PIC)
+    - "该CPO ASIC采用7nm FinFET工艺制造（图23.4.7），单片裸片集成64条发射/接收通道、TXPLL、辅助公共电路及ADC/DAC组件；6.4Tb/s光引擎通过7nm ASIC与PIC硅片的3D封装实现" (made in 7 nm FinFET; a single die integrates 64 transmit/receive channels, the TX PLL, shared circuits and ADC/DAC; the 6.4 Tb/s engine is the 7 nm ASIC 3D-packaged with the PIC)
+    - transmit path: "送入MZM驱动器" (into the MZM driver); receive path heading: "接收路径直接驱动TIA" (receive path, direct-drive TIA)
+    - Energy per bit: 4.5 pJ/b in the title, 4.2 pJ/b in the text. Inconsistent; not cited.
+29. **ISSCC 2026: NVIDIA & Broadcom CPO, HBM4 & LPDDR6, ...** — SemiAnalysis, 04/15/2026,
+    https://newsletter.semianalysis.com/p/isscc-2026-nvidia-and-broadcom-cpo — secondary (paid post;
+    the CPO section was readable). Opened.
+    - "Broadcom showcased progress on their 6.4T MZM optical engine (OE) consisting of 64 lanes of ~100G using PAM4 modulation. The optical engines were tested in a Tomahawk 5 51.2T CPO system. One CPO package consists of eight 6.4T OEs, each with a PIC and an EIC, on TSMC's N7 process."
+    - "While Nvidia uses COUPE, Broadcom uses a Fan-Out Wafer-Level Packaging approach for this OE."
+    - NVIDIA's ISSCC 2026 paper 23.1 is a DWDM scale-up research link (32 Gb/s per wavelength), not the Quantum-X/Spectrum-X engine.
+- The paper itself: IEEE Xplore search found no record (10/01/2026); not opened.
 
 ## Not opened (not cited)
 
