@@ -83,7 +83,7 @@ describe('complete Blender compute hardware',()=>{
       for(const cls of ['cool','warm']){
         const power=b.flows.find((f:any)=>f.cls===cls&&f.count===26),heat=b.heatFlows.find((f:any)=>f.cls===cls&&f.count===34);
         const dy=(f:any)=>Math.sign(f.path.getPoint(1).y-f.path.getPoint(0).y);
-        expect(dy(power)).toBe(dy(heat));expect(dy(power)).toBe(cls==='cool'?1:-1);
+        expect(dy(power)).toBe(dy(heat));expect(dy(power)).toBe(cls==='cool'?-1:1);   // top-fed: supply falls, return rises (matches the hall's overhead rack loop)
       }
     }
   });

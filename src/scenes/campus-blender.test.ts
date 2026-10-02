@@ -320,7 +320,7 @@ describe('readable connected site activity',()=>{
    for(let i=1;i<route.points.length;i++){
     const a=route.points[i-1],b=route.points[i];
     if(a[1]>4&&Math.abs(a[1]-b[1])<1e-8&&Math.hypot(a[0]-b[0],a[2]-b[2])>1){
-     expect(a[1]).toBeCloseTo(4.36,6);
+     expect(a[1]).toBeCloseTo(4.41,6);   // cables lie on the ladder rungs (fiber-routing.js HALL_RUNWAY.cableY)
     }
    }
    if(!route.animated)continue;

@@ -164,13 +164,13 @@ export function content(M) {
       heatIntro: air
         ? 'Every rack breathes cold air in the front and blows hot air out the back into a sealed aisle. Cooling units in the rows pull that air through chilled-water coils and send it back cold.'
         : liq >= 0.99
-          ? 'Every rack here is cooled by water: its heat goes through a coolant unit at the row end to the facility loop overhead, and no hot aisle is drawn.'
-          : 'Two heat paths leave every rack. Most goes into water, through a coolant unit at the row end to the facility loop overhead. The rest is hot air, trapped in the aisle between rack backs and pulled through the fan wall.',
+          ? 'Every rack here is cooled by water: its heat goes through a coolant unit in its row to the facility loop overhead, and no hot aisle is drawn.'
+          : 'Two heat paths leave every rack. Most goes into water, through a coolant unit in its row to the facility loop overhead. The rest is hot air, trapped in the aisle between rack backs and pulled through the fan wall.',
       dataIntro: `Scale-out lives here. Every GPU has dedicated scale-out optical connections. Fibers run up from each rack into yellow runways, to leaf switches at the row ends and on to the spine, so any GPU can reach any other in a few microseconds.`,
       intro: (dc
         ? 'Solid-state transformers take 34.5 kV and make 800 V DC in one step, with batteries on the DC bus instead of a UPS. DC busway carries 800 V over the rows into every rack.'
         : 'Outside the wall a unit substation drops 34.5 kV to 480 V. Inside, switchgear and UPS modules feed overhead busway at 415 V that drops into every rack.')
-        + (air ? ' Chilled water runs overhead to cooling units in every row.' : ' Facility water runs overhead to coolant units at the ends of each row.'),
+        + (air ? ' Chilled water runs overhead to cooling units in every row.' : ' Facility water runs overhead to coolant units in each row, one per eight racks.'),
     },
     nvl ? {
       id: 'rack', n: 4, title: 'The rack', scale: '2.3 m tall', unit: 1, volt: 'dc', dataVolt: 'nvl', heatVolt: 'warm', heatShort: `≈${Math.round(liq * 100)}% water`,
@@ -312,7 +312,7 @@ export function content(M) {
         ['Lead time, 2026', '128–144 weeks', 'reported', evRefs([['industrialsage-transformer-leadtimes', 'quoting a Wood Mackenzie Q2 2025 survey: "standard power transformers average 128 weeks for delivery"; generator step-up units "average 144 weeks"']])],
       ] },
     { id: 'ehouse', title: '34.5 kV switchgear', kicker: 'Campus distribution',
-      body: 'Prefabricated switchgear buildings split the transformer output into feeders, each breaker-protected, that run in concrete duct banks under the roads to the data halls.',
+      body: 'Prefabricated switchgear buildings split the transformer output into feeders, each breaker-protected, that run in concrete duct banks by the shortest practical route to the data halls.',
       specs: [
         ['Feeders', `≈${n0(L.feeders)}, each ≈10 MW`, 'derived', evCalc('campus-feeder-count')],
         ['Voltage', '34.5 kV (some campuses use 13.8 kV)', 'reported', evRefs([['mv-distribution-atk', 'blog: "On a large campus, 34.5 kV has become the standard distribution voltage because it carries more power with fewer and smaller feeders than 13.8 kV"']])],
@@ -479,7 +479,7 @@ export function content(M) {
         body: 'Cabinets the size of a rack sit in each row. Fans pull hot-aisle air through chilled-water coils and blow it out cold into the room at the rack fronts.',
         specs: [['Capacity', '≈60–100 kW each', 'assumed', { assume: 'inrow-capacity' }], ['Units here', `≈${n0(L.airUnits)}`, 'derived', { calc: 'bom-facility-count', assume: 'inrow-capacity' }], ['Supply air', '≈18–27 °C (ASHRAE)', 'spec', { refs: [['ashrae-tc99-reference-card', 'Table 2.1, 2015 Thermal Guidelines: Recommended row, classes A1 to A4, 18 to 27 °C']] }], ['Cabinet drawn', 'representative', 'assumed', { assume: 'hall-cdu-cabinet' }]] }
       : { id: 'cdu', title: 'Coolant distribution unit', kicker: 'Two loops, one heat exchanger',
-        body: 'The CDU keeps the rack loop, filtered water with glycol running through cold plates, separate from facility water. Units such as Vertiv’s CoolChip or Motivair’s CDU line pack the pumps, plate heat exchanger and controls into one cabinet at the row end.',
+        body: 'The CDU keeps the rack loop, filtered water with glycol running through cold plates, separate from facility water. Units such as Vertiv’s CoolChip or Motivair’s CDU line pack the pumps, plate heat exchanger and controls into one cabinet; here one stands in the row beside every eight racks.',
         specs: [['Capacity range', '70 kW – 2.3 MW', 'spec', { refs: [['vertiv-coolchip-cdu', 'CoolChip CDU family: models from CDU 70 (70 kW) to CDU 2300 (2300 kW)'], ['motivair-cdu-brochure', '"COOLING UP TO 2.3MW", MCDU-4U (102 kW) through MCDU-60 (2.3 MW) rated-capacity table']] }], ['Units here, ≈1.25 MW', `≈${n0(L.cdus)}`, 'derived', { calc: 'bom-facility-count', assume: 'cdu-module-mw' }], ['Rule', 'rack loop stays above dew point', 'spec', { refs: [['motivair-cdu-brochure', '"The CDU maintains a secondary loop water temperature above the dew point in the data center to eliminate the possibility of condensation"']] }], ['Cabinet drawn', 'representative', 'assumed', { assume: 'hall-cdu-cabinet' }]] },
     { id: 'fwater', title: air ? 'Chilled water loop' : 'Facility water loop', kicker: 'Supply and return headers',
       body: `Insulated steel headers carry water between the ${air ? 'cooling units' : 'CDUs'} and the ${warm ? 'rooftop dry coolers' : 'chiller plant'}. Blue carries cooler supply, red carries warm return.`,
@@ -809,7 +809,7 @@ export function content(M) {
   const PARTS_DATA = {
     across: [
       { id: 'dci', title: 'Line terminals', kicker: 'Coherent DWDM',
-        body: 'At each campus, coherent transceivers—in routers or dedicated transponder shelves—each turn one signal into one wavelength, 800 Gb/s to 1.6 Tb/s. A multiplexer combines many of those wavelengths onto a single fiber pair; amplifier huts (next) carry the combined light between campuses, and a demultiplexer splits it back into wavelengths at the far end.',
+        body: 'At each campus, coherent transceivers—in routers or dedicated transponder shelves—each turn one signal into one wavelength, 800 Gb/s to 1.6 Tb/s. A multiplexer combines many of those wavelengths onto a single fiber pair; amplifier huts (next) carry the combined light between campuses, and a demultiplexer splits it back into wavelengths at the far end. This campus’s two routes leave by separate terminals on different sides, matching its two fiber entrances.',
         specs: [
           ['Per wavelength, WaveLogic 6', 'up to 1.6 Tb/s', 'spec', { refs: [['ciena-wavelogic6', 'product announcement: WaveLogic 6 family, up to 1.6 Tb/s per wavelength']] }],
           ['800G pluggable, e.g. Marvell COLORZ 800', '800 Gb/s to ≈500 km', 'spec', { refs: [['marvell-colorz-800', 'press release: "up to 800 Gbps of bandwidth for DCI links up to 500km"']] }],
@@ -1160,7 +1160,7 @@ export function content(M) {
     ],
     rack: nvl ? [
       { id: 'manifold', title: 'Coolant manifolds', kicker: 'Cool in, warm out',
-        body: 'Supply comes up one side, fans out to every tray through dripless quick disconnects, and returns warmer down the other.',
+        body: 'Supply drops in from the overhead rack loop at the top of one side, fans out to every tray through dripless quick disconnects, and returns warmer up the other side to the top.',
         specs: [['To liquid, this model', `≈${liqKW} kW`, 'derived', { calc: 'rack-liquid-split' }], ['Rise across the rack', '≈10 °C', 'reported', { refs: [ref('alliance-chemical-gpu-thermal', '"roughly 170–195 liters per minute of coolant at a 10°C inlet-to-outlet rise (about 1.5 LPM per kW)" for a GB200 NVL72 rack')] }], ['Supply → return, this design', `≈${TT.tcsSupply} → ${TT.tcsReturn} °C`, warm ? 'spec' : 'assumed', warm ? { refs: [['nvidia-warm-water-blog', 'NVIDIA blog: "the coolant entering a fully liquid-cooled chip at 45 degrees Celsius exits at roughly 55 degrees"']] } : { assume: 'loop-temps' }], ['Flow rate', 'sources disagree ≈5×', 'assumed', { assume: 'rack-water-temps', refs: [ref('alliance-chemical-gpu-thermal', '"roughly 170–195 liters per minute"; notes "the OEM/CDU specification governs" the built system')] }]] },
       ...(liq < 0.99 ? [{ id: 'rearair', title: 'Rear exhaust', kicker: `The last ${Math.round((1 - liq) * 100)}%`,
         body: 'Power shelves, switch trays, optics and drives still shed heat into air, which leaves the back of the rack into the hot aisle.',
