@@ -12,7 +12,7 @@ import { rackUnits } from './site-signs.js';
 import { LAYOUT as NVL_LAYOUT, trayY as nvlTrayY, ROWS as NVL_ROWS, PULLED as NVL_PULLED, SWITCH_PULLED as NVL_SWITCH_PULLED } from './nvl72-layout.js';
 import { componentView } from '../app/housing-frame.js';
 import { DGX } from './dgx-h100-layout.js';
-import { tagHeat, balanceHeat, heatIntensity } from '../heat.js';
+import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
 
 const U = 0.04445;
 // product-shot trim: the champagne bezel band from the server texture, in real geometry; and quick-disconnect collars
@@ -581,7 +581,16 @@ function buildHGX({ quality, model, state }) {
   scene.add(haze.points);
 
   const srv = { pos: [0.2, py + 0.12, pz + 0.3], view: { pos: [0.7, 1.9, 1.8], target: [0, py, pz] } };
+  // The power layer's glow (src/power-glow.js): each closed server on its rear face (the camera's side) by its share
+  // of the rack, and inside the pulled server its GPUs, NVSwitches, CPUs and supplies on the server level's watts.
+  const PW = PART_W.dgxH100, A_ = model.accel, PD = [];
+  inRack.forEach(k => PD.push({ id: `server-${k}`, part: 'servers', watts: model.rack.kw * 1000 / (A_.gpusPerRack / 8), at: [0, sy(k), ZF - 0.07 - sd - 0.004], size: [sw, SU * 0.94], normal: [0, 0, -1], margin: 0.01, fill: 0.04 }));
+  for (const z of DGX.gpuZ) for (const x of DGX.gpuX) PD.push({ id: `pulled-gpu-${x}-${z}`, part: 'servers', watts: A_.gpuW, volt: 'core', at: [tx(x), ty(DGX.gy) + 0.0006, tz(z)], size: [0.09, 1.4 * kz] });
+  for (const x of DGX.swX) PD.push({ id: `pulled-nvswitch-${x}`, part: 'servers', watts: PW.nvswitch, at: [tx(x), ty(DGX.gy) + 0.0006, tz(DGX.swZ)], size: [0.09, 1.1 * kz] });
+  for (const x of DGX.cpuX) PD.push({ id: `pulled-cpu-${x}`, part: 'servers', watts: PW.cpu, volt: 'core', at: [tx(x), ty(DGX.my) + 0.0006, tz(DGX.cpuZ)], size: [0.074, 0.7 * kz] });
+  for (let i = 0; i < 6; i++) PD.push({ id: `pulled-psu-${i}`, part: 'psus', watts: PW.psuLoss, volt: 'lv', at: [tx(DGX.psuX(i)), yb + 0.0065, tz(DGX.ZB + 1.22)], size: [0.068, 2.4 * kz] });
   return {
+    powerDraw: PD,
     // the server's model name on each closed server's bezel, upper left, text only (package-marks.js etch style)
     printSpots: [etch('DGX H100 bezel name', 'DGX H100', [.1, .02], inRack.map(k => ({ from: [-.12, sy(k) + SU * 0.3, ZF + 1], dir: [0, 0, -1] })), { ink: '#d5dbe2' })],
     scene, flows,
@@ -969,10 +978,26 @@ function buildNVL({ quality, model, state }) {
   // Rear three-quarter on the cartridges: their side windows and blind-mate
   // housings read beside the busbar instead of a flat rear elevation.
   const spineHot = { pos: [0.2, trayY(19), cartZ], view: componentView([0.1, trayY(17), ZB + 0.06], [0.85, 0.3, -0.95], [0.5, 0.75, 0.25]) };
+  // The power layer's glow (src/power-glow.js): each tray face in the rack by what it draws (a compute tray's share of
+  // the 50 V bus, a switch tray's share of the NVLink switching, a power shelf's share of the rack's conversion loss),
+  // and inside the two pulled trays their GPUs, CPUs, fans and switch chips. Faces lie just proud of each tray front,
+  // with a tight margin so a tray never lights its neighbours.
+  const A_ = model.accel, R_ = model.rack, PD = [];
+  const trayW_ = { compute: (R_.dcBusKW - A_.scaleupKW - A_.busbarKW) * 1000 / 18, switch: A_.scaleupKW * 1000 / 9, ps: R_.convKW * 1000 / 8 };
+  const PART = { compute: 'compute', switch: 'nvswitch', ps: 'shelves' };
+  layout.forEach((k, i) => {
+    if (!trayW_[k] || i === PULLED || i === SWITCH_PULLED) return;
+    PD.push({ id: `${k}-${i}`, part: PART[k], watts: trayW_[k], at: [0, trayY(i), ZF - 0.07 + 0.004], size: [trayW, U * 0.9], normal: [0, 0, 1], margin: 0.008, fill: 0.04 });
+  });
+  const floor = py - U / 2 + 0.0085;
+  plates.forEach(([x, z], i) => PD.push({ id: `pulled-gpu-${i}`, part: 'compute', watts: A_.gpuW, volt: 'core', at: [x, floor, pz + z], size: [0.095, 0.095] }));
+  for (const x of [-0.11, 0.11]) PD.push({ id: `pulled-cpu-${x}`, part: 'compute', watts: A_.cpuW, volt: 'core', at: [x, floor, pz + 0.26], size: [0.07, 0.07] });
+  fanItems.forEach((f, i) => PD.push({ id: `pulled-fan-${i}`, watts: A_.otherKW * 1000 / 18 / 10, at: [f.p[0], py - U / 2 + 0.0045, pz + 0.38], size: [0.05, 0.04] }));
+  switchPositions.forEach(([x, z], i) => PD.push({ id: `pulled-switch-${i}`, part: 'nvswitch', watts: A_.scaleupKW * 1000 / 9 / switchPositions.length, at: [x, sy - 0.0015, sz + z], size: [0.099, 0.099] }));
   return {
     manifoldTags,
     busbarTag,
-    scene, flows,
+    scene, flows, powerDraw: PD,
     camera: { pos: [3.1, 2.3, -3.7], target: [0, 1.1, -0.1], near: 0.01, far: 200, min: 0.4, max: 9 },
     hotspots: {
       feed: { pos: [-0.12, 3.03, -0.165], view: { pos: [1.2, 3.1, 1.0], target: [0, 2.7, 0] } },

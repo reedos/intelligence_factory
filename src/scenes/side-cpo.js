@@ -15,7 +15,7 @@ import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, label,
 import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes, CPO_VARIANTS, CPO_RING, eicBox, frameToLocal, engineTraceLandings, landingWorld, RING_R, ringEntry } from './side-geometry.js';
 import { ringEicTex, cpoIntro, cpoPartCopy } from './cpo-variants.js';
 import { roundCorners, keepCwCorner, CW_BEND, CPO_AUDIT as AU } from './side-cpo-routes.js';
-import { buildBailly, BAILLY_DETAIL } from './cpo-bailly.js';
+import { buildBailly, BAILLY_DETAIL, MY } from './cpo-bailly.js';
 import { tagHeat, balanceHeat, PART_W } from '../heat.js';
 export { roundCorners, keepCwCorner };
 
@@ -281,6 +281,19 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
       heat: bailly.heatHotspots,
     },
   };
+  // The power layer's glow (src/power-glow.js): the switch chip, each engine or tile, and each laser module that
+  // lights one, on the interposer or board under it. Both packages keep one reference (the switch chip), and the
+  // toggle switches the other package's parts off.
+  const pw = PART_W.cpo, onSlab = Y.inter + 0.056, lit = list => new Set(list.map(e => e.els));
+  const powerDraw = [
+    ...CPO_VARIANTS.map(k => ({ id: k === 'ring' ? 'asic' : 'mzm-asic', part: k === 'ring' ? 'asic' : 'mzm-asic', variants: [k], watts: pw.asic, at: [0, onSlab, 0], size: [ASIC_HALF * 2, ASIC_HALF * 2] })),
+    ...engines.map((e, i) => ({ id: `engine-${i}`, part: 'engine', variants: ['ring'], watts: pw.engine, volt: 'v33', at: [e.x, Y.eng - 0.035, e.z], size: [1.35, 0.95], yaw: -e.rot })),
+    ...bailly.tiles.map((t, i) => ({ id: `tile-${i}`, part: 'mzm-engine', variants: ['mzm'], watts: pw.tile, volt: 'v33', at: [t.x, MY - 0.035, t.z], size: [t.L, t.W], yaw: -t.rot })),
+    ...CPO_VARIANTS.flatMap(k => els.map(([x, z], i) => ({ id: `${k}-els-${i}`, part: k === 'ring' ? 'els' : 'mzm-laser', variants: [k], watts: lit(k === 'ring' ? engines : bailly.tiles).has(i) ? pw.els : 0,
+      volt: 'v33', at: [x, Y.sub + 0.005, z], size: [1.9, 1.1] }))),
+  ];
+  const glowActive = p => !p.variants || p.variants.includes(kind);
+  let builtRef = null;
   let kind = 'ring';
   const viewSprites = scene.children.filter(o => o.isSprite && o.userData.cpoVariant);
   function setVariant(next) {
@@ -288,10 +301,23 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     for (const k of CPO_VARIANTS) views[k].group.visible = views[k].flowGroup.visible = k === kind;
     coolingHardware.visible = kind === 'ring';
     for (const sprite of viewSprites) sprite.visible = sprite.userData.cpoVariant === kind;
+    builtRef?.powerGlow?.setActive(glowActive);
   }
   setVariant('ring');
-  return {
+  // The ring and Mach-Zehnder packages measure about 1.2 units apart on x (tools/orbit-center.mjs),
+  // too far apart to share one orbit pivot at the 3% tolerance used for this level. Each variant's
+  // pos keeps the same offset from target as the one camera this replaces (so the opening frame for
+  // 'ring', the default, is unchanged), applied to the Mach-Zehnder package's own measured centre.
+  // This builder's own (native, ?module=native) geometry, not side-cpo-blender.js's authored hardware:
+  // ring's visible cold-plate (coolingHardware, shown only for 'ring') measures noticeably taller than
+  // mzm's package, so the two pivots differ in y by more than the two packages' x offset alone would.
+  const CAMERA = {
+    ring: { pos: [-3.27, 24.37, 25.51], target: [-3.27, 3.37, -.99], portrait: { pos: [12.73, 31.67, 27.01], target: [-3.27, 3.37, -.99] } },
+    mzm: { pos: [-4.51, 23.5, 25.43], target: [-4.51, 2.5, -1.07], portrait: { pos: [11.49, 30.8, 26.93], target: [-4.51, 2.5, -1.07] } },
+  };
+  return builtRef = {
     scene, flows, dataFlows, heatFlows, coolingHardware,
+    powerDraw, powerDrawRef: pw.asic, powerDrawActive: glowActive,
     variant: {
       get kind() { return kind; }, set: setVariant, views, bailly,
       intro: mode => cpoIntro(kind, mode),
@@ -300,7 +326,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
       partCopy: (part, mode) => cpoPartCopy(kind, part, mode),
       spriteVisible: sprite => !sprite.userData.cpoVariant || sprite.userData.cpoVariant === kind,
     },
-    camera: { pos: [-0.5, 22, 25], target: [-0.5, 1.0, -1.5], near: 0.05, far: 500, min: 2, max: 90, portrait: { pos: [14.5, 29.5, 25.5], target: [-1.5, 1.2, -2.5] } },
+    get camera() { return { ...CAMERA[kind], near: 0.05, far: 500, min: 2, max: 90 }; },
     get hotspots() { return pins[kind].power; },
     get dataHotspots() { return pins[kind].data; },
     get heatHotspots() { return pins[kind].heat; },

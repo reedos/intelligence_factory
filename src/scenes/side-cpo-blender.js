@@ -137,9 +137,18 @@ export function build(args) {
     }
   });
   const built = buildDiagram({ ...args, authoredHardware: true, authoredAsicMaterial: asicMaterial });
-  // Include the entire off-package callout and its fiber ends at desktop widths.
-  built.camera.pos = [-1, 27, 32];
-  built.camera.target = [-1, 1, -2];
+  // Include the entire off-package callout and its fiber ends at desktop widths. Each variant's pos
+  // keeps the same offset from target the hand-placed single camera this replaces used (so 'ring',
+  // the default, opens on an unchanged frame), but target now orbits that variant's own hardware
+  // bounding-box centre (tools/orbit-center.mjs) instead of a point hand-placed beside the package.
+  // side-cpo.js's own `camera` is a getter keyed on the same `built.variant.kind`; redefine it here
+  // rather than assigning into it, since buildDiagram's native `built.camera` is itself a getter.
+  const CPO_CAMERA = {
+    ring: { pos: [-2.82, 27.17, 32.58], target: [-2.82, 1.17, -1.42], portrait: { pos: [13.18, 29.47, 26.58], target: [-2.82, 1.17, -1.42] } },
+    mzm: { pos: [-4.06, 27.17, 32.51], target: [-4.07, 1.17, -1.5], portrait: { pos: [11.94, 29.47, 26.51], target: [-4.07, 1.17, -1.5] } },
+  };
+  Object.defineProperty(built, 'camera', { configurable: true,
+    get: () => ({ ...CPO_CAMERA[built.variant.kind], near: 0.05, far: 500, min: 2, max: 90 }) });
   built.scene.add(asset);
   // Notes for the inspection layers, one per design where they differ.
   const tagged = (k, ...a) => { const n = label(built.scene, ...a); n.userData.cpoVariant = k; return n; };

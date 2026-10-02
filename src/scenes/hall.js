@@ -14,7 +14,9 @@ import { switchLabel, labelLines } from './lid-labels.js';
 import { hallMarks } from './electrical-marks.js';
 import { hallPipeMarks } from './cooling-marks.js';
 import { hallIds, cduPlates } from './site-signs.js';
-import { tagHeat, balanceHeat, heatIntensity, heatWeight } from '../heat.js';
+import { tagHeat, balanceHeat, heatIntensity, heatWeight, PART_W } from '../heat.js';
+import { ledgerW } from '../power-glow.js';
+import { FABRICS } from '../model/engine.ts';
 
 // Cabinet front textures (drawn once).
 function frontTex(kind) {
@@ -1144,21 +1146,41 @@ export function build({ quality, model }) {
   const leafSpot = closeSpot(leafX - .05, rowZs[3] + facing[3] * .6, .36, .26, -.08);      // row 4's leaf switches
   const opticsSpot = closeSpot(leafX + .07, rowZs[1] + facing[1] * .6, .38, .28, -.04);      // row 2's, with the multimode modules and splitters
 
+  // The power layer's glow (src/power-glow.js), on the floor around each footprint: every rack by its draw; each UPS
+  // module or solid-state transformer and the unit substation by its share of the ledger's loss; the switchgear
+  // sections, CDU pumps and fans by PART_W.facility; every spine and leaf rack by its switches and their modules. The
+  // battery cabinets store energy and the busway carries it, so neither glows.
+  const PD = [], FAC = PART_W.facility, F_ = FABRICS[model.accel.nicPortGbps], switchW = F_.switchKW * 1000 + F_.radix * F_.portModuleW;
+  const lay = model.layout, onFloor = 0.158;                 // the floor slab's top is at 0.15
+  rackMx.forEach((it, i) => PD.push({ id: `rack-${i}`, part: 'racks', watts: model.rack.kw * 1000, at: [it.x, onFloor, it.z], size: [RW - 0.02, 1.2] }));
+  const conv = dc ? ['sst', ledgerW(model, 2, 'sst') / Math.max(1, lay.sstModules)] : ['ups', ledgerW(model, 2, 'ups') / Math.max(1, lay.upsModules)];
+  for (const x0 of [-33.5, -29.6, -25.7]) for (let i = 0; i < 3; i++) PD.push({ id: `${conv[0]}-${x0}-${i}`, part: conv[0], watts: conv[1], at: [x0 + (i + 0.5) * 1.1, onFloor, -6.5], size: [1.1, 1.0] });
+  for (let i = 0; i < 14; i++) PD.push({ id: `swgr-${i}`, part: 'swgr', watts: FAC.switchgear * model.IT_MW * 1e6 / lay.halls / 14, at: [-33.5 + (i + 0.5) * 0.9, onFloor, -15.6], size: [0.9, 1.5] });
+  PD.push({ id: 'unitsub', part: 'unitsub', watts: ledgerW(model, 2, 'unitsub') / Math.max(1, lay.unitSubs), at: [usX, 0.305, usZ], size: [2.6, 3.8] });
+  const perUnit = rackMx.length * model.rack.kw * 1000 / Math.max(1, cduMx.length);
+  cduMx.forEach((c, i) => PD.push({ id: `${air ? 'inrow' : 'cdu'}-${i}`, part: air ? 'inrow' : 'cdu', watts: perUnit * (air ? FAC.fans : FAC.cduPump * model.accel.liquidShare), at: [c.x, onFloor, c.z], size: [CW - 0.02, 1.2] }));
+  wallFans.forEach((f, i) => PD.push({ id: `fanwall-${i}`, part: 'fanwall', watts: FAC.fans * airW / wallFans.length, at: [X1 - 1.62, f.p[1], f.p[2]], size: [1.3, 1.3], normal: [-1, 0, 0], fill: 0.04 }));
+  netItems.forEach((it, i) => PD.push({ id: i === CPO_I ? 'cpo-switch' : `spine-${i}`, part: i === CPO_I ? 'cpo' : 'network', watts: i === CPO_I ? 3950 /* NVIDIA's Q3450 figure, the CPO card's */ : (bigSwitch ? 2 : 4) * switchW, at: [it.x, onFloor, it.z], size: [0.6, 1.2] }));
+  rowZs.forEach((z, r) => PD.push({ id: `leaf-${r}`, part: 'network', watts: (bigSwitch ? 1 : 2) * switchW, at: [leafX, onFloor, z], size: [0.6, 1.2] }));
+
   const built = {
-    scene, flows,
-    // Desktop overview sits ~15% closer than before so the hall fills the frame; the target is offset
-    // right so the risers' pin clears the orbit-hint line at the top left.
-    camera: { pos: [40, 26, 37], target: [-2, 1.5, -4],
-      compact: { pos: [48, 31, 45], target: [-2, 1.5, -4] },
+    scene, flows, powerDraw: PD,
+    // Desktop overview sits ~15% closer than before so the hall fills the frame. Every variant below keeps
+    // its original pos-minus-target offset (so the opening frame is unchanged) but orbits around the hall's
+    // actual bounding-box centre (measured with tools/orbit-center.mjs: [-5.6, 3.94, 0], mesh union excluding
+    // the studio surround, rack-label sprites and the exact-route flow ribbons) instead of a hand-placed
+    // point. The hall's own footprint still keeps the risers' pin clear of the orbit-hint line in practice.
+    camera: { pos: [36.4, 28.44, 41], target: [-5.6, 3.94, 0],
+      compact: { pos: [44.4, 33.44, 49], target: [-5.6, 3.94, 0] },
       // Portrait looks steeply down the hall's diagonal so the 60 m hall fills the tall frame and the
       // power-room pins (1-4) separate from the data-hall ones instead of stacking in one cluster.
-      portrait: { pos: [42, 83, 33], target: [-8, 2.5, -4.5] },
+      portrait: { pos: [44.4, 84.44, 37.5], target: [-5.6, 3.94, 0] },
       near: 0.1, far: 2000, min: 0.6, max: 180 },
     // Phones, data layer: its 13 pins all sit in the data hall, eight of them within ~12 m of the front service
     // aisle, and the shared portrait view (which must also reach the power room) stacked them in one diagonal
     // clump. Looking steeply from the front wall lays the rows across the screen so each pin gets its own spot.
     // Phones only: with cameraByMode set, a layer switch re-opens that layer's overview, which desktop keeps as is.
-    ...(quality.mobile ? { cameraByMode: { data: { portrait: { pos: [5, 58, 36], target: [5, 1, 3] } } } } : {}),
+    ...(quality.mobile ? { cameraByMode: { data: { portrait: { pos: [-5.6, 60.94, 33], target: [-5.6, 3.94, 0] } } } } : {}),
     hotspots: {
       optics: opticsSpot,
       cpo: cpoSpot,

@@ -3,17 +3,50 @@ import { componentView } from '../app/housing-frame.js';
 
 // Inspection regions are in each scene's own units (m, 10 cm, cm). Fit the
 // subject to the available canvas instead of applying blanket phone pullbacks.
+// componentView(focus, offset, size) sets pos = focus + offset and target = focus, so the first
+// argument is always the orbit pivot: the bounding-box centre of the level's hardware (measured
+// live with tools/orbit-center.mjs against the built scene, one accelerator at a time), not the
+// empty-frame aim point a hand-placed camera used before. The offset is the viewing direction and
+// distance from a previous pass and is left alone, so pos translates by the same amount as target
+// and the opening frame is unchanged; only the orbit pivot moves onto the hardware.
+//
+// overviewPos/overviewTarget below take only {pos, target} off componentView's result, dropping its
+// `detailSize` (and `focus`, which nothing but componentView itself reads). componentView is the
+// right helper for a *part* view, where stage.js's cameraPreset() sees `detailSize` and deliberately
+// routes it through frame()/fitComponent (fit a part into a small box, then search for a clear line
+// of sight to it around obstacles). The level overview is not a part view: carrying `detailSize`
+// into built.camera or built.cameraByMode made cameraPreset() run that same part-framing search
+// against the *whole tray*, landing controls.target somewhere frame()'s search accepted as clear
+// rather than at the hardware's centre - a correctly-computed pivot was overridden by a hotspot-only
+// code path. (Caught by tools/orbit-center.mjs settling 3 identical frames before reading the target,
+// which ruled out the GPU-contention timing this first looked like.)
+const overviewPos = (focus, offset) => focus.map((v, i) => v + offset[i]);
 export function frameCompute(built, kind, accel) {
   const h100 = accel === 'h100';
   if (kind === 'rack') {
-    built.camera = {...built.camera,pos:[2.8,2.4,3.7],target:[0,1.2,.28]};
+    // DGX H100 pulled-tray rack and NVL72 rack measure within 0.02 of each other; one pivot serves both.
+    built.camera = {...built.camera,pos:[2.8,3.12,3.42],target:[0,1.92,0]};
   } else if (kind === 'tray') {
-    built.camera = { ...built.camera, ...(h100 ? componentView([0, 1.5, -.2], [9.5, 4.4, 5.6], [4.9, 3.7, 9.6]) : componentView([0, .4, -.1], [7, 7, 9], [4.9, 1.3, 10.0])) };
+    // H100's 8U air-cooled chassis and the liquid-cooled NVL72 tray are different hardware (this is the
+    // one place the two measure far enough apart - about 1.7 units on a ~10-unit tray - to need separate
+    // pivots). gb200, gb300 and rubin measure within 0.07 of each other (one buildNVL() code path; see
+    // tray.js), comfortably inside the 3% tolerance, so they still share a pivot.
+    const [focus, offset] = h100 ? [[0, 2.1, -.43], [9.5, 4.4, 5.6]] : [[0, .47, .02], [7, 7, 9]];
+    built.camera = { ...built.camera, pos: overviewPos(focus, offset), target: focus };
   } else if (kind === 'chip') {
-    built.camera = { ...built.camera, ...componentView([0, 2.5, 0], [9, 6, 11], [9.2, 5.0, 9.2]) };
+    // The exploded stack's layer heights (chip.js's Y table) do not vary with accel - gb200, gb300, h100
+    // and rubin all measure the same pivot here, in both Data/Heat and Power mode.
+    built.camera = { ...built.camera, pos: overviewPos([0, 1.655, 0], [9, 6, 11]), target: [0, 1.655, 0] };
     // The fit box stops just above the HBM tops (about 3.5 cm), so the exploded
     // stack fills the frame instead of leaving a band of empty space above it.
-    built.cameraByMode.power = { ...componentView([0, 2.0, 0], [10, 3.4, 12], [9.2, 4.0, 9.2]) };
+    // compact (squarer-than-widescreen desktop widths, cameraPresetFor's aspect < 1.5): the same pivot,
+    // pulled back along the same direction so the 12 cm board and the Tokens pin still clear the HUD
+    // (src/scenes/compute-blender.test.ts's "compact Power view" case) - this used to come from
+    // componentView's detailSize/fitComponent margin fit, which also moved the *pivot* off-centre
+    // (the tray bug above); an explicit compact pos keeps the pivot fixed and only changes distance.
+    const powerTarget = [0, 1.62, 0], powerOffset = [10, 3.4, 12];
+    built.cameraByMode.power = { pos: overviewPos(powerTarget, powerOffset), target: powerTarget,
+      compact: { pos: overviewPos(powerTarget, powerOffset.map(v => v * 1.5)), target: powerTarget } };
   }
   const rackSizes = {
     feed: [.55,.7,.45], shelves: [.55,.18,.30], busbar: [.18,1.15,.15],

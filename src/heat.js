@@ -28,6 +28,10 @@ export function heatWeight(watts, refWatts) {
   return Math.min(1, (watts / refWatts) ** HEAT_GAMMA);
 }
 
+// The power layer's glow follows the same rule: every watt a part draws ends as heat, so the glow for drawing it and
+// the heat leaving it must rank parts alike. 0..1 relative to the largest draw in the view (src/power-glow.js).
+export const powerWeight = (watts, refWatts) => heatWeight(watts, refWatts);
+
 // Tag a flow (or any object with a `heat` slot) with the part it shows heat from.
 export function tagHeat(f, source, watts, role = 'source') {
   f.heat = { source, watts, role };
@@ -123,23 +127,34 @@ export const PART_W = {
   // Pluggable module, 200G per lane: Semtech's full-DSP 23–25 W, LRO ≈16 W and LPO ≈10 W figures. What the LPO
   // module keeps (≈10 W) is split over the drivers, TIAs, lasers and the converter/controller (≈2 W, not drawn);
   // the DSP is the rest, and a transmit-only LRO DSP is the LRO module less the same 10 W.
-  module: { dsp: 14, lroDsp: 6, driver: 3, tia: 2, lasers: 3, total: 24, lro: 16, lpo: 10 },
+  // dcdc: the two point-of-load stages' loss with the controller, the ≈2 W the LPO split leaves undrawn in heat.
+  module: { dsp: 14, lroDsp: 6, driver: 3, tia: 2, lasers: 3, dcdc: 2, total: 24, lro: 16, lpo: 10 },
   // 800ZR module, 24–25 W: the nano-ITLA's published 2.9 W; driver and TIA a few watts and about one; the optical
   // modulator's bias and the photodiodes' bias well under half a watt; the DSP most of the rest.
-  coherent: { dsp: 16, itla: 2.9, driver: 2, tia: 1, modulator: 0.3, receiverOptics: 0.05, total: 24.5 },
+  // dcdc: the converters' loss, about 2 W of the module's 24.5 W at about 92% (an allocation, as in the module).
+  coherent: { dsp: 16, itla: 2.9, driver: 2, tia: 1, modulator: 0.3, receiverOptics: 0.05, dcdc: 2, total: 24.5 },
   // CPO switch package: NVIDIA's 3.95 kW Q3450 less its optics (≈9 W per port) and fans, over four packages, puts a
   // switch ASIC near 550 W; each 1.6T engine at the package about 13 W (laser light comes from the front panel).
   // A Broadcom-style 6.4T engine (Bailly-class): Broadcom puts its Tomahawk 6 CPO port at about 3.5 W per 800G,
   // 36.4% below the Tomahawk 5 CPO port, so a Tomahawk 5 port near 5.5 W; eight 800G ports per engine ≈ 44 W. Its
   // switch chip is drawn at the same 550 W.
-  cpo: { asic: 550, engine: 13, tile: 44 },
+  // A front-panel laser module: eight CW lasers at well under a watt each plus their control, taken as 5 W.
+  cpo: { asic: 550, engine: 13, tile: 44, els: 5 },
   // Copper cable ends: NVIDIA's DAC 0.1 W per end (no chip); "a couple of watts" for an ACC redriver; an AEC
   // retimer between the cited 2.5–3.5 W and ≈20 W at 200G per lane, taken as 10 W.
   copper: { dac: 0.1, acc: 2, aec: 10 },
   // DGX H100 server parts the model does not size: the Xeon 8480C's published 350 W TDP (Intel) and a ConnectX-7
   // single-port card's 24.9 W typical (NVIDIA) stand in for sourced values; an NVSwitch about 60 W, a DDR5 RDIMM
-  // about 10 W and each supply's loss about 70 W (10.2 kW at about 96% over six supplies) are allocations.
-  dgxH100: { cpu: 350, connectx7: 25, nvswitch: 60, dimm: 10, psuLoss: 70 },
+  // about 10 W and each supply's loss about 70 W (10.2 kW at about 96% over six supplies) are allocations, as is a
+  // PCIe switch at about 25 W (a few tens of watts for a large Gen5 switch).
+  dgxH100: { cpu: 350, connectx7: 25, nvswitch: 60, dimm: 10, psuLoss: 70, pcieSwitch: 25 },
+  // A soldered LPDDR5X package beside Grace or Vera: a couple of watts (the model counts the CPU with its memory, so
+  // the package glow is the CPU's figure less these).
+  superchip: { lpddr: 2 },
+  // Facility equipment the model folds into its cooling overhead, for the power glow only: a CDU's pumps draw about
+  // 1% of the heat it moves, fans about 3% of the heat their air carries, and a low-voltage switchgear lineup loses
+  // about 0.1% of what passes through it. Allocations, order of magnitude.
+  facility: { cduPump: 0.01, fans: 0.03, switchgear: 0.001 },
 };
 
 // For glows and plumes: an authored intensity for the largest source, scaled for this one.

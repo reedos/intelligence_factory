@@ -28,6 +28,7 @@ import * as sideCopper from '../scenes/side-copper.js';
 import { applyVisualDirection } from '../scenes/visual-direction.js';
 import { applyComputeArtDirection } from '../scenes/compute-art-direction.js';
 import { balanceHeat } from '../heat.js';
+import { attachPowerGlow } from '../power-glow.js';
 import { cameraPresetFor } from './camera-presets.js';
 import { poseAt, planPath } from './camera-path.js';
 import { occupancyBuilder } from './occupancy.js';
@@ -309,6 +310,9 @@ function getScene(i) {
     applyVisualDirection({ built: b, level: i, matched: params.get('finish') === 'matched' });
     // Art direction can change pulse counts unevenly (spacing limits): put every heat stream back on the one rule.
     if (b.heatFlows) balanceHeat(b.heatFlows);
+    // the power layer's glow on every part that draws power, in the level's own power color (src/power-glow.js)
+    attachPowerGlow(b, { color: VOLT[SCENES()[i].volt]?.css, reduced, mode: ui.mode });
+    b.powerGlow?.setTier(tierOf(i));
     built[i] = b;
     const L = lookOf(i);
     b.scene.environment = envFor(L.env); b.scene.environmentIntensity = L.envIntensity; b.model = store.M;
@@ -396,6 +400,7 @@ function applyTier(i) {
   built[i]?.flowRibbons?.setQuality({ halo: t.halo });
   for (const key of ['flows', 'dataFlows', 'heatFlows'])
     for (const f of built[i]?.[key] || []) f.setRenderBudget?.(t.particles);
+  built[i]?.powerGlow?.setTier(t);
   built[i]?.setRenderTier?.(t);   // levels with their own overlays (the package's HBM waterfall) follow the tier too
   if (c) for (const rt of [c.renderTarget1, c.renderTarget2]) { const n = mobile ? 0 : t.msaa; if (rt.samples !== n) { rt.samples = n; rt.dispose(); } }
   if (i !== ui.scene) return false;
@@ -1043,6 +1048,7 @@ function applyMode(b) {
   (b.flows || []).forEach(f => (f.group.visible = m === 'power'));
   (b.dataFlows || []).forEach(f => (f.group.visible = m === 'data'));
   (b.heatFlows || []).forEach(f => (f.group.visible = m === 'heat'));
+  b.powerGlow?.show(m);
   if (b.layers?.power) b.layers.power.visible = m !== 'data';
   if (b.layers?.data) b.layers.data.visible = m === 'data';
 }
@@ -1614,6 +1620,7 @@ function loop(ts) {
     worldPerPixelAtUnit: 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.max(1, view.clientHeight) };
   for (const f of flowsFor(b)) f.update(t, projection);
   if (b.update(t, dt) === true) renderer.shadowMap.needsUpdate = true;
+  b.powerGlow?.update(t, ui.mode);
   stepTween(dt);
   controls.update();
   fitDepthRange(b.camera);
