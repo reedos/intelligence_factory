@@ -487,7 +487,7 @@ def coherent_board_detail(m):
     # Decoupling beside the centre power channel (z = -0.02), never on it or on its branches.
     for z in [-.12,.12]:
         for dx in [-.15,.15]:cap(ANALOGX+dx,z,False);cap(OPTX+dx*1.4,z,False)
-    for z in [-.36,.36]:cap(-3.73,z,False,(.1,.05,.05))
+    # (no capacitors between the converters and the DSP: the host lanes jog across that strip to the DSP's balls)
     for s in [-1,1]:
         cap(-4.63,s*.22,False)
     for x in [.55,1.25]:cap(x,.5,False)

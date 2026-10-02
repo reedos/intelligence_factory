@@ -387,7 +387,11 @@ function buildPackage({ quality, state, model }) {
   // ended right at the exposed front corner stacked into one bloom hot spot there.
   for (let i = 0; i < 28; i++) {
     const x = dieSampleX() * 0.9, z = (rnd() - 0.5) * 2.6;
-    flows.push(flow([[x, -1.4, z], [x, Y.balls, z], [x, Y.sub, z], [x, Y.bumps, z], [x, Y.inter, z], [x, Y.dies, z]], 'core', { count: 3, speed: 1.6 + rnd(), size: 0.03, k: 2.8, trail: false }));
+    // Declared pass-through (tools/flow-audit.mjs): this is vertical power delivery, up through the host board, a
+    // BGA ball, the substrate's power vias, a C4 bump and the interposer's TSVs into the die. Every solid it crosses
+    // is a layer of the conductor stack it stands for.
+    flows.push(flow([[x, -1.4, z], [x, Y.balls, z], [x, Y.sub, z], [x, Y.bumps, z], [x, Y.inter, z], [x, Y.dies, z]], 'core', { count: 3, speed: 1.6 + rnd(), size: 0.03, k: 2.8, trail: false,
+      audit: { through: true, why: 'vertical power delivery through board, ball, substrate vias, C4 bump and interposer TSVs into the die' } }));
   }
   // die-to-die traffic across NV-HBI
   flows.forEach(f => scene.add(f.group));
@@ -425,6 +429,13 @@ function buildPackage({ quality, state, model }) {
   // the host board (bgaRun). The substrate leg is buried, below the metal stiffener.
   // n consecutive escape runs, centred in the side's 24 (0.3 cm apart at the ball row)
   const n = A.nvlink.linksPerGpu / 2, runK = i => Math.floor((BGA_RUNS - n) / 2) + i;
+  // Declared pass-throughs (tools/flow-audit.mjs): the lane goes down through the interposer at the C4 column
+  // (its through-vias) and its own C4 bump, runs buried inside the substrate (it is a substrate trace, below the
+  // stiffener) and down through its own BGA ball onto the board. These boxes are the interposer slab, the C4 layer, the
+  // substrate slab and the ball layer; the route meets no other solid.
+  const nvlBuried = { within: [[-IW / 2, Y.inter - 0.06, -ID / 2, IW / 2, Y.inter + 0.06, ID / 2], [-IW / 2, Y.bumps - 0.06, -ID / 2, IW / 2, Y.bumps + 0.06, ID / 2],
+    [-SUB / 2, Y.sub - 0.14, -SUB / 2, SUB / 2, Y.sub + 0.15, SUB / 2], [-SUB / 2, -0.01, -SUB / 2, SUB / 2, 0.15, SUB / 2]],
+    why: 'NVLink lane: interposer through-via, its C4 bump, buried substrate trace, then its own BGA ball' };
   for (const side of [-1, 1]) {
     const boardSide = twin ? (side > 0 ? 0 : 1) : (side > 0 ? 2 : 3);
     if (twin) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 3.0), serdes); m.position.set(side * 2.6, Y.dies + 0.035, 0); scene.add(m); }
@@ -445,7 +456,7 @@ function buildPackage({ quality, state, model }) {
       const pts = [P(die, yUnder, along), P(die, yRdl, along), P(c4, yRdl, along), P(c4, ySub, along),
         P(subOut, ySub, tBall), P(subOut + 0.3, ySub, tBall), P(subOut + 0.3, Y.balls, tBall), ...run];
       routes.nvl.push(pts);
-      dataFlows.push(flow(pts, 'nvl', { count: 4, speed: 1.6, size: 0.035, k: 2.8, trailR: 0.008, trailK: 0.3 }));
+      dataFlows.push(flow(pts, 'nvl', { count: 4, speed: 1.6, size: 0.035, k: 2.8, trailR: 0.008, trailK: 0.3, audit: nvlBuried }));
     }
   }
   scene.userData.packageRouting = routes;
