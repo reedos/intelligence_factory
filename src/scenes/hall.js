@@ -928,7 +928,7 @@ export function build({ quality, model }) {
   scene.add(par);
   buildBreakout({ model, scene, layer: par, leafX, rowZs, ports: networkPorts.get(`${leafX}:${rowZs[1]}`), racks: rackMx.filter(k => k.z === rowZs[1]), quality });
   scene.userData.hallCoolant=coolantAudit;
-  // the overhead plan the design-rule tests check (design-rules.test.ts)
+  // the overhead plan the design-rule tests check (design-rules-rack-hall-site.test.ts)
   scene.userData.hallPlan = { ...HALL_PLAN, rackDepth: 1.2, busY: 3.5, busHalfDepth: .09, runwayY: HALL_RUNWAY.floorY, runwayHalfWidth: .15, tcsY: 2.45,
     rowX0, rowX1, rows: rowZs.map((z, r) => ({ z, f: facing[r], busZ: busZOf(r), runwayZ: z, ...(air ? {} : { tcsSupplyZ: tcsZ(r).supply, tcsReturnZ: tcsZ(r).ret }) })) };
   // headers leave through the roof to the facility cooling plant

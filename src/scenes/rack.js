@@ -808,7 +808,7 @@ function buildNVL({ quality, model, state }) {
     N.cyl(0.024, 0.05, STAINLESS, hx, H + 0.06, mZ, 12);                            // dripless coupling to the row loop
     N.cyl(0.0255, 0.012, band, hx, H + 0.07, mZ, 12);
   });
-  // the layout the design-rule tests check (design-rules.test.ts): spine, busbar and manifolds at the rear, mirrored
+  // the layout the design-rule tests check (design-rules-rack-hall-site.test.ts): spine, busbar and manifolds at the rear, mirrored
   scene.userData.rackPlan = { frontZ: ZF, rearZ: ZB, depth: D, cartridgeX: cartX, cartridgeZ: cartC, busbarZ: bbZ, manifoldX: mX, manifoldZ: mZ,
     coolantFeed: 'top', hoses: mX.map(x => ({ x: hoseX(x), top: H + 0.03 })), roofY: H, trayRearZ: ZF - 0.07 - trayD, representative: true };
 

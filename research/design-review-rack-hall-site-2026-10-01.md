@@ -51,20 +51,38 @@ scratchpad (`design-rhs/before`, `design-rhs/after`, same file names).
 | Campus (Colossus 2) | Expansion halls | One chiller plant and one conceptual MV trunk serve ~40 halls 1–2 km away. Already labeled conceptual. | Per-block plants and substations beside the expansion halls. |
 | Rack | Power shelf count | A search summary of the DGX GB200 guide reports eight shelves per rack; the page I opened does not state it and the model draws six. | Check against the guide's power section. |
 
-## Flow agent's rack flows (vis/flow-paths, working tree 10/01) — issues for the lead
+## Flow agent's rack flows (vis/flow-paths, now on main 7daac93) — issues for the lead
 
-1. Feed flows now carry `audit: { through: true }` "inside the feed cable", which hides a real geometry fault: the
-   bottom-shelf cable (x 0.10, z −0.30 → −0.375) runs through all 30 tray volumes, and the top-shelf cords run
-   diagonally from the roof to the shelf rear. Route both down the rear cable space (z < −0.44, e.g. x ±0.065 between
-   bus bar and cartridges), dressed vertically, entering each shelf at its rear inlet; then drop the `through` flag.
-2. Tray-to-cartridge stubs all start at x 0 (the bus bar line) and fan out diagonally to the four cartridges. Rule 2
-   wants each link straight back from its own rear connector: start at the connector in front of each cartridge
-   (x = cartridge x) and run straight back.
-3. The opened switch tray's flows end at z ZB + 0.16 at x ±0.06–0.07, short of any cartridge: the switch tray's NVLink
-   never reaches the spine. Extend them to the cartridge faces like the compute stubs.
-4. Fiber riser rails moved to x ±0.2685–0.28: inside the 600 mm width, but at the corner-post line; the managers sit
-   40 mm proud of the front frame. Acceptable as drawn; keep the leads clear of the posts' faces.
+Reviewed as merged. These flows are the flow agent's; I did not edit them.
+
+1. Feed flows carry `audit: { through: true }` "inside the feed cable", which hides a real geometry fault: the
+   bottom-shelf cable (x 0.10, z −0.30 → −0.375) runs through all the tray volumes (trays end at z −0.435), and the
+   top-shelf cords run diagonally from the roof to the shelf rear. Route both down the rear cable space (z < −0.44,
+   e.g. x ±0.065 between bus bar and cartridges), dressed vertically, entering each shelf at its rear inlet; then drop
+   the `through` flag. (Needs a rack GLB rebuild: the cords are baked.)
+2. Tray-to-cartridge stubs still all start at x 0 (the bus bar line) and fan out across behind the tray to the four
+   cartridges. Rule 2 wants each link straight back from its own rear connector, one connector in front of each
+   cartridge (x = cartridge x).
+3. The opened switch tray's NVLink flows end at z ZB + 0.16 at x ±0.06–0.07 ("schematic tether"), short of any
+   cartridge, so the switch tray's NVLink never reaches the spine. Extend them to the cartridge faces like the stubs.
+4. Fiber riser rails at x ±0.2685–0.28: inside the 600 mm width, at the corner-post line. Acceptable as drawn.
 5. The riser's trunks end in `RACK_RUNWAY`, which runs across the row (see open items).
+
+## Flow checker (tools/flows.mjs, DEFER_NONE=1, scenes 0–3, 19 scenarios)
+
+Applied the hall, campus and across hunks of the flow agent's `flow-fixes-other-owners.patch`, merged with this
+layout (busway, drop-cable, guide-ring and patch-termination materials named for the audit; UPS route behind the
+line-up; cables on the runway rungs at 4.41 m; SHELTER and MAP_HUT pass-throughs declared; line detours around plant
+symbols). Then fixed the three remaining findings: far-campus terminals now stand on the side their route arrives from
+(the route used to cross the far MAP_TERMINAL), and long-haul fiber B and the expansion data feed run at z −232, clear
+of the chiller plant on small campuses (the route crossed the plant at (50, −240) at 10 MW).
+
+| Level | Flows | Inside | Defective routes |
+|---|---|---|---|
+| Across | 433 | 0 | 0 |
+| Campus | 1,234 | 0 | 0 |
+| Hall | 9,196 | 0 | 0 |
+| Rack | 1,705 | 66 | 32, all H100 (owned by the DGX H100 agent) |
 
 ## Sources opened
 
@@ -82,7 +100,7 @@ Not opened (timed out or blocked), not cited: HPE GB200/GB300 NVL72 QuickSpecs, 
 
 ## Tests
 
-`src/scenes/design-rules.test.ts` checks: busway over each rack's rear and over its footprint; ≥ 0.3 m between the
+`src/scenes/design-rules-rack-hall-site.test.ts` checks: busway over each rack's rear and over its footprint; ≥ 0.3 m between the
 power and data pathways; rack loop below the busway at the rack rears, supply and return apart; no facility drop
 through a runway or busway; rack-loop drops on their own header at their own rack's rear; every hall fiber route
 ≥ 7.5 mm bend radius; MV feeders never double back and stay < 1.45× straight distance; fiber vaults ≥ 20 m apart on
