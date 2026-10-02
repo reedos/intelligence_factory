@@ -286,9 +286,12 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   // too far apart to share one orbit pivot at the 3% tolerance used for this level. Each variant's
   // pos keeps the same offset from target as the one camera this replaces (so the opening frame for
   // 'ring', the default, is unchanged), applied to the Mach-Zehnder package's own measured centre.
+  // This builder's own (native, ?module=native) geometry, not side-cpo-blender.js's authored hardware:
+  // ring's visible cold-plate (coolingHardware, shown only for 'ring') measures noticeably taller than
+  // mzm's package, so the two pivots differ in y by more than the two packages' x offset alone would.
   const CAMERA = {
-    ring: { pos: [-2.82, 22.17, 25.08], target: [-2.82, 1.17, -1.42], portrait: { pos: [13.18, 29.47, 26.58], target: [-2.82, 1.17, -1.42] } },
-    mzm: { pos: [-4.07, 22.17, 25.0], target: [-4.07, 1.17, -1.5], portrait: { pos: [11.93, 29.47, 26.5], target: [-4.07, 1.17, -1.5] } },
+    ring: { pos: [-3.27, 24.37, 25.51], target: [-3.27, 3.37, -.99], portrait: { pos: [12.73, 31.67, 27.01], target: [-3.27, 3.37, -.99] } },
+    mzm: { pos: [-4.51, 23.5, 25.43], target: [-4.51, 2.5, -1.07], portrait: { pos: [11.49, 30.8, 26.93], target: [-4.51, 2.5, -1.07] } },
   };
   return {
     scene, flows, dataFlows, heatFlows, coolingHardware,
