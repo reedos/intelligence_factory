@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { compute, DEFAULT_SCENARIO } from '../model/engine';
 import { fitComponent } from '../app/housing-frame.js';
+import { auditFlows } from '../../tools/flow-audit.mjs';
 
 const kinds=['rack','tray','chip'], ids=['gb200','gb300','rubin','h100'];
 const assets=new Map<string,any>(); let native:any[],wrappers:any[];
@@ -481,3 +482,18 @@ it('trims package Heat emission without changing Data or power presentation',asy
   expect(f.speed).toBe(before[i][j].speed);expect(f.len).toBe(before[i][j].len);
  }
 });
+
+// Reed (10/01/2026): NVLink to the tray's NVLink connectors crossed other parts and left the board. Every NVL-tray
+// NVLink and C2C route must run on the boards, through no solid of the shipped Blender tray but its own source and
+// sink (and the board/bar volumes each route declares), never in open air (tools/flow-audit.mjs).
+it('GB200, GB300 and Rubin tray NVLink and C2C routes stay on the boards and clear of every other part',()=>{
+ for(const id of ['gb200','gb300','rubin']){
+  const b=wrappers[1].build(options(id));
+  const r=auditFlows(b,THREE,{layers:['dataFlows']});
+  const bad=r.report.filter((x:any)=>['nvl','c2c'].includes(x.cls)).flatMap((x:any)=>x.issues.filter((i:any)=>!['declared','conduit'].includes(i.kind)).map((i:any)=>`${x.cls}[${x.index}] ${i.kind} ${i.part??''} ${i.at}`));
+  expect(bad,id).toEqual([]);
+  // each NVLink route ends inside an NVLink connector at the tray's rear
+  const nvl=b.dataFlows.filter((f:any)=>f.cls==='nvl');expect(nvl.length).toBe(4);
+  for(const f of nvl)expect(f.path.getPoint(1).z).toBeLessThan(id==='rubin'?-4.22:-4.14);
+ }
+},60000);

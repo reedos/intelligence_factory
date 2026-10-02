@@ -199,10 +199,14 @@ function rubinLayout() {
     L.pkgs.push({ x, z, w: 0.83, d: 0.95, ref: `U${i + 1}`, fan: 1, m: 0.005 });
     vrmRow(x - 0.36, z - 0.66, 7, 1, `GPU ${i + 1}`); vrmRow(x - 0.36, z + 0.66, 7, -1, `GPU ${i + 1}`);
     for (let k = 0; k < 8; k++) for (const s of [-1, 1]) part(L, `GPU ${i + 1} cap ring`, x - 0.45 + (k + 0.5) * 0.1125, z + s * 0.54, 0.018, 0.012);
-    // NVLink to the rear connectors: under the regulator row on an inner layer, up to the top for the run out
+    // NVLink to the rear connectors: under the regulator row on an inner layer, up to the top for the run out. The
+    // outer bus jogs outboard before the board edge so its run continues between the power board's converters into
+    // the NVLink connector (tray-rubin.js routes the animated NVLink flow along this bus).
     for (const dx of [-0.2, 0.2]) {
-      L.buses.push({ id: `NVLink GPU${i + 1} ${dx}`, pts: [[x + dx, z - 0.42], [x + dx, z - 0.8], [x + dx, -3.84]], pairs: 10, layers: ['in', 'top'] });
-      L.conns.push({ x: x + dx, z: -3.88, w: 0.16, d: 0.04, ref: '' });
+      const outer = Math.sign(dx) === Math.sign(x), j = outer ? Math.sign(x) * (Math.abs(x) > 1.1 ? 0.12 : 0.07) : 0, xe = x + dx + j;
+      L.buses.push(j ? { id: `NVLink GPU${i + 1} ${dx}`, pts: [[x + dx, z - 0.42], [x + dx, z - 0.8], [x + dx, -3.58], [xe, -3.58 - Math.abs(j)], [xe, -3.84]], pairs: 10, layers: ['in', 'top', 'top', 'top'] }
+        : { id: `NVLink GPU${i + 1} ${dx}`, pts: [[x + dx, z - 0.42], [x + dx, z - 0.8], [x + dx, -3.84]], pairs: 10, layers: ['in', 'top'] });
+      L.conns.push({ x: xe, z: -3.88, w: 0.16, d: 0.04, ref: '' });
     }
   });
   cp.forEach(([x, z], i) => {

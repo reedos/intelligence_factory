@@ -121,9 +121,17 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  gp.forEach(([x,z],i)=>{
  // 12 V ends at the rear VRM row (not on the package); core power runs from
  // both VRM rows into the substrate edge, below the die and HBM tops.
-  flows.push(flow([[Math.sign(x)*1.5,.28,-4.02],[x,.26,-3.62],[x,.2,z-.74]],'bus12',{count:6,speed:.8,size:.028,trailR:.009}));
+  // 12 V out of the nearest converter's front face, over the power board into the rear row's middle inductor
+  const ibc=Math.sign(x)*(Math.abs(x)>1.1?1.5:.5);
+  flows.push(flow([[ibc,.2,-4.02],[ibc,.2,-3.76],[x,.125,-3.6],[x,.125,z-.66]],'bus12',{count:6,speed:.8,size:.028,trailR:.009}));
   for(const side of [-1,1])for(const dx of [-.2,.2])flows.push(flow([[x+dx,.125,z+side*.6],[x+dx,.125,z+side*.4]],'core',{count:3,speed:.35,size:.018,trail:false}));
-  dataFlows.push(flow([[x,.29,z-.25],[nvX[i],.31,-3.75],[nvX[i],.31,-4.35]],'nvl',{count:10,speed:.9,size:.03,trailR:.01}));
+  // NVLink along the board's outer NVLink bus (tray-pcb.js rubinLayout): out of the package on an inner layer, under
+  // the rear regulator row (inside the board there), up a via row, along the top to a jog that clears the converter
+  // ahead, then straight between the converters into the connector. Never through a package, regulator, converter or
+  // connector body, never off the boards.
+  {const s=Math.sign(x),bx=x+s*.2,bj=bx+s*(Math.abs(x)>1.1?.12:.07);
+   dataFlows.push(flow([[bx,.075,z-.3],[bx,.075,z-.8],[bx,.125,z-.8],[bx,.125,-3.58],[bj,.125,-3.58-Math.abs(bj-bx)],[bj,.125,-4.3]],'nvl',
+    {count:10,speed:.9,size:.026,trailR:.009,audit:{within:[[-2.2,.06,-3.97,2.2,.088,.93]],why:'inner-layer breakout under the rear regulator row'}}));}
   // NVIDIA SuperPOD RA Figure 2: NIC PCIe is rooted at Vera, not a
   // direct GPU-to-NIC trace. Each CPU serves its four CX9 endpoints.
   const cpu=cp[Math.floor(i/2)];
@@ -131,8 +139,12 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
   // nearest the lane, inward), so the run enters one housing and leaves the
   // other rather than hopping over the midplane.
   const lane=ports[i],hx=Math.sign(lane)*(Math.abs(lane)<1.3?.795:1.325),j1=Math.abs(hx-cpu[0]),j2=Math.abs(lane-hx);
-  const route=[[cpu[0],.30,cpu[1]+.385],[cpu[0],.30,.1],[hx,.30,.1+j1],[hx,.30,.74],[hx,.19,.82],[hx,.19,1.38],[hx,.29,1.44],[lane,.29,1.44+j2],[lane,.29,2.12]];
-  const input=flow(routed(route),'pcie',{count:10,speed:.9,size:.026,trailR:.009});input.rubinPcieRoot=Math.floor(i/2);dataFlows.push(input);
+  // On the board it follows the CPU's PCIe bus (tray-pcb.js: CPU x +/- .25, under the front regulator row on an
+  // inner layer, then on top to the midplane), then crosses the midplane inside its connector pair.
+  const bus=cpu[0]+Math.sign(hx-cpu[0])*.25;
+  const route=[[cpu[0],.075,cpu[1]+.385],[bus,.075,cpu[1]+.3],[bus,.075,.02],[bus,.125,.02],[bus,.125,.82],[hx,.19,.9],[hx,.19,1.38],[lane,.19,1.38+j2],[lane,.19,1.85],[lane,.15,2.14]];
+  const input=flow(routed(route),'pcie',{count:10,speed:.9,size:.026,trailR:.009,audit:{within:[[-2.2,.06,-3.97,2.2,.088,.93],[hx-.2,.08,.88,hx+.2,.3,1.32]],
+   why:'inner-layer breakout under the CPU regulator row; through the blind-mate connector pair and the midplane between them'}});input.rubinPcieRoot=Math.floor(i/2);dataFlows.push(input);
   // Each GPU is represented by two CX9 packages on one column. The branch
   // placement is illustrative; both ends touch actual package regions.
   const flank=lane+(i%2===0?-.23:.23);
@@ -140,13 +152,21 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
   for(const [j,y]of [.16,.34].entries()){
    const start=j===0?2.64:3.58;
    const path=j===0?[[lane,.29,start],[flank,.29,start],[flank,.29,3.78],[lane,y,3.95],[lane,y,4.50]]:[[lane,.29,start],[lane,y,3.95],[lane,y,4.50]];
-   const f=flow(path,'serdes',{count:5,speed:.75,size:.02,trail:false});f.rubinNicOutput={gpu:i,nic:j,startZ:start};dataFlows.push(f);
+   const f=flow(path,'serdes',{count:5,speed:.75,size:.02,trail:false,audit:{within:[[lane-.15,y-.07,3.97,lane+.15,y+.07,4.57]],why:'into the cage and the module it holds'}});f.rubinNicOutput={gpu:i,nic:j,startZ:start};dataFlows.push(f);
   }
  });
- cp.forEach(([x,z],i)=>{for(const gpu of gp.slice(i*2,i*2+2))for(const reverse of [false,true]){const pts=[[x,.30,z-.32],[gpu[0],.30,gpu[1]+.38]];if(reverse)pts.reverse();dataFlows.push(flow(pts,'c2c',{count:5,speed:.6,size:.025,trailR:.008}));}});
+ // C2C along the board's C2C buses (tray-pcb.js): under the CPU's rear regulator row on an inner layer, across on top,
+ // under the GPU's front regulator row on an inner layer again; one lane each way within the bus
+ cp.forEach(([x,z],i)=>{for(const gpu of gp.slice(i*2,i*2+2))for(const reverse of [false,true]){
+  const a=Math.sign(gpu[0]-x)*.25,b=Math.sign(gpu[0]-x)*.35,o=reverse?.025:-.025;
+  const pts=[[x+a+o,.075,z-.25],[x+a+o,.075,-1.3],[x+a+o,.125,-1.3],[x+b+o,.125,-1.9],[x+b+o,.075,-1.9],[x+b+o,.075,gpu[1]+.3]];if(reverse)pts.reverse();
+  dataFlows.push(flow(pts,'c2c',{count:5,speed:.6,size:.022,trailR:.008,audit:{within:[[-2.2,.06,-3.97,2.2,.088,.93]],why:'inner-layer runs under the CPU and GPU regulator rows'}}));}});
  dataFlows.push(flow([[0,.28,3.3],[0,.28,4.38]],'serdes',{count:5,speed:.6,size:.024,trail:false}));
- flows.push(flow([[0,.25,-4.75],[0,.28,-4.05],[-1.5,.28,-4.02]],'dc',{count:12,speed:.9,size:.03,trail:false}));
- for(const x of [-1.1,1.1])flows.push(flow([[Math.sign(x)*1.5,.28,-4.02],[x,.3,-3.55],[x,.22,-1.24]],'bus12',{count:14,speed:.7,size:.025,trail:false}));
+ // dc from the supply clip: between its copper plates, then sideways into the nearest converter's flank
+ flows.push(flow([[0,.2,-4.75],[0,.2,-4.3],[0,.2,-4.02],[-.5,.2,-4.02]],'dc',{count:12,speed:.9,size:.03,trail:false,audit:{external:'start',why:'from the rack busbar behind the tray'}}));
+ // 12 V trunks: out of the outer converters onto the copper bars, inside the bars forward to each CPU's rear regulator row
+ for(const x of [-1.1,1.1])flows.push(flow([[Math.sign(x)*1.5,.2,-4.02],[Math.sign(x)*1.5,.2,-3.76],[x,.102,-3.6],[x,.102,-1.17]],'bus12',
+  {count:14,speed:.7,size:.025,trail:false,audit:{within:[[x-.055,.088,-3.95,x+.055,.116,.55]],why:'current in the 12 V copper bar'}}));
  for(const [x,z] of [...nic,dpu])flows.push(flow([[x,.18,1.45],[x,.18,z]],'bus12',{count:8,speed:.8,size:.022,trail:false}));
  scene.add(S.build(),N.build({cast:false}));trayLidLabels(scene,model.accel,lidAt,[.165,.07]);for(const list of [flows,dataFlows,heatFlows])for(const f of list)scene.add(f.group);
  const hs=(p,off=[2.2,2.8,3.5])=>({pos:p,view:{pos:p.map((v,i)=>v+off[i]),target:p}});
@@ -156,6 +176,8 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  // the GPU name etched on each package's front substrate margin, ahead of the interposer (package-marks.js)
  return {printSpots:[etch('GPU package marking','Rubin',[.3,.065],gp.map(([x,z])=>({from:[x,.4,z+.43],dir:[0,-1,0]})))],scene,flows,dataFlows,heatFlows,hotspots,
   heatHotspots:{osfp:hotspots.osfp,coldplates:hotspots.coldplates,gpuheat:hotspots.gpu,manifold:hs([-2.02,.8,0]),qd:hs([2.02,.8,-4.48],[2,2,-3])},
+  // tools/flows.mjs: NVLink and C2C stay over a board (the two compute boards and the power board)
+  flowAudit:{floatR:.25,boardCls:['nvl','c2c'],boards:[[-2.11,-.09,-3.97,.93],[.09,2.11,-3.97,.93],[-2.05,2.05,-4.34,-3.76]]},
   dataHotspots:{nvconn:hotspots.nvconn,c2c:hs([-1.1,.4,-1.5]),cx:hotspots.nic,osfp:hotspots.osfp,dpu:hs([0,.8,2.85]),gpu:hotspots.gpu},
   camera:{pos:[5.9,6.4,8.3],target:[0,.2,-.5],near:.02,far:400,min:1,max:30},
   look:{env:'studio',envIntensity:.5,exposure:.98,bloom:.36,threshold:2,ao:.12,dof:true},update(){}};
