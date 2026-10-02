@@ -9,6 +9,7 @@
 // RX: connector → fiber → photodiodes → TIA → DSP → host.
 import { MODULE_VARIANTS, LRO_COLOR, inVariant, lroDieTop, lroIntro, lroPartCopy } from './module-lro.js';
 import { moduleTier } from './lid-labels.js';
+import { tagHeat, balanceHeat, PART_W } from '../heat.js';
 import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, bondWire, label, lidBox, outline, FLOW, COL, note, unitCol, finTex, glowMat, canvasTex } from './side-kit.js';
 
 // A representative shared PIC: eight TX lanes, eight RX lanes; four CW sources feed TX only.
@@ -154,8 +155,8 @@ export function build({ quality, state, model }) {
     const railTo = (x, z, set) => { const f = flow([[mx(2.0), yT, z * 0.4], [x, Y.top + 0.1, z]], 'core', FLOW.power); flows.push(f); if (set) set.add(f); };
     railTo(DSPX, 0, dspOnly); railTo(DRVX, zDrv); railTo(DRVX, zTia); lasers.forEach(z => railTo(LZX, z));
     // heat: the DSP's heat through the pad into the shell, then out through the fins
-    for (let i = 0; i < 5; i++) { const x = DSPX + (i - 2) * 0.16, z = 0; const f = flow([[x, Y.top + 0.16, z], [x, Y.lid, z], [x, Y.lid + 1.2, z]], 'hot', FLOW.heat); heatFlows.push(f); dspOnly.add(f); }
-    for (const z of [zDrv, zTia]) heatFlows.push(flow([[DRVX, Y.top + 0.06, z], [DRVX, Y.lid, z * 0.5], [DRVX, Y.lid + 1.0, z * 0.5]], 'hot', FLOW.heat));
+    for (let i = 0; i < 5; i++) { const x = DSPX + (i - 2) * 0.16, z = 0; const f = tagHeat(flow([[x, Y.top + 0.16, z], [x, Y.lid, z], [x, Y.lid + 1.2, z]], 'hot', FLOW.heat), 'dsp', PART_W.module.dsp); heatFlows.push(f); dspOnly.add(f); }
+    for (const [z, part] of [[zDrv, 'driver'], [zTia, 'tia']]) heatFlows.push(tagHeat(flow([[DRVX, Y.top + 0.06, z], [DRVX, Y.lid, z * 0.5], [DRVX, Y.lid + 1.0, z * 0.5]], 'hot', FLOW.heat), part, PART_W.module[part]));
 
     label(scene, 'TX · 8 lanes', [MX0 - 0.9, 1.75, hostZ(3.5, false)], COL.tx, 0.14);
     label(scene, 'RX · 8 lanes', [MX0 - 0.9, 1.6, hostZ(3.5, true)], COL.rx, 0.14);
@@ -175,9 +176,10 @@ export function build({ quality, state, model }) {
 
   // Shared host supply and airflow.
   for (const z of [-0.6, 0.6]) flows.push(flow([[MX0 - 0.8, Y.top + 0.01, z], [mx(0.6), Y.top + 0.01, z], [mx(2.0), Y.top + 0.01, z * 0.4]], 'v33', FLOW.power));
-  for (let i = 0; i < 5; i++) heatFlows.push(flow([[MX1 + 0.8, Y.lid + 1.2, -0.8 + i * 0.4], [MX0 - 0.8, Y.lid + 1.2, -0.8 + i * 0.4]], 'air', FLOW.heat));
+  for (let i = 0; i < 5; i++) heatFlows.push(tagHeat(flow([[MX1 + 0.8, Y.lid + 1.2, -0.8 + i * 0.4], [MX0 - 0.8, Y.lid + 1.2, -0.8 + i * 0.4]], 'air', FLOW.heat), 'shell-air', PART_W.module.total, 'carrier'));
 
   const e1 = buildEngine();
+  balanceHeat(heatFlows);   // one log rule for every heat stream (src/heat.js)
 
   const tracesDsp = TD.build({ cast: false }), tracesLpo = TL.build({ cast: false }); tracesLpo.visible = false;
   const tracesDspRx = TDr.build({ cast: false }), tracesLpoRx = TLr.build({ cast: false }); tracesLpoRx.visible = false;

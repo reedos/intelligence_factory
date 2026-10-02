@@ -27,6 +27,7 @@ import * as sideCoherent from '../scenes/side-coherent.js';
 import * as sideCopper from '../scenes/side-copper.js';
 import { applyVisualDirection } from '../scenes/visual-direction.js';
 import { applyComputeArtDirection } from '../scenes/compute-art-direction.js';
+import { balanceHeat } from '../heat.js';
 import { cameraPresetFor } from './camera-presets.js';
 import { poseAt, planPath } from './camera-path.js';
 import { occupancyBuilder } from './occupancy.js';
@@ -281,6 +282,8 @@ function getScene(i) {
     const b = BUILDERS[i].build({ quality: { ...quality, reduced }, state: ui, model: store.M });
     applyComputeArtDirection({ built: b, level: i, quality, matched: params.get('finish') === 'matched' });
     applyVisualDirection({ built: b, level: i, matched: params.get('finish') === 'matched' });
+    // Art direction can change pulse counts unevenly (spacing limits): put every heat stream back on the one rule.
+    if (b.heatFlows) balanceHeat(b.heatFlows);
     built[i] = b;
     const L = lookOf(i);
     b.scene.environment = envFor(L.env); b.scene.environmentIntensity = L.envIntensity; b.model = store.M;
@@ -1090,7 +1093,9 @@ function buildPanel(i) {
     pinsEl.appendChild(el);
     return { el, id: p.id, pos: V(hs[p.id].pos) };
   });
-  $('legend').innerHTML = legends(store.M)[ui.mode][i].map(([k, l]) => `<span class="legend-item" style="--c:${VOLT[k].css}"><span class="sw"></span>${l}</span>`).join('');
+  // Heat motion is drawn on one log rule (src/heat.js): the legend says so, so the compression is not hidden.
+  $('legend').innerHTML = legends(store.M)[ui.mode][i].map(([k, l]) => `<span class="legend-item" style="--c:${VOLT[k].css}"><span class="sw"></span>${l}</span>`).join('')
+    + (ui.mode === 'heat' ? '<span class="legend-note">Heat on a log scale: each step ≈ 10× the power</span>' : '');
   markCurrent(i);
   $('card').hidden = true; ui.selected = null;
 }

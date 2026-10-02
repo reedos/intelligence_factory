@@ -16,6 +16,7 @@ import { addLineTerminalCutaway } from './dwdm-terminal.js';
 import { campusMarks } from './electrical-marks.js';
 import { campusSigns } from './site-signs.js';
 import { preloadCampusTransformer, hasCampusTransformer, campusTransformerInstances } from './campus-blender-transformer.js';
+import { tagHeat, balanceHeat, heatIntensity } from '../heat.js';
 export const preload = () => Promise.all([preloadCampusArchitecture(), preloadCampusCatalog(), preloadSiteConstruction(), preloadCampusVehicles(), preloadCampusTransformer()]);
 
 export function build({ quality, model }) {
@@ -387,30 +388,36 @@ export function build({ quality, model }) {
   const fanItems = [], fp = new THREE.Vector3();
   coolerMx.forEach(mx => { for (let i = 0; i < 6; i++) { fp.set(-4.9 + i * 1.96, 2.67, 0).applyMatrix4(mx); fanItems.push({ p: fp.toArray(), axis: 'y', r: 0.74 }); } });
   // heat: warm water up to the cooler rows, plumes of warm air above them
-  if (warm) hallList.forEach(h => {
+  // Watts per carrier (src/heat.js): every hall rejects an even share of the IT load; chillers add about a sixth to
+  // what they move (the chiller card's figure), so the condenser water and the towers or chiller fans carry 7/6 of
+  // it; on a warm-water campus the towers only trim the hottest afternoons, drawn at a fifth of the load. The roof
+  // coolers drawn on the detailed halls stand for every hall's (the extra halls are envelopes without heat streams).
+  const itW = model.IT_MW * 1e6, hallW = itW / Math.max(1, model.halls), rejectW = warm ? itW : itW * 7 / 6;
+  const towerW = warm ? itW * 0.2 : rejectW, plantW = hallW * nHalls, roofW = itW / nHalls;
+  if (warm) hallList.forEach((h, hi) => {
     const Hh = 22;
     for (let r = 0; r < 3; r++) {
       const pz = h.z0 + 22 + r * 23 + 2.2,roofHeaderEnd=hallX0+13+Math.floor((hallLen-18)/13.5)*13.5;
-      heatFlows.push(flow([[hallX0 + 10, Hh + .4, h.z0+24.2], [hallX0 + 10, Hh + 1.2, h.z0+24.2], ...(r?[[hallX0+10,Hh+1.2,pz]]:[]), [roofHeaderEnd, Hh + 1.2, pz]], 'warm', { count: 30, speed: 30, size: 0.8, k: 2.4, trailR: 0.3, trailK: 0.4 }));
-      heatFlows.push(flow([[roofHeaderEnd,Hh+2,pz+.9],[hallX0+11.5,Hh+2,pz+.9],...(r?[[hallX0+11.5,Hh+2,h.z0+25.1]]:[]),[hallX0+11.5,Hh+.4,h.z0+25.1]],'cool',{count:22,speed:25,size:.65,k:2,trailR:.22}));
+      heatFlows.push(tagHeat(flow([[hallX0 + 10, Hh + .4, h.z0+24.2], [hallX0 + 10, Hh + 1.2, h.z0+24.2], ...(r?[[hallX0+10,Hh+1.2,pz]]:[]), [roofHeaderEnd, Hh + 1.2, pz]], 'warm', { count: 30, speed: 30, size: 0.8, k: 2.4, trailR: 0.3, trailK: 0.4 }), `hall-${hi}-roof-water`, roofW, 'carrier'));
+      heatFlows.push(tagHeat(flow([[roofHeaderEnd,Hh+2,pz+.9],[hallX0+11.5,Hh+2,pz+.9],...(r?[[hallX0+11.5,Hh+2,h.z0+25.1]]:[]),[hallX0+11.5,Hh+.4,h.z0+25.1]],'cool',{count:22,speed:25,size:.65,k:2,trailR:.22}), `hall-${hi}-roof-water`, roofW, 'carrier'));
       for (let i = 0; i < Math.floor((hallLen - 18) / 13.5) + 1; i += 2) {
         const x = hallX0 + 12 + i * 13.5, z = h.z0 + 22 + r * 23;
-        heatFlows.push(flow([[x, Hh + 3.5, z], [x + 3, Hh + 22, z - 2], [x + 8, Hh + 50, z - 6]], 'air', { count: 5, speed: 7, size: 2.4, k: 2.0, opacity: 0.6, trail: false }));
+        heatFlows.push(tagHeat(flow([[x, Hh + 3.5, z], [x + 3, Hh + 22, z - 2], [x + 8, Hh + 50, z - 6]], 'air', { count: 5, speed: 7, size: 2.4, k: 2.0, opacity: 0.6, trail: false }), `hall-${hi}-dry-cooler-air`, roofW, 'carrier'));
       }
     }
   });
   const towerRows = closed ? [] : warm ? [-275] : [-275, -290];
   const plantX = Math.max(hallX0 + 45, Math.min(100, hcx + 20));
-  towerRows.forEach(tz => { for (let i = 0; i < 6; i++) { const x = 15 + i * 12; heatFlows.push(flow([[x, 11.5, tz], [x + 2, 35, tz - 3], [x + 6, 65, tz - 9]], 'vapor', { count: warm ? 5 : 7, speed: 6, size: 2.4, k: 1.2, opacity: warm ? 0.4 : 0.55, trail: false })); } });
+  towerRows.forEach(tz => { for (let i = 0; i < 6; i++) { const x = 15 + i * 12; heatFlows.push(tagHeat(flow([[x, 11.5, tz], [x + 2, 35, tz - 3], [x + 6, 65, tz - 9]], 'vapor', { count: warm ? 5 : 7, speed: 6, size: 2.4, k: 1.2, opacity: warm ? 0.4 : 0.55, trail: false }), 'towers', towerW, 'carrier')); } });
   if (!warm) {
     // chiller plant between hall A and the towers: warm return in, cold supply back, heat on to the towers
-    heatFlows.push(flow([[plantX - 10, 2.2, -215], [plantX - 10, 2.2, -236]], 'warm', { count: 14, speed: 10, size: 0.8, k: 2.4, trailR: 0.3 }));
-    heatFlows.push(flow([[plantX + 10, 2.2, -236], [plantX + 10, 2.2, -215]], 'cool', { count: 14, speed: 10, size: 0.8, k: 2.4, trailR: 0.3 }));
-    if (towerRows.length) heatFlows.push(flow([[plantX - 20, 2.2, -254], [plantX - 20, 2.2, -262], [15, 2.2, -262], [15, 2.2, -275], [15, 9, -275]], 'warm', { count: 18, speed: 14, size: 0.8, k: 2.4, trailR: 0.3 }));
+    heatFlows.push(tagHeat(flow([[plantX - 10, 2.2, -215], [plantX - 10, 2.2, -236]], 'warm', { count: 14, speed: 10, size: 0.8, k: 2.4, trailR: 0.3 }), 'chilled-water', plantW, 'carrier'));
+    heatFlows.push(tagHeat(flow([[plantX + 10, 2.2, -236], [plantX + 10, 2.2, -215]], 'cool', { count: 14, speed: 10, size: 0.8, k: 2.4, trailR: 0.3 }), 'chilled-water', plantW, 'carrier'));
+    if (towerRows.length) heatFlows.push(tagHeat(flow([[plantX - 20, 2.2, -254], [plantX - 20, 2.2, -262], [15, 2.2, -262], [15, 2.2, -275], [15, 9, -275]], 'warm', { count: 18, speed: 14, size: 0.8, k: 2.4, trailR: 0.3 }), 'condenser-water', rejectW, 'carrier'));
     // air-cooled chillers on a closed loop: the heat leaves as warm air off their roof fans, and no water goes with it
-    else for (let i = 0; i < 6; i++) { const x = plantX - 24 + i * 9.5; heatFlows.push(flow([[x, 12.8, -245], [x + 2, 34, -248], [x + 6, 60, -254]], 'air', { count: 5, speed: 7, size: 2.4, k: 2.0, opacity: 0.6, trail: false })); }
+    else for (let i = 0; i < 6; i++) { const x = plantX - 24 + i * 9.5; heatFlows.push(tagHeat(flow([[x, 12.8, -245], [x + 2, 34, -248], [x + 6, 60, -254]], 'air', { count: 5, speed: 7, size: 2.4, k: 2.0, opacity: 0.6, trail: false }), 'chiller-fan-air', rejectW, 'carrier')); }
   }
-  if (towerRows.length) heatFlows.push(flow([[125, 1, -280], [80, 1, -280], [80, 1, -275], [20, 1, -275]], 'cool', { count: 10, speed: 12, size: 0.6, k: 2.2, trailR: 0.2 }));
+  if (towerRows.length) heatFlows.push(tagHeat(flow([[125, 1, -280], [80, 1, -280], [80, 1, -275], [20, 1, -275]], 'cool', { count: 10, speed: 12, size: 0.6, k: 2.2, trailR: 0.2 }), 'towers', towerW, 'carrier'));
   scene.add(authoredCampus ? campusCatalogInstances('UNITSUB',unitSubMx) : unitSub.instance(unitSubMx));
 
   // ---------- generator yard and fuel (a campus whose operator names batteries as its backup has neither) ----------
@@ -510,7 +517,7 @@ export function build({ quality, model }) {
       N.strut([15,2.2,-275],[15,9,-275],.6,MAT.pipeRed,12);
       const condenserReturn=[[18,.8,-275],[18,.8,-265],[plantX-17,.8,-265],[plantX-17,.8,-254]];
       for(let i=1;i<condenserReturn.length;i++)N.strut(condenserReturn[i-1],condenserReturn[i],.6,MAT.pipeBlue,12);
-      heatFlows.push(flow(condenserReturn,'cool',{count:18,speed:14,size:.7,k:2.1,trailR:.23}));
+      heatFlows.push(tagHeat(flow(condenserReturn,'cool',{count:18,speed:14,size:.7,k:2.1,trailR:.23}),'condenser-water',rejectW,'carrier'));
 
     }
   }
@@ -629,7 +636,7 @@ export function build({ quality, model }) {
       const thermal=(points,kind,count)=>{
         expansionServices[kind].push(points);
         const f=flow(kind==='warm'?[...points].reverse():points,kind,{count,speed:24,size:.85,k:2.4,trailR:.24,trailK:.4});
-        f.group.userData.conceptualExpansion=true;heatFlows.push(f);
+        f.group.userData.conceptualExpansion=true;heatFlows.push(tagHeat(f,'expansion-water',hallW*extra,'carrier'));
       };
       thermal([[plantX+10,2.2,-236],[plantX+10,2.2,-229],[569,2.2,-229],[569,2.2,serviceNorth-8],[750+(cols-1)*320-154,2.2,serviceNorth-8]],'cool',Math.max(30,cols*16));
       thermal([[plantX-10,2.2,-236],[plantX-10,2.2,-233],[plantX-10,.8,-233],[563,.8,-233],[563,.8,serviceNorth-12],[750+(cols-1)*320-158,.8,serviceNorth-12]],'warm',Math.max(30,cols*16));
@@ -788,7 +795,8 @@ export function build({ quality, model }) {
     if (plumeEmitters.length) {
     const towerPlumes = plumes(plumeEmitters, {
       perEmitter: 16, size: 1.4, grow: 4.5, life: 7, rise: 2.6,
-      drift: [1.1, 0.4, 0.2], spread: 0.6, color: '#eef1f4', opacity: warm ? 0.28 : 0.4,
+      // the towers' share of the heat, on the same log rule as the heat streams (src/heat.js)
+      drift: [1.1, 0.4, 0.2], spread: 0.6, color: '#eef1f4', opacity: heatIntensity(0.4, towerW, Math.max(...heatFlows.filter(f => f.heat).map(f => f.heat.watts))),
     });
     scene.add(towerPlumes.points); plumeUpdates.push(towerPlumes.update);
     }
@@ -815,6 +823,8 @@ export function build({ quality, model }) {
   scene.add(palette(N).build({ cast: false, receive: true }));
   flows.forEach(f => scene.add(f.group));
   dataFlows.forEach(f => scene.add(f.group));
+  // the heat-export tie-in is an illustration of a connection this campus does not have: drawn, not scaled
+  balanceHeat(heatFlows);
   heatFlows.forEach(f => scene.add(f.group));
   const fans = spinners(fanItems, MAT.darkSteel, { speed: 3.2 }); if (authoredCampus) campusCatalogRotor(fans.mesh); scene.add(fans.mesh);
 
