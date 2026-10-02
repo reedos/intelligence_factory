@@ -84,7 +84,7 @@ describe('GPU package (scene 5): place and route', () => {
     }
   });
   it("the drawn HBM waterfall (schematic, lifted for visibility): evenly spaced parallel strands that drop into the die on the stack's side", () => {
-    for (const { accel, model, routes } of builds()) {
+    for (const { accel, model, routes, built } of builds()) {
       const twin = model.accel.dies > 1;
       expect(routes.hbmDrawn.length, accel).toBe((routes.hbm.length / 3) * 11);   // eleven strands per live stack
       for (const r of routes.hbmDrawn) {
@@ -97,6 +97,11 @@ describe('GPU package (scene 5): place and route', () => {
         expect(Math.sign(across.at(-1)!), accel).toBe(Math.sign(across[0]));
       }
       expect(planCrossings(routes.hbmDrawn), accel).toBe(0);
+      // no strand passes over a stack's printed memory type (the label sits on the stack's outer half)
+      const labels = built.scene.userData.hbmLabels as { x0: number; x1: number; z0: number; z1: number; y: number }[];
+      expect(labels.length, accel).toBe(routes.hbm.length / 3);
+      for (const r of routes.hbmDrawn) for (const p of r) for (const L of labels)
+        expect(p[0] > L.x0 - 0.02 && p[0] < L.x1 + 0.02 && p[2] > L.z0 - 0.02 && p[2] < L.z1 + 0.02, `${accel}: strand over the ${model.accel.hbm.type} label`).toBe(false);
       // evenly spaced across each stack's sheet
       for (let g = 0; g < routes.hbmDrawn.length; g += 11) {
         const t = routes.hbmDrawn.slice(g, g + 11).map((r: P3[]) => twin ? r[0][0] : r[0][2]);

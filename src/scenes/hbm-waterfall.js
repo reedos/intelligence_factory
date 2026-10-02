@@ -24,17 +24,17 @@ export function waterfallProfile({ start, edge, land, top, dieTop, lift = 0.08 }
 
 const vert = /* glsl */`
 attribute float aU; attribute float aV; attribute float aStrand; attribute float aStack; attribute vec3 aSide;
-uniform float uHalf; uniform float uMinPx; uniform float uPxK;
+uniform float uHalf; uniform float uMinPx; uniform float uPxK; uniform float uFar;
 varying float vU; varying float vV; varying float vStrand; varying float vStack;
 void main() {
   vU = aU; vV = aV; vStrand = aStrand; vStack = aStack;
   // a strand keeps at least uMinPx pixels of width however far the camera is (uPxK: world units per pixel per unit depth)
   float depth = -(modelViewMatrix * vec4(position, 1.0)).z;
-  float half_ = max(uHalf, 0.5 * uMinPx * uPxK * depth);
+  float half_ = max(uHalf, 0.5 * uMinPx * (1.0 + uFar) * uPxK * depth);
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position + aSide * aV * half_, 1.0);
 }`;
 const strandFrag = /* glsl */`
-uniform float uTime; uniform float uSpeed; uniform float uPulse; uniform float uStep; uniform float uGain; uniform vec3 uColor;
+uniform float uTime; uniform float uSpeed; uniform float uPulse; uniform float uStep; uniform float uGain; uniform float uFar; uniform vec3 uColor;
 varying float vU; varying float vV; varying float vStrand; varying float vStack;
 void main() {
   if (mod(vStrand, uStep) > 0.5) discard;
@@ -45,7 +45,8 @@ void main() {
   float ends = smoothstep(0.0, 0.07, vU) * (1.0 - smoothstep(0.94, 1.0, vU));
   float wave = 0.5 + 0.5 * sin(uTime * 1.25 - vStack * 6.2832);
   float pulse = mix(0.9, 0.65 + 0.55 * wave * wave, uPulse);
-  float k = (0.6 + 1.9 * tail * tail + 4.2 * head) * across * ends * pulse * uGain;
+  // far away (the package small on screen) the sheet and especially the heads get brighter; the close-up is unchanged
+  float k = (0.6 * (1.0 + 0.5 * uFar) + 1.9 * tail * tail + 4.2 * (1.0 + 0.9 * uFar) * head) * across * ends * pulse * uGain;
   vec3 c = mix(uColor, vec3(1.0, 0.93, 1.0), head * 0.6);
   gl_FragColor = vec4(c * k, 1.0);
 }`;
@@ -102,16 +103,20 @@ export function hbmWaterfall({ stacks, color: css = '#b08cff', strandWidth = 0.0
   g.setAttribute('aSide', new THREE.Float32BufferAttribute(aSide, 3));
   g.setIndex(idx);
   const color = new THREE.Color(css);
-  const common = { uTime: { value: 0 }, uPulse: { value: reduced ? 0 : 1 }, uGain: { value: 1 }, uColor: { value: color }, uPxK: { value: 0.001 } };
+  const common = { uTime: { value: 0 }, uPulse: { value: reduced ? 0 : 1 }, uGain: { value: 1 }, uColor: { value: color }, uPxK: { value: 0.001 }, uFar: { value: 0 } };
   const strandMat = new THREE.ShaderMaterial({ vertexShader: vert, fragmentShader: strandFrag, transparent: true, depthWrite: false, side: THREE.DoubleSide,
     blending: THREE.AdditiveBlending, toneMapped: false,
     uniforms: { ...common, uSpeed: { value: reduced ? 0.12 : 0.55 }, uStep: { value: 1 }, uHalf: { value: strandWidth / 2 }, uMinPx: { value: 2.0 } } });
   const strands = new THREE.Mesh(g, strandMat); strands.name = 'HBM waterfall strands (schematic)'; strands.renderOrder = 5; strands.frustumCulled = false;
   // world units per pixel per unit of depth, for the strands' minimum on-screen width
-  const _size = new THREE.Vector2();
+  const _size = new THREE.Vector2(), _mid = new THREE.Vector3();
+  const centre = new THREE.Vector3(); { const b = new THREE.Box3().setFromBufferAttribute(g.attributes.position); b.getCenter(centre); }
   strands.onBeforeRender = (renderer, _s, camera) => {
     renderer.getDrawingBufferSize(_size);
     common.uPxK.value = camera.isPerspectiveCamera ? 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / Math.max(1, _size.y) : 0;
+    // 0 at a close-up (camera within about 9 units of the sheets), 1 at the overview (15 units and more)
+    const d = camera.position.distanceTo(_mid.copy(centre).applyMatrix4(strands.matrixWorld));
+    common.uFar.value = THREE.MathUtils.smoothstep(d, 9, 15);
   };
   const pg = new THREE.BufferGeometry();
   pg.setAttribute('position', new THREE.Float32BufferAttribute(poolPos, 3));
