@@ -69,7 +69,7 @@ export function build({ quality, state, authoredHardware = false }) {
   const conductor = new THREE.MeshStandardMaterial({ name: 'Twinax conductor copper', color: 0xe0a080, metalness: 0.75, roughness: 0.32 });
   const drain = new THREE.MeshStandardMaterial({ name: 'Tinned drain wire', color: 0xc9ccd0, metalness: 0.85, roughness: 0.3 });
   const solder = new THREE.MeshStandardMaterial({ name: 'Solder fillet', color: 0xd9dbde, metalness: 0.85, roughness: 0.22 });
-  const heads = [], powerGlows = [], heatGlows = [];
+  const heads = [], powerGlows = [], heatGlows = [], powerDraw = [];
   COPPER_HEADS.forEach(([kind, hx]) => {
     if (!authoredHardware) {
     S.box(HW, 0.12, HL, MAT.darkSteel, hx, 0, zc);
@@ -174,10 +174,7 @@ export function build({ quality, state, authoredHardware = false }) {
       }
       const pad = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), new THREE.MeshBasicMaterial({ map: softTex(), color: f.base.color.clone().multiplyScalar(2.2), transparent: true, opacity: 0.6, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending }));
       pad.rotation.x = -Math.PI / 2; pad.position.set(hx, cardTop + 0.006, padRear + 0.12);
-      // where the power is spent: a soft halo on the card around the active package
-      const halo = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({ map: softTex(), color: f.base.color.clone().multiplyScalar(1.6), transparent: true, opacity: 0.22, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending }));
-      halo.rotation.x = -Math.PI / 2; halo.scale.set(chip.w * 0.95, chip.d * 1.1, 1); halo.position.set(chip.x, cardTop + 0.0065, chipZ);
-      line.add(pad, halo); line.userData.pad = pad; line.userData.halo = halo; line.visible = false;
+      line.add(pad); line.userData.pad = pad; line.visible = false;
       scene.add(line); powerGlows.push(line);
     }
     // Energy transfer, not coolant or a claimed thermal-interface construction. The display gap to the lifted cover
@@ -203,6 +200,10 @@ export function build({ quality, state, authoredHardware = false }) {
       g.userData = { glow, haze, x: chip.x, z: chipZ, top, w: chip.w, k: chipK };
       scene.add(g); heatGlows.push(g);
     }
+    // where the power is spent: the shared power-draw glow on the card around the active package (src/power-glow.js);
+    // the passive DAC end's 0.1 W is under the rule's threshold and draws none
+    powerDraw.push({ id: kind, part: kind, watts: PART_W.copper[kind], at: chip ? [chip.x, cardTop + 0.0065, chipZ] : [hx, cardTop + 0.0065, chipZ],
+      size: chip ? [chip.w, chip.d] : [0.4, 0.4] });
     heads.push({ kind, x: hx, chip });
   });
   scene.add(S.build()); scene.add(N.build({ cast: false }));
@@ -232,7 +233,7 @@ export function build({ quality, state, authoredHardware = false }) {
     if (h.chip) heatHotspots[h.kind] = hs[h.kind];
   }
   return {
-    scene, flows, dataFlows, heatFlows,
+    scene, flows, dataFlows, heatFlows, powerDraw,
     camera: { pos: [0, 12.5, 14], target: [0, 0.9, 0], near: 0.05, far: 300, min: 1.5, max: 60, portrait: { pos: [0, 18, 22], target: [0, 0.6, 0.5] } },
     hotspots: { dac: hs.dac, acc: hs.acc, aec: hs.aec },
     dataHotspots: { dac: hs.dac, acc: hs.acc, aec: hs.aec },
@@ -244,7 +245,6 @@ export function build({ quality, state, authoredHardware = false }) {
         if (on) {
           const k = 0.8 + 0.2 * Math.sin(t * 3.2);
           g.userData.pad.scale.setScalar(k); g.userData.pad.material.opacity = 0.35 + 0.35 * k;
-          g.userData.halo.material.opacity = 0.14 + 0.12 * (0.5 + 0.5 * Math.sin(t * 3.2 - 1.2));
         }
       }
       warm.intensity = on ? 1.4 : 0;

@@ -16,7 +16,8 @@ import { addLineTerminalCutaway } from './dwdm-terminal.js';
 import { campusMarks } from './electrical-marks.js';
 import { campusSigns } from './site-signs.js';
 import { preloadCampusTransformer, hasCampusTransformer, campusTransformerInstances } from './campus-blender-transformer.js';
-import { tagHeat, balanceHeat, heatIntensity } from '../heat.js';
+import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
+import { ledgerW } from '../power-glow.js';
 export const preload = () => Promise.all([preloadCampusArchitecture(), preloadCampusCatalog(), preloadSiteConstruction(), preloadCampusVehicles(), preloadCampusTransformer()]);
 
 export function build({ quality, model }) {
@@ -936,8 +937,21 @@ export function build({ quality, model }) {
   };
   const campusWide={...wideView(1.6,35),compact:wideView(947/850,35),portrait:wideView(.55,48)};
   finalizeSiteGeometry(scene);
+  // The power layer's glow (src/power-glow.js), on the ground round each footprint: every data hall (the detailed two
+  // and the expansion envelopes) by its IT share; the main transformers, e-houses and unit substations by their
+  // share of the ledger's losses; the dry coolers or the chiller plant by the cooling overhead; the towers' fans by
+  // PART_W.facility. Generators and batteries stand by, and lines carry power, so none of them glows.
+  const PD = [], at = m => [m.elements[12], 0.46, m.elements[14]];   // on the unit substations' pads (top 0.45)
+  hallList.forEach((h, i) => PD.push({ id: `hall-${i}`, part: 'hall', volt: 'mv', watts: hallW, at: [(hallX0 + hallX1) / 2, 0.2, (h.z0 + h.z1) / 2], size: [hallX1 - hallX0, h.z1 - h.z0], margin: 14 }));
+  if (extra) { const z0 = -55 - (perCol - 1) * 120 / 2; for (let i = 0; i < extra; i++) PD.push({ id: `hall-x${i}`, part: 'hall', volt: 'mv', watts: hallW, at: [750 + Math.floor(i / perCol) * 320, 0.2, z0 + (i % perCol) * 120], size: [260, 90], margin: 14 }); }
+  mptZ.forEach((z, i) => PD.push({ id: `mpt-${i}`, part: 'mpt', watts: ledgerW(model, 1, 'mpt') / Math.max(1, L.transformers), at: [mptX, 0.7, z], size: [6.8, 10.2] }));
+  [-178, -122].forEach((z, i) => PD.push({ id: `ehouse-${i}`, part: 'ehouse', volt: 'mv', watts: ledgerW(model, 1, 'ehouse') / 2, at: [-378, 0.45, z], size: [13, 38] }));
+  unitSubMx.forEach((m, i) => PD.push({ id: `unitsub-${i}`, part: 'unitsubs', volt: 'mv', watts: ledgerW(model, 2, 'unitsub') / Math.max(1, L.unitSubs), at: at(m), size: [2.6, 3.2] }));
+  if (warm) coolerMx.forEach((m, i) => PD.push({ id: `cooler-${i}`, part: 'drycoolers', volt: 'mv', watts: model.coolMW * 1e6 / Math.max(1, L.dryCoolers), at: [m.elements[12], 22.2, m.elements[14]], size: [12, 2.6] }));
+  else PD.push({ id: 'chillers', part: 'chillers', volt: 'mv', watts: model.coolMW * 1e6 * nHalls / Math.max(1, model.halls), at: [plantX, 0.2, -245], size: [60, 18], margin: 8 });
+  towerRows.forEach(tz => { for (let i = 0; i < 6; i++) PD.push({ id: `tower-${tz}-${i}`, part: 'towers', volt: 'mv', watts: PART_W.facility.fans * towerW / (6 * towerRows.length), at: [15 + i * 12, 0.2, tz], size: [10, 10] }); });
   const built = {
-    scene, flows,
+    scene, flows, powerDraw: PD,
     cinematography: { compactPins: true, views: {
       campus: extra ? campusWide : { pos: [560, 240, 670], target: [-40, 10, -70], portrait: { pos: [650, 360, 780], target: [-60, 15, -50] } },
       infrastructure: extra

@@ -15,7 +15,7 @@ import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, label,
 import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes, CPO_VARIANTS, CPO_RING, eicBox, frameToLocal } from './side-geometry.js';
 import { ringEicTex, cpoIntro, cpoPartCopy } from './cpo-variants.js';
 import { roundCorners, keepCwCorner, CW_BEND, CPO_AUDIT as AU } from './side-cpo-routes.js';
-import { buildBailly, BAILLY_DETAIL } from './cpo-bailly.js';
+import { buildBailly, BAILLY_DETAIL, MY } from './cpo-bailly.js';
 import { tagHeat, balanceHeat, PART_W } from '../heat.js';
 export { roundCorners, keepCwCorner };
 
@@ -273,6 +273,19 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
       heat: bailly.heatHotspots,
     },
   };
+  // The power layer's glow (src/power-glow.js): the switch chip, each engine or tile, and each laser module that
+  // lights one, on the interposer or board under it. Both packages keep one reference (the switch chip), and the
+  // toggle switches the other package's parts off.
+  const pw = PART_W.cpo, onSlab = Y.inter + 0.056, lit = list => new Set(list.map(e => e.els));
+  const powerDraw = [
+    ...CPO_VARIANTS.map(k => ({ id: k === 'ring' ? 'asic' : 'mzm-asic', part: k === 'ring' ? 'asic' : 'mzm-asic', variants: [k], watts: pw.asic, at: [0, onSlab, 0], size: [ASIC_HALF * 2, ASIC_HALF * 2] })),
+    ...engines.map((e, i) => ({ id: `engine-${i}`, part: 'engine', variants: ['ring'], watts: pw.engine, volt: 'v33', at: [e.x, Y.eng - 0.035, e.z], size: [1.35, 0.95], yaw: -e.rot })),
+    ...bailly.tiles.map((t, i) => ({ id: `tile-${i}`, part: 'mzm-engine', variants: ['mzm'], watts: pw.tile, volt: 'v33', at: [t.x, MY - 0.035, t.z], size: [t.L, t.W], yaw: -t.rot })),
+    ...CPO_VARIANTS.flatMap(k => els.map(([x, z], i) => ({ id: `${k}-els-${i}`, part: k === 'ring' ? 'els' : 'mzm-laser', variants: [k], watts: lit(k === 'ring' ? engines : bailly.tiles).has(i) ? pw.els : 0,
+      volt: 'v33', at: [x, Y.sub + 0.005, z], size: [1.9, 1.1] }))),
+  ];
+  const glowActive = p => !p.variants || p.variants.includes(kind);
+  let builtRef = null;
   let kind = 'ring';
   const viewSprites = scene.children.filter(o => o.isSprite && o.userData.cpoVariant);
   function setVariant(next) {
@@ -280,10 +293,12 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     for (const k of CPO_VARIANTS) views[k].group.visible = views[k].flowGroup.visible = k === kind;
     coolingHardware.visible = kind === 'ring';
     for (const sprite of viewSprites) sprite.visible = sprite.userData.cpoVariant === kind;
+    builtRef?.powerGlow?.setActive(glowActive);
   }
   setVariant('ring');
-  return {
+  return builtRef = {
     scene, flows, dataFlows, heatFlows, coolingHardware,
+    powerDraw, powerDrawRef: pw.asic, powerDrawActive: glowActive,
     variant: {
       get kind() { return kind; }, set: setVariant, views, bailly,
       intro: mode => cpoIntro(kind, mode),

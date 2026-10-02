@@ -13,6 +13,7 @@ import { nicLabel, labelLines } from './lid-labels.js';
 import { etch, GPU_NAME } from './package-marks.js';
 import { DGX } from './dgx-h100-layout.js';
 import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
+import { FABRICS } from '../model/engine.ts';
 
 // Printed lid labels on the modules seated in the NIC cages: the scenario's NIC-side class (lid-labels.js).
 export function trayLidLabels(scene, accel, placements, size) {
@@ -573,12 +574,35 @@ function buildHGX({ quality, model }) {
   const midV = { pos: [connX[3], 1.05, ZM - 0.05], view: { pos: [4.2, 1.6, 2.0], target: [1.2, 1.0, ZM - 0.05] } };
   const nvmeV = { pos: [driveX[3], 0.4, ZF], view: { pos: [2.6, 0.9, 7.6], target: [1.2, 0.27, ZF - 0.2] } };
   const card2 = cards.find(c => c.slot === 2);
+  // The power layer's glow (src/power-glow.js), on the heat layer's watts: GPUs and their regulator columns,
+  // NVSwitches, PCIe switches, bus converters, CPUs with their regulator rows, DIMM banks, ConnectX-7s, the PCIe
+  // cards' NICs, the supplies' loss, and the rack's drive, fan and management power over the fans and drives evenly.
+  const PD = [], A_ = model.accel, perServer = A_.gpusPerRack / 8, gpuLoss = A_.gpuW * (1 / A_.vrmEff - 1);
+  gpus.forEach(([x, z], i) => {
+    PD.push({ id: `gpu-${i}`, part: 'gpu', watts: A_.gpuW, volt: 'core', at: [x, gy + 0.004, z], size: [0.9, 1.4] });
+    for (const s of [-1, 1]) PD.push({ id: `vrm-${i}-${s}`, part: 'vrm', watts: gpuLoss / 2, at: [x + s * 0.4, fy + 0.067, z], size: [0.1, 1.26] });
+  });
+  swX.forEach((x, k) => PD.push({ id: `nvswitch-${k}`, watts: PW.nvswitch, at: [x, gy + 0.004, swZ], size: [0.9, 1.1] }));
+  PD.push({ id: 'pcie-hgx', watts: PW.pcieSwitch, at: [DGX.hgxPcie[0], gy + 0.004, DGX.hgxPcie[1]], size: [0.36, 0.36] });
+  pcieX.forEach((x, k) => PD.push({ id: `pcie-${k}`, watts: PW.pcieSwitch, at: [x, my + 0.004, pcieZ], size: [0.32, 0.32] }));
+  DGX.ibcs.forEach(([x, z, w], k) => PD.push({ id: `ibc-${k}`, part: 'ibc', watts: model.rack.ibcLossKW * 1000 / perServer / DGX.ibcs.length, at: [x, gy + 0.004, z], size: [w, 0.36] }));
+  cpuX.forEach((x, k) => {
+    PD.push({ id: `cpu-${k}`, part: 'cpu', watts: PW.cpu, volt: 'core', at: [x, my + 0.004, cpuZ], size: [0.74, 0.7] });
+    PD.push({ id: `cpu-vrm-${k}`, part: 'vrm', watts: PW.cpu * (1 / A_.vrmEff - 1), at: [x + Math.sign(x) * (DGX.cpuVrmX[0] + 0.18), my + 0.004, cpuZ + 0.53], size: [0.45, 0.1] });
+  });
+  bankX.forEach((bx, k) => PD.push({ id: `dimm-bank-${k}`, part: 'dimm', watts: 8 * PW.dimm, at: [bx, my + 0.004, cpuZ], size: [8 * DGX.dimmPitch, DGX.dimmLen] }));
+  cxPts.forEach(([x, z], k) => PD.push({ id: `connectx7-${k}`, part: 'nic', watts: PW.connectx7, at: [x, ny + 0.004, z], size: [0.6, 0.56] }));
+  cards.filter(c => c.slot !== 4).forEach((c, k) => PD.push({ id: `card-nic-${k}`, part: 'nic', watts: PW.connectx7, at: [c.x + Math.sign(c.x) * 0.15, c.y + 0.012, DGX.cardZ + 0.35], size: [0.34, 0.34] }));
+  for (let i = 0; i < 6; i++) PD.push({ id: `psu-${i}`, part: 'psu', watts: PW.psuLoss, volt: 'lv', at: [psuX(i), 0.032, ZB + 1.2], size: [0.68, 2.4] });
+  const fansDrives = fanX.length * fanY.length + DGX.driveX.length * DGX.driveY.length, otherEach = A_.otherKW * 1000 / perServer / fansDrives;
+  fanY.forEach((y, r) => fanX.forEach((x, k) => PD.push({ id: `fan-${r}-${k}`, part: 'fans', watts: otherEach, at: [x, y, ZF - 0.36], size: [1.04, 0.96], normal: [0, 0, 1], fill: 0.04 })));
+  DGX.driveX.forEach((x, k) => DGX.driveY.forEach((y, r) => PD.push({ id: `drive-${k}-${r}`, part: 'nvme', watts: otherEach, at: [x, y - 0.068, ZF - 0.62], size: [0.74, 1.0] })));
   finishCompute(scene, finish);
   scene.userData.dgxCables = cbl;
   scene.userData.computeGeneration = { id: 'h100', gpus: 8, cpus: 2, fans: 12, fanRotors: rotors.length, dimms: 32, drives: 8, psus: 6, dpuCount: 0, nicCount: 8, networkModules: 2, densiLinkCables: cbl.length, storageNicCount: 2, opticalPorts: 4, pcieSwitches: 3, midplane: true, trays: ['GPU tray (top)', 'motherboard tray', 'power supplies (bottom)'], representative: true };
   return {
     printSpots: [etch('GPU package marking', GPU_NAME.h100, [.16, .036], gpus.map(([x, z]) => ({ from: [x, fy + .104, z + .188], dir: [0, -1, 0] })))],
-    scene, flows,
+    scene, flows, powerDraw: PD,
     look: { env: 'studio', envIntensity: 0.5, exposure: 0.95, bloom: 0.38, threshold: 2.0, ao: 0.14, dof: true },
     camera: { pos: [9.2, 6.4, 6.6], target: [0, 1.4, -0.2], near: 0.02, far: 400, min: 1, max: 30 },
     hotspots: {
@@ -923,6 +947,29 @@ function buildNVL({ quality, model }) {
   const shimmer = heavy ? plumes(warmTops.map(p => ({ p, dir: [0, 1, 0] })), { perEmitter: 8, size: 0.13, grow: 2.0, life: 1.8, rise: 0.3, drift: [0.03, 0, 0.015], spread: 0.14, color: '#ffddb0', opacity: heatIntensity(0.1, ibcW, gpuW), additive: true }) : null;
   if (shimmer) scene.add(shimmer.points);
 
+  // The power layer's glow (src/power-glow.js): every part on the tray that draws power, on its own watts. The GPUs,
+  // Grace and its memory from the model; each regulator column and row its share of the GPU's conversion loss;
+  // each bus converter its share of the rack's; the rack's NIC and DPU power over the tray's NIC chips and DPUs, its
+  // drive, fan and management power over the drives and fans, evenly; each module its fabric allowance.
+  const PD = [], A_ = model.accel, onBoard = floorY + 0.022;
+  const lp = PART_W.superchip.lpddr, ringW = A_.gpuW * (1 / A_.vrmEff - 1);
+  gpus.forEach(([x, z], i) => {
+    PD.push({ id: `gpu-${i}`, part: 'gpu', watts: A_.gpuW, volt: 'core', at: [x, onBoard, z], size: [0.95, 0.95] });
+    for (const s of [-1, 1]) PD.push({ id: `vrm-${i}-${s}`, part: 'vrm', watts: ringW * 8 / 22, at: [x + s * 0.67, onBoard, z], size: [0.22, 0.95] });
+    PD.push({ id: `vrm-${i}-rear`, part: 'vrm', watts: ringW * 6 / 22, at: [x, onBoard, z - 0.57], size: [0.82, 0.2] });
+  });
+  cpus.forEach(([x, z], i) => {
+    PD.push({ id: `cpu-${i}`, part: 'grace', watts: A_.cpuW - 8 * lp, volt: 'core', at: [x, onBoard, z], size: [0.62, 0.62] });
+    for (const side of [-1, 1]) for (let k = 0; k < 4; k++) PD.push({ id: `lpddr-${i}-${side}-${k}`, part: 'lpddr', watts: lp, at: [x + side * 0.55, onBoard, z - 0.36 + k * 0.24], size: [0.16, 0.2] });
+  });
+  ibcX.forEach((x, i) => PD.push({ id: `ibc-${i}`, part: 'ibc', watts: model.rack.ibcLossKW * 1000 / 18 / ibcX.length, at: [x, onBoard, ZB + 0.85], size: [0.62, 0.5] }));
+  const nicEach = A_.nicKW * 1000 / 18 / (nicCardX.length + dpuX.length), otherEach = A_.otherKW * 1000 / 18 / (4 + 6);
+  nicCardX.forEach((x, i) => PD.push({ id: `nic-${i}`, part: 'nic', watts: nicEach, at: [x, floorY + 0.212, ZF - 1.2], size: [0.3, 0.5] }));
+  dpuX.forEach((x, i) => PD.push({ id: `dpu-${i}`, part: 'nic', watts: nicEach, at: [x, floorY + 0.212, 3.65], size: [0.3, 0.65] }));
+  for (let i = 0; i < 4; i++) PD.push({ id: `drive-${i}`, part: 'nic', watts: otherEach, at: [-1.95 + i * 0.26, floorY + 0.002, ZF - 0.6], size: [0.22, 1.1] });
+  for (let i = 0; i < 6; i++) PD.push({ id: `fan-${i}`, watts: otherEach, at: [-1.9 + i * 0.76 + 0.19, floorY + 0.002, ZF - 1.95], size: [0.38, 0.3] });
+  nicX.forEach((x, i) => PD.push({ id: `osfp-${i}`, part: 'osfp', watts: FABRICS[A_.nicPortGbps].gpuModuleW, volt: 'v33', at: [x, 0.172, ZF - 0.28], size: [0.2, 0.5] }));
+
   const [g0x, g0z] = gpus[1];
   // GPU close-up: from the front, in the gap between the board and the lifted
   // plates, looking down on the package (dies and HBM), as on H100 and Rubin.
@@ -936,7 +983,7 @@ function buildNVL({ quality, model }) {
       ...(ultra ? [{ name: 'E1.S drive capacity', lines: [{ text: 'E1.S', size: .34, weight: 700 }, { text: '7.68 TB', size: .4, weight: 700 }],
         text: { px: 96, aspect: 1.6, ink: '#c9cfd6', align: 'center', pad: .04 }, size: [.11, .068],
         spots: [0, 1, 2, 3].map(i => ({ from: [-1.95 + i * 0.26, .29, ZF + .7], dir: [0, 0, -1] })), material: { roughness: .5 } }] : [])],
-    scene, flows,
+    scene, flows, powerDraw: PD,
     look: { env: 'studio', envIntensity: 0.5, exposure: 0.98, bloom: 0.36, threshold: 2.0, ao: 0.12, dof: true },
     camera: { pos: [5.9, 6.4, 8.3], target: [0, 0.1, -0.5], near: 0.02, far: 400, min: 1, max: 30 },
     hotspots: {

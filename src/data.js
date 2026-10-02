@@ -1096,6 +1096,7 @@ export function content(M) {
   // ---------- heat-mode parts per scene. Positions come from each scene's heatHotspots ----------
   // every heat layer draws its motion on one rule (src/heat.js); the cards that compare parts carry it
   const heatScale = ['Heat drawn', 'log scale, each 10× in power 5× the motion; none under 0.5 W', 'assumed', { assume: 'heat-visual-scale' }];
+  const glowScale = ['Glow drawn', 'log scale, each 10× in power 5× the glow; none under 0.5 W', 'assumed', { assume: 'power-glow-scale' }];
   const PARTS_HEAT = {
     across: [
       { id: 'climate', title: 'Climate picks sites', kicker: 'Heat stays local',
@@ -1534,9 +1535,9 @@ export function content(M) {
     { id: 'aec', title: 'Active Electrical Cable (AEC)', kicker: 'A retimer in each end', body: 'Each end holds a DSP retimer, the same general kind of chip an optical module uses on its electrical side, for both directions: it recovers the clock and rebuilds the signal. That reaches several meters, at several times the power.', specs: [aecChip, aecW, headLay] },
   ];
   PARTS.copper = [
-    { id: 'dac', title: 'Direct Attach Copper (DAC)', kicker: 'About 0.1 W per end', body: 'No redriver or retimer to power; the plug’s small ID memory draws a little. NVIDIA’s documented GB200 NVL72 spine is passive copper too, as fixed cable cartridges rather than pluggable cables.', specs: [dacW, dacNone, spinePassive] },
-    { id: 'acc', title: 'Active Copper Cable (ACC)', kicker: 'A couple of watts', body: 'One small analog chip in the plug, powered from the port.', specs: [accW, accChip] },
-    { id: 'aec', title: 'Active Electrical Cable (AEC)', kicker: 'A DSP in each end', body: 'Two DSP retimers per cable, one in each plug, each drawing power from its port.', specs: [aecW, aecChip] },
+    { id: 'dac', title: 'Direct Attach Copper (DAC)', kicker: 'About 0.1 W per end', body: 'No redriver or retimer to power; the plug’s small ID memory draws a little. NVIDIA’s documented GB200 NVL72 spine is passive copper too, as fixed cable cartridges rather than pluggable cables.', specs: [dacW, dacNone, spinePassive, glowScale] },
+    { id: 'acc', title: 'Active Copper Cable (ACC)', kicker: 'A couple of watts', body: 'One small analog chip in the plug, powered from the port.', specs: [accW, accChip, glowScale] },
+    { id: 'aec', title: 'Active Electrical Cable (AEC)', kicker: 'A DSP in each end', body: 'Two DSP retimers per cable, one in each plug, each drawing power from its port.', specs: [aecW, aecChip, glowScale] },
   ];
   PARTS_HEAT.copper = [
     { id: 'acc', title: 'Redriver heat', kicker: 'A couple of watts', body: 'The analog redriver draws power from the port and warms the plug. Moving marks show heat reaching the case and surroundings, less of it than from the AEC’s retimer. The case is lifted for inspection: the display gap is not a real thermal interface.', specs: [accW, accChip, heatScale, headLay] },

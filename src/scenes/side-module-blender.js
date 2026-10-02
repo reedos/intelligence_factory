@@ -9,6 +9,7 @@ import { moduleLabel, moduleTier } from './lid-labels.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
 import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
 import { hardwareBounds, componentView } from '../app/housing-frame.js';
+import { footprint } from '../power-glow.js';
 
 let cached, pending;
 const CM = 100;
@@ -371,7 +372,12 @@ export function build({ quality, state, model: scenario }) {
     lroMark.visible = kind === 'lro'; if (dspCapacity) dspCapacity.visible = kind === 'dsp';   // the 800G overlay sits outside the DSP group, so LPO hides it here too
     setLabelLpo?.(lpo);   // the lid print names the variant: the scenario's switch label, or ... LPO (LRO keeps the plain print: no source names it on a lid)
     syncFlows();
+    builtRef?.powerGlow?.setActive(glowActive);
   }
+  // the power layer's glow (src/power-glow.js): a part the variant lacks is switched off; the full DSP stays the
+  // reference in every variant, as in heat, so the LRO DSP glows less and the LPO view has no DSP glow at all
+  let builtRef = null;
+  const glowActive = p => !p.variants || p.variants.includes(kind);
   const setLpo = on => setVariant(on ? 'lpo' : 'dsp');
   // a flow's direction for the LRO split: receive lanes, and the DSP heat arrows on its receive side
   const rxFlow = f => /^RX-/.test(f.route.id) || /^heat-dsp-[012]$/.test(f.route.id);
@@ -430,11 +436,31 @@ export function build({ quality, state, model: scenario }) {
     const focus = hs.dsp.view.focus, target = [focus[0], focus[1] + 0.55, focus[2]];
     return { pos: [target[0] - 1.0, target[1] + 1.1, target[2] + 3.4], target, focus: [...focus], detailSize: [2.35, 1.3, 1.8] };
   })() };
+  // Each part's footprint on the board, in the board overlay's frame so the glow travels with the board as the
+  // module assembles. Two point-of-load stages, one each side of the line bus, share the converters' ≈2 W.
+  const fp = (name, keep) => {
+    const f = footprint(object(name), { keep, into: boardOverlay });
+    if (!f) throw new Error(`Blender module has no footprint for ${name}`);
+    return f;
+  };
+  const P = PART_W.module, powerDraw = [
+    { id: 'dsp', watts: P.dsp, variants: ['dsp'], ...fp('PART_DSP') },
+    { id: 'dsp-lro', part: 'dsp', watts: P.lroDsp, variants: ['lro'], ...fp('PART_DSP') },
+    { id: 'driver', watts: P.driver, ...fp('PART_DRIVER') },
+    { id: 'tia', watts: P.tia, ...fp('PART_TIA') },
+    { id: 'lasers', watts: P.lasers, ...fp('PART_LASERS') },
+    // the stages: controller to east inductor along x, one each side (the authored converter meshes are merged
+    // across both, so the footprint comes from the anchors the power routes use)
+    ...[1, -1].map(s => ({ id: `dcdc-${s > 0 ? 'a' : 'b'}`, part: 'dcdc', watts: P.dcdc / 2,
+      at: [(ctrlX + eastX) / 2, fingers[1] + 0.004, s * stageZ], size: [eastX - ctrlX + 0.2, 0.42] })),
+  ];
   setLpo(false);
   scene.userData.blenderModule = { version: metadata.version, units: 'cm', source: 'osfp-module-runtime.glb',
     tier: tier.key, scope: `Representative single-DSP implementation: eight ${tier.lane} lanes per direction, split across two ${tier.port} optical ports. Exterior informed by public OSFP photographs. Exploded spacing; internals are illustrative.` };
   const built = {
     scene, flows, dataFlows, heatFlows, look,
+    powerDraw, powerDrawRef: P.dsp, powerDrawParent: boardOverlay, powerDrawActive: glowActive,
+    powerDrawWhen: () => amount === 1 && targetAmount === 1,
     housingBounds: hardwareBounds(model).union(captionBounds),
     camera: { pos: quality.mobile ? [1.6, 13.5, 20.5] : [1.6, 12, 17.5], target: [0.5, 2.1, 0], near: 0.05, far: 300, min: 1.2, max: 40,
       portrait: { pos: [4.2, 9.5, 12], target: [0.9, 2.1, 0.2] } },
@@ -490,5 +516,6 @@ export function build({ quality, state, model: scenario }) {
     },
   };
   attachFlowRibbons(built, { width: 1.45, glow: 3.5, brightness: 2.8, mobile: quality.mobile });
+  builtRef = built;
   return built;
 }
