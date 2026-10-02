@@ -112,9 +112,12 @@ export function build({ quality, model }) {
   const phaseSpans = spans.filter(s => s.i < 6), shieldSpans = spans.filter(s => s.i >= 6);
   scene.add(wires(phaseSpans.flatMap(s => [bundle(s.pts, -0.225), bundle(s.pts, 0.225)]), 0x3a4048));
   scene.add(wires(shieldSpans.map(s => s.pts), 0x1b1d20));
+  const spacers = new Map();                                     // per phase: the spacer-damper boxes its conductor runs through
   for (const s of phaseSpans) for (let k = 1; k < 6; k++) {
     const u = k / 6, p = s.pts[Math.round(u * (s.pts.length - 1))];
     N.box(0.08, 0.08, 0.5, MAT.alu, p[0], p[1], p[2]);
+    if (!spacers.has(s.i)) spacers.set(s.i, []);
+    spacers.get(s.i).push([p[0] - 1, p[1] - 0.6, p[2] - 0.4, p[0] + 1, p[1] + 0.6, p[2] + 0.4]);
   }
   // concrete pier caps under the four legs of every tower
   for (const x of towerXs) for (const dx of [-4.5, 4.5]) for (const dz of [-4.5, 4.5]) S.cyl(0.7, 0.6, MAT.concrete, x + dx, 0.3, towerZ + dz, 16);
@@ -134,7 +137,7 @@ export function build({ quality, model }) {
     const path = [];
     for (let t = towerXs.length - 1; t > 0; t--) path.push(...catenary(tipAt(towerXs[t], tipIdx), tipAt(towerXs[t - 1], tipIdx), 10, 12).slice(0, -1));
     path.push(...landing[c * 3 + p].pts);
-    flows.push(flow(path, 'hv', { count: 70, speed: 140, size: 0.8, trail: false }));
+    flows.push(flow(path, 'hv', { count: 70, speed: 140, size: 0.8, trail: false, audit: { within: spacers.get(tipIdx) || [], why: 'the conductor runs through its spacer-damper clamps' } }));
   }
 
   // ---------- substation yard ----------
@@ -246,7 +249,8 @@ export function build({ quality, model }) {
   // HV flows inside the yard
   for (let c = 0; c < 2; c++) for (let p = 0; p < 3; p++) {
     const z = circuitZ[c] + phaseZ[p], bz = breakerZ[c * 3 + p];
-    flows.push(flow([[gantryX, gantryH - 1.5, z], [gantryX + 21, 7, z], [gantryX + 36, 6.6, bz], [busX, busY, bz]], 'hv', { count: 6, speed: 40, size: 0.35, trailR: 0.08 }));
+    flows.push(flow([[gantryX, gantryH - 1.5, z], [gantryX + 21, 7, z], [gantryX + 36, 6.4, bz], [busX, busY, bz]], 'hv',
+      { count: 6, speed: 40, size: 0.35, trailR: 0.08, audit: { through: /#b8bfc6/, why: 'inside the overhead aluminium bus struts drawn on the same line' } }));
   }
   flows.push(flow([[busX, busY + 0.3, -222], [busX, busY + 0.3, -78]], 'hv', { count: 26, speed: 30, size: 0.35, trailR: 0.08 }));
   mptZ.forEach(z => flows.push(flow([[busX, busY, z], [mptX - 2.2, 12.5, z]], 'hv', { count: 5, speed: 20, size: 0.35, trailR: 0.08 })));
@@ -256,9 +260,9 @@ export function build({ quality, model }) {
   mptZ.forEach(z => flows.push(flow([[mptX + 2.6, 9, z], [-382, 5, z], [-382, 5, z > -150 ? -122 : -178]], 'mv', { count: 5, speed: 18, size: 0.4, trailR: 0.1 })));
   // Hall A's feeders run straight east from the yard to its unit-substation line (z -112), the shortest practical
   // route; they used to dip south to the spine road and double back north 50 m. Hall B's run under the spine road
-  // and south along x -40 to its own line (z 3). The duct bank continues from the yard edge as before.
-  const trunk = [[-374, uY, -150], [-340, uY, -150], [-340, uY, -62], [-40, uY, -62]];
-  const feederA = [[-374, uY, -150], [-340, uY, -150], [-340, uY, -112], [hallX1 - 5, uY, -112]];
+  // and south along x -40 to its own line (z 3). Both start a metre off the yard fence's post line.
+  const trunk = [[-374, uY, -151], [-340, uY, -151], [-340, uY, -62], [-40, uY, -62]];
+  const feederA = [[-374, uY, -151], [-340, uY, -151], [-340, uY, -112], [hallX1 - 5, uY, -112]];
   flows.push(flow(feederA, 'mv', { count: 52, speed: 60, size: 1.05, trailR: 0.38 }));
   // the spine-road trunk also carries the battery yard's tie and the expansion halls' feed
   flows.push(flow(trunk, 'mv', { count: 40, speed: 60, size: 0.9, trailR: 0.35 }));
@@ -616,11 +620,12 @@ export function build({ quality, model }) {
   N.slab(1.4,1.2,.6,MAT.darkSteel,borderX-6.5,1.2,borderZ);N.slab(1.4,1.2,.6,MAT.darkSteel,borderX-6.5,1.2,borderZ-2);
   }
   N.cyl(.15,9,MAT.galv,borderX-1,4.5,borderZ+3,6);
+  // each long-haul route runs into its line-terminal hut (the shelter) and on from it, so it passes through the hut
   const entranceRoutes = [];
-  const dci = (pts, n, entrance) => { if (entrance) entranceRoutes.push(pts); dataFlows.push(flow(pts, 'dci', { count: n, speed: 45, size: 0.9, k: 2.2, trailK: 0.35, trailR: 0.3 })); };
+  const dci = (pts, n, entrance) => { if (entrance) entranceRoutes.push(pts); dataFlows.push(flow(pts, 'dci', { count: n, speed: 45, size: 0.9, k: 2.2, trailK: 0.35, trailR: 0.3, audit: { through: /SHELTER/, why: 'through its line-terminal hut' } })); };
   dci([[fiberA[0], 0.7, 900], [fiberA[0], 0.7, fiberA[1]]], 40);
   dci([[fiberB[0], 0.7, -1100], [fiberB[0], 0.7, fiberB[1]]], 40);
-  dci([[fiberA[0], 0.7, fiberA[1]], [hutA[0], 0.7, hutA[1]], [hutA[0], 0.7, 150], [-40, 0.7, 150], [-40, 0.7, nHalls > 1 ? 108 : -120], ...(nHalls > 1 ? [] : [[hallX0 + 4, 0.7, -120], [hallX0 + 4, 0.7, hallA.z1]])], 16, true);
+  dci([[fiberA[0], 0.7, fiberA[1]], [hutA[0], 0.7, hutA[1]], [hutA[0], 0.7, 150], [-46, 0.7, 150], [-46, 0.7, nHalls > 1 ? 108 : -120], ...(nHalls > 1 ? [] : [[hallX0 + 4, 0.7, -120], [hallX0 + 4, 0.7, hallA.z1]])], 16, true);
   dci([[fiberB[0], 0.7, fiberB[1]], [hutB[0], 0.7, hutB[1]], [hutB[0], 0.7, -240], [hallX1 + 10, 0.7, -240], [hallX1 + 10, 0.7, -212]], 16, true);
   scene.userData.campusFiber = { vaults: [fiberA, fiberB], huts: [hutA, hutB], routes: entranceRoutes, representative: true };
   // duct bank cutaway where the hall-to-hall route crosses open ground: concrete encasement, 3 × 4 conduits

@@ -173,7 +173,7 @@ export function addLineTerminalCutaway(group, { x: ox, z: oz, y: oy = 0.15, mobi
 
   // ---------- fibers ----------
   const lambdaMats = LAMBDA_CSS.map(c => glowMat(c, 2.2));
-  const line = glowMat('#ffd35c', 1.8), jr = 0.0026;
+  const line = glowMat('#ffd35c', 1.8), jr = 0.0026; line.name = 'Line fiber (lit)';   // the dci flow rides inside it (tools/flow-audit.mjs conduit)
   const trough = zFace + 0.07, troughY = mgrY + 0.01;
   // one jumper per pluggable: out of the module, down into the finger manager, across, up into its mux channel
   const chans = [3, 11, 19, 27, 35, 43, 51, 59];
@@ -188,7 +188,7 @@ export function addLineTerminalCutaway(group, { x: ox, z: oz, y: oy = 0.15, mobi
   const comPath = [com, [com[0] - 0.012, com[1] + 0.03, com[2] + 0.05], [add[0] - 0.02, add[1] - 0.05, add[2] + 0.05], add];
   fiber(G, comPath, 0.0034, line);
   const linePath = [lineOut, [lineOut[0] + 0.02, lineOut[1] + 0.05, lineOut[2] + 0.05], [xa + 0.21, ppA.y - 0.03, zFace + 0.06], [xa + 0.21, ppA.y + 0.06, zFace + 0.05],
-    [xa + 0.17, yF + rackH + 0.1, zFace - 0.05], [xa + 0.1, yL + 0.02, zL], [X0 + 0.4, yL + 0.03, zL], [X0 - 0.12, yL + 0.07, zL]];
+    [xa + 0.17, yF + rackH + 0.1, zFace - 0.05], [xa + 0.1, yL + 0.02, zL + 0.06], [X0 + 0.4, yL + 0.03, zL + 0.06], [X0 - 0.12, yL + 0.07, zL]];   // beside the drop rods, not through them
   fiber(G, linePath, 0.0042, line);
   // client side: yellow single-mode jumpers from the client modules up to the patch panel toward the halls, and on up
   const clientMats = [M.yellow];

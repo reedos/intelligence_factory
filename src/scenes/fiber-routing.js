@@ -2,7 +2,8 @@ import { THREE } from '../kit.js';
 
 export const FIBER_JACKET = 0xd3b940;
 export const RACK_RUNWAY = { x: .2, floorY: 3.62, cableY: 3.665, width: .3, length: 3.2, rimTop: 3.71 };
-export const HALL_RUNWAY = { floorY: 4.3, cableY: 4.36, rimTop: 4.4, entryY: 4.55 };
+// cables lie on the ladder's rungs (rung tops at 4.393) and pass over a crossing runway's rim, not through them
+export const HALL_RUNWAY = { floorY: 4.3, cableY: 4.41, rimTop: 4.4, entryY: 4.55 };
 
 // Rounded orthogonal cable runs: fixed corridors avoid spline overshoot into
 // neighboring trays. Corner radius is illustrative, not a cable SKU rating.

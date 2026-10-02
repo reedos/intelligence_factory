@@ -147,7 +147,7 @@ export function movers(build, paths, { speed = 5, perPath = 1 } = {}) {
     for (let k = 0; k < perPath; k++) list.push({ segs, L, off: (k / perPath + pi * 0.37) % 1 });
   });
   const g = new THREE.Group(), meshes = [];
-  for (const [mat, geo] of geos) { const m = new THREE.InstancedMesh(geo, mat, list.length); m.castShadow = true; m.receiveShadow = true; meshes.push(m); g.add(m); }
+  for (const [mat, geo] of geos) { const m = new THREE.InstancedMesh(geo, mat, list.length); m.castShadow = true; m.receiveShadow = true; m.userData.flowAuditIgnore = 'moving'; meshes.push(m); g.add(m); }   // traffic passes over a buried route; it is not one (tools/flow-audit.mjs)
   const o = new THREE.Object3D(), p = new THREE.Vector3();
   const update = t => {
     list.forEach((mv, i) => {

@@ -169,7 +169,11 @@ export function build({ quality, model }) {
   const pullTabMat = new THREE.MeshStandardMaterial({ color: 0x101215, roughness: 0.55, metalness: 0.1 });
   const mpoBody = new THREE.MeshStandardMaterial({ color: 0x2fb6c9, roughness: 0.4, metalness: 0.3 });
   const elsMetal = new THREE.MeshStandardMaterial({ color: 0xbcc2c9, roughness: 0.3, metalness: 0.7 });
-  const fiberJacket = new THREE.MeshStandardMaterial({ color: FIBER_JACKET, roughness: 0.5, metalness: 0.1 });
+  const busway = MAT.alu.clone(); busway.name = 'Busway and bus duct';           // the IT power flows ride inside it
+  const dropCable = MAT.black.clone(); dropCable.name = 'Rack drop cable';
+  const guideRing = moduleMetal.clone(); guideRing.name = 'Fiber guide ring';
+  const patchTerm = MAT.darkSteel.clone(); patchTerm.name = 'Fiber patch termination';   // a fiber passes through its connector
+  const fiberJacket = new THREE.MeshStandardMaterial({ color: FIBER_JACKET, roughness: 0.5, metalness: 0.1 }); fiberJacket.name = 'Optical fiber jacket';   // the flows ride inside it (tools/flow-audit.mjs conduit)
   const networkPorts = new Map(), fiberRoutes = [];
   let tanTabs = new Set();                             // multimode modules (hall-breakout.js) carry their own tan pull tab
   const portLedItems = [];                              // link LEDs on the switch ports (the racks keep ledItems)
@@ -289,21 +293,24 @@ export function build({ quality, model }) {
     // leaving the switch face readable; each strand keeps its own lane in the manager.
     const side=Math.sign(x-port.cx)||1,lane=(port.i%10)*.007,mx=port.cx+side*(.232-lane),mz=z+fs*(.07+(port.i%3)*.012);
     // under the chassis, then sideways; a bottom-row jumper still drops 45 mm first so its turn keeps a G.657.A2 radius
-    const low=Math.min(port.under,y-.045)-(port.i%4)*.006,up=[[HALL_RUNWAY.entryY,mz],[HALL_RUNWAY.entryY,rowZ],[HALL_RUNWAY.cableY,rowZ]];
+    const low=Math.min(port.under,y-.045)-(port.i%4)*.006;
+    // a manager lane right under the spine-to-frames runway rises beside it, then crosses over its rim at entry height
+    const sx=rowX0+4.8,rise=rx=>{const under=Math.abs(rx-sx)<.17&&mz>10.48&&mz<14.22,ux=under?sx+(Math.sign(rx-sx)||1)*.2:rx;
+      return {ux,tail:[[ux,HALL_RUNWAY.entryY,mz],...(under?[[rx,HALL_RUNWAY.entryY,mz]]:[]),[rx,HALL_RUNWAY.entryY,rowZ],[rx,HALL_RUNWAY.cableY,rowZ]]};};
     // An edge port already beside its manager lane goes straight to it at port height instead of dipping under the
     // chassis and hairpinning back up (that U-turn bent the jumper below 7.5 mm).
-    if(Math.abs(mx-x)<.03)return [[x,y,z+fs*.026],[x,y,mz],...up.map(([yy,zz])=>[x,yy,zz])];
-    if(Math.abs(mx-x)<.06)return [[x,y,z+fs*.026],[x,y,mz],[mx,y,mz],...up.map(([yy,zz])=>[mx,yy,zz])];
-    return [[x,y,z+fs*.026],[x,y,mz],[x,low,mz],[mx,low,mz],...up.map(([yy,zz])=>[mx,yy,zz])];
+    if(Math.abs(mx-x)<.03){const r=rise(x);return [[x,y,z+fs*.026],[x,y,mz],...(r.ux!==x?[[r.ux,y,mz]]:[]),...r.tail];}
+    if(Math.abs(mx-x)<.06){const r=rise(mx);return [[x,y,z+fs*.026],[x,y,mz],[r.ux,y,mz],...r.tail];}
+    const r=rise(mx);return [[x,y,z+fs*.026],[x,y,mz],[x,low,mz],[r.ux,low,mz],...r.tail];
   }
   function rackDrop(k) {
     const fs=model.accel.id==='h100'?-k.f:k.f,y=model.accel.id==='h100'?1.108:1.333375;
     const x=k.x+.20,z=k.z+fs*.62,rail=k.x+.255;
     N.box(.026,.017,.035,moduleMetal,x,y,z);
     N.box(.014,.009,.022,mpoBody,x,y,z+fs*.025);
-    N.box(.025,.035,.018,MAT.darkSteel,rail,2.327,k.z+fs*.70);
+    N.box(.025,.035,.018,patchTerm,rail,2.327,k.z+fs*.70);
     N.box(.004,1.08,.012,MAT.darkSteel,rail+.016,1.81,k.z+fs*.708);
-    for(let yy=1.4;yy<2.31;yy+=.18)N.box(.032,.006,.012,moduleMetal,rail,yy,k.z+fs*.712);
+    for(let yy=1.4;yy<2.31;yy+=.18)N.box(.032,.006,.012,guideRing,rail,yy,k.z+fs*.712);   // the riser's fibers pass through these
     return [[x,y,z+fs*.036],[x,y,z+fs*.10],[rail,y,z+fs*.10],
       [rail,2.34,k.z+fs*.70],[rail,HALL_RUNWAY.entryY,k.z+fs*.70],
       [rail,HALL_RUNWAY.entryY,k.z],[rail,HALL_RUNWAY.cableY,k.z]];
@@ -342,16 +349,16 @@ export function build({ quality, model }) {
     // Close-coupled secondary unit substation (representative; see build-hall-finish.py): enclosed MV
     // primary cabinet, liquid-filled tank with four radiator banks, enclosed LV throat flanged to the duct.
     scene.add(hallFinishInstances('HALL_UNITSUB', [mtx(usX, 0, usZ)]));
-    S.box(5.67, 0.5, 0.6, MAT.alu, usX + 4.565, 2.2, usZ);                              // bus duct, throat flange to the wall
+    S.box(5.67, 0.5, 0.6, busway, usX + 4.565, 2.2, usZ);                              // bus duct, throat flange to the wall
     // the 34.5 kV feeder arrives underground and rises through the conduit into the primary cabinet
-    flows.push(flow([[usX - 4.2, -0.2, usZ + .4], [usX - 2.35, -0.2, usZ + .4], [usX - 2.35, 1.1, usZ + .4], [usX - 1.7, 1.1, usZ + .4]], 'mv', { count: 6, speed: 1.5, size: 0.11, trailR: 0.03 }));
+    flows.push(flow([[usX - 4.2, -0.2, usZ + .4], [usX - 2.35, -0.2, usZ + .4], [usX - 2.35, 1.1, usZ + .4], [usX - 1.7, 1.1, usZ + .4]], 'mv', { count: 6, speed: 1.5, size: 0.11, trailR: 0.03, audit: { within: [[usX - 4.5, -0.35, usZ - 1, usX - 2, 0.01, usZ + 1]], why: 'the 34.5 kV feeder arrives buried in the site slab' } }));
   } else {
     S.slab(2.6, 2.3, 2.4, MAT.ansi61, usX, 0.3, usZ);
     for (let f = 0; f < 9; f++) { N.slab(0.05, 1.6, 0.7, MAT.ansi61, usX - 1.1 + f * 0.27, 0.6, usZ - 1.55); N.slab(0.05, 1.6, 0.7, MAT.ansi61, usX - 1.1 + f * 0.27, 0.6, usZ + 1.55); }
     for (const dz of [-0.7, 0, 0.7]) insulator(N, usX - 0.9, 2.6, usZ + dz, 0.6, 0.08, MAT.porcelain, { sheds: 4 });
     S.slab(1.2, 0.8, 1.6, MAT.ansi61, usX + 1.6, 1.4, usZ);                            // LV throat
-    S.box(5.6, 0.5, 0.6, MAT.alu, usX + 4.6, 2.2, usZ);                                   // bus duct to the wall
-    flows.push(flow([[usX - 4.2, -0.2, usZ + .4], [usX - 2.35, -0.2, usZ + .4], [usX - 2.35, 1.1, usZ + .4], [usX - 1.7, 1.1, usZ + .4]], 'mv', { count: 6, speed: 1.5, size: 0.11, trailR: 0.03 }));
+    S.box(5.6, 0.5, 0.6, busway, usX + 4.6, 2.2, usZ);                                   // bus duct to the wall
+    flows.push(flow([[usX - 4.2, -0.2, usZ + .4], [usX - 2.35, -0.2, usZ + .4], [usX - 2.35, 1.1, usZ + .4], [usX - 1.7, 1.1, usZ + .4]], 'mv', { count: 6, speed: 1.5, size: 0.11, trailR: 0.03, audit: { within: [[usX - 4.5, -0.35, usZ - 1, usX - 2, 0.01, usZ + 1]], why: 'the 34.5 kV feeder arrives buried in the site slab' } }));
   }
 
   // ---------- electrical room ----------
@@ -414,13 +421,15 @@ export function build({ quality, model }) {
   for (let x = -27.2 - 6.2; x <= -27.2 + 6.2; x += 0.55) N.box(0.05, 0.04, 0.6, MAT.galv, x, 3.3, -15.2);
   bundle(N, [-27.2 - 6.2, 3.32, -15.35], [-27.2 + 6.2, 3.32, -15.35], { n: 10, r: 0.017, spread: 0.11, sag: 0.025, mats: [MAT.black, MAT.darkSteel, MAT.copper], seed: 3 });
   bundle(N, [-27.2 - 6.2, 3.32, -15.05], [-27.2 + 6.2, 3.32, -15.05], { n: 7, r: 0.015, spread: 0.09, sag: 0.02, mats: [MAT.black, MAT.pipeBlue], seed: 7 });
-  S.box(0.5, 3.6, 0.6, MAT.alu, -22.5, 3.8, -6.5);                                       // riser
-  S.box(10.3, 0.5, 0.6, MAT.alu, -17.4, 5.6, -6.5);                                      // main busway to the hall
+  S.box(0.5, 3.6, 0.6, busway, -22.5, 3.8, -6.5);                                       // riser
+  S.box(10.3, 0.5, 0.6, busway, -17.4, 5.6, -6.5);                                      // main busway to the hall
   for (let i = 0; i < 4; i++) N.strut([-20 + i * 2.6, 5.85, -6.5], [-20 + i * 2.6, WALL_H - 0.9, -6.5], 0.02, MAT.darkSteel, 4);
   // AC: 480 V from the unit substation through switchgear and UPS. DC: medium voltage through switchgear into the SSTs, 800 V DC out
   flows.push(flow([[X0 - 1.5, 2.2, usZ], [X0 + 0.5, 2.2, usZ], [-33, 2.6, -15.2], [-21, 2.6, -15.2]], dc ? 'mv' : 'lv', { count: 16, speed: 2.4, size: 0.1, trailR: 0.03 }));
-  flows.push(flow([[-21, 2.6, -15.2], [-21, 2.6, -9], [-30.5, 2.2, -7]], dc ? 'mv' : 'lv', { count: 12, speed: 2.4, size: 0.1, trailR: 0.03 }));
-  flows.push(flow([[-30.5, 2.2, -7], [-22.5, 2.2, -6.5], [-22.5, 5.6, -6.5], [-12.2, 5.6, -6.5]], itV, { count: 14, speed: 2.4, size: 0.1, trailR: 0.03 }));
+  flows.push(flow([[-21, 2.6, -15.2], [-21, 2.6, -9], [-31.0, 2.6, -7.45], [-31.0, 1.8, -7.45], [-31.0, 1.8, -6.7]], dc ? 'mv' : 'lv', { count: 12, speed: 2.4, size: 0.1, trailR: 0.03 }));   // into the back of the UPS line-up
+  // out of the back of the UPS line-up, along behind it, up and over the last cabinet into the bus riser (it used to run
+  // through the cabinets at floor height)
+  flows.push(flow([[-30.5, 1.8, -6.7], [-30.5, 1.8, -7.3], [-22.5, 1.8, -7.3], [-22.5, upsH + 0.2, -7.3], [-22.5, upsH + 0.2, -6.5], [-22.5, 5.6, -6.5], [-12.2, 5.6, -6.5]], itV, { count: 14, speed: 2.4, size: 0.1, trailR: 0.03 }));
 
   // ---------- data hall: three contained pods, six rows ----------
   const rowX0 = -7.2, groups = 4, perGroup = 8, RW = 0.6, CW = 0.8, GAP = 0.6;
@@ -532,12 +541,12 @@ export function build({ quality, model }) {
   // joint-pack covers every 3 m and threaded-rod trapeze hangers replace the thin struts. Representative.
   const tapMx = [], jointMx = [];
   const tapOff = (x, z) => { if (hasHallFinish()) tapMx.push(mtx(x, 3.39, z)); else N.box(0.22, 0.2, 0.2, tap, x, 3.29, z); };
-  N.box(2.7,.22,.18,MAT.alu,-10.85,5.6,-6.5);
+  N.box(2.7,.22,.18,busway,-10.85,5.6,-6.5);
   const busZ0=busZOf(0),busZ1=busZOf(rowZs.length-1);
-  N.box(.18,.22,busZ1-busZ0,MAT.alu,-9.5,5.6,(busZ0+busZ1)/2);
+  N.box(.18,.22,busZ1-busZ0,busway,-9.5,5.6,(busZ0+busZ1)/2);
   rowZs.forEach((z, r) => {
     const bz = busZOf(r);
-    S.box(rowX1 - rowX0 + 5, 0.22, 0.18, MAT.alu, (rowX0 + rowX1) / 2 - 2.5, 3.5, bz);
+    S.box(rowX1 - rowX0 + 5, 0.22, 0.18, busway, (rowX0 + rowX1) / 2 - 2.5, 3.5, bz);
     if (hasHallFinish()) {
       // joints and trapezes at rack-group gaps and every fifth rack boundary, clear of the tap-offs
       const gaps = [rowX0 - 2.5, rowX0 - .3];
@@ -549,8 +558,8 @@ export function build({ quality, model }) {
       });
       N.box(.02, .24, .2, MAT.darkSteel, rowX1 + .005, 3.5, bz);                          // end cap
     } else for (let x = rowX0 + 0.3; x < rowX1; x += 2 * RW) N.strut([x, 3.6, bz], [x, WALL_H - 0.9, bz], 0.012, MAT.darkSteel, 4);
-    rackMx.filter(k => k.z === z).forEach(k => { tapOff(k.x, bz); N.strut([k.x, hasHallFinish() ? 3.13 : 3.2, bz], [k.x, 2.3, bz], hasHallFinish() ? 0.012 : 0.018, MAT.black, 6); });
-    N.box(.18,2.1,.18,MAT.alu,-9.5,4.55,bz);
+    rackMx.filter(k => k.z === z).forEach(k => { tapOff(k.x, bz); N.strut([k.x, hasHallFinish() ? 3.13 : 3.2, bz], [k.x, 2.3, bz], hasHallFinish() ? 0.012 : 0.018, dropCable, 6); });
+    N.box(.18,2.1,.18,busway,-9.5,4.55,bz);
     flows.push(flow([[-12.2, 5.6, -6.5], [-9.5, 5.6, -6.5], [-9.5, 5.6, bz], [-9.5, 3.5, bz], [rowX1, 3.5, bz]], itV, { count: 20, speed: 2.2, size: 0.07, trailR: 0.02, trailK: 0.25 }));
     // Sampled activity down the already modeled tap/drop cables. Particle count
     // is presentation density; rack count and electrical capacities do not change.
@@ -593,7 +602,7 @@ export function build({ quality, model }) {
   // The switch's PSU/regulators supply the module; the closeup draws that boundary.
   const networkFeeds = [];
   function networkPowerRoute(points, radius, kind) {
-    for (let i = 1; i < points.length; i++) N.strut(points[i - 1], points[i], radius, MAT.alu, 6);
+    for (let i = 1; i < points.length; i++) N.strut(points[i - 1], points[i], radius, busway, 6);
     const f = flow(points, itV, { count: kind === 'busway' ? 12 : 4, speed: 1.5, size: .045, trailR: .012, trailK: .18 });
     f.group.userData.networkPower = kind; flows.push(f);
     networkFeeds.push({ kind, points });
