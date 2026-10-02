@@ -99,9 +99,11 @@ if (process.argv.includes('--optics')) {
 if (process.argv.includes('--compute')) {
   try {
     const { compute, DEFAULT_SCENARIO } = await server.ssrLoadModule('/src/model/engine.ts');
-    for (const accel of ['h100', 'gb200', 'gb300', 'rubin']) {
+    // IFX_COMPUTE_SCENES=rack and IFX_COMPUTE_ACCELS=gb200,gb300 narrow the export (default: everything).
+    const only = (name, all) => process.env[name] ? process.env[name].split(',') : all;
+    for (const accel of only('IFX_COMPUTE_ACCELS', ['h100', 'gb200', 'gb300', 'rubin'])) {
       const model = compute({ ...DEFAULT_SCENARIO, accel });
-      for (const [scene, unitMeters] of [['rack', 1], ['tray', .1], ['chip', .01]]) {
+      for (const [scene, unitMeters] of [['rack', 1], ['tray', .1], ['chip', .01]].filter(([scene]) => only('IFX_COMPUTE_SCENES', [scene]).includes(scene))) {
         await exportReference({ name: `${scene}-${accel}`, module: `/src/scenes/${scene}.js`, options: { quality: { shadows: false, reflections: false, mobile: false }, state: { mode: 'data' }, model }, unitMeters });
       }
     }

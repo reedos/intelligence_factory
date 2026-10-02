@@ -287,10 +287,14 @@ export function build({ quality, model }) {
       [x,HALL_RUNWAY.entryY,rowZ],[x,HALL_RUNWAY.cableY,rowZ]];
     // Jumpers drop below the chassis, dress sideways to the vertical cable manager at the nearer rack edge, then rise there,
     // leaving the switch face readable; each strand keeps its own lane in the manager.
-    const side=Math.sign(x-port.cx)||1,lane=(port.i%10)*.007,mx=port.cx+side*(.232-lane),mz=z+fs*(.05+(port.i%3)*.012);
-    const low=port.under-(port.i%4)*.006;                                              // under the chassis, then sideways
-    return [[x,y,z+fs*.026],[x,y,mz],[x,low,mz],[mx,low,mz],[mx,HALL_RUNWAY.entryY,mz],
-      [mx,HALL_RUNWAY.entryY,rowZ],[mx,HALL_RUNWAY.cableY,rowZ]];
+    const side=Math.sign(x-port.cx)||1,lane=(port.i%10)*.007,mx=port.cx+side*(.232-lane),mz=z+fs*(.07+(port.i%3)*.012);
+    // under the chassis, then sideways; a bottom-row jumper still drops 45 mm first so its turn keeps a G.657.A2 radius
+    const low=Math.min(port.under,y-.045)-(port.i%4)*.006,up=[[HALL_RUNWAY.entryY,mz],[HALL_RUNWAY.entryY,rowZ],[HALL_RUNWAY.cableY,rowZ]];
+    // An edge port already beside its manager lane goes straight to it at port height instead of dipping under the
+    // chassis and hairpinning back up (that U-turn bent the jumper below 7.5 mm).
+    if(Math.abs(mx-x)<.03)return [[x,y,z+fs*.026],[x,y,mz],...up.map(([yy,zz])=>[x,yy,zz])];
+    if(Math.abs(mx-x)<.06)return [[x,y,z+fs*.026],[x,y,mz],[mx,y,mz],...up.map(([yy,zz])=>[mx,yy,zz])];
+    return [[x,y,z+fs*.026],[x,y,mz],[x,low,mz],[mx,low,mz],...up.map(([yy,zz])=>[mx,yy,zz])];
   }
   function rackDrop(k) {
     const fs=model.accel.id==='h100'?-k.f:k.f,y=model.accel.id==='h100'?1.108:1.333375;
@@ -422,6 +426,14 @@ export function build({ quality, model }) {
   const rowX0 = -7.2, groups = 4, perGroup = 8, RW = 0.6, CW = 0.8, GAP = 0.6;
   const rowZs = [-11.2, -8.2, -4.6, -1.6, 2.0, 5.0];
   const facing = [-1, 1, -1, 1, -1, 1];
+  // Overhead plan per row (TIA-942 / BICSI practice, research/design-review-rack-hall-site-2026-10-01.md): each rack's
+  // front faces its cold aisle, its rear the contained hot aisle. Power rides at the rear, where the NVL72 power shelves
+  // take their whips (DGX GB200 user guide: the rear carries the bus bar, manifolds and cable cartridges); the fiber
+  // runway rides over the rack centerline 0.8 m higher (BICSI: 300 mm from power); the rack loop's supply and return
+  // run just over the rear of the rack tops, below the busway; facility water drops into the front of each CDU, clear
+  // of the runway and the busway. Offsets are in meters from the row centerline, toward the rear or the front.
+  const HALL_PLAN = { busRear: .25, tcsSupplyRear: .42, tcsReturnRear: .52, tcsDropX: .2, facilityFront: .42 };
+  const busZOf = r => rowZs[r] - facing[r] * HALL_PLAN.busRear;
   const rackMx = [], cduMx = [], rowEnds = [];
   rowZs.forEach((z, r) => {
     let x = rowX0;
@@ -468,8 +480,8 @@ export function build({ quality, model }) {
     scene.add(hallFinishInstances(air ? 'HALL_INROW' : 'HALL_CDU', cduMx.map(it => mtx(it.x, 0, it.z, it.f > 0 ? 0 : Math.PI))));
     const ports = [];
     rowZs.forEach((z, r) => cduMx.filter(c => c.z === z).forEach(c => {
-      for (const dx of [-.15, .15]) ports.push(mtx(c.x + dx, 2.3, c.z));
-      if (!air) for (const [dz, dx] of [[-.05, -.18], [.05, .18]]) ports.push(mtx(c.x + dx, 2.3, z - facing[r] * .35 + dz).scale(new THREE.Vector3(.5, .5, .5)));
+      for (const dx of [-.15, .15]) ports.push(mtx(c.x + dx, 2.3, c.z + c.f * HALL_PLAN.facilityFront));
+      if (!air) for (const [rear, dx] of [[HALL_PLAN.tcsSupplyRear, -.18], [HALL_PLAN.tcsReturnRear, .18]]) ports.push(mtx(c.x + dx, 2.3, z - facing[r] * rear).scale(new THREE.Vector3(.5, .5, .5)));
     }));
     scene.add(hallFinishInstances('CDU_PORT', ports));
   } else {
@@ -521,10 +533,10 @@ export function build({ quality, model }) {
   const tapMx = [], jointMx = [];
   const tapOff = (x, z) => { if (hasHallFinish()) tapMx.push(mtx(x, 3.39, z)); else N.box(0.22, 0.2, 0.2, tap, x, 3.29, z); };
   N.box(2.7,.22,.18,MAT.alu,-10.85,5.6,-6.5);
-  const busZ0=rowZs[0]+facing[0]*.25,busZ1=rowZs.at(-1)+facing.at(-1)*.25;
+  const busZ0=busZOf(0),busZ1=busZOf(rowZs.length-1);
   N.box(.18,.22,busZ1-busZ0,MAT.alu,-9.5,5.6,(busZ0+busZ1)/2);
   rowZs.forEach((z, r) => {
-    const bz = z + facing[r] * 0.25;
+    const bz = busZOf(r);
     S.box(rowX1 - rowX0 + 5, 0.22, 0.18, MAT.alu, (rowX0 + rowX1) / 2 - 2.5, 3.5, bz);
     if (hasHallFinish()) {
       // joints and trapezes at rack-group gaps and every fifth rack boundary, clear of the tap-offs
@@ -659,7 +671,7 @@ export function build({ quality, model }) {
   // scale-out: a leaf-switch rack at the end of every row, a cross runway to the spine row
   const leafX = rowX1 + 0.45;
   rowZs.forEach((z, r) => {
-    const bz = z + facing[r] * .25;
+    const bz = busZOf(r);
     networkPowerRoute([[rowX1, 3.5, bz], [leafX, 3.5, bz]], .07, 'busway');
     tapOff(leafX, bz);
     networkPowerRoute([[leafX, 3.5, bz], [leafX, 2.3, bz]], .018, 'leaf-drop');
@@ -734,7 +746,9 @@ export function build({ quality, model }) {
   // facility water: insulated headers along the back wall, drops to every CDU
   const hdrY = 6.2;
   const facilitySupplyX=X0+2,facilityReturnX=X0+2.8,headerEndX=rowX1+3;
-  const coolantAudit={facility:[],secondary:[],rackDrops:[],representative:true};
+  const coolantAudit={facility:[],secondary:[],rackDrops:[],facilityDrops:[],representative:true};
+  // facility water drops into the front of each CDU (HALL_PLAN), clear of the fiber runway and the busway
+  const fwZ = c => c.z + c.f * HALL_PLAN.facilityFront;
   const coolantPipe=(pts,mat,r=.035,kind='secondary')=>{for(let i=1;i<pts.length;i++)N.strut(pts[i-1],pts[i],r,mat,8);coolantAudit[kind].push(pts);};
   coolantAudit.facility.push([[facilitySupplyX,hdrY,-16.4],[headerEndX,hdrY,-16.4]]);
   coolantAudit.facility.push([[facilityReturnX,hdrY-.7,-16.4],[headerEndX,hdrY-.7,-16.4]]);
@@ -778,16 +792,17 @@ export function build({ quality, model }) {
     // long-radius bend there and a tee (collar) at each nearer row; every drop carries a geared butterfly valve.
     const columns = new Map(); cduMx.forEach(c => { const k = c.x.toFixed(3); if (!columns.has(k)) columns.set(k, []); columns.get(k).push(c); });
     for (const list of columns.values()) {
-      const far = list.reduce((a, b) => (b.z > a.z ? b : a));
+      const far = list.reduce((a, b) => (fwZ(b) > fwZ(a) ? b : a));
       for (const [dx, y, mat, side, valveDrop] of [[-.15, hdrY, MAT.pipeBlue, -1, .6], [.15, hdrY - .7, MAT.pipeRed, 1, .6]]) {
         const x = far.x + dx;
         flanges.push(place(frame([0, 0, 1]), [x, y, -16.4 + rH + .01], rD, rD, rD));
-        run([x, y, -16.4], [x, y, far.z - eD], rD, mat);
-        bend([x, y, far.z], [0, 0, 1], [0, -1, 0], rD, mat);
+        run([x, y, -16.4], [x, y, fwZ(far) - eD], rD, mat);
+        bend([x, y, fwZ(far)], [0, 0, 1], [0, -1, 0], rD, mat);
         for (const c of list) {
-          if (c !== far) flanges.push(place(frame([0, 0, 1]), [x, y, c.z], rD, rD, rD));
-          run([x, c === far ? y - eD : y, c.z], [x, 2.3, c.z], rD, mat);
-          valves.push(place(frame([0, -1, 0], [side, 0, 0]), [x, y - valveDrop, c.z], rD, rD, rD));
+          if (c !== far) flanges.push(place(frame([0, 0, 1]), [x, y, fwZ(c)], rD, rD, rD));
+          run([x, c === far ? y - eD : y, fwZ(c)], [x, 2.3, fwZ(c)], rD, mat);
+          coolantAudit.facilityDrops.push([[x, y, fwZ(c)], [x, 2.3, fwZ(c)]]);
+          valves.push(place(frame([0, -1, 0], [side, 0, 0]), [x, y - valveDrop, fwZ(c)], rD, rD, rD));
         }
       }
     }
@@ -813,33 +828,38 @@ export function build({ quality, model }) {
     S.cylX(0.26, headerEndX-facilityReturnX, MAT.pipeRed, (headerEndX+facilityReturnX)/2, hdrY-.7, -16.4, 16);
     for (let x = rowX0 - 9; x < rowX1 + 3; x += 5) N.strut([x, hdrY + 0.2, -16.4], [x, WALL_H - 0.9, -16.4], 0.03, MAT.darkSteel, 4);
     cduMx.forEach(c => {
-      N.strut([c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], 0.07, MAT.pipeBlue, 8); N.strut([c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z], 0.07, MAT.pipeBlue, 8);
-      N.strut([c.x + 0.15, hdrY - 0.7, -16.4], [c.x + 0.15, hdrY - 0.7, c.z], 0.07, MAT.pipeRed, 8); N.strut([c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, 2.3, c.z], 0.07, MAT.pipeRed, 8);
-      N.cylZ(0.12, 0.08, MAT.orange, c.x - 0.15, hdrY - 0.35, c.z, 12);                      // valve handwheel
+      const z = fwZ(c);
+      N.strut([c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, z], 0.07, MAT.pipeBlue, 8); N.strut([c.x - 0.15, hdrY, z], [c.x - 0.15, 2.3, z], 0.07, MAT.pipeBlue, 8);
+      N.strut([c.x + 0.15, hdrY - 0.7, -16.4], [c.x + 0.15, hdrY - 0.7, z], 0.07, MAT.pipeRed, 8); N.strut([c.x + 0.15, hdrY - 0.7, z], [c.x + 0.15, 2.3, z], 0.07, MAT.pipeRed, 8);
+      for (const dx of [-.15, .15]) coolantAudit.facilityDrops.push([[c.x + dx, dx < 0 ? hdrY : hdrY - .7, z], [c.x + dx, 2.3, z]]);
+      N.cylZ(0.12, 0.08, MAT.orange, c.x - 0.15, hdrY - 0.35, z, 12);                      // valve handwheel
     });
   }
   // ASME A13.1-style markers with flow arrows on the headers, risers and CDU drops (cooling-marks.js)
-  hallPipeMarks(scene, model, { X0, hdrY, headerEndX, returnRiserZ, cduMx, risers: hasHallFinish() });
-  // rack loop from each CDU along its rack group, over the rack tops (liquid-cooled racks only)
+  hallPipeMarks(scene, model, { X0, hdrY, headerEndX, returnRiserZ, cduMx: cduMx.map(c => ({ ...c, z: fwZ(c) })), risers: hasHallFinish() });
+  // rack loop from each CDU along its rack group, over the rear of the rack tops (liquid-cooled racks only). Supply and
+  // return run as two parallel headers 0.1 m apart over the rack rears, below and clear of the busway; each rack takes
+  // its supply drop on one side and its return on the other, where its two rear manifolds rise to the roof (rack.js).
+  const tcsZ = r => ({ supply: rowZs[r] - facing[r] * HALL_PLAN.tcsSupplyRear, ret: rowZs[r] - facing[r] * HALL_PLAN.tcsReturnRear });
   if (!air) rowZs.forEach((z, r) => {
-    const lz = z - facing[r] * 0.35;
+    const { supply: zS, ret: zR } = tcsZ(r), f = facing[r];
     for (let gI = 0; gI < groups; gI++) {
       const x0 = rowX0 + gI * (CW + perGroup * RW + GAP), x1 = x0 + CW + perGroup * RW;
       // Two isolated secondary circuits exit the CDU; every rack has paired
-      // drops. Facility water terminates separately on the CDU top, above.
+      // drops. Facility water terminates separately on the CDU top, at its front.
       const cx=x0+CW/2;
-      for(const [dz,dx,mat] of [[-.05,-.18,MAT.pipeBlue],[.05,.18,MAT.pipeRed]]){
-        coolantPipe([[cx+dx,2.3,lz+dz],[cx+dx,2.45,lz+dz],[x1,2.45,lz+dz]],mat);
+      for(const [lzz,dx,side,mat] of [[zS,-.18,-1,MAT.pipeBlue],[zR,.18,1,MAT.pipeRed]]){
+        coolantPipe([[cx+dx,2.3,lzz],[cx+dx,2.45,lzz],[x1,2.45,lzz]],mat);
         for(let k=0;k<perGroup;k++){
-          const rx=x0+CW+(k+.5)*RW;
-          coolantPipe([[rx,2.45,lz+dz],[rx,2.28,lz+dz]],mat,.022,'rackDrops');
-          N.cyl(.042,.045,MAT.alu,rx,2.315,lz+dz,8); // representative quick-disconnect collar
+          const rx=x0+CW+(k+.5)*RW+side*f*HALL_PLAN.tcsDropX;
+          coolantPipe([[rx,2.45,lzz],[rx,2.28,lzz]],mat,.022,'rackDrops');
+          N.cyl(.042,.045,MAT.alu,rx,2.315,lzz,8); // representative quick-disconnect collar
         }
-        N.cylX(.046,.035,mat,x1,2.45,lz+dz,8); // closed manifold end, not an open outlet
+        N.cylX(.046,.035,mat,x1,2.45,lzz,8); // closed manifold end, not an open outlet
       }
       if (r % 2 === 0 && gI % 2 === 0) {
-        flows.push(flow([[x0 + CW / 2 - .18, 2.45, lz - 0.05], [x1, 2.45, lz - 0.05]], 'cool', { count: 8, speed: 1.2, size: 0.05, k: 1.6, trail: false }));
-        flows.push(flow([[x1, 2.45, lz + 0.05], [x0 + CW / 2 + .18, 2.45, lz + 0.05]], 'warm', { count: 8, speed: 1.2, size: 0.05, k: 1.6, trail: false }));
+        flows.push(flow([[x0 + CW / 2 - .18, 2.45, zS], [x1, 2.45, zS]], 'cool', { count: 8, speed: 1.2, size: 0.05, k: 1.6, trail: false }));
+        flows.push(flow([[x1, 2.45, zR], [x0 + CW / 2 + .18, 2.45, zR]], 'warm', { count: 8, speed: 1.2, size: 0.05, k: 1.6, trail: false }));
       }
     }
   });
@@ -855,15 +875,16 @@ export function build({ quality, model }) {
   heatFlows.push(water(flow([[X0 + 2, hdrY + 3, -16.4], [X0 + 2, hdrY, -16.4], [rowX1 + 2, hdrY, -16.4]], 'cool', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 })));
   heatFlows.push(water(flow([[rowX1 + 2, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY - 0.7, returnRiserZ], [X0 + 2.8, hdrY + 2.8, returnRiserZ]], 'warm', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 })));
   cduMx.forEach(c => {
-    heatFlows.push(water(flow([[c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z]], 'cool', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false })));
-    heatFlows.push(water(flow([[c.x + 0.15, 2.3, c.z], [c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, hdrY - 0.7, -16.4]], 'warm', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false })));
+    const z = fwZ(c);
+    heatFlows.push(water(flow([[c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, z], [c.x - 0.15, 2.3, z]], 'cool', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false })));
+    heatFlows.push(water(flow([[c.x + 0.15, 2.3, z], [c.x + 0.15, hdrY - 0.7, z], [c.x + 0.15, hdrY - 0.7, -16.4]], 'warm', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false })));
   });
   if (!air) rowZs.forEach((z, r) => {
-    const lz = z - facing[r] * 0.35;
+    const { supply: zS, ret: zR } = tcsZ(r);
     for (let gI = 0; gI < groups; gI++) {
       const x0 = rowX0 + gI * (CW + perGroup * RW + GAP), x1 = x0 + CW + perGroup * RW;
-      heatFlows.push(water(flow([[x0 + CW / 2 - .18, 2.45, lz - 0.05], [x1, 2.45, lz - 0.05]], 'cool', { count: 6, speed: 1.2, size: 0.1, k: 1.5, trail: false })));
-      heatFlows.push(water(flow([[x1, 2.45, lz + 0.05], [x0 + CW / 2 + .18, 2.45, lz + 0.05]], 'warm', { count: 6, speed: 1.2, size: 0.1, k: 1.5, trail: false })));
+      heatFlows.push(water(flow([[x0 + CW / 2 - .18, 2.45, zS], [x1, 2.45, zS]], 'cool', { count: 6, speed: 1.2, size: 0.1, k: 1.5, trail: false })));
+      heatFlows.push(water(flow([[x1, 2.45, zR], [x0 + CW / 2 + .18, 2.45, zR]], 'warm', { count: 6, speed: 1.2, size: 0.1, k: 1.5, trail: false })));
     }
   });
   // hot air: along each contained aisle, out the end, through the fan wall, back cool (none from all-liquid racks)
@@ -898,6 +919,9 @@ export function build({ quality, model }) {
   scene.add(par);
   buildBreakout({ model, scene, layer: par, leafX, rowZs, ports: networkPorts.get(`${leafX}:${rowZs[1]}`), racks: rackMx.filter(k => k.z === rowZs[1]), quality });
   scene.userData.hallCoolant=coolantAudit;
+  // the overhead plan the design-rule tests check (design-rules.test.ts)
+  scene.userData.hallPlan = { ...HALL_PLAN, rackDepth: 1.2, busY: 3.5, busHalfDepth: .09, runwayY: HALL_RUNWAY.floorY, runwayHalfWidth: .15, tcsY: 2.45,
+    rowX0, rowX1, rows: rowZs.map((z, r) => ({ z, f: facing[r], busZ: busZOf(r), runwayZ: z, ...(air ? {} : { tcsSupplyZ: tcsZ(r).supply, tcsReturnZ: tcsZ(r).ret }) })) };
   // headers leave through the roof to the facility cooling plant
   if (!hasHallFinish()) { S.cyl(0.26, 3, MAT.pipeBlue, X0 + 2, hdrY + 1.4, -16.4, 16); S.cylZ(0.26, 1.6, MAT.pipeRed, X0 + 2.8, hdrY - .7, -15.6, 16); S.cyl(0.26, 3.6, MAT.pipeRed, X0 + 2.8, hdrY + 1.1, returnRiserZ, 16); }
 
@@ -1063,7 +1087,7 @@ export function build({ quality, model }) {
   // Nameplates, voltage stencils and hazard signs on the power gear (electrical-marks.js).
   hallMarks(scene, model, { usX, usZ, swgr: { x0: -33.5, w: .9, n: 14, zFront: -15.6 + .75 },
     busways: [{ from: -22.55, to: -12.25, y: 5.6, z: -6.5, depth: .6 },
-      ...rowZs.map((z, r) => ({ from: rowX0 - 5, to: rowX1, y: 3.5, z: z + facing[r] * .25, depth: .18 }))] });
+      ...rowZs.map((z, r) => ({ from: rowX0 - 5, to: rowX1, y: 3.5, z: busZOf(r), depth: .18 }))] });
   flows.forEach(f => scene.add(f.group));
   dataFlows.forEach(f => scene.add(f.group));
   heatFlows.forEach(f => scene.add(f.group));

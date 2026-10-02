@@ -768,7 +768,7 @@ function buildNVL({ quality, model, state }) {
     const band = side ? MAT.pipeRed : MAT.pipeBlue, out = Math.sign(x);
     rbox(S, 0.045, mLen, 0.048, STAINLESS, x, mMid, mZ, { r: 0.12 });
     for (const y of [mTop, mBot]) rbox(N, 0.056, 0.012, 0.056, STAINLESS, x, y, mZ, { r: 0.3 });              // welded end caps
-    N.cyl(0.006, 0.02, MAT.galv, x, mTop + 0.016, mZ, 10); N.cyl(0.009, 0.008, band, x, mTop + 0.03, mZ, 12);   // bleed valve
+    N.cyl(0.006, 0.02, MAT.galv, x, mBot - 0.016, mZ, 10); N.cyl(0.009, 0.008, band, x, mBot - 0.03, mZ, 12);   // drain valve at the low point
     N.box(0.052, 0.07, 0.002, band, x, mTop - 0.06, mZ + 0.0265);                                               // supply / return label
     for (const y of [mBot + 0.06, mTop - 0.14]) N.box(0.0475, 0.018, 0.0505, band, x, y, mZ);                  // colored identification bands
     for (let y = mBot + 0.12; y < mTop - 0.05; y += 0.5) N.box(0.03, 0.022, 0.04, MAT.darkSteel, x + out * 0.035, y, mZ);  // mounting bracket to the post
@@ -787,15 +787,26 @@ function buildNVL({ quality, model, state }) {
       N.box(0.012, 0.012, 0.016, MAT.darkSteel, x * 0.8, y, ZB + 0.103);
     });
   });
-  // Supply and return leave through the floor to the CDU: hose, crimped
-  // ferrule and a lever ball valve at the manifold foot.
+  // Top-fed, as drawn, to match the hall's overhead rack loop (hall.js HALL_PLAN): the hall is a slab with no floor
+  // void, so hoses through the floor had nowhere to go. NVIDIA's guide places the manifold inlets and outlets at the
+  // rear without fixing top or bottom. Supply and return leave the manifold heads through a lever ball valve, crimped
+  // ferrule and hose, rise behind the trays and exit through roof grommets to dripless couplings, inboard of the rear
+  // corner posts. Hose and valve hardware are representative.
+  const hoseX = x => x * 0.9;
   mX.forEach((x, side) => {
-    const band = side ? MAT.pipeRed : MAT.pipeBlue;
-    N.strut([x, mBot - 0.07, mZ], [x, 0.0, mZ - 0.1], 0.019, HOSE, 12);
-    N.cyl(0.022, 0.03, MAT.galv, x, mBot - 0.075, mZ, 12);                          // crimped ferrule
-    N.box(0.05, 0.05, 0.05, STAINLESS, x, mBot - 0.031, mZ);                        // ball valve body
-    N.box(0.09, 0.012, 0.012, band, x - Math.sign(x) * 0.05, mBot - 0.031, mZ + 0.03);   // lever handle
+    const band = side ? MAT.pipeRed : MAT.pipeBlue, hx = hoseX(x);
+    N.box(0.05, 0.05, 0.05, STAINLESS, x, mTop + 0.031, mZ);                        // ball valve body
+    N.box(0.09, 0.012, 0.012, band, x - Math.sign(x) * 0.05, mTop + 0.031, mZ + 0.03);   // lever handle
+    N.cyl(0.022, 0.03, MAT.galv, x, mTop + 0.075, mZ, 12);                          // crimped ferrule
+    N.strut([x, mTop + 0.07, mZ], [hx, mTop + 0.16, mZ], 0.019, HOSE, 12);
+    N.strut([hx, mTop + 0.16, mZ], [hx, H + 0.03, mZ], 0.019, HOSE, 12);
+    N.cyl(0.03, 0.01, GLAND, hx, H + 0.018, mZ, 16);                                 // roof grommet
+    N.cyl(0.024, 0.05, STAINLESS, hx, H + 0.06, mZ, 12);                            // dripless coupling to the row loop
+    N.cyl(0.0255, 0.012, band, hx, H + 0.07, mZ, 12);
   });
+  // the layout the design-rule tests check (design-rules.test.ts): spine, busbar and manifolds at the rear, mirrored
+  scene.userData.rackPlan = { frontZ: ZF, rearZ: ZB, depth: D, cartridgeX: cartX, cartridgeZ: cartC, busbarZ: bbZ, manifoldX: mX, manifoldZ: mZ,
+    coolantFeed: 'top', hoses: mX.map(x => ({ x: hoseX(x), top: H + 0.03 })), roofY: H, trayRearZ: ZF - 0.07 - trayD, representative: true };
 
 
   // ---------- feed from the busway above ----------
@@ -839,14 +850,14 @@ function buildNVL({ quality, model, state }) {
   // stainless body and its couplers stay visible behind the motion.
   const mIn = [mX[0] + 0.015, mX[1] - 0.015], mFz = mZ - 0.045;          // clear of the face by 1.6 x the heat core radius
   const coolRail = { count: 26, speed: 0.25, size: 0.005, k: 1.5, opacity: 0.8, trail: false };
-  flows.push(flow([[mIn[0], bbBot, mFz], [mIn[0], bbTop + 0.05, mFz]], 'cool', coolRail));
-  flows.push(flow([[mIn[1], bbTop + 0.05, mFz], [mIn[1], bbBot, mFz]], 'warm', coolRail));
-  // The illustrated system is floor-fed: supply rises, return falls in both layers.
+  flows.push(flow([[mIn[0], bbTop + 0.05, mFz], [mIn[0], bbBot, mFz]], 'cool', coolRail));
+  flows.push(flow([[mIn[1], bbBot, mFz], [mIn[1], bbTop + 0.05, mFz]], 'warm', coolRail));
+  // The illustrated system is top-fed: supply enters at the top and falls, return rises to the top, in both layers.
   // Two heat paths leave the rack: the liquid share in the manifolds and their tray branches, the rest as air.
   const rackW = model.rack.kw * 1000, waterW = rackW * model.accel.liquidShare, airW = rackW - waterW;
   const water = f => tagHeat(f, 'rack-water', waterW, 'carrier'), airPath = f => tagHeat(f, 'rack-air', airW, 'carrier');
-  heatFlows.push(water(flow([[mX[0], 0.0, mZ - 0.1], [mIn[0], bbBot - 0.1, mFz], [mIn[0], bbTop + 0.05, mFz]], 'cool', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 })));
-  heatFlows.push(water(flow([[mIn[1], bbTop + 0.05, mFz], [mIn[1], bbBot - 0.1, mFz], [mX[1], 0.0, mZ - 0.1]], 'warm', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 })));
+  heatFlows.push(water(flow([[hoseX(mX[0]), H + 0.1, mZ], [hoseX(mX[0]), mTop + 0.16, mZ], [mIn[0], bbTop + 0.05, mFz], [mIn[0], bbBot - 0.1, mFz]], 'cool', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 })));
+  heatFlows.push(water(flow([[mIn[1], bbBot - 0.1, mFz], [mIn[1], bbTop + 0.05, mFz], [hoseX(mX[1]), mTop + 0.16, mZ], [hoseX(mX[1]), H + 0.1, mZ]], 'warm', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 })));
   [4, 9, 14, 18, 22, 27].forEach(i => {
     heatFlows.push(water(flow([[mX[0], trayY(i), mZ + 0.06], [-0.16, trayY(i), ZB + 0.18], [-0.1, trayY(i), 0]], 'cool', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false })));
     heatFlows.push(water(flow([[0.1, trayY(i), 0], [0.16, trayY(i), ZB + 0.18], [mX[1], trayY(i), mZ + 0.06]], 'warm', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false })));

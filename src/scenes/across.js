@@ -568,12 +568,18 @@ export function build({ quality, model, state = {} }) {
   // each line terminal sits on the east edge of its campus plinth; the route ends at a lit fiber-entrance vault
   // on the terminal's outer wall rather than at the campus center
   const terminalAt = ([x, z], k) => [x + 17 * k + 5.4, z - 6 * k];
-  const vaultAt = t => [t[0] + 5.3, t[1]];
-  const HT = terminalAt(H, 1);
+  const vaultAt = (t, north = false) => north ? [t[0], t[1] - 5.3] : [t[0] + 5.3, t[1]];
+  // This campus takes its two routes through two terminals on different sides of its plinth, as the campus level draws
+  // its two fiber entrances (diverse entrances, at least 20 m apart: VA OIT telecom infrastructure standard after
+  // TIA-942). The northernmost route leaves by the north terminal, the other by the east one; the west side is the
+  // grid's (the substation and the incoming lines).
+  const HT = terminalAt(H, 1), HN = [H[0] + 6, H[1] - 21];
+  const northFirst = near.map(({ p }, i) => [world(p.site.lon, p.site.lat)[1], i]).sort((a, b) => a[0] - b[0])[0]?.[1];
+  const homeFor = i => near.length > 1 && i === northFirst ? { t: HN, north: true } : { t: HT, north: false };
   near.forEach(({ p, km }, i) => {
-    const B = world(p.site.lon, p.site.lat), BT = terminalAt(B, 0.85);
+    const B = world(p.site.lon, p.site.lat), BT = terminalAt(B, 0.85), home = homeFor(i);
     // near the ground: long-haul fiber runs in buried conduit and enters each amplifier hut, rather than overhead
-    const pts = route(vaultAt(HT), vaultAt(BT), Math.min(160, km * 0.12), 7 + i * 10).map(q => [q[0], 1.25, q[2]]);
+    const pts = route(vaultAt(home.t, home.north), vaultAt(BT), Math.min(160, km * 0.12), 7 + i * 10).map(q => [q[0], 1.25, q[2]]);
     const L = polyLen(pts);
     // Screen-width cartographic overlay, not a physical cable diameter. The public geographic
     // endpoints, representative wandering path and directional elevations stay unchanged.
@@ -619,8 +625,10 @@ export function build({ quality, model, state = {} }) {
   hut.cyl(.16, .14, glowMat('#ffd35c', 1.4), 2.4, 3.3, 1.5, 10);
   data.add(hut.instance(huts.map(p => mtx(p[0], 0, p[2]))));
   }
-  const terminals = [HT, ...near.map(({ p }) => terminalAt(world(p.site.lon, p.site.lat), 0.85))];
-  const terminalMatrices = terminals.map(([x, z]) => mtx(x, 0, z));
+  const terminals = [HT, ...(near.length > 1 ? [HN] : []), ...near.map(({ p }) => terminalAt(world(p.site.lon, p.site.lat), 0.85))];
+  // the north terminal is the east one turned a quarter, so its vault faces north toward its route
+  const terminalMatrices = terminals.map(([x, z], i) => mtx(x, 0, z, near.length > 1 && i === 1 ? Math.PI / 2 : 0));
+  scene.userData.campusTerminals = { east: HT, north: near.length > 1 ? HN : null, diverse: near.length > 1 };
   // gold carries the data layer's color onto the building: the terminal's own crown fixture (MAP_TERMINAL) and
   // the vault the fiber enters by (TERMINAL_TRIM)
   if (authored) data.add(acrossAssetInstances('TERMINAL_TRIM', terminalMatrices));

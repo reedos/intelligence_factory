@@ -254,12 +254,19 @@ export function build({ quality, model }) {
   // ---------- 34.5 kV duct bank to the halls ----------
   const uY = 0.9;
   mptZ.forEach(z => flows.push(flow([[mptX + 2.6, 9, z], [-382, 5, z], [-382, 5, z > -150 ? -122 : -178]], 'mv', { count: 5, speed: 18, size: 0.4, trailR: 0.1 })));
+  // Hall A's feeders run straight east from the yard to its unit-substation line (z -112), the shortest practical
+  // route; they used to dip south to the spine road and double back north 50 m. Hall B's run under the spine road
+  // and south along x -40 to its own line (z 3). The duct bank continues from the yard edge as before.
   const trunk = [[-374, uY, -150], [-340, uY, -150], [-340, uY, -62], [-40, uY, -62]];
+  const feederA = [[-374, uY, -150], [-340, uY, -150], [-340, uY, -112], [hallX1 - 5, uY, -112]];
+  flows.push(flow(feederA, 'mv', { count: 52, speed: 60, size: 1.05, trailR: 0.38 }));
+  // the spine-road trunk also carries the battery yard's tie and the expansion halls' feed
   flows.push(flow(trunk, 'mv', { count: 40, speed: 60, size: 0.9, trailR: 0.35 }));
-  flows.push(flow([[-40, uY, -62], [-40, uY, -112], [hallX1 - 5, uY, -112]], 'mv', { count: 30, speed: 55, size: 1.2, trailR: 0.4 }));
   if (nHalls > 1) flows.push(flow([[-40, uY, -62], [-40, uY, 3], [hallX1 - 5, uY, 3]], 'mv', { count: 30, speed: 55, size: 1.2, trailR: 0.4 }));
-  // duct bank manholes along the route
-  [[-340, -100], [-250, -62], [-150, -62], [-40, -62], [-40, -30]].forEach(([x, z]) => N.cyl(0.9, 0.3, MAT.concrete, x, 0.3, z, 16));
+  scene.userData.campusFeeders = { source: [-374, -150], halls: [feederA, ...(nHalls > 1 ? [[...trunk, [-40, uY, 3], [hallX1 - 5, uY, 3]]] : [])].map(p => p.map(([x, , z]) => [x, z])),
+    unitSubLines: [[-112, hallA], ...(nHalls > 1 ? [[3, hallB]] : [])].map(([z, h]) => ({ z, x0: hallX0 + 8, hall: h })), representative: true };
+  // duct bank manholes along the routes
+  [[-340, -130], [-250, -112], [-150, -112], [-340, -90], [-250, -62], [-150, -62], [-40, -62], [-40, -30]].forEach(([x, z]) => N.cyl(0.9, 0.3, MAT.concrete, x, 0.3, z, 16));
 
   // ---------- data halls ----------
   const facade = canvasTex(1024, 256, (g, w, h) => {
@@ -407,12 +414,30 @@ export function build({ quality, model }) {
     }
   });
   const towerRows = closed ? [] : warm ? [-275] : [-275, -290];
+  // Hall B's chilled-water pair from the plant's west wall (plan, meters): supply inside, return outside, offset 4 m,
+  // on sleepers at 2.2 m. Kept west of hall A's office block (x -58) and east of the staffed-entrance road (x -110); it
+  // crosses the main spine road (z -62..-48) on a pipe bridge at 6.5 m, clear of trucks, not at sleeper height.
+  const PIPE_BRIDGE = { z0: -70, z1: -40, y: 6.5 };
+  function chilledToHallB(x0) {
+    const leg = x => [[x, 2.2, PIPE_BRIDGE.z0], [x, PIPE_BRIDGE.y, PIPE_BRIDGE.z0], [x, PIPE_BRIDGE.y, PIPE_BRIDGE.z1], [x, 2.2, PIPE_BRIDGE.z1]];
+    const supply = [[x0, 2.2, -243], [-73, 2.2, -243], ...leg(-73), [-73, 2.2, 10], [-25, 2.2, 10], [-25, 2.2, hallB.z0]];
+    const ret = [[x0, 2.2, -247], [-77, 2.2, -247], ...leg(-77), [-77, 2.2, 12.5], [-28, 2.2, 12.5], [-28, 2.2, hallB.z0]];
+    return { supply, ret, bridge: PIPE_BRIDGE };
+  }
   const plantX = Math.max(hallX0 + 45, Math.min(100, hcx + 20));
   towerRows.forEach(tz => { for (let i = 0; i < 6; i++) { const x = 15 + i * 12; heatFlows.push(tagHeat(flow([[x, 11.5, tz], [x + 2, 35, tz - 3], [x + 6, 65, tz - 9]], 'vapor', { count: warm ? 5 : 7, speed: 6, size: 2.4, k: 1.2, opacity: warm ? 0.4 : 0.55, trail: false }), 'towers', towerW, 'carrier')); } });
   if (!warm) {
     // chiller plant between hall A and the towers: warm return in, cold supply back, heat on to the towers
-    heatFlows.push(tagHeat(flow([[plantX - 10, 2.2, -215], [plantX - 10, 2.2, -236]], 'warm', { count: 14, speed: 10, size: 0.8, k: 2.4, trailR: 0.3 }), 'chilled-water', plantW, 'carrier'));
-    heatFlows.push(tagHeat(flow([[plantX + 10, 2.2, -236], [plantX + 10, 2.2, -215]], 'cool', { count: 14, speed: 10, size: 0.8, k: 2.4, trailR: 0.3 }), 'chilled-water', plantW, 'carrier'));
+    // each hall has its own supply/return pair from the plant: hall A's short pair straight south, hall B's along
+    // the west service corridor (campusChilledToHallB below), so each pair carries its own hall's heat
+    heatFlows.push(tagHeat(flow([[plantX - 10, 2.2, -215], [plantX - 10, 2.2, -236]], 'warm', { count: 14, speed: 10, size: 0.8, k: 2.4, trailR: 0.3 }), 'chilled-water', hallW, 'carrier'));
+    heatFlows.push(tagHeat(flow([[plantX + 10, 2.2, -236], [plantX + 10, 2.2, -215]], 'cool', { count: 14, speed: 10, size: 0.8, k: 2.4, trailR: 0.3 }), 'chilled-water', hallW, 'carrier'));
+    if (nHalls > 1) {
+      const pair = chilledToHallB(plantX - 30);
+      heatFlows.push(tagHeat(flow(pair.supply, 'cool', { count: 40, speed: 14, size: 0.8, k: 2.4, trailR: 0.3 }), 'chilled-water-hall-b', hallW, 'carrier'));
+      heatFlows.push(tagHeat(flow([...pair.ret].reverse(), 'warm', { count: 40, speed: 14, size: 0.8, k: 2.4, trailR: 0.3 }), 'chilled-water-hall-b', hallW, 'carrier'));
+      scene.userData.campusChilledWater = { hallB: pair, representative: true };
+    }
     if (towerRows.length) heatFlows.push(tagHeat(flow([[plantX - 20, 2.2, -254], [plantX - 20, 2.2, -262], [15, 2.2, -262], [15, 2.2, -275], [15, 9, -275]], 'warm', { count: 18, speed: 14, size: 0.8, k: 2.4, trailR: 0.3 }), 'condenser-water', rejectW, 'carrier'));
     // air-cooled chillers on a closed loop: the heat leaves as warm air off their roof fans, and no water goes with it
     else for (let i = 0; i < 6; i++) { const x = plantX - 24 + i * 9.5; heatFlows.push(tagHeat(flow([[x, 12.8, -245], [x + 2, 34, -248], [x + 6, 60, -254]], 'air', { count: 5, speed: 7, size: 2.4, k: 2.0, opacity: 0.6, trail: false }), 'chiller-fan-air', rejectW, 'carrier')); }
@@ -511,6 +536,19 @@ export function build({ quality, model }) {
     for (let i = 0; i < 10; i++) N.slab(4, 3.2, 0.1, MAT.darkSteel, plantX - 25 + i * 5.6, 6, -235.95);
     for (let i = 0; i < 6; i++) N.cyl(1.1, 1.2, MAT.galv, plantX - 24 + i * 9.5, 12.2, -245, 14);
     for (const dx of [-10, 10]) S.cylZ(0.6, 21, dx < 0 ? MAT.pipeRed : MAT.pipeBlue, plantX + dx, 2.2, -225.5, 12);
+    if (nHalls > 1) {
+      // Hall B's pair: out of the plant's west wall, along the service corridor west of hall A and its office block,
+      // and into hall B's north wall beside the office, on sleepers at grade. The pair keeps one side (supply inside),
+      // so the two never cross; it crosses roads and the hall-to-hall duct bank above them, 1.6 m over the cables.
+      const { supply, ret } = chilledToHallB(plantX - 30);
+      for (const [path, mat] of [[supply, MAT.pipeBlue], [ret, MAT.pipeRed]]) for (let i = 1; i < path.length; i++) N.strut(path[i - 1], path[i], 0.6, mat, 12);
+      for (let z = -235; z < 4; z += 12) if (z < PIPE_BRIDGE.z0 - 1 || z > PIPE_BRIDGE.z1 + 1) S.slab(6.5, 1.5, 0.6, MAT.concrete, -75, 0.15, z);   // sleepers
+      // pipe-bridge portals either side of the road: two steel legs and a crossbeam under the pair
+      for (const z of [PIPE_BRIDGE.z0 + 3, PIPE_BRIDGE.z1 - 3]) {
+        for (const x of [-79.5, -70.5]) N.box(0.4, PIPE_BRIDGE.y - 0.45, 0.4, MAT.darkSteel, x, (PIPE_BRIDGE.y - 0.45) / 2 + 0.15, z);
+        N.box(9.4, 0.4, 0.4, MAT.darkSteel, -75, PIPE_BRIDGE.y - 0.8, z);
+      }
+    }
     if (towerRows.length) {
       S.cylZ(0.6, 8, MAT.pipeRed, plantX - 20, 2.2, -258); S.cylX(0.6, plantX - 35, MAT.pipeRed, (plantX - 20 + 15) / 2, 2.2, -262);
       N.strut([15,2.2,-262],[15,2.2,-275],.6,MAT.pipeRed,12);
@@ -559,7 +597,9 @@ export function build({ quality, model }) {
     for (const dz of [2.6, 6.5]) { N.cyl(0.05, 1.5, MAT.orange, x + 1.9, 0.9, z + dz, 8); N.cyl(0.055, 0.2, MAT.white, x + 1.9, 1.45, z + dz, 8); }
   }
   // data: long-haul fiber in, through the line-terminal huts, to the halls; hall-to-hall fabric fiber
-  const hutA = [-215, 196], hutB = [430, -276];
+  // Each line-terminal hut stands on its route between the vault and the hall, so the cable never doubles back
+  // (hut A had sat 65 m west of a route that then turned back east).
+  const hutA = [fiberA[0], 196], hutB = [fiberB[0], -276];
   for (const [x, z] of [hutA, hutB]) {
     if (!authoredCampus) {
     S.slab(12, 3.6, 7, MAT.white, x, 0.15, z); S.slab(12.6, 0.4, 7.6, MAT.roof, x, 3.75, z);
@@ -576,11 +616,13 @@ export function build({ quality, model }) {
   N.slab(1.4,1.2,.6,MAT.darkSteel,borderX-6.5,1.2,borderZ);N.slab(1.4,1.2,.6,MAT.darkSteel,borderX-6.5,1.2,borderZ-2);
   }
   N.cyl(.15,9,MAT.galv,borderX-1,4.5,borderZ+3,6);
-  const dci = (pts, n) => dataFlows.push(flow(pts, 'dci', { count: n, speed: 45, size: 0.9, k: 2.2, trailK: 0.35, trailR: 0.3 }));
+  const entranceRoutes = [];
+  const dci = (pts, n, entrance) => { if (entrance) entranceRoutes.push(pts); dataFlows.push(flow(pts, 'dci', { count: n, speed: 45, size: 0.9, k: 2.2, trailK: 0.35, trailR: 0.3 })); };
   dci([[fiberA[0], 0.7, 900], [fiberA[0], 0.7, fiberA[1]]], 40);
   dci([[fiberB[0], 0.7, -1100], [fiberB[0], 0.7, fiberB[1]]], 40);
-  dci([[fiberA[0], 0.7, fiberA[1]], [hutA[0], 0.7, hutA[1]], [hutA[0], 0.7, 150], [-40, 0.7, 150], [-40, 0.7, nHalls > 1 ? 108 : -120], ...(nHalls > 1 ? [] : [[hallX0 + 4, 0.7, -120], [hallX0 + 4, 0.7, hallA.z1]])], 16);
-  dci([[fiberB[0], 0.7, fiberB[1]], [hutB[0], 0.7, hutB[1]], [440, 0.7, -240], [hallX1 + 10, 0.7, -240], [hallX1 + 10, 0.7, -212]], 16);
+  dci([[fiberA[0], 0.7, fiberA[1]], [hutA[0], 0.7, hutA[1]], [hutA[0], 0.7, 150], [-40, 0.7, 150], [-40, 0.7, nHalls > 1 ? 108 : -120], ...(nHalls > 1 ? [] : [[hallX0 + 4, 0.7, -120], [hallX0 + 4, 0.7, hallA.z1]])], 16, true);
+  dci([[fiberB[0], 0.7, fiberB[1]], [hutB[0], 0.7, hutB[1]], [hutB[0], 0.7, -240], [hallX1 + 10, 0.7, -240], [hallX1 + 10, 0.7, -212]], 16, true);
+  scene.userData.campusFiber = { vaults: [fiberA, fiberB], huts: [hutA, hutB], routes: entranceRoutes, representative: true };
   // duct bank cutaway where the hall-to-hall route crosses open ground: concrete encasement, 3 × 4 conduits
   const dataGroup = new THREE.Group(), D = new Builder();
   const dbX = -54, dbZ = -90, dbY = 0.15;              // set beside the route so the section reads on its own

@@ -41,12 +41,13 @@ export function hallPipeMarks(scene, model, { X0, hdrY, headerEndX, returnRiserZ
 
 /**
  * Rack: the technology cooling system (the rack loop) on the two manifolds' rear faces, read bottom to top.
- * Supply enters at the foot and rises; return falls to the foot. manifolds: [{ x, y, p (surface point), side }].
+ * The rack is top-fed (rack.js): supply enters at the head and falls; return rises to the head.
+ * manifolds: [{ x, y, p (surface point), side }].
  */
 export function rackManifoldMarks(scene, manifolds) {
   for (const { p, side } of manifolds) {
     const supply = side === 0, length = .17, half = .036;
-    const texture = pipeMarkerTexture(supply ? 'TCS SUPPLY' : 'TCS RETURN', { length, radius: half / Math.PI, letter: .0125, flow: supply ? 1 : -1, px: 256 });
+    const texture = pipeMarkerTexture(supply ? 'TCS SUPPLY' : 'TCS RETURN', { length, radius: half / Math.PI, letter: .0125, flow: supply ? -1 : 1, px: 256 });
     printDecals(scene, { texture, size: [length, half], placements: [{ p, n: [0, 0, -1], roll: Math.PI / 2 }], lift: .0008,
       name: `Rack ${supply ? 'supply' : 'return'} manifold marker`, material: { roughness: .5 } });
   }
