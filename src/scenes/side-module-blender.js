@@ -213,20 +213,32 @@ export function build({ quality, state, model: scenario }) {
   const fingers = anchorLocal('fingers'), converter = anchorLocal('dcdc'), dspLocal = anchorLocal('dsp');
   const analogAnchors = metadata.analogAnchors;
   if (analogAnchors?.length !== 1) throw new Error('Module requires one authored eight-channel analog anchor set.');
-  const yB = fingers[1] + 0.005, stageZ = Math.abs(converter[2]), ctrlX = converter[0] - 0.4, eastX = converter[0] + 0.45, edgeZ = 0.93;
+  const yB = fingers[1] + 0.005, yPlane = 0.22, yBody = 0.35, stageZ = Math.abs(converter[2]), ctrlX = converter[0] - 0.4, eastX = converter[0] + 0.45;
+  const gapZ = 0.832, edgeZ = 0.93;       // between the two capacitor rows along the DSP; outboard of every lane
+  // Declared pass-throughs (tools/flow-audit.mjs), world boxes (the board sits EXPLODED['02_BOARD'] up): the 3.3 V
+  // feed runs across its own VCC contact on the card edge, then in the board's inner power plane (inside the laminate)
+  // under the breakout and the DSP; nothing else is crossed.
+  const by = EXPLODED['02_BOARD'][1];
+  const vccIn = { within: [[fingers[0] - 0.2, by + 0.1, -0.15, -4.85, by + 0.3, 0.15], [-5.0, by + 0.165, -1.01, 4.4, by + 0.27, 1.01]],
+    why: 'the VCC contact on the card edge, then the inner power plane inside the board laminate' };
   for (const s of [1, -1]) {
-    const stage = [converter[0], converter[1], s * stageZ];
-    addFlow({ id: s > 0 ? 'power-input' : 'power-input-2', points: [[fingers[0] - 1, yB, 0], [fingers[0], yB, 0], [dspLocal[0], yB, 0],
-      [dspLocal[0] + 0.6, yB, s * 0.68], [ctrlX, yB, s * 0.68], [stage[0], stage[1], s * 0.68]],
-      mode: 'power', kind: 'power', voltage: 'v33', from: 'fingers', to: 'dcdc' });
-    addFlow({ id: s > 0 ? 'power-dsp' : 'power-dsp-2', points: [[stage[0], stage[1], s * 0.48], [ctrlX, yB, s * 0.48], [dspLocal[0] + 0.6, yB, s * 0.48], dspLocal],
+    // 3.3 V: the VCC pads, down a via into the plane, under the DSP, up a via beside its line-side edge, into the stage's controller
+    addFlow({ id: s > 0 ? 'power-input' : 'power-input-2', points: [[fingers[0] - 1, yB, 0], [fingers[0], yB, 0], [-4.95, yB, 0], [-4.95, yPlane, 0],
+      [dspLocal[0] + 0.6, yPlane, s * 0.68], [-2.56, yPlane, s * 0.68], [-2.56, yB, s * 0.68], [ctrlX, 0.31, s * 0.6]],
+      mode: 'power', kind: 'power', voltage: 'v33', from: 'fingers', to: 'dcdc', options: { audit: vccIn } });
+    // the DSP's rail: out of the stage's inductor, along the gap between the capacitor rows, down between two of the
+    // DSP's decoupling capacitors into its corner (a regulator's output goes to its load's power balls)
+    addFlow({ id: s > 0 ? 'power-dsp' : 'power-dsp-2', points: [[converter[0], yBody, s * stageZ], [converter[0], yB, s * gapZ], [-2.66, yB, s * gapZ],
+      [-2.66, 0.32, s * 0.7], [dspLocal[0], 0.32, 0]],
       mode: 'power', kind: 'power', from: 'dcdc', to: 'dsp', variant: 'dsp' });
   }
   for (const [engineIndex, anchors] of analogAnchors.entries()) for (const target of ['driver', 'tia', 'lasers']) {
     const end = cm(anchors[target]), s = Math.sign(end[2]) || 1;
-    // the lasers' bias enters on pads at the photonic chip's outer edge, clear of the transmit RF lines
-    const into = target === 'lasers' ? [end[0], end[1], s * 0.72] : end;
-    addFlow({ id: `power-${target}-${engineIndex}`, points: [[eastX, converter[1], s * stageZ], [eastX + 0.5, yB, s * edgeZ], [into[0], yB, s * edgeZ], into],
+    // out of the stage's east inductor, to the board edge outboard of every lane, along it, then into the part from
+    // its outer side: the driver's and TIA's bodies, the lasers' bias pads at the photonic chip's outer edge
+    const tail = target === 'lasers' ? [[end[0], yB, s * edgeZ], [end[0], 0.345, s * edgeZ], [end[0], 0.345, s * 0.72]]
+      : [[end[0], yB, s * edgeZ], [end[0], 0.31, end[2]]];
+    addFlow({ id: `power-${target}-${engineIndex}`, points: [[eastX, yBody, s * stageZ], [eastX + 0.3, yB, s * stageZ], [eastX + 0.5, yB, s * edgeZ], ...tail],
       mode: 'power', kind: 'power', from: 'dcdc', to: target });
   }
   const dspAnchor = anchorWorld('dsp'), shellAnchor = anchorWorld('shell');
@@ -335,12 +347,12 @@ export function build({ quality, state, model: scenario }) {
   const lpoTag = label(scene, 'LPO · direct host lanes to the linear driver and TIA',
     [dspAnchor[0], dspAnchor[1] + 0.6, dspAnchor[2]], '#8fd3ff', 0.15);
   label(scene, `Pluggable module · ${tier.published ? `${tier.rate} twin-port OSFP, 2 × DR4` : `${tier.rate} OSFP, type unpublished`}`, [0.6, -0.35, 2.6], '#e8ecf2', 0.32);
-  label(scene, '107.8 × 22.58 mm footprint · exploded spacing · representative internals', [0.6, -0.72, 2.6], note, 0.17);
-  label(scene, `One DSP · ${tier.rate} · 8 TX + 8 RX · two ${tier.port} ports`, [0.6, -1.02, 2.6], unitCol, 0.17);
+  label(scene, '107.8 × 22.58 mm footprint · exploded spacing · representative internals', [0.6, -0.72, 2.95], note, 0.17);
+  label(scene, `One DSP · ${tier.rate} · 8 TX + 8 RX · two ${tier.port} ports`, [0.6, -1.02, 3.25], unitCol, 0.17);
   // End-to-end TX/RX explanations live in the panel. Placing them at the host
   // connector would imply that light enters or leaves that electrical interface.
   const modeNote = label(scene, 'Power and heat arrows are schematic across the exploded assembly.',
-    [0.6, -1.32, 2.6], note, 0.14);
+    [0.6, -1.32, 3.55], note, 0.14);
   const diagramLabels = scene.children.filter(o => o.isSprite);
   // The overview frames the captions with the hardware, so the fit keeps them inside the clear view and off the
   // bottom HUD (the drag hint, the scale bar, the legend): see presentation.clearBottomHud and stage.js safeBox.
