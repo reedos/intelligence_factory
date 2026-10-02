@@ -15,9 +15,15 @@ export function frameCompute(built, kind, accel) {
     // DGX H100 pulled-tray rack and NVL72 rack measure within 0.02 of each other; one pivot serves both.
     built.camera = {...built.camera,pos:[2.8,3.12,3.42],target:[0,1.92,0]};
   } else if (kind === 'tray') {
-    built.camera = { ...built.camera, ...(h100 ? componentView([0, 2.1, -.38], [9.5, 4.4, 5.6], [4.9, 3.7, 9.6]) : componentView([0, .45, .03], [7, 7, 9], [4.9, 1.3, 10.0])) };
+    // H100's 8U air-cooled chassis and the liquid-cooled NVL72 tray are different hardware (this is the
+    // one place the two measure far enough apart - about 1.7 units on a ~10-unit tray - to need separate
+    // pivots). gb200, gb300 and rubin measure within 0.07 of each other (one buildNVL() code path; see
+    // tray.js), comfortably inside the 3% tolerance, so they still share a pivot.
+    built.camera = { ...built.camera, ...(h100 ? componentView([0, 2.1, -.43], [9.5, 4.4, 5.6], [4.9, 3.7, 9.6]) : componentView([0, .47, .02], [7, 7, 9], [4.9, 1.3, 10.0])) };
   } else if (kind === 'chip') {
-    built.camera = { ...built.camera, ...componentView([0, 1.64, 0], [9, 6, 11], [9.2, 5.0, 9.2]) };
+    // The exploded stack's layer heights (chip.js's Y table) do not vary with accel - gb200, gb300, h100
+    // and rubin all measure the same pivot here, in both Data/Heat and Power mode.
+    built.camera = { ...built.camera, ...componentView([0, 1.655, 0], [9, 6, 11], [9.2, 5.0, 9.2]) };
     // The fit box stops just above the HBM tops (about 3.5 cm), so the exploded
     // stack fills the frame instead of leaving a band of empty space above it.
     built.cameraByMode.power = { ...componentView([0, 1.62, 0], [10, 3.4, 12], [9.2, 4.0, 9.2]) };

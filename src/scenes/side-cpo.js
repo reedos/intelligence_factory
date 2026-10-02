@@ -282,6 +282,14 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     for (const sprite of viewSprites) sprite.visible = sprite.userData.cpoVariant === kind;
   }
   setVariant('ring');
+  // The ring and Mach-Zehnder packages measure about 1.2 units apart on x (tools/orbit-center.mjs),
+  // too far apart to share one orbit pivot at the 3% tolerance used for this level. Each variant's
+  // pos keeps the same offset from target as the one camera this replaces (so the opening frame for
+  // 'ring', the default, is unchanged), applied to the Mach-Zehnder package's own measured centre.
+  const CAMERA = {
+    ring: { pos: [-2.82, 22.17, 25.08], target: [-2.82, 1.17, -1.42], portrait: { pos: [13.18, 29.47, 26.58], target: [-2.82, 1.17, -1.42] } },
+    mzm: { pos: [-4.07, 22.17, 25.0], target: [-4.07, 1.17, -1.5], portrait: { pos: [11.93, 29.47, 26.5], target: [-4.07, 1.17, -1.5] } },
+  };
   return {
     scene, flows, dataFlows, heatFlows, coolingHardware,
     variant: {
@@ -292,7 +300,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
       partCopy: (part, mode) => cpoPartCopy(kind, part, mode),
       spriteVisible: sprite => !sprite.userData.cpoVariant || sprite.userData.cpoVariant === kind,
     },
-    camera: { pos: [-0.5, 22, 25], target: [-0.5, 1.0, -1.5], near: 0.05, far: 500, min: 2, max: 90, portrait: { pos: [14.5, 29.5, 25.5], target: [-1.5, 1.2, -2.5] } },
+    get camera() { return { ...CAMERA[kind], near: 0.05, far: 500, min: 2, max: 90 }; },
     get hotspots() { return pins[kind].power; },
     get dataHotspots() { return pins[kind].data; },
     get heatHotspots() { return pins[kind].heat; },
