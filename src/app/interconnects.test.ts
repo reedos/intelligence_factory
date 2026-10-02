@@ -11,14 +11,16 @@ describe('interconnects', () => {
   it('the side levels, in order, carry the tab names the bar shows', () => {
     const side = C.SCENES.map((s: any, i: number) => [i, s]).filter(([, s]: any) => s.side);
     expect(side.map(([i, s]: any) => [i, s.id, s.tab])).toEqual([
-      [6, 'module', 'Pluggable module'], [7, 'cpo', 'Co-packaged optics'],
-      [8, 'coherent', 'Data center interconnect'], [9, 'copper', 'Copper cables'],
+      [6, 'module', 'Pluggable optics'], [7, 'cpo', 'Co-packaged optics'],
+      [8, 'coherent', 'Coherent optics'], [9, 'copper', 'Copper cables'],
     ]);
     expect(C.SCENES.filter((s: any) => !s.side).map((s: any) => s.n)).toEqual([1, 2, 3, 4, 5, 6]);
   });
-  it('the coherent level is the data center interconnect, its module the kicker', () => {
+  it('the coherent level is coherent optics, the data center interconnect its kicker (Reed, 10/02)', () => {
     const s = C.SCENES[8];
-    expect([s.title, s.kicker, s.door, s.n]).toEqual(['Data center interconnect', 'Coherent 800ZR module', 'data center interconnect', '+']);
+    expect([s.title, s.kicker, s.door, s.n]).toEqual(['Coherent optics', '800ZR · data center interconnect', 'coherent optics', '+']);
+    expect([C.SCENES[6].tab, C.SCENES[6].door, C.SCENES[9].kicker]).toEqual(['Pluggable optics', 'pluggable optics', 'DAC / ACC / AEC']);
+    expect(C.SCENES[6].kicker).toMatch(/^(800G 2×DR4|1\.6T 2×DR4|1\.6T) · in the hall$/);
   });
   it('the line terminals at Scale across and the campus cutaway open it; the campus hut card does not (Reed, 10/01)', () => {
     const at = (sc: string, id: string) => C.PARTS_DATA[sc].find((p: any) => p.id === id)?.drill;
