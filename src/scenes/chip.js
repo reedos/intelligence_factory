@@ -88,8 +88,9 @@ function chunkTexture(words, lane, startParity) {
 // Points are world [x, z] in cm, package centre at the origin. Side 0 leaves toward +x, 1 toward -x, 2 toward
 // +z, 3 toward -z (the texture's pixel axes map to world x and z).
 export const BGA = { pitch: 0.3, n: 26, half: 3.75 }, BGA_RUNS = 24;
-// the HBM print's box on its stack-top canvas, as fractions (x across, y down; cy its centre, h its height): the outer half
-export const HBM_LABEL = { x0: 0.2, x1: 0.8, cy: 0.74, h: 0.2 };
+// the HBM print on a stack top, as fractions of the top: its length along the text, its height, and how far its centre
+// sits from the top's centre toward the stack's outer edge
+export const HBM_LABEL = { len: 0.6, h: 0.2, off: 0.24 };
 export function bgaRun(side, k) {
   const along = -BGA.half + (k + 1) * BGA.pitch, t = (k - (BGA_RUNS - 1) / 2) / ((BGA_RUNS - 1) / 2), jog = t * Math.abs(t) * 0.85;
   const r0 = BGA.half, r1 = 5.25;
@@ -286,13 +287,23 @@ function buildPackage({ quality, state, model }) {
   // GPU die; the height here is drawn about 3x (representative) so the layers
   // stay visible.
   const mold = new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.55, metalness: 0.05 }); mold.name = 'HBM epoxy mold compound';
-  // The memory type is printed on the stack's outer half (canvas bottom; each stack's top turns its UVs so that half
-  // faces away from the die), leaving the die-facing half clear for the data layer's waterfall (hbm-waterfall.js).
-  // HBM_LABEL is the print's box in the canvas, as fractions: x across the text, y down the canvas.
-  const hbmPrint = canvasTex(256, 256, (g, w, h) => {
+  // The memory type is printed on the stack's outer half, leaving the die-facing half clear for the data layer's
+  // waterfall (hbm-waterfall.js), and always upright toward the default camera (which looks from +x, +z): one canvas
+  // holds four prints, one per stack orientation, each in its own quadrant (a stack's top maps to one quadrant).
+  //   0 (top left)     a stack on the +z side: text across, on the quadrant's lower (+z) half
+  //   1 (top right)    a stack on the -z side: text across, on the upper (-z) half
+  //   2 (bottom left)  a stack on the +x side (H100): text turned to run along z, base toward +x, on the +x half
+  //   3 (bottom right) a stack on the -x side: the same turn, on the -x half
+  const LABEL_AT = [{ cx: 0.5, cy: 0.5 + HBM_LABEL.off, turn: false }, { cx: 0.5, cy: 0.5 - HBM_LABEL.off, turn: false },
+    { cx: 0.5 + HBM_LABEL.off, cy: 0.5, turn: true }, { cx: 0.5 - HBM_LABEL.off, cy: 0.5, turn: true }];
+  const hbmPrint = canvasTex(512, 512, (g, w, h) => {
     g.fillStyle = '#2b2e35'; g.fillRect(0, 0, w, h);
     g.fillStyle = '#8b939e'; g.font = '600 44px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(A.hbm.type, w / 2, h * HBM_LABEL.cy, w * (HBM_LABEL.x1 - HBM_LABEL.x0));
+    LABEL_AT.forEach(({ cx, cy, turn }, q) => {
+      g.save(); g.translate((q % 2 + cx) * 256, (Math.floor(q / 2) + cy) * 256);
+      if (turn) g.rotate(-Math.PI / 2);
+      g.fillText(A.hbm.type, 0, 0, 256 * HBM_LABEL.len); g.restore();
+    });
   });
   const hbmTopMat = new THREE.MeshStandardMaterial({ map: hbmPrint, roughness: 0.4, metalness: 0.3 }); hbmTopMat.name = `HBM printed top ${A.hbm.type}`;
   const hbmTops = [], hbmLabels = [];                   // one textured mesh for all tops (the Builder would drop the UVs)
@@ -315,19 +326,14 @@ function buildPackage({ quality, state, model }) {
       return;
     }
     S.box(HW, stackH - 0.012, HD, mold, x, hb + (stackH - 0.012) / 2, z);
-    // turn the print so its canvas bottom (where the label sits) faces away from the die: +z needs no turn
-    const top = new THREE.BoxGeometry(HW - 0.04, 0.012, HD - 0.04), uv = top.attributes.uv, out = twin ? (z > 0 ? 'pz' : 'nz') : (x > 0 ? 'px' : 'nx');
-    for (let k = 0; k < uv.count; k++) {
-      const u = uv.getX(k), v = uv.getY(k);
-      uv.setXY(k, ...({ pz: [u, v], nz: [1 - u, 1 - v], px: [v, 1 - u], nx: [1 - v, u] })[out]);
-    }
+    // this stack's quadrant of the print canvas (see LABEL_AT): its outer side picks the print
+    const q = twin ? (z > 0 ? 0 : 1) : (x > 0 ? 2 : 3), top = new THREE.BoxGeometry(HW - 0.04, 0.012, HD - 0.04), uv = top.attributes.uv;
+    for (let k = 0; k < uv.count; k++) uv.setXY(k, (uv.getX(k) + q % 2) / 2, (uv.getY(k) + 1 - Math.floor(q / 2)) / 2);
     hbmTops.push(top.translate(x, hb + stackH - 0.006, z));
-    // the label's footprint in world x/z (the outer band of the top, across the text)
-    { const across = twin ? HD - 0.04 : HW - 0.04, alongW = twin ? HW - 0.04 : HD - 0.04, s = twin ? Math.sign(z) : Math.sign(x);
-      const o0 = (HBM_LABEL.cy - HBM_LABEL.h / 2 - 0.5) * across, o1 = (HBM_LABEL.cy + HBM_LABEL.h / 2 - 0.5) * across;
-      const a0 = (HBM_LABEL.x0 - 0.5) * alongW, a1 = (HBM_LABEL.x1 - 0.5) * alongW;
-      const r = twin ? [x + a0, x + a1, z + s * o0, z + s * o1] : [x + s * o0, x + s * o1, z + a0, z + a1];
-      hbmLabels.push({ x0: Math.min(r[0], r[1]), x1: Math.max(r[0], r[1]), z0: Math.min(r[2], r[3]), z1: Math.max(r[2], r[3]), y: hb + stackH }); }
+    // the label's footprint in world x/z: canvas x runs with world x, canvas y with world z
+    { const L = LABEL_AT[q], tw = HW - 0.04, td = HD - 0.04, half = { a: HBM_LABEL.len / 2, b: HBM_LABEL.h / 2 };
+      const [hx, hz] = L.turn ? [half.b, half.a] : [half.a, half.b];
+      hbmLabels.push({ x0: x + (L.cx - hx - 0.5) * tw, x1: x + (L.cx + hx - 0.5) * tw, z0: z + (L.cy - hz - 0.5) * td, z1: z + (L.cy + hz - 0.5) * td, y: hb + stackH }); }
     // the cut face on the package-edge side: base die, then one band per DRAM die, then TSVs
     const n = layers + 1, band = (stackH - 0.03) / n;
     const fx = twin ? 0 : Math.sign(x), fz = twin ? Math.sign(z) : 0;            // outward normal of the cut face
