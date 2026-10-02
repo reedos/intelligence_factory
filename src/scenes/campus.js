@@ -626,7 +626,7 @@ export function build({ quality, model }) {
   dci([[fiberA[0], 0.7, 900], [fiberA[0], 0.7, fiberA[1]]], 40);
   dci([[fiberB[0], 0.7, -1100], [fiberB[0], 0.7, fiberB[1]]], 40);
   dci([[fiberA[0], 0.7, fiberA[1]], [hutA[0], 0.7, hutA[1]], [hutA[0], 0.7, 150], [-46, 0.7, 150], [-46, 0.7, nHalls > 1 ? 108 : -120], ...(nHalls > 1 ? [] : [[hallX0 + 4, 0.7, -120], [hallX0 + 4, 0.7, hallA.z1]])], 16, true);
-  dci([[fiberB[0], 0.7, fiberB[1]], [hutB[0], 0.7, hutB[1]], [hutB[0], 0.7, -240], [hallX1 + 10, 0.7, -240], [hallX1 + 10, 0.7, -212]], 16, true);
+  dci([[fiberB[0], 0.7, fiberB[1]], [hutB[0], 0.7, hutB[1]], [hutB[0], 0.7, -232], [hallX1 + 10, 0.7, -232], [hallX1 + 10, 0.7, -212]], 16, true);   // z -232: between the plant's south face and hall A's apron, never through the plant
   scene.userData.campusFiber = { vaults: [fiberA, fiberB], huts: [hutA, hutB], routes: entranceRoutes, representative: true };
   // duct bank cutaway where the hall-to-hall route crosses open ground: concrete encasement, 3 × 4 conduits
   const dataGroup = new THREE.Group(), D = new Builder();
@@ -655,7 +655,7 @@ export function build({ quality, model }) {
     // Branches terminate at each representative hall envelope; no device or
     // conduit count/capacity is inferred from these aggregate utility symbols.
     const serviceNorth=z0-60, powerFeed=[[-40,uY,-62],[-40,uY,-55],[575,uY,-55],[575,uY,serviceNorth]],
-      dataFeed=[[hallX1+10,.7,-212],[hallX1+10,.7,-240],[581,.7,-240],[581,.7,serviceNorth-4]];
+      dataFeed=[[hallX1+10,.7,-212],[hallX1+10,.7,-232],[581,.7,-232],[581,.7,serviceNorth-4]];
     const expansionServices={basis:'assumed conceptual distribution; not a surveyed site topology',power:[],data:[]};
     const service=(points,kind,count)=>{
       const f=flow(points,kind,{count,speed:kind==='mv'?45:55,size:1.15,k:2.3,trailR:.28,trailK:.42});
