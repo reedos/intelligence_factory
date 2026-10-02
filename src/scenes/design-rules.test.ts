@@ -109,6 +109,33 @@ describe('GPU package (scene 5): place and route', () => {
       }
     }
   });
+  it('the on-die activity stays on the dies: tiles inside the die faces, streaks on the die tops, only HBI streaks cross the seam', () => {
+    for (const { accel, model, routes, built } of builds()) {
+      const twin = model.accel.dies > 1, dieX = twin ? [-1.36, 1.36] : [0];
+      const onDie = (x: number, z: number) => dieX.some(d => Math.abs(x - d) <= 1.3 + 1e-6) && Math.abs(z) <= 1.65 + 1e-6;
+      for (const t of routes.dieTiles) { expect(onDie(t.lo[0], t.lo[1]) && onDie(t.hi[0], t.hi[1]), accel).toBe(true); }
+      expect(routes.dieTiles.length, accel).toBe(64 * dieX.length);
+      const labels = built.scene.userData.hbmLabels;
+      for (const p of routes.dieActivity) {
+        expect(p.kind === 'hbi' ? twin : true, accel).toBe(true);
+        for (let i = 1; i < p.pts.length; i++) {
+          const a = p.pts[i - 1], b = p.pts[i];
+          for (let k = 0; k <= 20; k++) {
+            const x = a[0] + (b[0] - a[0]) * k / 20, z = a[2] + (b[2] - a[2]) * k / 20;
+            // on a die face, or (HBI only) inside the seam between the two
+            expect(onDie(x, z) || (p.kind === 'hbi' && Math.abs(x) < 0.1 && Math.abs(z) < 1.65), `${accel} ${p.kind}`).toBe(true);
+            for (const L of labels) expect(x > L.x0 && x < L.x1 && z > L.z0 && z < L.z1, `${accel}: activity over a label`).toBe(false);
+          }
+        }
+      }
+      // streaks start where a waterfall lands and never reach back over the gap toward the stacks
+      const lands = routes.hbmDrawn.map((r: P3[]) => r.at(-1)!);
+      for (const p of routes.dieActivity.filter((q: any) => q.kind === 'feed')) {
+        const s0 = p.pts[0];
+        expect(lands.some((l: P3) => Math.hypot(l[0] - s0[0], l[2] - s0[2]) < 0.45), accel).toBe(true);
+      }
+    }
+  });
   it('the die-to-die link runs straight across the seam, lanes evenly spaced', () => {
     for (const { accel, model, routes } of builds()) {
       if (model.accel.dies < 2) { expect(routes.hbi.length).toBe(0); continue; }
