@@ -9,6 +9,7 @@
 import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, label, lidBox, outline, FLOW, COL, note, unitCol, asicTex, ringPicTex, RING, eicTex, glowMat } from './side-kit.js';
 
 import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes } from './side-geometry.js';
+import { tagHeat, balanceHeat, PART_W } from '../heat.js';
 
 // Fiber cannot fold at a point. The route contract (side-geometry.js) stays a
 // reviewed polyline; the drawn fiber and its moving light follow the same path
@@ -203,9 +204,11 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   engines.forEach(({ x, z }) => flows.push(flow([[x, -1.0, z], [x, Y.sub, z], [x, Y.eng, z]], 'v33', FLOW.power)));
   els.forEach(([x, z]) => flows.push(flow([[x + 2.3, Y.sub + 0.45, z], [x + 0.9, Y.sub + 0.45, z]], 'v33', FLOW.power)));
   // A few sampled columns read as rising heat; a dense sheet hid the die and the plate behind it.
-  for (let i = 0; i < 14; i++) { const x = (rnd() - 0.5) * activeDieSpan, z = (rnd() - 0.5) * activeDieSpan; heatFlows.push(flow([[x, Y.die + 0.06, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat)); }
-  engines.forEach(({ x, z }) => heatFlows.push(flow([[x, Y.eng + 0.1, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat)));
-  heatFlows.push(flow([[-1.4, pipeTop, pipeZ], [-1.4, Y.plate, pipeZ], [-1.4, Y.plate, 3], [1.4, Y.plate, 3], [1.4, Y.plate, pipeZ], [1.4, pipeTop, pipeZ]], 'cool', { count: 10, speed: 1.6, size: 0.06, k: 2.2, trail: false }));
+  // Heat per part on the site's one log rule (src/heat.js, PART_W.cpo): the switch ASIC, then each engine.
+  for (let i = 0; i < 14; i++) { const x = (rnd() - 0.5) * activeDieSpan, z = (rnd() - 0.5) * activeDieSpan; heatFlows.push(tagHeat(flow([[x, Y.die + 0.06, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat), 'asic', PART_W.cpo.asic)); }
+  engines.forEach(({ x, z }, i) => heatFlows.push(tagHeat(flow([[x, Y.eng + 0.1, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat), `engine-${i}`, PART_W.cpo.engine)));
+  heatFlows.push(tagHeat(flow([[-1.4, pipeTop, pipeZ], [-1.4, Y.plate, pipeZ], [-1.4, Y.plate, 3], [1.4, Y.plate, 3], [1.4, Y.plate, pipeZ], [1.4, pipeTop, pipeZ]], 'cool', { count: 10, speed: 1.6, size: 0.06, k: 2.2, trail: false }), 'coldplate-water', PART_W.cpo.asic + engines.length * PART_W.cpo.engine, 'carrier'));
+  balanceHeat(heatFlows);
   [flows, dataFlows, heatFlows].forEach(a => a.forEach(f => scene.add(f.group)));
 
   // ======================= labels =======================
@@ -241,12 +244,15 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     fiberout: fitted([edgeConn[1][0], 1.45, edgeConn[1][1]], [edgeConn[1][0] + 4, 7.5, 10.7], [edgeConn[1][0], 1.6, 5.9], [4.2, 1.6, 3.4]),
     // Pinned on the plate's return-leg microchannels, visible from the ASIC view too.
     coldplate: view([1.65, Y.plate + 0.14, 1.0], [6, 10, 11], [0, 2.4, 0]),
+    // Landscape cards (who ships CPO, where it is heading): pinned on the substrate's two left corners, whole-package views.
+    today: view([-SUB / 2 + 0.5, Y.subTop + 0.05, SUB / 2 - 0.5], [-9, 10, 14], [-1.5, 1.2, 1.0]),
+    next: view([-SUB / 2 + 0.5, Y.subTop + 0.05, -SUB / 2 + 0.5], [-13, 10, 3], [-1.5, 1.2, -1.0]),
   };
   return {
     scene, flows, dataFlows, heatFlows, coolingHardware,
     camera: { pos: [-0.5, 22, 25], target: [-0.5, 1.0, -1.5], near: 0.05, far: 500, min: 2, max: 90, portrait: { pos: [14.5, 29.5, 25.5], target: [-1.5, 1.2, -2.5] } },
-    hotspots: { asic: hs.asic, engine: hs.engine, els: hs.els },
-    dataHotspots: { asic: hs.asic, serdes: hs.serdes, eic: hs.eic, rings: hs.rings, pd: hs.pd, els: hs.els, fiberout: hs.fiberout },
+    hotspots: { asic: hs.asic, engine: hs.engine, els: hs.els, today: hs.today, next: hs.next },
+    dataHotspots: { asic: hs.asic, serdes: hs.serdes, eic: hs.eic, rings: hs.rings, pd: hs.pd, els: hs.els, fiberout: hs.fiberout, today: hs.today, next: hs.next },
     // Heat looks in under the lifted plate: the die glows below, its heat rises into the channels above.
     heatHotspots: { asic: view(hs.asic.pos, [1.2, 3.55, 10.5], [0, 2.75, 0]), coldplate: hs.coldplate },
     update(t) { eqMark.material.opacity = 0.62 + 0.3 * Math.sin(t * 1.6); if (asicTop) asicTop.emissiveIntensity = state.mode === 'heat' ? 0.5 + 0.08 * Math.sin(t * 2) : 0; },

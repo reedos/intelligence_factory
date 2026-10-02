@@ -6,6 +6,7 @@
 import { THREE, MAT, Builder, flow, setup, materials, strand, trace, label, lidBox, FLOW, COL, note, unitCol } from './side-kit.js';
 import { COPPER_HEADS, copperLane, copperChip, copperPad, copperPadX, COPPER_PADS, PAIR_HALF, copperPairRoute } from './side-geometry.js';
 import { componentView } from '../app/housing-frame.js';
+import { tagHeat, balanceHeat, heatWeight, PART_W } from '../heat.js';
 
 // A swept elliptical tube along a curve: offset (ox, oy) and radii (rx, ry) in the curve's own frame, which stays
 // level (right = tangent x up). arc = [start, length] leaves a window open; cap closes the start end.
@@ -179,16 +180,17 @@ export function build({ quality, state, authoredHardware = false }) {
       line.add(pad, halo); line.userData.pad = pad; line.userData.halo = halo; line.visible = false;
       scene.add(line); powerGlows.push(line);
     }
-    // Qualitative energy transfer, not coolant or a claimed thermal-interface
-    // construction. The display gap to the lifted cover is deliberately schematic.
-    // Identical treatment avoids implying a numerical ACC/AEC power ratio: the same strands, glow and haze per
-    // chip; only the package's own footprint differs.
-    if (chip) {
+    // Energy transfer, not coolant or a claimed thermal-interface construction. The display gap to the lifted cover
+    // is deliberately schematic. Strands, glow and haze follow the site's one log rule (src/heat.js) on each chip's
+    // assumed watts (PART_W.copper); the passive DAC has no chip and draws none.
+    const chipW = PART_W.copper[kind], chipK = heatWeight(chipW, PART_W.copper.aec);
+    if (chip && chipK) {
       const top = cardTop + chip.h;
       [-0.36, -0.18, 0, 0.18, 0.36].forEach((u, k) => {
         const dx = u * chip.w, dz = (k % 2 ? 0.2 : -0.12) * chip.d;
         heatFlows.push(flow([[chip.x + dx, top, chipZ + dz], [chip.x + dx * 1.1, 2.44, chipZ + dz],
           [chip.x + dx * 1.9, 3.3 + Math.abs(u) * 0.3, chipZ + dz - 0.3]], 'hot', { ...FLOW.heat, count: 4, size: 0.05 }));
+        tagHeat(heatFlows[heatFlows.length - 1], kind, chipW);
       });
       const hot = heatFlows[heatFlows.length - 1].base.color;
       const glow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: softTex(), color: hot.clone().multiplyScalar(1.8), transparent: true, opacity: 0.5, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending }));
@@ -198,7 +200,7 @@ export function build({ quality, state, authoredHardware = false }) {
         sp.userData.phase = i / 4; return sp;
       });
       const g = new THREE.Group(); g.add(glow, ...haze); g.visible = false;
-      g.userData = { glow, haze, x: chip.x, z: chipZ, top, w: chip.w };
+      g.userData = { glow, haze, x: chip.x, z: chipZ, top, w: chip.w, k: chipK };
       scene.add(g); heatGlows.push(g);
     }
     heads.push({ kind, x: hx, chip });
@@ -207,6 +209,7 @@ export function build({ quality, state, authoredHardware = false }) {
   // a warm key from camera-left for the Power layer only: the port feeding the plug sets the mood
   const warm = new THREE.DirectionalLight(0xffc27a, 0); warm.name = 'Copper power warm key';
   warm.position.set(-9, 8, 6); warm.target.position.set(0, 0.8, 0); scene.add(warm, warm.target);
+  balanceHeat(heatFlows);
   [flows, dataFlows, heatFlows].forEach(a => a.forEach(f => scene.add(f.group)));
 
   label(scene, 'Copper cables · one end of each', [0, 0.9, z0 + 2.6], '#e8ecf2', 0.34);
@@ -253,13 +256,13 @@ export function build({ quality, state, authoredHardware = false }) {
       const rise = close ? 0.75 : 2.1, hazeK = close ? 0.06 : 0.15, grow = close ? 0.6 : 1.3;
       for (const g of heatGlows) {
         g.visible = heat; if (!heat) continue;
-        const { glow, haze, x, z, top, w } = g.userData;
-        glow.material.opacity = close ? 0.16 + 0.05 * Math.sin(t * 2.1) : 0.3 + 0.1 * Math.sin(t * 2.1);
+        const { glow, haze, x, z, top, w, k } = g.userData;
+        glow.material.opacity = k * (close ? 0.16 + 0.05 * Math.sin(t * 2.1) : 0.3 + 0.1 * Math.sin(t * 2.1));
         for (const sp of haze) {
           const p = (t * 0.32 + sp.userData.phase) % 1;
           sp.position.set(x, top + 0.15 + p * rise, z - p * 0.2);
           sp.scale.setScalar(w * (0.7 + p * grow));
-          sp.material.opacity = hazeK * Math.sin(Math.PI * p);
+          sp.material.opacity = k * hazeK * Math.sin(Math.PI * p);
         }
       }
       return on || heat;

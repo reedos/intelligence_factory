@@ -8,6 +8,7 @@ import { STREAM_TPS, buildCycle, sampleAt, tick } from '../model/token-script.js
 import { frameCompute } from './compute-framing.js';
 import { componentView } from '../app/housing-frame.js';
 import { installTokenMath } from './token-math.js';
+import { tagHeat, balanceHeat } from '../heat.js';
 
 // The visible top of a flip-chip die is its polished silicon backside. A faint
 // roughness pattern (a grayscale map) lets the key light break across it.
@@ -397,11 +398,15 @@ function buildPackage({ quality, state, model }) {
   }
   dataFlows.forEach(f => scene.add(f.group));
   // ---------- heat: up out of the dies and HBM, through the heat spreader ----------
+  // Watts per source (src/heat.js): the GPU silicon is the package less its HBM share; each live stack carries an
+  // even part of that share. balanceHeat then sizes every source's streams by the site's one log rule.
+  const hbmW = A.gpuW * A.hbmShare, siliconW = A.gpuW - hbmW, stackW = hbmW / Math.max(1, live.length);
   for (let i = 0; i < 30; i++) {
     const x = dieSampleX(), z = (rnd() - 0.5) * 3.0;
-    heatFlows.push(flow([[x, Y.dies + 0.06, z], [x, Y.lid - 0.12, z], [x * 1.05, Y.lid + 1.4, z * 1.05]], 'hot', { count: 3, speed: 1.1 + rnd() * 0.6, size: 0.045, k: 2.6, trail: false }));
+    heatFlows.push(tagHeat(flow([[x, Y.dies + 0.06, z], [x, Y.lid - 0.12, z], [x * 1.05, Y.lid + 1.4, z * 1.05]], 'hot', { count: 3, speed: 1.1 + rnd() * 0.6, size: 0.045, k: 2.6, trail: false }), 'gpu-silicon', siliconW));
   }
-  live.forEach(([x, z]) => { const f = flow([[x, hb + stackH, z], [x, Y.lid - 0.12, z], [x, Y.lid + 1.2, z]], 'hot', { count: 2, speed: 0.9, size: 0.04, k: 2.4, trail: false }); f.thermalOrigin = 'hbm'; heatFlows.push(f); });
+  live.forEach(([x, z], i) => { const f = flow([[x, hb + stackH, z], [x, Y.lid - 0.12, z], [x, Y.lid + 1.2, z]], 'hot', { count: 2, speed: 0.9, size: 0.04, k: 2.4, trail: false }); f.thermalOrigin = 'hbm'; heatFlows.push(tagHeat(f, `hbm-${i}`, stackW)); });
+  balanceHeat(heatFlows);
   scene.userData.computePackage = { gpuDies: dieX.length, liveHbmStacks: live.length, hbmDramLayers: layers, spacerSites: spare < 0 ? 0 : 1, nvlinkLinks: A.nvlink.linksPerGpu, explodedRepresentative: true };
   heatFlows.forEach(f => scene.add(f.group));
 
