@@ -39,7 +39,14 @@ export function frameCompute(built, kind, accel) {
     built.camera = { ...built.camera, pos: overviewPos([0, 1.655, 0], [9, 6, 11]), target: [0, 1.655, 0] };
     // The fit box stops just above the HBM tops (about 3.5 cm), so the exploded
     // stack fills the frame instead of leaving a band of empty space above it.
-    built.cameraByMode.power = { pos: overviewPos([0, 1.62, 0], [10, 3.4, 12]), target: [0, 1.62, 0] };
+    // compact (squarer-than-widescreen desktop widths, cameraPresetFor's aspect < 1.5): the same pivot,
+    // pulled back along the same direction so the 12 cm board and the Tokens pin still clear the HUD
+    // (src/scenes/compute-blender.test.ts's "compact Power view" case) - this used to come from
+    // componentView's detailSize/fitComponent margin fit, which also moved the *pivot* off-centre
+    // (the tray bug above); an explicit compact pos keeps the pivot fixed and only changes distance.
+    const powerTarget = [0, 1.62, 0], powerOffset = [10, 3.4, 12];
+    built.cameraByMode.power = { pos: overviewPos(powerTarget, powerOffset), target: powerTarget,
+      compact: { pos: overviewPos(powerTarget, powerOffset.map(v => v * 1.5)), target: powerTarget } };
   }
   const rackSizes = {
     feed: [.55,.7,.45], shelves: [.55,.18,.30], busbar: [.18,1.15,.15],

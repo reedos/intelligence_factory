@@ -6,7 +6,7 @@ import { inflateSync } from 'node:zlib';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { compute, DEFAULT_SCENARIO } from '../model/engine';
-import { fitComponent } from '../app/housing-frame.js';
+import { cameraPresetFor } from '../app/camera-presets.js';
 import { auditFlows } from '../../tools/flow-audit.mjs';
 
 const kinds=['rack','tray','chip'], ids=['gb200','gb300','rubin','h100'];
@@ -181,7 +181,13 @@ describe('complete Blender compute hardware',()=>{
     }finally{clock.mockRestore();}
   });
   it('compact Power view fits the context board and keeps the Tokens pin below the HUD band',()=>{
-    const b=wrappers[2].build(options('gb200')),preset=fitComponent(b.cameraByMode.power,947,850);
+    // b.cameraByMode.power is now the overview pivot itself (compute-framing.js), not a detailSize
+    // box to re-fit per aspect: carrying detailSize here made stage.js's cameraPreset() run the
+    // part-view obstacle-avoidance search against the whole chip instead of using this pivot
+    // directly (src/scenes/compute-framing.js's overviewPos comment). At this squarer-than-widescreen
+    // aspect cameraPresetFor (the real runtime selector) picks the explicit `compact` pos, which
+    // keeps the same pivot and only pulls the camera back along the same direction.
+    const b=wrappers[2].build(options('gb200')),preset=cameraPresetFor(b.cameraByMode.power,947,850);
     const c=new THREE.PerspectiveCamera(35,947/850,.05,500);c.position.fromArray(preset.pos);c.lookAt(new THREE.Vector3(...preset.target));c.updateMatrixWorld(true);
     // The subject is the 9 cm package; the 12 cm board is supporting context.
     for(const x of [-4.5,4.5])for(const z of [-4.5,4.5]){const p=new THREE.Vector3(x,0,z).project(c);expect(Math.abs(p.x)).toBeLessThan(.96);expect(Math.abs(p.y)).toBeLessThan(.85);}
