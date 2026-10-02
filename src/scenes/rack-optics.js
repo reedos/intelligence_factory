@@ -63,8 +63,7 @@ export function addRackOptics(built, accel) {
         const cx=x+(connectorCount===2?(lane-.5)*.009:0);
         hardware.box(connectorCount===2?.0075:.014,.007,.018,connector,cx,y,z+direction*.03);
         for(let rib=0;rib<4;rib++)hardware.box(connectorCount===2?.0078:.0143,.0074,.0012,MAT.black,cx,y,z+direction*(.035+rib*.002));
-        // DGX H100: the leads keep outboard of the rear rail post at x +-.25 on their run to the manager
-        const side = Math.sign(x), rail = side*((h100?.262:.252)+(index%6)*.0028);
+        const side = Math.sign(x), rail = side*(.2685+(index%6)*.0022);   // outboard of the pulled trays' slide rails
         const managerZ=(h100?-.575:.575)+direction*(Math.floor(index/6)*.007+lane*.0032);
         const start=[cx,y,z+direction*.044], end=[rail,2.32,managerZ];
         // one tag per module, hanging under its lead or straddling a twin pair, clear of the connector faces
@@ -72,8 +71,16 @@ export function addRackOptics(built, accel) {
         // Short faceplate run, then a controlled side return for the extended
         // service tray. Neighboring leads share a narrow, combed riser corridor.
         const exitZ=z+direction*(.085+lane*.008);
-        const points=managedRoute([start,[cx,y,exitZ],[rail,y,exitZ],
-          [rail,y,managerZ],[rail,y+.10,managerZ],end]);
+        // the run into the manager passes between its comb fingers (every .18 from .22), never through one
+        const finger=.22+Math.round((y-.22)/.18)*.18,runY=Math.abs(y-finger)<.013?finger+(y>=finger?.014:-.014):y;
+        // DGX H100 (rear cages): the leads pass the rear rail posts (x +-.25) and corner posts (x +-.28, z +-.505) on
+        // their inboard side and only turn out to the manager behind them; the pulled server's leads come back into the
+        // rack inboard of the front posts the same way. Other generations keep their front-side corridor.
+        const behind=-.535-lane*.004, inX=side*(.236-lane*.003);
+        const via=h100 ? (pulled ? [[cx,runY,exitZ+direction*.004],[inX,runY,exitZ+direction*.004],[inX,runY,behind],[rail,runY,behind]]
+          : [[cx,runY,behind],[rail,runY,behind]]) : [[cx,runY,exitZ+direction*.004],[rail,runY,exitZ+direction*.004]];
+        const points=managedRoute([start,[cx,y,exitZ],...via,
+          [rail,runY,managerZ],[rail,runY+.10,managerZ],end]);
         const motion=flow(points,'eth',{count:8,speed:.30,size:.0013,k:1,trail:false});
         // Many neighboring fibers must remain individually readable; their
         // moving cores use less ribbon emission than the single backbone.
@@ -113,7 +120,7 @@ export function addRackOptics(built, accel) {
   const leadTop = Math.min(...rows.map(row => h100 ? .16+row*(8*U+.004)+.094 : .12+row*U+U/2-.009)) + .12;
   for (const side of [-1,1]) {
     const managerZ=h100?-.575:.575, direction=h100?-1:1;
-    for(let y=.31;y<2.29;y+=.18) if(y>leadTop) hardware.box(.022,.012,.028,strap,side*.259,y,managerZ+direction*.011);
+    for(let y=.31;y<2.29;y+=.18) if(y>leadTop) hardware.box(.022,.012,.028,strap,side*.274,y,managerZ+direction*.011);
   }
   for (const side of [-1,1]) {
     const center=side*.259,managerZ=h100?-.575:.575;
@@ -131,8 +138,9 @@ export function addRackOptics(built, accel) {
       const x=center+(strand-1.5)*.0035,z=managerZ;
       const laneX=RACK_RUNWAY.x+(side<0?-.085:.035)+strand*.012;
       // Pass above the side lip before settling inside the yellow raceway.
-      // DGX H100: the right-hand loom rises outboard of the runway's side wall, not through its floor
-      const out = h100 && side>0 ? [[.37,2.34,z],[.37,RACK_RUNWAY.rimTop+.10,z]] : [[x,RACK_RUNWAY.rimTop+.10,z]];
+      // DGX H100: the right-hand loom, which sits under the runway, crosses over the rack top and rises in the gap
+      // inboard of the runway (x < .05), then drops in over the side wall like the left one, not through the floor
+      const out = h100 && side>0 ? [[-.03+strand*.004,2.34,z],[-.03+strand*.004,RACK_RUNWAY.rimTop+.10,z]] : [[x,RACK_RUNWAY.rimTop+.10,z]];
       const f=flow(managedRoute([[x,2.34,z],...out,
         [laneX,RACK_RUNWAY.rimTop+.10,z],[laneX,RACK_RUNWAY.cableY,z-.12],
         [laneX,RACK_RUNWAY.cableY,-1.58]],.055),'eth',{count:9,speed:.4,size:.0017,k:1,trail:false});

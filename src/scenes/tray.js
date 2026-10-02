@@ -662,17 +662,21 @@ function buildNVL({ quality, model }) {
     for (let k = 0; k < 8; k++) N.box(0.012, 0.026, 0.22, MAT.copper, side * 0.044, 0.08 + k * 0.034, ZB - 0.15, side * 0.07);
   }
   S.box(0.5, 0.2, 0.3, clipPoly, 0, 0.13, ZB + 0.1);
-  const ibcX = [-1.5, -0.55, 0.55, 1.5];
+  // Two bus converters flank the clip, inboard of every NVLink lane (the lanes run straight back at x = +/-1.1 and
+  // +/-1.93 to the connectors), so no high-speed route threads between switching converters (design rule 2).
+  const ibcX = [-0.47, 0.47];
   ibcX.forEach(x => {
     S.box(0.62, 0.08, 0.5, MAT.darkSteel, x, floorY + 0.06, ZB + 0.85);
     for (let f = 0; f < 11; f++) N.box(0.02, 0.2, 0.46, MAT.alu, x - 0.28 + f * 0.056, floorY + 0.2, ZB + 0.85);
     warmTops.push([x, floorY + 0.3, ZB + 0.85]);
     statusLeds.push({ p: [x + 0.28, floorY + 0.11, ZB + 0.85], color: '#5cf29a', rate: 0 });
   });
-  // 12 V copper runs forward along each board
-  for (const bx of [-1.1, 1.1]) { S.box(0.12, 0.02, 5.2, MAT.copper, bx, floorY + 0.04, -0.9); S.box(0.12, 0.02, 5.2, MAT.copper, bx + 0.16, floorY + 0.04, -0.9); }
+  // 12 V: one copper bar per board, from under its converter forward along the board's inboard edge, in a power channel of
+  // its own beside the regulator columns it feeds (it used to run under the GPU packages, sharing their NVLink channel)
+  const barX = s => s * 0.15, barZ0 = ZB + 0.6, barZ1 = 1.95;
+  for (const s of [-1, 1]) S.box(0.08, 0.02, barZ1 - barZ0, MAT.copper, barX(s), floorY + 0.04, (barZ0 + barZ1) / 2);
   // the bars' volumes: a 12 V route inside one is inside the conductor it stands for (tools/flow-audit.mjs)
-  const bars12 = [-1.1, -0.94, 1.1, 1.26].map(x => [x - 0.06, floorY + 0.03, -3.5, x + 0.06, floorY + 0.05, 1.7]);
+  const bars12 = [-1, 1].map(s => [barX(s) - 0.04, floorY + 0.03, barZ0, barX(s) + 0.04, floorY + 0.05, barZ1]);
 
   // ---------- two superchip boards ----------
   const gpus = [], cpus = [];
@@ -700,22 +704,24 @@ function buildNVL({ quality, model }) {
       for (const dx of [-0.24, -0.08, 0.08, 0.24]) for (const dz of [-0.27, 0.27]) S.box(0.13, 0.03, 0.1, MAT.hbm, bx + dx, floorY + 0.087, gz + dz);
       // board-to-board connector along the substrate's rear edge, and a ring of decoupling caps
       if (heavy) { connectorPins(N, bx - 0.4, bx + 0.4, floorY + 0.062, gz - 0.46, 16); capField(N, bx, gz, floorY + 0.03, 0.42, 8, 0.016); }
-      // VRM ring: inductors with power stages inside them, on three sides, bright metal caps on top
+      // VRM ring: inductors with power stages inside them, on three sides, bright metal caps on top. The rear row leaves
+      // a channel on the package centerline for the NVLink escape (tray-pcb.js), the same on every GPU.
       const ring = [];
-      for (let i = 0; i < 8; i++) { ring.push([bx - 0.72, gz - 0.42 + i * 0.12]); ring.push([bx + 0.72, gz - 0.42 + i * 0.12]); }
-      for (let i = 0; i < 7; i++) ring.push([bx - 0.36 + i * 0.12, gz - 0.62]);
-      ring.forEach(([x, z]) => {
+      // each inductor's power stage sits beside it toward the package: inboard of a column, forward of the rear row
+      for (let i = 0; i < 8; i++) { ring.push([bx - 0.72, gz - 0.42 + i * 0.12, 0.1, 0]); ring.push([bx + 0.72, gz - 0.42 + i * 0.12, -0.1, 0]); }
+      for (let i = 0; i < 7; i++) if (i !== 3) ring.push([bx - 0.36 + i * 0.12, gz - 0.62, 0, 0.1]);
+      ring.forEach(([x, z, dx, dz]) => {
         S.box(0.1, 0.07, 0.09, MAT.inductor, x, floorY + 0.055, z);
         inductorTop(N, x, floorY + 0.091, z, 0.1);
-        const inward = Math.sign(bx - x) || 0;
-        N.box(0.06, 0.012, 0.06, MAT.black, x + inward * 0.1, floorY + 0.026, z + (inward === 0 ? 0.1 : 0));
+        N.box(0.06, 0.012, 0.06, MAT.black, x + dx, floorY + 0.026, z + dz);
       });
-      for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; N.box(0.02, 0.012, 0.012, MAT.beige, bx + Math.cos(a) * 0.56, floorY + 0.026, gz + Math.sin(a) * 0.56); }
+      for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; if (Math.sin(a) < 0 && Math.abs(Math.cos(a)) * 0.56 < 0.08) continue; N.box(0.02, 0.012, 0.012, MAT.beige, bx + Math.cos(a) * 0.56, floorY + 0.026, gz + Math.sin(a) * 0.56); }
       N.box(0.08, 0.01, 0.08, MAT.black, bx + 0.6, floorY + 0.025, gz - 0.62);          // controller
-      // 12 V into the ring: forward inside the copper bar (the bar runs under the rear package and its regulator row
-      // in this model, so the route shares their space there), then out along the back of the ring, on its pour.
-      flows.push(flow([[bx, floorY + 0.04, ZB + 1.1], [bx, floorY + 0.04, gz - 0.72], [bx - 0.36, floorY + 0.04, gz - 0.72]], 'bus12',
-        { count: 10, speed: 0.9, size: 0.03, trailR: 0.01, audit: { within: bars12, why: 'current in the 12 V copper bar, which passes under the rear package and regulator row' } }));
+      // 12 V into the ring: off the board's bar, straight across into the inboard regulator column (at a right angle
+      // over the C2C channel beside it)
+      { const s = Math.sign(bx);
+        flows.push(flow([[barX(s), floorY + 0.04, gz + 0.06], [bx - s * 0.72, floorY + 0.055, gz + 0.06]], 'bus12',
+          { count: 6, speed: 0.9, size: 0.03, trailR: 0.01, audit: { within: bars12, why: 'out of the 12 V bar it is drawn from' } })); }
       // Core power runs from the ring into the substrate edge, below the die and HBM tops.
       for (const side of [-1, 1]) for (const dz of [-0.3, 0, 0.3]) flows.push(flow([[bx + side * 0.64, floorY + 0.05, gz + dz], [bx + side * 0.42, floorY + 0.05, gz + dz * 0.8]], 'core', { count: 3, speed: 0.35, size: 0.018, trailR: 0.006, k: 2.6, trailK: 0.2 }));
     }
@@ -723,10 +729,10 @@ function buildNVL({ quality, model }) {
   // clip to the converters, converters onto the 12 V runs. The rack busbar's current passes through the clip's
   // sprung contacts inside its housing; the 12 V trunk leaves each converter and runs inside the copper bar.
   const clipBox = [[-0.25, 0.03, ZB - 0.3, 0.25, 0.33, ZB + 0.25]];
-  for (const s of [-1, 1]) flows.push(flow([[0, 0.2, ZB - 0.2], [0, 0.2, ZB + 0.4], [s * 1.5, 0.12, ZB + 0.6], [s * 1.5, 0.12, ZB + 0.85]], 'dc',
+  for (const s of [-1, 1]) flows.push(flow([[0, 0.2, ZB - 0.2], [0, 0.2, ZB + 0.4], [s * 0.47, 0.12, ZB + 0.6], [s * 0.47, 0.12, ZB + 0.85]], 'dc',
     { count: 10, speed: 1.2, size: 0.028, k: 1.8, trailR: 0.01, audit: { within: clipBox, why: 'through the busbar clip contacts in their housing' } }));
-  for (const bx of [-1.1, 1.1]) flows.push(flow([[bx * 1.27, floorY + 0.04, ZB + 0.9], [bx, floorY + 0.04, ZB + 1.05], [bx, floorY + 0.04, 1.4]], 'bus12',
-    { count: 18, speed: 1.1, size: 0.03, trailR: 0.01, audit: { within: bars12, why: 'current in the 12 V copper bar, which passes under both packages and regulator rows' } }));
+  for (const s of [-1, 1]) flows.push(flow([[s * 0.47, floorY + 0.04, ZB + 0.85], [barX(s), floorY + 0.04, ZB + 0.85], [barX(s), floorY + 0.04, 1.85]], 'bus12',
+    { count: 18, speed: 1.1, size: 0.03, trailR: 0.01, audit: { within: [...bars12, [s * 0.47 - 0.31, floorY, ZB + 0.6, s * 0.47 + 0.31, floorY + 0.1, ZB + 1.1]], why: 'out of the converter into the 12 V bar, forward inside it' } }));
 
   // ---------- cold plates, lifted to show the chips ----------
   const lift = 0.55;
@@ -773,7 +779,7 @@ function buildNVL({ quality, model }) {
   // ---------- rear connectors, front NICs, DPU, drives, fans ----------
   // NVLink connectors: dark housing in a metal shroud, a recessed contact field
   // on the mating (rear) face and guide pins at both ends; no gold slab on top.
-  for (const x of [-1.9, -1.15, 1.15, 1.9]) nvConnector(S, N, x, 0.15, ZB + 0.2);
+  for (const x of [-1.9, -1.1, 1.1, 1.9]) nvConnector(S, N, x, 0.15, ZB + 0.2);
   const nicCardX = [];
   for (let i = 0; i < 4; i++) {
     const x = -1.7 + i * 0.5, ncx = x + 1.9;
@@ -856,20 +862,19 @@ function buildNVL({ quality, model }) {
   trayLidLabels(scene, model.accel, lidAt, [.13, .065]);
 
   // ---------- data: NVLink out the back, C2C to the CPU, NIC and optics out the front ----------
-  // NVLink follows the board's own NVLink buses (tray-pcb.js nvlLayout): out of the package on an inner layer, under
-  // the decoupling rows and the regulator ring (the route runs inside the board there), up a via row, then on top
-  // along its channel to the board-edge connector (J20-J23 at z -3.12). Across the 1 cm gap onto the rear board, then
-  // between the bus converters into the NVLink connector: the front GPU along the outboard channel straight into the
-  // outer connector, the rear GPU through the lane between the converters (clear of the 12 V bars) into the inner one.
-  // Never through a package, regulator, converter or connector body on the way, never off the boards.
+  // Every route follows its board bus (tray-pcb.js nvlLayout), each interface in its own channel: NVLink leaves every GPU
+  // the same way, out of the package's rear edge through the channel in its regulator row (a via at the escape, then the
+  // top layer). The rear GPU's runs straight back into the connector behind it; the front GPU's turns once between the
+  // GPUs and runs straight back along the outboard channel into the outer connector. C2C runs on the centerline (Grace
+  // to the front GPU) and along the inboard channel (Grace to the rear GPU); 12 V has the inboard edge; nothing runs
+  // under a regulator. The two boards mirror each other.
   const yD = floorY + 0.14, yT = floorY + 0.07, yIn = floorY + 0.01, ch = 0.8325;
-  const inBoard = { within: [[-2.1, floorY, -3.25, 2.1, floorY + 0.02, 2.55]], why: 'inner-layer breakout under the decoupling rows and regulator ring' };
+  const inBoard = { within: [[-2.1, floorY, -3.25, 2.1, floorY + 0.02, 2.55]], why: 'escape on an inner layer under the package edge, up a via to the top layer' };
   gpus.forEach(([gx, gz], i) => {
     const s = Math.sign(gx), X = u => gx + s * u, front = gz > 0;
     const route = front
-      ? [[X(0.30), yIn, gz - 0.2], [X(ch), yIn, gz - 0.2], [X(ch), yT, gz - 0.2], [X(ch), yT, ZB + 0.3]]
-      : [[X(-0.36), yIn, gz - 0.4], [X(-0.36), yIn, gz - 0.8], [X(-0.36), yT, gz - 0.8], [X(-0.36), yT, ZB + 1.38],
-        [s * 0.95, yT, ZB + 1.14], [s * 0.95, yT, ZB + 0.55], [s * 1.15, yT, ZB + 0.42], [s * 1.15, yT, ZB + 0.3]];
+      ? [[gx, yIn, gz - 0.3], [gx, yIn, gz - 0.56], [gx, yT, gz - 0.56], [gx, yT, -0.62], [gx + s * 0.08, yT, -0.7], [X(ch) - s * 0.08, yT, -0.7], [X(ch), yT, -0.78], [X(ch), yT, ZB + 0.3]]
+      : [[gx, yIn, gz - 0.3], [gx, yIn, gz - 0.56], [gx, yT, gz - 0.56], [gx, yT, ZB + 0.3]];
     dataFlows.push(flow(route, 'nvl', { count: 10, speed: 0.9, size: 0.026, k: 2.4, trailR: 0.009, audit: inBoard }));
     // Representative board routing, not an OEM trace map. Cross the fan row
     // through its open service gaps; a diagonal to the NIC used to cut through
@@ -887,14 +892,18 @@ function buildNVL({ quality, model }) {
       [nicX[i], 0.24, 3.97], [nicX[i], 0.24, ZF]],
     'eth', { count: 10, speed: 0.9, size: 0.03, k: 2.3, trailR: 0.01 }));
   });
-  // C2C: Grace to the front GPU along the board's C2C bus (bx + .08), one lane each way, just above the board
+  // C2C: one lane each way within each bus. To the front GPU on the centerline (escape vias under Grace's and the GPU's
+  // decoupling rows, top layer between); to the rear GPU along the inboard channel and into the rear GPU's front edge.
   cpus.forEach(([cx, cz]) => {
-    // out of Grace's rear edge below its lid, just above the board to the front GPU, into its substrate
-    const lane = x => [[x, floorY + 0.015, cz - 0.2], [x, floorY + 0.015, cz - 0.4], [x, yT, cz - 0.48], [x, yT, 0.78], [x, floorY + 0.04, 0.6]];
-    // (the C2C bus runs under the 12 V bars, so the route crosses a bar's volume where it rises and where it lands)
-    const underBars = { within: bars12, why: 'the C2C bus lies under the 12 V copper bars it rises past' };
-    dataFlows.push(flow(lane(cx + 0.04), 'c2c', { count: 5, speed: 0.6, size: 0.024, k: 2.2, trailR: 0.008, audit: underBars }));
-    dataFlows.push(flow(lane(cx + 0.12).reverse(), 'c2c', { count: 5, speed: 0.6, size: 0.024, k: 2.2, trailR: 0.008, audit: underBars }));
+    const s = Math.sign(cx), X = u => cx + s * u;
+    const front = x => [[x, yIn, cz - 0.2], [x, yIn, 1.3], [x, yT, 1.3], [x, yT, 0.86], [x, yIn, 0.86], [x, yIn, 0.6]];
+    const rear = d => [[X(-0.24) + d, yIn, cz - 0.2], [X(-0.24) + d, yIn, 1.22], [X(-0.24) + d, yT, 1.22], [X(-0.835) + d, yT, 1.12], [X(-0.835) + d, yT, -0.72],
+      [X(-0.2) + d, yT, -0.78], [X(-0.2) + d, yT, -0.93], [X(-0.2) + d, yIn, -0.93], [X(-0.2) + d, yIn, -1.25]];
+    const opts = { count: 5, speed: 0.6, size: 0.022, k: 2.2, trailR: 0.008, audit: inBoard };
+    dataFlows.push(flow(front(X(0.05)), 'c2c', opts));
+    dataFlows.push(flow(front(X(0.11)).reverse(), 'c2c', opts));
+    dataFlows.push(flow(rear(-s * 0.012), 'c2c', opts));
+    dataFlows.push(flow(rear(s * 0.012).reverse(), 'c2c', opts));
   });
   // the DPU's ports: out of the chip under its sink, forward over its board to the bezel
   for (const x of dpuX) dataFlows.push(flow([[x, floorY + 0.27, 3.65], [x, floorY + 0.27, 4.05], [x, 0.26, 4.15], [x, 0.26, ZF]], 'eth', { count: 5, speed: 0.6, size: 0.028, k: 1.6, trailR: 0.01 }));
@@ -933,7 +942,7 @@ function buildNVL({ quality, model }) {
     hotspots: {
       osfp: { pos: [0.7, 0.4, ZF - 0.2], view: { pos: [1.6, 1.4, 6.8], target: [0.9, 0.2, ZF - 0.3] } },
       clip: { pos: [0, 0.4, ZB - 0.15], view: { pos: [2.4, 2.2, -7.5], target: [0, 0.2, ZB] } },
-      ibc: { pos: [-1.5, 0.35, ZB + 0.85], view: { pos: [-2.8, 2.5, -1.6], target: [-1, 0.1, ZB + 0.9] } },
+      ibc: { pos: [-0.47, 0.35, ZB + 0.85], view: { pos: [-1.9, 2.5, -1.6], target: [-0.4, 0.1, ZB + 0.9] } },
       vrm: { pos: [g0x + 0.72, 0.2, g0z + 0.1], view: { pos: [g0x + 2.2, 1.6, g0z + 1.4], target: [g0x, 0.05, g0z] } },
       gpu: gpuClose,
       grace: { pos: [cpus[0][0], 0.18, cpus[0][1]], view: { pos: [cpus[0][0] - 1.4, 1.8, cpus[0][1] + 1.8], target: [cpus[0][0], 0.05, cpus[0][1]] } },
@@ -947,7 +956,7 @@ function buildNVL({ quality, model }) {
     // tools/flows.mjs: NVLink and C2C stay over a board: the two superchip boards and the rear power board, plus the
     // gap between them where each NVLink route leaves its board-edge connector for the rear board
     flowAudit: { floatR: 0.25, boardCls: ['nvl', 'c2c'], boards: [[-2.1, -0.1, -3.25, 2.55], [0.1, 2.1, -3.25, 2.55], [-2.1, 2.1, ZB + 0.15, ZB + 1.15],
-      ...[-1, 1].flatMap(s => [[s * 1.9325 - 0.06, s * 1.9325 + 0.06], [Math.min(s * 0.74, s * 0.95) - 0.02, Math.max(s * 0.74, s * 0.95) + 0.02]].map(([a, b]) => [a, b, ZB + 1.1, ZB + 1.3]))] },
+      ...[-1, 1].flatMap(s => [[s * 1.9325 - 0.06, s * 1.9325 + 0.06], [s * 1.1 - 0.06, s * 1.1 + 0.06]].map(([a, b]) => [Math.min(a, b), Math.max(a, b), ZB + 1.1, ZB + 1.3]))] },
     heatHotspots: {
       osfp: { pos: [0.7, 0.4, ZF - 0.2], view: { pos: [1.6, 1.4, 6.8], target: [0.9, 0.2, ZF - 0.3] } },
       coldplates: { pos: [-1.1, 0.95, 0.2], view: { pos: [-3.6, 2.6, 2.4], target: [-1.1, 0.6, 0] } },

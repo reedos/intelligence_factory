@@ -68,44 +68,46 @@ function nvlLayout(accel) {
       L.pkgs.push({ x: bx, z: gz, w: 0.95, d: 0.95, ref: `U${3 + k + (bx > 0 ? 2 : 0)}`, fan: 1, m: 0.005 });
       // VRM ring: inductors with their power stages (tray.js), the controller, a ring of caps and the decoupling rows
       const ring = [];
-      for (let i = 0; i < 8; i++) for (const sx of [-1, 1]) ring.push([bx + sx * 0.72, gz - 0.42 + i * 0.12]);
-      for (let i = 0; i < 7; i++) ring.push([bx - 0.36 + i * 0.12, gz - 0.62]);
-      for (const [x, z] of ring) {
+      for (let i = 0; i < 8; i++) for (const sx of [-1, 1]) ring.push([bx + sx * 0.72, gz - 0.42 + i * 0.12, -sx * 0.1, 0]);
+      for (let i = 0; i < 7; i++) if (i !== 3) ring.push([bx - 0.36 + i * 0.12, gz - 0.62, 0, 0.1]);   // a channel on the centerline for NVLink
+      for (const [x, z, dx, dz] of ring) {                      // power stage beside each inductor, toward the package
         L.vrms.push({ x, z, w: 0.1, d: 0.09 });
-        const inward = Math.sign(bx - x) || 0;
-        part(L, `${g} power stage`, x + inward * 0.1, z + (inward === 0 ? 0.1 : 0), 0.06, 0.06, { land: true });
+        part(L, `${g} power stage`, x + dx, z + dz, 0.06, 0.06, { land: true });
       }
       part(L, `${g} controller`, bx + 0.6, gz - 0.62, 0.08, 0.08, { land: true });
-      for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; part(L, `${g} cap ring`, bx + Math.cos(a) * 0.56, gz + Math.sin(a) * 0.56, 0.02, 0.02); }
+      for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; if (Math.sin(a) < 0 && Math.abs(Math.cos(a)) * 0.56 < 0.08) continue; part(L, `${g} cap ring`, bx + Math.cos(a) * 0.56, gz + Math.sin(a) * 0.56, 0.02, 0.02); }
       for (const [gg] of [[0.03], [0.05]]) {
         smdRowPart(L, [bx - 0.46, gz + 0.475 + gg], [bx + 0.46, gz + 0.475 + gg], true, `${g} decoupling`);
         for (const sx of [-1, 1]) smdRowPart(L, [bx + sx * (0.475 + gg), gz - 0.44], [bx + sx * (0.475 + gg), gz + 0.46], false, `${g} decoupling`);
       }
       for (let i = 0; i < 8; i++) for (const sx of [-1, 1]) smdRowPart(L, [bx + sx * 0.565, gz - 0.44 + i * 0.12], [bx + sx * 0.565, gz - 0.4 + i * 0.12], false, `${g} bypass`);
-      L.pours.push({ x: bx - 0.72, z: gz, w: 0.12, d: 1.05 }, { x: bx + 0.72, z: gz, w: 0.12, d: 1.05 }, { x: bx, z: gz - 0.64, w: 0.9, d: 0.16 });
+      L.pours.push({ x: bx - 0.72, z: gz, w: 0.12, d: 1.05 }, { x: bx + 0.72, z: gz, w: 0.12, d: 1.05 }, { x: bx - 0.27, z: gz - 0.64, w: 0.38, d: 0.16 }, { x: bx + 0.27, z: gz - 0.64, w: 0.38, d: 0.16 });
       // cold-plate mounting holes at the package corners, outside the regulator ring
       for (const sx of [-1, 1]) { L.holes.push([bx + sx * 0.6, gz + 0.6, 0.018]); L.holes.push([bx + sx * 0.62, gz - 0.75, 0.018]); }
     }
-    // Buses. A bus leaves a package on an inner layer (its breakout vias), under the decoupling rows and the
-    // regulator ring, and comes up to the top layer with a via row where it has a clear channel.
-    const ch = 0.8325;                                        // the channel between the VRM column and the edge holes
-    // NVLink from the front GPU: out its outboard side, then back along the outboard channel to the rear connector
-    L.buses.push({ id: `NVLink ${side} front`, pts: [[X(0.42), 0.0], [X(ch), 0.0], [X(ch), -3.08]], pairs: 8, layers: ['in', 'top'] });
+    // Buses, one interface per channel (design rules: short and direct, a via only at the escape and the connector,
+    // nothing under a regulator, mirror-symmetric boards). NVLink leaves every GPU the same way: out of the package's
+    // rear edge on an inner layer, up a via just outside it, then on top through the channel in the regulator row.
+    const ch = 0.8325;                                        // the outboard channel: between the VRM column and the edge holes
+    // front GPU: one turn between the GPUs, then straight back along the outboard channel to the outer connector
+    L.buses.push({ id: `NVLink ${side} front`, pts: [[bx, -0.1], [bx, -0.36], [bx, -0.62], [bx + s * 0.08, -0.7], [X(ch) - s * 0.08, -0.7], [X(ch), -0.78], [X(ch), -3.08]], pairs: 8,
+      layers: ['in', 'top', 'top', 'top', 'top', 'top'] });
     L.conns.push({ x: X(ch), z: -3.12, w: 0.12, d: 0.05, ref: `J${s > 0 ? 22 : 20}` });
-    // NVLink from the rear GPU: straight back under its regulator row, then on top to the rear connector
-    L.buses.push({ id: `NVLink ${side} rear`, pts: [[X(-0.36), -1.95], [X(-0.36), -2.35], [X(-0.36), -3.08]], pairs: 8, layers: ['in', 'top'] });
-    L.conns.push({ x: X(-0.36), z: -3.12, w: 0.12, d: 0.05, ref: `J${s > 0 ? 23 : 21}` });
-    // C2C: Grace to the front GPU, short and wide, on an inner layer under the 12 V copper
-    L.buses.push({ id: `C2C ${side} front`, pts: [[bx + 0.08, 1.45], [bx + 0.08, 0.66]], pairs: 14, layer: 'in' });
-    // C2C to the rear GPU: out of Grace's rear corner, across to the inboard channel, back past the front GPU, in
-    L.buses.push({ id: `C2C ${side} rear`, pts: [[X(-0.24), 1.46], [X(-0.24), 1.2], [X(-ch), 1.2], [X(-ch), -1.35], [X(-0.45), -1.35]], pairs: 8, layers: ['in', 'in', 'top', 'in'] });
+    // rear GPU: straight back to the inner connector behind it
+    L.buses.push({ id: `NVLink ${side} rear`, pts: [[bx, -1.85], [bx, -2.11], [bx, -3.08]], pairs: 8, layers: ['in', 'top'] });
+    L.conns.push({ x: bx, z: -3.12, w: 0.12, d: 0.05, ref: `J${s > 0 ? 23 : 21}` });
+    // C2C to the front GPU on the centerline: vias under Grace's and the GPU's decoupling rows, top layer between
+    L.buses.push({ id: `C2C ${side} front`, pts: [[X(0.08), 1.45], [X(0.08), 1.3], [X(0.08), 0.86], [X(0.08), 0.66]], pairs: 14, layers: ['in', 'top', 'in'] });
+    // C2C to the rear GPU: out of Grace's inboard rear corner, back along the inboard channel, in at the rear GPU's front edge
+    const cin = 0.835;                                         // the inboard channel, between the 12 V bar and the VRM column
+    L.buses.push({ id: `C2C ${side} rear`, pts: [[X(-0.24), 1.46], [X(-0.24), 1.22], [X(-cin) + s * 0.05, 1.17], [X(-cin), 1.12], [X(-cin), -0.67], [X(-cin) + s * 0.05, -0.72], [X(-0.2) - s * 0.06, -0.72], [X(-0.2), -0.78], [X(-0.2), -0.93], [X(-0.2), -1.25]],
+      pairs: 6, layers: ['in', 'top', 'top', 'top', 'top', 'top', 'top', 'top', 'in'] });
     // Grace to the NIC mezzanines (PCIe), to a board-to-board connector at the front edge
     L.buses.push({ id: `PCIe ${side} NIC`, pts: [[bx + 0.15, 2.05], [bx + 0.15, 2.18], [bx + 0.15, 2.3]], pairs: 8, layers: ['in', 'top'] });
     L.conns.push({ x: bx + 0.15, z: 2.34, w: 0.16, d: 0.04, ref: `J${s > 0 ? 25 : 24}` });
-    // 12 V: the copper bars run down the board on a pour (tray.js: two bars at bx and bx + .16)
-    L.pours.push({ x: bx + 0.08, z: -0.9, w: 0.34, d: 5.2 });
-    for (const dx of [0, 0.16]) part(L, `12 V bar ${side}`, bx + dx, -0.9, 0.12, 5.2);
-    for (const z of [-3.0, -1.0, 1.0, 2.45]) for (const sx of [-1, 1]) L.holes.push([bx + sx * 0.93, z, 0.02]);
+    // 12 V: one copper bar along the board's inboard edge, in its own channel (tray.js barX)
+    part(L, `12 V bar ${side}`, s * 0.15, -0.975, 0.08, 5.75);
+    for (const z of [-3.0, -1.0, 1.0, 2.45]) L.holes.push([X(0.93), z, 0.02]);   // edge holes on the outboard edge only
     for (let i = 0; i < 10; i++) L.tps.push([X(0.9), -2.8 + i * 0.5, s]);
   }
   // NIC mezzanine boards and the front cage boards
@@ -242,34 +244,40 @@ function rubinLayout() {
   const L = base();
   const gp = [[-1.6, -2.7], [-0.62, -2.7], [0.62, -2.7], [1.6, -2.7]], cp = [[-1.1, -0.65], [1.1, -0.65]];
   for (const x of [-1.1, 1.1]) L.boards.push({ x, z: -1.52, w: 2.02, d: 4.9 });
-  // regulator rows as tray-rubin.js builds them: inductors, power stages toward the package, a cap ring at its edge
-  const vrmRow = (x0, z, n, inward, id) => { for (let k = 0; k < n; k++) { L.vrms.push({ x: x0 + k * 0.12, z, w: 0.1, d: 0.09 }); part(L, `${id} power stage`, x0 + k * 0.12, z + inward * 0.085, 0.06, 0.05, { land: true }); } };
+  // regulator rows as tray-rubin.js builds them: inductors, power stages toward the package, a cap ring at its edge. Slots
+  // are left open as routing channels (design rules: nothing under a regulator), mirrored left to right: each GPU's
+  // rear row opens on its centerline for NVLink, its front row on the side facing its CPU for C2C; each CPU's rows open
+  // 0.12 either side of its centerline for C2C (rear) and PCIe (front).
+  const vrmRow = (x0, z, n, inward, id, skip = []) => { for (let k = 0; k < n; k++) { if (skip.includes(k)) continue; L.vrms.push({ x: x0 + k * 0.12, z, w: 0.1, d: 0.09 }); part(L, `${id} power stage`, x0 + k * 0.12, z + inward * 0.085, 0.06, 0.05, { land: true }); } };
+  const c2cSide = x => Math.sign((x < 0 ? -1.1 : 1.1) - x);
   gp.forEach(([x, z], i) => {
     L.pkgs.push({ x, z, w: 0.83, d: 0.95, ref: `U${i + 1}`, fan: 1, m: 0.005 });
-    vrmRow(x - 0.36, z - 0.66, 7, 1, `GPU ${i + 1}`); vrmRow(x - 0.36, z + 0.66, 7, -1, `GPU ${i + 1}`);
-    for (let k = 0; k < 8; k++) for (const s of [-1, 1]) part(L, `GPU ${i + 1} cap ring`, x - 0.45 + (k + 0.5) * 0.1125, z + s * 0.54, 0.018, 0.012);
-    // NVLink to the rear connectors: under the regulator row on an inner layer, up to the top for the run out. The
-    // outer bus jogs outboard before the board edge so its run continues between the power board's converters into
-    // the NVLink connector (tray-rubin.js routes the animated NVLink flow along this bus).
-    for (const dx of [-0.2, 0.2]) {
-      const outer = Math.sign(dx) === Math.sign(x), j = outer ? Math.sign(x) * (Math.abs(x) > 1.1 ? 0.12 : 0.07) : 0, xe = x + dx + j;
-      L.buses.push(j ? { id: `NVLink GPU${i + 1} ${dx}`, pts: [[x + dx, z - 0.42], [x + dx, z - 0.8], [x + dx, -3.58], [xe, -3.58 - Math.abs(j)], [xe, -3.84]], pairs: 10, layers: ['in', 'top', 'top', 'top'] }
-        : { id: `NVLink GPU${i + 1} ${dx}`, pts: [[x + dx, z - 0.42], [x + dx, z - 0.8], [x + dx, -3.84]], pairs: 10, layers: ['in', 'top'] });
-      L.conns.push({ x: xe, z: -3.88, w: 0.16, d: 0.04, ref: '' });
+    vrmRow(x - 0.36, z - 0.66, 7, 1, `GPU ${i + 1}`, [3]); vrmRow(x - 0.36, z + 0.66, 7, -1, `GPU ${i + 1}`, [c2cSide(x) > 0 ? 5 : 1]);
+    for (let k = 0; k < 8; k++) for (const s of [-1, 1]) {
+      const u = -0.45 + (k + 0.5) * 0.1125;
+      if ((s < 0 && Math.abs(u) < 0.1) || (s > 0 && Math.abs(u - c2cSide(x) * 0.24) < 0.12)) continue;
+      part(L, `GPU ${i + 1} cap ring`, x + u, z + s * 0.54, 0.018, 0.012);
     }
+    // NVLink: out of the rear edge on an inner layer, a via just outside the package, then straight back on the top
+    // layer through the channel in the rear row to the connector directly behind the GPU
+    L.buses.push({ id: `NVLink GPU${i + 1}`, pts: [[x, z - 0.3], [x, z - 0.56], [x, -3.84]], pairs: 8, layers: ['in', 'top'] });
+    L.conns.push({ x, z: -3.88, w: 0.16, d: 0.04, ref: '' });
   });
+  const housings = [-1.325, -0.795, 0.795, 1.325];             // midplane connector columns (tray-rubin.js)
   cp.forEach(([x, z], i) => {
     L.pkgs.push({ x, z, w: 0.75, d: 0.77, ref: `U${10 + i}`, fan: 1, m: 0.005 });
-    vrmRow(x - 0.24, z - 0.52, 5, 1, `CPU ${i + 1}`); vrmRow(x - 0.24, z + 0.52, 5, -1, `CPU ${i + 1}`);
+    vrmRow(x - 0.24, z - 0.52, 5, 1, `CPU ${i + 1}`, [1, 3]); vrmRow(x - 0.24, z + 0.52, 5, -1, `CPU ${i + 1}`, [1, 3]);
     for (const s of [-1, 1]) L.boards.push({ x: x + s * 0.64, z, w: 0.3, d: 1.05, module: true });
-    // C2C to its two GPUs: under the CPU's rear regulator row, across on top, under the GPU's front row
-    for (const [a, b] of [[-0.25, -0.35], [0.25, 0.35]]) {
-      L.buses.push({ id: `C2C CPU${i + 1} ${a}`, pts: [[x + a, z - 0.35], [x + a, -1.3], [x + b, -1.9], [x + b, -2.35]], pairs: 10, layers: ['in', 'top', 'in'] });
+    // C2C to its two GPUs: out of the rear edge 0.12 toward the GPU, one diagonal, in at the GPU's front-row gap
+    for (const g of gp.filter(([gx]) => Math.sign(gx) === Math.sign(x))) {
+      const a = Math.sign(g[0] - x) * 0.12, b = -Math.sign(g[0] - x) * 0.24;
+      L.buses.push({ id: `C2C CPU${i + 1} to ${g[0]}`, pts: [[x + a, z - 0.33], [x + a, z - 0.47], [x + a, -1.3], [g[0] + b, -1.9], [g[0] + b, -2.1], [g[0] + b, -2.45]], pairs: 8, layers: ['in', 'top', 'top', 'top', 'in'] });
     }
-    // PCIe forward to the midplane connectors, under the front regulator row
-    for (const dx of [-0.25, 0.25]) {
-      L.buses.push({ id: `PCIe CPU${i + 1} ${dx}`, pts: [[x + dx, z + 0.35], [x + dx, 0.02], [x + dx, 0.82]], pairs: 12, layers: ['in', 'top'] });
-      L.conns.push({ x: x + dx, z: 0.86, w: 0.2, d: 0.04, ref: '' });
+    // PCIe forward: out of the front edge 0.12 either side, through the front row's gaps, one jog to its midplane column
+    for (const dx of [-0.12, 0.12]) {
+      const hx = housings.reduce((m, h) => (Math.abs(h - (x + dx * 2.5)) < Math.abs(m - (x + dx * 2.5)) ? h : m));
+      L.buses.push({ id: `PCIe CPU${i + 1} ${dx}`, pts: [[x + dx, z + 0.33], [x + dx, z + 0.47], [x + dx, 0], [hx, 0.2], [hx, 0.82]], pairs: 8, layers: ['in', 'top', 'top', 'top'] });
+      L.conns.push({ x: hx, z: 0.86, w: 0.2, d: 0.04, ref: '' });
     }
   });
   for (const x of [-1.1, 1.1]) part(L, '12 V bar', x, -1.7, 0.11, 4.5);
