@@ -15,6 +15,39 @@ const p = await b.newPage({ viewport: { width: vp.width, height: vp.height }, de
 const errors = []; p.on('pageerror', e => errors.push(e.message));
 await p.goto(process.env.URL || 'http://127.0.0.1:47400/');
 await p.waitForFunction(() => window.ifx && ifx.state.scene === 0, null, { timeout: 90000 });
+// Wait for N consecutive animation frames where the camera, the canvas size and the checked part's own pin rect
+// are all unchanged, instead of a flat wall-clock delay. ifx.settle() snaps the camera synchronously, but pin
+// layout (updatePins, in stage.js's rAF loop) only recomputes the DOM rect once per frame, and under GPU load
+// (another preview rendering at the same time, or just a loaded machine) that next frame can be delayed well past
+// a fixed timeout - which is what made "covered by pin off screen" / "pin at the view edge" flake from run to run
+// on scenes nobody touched. Counting frames instead of milliseconds means the wait scales with how slow the GPU
+// actually is, so it stays correct under load instead of racing it (Reed/Opus, 2026-10).
+await p.evaluate(() => {
+  window.stable = (id, { want = 3, maxFrames = 240 } = {}) => new Promise(resolve => {
+    let prev = null, run = 0, frames = 0;
+    const tick = () => {
+      frames++;
+      const cam = ifx.camera, pos = cam.position, q = cam.quaternion;
+      const view = document.getElementById('view').getBoundingClientRect();
+      const pinNum = document.querySelector(`.pin[data-id="${id}"] .num`);
+      const pr = pinNum ? pinNum.getBoundingClientRect() : null;
+      const off = pinNum ? pinNum.closest('.pin').classList.contains('off') : null;
+      const cur = [pos.x, pos.y, pos.z, q.x, q.y, q.z, q.w, view.width, view.height,
+        pr ? pr.left : null, pr ? pr.top : null, pr ? pr.width : null, pr ? pr.height : null, off].join(',');
+      run = prev === cur ? run + 1 : 0;
+      prev = cur;
+      if (run >= want || frames >= maxFrames) resolve({ frames, run }); else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+});
+// Confirmed cause check, logged for the record: under Playwright, navigator.webdriver is true and this gate never
+// passes ?govern, so stage.js's own `governing` flag (src/app/stage.js:244) is already false here - the quality
+// governor cannot be resizing the canvas mid-check on its own. forceTier below is pinned to each scene's own
+// current tier (not forced to a different one) purely as a defensive belt: it stops the level from being retried
+// into a *different* tier the instant governing ever is true (?govern, or a future default change) while the
+// check runs, without changing which tier is on screen today.
+console.log(`governor active in this gate: ${await p.evaluate(() => !!ifx.quality?.().governing)}`);
 
 const scenarios = (process.env.ONLY ? [process.env.ONLY] : ['gb200-ac-warm', 'gb300-dc-liquid', 'h100-air-1gw', 'rubin-dc-warm-10mw', 'gb200-5gw', 'colossus2']).map(k => [k, {
   'gb200-ac-warm': { meterMW: 100, accel: 'gb200', power: 'ac415', cooling: 'warm' },
@@ -89,10 +122,22 @@ for (const [label, s] of scenarios) {
         const st = ifx.state;
         if (st.scene === link.scene && st.mode === link.mode && st.selected === link.part) break;
       }
+      const q = ifx.quality?.();                           // hold the level's own current tier, not a different one
+      if (q?.tiers && link.scene < q.tiers.length) ifx.forceTier?.(q.tiers[link.scene], { hold: true, i: link.scene });
       ifx.settle();
+      await stable(link.part);
     }, st);
-    await p.waitForTimeout(250);
-    const r = await p.evaluate(`(${check})()`);
+    let r = await p.evaluate(`(${check})()`);
+    if (r.blocked || (r.covers && r.covers.length)) {
+      // settle() snaps the camera synchronously, but pin layout (updatePins) runs once per animation frame and can
+      // still land a frame or two late under GPU load; `stable` above waits for it, but a slow or congested run can
+      // need one more pass. Re-measure once after another stability wait and only report if it still fails. (`err`,
+      // meaning no hotspot at all for this part/mode, is a content issue, not a timing flake - never retried.)
+      await p.evaluate(part => stable(part), st.link.part);
+      const r2 = await p.evaluate(`(${check})()`);
+      console.log(`  retry ${r2.err || r2.blocked || r2.covers.length ? 'still fails' : 'cleared'}: ${label} · ${st.tour} #${st.i + 1} ${st.link.scene}:${st.link.mode}:${st.link.part}`);
+      r = r2;
+    }
     if (r.err || r.blocked || r.covers.length) rows.push({ label, ...st, ...r });
   }
   console.log(`${label}: ${stops.length} stops checked, ${rows.filter(x => x.label === label).length} not clear`);
