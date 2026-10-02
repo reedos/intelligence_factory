@@ -852,10 +852,6 @@ export function content(M) {
       { id: 'fiber', title: 'Fiber entrances', kicker: 'Two diverse routes',
         body: 'Long-haul fiber enters at vaults on opposite sides of the site, so one backhoe cannot cut the campus off. Questions arrive and tokens leave the same way.',
         specs: [['Routes', '2 or more, physically separate', 'reported', evRefs([['trg-diverse-fiber-routes', '"A properly designed facility has dual fiber entrances. Fiber enters from two separate locations, following different physical paths into the building."']])]] },
-      { id: 'border', title: 'Meet-me room and border switches', kicker: 'Where outside networks connect',
-        body: 'Carriers’ fiber ends in a meet-me room, where outside networks cross-connect to the campus. Border switches then peer with those networks over BGP. NVIDIA calls this the edge network: it links the cluster’s services to networks outside it, while the GPU-to-GPU fabric stays inside.',
-        specs: [['NVIDIA’s name for it', 'the edge network', 'spec', evRefs([['nvidia-missioncontrol-northsouth', '"Edge Network is the network that connects the SuperPOD to the customer’s network."']])],
-          ['Meet-me room', 'where carriers physically interconnect', 'reported', evRefs([['wikipedia-meet-me-room', '"a place within a colocation center (or carrier hotel) where telecommunications companies can physically connect to one another"']])]] },
       { id: 'dci', title: 'Line terminal hut', kicker: 'Coherent DWDM',
         body: 'Coherent transceivers here each produce or receive one wavelength, hundreds of gigabits to over a terabit; a multiplexer combines dozens of them onto each fiber pair bound for other campuses, and amplifiers along the route keep the combined signal alive without converting it back to electricity. The cutaway beside it shows the gear inside.',
         specs: [
@@ -874,6 +870,10 @@ export function content(M) {
           ['What a ROADM does', 'switches single wavelengths without converting the rest to electricity', 'reported', evRefs([['wikipedia-roadm', 'lead: "adds the ability to remotely switch traffic from a wavelength-division multiplexing (WDM) system at the wavelength layer ... without the need to convert the signals on all of the WDM channels to electronic signals and back again"']])],
           ['Racks, router, slot layout, port counts and fiber thickness as drawn', 'representative', 'assumed', evAssume('dwdm-terminal-rack')],
         ] },
+      { id: 'border', title: 'Meet-me room and border switches', kicker: 'Where outside networks connect',
+        body: 'Carriers’ fiber ends in a meet-me room, where outside networks cross-connect to the campus. Border switches then peer with those networks over BGP. NVIDIA calls this the edge network: it links the cluster’s services to networks outside it, while the GPU-to-GPU fabric stays inside.',
+        specs: [['NVIDIA’s name for it', 'the edge network', 'spec', evRefs([['nvidia-missioncontrol-northsouth', '"Edge Network is the network that connects the SuperPOD to the customer’s network."']])],
+          ['Meet-me room', 'where carriers physically interconnect', 'reported', evRefs([['wikipedia-meet-me-room', '"a place within a colocation center (or carrier hotel) where telecommunications companies can physically connect to one another"']])]] },
       ...(multiHall ? [
         { id: 'interhall', title: 'Hall-to-hall fiber', kicker: `One fabric, ${halls} buildings`,
           body: `Thousands of strands in the duct banks join the spines of every hall, so a single training job can span every GPU on the campus. Each link needs optics rated for its length. The two halls drawn here sit about 140 m apart at their spine ends, inside the 500 m of the same parallel-fiber DR optics used within a hall. Longer runs between buildings step up to FR4 (2 km) or LR4 (10 km), which put four wavelengths on one fiber pair, each carrying four-level PAM4 signals rather than the coherent ones used between campuses; DR and FR4 modules cannot be linked to each other.${extraHalls ? ' The plain hall blocks farther out are not routed here, so their link lengths are not modeled.' : ''}`,
