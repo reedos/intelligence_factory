@@ -22,7 +22,7 @@ const EXPLODED = {
 // substrate margin in front of the die, off the die's printed marking.
 const PIN_OFFSET = {
   driver: [-0.22, 0, 0.24], lasers: [0.05, 0, 0.2], tia: [-0.2, 0, -0.23],
-  dsp: [0.3, -0.03, 0.63],
+  dsp: [0.62, -0.03, 0.63],
 };
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
