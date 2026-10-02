@@ -316,7 +316,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   // Pins that move with the engine view: the electronics, the modulator and the photodiode each sit on that view's part.
   const pinAt = {
     ring: { eic: w(pcx(CPO_RING.ringX(6)), 1.1, pcz(CPO_RING.ringZ(6))), rings: w(r3x, 0.12, r3z), pd: w(pdX, 0.12, rxRowZ(4)) },
-    mzm: { eic: w(pcx(240), 1.1, pcz(M_.row(6))), rings: w(pcx((CPO_EIC.mzm[2] + M_.armOut) / 2), 0.12, pcz(M_.row(3))), pd: w(pdX, 0.12, rxRowZ(4)) },
+    mzm: { eic: w(pcx(240), 1.1, pcz(M_.row(2))), rings: w(pcx((CPO_EIC.mzm[2] + M_.armOut) / 2), 0.12, pcz(M_.row(3))), pd: w(pdX, 0.12, rxRowZ(4)) },
     mono: (() => { const [d0, d1, d2, d3] = O_.driver(6); return { eic: w(pcx((d0 + d2) / 2), 0.12, pcz((d1 + d3) / 2)), rings: w(pcx(O_.ringX(3)), 0.12, pcz(O_.ringZ(3))), pd: w(pdX, 0.12, rxRowZ(4)) }; })(),
   };
   let kind = 'ring';

@@ -120,7 +120,7 @@ describe('CPO engine views: pins, flows and captions', () => {
     } else {
       // on the electronic die, over a driver block: over a lane's ring, or over its Mach-Zehnder electrode run
       expect(pins.eic.pos[1] - DY).toBeGreaterThan(.95);
-      const [bx, by] = cpoBlocks(kind).drivers[6];
+      const [bx, by] = cpoBlocks(kind).drivers[kind === 'mzm' ? 2 : 6];   // a lane clear of the die lettering
       expect(Math.hypot(epx - bx, epy - by)).toBeLessThan(1);
     }
     for (const id of ['eic', 'rings', 'pd']) expect(pins[id].view.focus).toEqual(pins[id].pos);

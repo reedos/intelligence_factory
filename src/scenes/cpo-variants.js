@@ -88,7 +88,7 @@ export function eicBlocks(kind) {
 }
 const LETTERING = {
   ring: { tx: ['TX DRIVERS', 330, 600], rx: ['RX TIAs →', 640, 190] },
-  mzm: { tx: ['← TX DRIVERS', 770, 540], rx: ['RX TIAs →', 560, 270] },
+  mzm: { tx: ['TX DRIVERS ↓', 300, 330], rx: ['RX TIAs →', 620, 150] },
 };
 function stackedEicTex(kind) {
   const t = canvasTex(1024, 768, (g, w, h) => {
