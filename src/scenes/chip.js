@@ -9,6 +9,7 @@ import { frameCompute } from './compute-framing.js';
 import { componentView } from '../app/housing-frame.js';
 import { installTokenMath } from './token-math.js';
 import { tagHeat, balanceHeat } from '../heat.js';
+import { hbmWaterfall, waterfallProfile } from './hbm-waterfall.js';
 
 // The visible top of a flip-chip die is its polished silicon backside. A faint
 // roughness pattern (a grayscale map) lets the key light break across it.
@@ -87,6 +88,9 @@ function chunkTexture(words, lane, startParity) {
 // Points are world [x, z] in cm, package centre at the origin. Side 0 leaves toward +x, 1 toward -x, 2 toward
 // +z, 3 toward -z (the texture's pixel axes map to world x and z).
 export const BGA = { pitch: 0.3, n: 26, half: 3.75 }, BGA_RUNS = 24;
+// the HBM print on a stack top, as fractions of the top: its length along the text, its height, and how far its centre
+// sits from the top's centre toward the stack's outer edge
+export const HBM_LABEL = { len: 0.6, h: 0.2, off: 0.24 };
 export function bgaRun(side, k) {
   const along = -BGA.half + (k + 1) * BGA.pitch, t = (k - (BGA_RUNS - 1) / 2) / ((BGA_RUNS - 1) / 2), jog = t * Math.abs(t) * 0.85;
   const r0 = BGA.half, r1 = 5.25;
@@ -283,13 +287,26 @@ function buildPackage({ quality, state, model }) {
   // GPU die; the height here is drawn about 3x (representative) so the layers
   // stay visible.
   const mold = new THREE.MeshStandardMaterial({ color: 0x15171a, roughness: 0.55, metalness: 0.05 }); mold.name = 'HBM epoxy mold compound';
-  const hbmPrint = canvasTex(256, 256, (g, w, h) => {
+  // The memory type is printed on the stack's outer half, leaving the die-facing half clear for the data layer's
+  // waterfall (hbm-waterfall.js), and always upright toward the default camera (which looks from +x, +z): one canvas
+  // holds four prints, one per stack orientation, each in its own quadrant (a stack's top maps to one quadrant).
+  //   0 (top left)     a stack on the +z side: text across, on the quadrant's lower (+z) half
+  //   1 (top right)    a stack on the -z side: text across, on the upper (-z) half
+  //   2 (bottom left)  a stack on the +x side (H100): text turned to run along z, base toward +x, on the +x half
+  //   3 (bottom right) a stack on the -x side: the same turn, on the -x half
+  const LABEL_AT = [{ cx: 0.5, cy: 0.5 + HBM_LABEL.off, turn: false }, { cx: 0.5, cy: 0.5 - HBM_LABEL.off, turn: false },
+    { cx: 0.5 + HBM_LABEL.off, cy: 0.5, turn: true }, { cx: 0.5 - HBM_LABEL.off, cy: 0.5, turn: true }];
+  const hbmPrint = canvasTex(512, 512, (g, w, h) => {
     g.fillStyle = '#2b2e35'; g.fillRect(0, 0, w, h);
     g.fillStyle = '#8b939e'; g.font = '600 44px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(A.hbm.type, w / 2, h / 2);
+    LABEL_AT.forEach(({ cx, cy, turn }, q) => {
+      g.save(); g.translate((q % 2 + cx) * 256, (Math.floor(q / 2) + cy) * 256);
+      if (turn) g.rotate(-Math.PI / 2);
+      g.fillText(A.hbm.type, 0, 0, 256 * HBM_LABEL.len); g.restore();
+    });
   });
   const hbmTopMat = new THREE.MeshStandardMaterial({ map: hbmPrint, roughness: 0.4, metalness: 0.3 }); hbmTopMat.name = `HBM printed top ${A.hbm.type}`;
-  const hbmTops = [];                                    // one textured mesh for all tops (the Builder would drop the UVs)
+  const hbmTops = [], hbmLabels = [];                   // one textured mesh for all tops (the Builder would drop the UVs)
   const dramMat = new THREE.MeshStandardMaterial({ color: 0x59616c, roughness: 0.3, metalness: 0.35 }); dramMat.name = 'HBM DRAM die edge';
   const baseDieMat = new THREE.MeshStandardMaterial({ color: 0x7a6a52, roughness: 0.34, metalness: 0.4 }); baseDieMat.name = 'HBM logic base die edge';
   const spacerMat = new THREE.MeshPhysicalMaterial({ color: 0x8a929c, roughness: 0.12, metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.08 }); spacerMat.name = 'Blank silicon spacer';
@@ -309,7 +326,14 @@ function buildPackage({ quality, state, model }) {
       return;
     }
     S.box(HW, stackH - 0.012, HD, mold, x, hb + (stackH - 0.012) / 2, z);
-    hbmTops.push(new THREE.BoxGeometry(HW - 0.04, 0.012, HD - 0.04).translate(x, hb + stackH - 0.006, z));
+    // this stack's quadrant of the print canvas (see LABEL_AT): its outer side picks the print
+    const q = twin ? (z > 0 ? 0 : 1) : (x > 0 ? 2 : 3), top = new THREE.BoxGeometry(HW - 0.04, 0.012, HD - 0.04), uv = top.attributes.uv;
+    for (let k = 0; k < uv.count; k++) uv.setXY(k, (uv.getX(k) + q % 2) / 2, (uv.getY(k) + 1 - Math.floor(q / 2)) / 2);
+    hbmTops.push(top.translate(x, hb + stackH - 0.006, z));
+    // the label's footprint in world x/z: canvas x runs with world x, canvas y with world z
+    { const L = LABEL_AT[q], tw = HW - 0.04, td = HD - 0.04, half = { a: HBM_LABEL.len / 2, b: HBM_LABEL.h / 2 };
+      const [hx, hz] = L.turn ? [half.b, half.a] : [half.a, half.b];
+      hbmLabels.push({ x0: x + (L.cx - hx - 0.5) * tw, x1: x + (L.cx + hx - 0.5) * tw, z0: z + (L.cy - hz - 0.5) * td, z1: z + (L.cy + hz - 0.5) * td, y: hb + stackH }); }
     // the cut face on the package-edge side: base die, then one band per DRAM die, then TSVs
     const n = layers + 1, band = (stackH - 0.03) / n;
     const fx = twin ? 0 : Math.sign(x), fz = twin ? Math.sign(z) : 0;            // outward normal of the cut face
@@ -401,7 +425,7 @@ function buildPackage({ quality, state, model }) {
   // partner; NVLink continues down through the C4 bumps, out through the substrate to its ball and onto the host
   // board's escape runs. Lanes of one link run parallel and evenly spaced, straight across the edge they cross.
   const DIE_HALF = { x: 1.3, z: 1.65 }, yUnder = Y.dies - 0.04, yRdl = Y.inter + 0.085, ySub = Y.sub;
-  const routes = { hbi: [], hbm: [], nvl: [] };
+  const routes = { hbi: [], hbm: [], hbmDrawn: [], nvl: [] };
   if (twin) for (let i = 0; i < 7; i++) {
     // NV-HBI: straight across the seam over the long bridge under it, both directions (bridge spans |x| < 0.23)
     const z = -1.2 + i * 0.4, x0 = 0.15;
@@ -422,6 +446,22 @@ function buildPackage({ quality, state, model }) {
       dataFlows.push(flow(pts, 'hbm', { count: 4, speed: 0.9, size: 0.042, k: 4.0, trail: false }));
     }
   });
+  // The drawn waterfall (schematic, evidence 'hbm-flow-drawing'): the buried route above sits under the dies and stacks
+  // and is hard to see from above, so each stack also shows its traffic as one sheet of fine strands lifted over the
+  // parts: level across the stack's top toward the edge whose PHY faces the die, over that edge in a smooth parabola
+  // and down onto the die on that side (Reed, 10/01/2026: "drop into the die still, the viewer will get the idea";
+  // "clean and dramatic"). The stacks pulse in a slow wave around the package, one after another, so each stack reads
+  // as its own channel while the whole package keeps one rhythm (hbm-waterfall.js).
+  const waterfall = hbmWaterfall({ stacks: live.map(([x, z]) => {
+    const s = twin ? Math.sign(z) : Math.sign(x), far = twin ? Math.abs(z) : Math.abs(x), depth = twin ? HD : HW, inner = far - depth / 2;
+    const dieEdge = twin ? DIE_HALF.z : DIE_HALF.x;
+    return { out: twin ? [0, s] : [s, 0], along: twin ? [1, 0] : [0, 1], centre: twin ? x : z, width: (twin ? HW : HD) * 0.72,
+      phase: ((Math.atan2(z, x) / (2 * Math.PI)) + 1) % 1,
+      profile: waterfallProfile({ start: far + 0.04, edge: inner, land: dieEdge - 0.32, top: hb + stackH, dieTop: Y.dies + 0.045, lift: 0.07 }) };
+  }) });
+  scene.add(waterfall.group);
+  routes.hbmDrawn = waterfall.centerlines;
+  scene.userData.hbmLabels = hbmLabels;
   const serdes = glowMat('#ff5fd2', 0.5);                // an inlaid strip in power and heat, lit in the data layer
   // NVLink leaves the free edges: outer die edges on twins, top/bottom on H100. Below the die each lane takes the
   // same path: microbumps, out along the interposer to the C4 field's edge, down into the substrate, out through
@@ -603,7 +643,8 @@ function buildPackage({ quality, state, model }) {
       cpo: { pos: [-4.2, Y.sub + 0.3, 3.8], view: { pos: [-8, 5, 9], target: [-2.5, 1.5, 2] } },
       tokens: tokensHS,
     },
-    dispose() { cache.forEach(({ tex }) => tex.dispose()); tokenMath.dispose(); },
+    dispose() { cache.forEach(({ tex }) => tex.dispose()); tokenMath.dispose(); waterfall.dispose(); },
+    setRenderTier(tier) { waterfall.setTier(tier); },
     update(t, dt) {
       const e = tick(genLen);
       if (e < genLastE) { genCycle = buildCycle(model); genLen = genCycle.timings.totalS; resetGen(); }
@@ -664,6 +705,7 @@ function buildPackage({ quality, state, model }) {
       });
       hbmFill.instanceMatrix.needsUpdate = true;
       hbmFill.visible = state.mode === 'data';          // the cache is a data-layer idea: hardware stays hardware in power and heat
+      waterfall.update(t, state.mode === 'data');
 
       pulse.v = Math.max(0, pulse.v - dt * 3);
       const dataOn = state.mode === 'data', xrayOn = dataOn || state.mode === 'heat' || ['dies', 'junction', 'flux', 'hbi'].includes(state.selected);
