@@ -41,10 +41,10 @@ const meshes = (root: THREE.Object3D) => { const m: THREE.Mesh[] = []; root.trav
 const matNames = (root: THREE.Object3D) => new Set(meshes(root).filter(shown).flatMap(m => (Array.isArray(m.material) ? m.material : [m.material]).map(x => x.name)));
 const RING_KEYS = { power: ['asic', 'engine', 'els', 'today', 'next'], data: ['asic', 'serdes', 'eic', 'rings', 'pd', 'els', 'fiberout', 'today', 'next'], heat: ['asic', 'coldplate'] };
 const MZM_KEYS = { power: ['mzm-asic', 'mzm-engine', 'mzm-laser', 'today', 'next'], data: ['mzm-asic', 'mzm-serdes', 'mzm-eic', 'mzm-mod', 'mzm-pd', 'mzm-laser', 'mzm-fiberout', 'today', 'next'], heat: ['mzm-asic', 'mzm-sink'] };
-// each design's 2.5x detail: center, and the photonic frame
-const DETAIL = { ring: { DX: -(10.4 / 2 + 6.2), DY: 1.4, DZ: -(10.4 / 2 + 3.2) }, mzm: { DX: -12.2, DY: 1.4, DZ: -8.4 } };
+// each design's detail (ring 2.5x, Mach-Zehnder at BAILLY.detail.s): center and scale, and the photonic frame
+const DETAIL = { ring: { DX: -(10.4 / 2 + 6.2), DY: 1.4, DZ: -(10.4 / 2 + 3.2), s: 2.5 }, mzm: BAILLY.detail };
 const toPx = (kind: 'ring' | 'mzm', p: number[]) => {
-  const { DX, DZ } = DETAIL[kind], d = CPO_DIE[kind], s = 2.5;
+  const { DX, DZ, s } = DETAIL[kind], d = CPO_DIE[kind];
   return [(DX - p[0] + d.L * s / 2) / (d.L * s) * d.fw, (DZ - p[2] + d.W * s / 2) / (d.W * s) * d.fh];
 };
 
@@ -72,24 +72,26 @@ describe('CPO packages: authored hardware', () => {
     expect(shown(h.scene.getObjectByName('CPO_MZM_HEATSINK'))).toBe(!ring);
     expect(h.coolingHardware.visible).toBe(ring);
   });
-  it('eighteen NVIDIA-style engines, eight Broadcom-style tiles, each tile long and its arms running past its electronic die', () => {
+  it('eighteen NVIDIA-style engines, eight Broadcom-style tiles in the vendor image’s proportions, all 64 lanes drawn, the arms running past the electronic die', () => {
     const b = authored.build(options()); b.scene.updateMatrixWorld(true);
     const mzmEngines = b.variant.groups.mzm.find((g: THREE.Object3D) => g.name === 'CPO_MZM_ENGINES');
     const eicMesh = meshes(mzmEngines).find(m => (m.material as THREE.Material).name === 'MZM electronic die face')!;
     const ringEic = meshes(b.variant.groups.ring.find((g: THREE.Object3D) => g.name === 'CPO_RING_ENGINES')).find(m => (m.material as THREE.Material).name === 'Electronic die face')!;
     const per = (m: THREE.Mesh, n: number) => { expect(m.geometry.attributes.position.count % n).toBe(0); return m.geometry.attributes.position.count / n; };
     expect(per(eicMesh, 8)).toBe(per(ringEic, 18));   // the same beveled box per die
-    expect(CPO_DIE.mzm.L / CPO_DIE.mzm.W).toBeGreaterThan(2.4);   // a long tile (Broadcom's package images)
+    // Broadcom's package images: an engine with its connector reads about 2 to 2.5 times as long as it is wide
+    const withConn = (BAILLY.conn[1] - BAILLY.rIn) / CPO_DIE.mzm.W;
+    expect(withConn).toBeGreaterThanOrEqual(2); expect(withConn).toBeLessThanOrEqual(2.5);
     const detail = b.variant.groups.mzm.find((g: THREE.Object3D) => g.name === 'CPO_MZM_DETAIL');
     const arms = meshes(detail).find(m => (m.material as THREE.Material).name === 'Mach-Zehnder arm')!;
     const eic = meshes(detail).find(m => (m.material as THREE.Material).name === 'Detail MZM electronic die face')!;
     const armBox = new THREE.Box3().setFromObject(arms), eicB = new THREE.Box3().setFromObject(eic);
     // the detail is turned half a turn: the fiber edge is world -x
     expect(eicB.min.x - armBox.min.x).toBeGreaterThan(.4 * (armBox.max.x - armBox.min.x));
-    const ringD = 12 / 512 * 1.35, armLen = (CPO_MZM.armOut - CPO_MZM.armIn) / 810 * 2.7;
-    expect(armLen / ringD).toBeGreaterThan(40);
+    const ringD = 12 / 512 * 1.35, armLen = (CPO_MZM.armOut - CPO_MZM.armIn) / CPO_DIE.mzm.fw * CPO_DIE.mzm.L;
+    expect(armLen / ringD).toBeGreaterThan(30);   // many times a ring's size
     const electrode = meshes(detail).find(m => (m.material as THREE.Material).name === 'Mach-Zehnder electrode')!;
-    expect(electrode.geometry.attributes.position.count).toBe(8 * 2 * 3 * 24);   // 8 lanes × 2 arms × 3 segments
+    expect(electrode.geometry.attributes.position.count).toBe(64 * 3 * 24);   // all 64 lanes × 3 segments (one bar over both arms)
   });
 });
 
@@ -104,11 +106,11 @@ describe('CPO packages: pins, flows and captions', () => {
     // modulator and photodiode pins on the photonic die; the electronic chip's pin on the electronic die, over a driver
     expect(pins[id('rings')].pos[1] - DY).toBeLessThan(.3); expect(pins[id('pd')].pos[1] - DY).toBeLessThan(.3); expect(pins[id('eic')].pos[1] - DY).toBeGreaterThan(.95);
     if (kind === 'ring') expect(Math.hypot(mpx - CPO_RING.ringX(3), mpy - CPO_RING.ringZ(3))).toBeLessThan(1);
-    else { expect(mpx).toBeGreaterThan(CPO_EIC.mzm[2]); expect(mpx).toBeLessThan(CPO_MZM.armOut); expect(Math.abs(mpy - CPO_MZM.row(3))).toBeLessThan(1); }
-    const [bx, by] = cpoBlocks(kind).drivers[kind === 'mzm' ? 2 : 6];
+    else { expect(mpx).toBeGreaterThan(CPO_EIC.mzm[2]); expect(mpx).toBeLessThan(CPO_MZM.armOut); expect(Math.abs(mpy - CPO_MZM.row(29))).toBeLessThan(1); }
+    const [bx, by] = cpoBlocks(kind).drivers[6];
     expect(Math.hypot(epx - bx, epy - by)).toBeLessThan(1);
     expect(Math.abs(dpx - (kind === 'ring' ? CPO_RING.pdX : CPO_MZM.pdX))).toBeLessThan(1);
-    expect(Math.abs(dpy - (kind === 'ring' ? CPO_RING.rxRow(4) : CPO_MZM.rxRow(7)))).toBeLessThan(1);
+    expect(Math.abs(dpy - (kind === 'ring' ? CPO_RING.rxRow(4) : CPO_MZM.rxRow(63)))).toBeLessThan(1);
     // the flows on screen are this package's (and the shared switch-chip and laser-module ones)
     const visible = b.dataFlows.filter((f: any) => shown(f.group));
     const own = visible.filter((f: any) => f.group.parent?.name?.startsWith('CPO engine view'));
@@ -118,7 +120,7 @@ describe('CPO packages: pins, flows and captions', () => {
     // electronic die it serves
     const pads = kind === 'ring'
       ? [...Array.from({ length: 8 }, (_, i) => CPO_RING.pad(i)), ...Array.from({ length: 8 }, (_, i) => [CPO_RING.pdX, CPO_RING.rxRow(i)])]
-      : [...Array.from({ length: 8 }, (_, i) => [0, 1, 2].map(k => [CPO_MZM.pad(k), CPO_MZM.row(i) - CPO_MZM.strip])).flat(), ...Array.from({ length: 8 }, (_, i) => [CPO_MZM.pdX, CPO_MZM.rxRow(i)])];
+      : [...Array.from({ length: 64 }, (_, i) => [0, 1, 2].map(k => [CPO_MZM.pad(k), CPO_MZM.row(i)])).flat(), ...Array.from({ length: 64 }, (_, i) => [CPO_MZM.pdX, CPO_MZM.rxRow(i)])];
     const d = CPO_DIE[kind];
     for (const f of own) for (let t = 0; t <= 1; t += .02) {
       const p = f.path.getPoint(t), y = p.y - DY, [px, py] = toPx(kind, p.toArray());
@@ -172,18 +174,19 @@ describe('CPO engine layouts', () => {
     const [x0, y0, x1, y1] = CPO_EIC[kind];
     const toFrame = ([c, r]: number[]) => [x1 - c / CW * (x1 - x0), y1 - r / CH * (y1 - y0)];
     const center = (b: number[]) => toFrame([(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]);
-    expect(drivers).toHaveLength(8); expect(tias).toHaveLength(8);
-    for (let i = 0; i < 8; i++) {
+    const N = kind === 'mzm' ? 64 : 8;   // every lane: 8 per ring engine, 64 per Mach-Zehnder engine
+    expect(drivers).toHaveLength(N); expect(tias).toHaveLength(N);
+    for (let i = 0; i < N; i++) {
       const [dx, dy] = center(drivers[i]), [mx, my] = modulator(i), [tx, ty] = center(tias[i]), [px, py] = pd(i);
       expect(Math.hypot(dx - mx, dy - my), `driver ${i}`).toBeLessThan(.5);
       expect(Math.hypot(tx - px, ty - py), `TIA ${i}`).toBeLessThan(.5);
-      const padsOf = kind === 'ring' ? [CPO_RING.pad(i)] : [0, 1, 2].map(k => [CPO_MZM.pad(k), CPO_MZM.row(i) - CPO_MZM.strip]);
+      const padsOf = kind === 'ring' ? [CPO_RING.pad(i)] : [0, 1, 2].map(k => [CPO_MZM.pad(k), CPO_MZM.row(i)]);
       for (const [qx, qy] of padsOf) {
         const [c, r] = variants.eicPixel(kind, qx, qy), b = drivers[i];
         expect(c > b[0] && c < b[2] && r > b[1] && r < b[3], `${kind} lane ${i} pad under its driver`).toBe(true);
       }
     }
-    for (let i = 1; i < 8; i++) { expect(center(drivers[i])[1]).toBeGreaterThan(center(drivers[i - 1])[1]); expect(center(tias[i])[1]).toBeGreaterThan(center(tias[i - 1])[1]); }
+    for (let i = 1; i < N; i++) { expect(center(drivers[i])[1]).toBeGreaterThan(center(drivers[i - 1])[1]); expect(center(tias[i])[1]).toBeGreaterThan(center(tias[i - 1])[1]); }
     for (const b of [...drivers, ...tias]) { expect(b[0]).toBeGreaterThan(29); expect(b[1]).toBeGreaterThan(29); expect(b[2]).toBeLessThan(CW - 29); expect(b[3]).toBeLessThan(CH - 29); }
     const all = [...drivers, ...tias, ...variants.eicBlocks(kind).support.map((s: any) => s.rect)];
     for (let a = 0; a < all.length; a++) for (let c = a + 1; c < all.length; c++) {
@@ -191,17 +194,28 @@ describe('CPO engine layouts', () => {
       expect(p[2] <= q[0] || q[2] <= p[0] || p[3] <= q[1] || q[3] <= p[1], `blocks ${a} and ${c}`).toBe(true);
     }
   });
-  it('the Mach-Zehnder tile: arms, electrodes and heaters clear of each other, the arms showing past the electronic die', () => {
-    const M = CPO_MZM;
-    for (const g of [[0, 4], [4, 8]]) for (let i = g[0] + 1; i < g[1]; i++) expect(M.row(i) - M.row(i - 1) - 2 * (M.strip + M.stripW / 2)).toBeGreaterThan(3);
-    expect(M.strip - M.stripW / 2 - M.arm).toBeGreaterThan(1.5);
+  it('the Mach-Zehnder tile: all 64 lanes each way in 16 FR4 groups, arms and electrodes within the lane pitch, the arms showing past the electronic die', () => {
+    const M = CPO_MZM, rows = Array.from({ length: 64 }, (_, i) => M.row(i)), rx = Array.from({ length: 64 }, (_, i) => M.rxRow(i));
+    expect(M.lanes).toBe(64); expect(M.groups * M.perGroup).toBe(64); expect(M.groups).toBe(16);
+    for (const list of [rows, rx]) for (let i = 1; i < 64; i++) expect(list[i] - list[i - 1]).toBeGreaterThanOrEqual(M.pitch);
+    expect(rows[63]).toBeLessThan(rx[0]);                                   // transmit half, then receive half
+    expect(2 * M.arm).toBeLessThan(M.pitch); expect(M.elecW).toBeLessThan(M.pitch);   // a lane's arms and electrode stay in its pitch
     for (let k = 0; k < M.segments; k++) { const [a, b] = M.seg(k); expect(M.pad(k)).toBeGreaterThan(a); expect(M.pad(k)).toBeLessThan(b); expect(a).toBeGreaterThan(M.armIn); expect(b).toBeLessThan(CPO_EIC.mzm[2]); }
     expect(M.heater[0]).toBeGreaterThan(CPO_EIC.mzm[2]); expect(M.heater[1]).toBeLessThan(M.armOut);
-    expect(M.armOut - CPO_EIC.mzm[2]).toBeGreaterThan(200);
-    // two FR4 groups: four lanes per transmit fiber, four photodiodes per receive fiber, one laser bus each, in rows clear of the lanes
-    expect(M.txOut).toHaveLength(2); expect(M.rxIn).toHaveLength(2); expect(M.lasers).toHaveLength(2);
-    expect(M.lasers[0]).toBeLessThan(M.row(0) - M.strip - 3); expect(M.lasers[1]).toBeGreaterThan(M.row(7) + M.strip + 3); expect(M.lasers[1]).toBeLessThan(M.rxRow(0) - 3);
-    expect(M.pdX + 13).toBeLessThan(CPO_EIC.mzm[2]);   // the photodiodes under the electronic die, under their TIAs
+    expect(M.armOut - CPO_EIC.mzm[2]).toBeGreaterThan(150);
+    // each group: four lanes on one transmit fiber row, four photodiodes off one receive fiber row, its boxes spanning its lanes
+    for (let g = 0; g < M.groups; g++) {
+      const lanes = [0, 1, 2, 3].map(k => 4 * g + k);
+      for (const [box, list] of [[M.demux(g), rows], [M.mux(g), rows], [M.rxDemux(g), rx]] as const) for (const i of lanes) { expect(list[i]).toBeGreaterThan(box[1]); expect(list[i]).toBeLessThan(box[3]); }
+      expect(M.txOut(g)).toBeGreaterThan(rows[lanes[0]]); expect(M.txOut(g)).toBeLessThan(rows[lanes[3]]);
+      expect(M.rxIn(g)).toBeGreaterThan(rx[lanes[0]]); expect(M.rxIn(g)).toBeLessThan(rx[lanes[3]]);
+      if (g) { expect(M.demux(g)[1]).toBeGreaterThan(M.demux(g - 1)[3]); expect(M.rxDemux(g)[1]).toBeGreaterThan(M.rxDemux(g - 1)[3]); }
+    }
+    // the two laser buses run clear of every lane, and each feeds half the groups
+    expect(M.lasers[0]).toBeLessThan(M.demux(0)[1]); expect(M.lasers[1]).toBeGreaterThan(M.demux(15)[3]); expect(M.lasers[1]).toBeLessThan(M.rxDemux(0)[1]);
+    expect(Array.from({ length: 16 }, (_, g) => M.feed(g)).filter(f => f === 0)).toHaveLength(8);
+    expect(M.trunkX).toBeLessThan(M.demux(0)[0]);
+    expect(M.pdX + M.pdW / 2).toBeLessThan(CPO_EIC.mzm[2]);   // the photodiodes under the electronic die, under their TIAs
   });
   it('every engine faces the switch chip: electrical edge nearest the ASIC, fiber edge farthest, in both packages', () => {
     const check = (e: any, L: number, kind: 'ring' | 'mzm') => {

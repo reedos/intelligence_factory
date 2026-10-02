@@ -103,7 +103,7 @@ function sync() {
   scopeBrief.textContent = store.ui.scene === 8
     ? 'Discrete driver and TIA packages, separate from the optical assemblies. Representative board-level design.'
     : store.ui.scene === 7
-      ? 'Representative package with a separate 2.5× engine detail. X-ray layers reveal buried routes.'
+      ? 'Representative package with a separate enlarged engine detail. X-ray layers reveal buried routes.'
       : 'Representative plug ends and internal routing. Moving marks explain flow, not speed or watts.';
   if (scope.dataset.scene !== String(store.ui.scene)) { scopeDetails.open = false; scope.dataset.scene = String(store.ui.scene); }
   const viewSelect = panel.querySelector('#link-view');

@@ -218,12 +218,13 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   const viewLabel = (k, ...a) => { const sprite = label(scene, ...a); sprite.userData.cpoVariant = k; return sprite; };
   label(scene, 'Co-packaged optics · one switch package', [0, 0.6, FZ], '#e8ecf2', 0.36);
   viewLabel('ring', 'Size and layout representative · counts are NVIDIA’s', [0, 0.1, FZ], note, 0.2);
-  viewLabel('ring', '18 engines · 28.8T each way · 1 engine = 1.6T each way, like one module', [0, -0.3, FZ], unitCol, 0.2);
+  viewLabel('ring', '18 engines × 1.6 Tb/s = 28.8 Tb/s each way', [0, -0.3, FZ], unitCol, 0.2);
+  viewLabel('ring', 'Each engine: 8 lanes × 200 Gb/s = 1.6 Tb/s each way, like one 1.6T module', [0, -0.65, FZ], unitCol, 0.17);
   viewLabel('ring', 'Detail · one engine, lifted out and exploded · 2.5×', [DX, DY - 0.45, DZ + 2.45], '#e8ecf2', 0.15);
   viewLabel('ring', 'Functional schematic · bonded faces and surface fiber coupling unfolded', [DX, DY - 0.45, DZ + 2.0], note, 0.13);
   viewLabel('ring', 'Electronic chip: drivers (TX) and TIAs (RX)', [DX, DY + 2.35, DZ - 1.6], unitCol, 0.15);
   viewLabel('ring', 'Photonic chip: ring modulators (TX), photodiodes (RX)', [DX, DY + 0.55, DZ + 2.0], unitCol, 0.15);
-  viewLabel('ring', 'Light · 8 TX, 8 RX, 2 laser fibers', [DX - PW / 2 - 1.6, DY + 0.75, DZ], COL.tx, 0.15);
+  viewLabel('ring', 'Light · all 8 lanes each way: 8 TX, 8 RX fibers, 2 laser fibers', [DX - PW / 2 - 1.6, DY + 0.75, DZ], COL.tx, 0.15);
   viewLabel('ring', 'TX / RX fibers → front-panel ports (outside this diagram)', [0, 2.8, 7.8], COL.tx, .16);
   label(scene, 'Lower amber fibers: laser supply only · no engine-to-engine optical loop', [0, .5, 7.8], COL.cw, .14);
   label(scene, 'Electrical · copper traces in the substrate', [0, Y.subTop + 0.5, -2.6], COL.elec, 0.15);
