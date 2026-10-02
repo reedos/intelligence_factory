@@ -353,11 +353,13 @@ export function build({ quality, model, state = {} }) {
   const solarGlass = new THREE.MeshPhysicalMaterial({ color: 0x141c26, roughness: 0.12, metalness: 0.5, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 2.2, emissive: 0x16232f, emissiveIntensity: 0.4 });
   const nuclearEmitters = [], gasEmitters = [], turbineItems = [];
   const plantMatrices = new Map();
+  const sites = [];                                    // every plant symbol's placement, drawn or not (line detours)
   const placePlant = (name, matrix) => { if (!plantMatrices.has(name)) plantMatrices.set(name, []); plantMatrices.get(name).push(matrix); };
   plants.forEach(([x, z, kind]) => {
     if (kind === 'gas') {                                              // combined cycle: turbine hall, two HRSGs, a stack at the end of each
       // turned so the Generation view sees the hall front and the HRSG trains receding at three quarters
       const at = (dx, dz) => [x + dx * Math.cos(GAS_RY) + dz * Math.sin(GAS_RY), z - dx * Math.sin(GAS_RY) + dz * Math.cos(GAS_RY)];
+      sites.push(['GAS_PLANT', mtx(x, 0, z, GAS_RY)]);                          // drawn or not (line detours)
       if (authored) placePlant('GAS_PLANT', mtx(x, 0, z, GAS_RY));
       else {
       const [hx, hz] = at(0, 3); rbox(P, 20, 8.5, 7, MAT.steel, hx, 4.25, hz, { r: 0.05, ry: GAS_RY });
@@ -372,6 +374,7 @@ export function build({ quality, model, state = {} }) {
     }
     if (kind === 'nuclear') {                                          // two hyperbolic cooling towers, a containment dome
       const H2 = 34, seg = quality.mobile ? 10 : 18;
+      sites.push(['NUCLEAR_PLANT', mtx(x, 0, z)]);
       if (authored) placePlant('NUCLEAR_PLANT', mtx(x, 0, z));
       else {
       towerGeo ||= coolingTowerGeo(H2, 15, 9, 12, seg);
@@ -456,6 +459,7 @@ export function build({ quality, model, state = {} }) {
       continue;
     }
     const asset = { gas: 'GAS_PLANT', coal: 'COAL_PLANT', nuclear: 'NUCLEAR_PLANT', sub: 'GRID_SUBSTATION' }[q.kind];
+    sites.push([asset, mtx(q.x, 0, q.z, q.ry, s)]);
     if (authored) placePlant(asset, mtx(q.x, 0, q.z, q.ry, s));
     else if (q.kind === 'sub') P.box(22 * s, 0.3, 16 * s, MAT.concreteDark, q.x, 0.16, q.z, q.ry);
     else P.box(18 * s, (q.kind === 'coal' ? 20 : 8.5) * s, 9 * s, MAT.steel, q.x, (q.kind === 'coal' ? 10 : 4.25) * s, q.z, q.ry);
@@ -480,7 +484,32 @@ export function build({ quality, model, state = {} }) {
   const towerMatrices = [];
   // A line is one or more legs: a line through a substation runs plant -> in-gantry, across the yard, then
   // out-gantry -> campus, with towers along each leg long enough to need them (none inside the yard).
-  const hvLine = (pts, count, { legs = [pts], trail = true } = {}) => {
+  // Plant symbols a line must go around, not through (its own source and destination excepted: a leg's ends stay put)
+  const blockers = [], _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
+  const reachOf = { COAL_PLANT: 32, GAS_PLANT: 26, NUCLEAR_PLANT: 62, GRID_SUBSTATION: 16 };   // symbol half-extent at scale 1
+  for (const [name, m] of sites) if (reachOf[name]) { m.decompose(_p, _q, _s); blockers.push([_p.x, _p.z, reachOf[name] * _s.x]); }
+  // A leg that would pass over a plant symbol bows smoothly around it (a bell-shaped sideways shift over a few
+  // points either side), so the towers and the straight spans between them clear it too.
+  const detour = leg => {
+    const out = leg.map(p => [...p]), n = out.length;
+    for (const [bx, bz, r] of blockers) {
+      if ([out[0], out[n - 1]].some(e => Math.hypot(e[0] - bx, e[2] - bz) < r + 8)) continue;   // its own source or destination
+      let k = -1, dmin = Infinity;
+      for (let i = 1; i < n - 1; i++) { const d = Math.hypot(out[i][0] - bx, out[i][2] - bz); if (d < dmin) { dmin = d; k = i; } }
+      const R = r + 14; if (k < 0 || dmin >= R) continue;
+      const a = out[Math.max(0, k - 1)], c = out[Math.min(n - 1, k + 1)], tx = c[0] - a[0], tz = c[2] - a[2], tl = Math.hypot(tx, tz) || 1;
+      let nx = -tz / tl, nz = tx / tl;                                  // away from the symbol's side
+      if (nx * (out[k][0] - bx) + nz * (out[k][2] - bz) < 0) { nx = -nx; nz = -nz; }
+      const push = R - (nx * (out[k][0] - bx) + nz * (out[k][2] - bz)), span = 4;
+      for (let i = Math.max(1, k - span); i <= Math.min(n - 2, k + span); i++) {
+        const w = 0.5 + 0.5 * Math.cos(Math.PI * (i - k) / (span + 1));
+        out[i][0] += nx * push * w; out[i][2] += nz * push * w;
+      }
+    }
+    return out;
+  };
+  const hvLine = (pts, count, { legs: rawLegs = [pts], trail = true } = {}) => {
+    const legs = rawLegs.map(detour);
     const anchors = [legs[0][0]];
     for (const leg of legs) {
       const L = polyLen(leg);
@@ -545,7 +574,7 @@ export function build({ quality, model, state = {} }) {
       hvLine(pts, 5, { trail: false });
     });
     if (!sub) return;
-    const ss = REMOTE_SCALE.sub, at = local(sub.x, sub.z, sub.ry, ss), gIn = lift(at(-9.5, 0), 7 * ss), gOut = lift(at(9.5, 0), 7 * ss);
+    const ss = REMOTE_SCALE.sub, at = local(sub.x, sub.z, sub.ry, ss), gIn = lift(at(-9.5, 0), 6.5 * ss), gOut = lift(at(9.5, 0), 6.5 * ss);   // under the gantry beam (at 7), on its insulators
     const out = route([gOut[0], gOut[2]], gz, 10, 340 + i).map(r => [r[0], 6, r[2]]); out[0] = gOut; out[out.length - 1] = end;
     grid.forEach((q, j) => {
       const from = q.kind === 'wind' ? farmEdge(q.x, q.z, remoteWind, [gIn[0], gIn[2]]) : leaves(q, REMOTE_SCALE[q.kind]);
@@ -567,13 +596,22 @@ export function build({ quality, model, state = {} }) {
   let longest = null;
   // each line terminal sits on the east edge of its campus plinth; the route ends at a lit fiber-entrance vault
   // on the terminal's outer wall rather than at the campus center
-  const terminalAt = ([x, z], k) => [x + 17 * k + 5.4, z - 6 * k];
-  const vaultAt = t => [t[0] + 5.3, t[1]];
-  const HT = terminalAt(H, 1);
+  const terminalAt = ([x, z], k, side = 1) => [x + side * (17 * k + 5.4), z - 6 * k];
+  // a far campus's terminal stands on the side its route arrives from, so the fiber reaches its vault without
+  // crossing the building (east of the campus for a route from the east, west for one from the west)
+  const farSide = B => (H[0] >= B[0] ? 1 : -1);
+  const vaultAt = (t, north = false, side = 1) => north ? [t[0], t[1] - 5.3] : [t[0] + 5.3 * side, t[1]];
+  // This campus takes its two routes through two terminals on different sides of its plinth, as the campus level draws
+  // its two fiber entrances (diverse entrances, at least 20 m apart: VA OIT telecom infrastructure standard after
+  // TIA-942). The northernmost route leaves by the north terminal, the other by the east one; the west side is the
+  // grid's (the substation and the incoming lines).
+  const HT = terminalAt(H, 1), HN = [H[0] + 6, H[1] - 21];
+  const northFirst = near.map(({ p }, i) => [world(p.site.lon, p.site.lat)[1], i]).sort((a, b) => a[0] - b[0])[0]?.[1];
+  const homeFor = i => near.length > 1 && i === northFirst ? { t: HN, north: true } : { t: HT, north: false };
   near.forEach(({ p, km }, i) => {
-    const B = world(p.site.lon, p.site.lat), BT = terminalAt(B, 0.85);
+    const B = world(p.site.lon, p.site.lat), bs = farSide(B), BT = terminalAt(B, 0.85, bs), home = homeFor(i);
     // near the ground: long-haul fiber runs in buried conduit and enters each amplifier hut, rather than overhead
-    const pts = route(vaultAt(HT), vaultAt(BT), Math.min(160, km * 0.12), 7 + i * 10).map(q => [q[0], 1.25, q[2]]);
+    const pts = route(vaultAt(home.t, home.north), vaultAt(BT, false, bs), Math.min(160, km * 0.12), 7 + i * 10).map(q => [q[0], 1.25, q[2]]);
     const L = polyLen(pts);
     // Screen-width cartographic overlay, not a physical cable diameter. The public geographic
     // endpoints, representative wandering path and directional elevations stay unchanged.
@@ -582,7 +620,8 @@ export function build({ quality, model, state = {} }) {
     ink.name = 'Regional fiber route annotation'; ink.renderOrder = 3; data.add(ink);
     for (const dir of [1, -1]) {
       const pp = dir > 0 ? pts : [...pts].reverse().map(q => [q[0], q[1] + 1.5, q[2]]);
-      const f = flow(pp, 'dci', { count: Math.round(L / 22), speed: 240, size: 1.4, k: 1.7, trailR: 0.38, trailK: 0.4 });
+      // the fiber enters each in-line amplifier hut on its route (see above), so it passes through them on purpose
+      const f = flow(pp, 'dci', { count: Math.round(L / 22), speed: 240, size: 1.4, k: 1.7, trailR: 0.38, trailK: 0.4, audit: { through: /MAP_HUT/, why: 'the fiber runs through each in-line amplifier hut' } });
       // Keep a readable moving map symbol at long range, without a huge marker
       // covering an amplifier shelter when the user inspects it close up.
       const advance = f.update.bind(f), midpoint = new THREE.Vector3(...pointAt(pts, L / 2));
@@ -619,8 +658,12 @@ export function build({ quality, model, state = {} }) {
   hut.cyl(.16, .14, glowMat('#ffd35c', 1.4), 2.4, 3.3, 1.5, 10);
   data.add(hut.instance(huts.map(p => mtx(p[0], 0, p[2]))));
   }
-  const terminals = [HT, ...near.map(({ p }) => terminalAt(world(p.site.lon, p.site.lat), 0.85))];
-  const terminalMatrices = terminals.map(([x, z]) => mtx(x, 0, z));
+  const farTerminals = near.map(({ p }) => { const B = world(p.site.lon, p.site.lat), bs = farSide(B); return { t: terminalAt(B, 0.85, bs), ry: bs < 0 ? Math.PI : 0 }; });
+  const terminals = [HT, ...(near.length > 1 ? [HN] : []), ...farTerminals.map(f => f.t)];
+  // the north terminal is the east one turned a quarter, so its vault faces north toward its route
+  const homeCount = near.length > 1 ? 2 : 1;
+  const terminalMatrices = terminals.map(([x, z], i) => mtx(x, 0, z, i === 1 && homeCount === 2 ? Math.PI / 2 : i >= homeCount ? farTerminals[i - homeCount].ry : 0));
+  scene.userData.campusTerminals = { east: HT, north: near.length > 1 ? HN : null, diverse: near.length > 1 };
   // gold carries the data layer's color onto the building: the terminal's own crown fixture (MAP_TERMINAL) and
   // the vault the fiber enters by (TERMINAL_TRIM)
   if (authored) data.add(acrossAssetInstances('TERMINAL_TRIM', terminalMatrices));

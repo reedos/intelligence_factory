@@ -27,7 +27,7 @@ window.ifx = {
   store, setScenario, pin, state: store.ui, go: stage.go, select: stage.select, setMode: stage.setMode,
   camera: stage.camera, controls: stage.controls, composers: stage.composers, built: stage.built, settle: stage.settle,
   renderer: stage.getRenderer, renderScale: stage.renderScale, quality: stage.qualityInfo, forceTier: stage.forceTier, setTransitions: stage.setTransitions,
-  show: stage.show, THREE, clearance: stage.clearanceStats,
+  show: stage.show, THREE, clearance: stage.clearanceStats, setCpoVariant: stage.setCpoVariant, cpoVariant: stage.cpoVariantNow,
 };
 if (new URLSearchParams(location.search).has('module')) import('./app/blender-test.js');
 if (new URLSearchParams(location.search).get('module') !== 'native') import('./app/module-presentation.js');

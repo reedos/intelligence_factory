@@ -26,7 +26,7 @@ if (!process.env.QUICK) {
 const DEFER = [
   // Levels other agents own as of 10/01/2026 (site and hall cabling, packages and modules, CPO). Their flow fixes, written
   // against this checker, were handed over as a patch; drop an entry once its owner lands them. DEFER_NONE=1 counts all.
-  ...['across', 'campus', 'hall', 'cpo'].map(level => ({ level, accel: '', why: 'owned by another agent (handed over as flow-fixes-other-owners.patch)' }))];
+  ...['across', 'campus', 'hall'].map(level => ({ level, accel: '', why: 'owned by another agent (handed over as flow-fixes-other-owners.patch)' }))];
 const deferOf = (level, key) => process.env.DEFER_NONE ? null : DEFER.find(d => d.level === level && (!d.accel || key.startsWith(d.accel + ' ')));
 const onlyScene = process.env.ONLY_SCENE?.split(',').map(Number), onlyAccel = process.env.ONLY_ACCEL?.split(',');
 const b = await chromium.launch({ headless: true, args: gateArgs });
@@ -44,17 +44,20 @@ for (const s of combos) {
   if (seen.has(key)) continue; seen.add(key);
   for (let sc = 0; sc < 10; sc++) {
     if (onlyScene && !onlyScene.includes(sc)) continue;
-    for (const [mode, layer] of [['power', 'flows'], ['data', 'dataFlows']]) {
-      const r = await p.evaluate(async ([sc, mode, layer]) => {
+    // the CPO level draws two packages (NVIDIA-style rings, Broadcom-style Mach-Zehnder); each is audited
+    const packages = sc === 7 && await p.evaluate(() => !!ifx.setCpoVariant) ? ['ring', 'mzm'] : [null];
+    for (const pkg of packages) for (const [mode, layer] of [['power', 'flows'], ['data', 'dataFlows']]) {
+      const r = await p.evaluate(async ([sc, mode, layer, pkg]) => {
         ifx.setMode(mode);
         if (ifx.state.scene !== sc || !ifx.built[sc] || ifx.built[sc].model !== ifx.store.M) await ifx.go(sc, null, { force: true, keepCamera: true });
         await new Promise(r => { const t = () => (ifx.built[sc] && ifx.built[sc].model === ifx.store.M && ifx.state.scene === sc ? r() : requestAnimationFrame(t)); t(); });
+        if (pkg) { ifx.setCpoVariant(pkg); ifx.built[sc].update(0, 0); }
         await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
         const res = window.__auditFlows(ifx.built[sc], ifx.THREE, { layers: [layer] });
         // a signature per flow, so the same route in several scenarios is reported once
         res.report.forEach(x => { x.sig = `${x.layer} ${x.cls} ${x.from} ${x.to} ${x.issues.map(i => i.kind + i.at).join()}`; });
         return res;
-      }, [sc, mode, layer]);
+      }, [sc, mode, layer, pkg]);
       const t = totals[names[sc]] ??= { flows: 0, inside: 0, offBoard: 0, floating: 0, conduit: 0, declared: 0, unique: 0 };
       const held = deferOf(names[sc], key);
       if (held) { t.deferred = (t.deferred || 0) + r.defects; if (r.defects) console.log(`${names[sc].padEnd(8)} ${key.padEnd(30)} ${mode}: ${r.defects} findings deferred (${held.why})`); continue; }
@@ -64,9 +67,9 @@ for (const s of combos) {
         if (process.env.JSON) records.push({ level: names[sc], scenario: key, mode, ...x });
         const bad = x.issues.filter(i => !['conduit', 'declared'].includes(i.kind));
         if (!bad.length && !verbose) continue;
-        const k = `${names[sc]} ${x.sig}`; if (seenFlows.has(k)) { seenFlows.get(k).push(key); continue; }
+        const k = `${names[sc]} ${pkg ?? ''} ${x.sig}`; if (seenFlows.has(k)) { seenFlows.get(k).push(key); continue; }
         seenFlows.set(k, [key]); if (bad.length) t.unique++;
-        console.log(`${names[sc].padEnd(8)} ${key.padEnd(30)} ${mode} ${x.layer}[${x.index}] ${x.cls} ${JSON.stringify(x.from)}→${JSON.stringify(x.to)}${x.why ? ` (${x.why})` : ''}`);
+        console.log(`${names[sc].padEnd(8)} ${key.padEnd(30)} ${mode}${pkg ? ` (${pkg})` : ''} ${x.layer}[${x.index}] ${x.cls} ${JSON.stringify(x.from)}→${JSON.stringify(x.to)}${x.why ? ` (${x.why})` : ''}`);
         for (const i of x.issues) if (verbose || bad.includes(i)) console.log(`    ${i.kind.padEnd(8)} ${i.part ?? ''} ${JSON.stringify(i.at)}${i.to ? '→' + JSON.stringify(i.to) : ''}${i.len != null ? ` len ${i.len}` : ''}${i.clearance != null ? ` clearance ${i.clearance}` : ''}`);
       }
     }

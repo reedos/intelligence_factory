@@ -27,10 +27,17 @@ for (const s of combos) {
       await ifx.go(i, null, { force: true, keepCamera: true });
       await new Promise(r => { const t = () => (ifx.built[i] && ifx.built[i].model === ifx.store.M && ifx.state.scene === i ? r() : requestAnimationFrame(t)); t(); });
       const bb = ifx.built[i];
-      for (const m of ['power', 'data', 'heat']) {
-        const hs = { power: bb.hotspots, data: bb.dataHotspots, heat: bb.heatHotspots }[m] || {};
-        const list = (by[m][C.SCENES[i].id] || []).map(x => x.id);
-        out.push({ level: i + 1, mode: m, missing: list.filter(id => !hs[id]), extra: Object.keys(hs).filter(id => !list.includes(id)) });
+      // the CPO level draws two packages; each must pin every part listed for it (its mzm-* parts belong to the
+      // Broadcom-style package, the landscape cards to both, the rest to the NVIDIA-style one)
+      for (const variant of C.SCENES[i].id === 'cpo' && ifx.setCpoVariant ? ['ring', 'mzm'] : [null]) {
+        if (variant) ifx.setCpoVariant(variant);
+        const mine = id => !variant || ['today', 'next'].includes(id) || (variant === 'mzm') === id.startsWith('mzm-');
+        for (const m of ['power', 'data', 'heat']) {
+          const hs = { power: bb.hotspots, data: bb.dataHotspots, heat: bb.heatHotspots }[m] || {};
+          const list = (by[m][C.SCENES[i].id] || []).map(x => x.id).filter(mine);
+          out.push({ level: i + 1 + (variant && variant !== 'ring' ? ` (${variant})` : ''), mode: m, missing: list.filter(id => !hs[id] || !hs[id].pos?.every(Number.isFinite)), extra: Object.keys(hs).filter(id => !list.includes(id)) });
+        }
+        if (variant) ifx.setCpoVariant('ring');
       }
     }
     return { key, out };

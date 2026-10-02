@@ -190,7 +190,7 @@ function meshes(root:THREE.Object3D){const m:THREE.Mesh[]=[];root.traverse(o=>{i
 describe('Blender mechanical layers preserve native technical diagrams',()=>{
   it('CPO exposes buried electrical routes only through a qualified interposer x-ray',()=>{
     const opts=options(),b=wrappers[0].build(opts);
-    const interposer=b.scene.getObjectByName('CPO_PACKAGE__Silicon_interposer') as THREE.Mesh;
+    const interposer=b.scene.getObjectByName('CPO_RING_PACKAGE__Silicon_interposer') as THREE.Mesh;
     expect(interposer).toBeDefined();
     b.scene.updateMatrixWorld(true);
     const path=b.dataFlows.find((f:any)=>f.cls==='eth').path;
@@ -326,9 +326,9 @@ describe('Blender mechanical layers preserve native technical diagrams',()=>{
 describe('shared CPO interposer correction',()=>{
  it('spans the ASIC and all 18 engines, with elevated carriers above its top',()=>{
   const asset=assets.get('cpo').scene;asset.updateMatrixWorld(true);
-  const interposer=asset.getObjectByName('CPO_PACKAGE__Silicon_interposer');
+  const interposer=asset.getObjectByName('CPO_RING_PACKAGE__Silicon_interposer');
   let target:THREE.Object3D|undefined;
-  asset.traverse((o:THREE.Object3D)=>{if(o.name.replaceAll('_',' ').includes('CPO PACKAGE  Silicon interposer'))target=o;});
+  asset.traverse((o:THREE.Object3D)=>{if(o.name.replaceAll('_',' ').includes('CPO RING PACKAGE  Silicon interposer'))target=o;});
   const bounds=new THREE.Box3().setFromObject(interposer||target!);
   const size=bounds.getSize(new THREE.Vector3());
   expect(size.x*100).toBeCloseTo(9,4);expect(size.z*100).toBeCloseTo(9,4);

@@ -129,7 +129,10 @@ export const PART_W = {
   coherent: { dsp: 16, itla: 2.9, driver: 2, tia: 1, modulator: 0.3, receiverOptics: 0.05, total: 24.5 },
   // CPO switch package: NVIDIA's 3.95 kW Q3450 less its optics (≈9 W per port) and fans, over four packages, puts a
   // switch ASIC near 550 W; each 1.6T engine at the package about 13 W (laser light comes from the front panel).
-  cpo: { asic: 550, engine: 13 },
+  // A Broadcom-style 6.4T engine (Bailly-class): Broadcom puts its Tomahawk 6 CPO port at about 3.5 W per 800G,
+  // 36.4% below the Tomahawk 5 CPO port, so a Tomahawk 5 port near 5.5 W; eight 800G ports per engine ≈ 44 W. Its
+  // switch chip is drawn at the same 550 W.
+  cpo: { asic: 550, engine: 13, tile: 44 },
   // Copper cable ends: NVIDIA's DAC 0.1 W per end (no chip); "a couple of watts" for an ACC redriver; an AEC
   // retimer between the cited 2.5–3.5 W and ≈20 W at 200G per lane, taken as 10 W.
   copper: { dac: 0.1, acc: 2, aec: 10 },
