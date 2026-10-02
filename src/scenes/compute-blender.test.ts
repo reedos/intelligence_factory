@@ -113,11 +113,13 @@ describe('complete Blender compute hardware',()=>{
       for(const f of b.heatFlows.filter((f:any)=>f.cls==='hot'&&f.thermalOrigin!=='hbm'))expect(inside(f.path.getPoint(0).x)).toBe(true);
       const rails=b.dataFlows.filter((f:any)=>f.cls==='nvl');expect(rails.length).toBe(id==='rubin'?36:18);
       for(const f of rails){
-        const end=f.path.getPoint(1);
-        // Blender stiffener lower face is y=1.185. The moving core also
-        // clears it at the renderer's maximum 1.6x size, not only its center.
-        expect(end.y+f.size*1.6).toBeLessThan(1.185);
-        expect(end.y).toBeCloseTo(1.09);
+        // Outside the interposer the route is in the substrate (buried) or below it: the Blender stiffener's lower
+        // face is y=1.185, and the moving core clears it at the renderer's maximum 1.6x size, not only its centre.
+        const pts=[f.path.curves[0].v1,...f.path.curves.map((c:any)=>c.v2)],IW=twin?6.2:6.0,ID=twin?5.9:4.0;
+        const outside=pts.filter((p:THREE.Vector3)=>Math.abs(p.x)>IW/2||Math.abs(p.z)>ID/2);
+        expect(outside.length).toBeGreaterThan(0);
+        for(const p of outside) expect(p.y+f.size*1.6).toBeLessThan(1.185);
+        expect(Math.min(...outside.map((p:THREE.Vector3)=>p.y))).toBeLessThan(.01);   // it reaches the host board
       }
     }
   });

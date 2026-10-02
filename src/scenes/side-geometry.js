@@ -52,9 +52,12 @@ export function cpoFiberRoutes(e, i) {
 }
 
 // ---------- the copper cable plugs ----------
-// four pairs each way per plug: transmit on the left half of the card, receive on the right; x of pair i's centerline
+// four pairs each way per plug: transmit on the left half of the card, receive on the right; x of pair i's centerline.
+// The two banks sit toward the card edges (0.15 cm pitch) and leave a 4.4 mm centre channel for the supply trace,
+// the ID memory and the AEC's power inductors, so no pair runs beside a switching part (design review 10/01/2026).
 export const COPPER_HEADS = [['dac', -4.6], ['acc', 0], ['aec', 4.6]];
-export const copperLane = (hx, i, rx) => hx + (rx ? 0.15 : -0.63) + i * 0.16;
+export const COPPER_PITCH = 0.15, COPPER_CHANNEL = 0.25;
+export const copperLane = (hx, i, rx) => hx + (rx ? COPPER_CHANNEL + i * COPPER_PITCH : -(COPPER_CHANNEL + (3 - i) * COPPER_PITCH));
 // The card edge: 38 contacts (QSFP112 MSA), drawn as 19 on each face at a representative 0.8 mm pitch.
 // Kinds per face, host-left to right: g ground, s high-speed signal, l low-speed control, p power. Grounds reach
 // nearest the edge, power next, signals last (the MSA's ground, power, signal mating order).
@@ -70,7 +73,7 @@ export const copperPad = (hx, i, rx) => {
 export const PAIR_HALF = 0.02;                              // each pair's two traces sit this far either side of its centerline
 // the chip in each plug's path: none, a redriver on the receive side, or a retimer across both directions
 // h: package height above the card (representative: a leaded QFN redriver; a lidded flip-chip BGA retimer).
-export const copperChip = (kind, hx) => kind === 'acc' ? { x: hx + 0.39, w: 0.62, d: 0.6, h: 0.085, rxOnly: true } : kind === 'aec' ? { x: hx, w: 1.42, d: 0.95, h: 0.194, rxOnly: false } : null;
+export const copperChip = (kind, hx) => kind === 'acc' ? { x: hx + 0.475, w: 0.58, d: 0.6, h: 0.085, rxOnly: true } : kind === 'aec' ? { x: hx, w: 1.5, d: 0.95, h: 0.194, rxOnly: false } : null;
 // Twinax pairs leave the card's rear termination in a row and gather into a round pack inside the jacket: transmit
 // pairs on the left half of the ring, receive on the right, outer lanes nearer the horizontal, alternating above and
 // below so neighbours never cross. Centerline control points (world cm) for pair i.
