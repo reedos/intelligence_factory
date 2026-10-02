@@ -1,6 +1,7 @@
+import { LAYOUT as NVL_LAYOUT, PULLED as NVL_PULLED } from './nvl72-layout.js';
 import { THREE, MAT, Builder, flow } from '../kit.js';
 
-import { managedRoute, RACK_RUNWAY, FIBER_JACKET } from './fiber-routing.js';
+import { managedRoute, RACK_RUNWAY, ROW_RUNWAY, FIBER_JACKET } from './fiber-routing.js';
 import { printDecals, textTexture } from './print-kit.js';
 import { nicLabel, labelLines } from './lid-labels.js';
 import { etch } from './package-marks.js';
@@ -21,11 +22,11 @@ export function addRackOptics(built, accel) {
   connector.name = 'MPO APC connector boot';
   const shell = MAT.nickel.clone(); shell.name = 'Inserted flat top OSFP shell';
   shell.roughness=.48;shell.metalness=.6;shell.envMapIntensity=.35;
-  const rows = h100 ? [0,1,2,3] : [3,4,5,6,7,8,9,10,20,21,22,23,24,25,26,27,28,29];
+  const rows = h100 ? [0,1,2,3] : NVL_LAYOUT.map((k,i)=>k==='compute'?i:-1).filter(i=>i>=0);   // nvl72-layout.js
   // DGX H100: four OSFP side by side in the middle of the motherboard tray's rear (user guide port figure)
   const ports = rubin ? [-.166,-.104,.104,.166].flatMap(x=>[{x,dy:0},{x,dy:.018}]) : h100 ? [-.0375,-.0125,.0125,.0375].map(x=>({x,dy:0})) : [-.195,-.15,.15,.195].map(x=>({x,dy:0}));
   rows.forEach((row,index) => {
-    const pulled = row === (h100 ? 2 : 24);
+    const pulled = row === (h100 ? 2 : NVL_PULLED);
     const rowY = h100 ? .16+row*(8*U+.004)+.094 : .12+row*U+U/2-.009;
     const z = h100 ? (pulled ? 1.045-.42 : .465-.84) : pulled ? .965+.45+.011 : .486;
     const direction = h100 ? -1 : 1;
@@ -136,15 +137,26 @@ export function addRackOptics(built, accel) {
     // runway. This is a cable bundle, not an optical combiner or active switch.
     for(let strand=0;strand<4;strand++) {
       const x=center+(strand-1.5)*.0035,z=managerZ;
-      const laneX=RACK_RUNWAY.x+(side<0?-.085:.035)+strand*.012;
-      // Pass above the side lip before settling inside the yellow raceway.
-      // DGX H100: the right-hand loom, which sits under the runway, crosses over the rack top and rises in the gap
-      // inboard of the runway (x < .05), then drops in over the side wall like the left one, not through the floor
-      const out = h100 && side>0 ? [[-.03+strand*.004,2.34,z],[-.03+strand*.004,RACK_RUNWAY.rimTop+.10,z]] : [[x,RACK_RUNWAY.rimTop+.10,z]];
-      const f=flow(managedRoute([[x,2.34,z],...out,
-        [laneX,RACK_RUNWAY.rimTop+.10,z],[laneX,RACK_RUNWAY.cableY,z-.12],
-        [laneX,RACK_RUNWAY.cableY,-1.58]],.055),'eth',{count:9,speed:.4,size:.0017,k:1,trail:false});
-      f.ribbonIntensity=.30;f.rackOpticalTrunk={laneX,runway:RACK_RUNWAY};
+      let f;
+      if (h100) {
+        const laneX=RACK_RUNWAY.x+(side<0?-.085:.035)+strand*.012;
+        // Pass above the side lip before settling inside the yellow raceway.
+        // the right-hand loom, which sits under the runway, crosses over the rack top and rises in the gap inboard of
+        // the runway (x < .05), then drops in over the side wall like the left one, not through the runway floor
+        const out = side>0 ? [[-.03+strand*.004,2.34,z],[-.03+strand*.004,RACK_RUNWAY.rimTop+.10,z]] : [[x,RACK_RUNWAY.rimTop+.10,z]];
+        f=flow(managedRoute([[x,2.34,z],...out,
+          [laneX,RACK_RUNWAY.rimTop+.10,z],[laneX,RACK_RUNWAY.cableY,z-.12],
+          [laneX,RACK_RUNWAY.cableY,-1.58]],.055),'eth',{count:9,speed:.4,size:.0017,k:1,trail:false});
+        f.rackOpticalTrunk={laneX,runway:RACK_RUNWAY};
+      } else {
+        // NVL72: up the front manager, back over the B busway (above its hanger rods) to the runway along the row,
+        // over its front lip, then along the row toward the leaf switches, each strand in its own lane.
+        const RW=ROW_RUNWAY,laneZ=RW.z+(side<0?-.085:.035)+strand*.012,top=RW.rimTop+.14;
+        f=flow(managedRoute([[x,2.34,z],[x,top,z],[x,top,laneZ+.12],[x,RW.cableY,laneZ],
+          [RW.end,RW.cableY,laneZ]],.055),'eth',{count:9,speed:.4,size:.0017,k:1,trail:false});
+        f.rackOpticalTrunk={laneZ,runway:RW};
+      }
+      f.ribbonIntensity=.30;
       hardware.addM(new THREE.TubeGeometry(f.path,64,.0018,5,false),jacket,new THREE.Matrix4());
       built.dataFlows.push(f);built.scene.add(f.group);
     }

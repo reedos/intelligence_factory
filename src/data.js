@@ -459,7 +459,7 @@ export function content(M) {
     { id: 'busway', title: dc ? '800 V DC busway' : 'Overhead busway', kicker: dc ? '800 V DC to every rack' : '415 V to every rack',
       body: dc
         ? `Two conductors instead of three phases, and about a fifth of the current of 415 V AC at the same power. NVIDIA says 800 V DC cuts copper in the rack path by 45%.`
-        : 'A transformer steps 480 V to 415 V, the voltage OCP rack power shelves take. Copper bars in an aluminum housing then run over each row, and plug-in tap-off boxes drop a short cable into each rack, so moving a rack means moving a plug.',
+        : 'A transformer steps 480 V to 415 V, the voltage OCP rack power shelves take. Copper bars in an aluminum housing then run over each row, two to a row: an A busway over the rack backs and a B busway over the fronts, each from its own UPS side. Plug-in tap-off boxes drop one short cable from each into every rack, so moving a rack means moving two plugs.',
       specs: dc
         ? [['Rack voltage', '800 V DC', 'spec', { refs: [['nvidia-800v-hvdc', "NVIDIA's own architecture post names 800 V as the DC bus voltage for its next-generation AI-factory power design"]] }], ['Per rack', M.staircase.find(s => s.v === 800)?.current ?? '', 'derived', { calc: 'hall-busway-current' }], ['Copper, NVIDIA claim', '−45%', 'vendor', { refs: [['nvidia-800v-hvdc', '"With lower current, thinner conductors can handle the same load, reducing copper requirements by 45%."']], vs: '415 V AC busway distribution at the same delivered power' }], ['Hardware as drawn', 'representative', 'assumed', { assume: 'hall-busway-hardware' }]]
         : [['Rack voltage', '415 V three-phase', 'reported', { refs: [['lv-distribution-busway', '"415V (and its 400V European twin) is the de facto rack standard for liquid-density AI rows", vs. 208V three-phase in legacy air-cooled halls (the page does not separately discuss 480 V upstream distribution)']] }], ['Per rack', `${M.staircase.find(s => s.v === 415)?.current ?? ''} at ${rackKW} kW`, 'derived', { calc: 'hall-busway-current', assume: 'power-factor' }], ['Why busway', 'tap-offs move without rewiring', 'assumed', { assume: 'hall-standard-practice' }], ['Hardware as drawn', 'representative', 'assumed', { assume: 'hall-busway-hardware' }]] },
@@ -534,7 +534,7 @@ export function content(M) {
     : { basis: 'spec', ev: { refs: [ref('nvidia-dgx-gb200-hardware', 'Hardware: "18x 1RU compute trays, each with 2 Grace CPUs and 4 Blackwell GPUs"; "9x 1RU NVLink switch trays" of "2x NVLink NVSwitches" each'), ref('nvidia-nvl72-reference-arch', 'System Hardware & Components: 18 compute trays, 9 NVLink switch trays of 2 NVSwitch ASICs each')] } };
   PARTS.rack = nvl ? [
     { id: 'feed', title: 'Rack feed', kicker: dc ? '800 V DC in' : '415 V AC in',
-      body: 'Two tap-off cables from the overhead busway plug into the top of the rack: A and B feeds for redundancy.',
+      body: 'Two tap-off cables, one from each of two overhead busways (A and B), come in through the roof and run down the back of the rack to the power shelves, half of them on each feed, so either feed can be switched off for work.',
       specs: [['Feeds', 'A + B', 'assumed', { assume: 'dual-feed-redundancy' }], ['Tap-off hardware as drawn', 'representative', 'assumed', { assume: 'busway-tapoff-hardware' }]] },
     dc
       ? { id: 'shelves', title: 'DC-DC shelves', kicker: '800 V DC → ≈50 V DC',
@@ -544,8 +544,10 @@ export function content(M) {
         body: `Each 1U shelf, such as LITEON’s power shelf for NVL72 racks, holds six hot-swap rectifiers in a 3+3 arrangement that turn AC into about 50 V DC.${A.id === 'gb300' ? ' GB300 shelves add capacitors that store 65 J per GPU to smooth training load swings.' : ''}`,
         specs: [['Shelf', '≈33 kW, 6 × 5.5 kW', 'spec', { refs: [ref('flex-gb200-power-shelf', 'product page: "consist of 6 PSUs with a max output power of 33kW"; component diagram separately labels one PSU "5500W PSU" (33 kW ÷ 6 = 5.5 kW matches)')] }],
           A.id === 'gb300'
-            ? ['Shelves per rack', '6 (up to 8)', 'reported', { refs: [ref('flex-gb200-power-shelf', '6 PSUs of 33 kW total is the shelf unit'), ref('nvidia-nvl72-reference-arch', 'GB300 NVL72 System Hardware & Components: "8 power shelves of 33 kW, with each shelf having six 5.5 kW PSUs" for a rack "requiring up to 142 kW"')] }]
-            : ['Shelves per rack', '6', 'assumed', { assume: 'gb200-shelf-count', refs: [ref('flex-gb200-power-shelf', '6 PSUs of 33 kW total is the shelf unit')] }],
+            ? ['Shelves per rack', '8', 'spec', { refs: [ref('nvidia-nvl72-reference-arch', 'GB300 NVL72 System Hardware & Components: "8 power shelves of 33 kW, with each shelf having six 5.5 kW PSUs" for a rack "requiring up to 142 kW"')] }]
+            : A.id === 'gb200'
+              ? ['Shelves per rack', '8', 'spec', { refs: [ref('nvidia-dgx-gb200-hardware', 'Hardware: "The power shelf uses six air-cooled 5.5kW PSUs in eight power shelves that provide N+N redundancy and the required input power of 33kW per power shelf"')] }]
+              : ['Shelves per rack', '8', 'assumed', { assume: 'gb200-shelf-count', refs: [ref('nvidia-dgx-gb200-hardware', 'Hardware: "six air-cooled 5.5kW PSUs in eight power shelves" for the GB200 rack, the count assumed here for Rubin')] }],
           ['Efficiency', '≈97.5% peak, half load', 'spec', { refs: [ref('flex-gb200-power-shelf', 'product page: "High efficiency up to 97.5% (peak)"')] }], ...(A.id === 'gb300' ? [['GB300 smoothing', '−30% peak grid demand', 'spec', { refs: [ref('nvidia-gb300-power', 'blog: "the peak grid demand is reduced by 30% when training the Megatron LLM"')] }]] : [])] },
     { id: 'busbar', title: 'DC busbar', kicker: `≈${n0(Math.round(RK.dcBusKW * 1000 / 50 / 100) * 100)} A down the back`,
       body: 'A vertical copper busbar runs the full height of the rack. Every tray has a clip on its back that grabs the bar when it slides in, so there are no power cables to trays.',

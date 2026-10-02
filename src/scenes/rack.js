@@ -1,4 +1,4 @@
-import { RACK_RUNWAY } from './fiber-routing.js';
+import { RACK_RUNWAY, ROW_RUNWAY } from './fiber-routing.js';
 // Scene 3: one rack. Units are meters. Front faces +z, open side faces +x.
 // NVL72 class (GB200, GB300, Rubin), or four air-cooled DGX H100 servers.
 import { THREE, MAT, Builder, mtx, flow, canvasTex, glowMat, spinners } from '../kit.js';
@@ -9,6 +9,7 @@ import { addRackOptics } from './rack-optics.js';
 import { addRackMgmt } from './rack-mgmt.js';
 import { etch } from './package-marks.js';
 import { rackUnits } from './site-signs.js';
+import { LAYOUT as NVL_LAYOUT, trayY as nvlTrayY, ROWS as NVL_ROWS, PULLED as NVL_PULLED, SWITCH_PULLED as NVL_SWITCH_PULLED } from './nvl72-layout.js';
 import { componentView } from '../app/housing-frame.js';
 import { DGX } from './dgx-h100-layout.js';
 import { tagHeat, balanceHeat, heatIntensity } from '../heat.js';
@@ -129,7 +130,7 @@ export function build(opts) {
 // reflections with), our own key + rim to match, a little bloom and AO, and desktop depth of field on tour close-ups.
 const LOOK = { exposure: 1.0, bloom: 0.48, threshold: 1.3, ao: 0.14, env: 'studio', envIntensity: 0.4, dof: true };
 
-function room(scene, quality, S, N, W, H, D) {
+function room(scene, quality, S, N, W, H, D, { rearRail = null } = {}) {
   scene.background = new THREE.Color(0x0a0d13);
   scene.fog = new THREE.Fog(0x0a0d13, 3.4, 11.5);                                   // soft floor falloff into the dark stage
   scene.add(new THREE.HemisphereLight(0xa9bbdc, 0x15171b, 0.85));
@@ -149,7 +150,9 @@ function room(scene, quality, S, N, W, H, D) {
   S.slab(W, 0.1, D, MAT.rack, 0, 0, 0);
   rbox(S, 0.014, H - 0.006, D - 0.006, MAT.rackFace, -X - 0.008, H / 2, 0, { r: 0.03 });   // side panel, rounded edge
   for (const x of [-0.25, 0.25]) for (const z of [-0.45, 0.45]) N.cyl(0.025, 0.04, MAT.darkSteel, x, 0.02, z, 12);
-  for (const z of [ZF - 0.06, ZB + 0.06]) for (const x of [-X + 0.05, X - 0.05]) N.box(0.012, H - 0.2, 0.012, MAT.galv, x, H / 2, z);
+  for (const x of [-X + 0.05, X - 0.05]) N.box(0.012, H - 0.2, 0.012, MAT.galv, x, H / 2, ZF - 0.06);
+  if (rearRail) for (const x of [-rearRail.x, rearRail.x]) N.box(0.008, H - 0.2, 0.012, MAT.galv, x, H / 2, rearRail.z);
+  else for (const x of [-X + 0.05, X - 0.05]) N.box(0.012, H - 0.2, 0.012, MAT.galv, x, H / 2, ZB + 0.06);
   // Folded enclosure edges catch a continuous reflection down the cabinet.
   // This is mechanical trim, deliberately non-emissive so it cannot be mistaken
   // for a power or data route.
@@ -179,8 +182,8 @@ function labelTex(text) {
   });
 }
 const TAP = { y: 2.98, glandY: 2.83 };
-function busway(scene, S, N, xs, stripeColor, H) {
-  const bx = -0.6, by = 3.2, bz = -0.25, len = 3.2;
+function busway(scene, S, N, xs, stripeColor, H, { bz = -0.25, labels = ['A', 'B'], grommets = true } = {}) {
+  const bx = -0.6, by = 3.2, len = 3.2;
   S.box(len, 0.12, 0.15, BUSWAY, bx, by, bz);
   for (const s of [-1, 1]) N.box(len, 0.022, 0.001, MAT.darkSteel, bx, by + 0.012, bz + s * 0.0755);   // extrusion groove
   for (let x = bx - len / 2 + 0.3; x < bx + len / 2 - 0.1; x += 0.6) if (xs.every(t => Math.abs(t - x) > 0.14)) {
@@ -202,12 +205,14 @@ function busway(scene, S, N, xs, stripeColor, H) {
     N.box(0.12, 0.07, 0.004, MAT.black, x - 0.01, TAP.y + 0.035, bz + 0.076);                                 // breaker window
     for (let k = 0; k < 3; k++) { N.box(0.018, 0.04, 0.004, MAT.darkSteel, x - 0.05 + k * 0.04, TAP.y + 0.035, bz + 0.079); N.box(0.012, 0.014, 0.012, MAT.white, x - 0.05 + k * 0.04, TAP.y + 0.045, bz + 0.085); }
     N.box(0.16, 0.012, 0.003, stripeColor, x, TAP.y - 0.06, bz + 0.0765);                                      // thin status stripe
-    const label = new THREE.Mesh(new THREE.PlaneGeometry(0.045, 0.045), new THREE.MeshStandardMaterial({ map: labelTex(i ? 'B' : 'A'), roughness: 0.6 }));
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(0.045, 0.045), new THREE.MeshStandardMaterial({ map: labelTex(labels[i]), roughness: 0.6 }));
     label.position.set(x + 0.06, TAP.y - 0.02, bz + 0.0762); scene.add(label);
     N.cyl(0.02, 0.03, GLAND, x, TAP.y - 0.118, bz, 12);                                                      // cord grip
     N.cyl(0.014, 0.018, MAT.darkSteel, x, TAP.glandY + 0.012, bz, 10);
-    N.cyl(0.03, 0.01, GLAND, x, H + 0.018, bz, 16);                                                          // brush grommet at the rack top
-    N.cyl(0.022, 0.012, MAT.black, x, H + 0.02, bz, 16);
+    if (grommets) {
+      N.cyl(0.03, 0.01, GLAND, x, H + 0.018, bz, 16);                                                        // brush grommet at the rack top
+      N.cyl(0.022, 0.012, MAT.black, x, H + 0.02, bz, 16);
+    }
   });
 }
 
@@ -620,15 +625,24 @@ function buildNVL({ quality, model, state }) {
   const S = new Builder(), N = new Builder();
   const W = 0.6, D = 1.07, H = 2.25, X = W / 2, ZF = D / 2, ZB = -D / 2;
   const base = 0.1;
-  room(scene, quality, S, N, W, H, D);
+  // Rear EIA rails 4 mm outboard of the 440 mm trays, at the tray rears, so the corner manifolds and their couplers
+  // stand clear of them and of the corner posts (they used to clip both by about 15 mm).
+  room(scene, quality, S, N, W, H, D, { rearRail: { x: 0.227, z: ZB + 0.1 } });
 
   // ---------- trays ----------
-  const layout = [];
-  const push = (kind, n) => { for (let i = 0; i < n; i++) layout.push(kind); };
-  push('ps', 3); push('compute', 8); push('switch', 9); push('compute', 10); push('ps', 3); push('mgmt', 2);
+  // eight power shelves (four under, four over the compute block), 18 compute and 9 switch trays (nvl72-layout.js)
+  const layout = NVL_LAYOUT;
   const TEX = { compute: trayTex('compute', model.accel.id), switch: trayTex('switch', model.accel.id), ps: trayTex('ps'), mgmt: trayTex('mgmt'), blank: trayTex('blank') };
-  const PULLED = 24, SWITCH_PULLED = 15, TOP_SHELF = 32;                              // index of the tray pulled out for view
-  const trayY = i => base + 0.02 + i * U + U / 2;
+  const PULLED = NVL_PULLED, SWITCH_PULLED = NVL_SWITCH_PULLED, TOP_SHELF = NVL_ROWS.topShelf;   // trays pulled out for view
+  const trayY = nvlTrayY;
+  // A and B feed cords (2N): the busway each taps (z over the rack), its tap x, its x in the rear cable space and the
+  // shelves it feeds. The rear cable space is between the bus bar (x ±0.04) and the cartridges (x ±0.09), behind the
+  // trays (z < -0.435) and in front of the rear door.
+  const FEED = { z: ZB + 0.055, inletZ: ZF - 0.07 - 0.9 - 0.006,
+    A: { bz: -0.25, tapX: -0.12, x: -0.065, shelves: [0, 1, NVL_ROWS.topShelfFirst, NVL_ROWS.topShelfFirst + 1] },
+    B: { bz: 0.25, tapX: 0.12, x: 0.065, shelves: [2, 3, NVL_ROWS.topShelf - 1, NVL_ROWS.topShelf] } };
+  const feedPath = f => [[f.tapX, TAP.glandY, f.bz], [f.tapX, H + 0.03, f.bz], [f.tapX, H + 0.03, FEED.z], [f.x, H + 0.03, FEED.z], [f.x, trayY(Math.min(...f.shelves)), FEED.z]];
+  scene.userData.rackFeeds = [FEED.A, FEED.B].map(f => ({ path: feedPath(f), whips: f.shelves.map(r => [[f.x, trayY(r), FEED.z], [f.x, trayY(r), FEED.inletZ]]) }));
   const kinds = {};
   layout.forEach((k, i) => (kinds[k] = kinds[k] || []).push(i));
   const trayW = 0.44, trayD = 0.9;
@@ -706,8 +720,11 @@ function buildNVL({ quality, model, state }) {
     // out of the ASIC's rear edge onto the board, straight back along it (both ASICs alike, mirrored), then the
     // schematic tether to the spine, inboard of the rear frame's vertical members
     const yb=sy-U/2+.0135;
-    dataFlows.push(flow([[x,sy+.002,sz+z],[x,yb,sz+z-.05],[x,yb,sz-.33],[x*.6,yb,sz-.38],[x*.6,yb,ZB+.16]],'nvl',
-      {count:8,speed:.55,size:.006,trailR:.002,audit:{within:[[x-.04,yb-.02,sz-.37,x+.04,yb+.02,sz-.29]],why:'through the tray rear NVLink connector'}}));
+    // ...out through the tray's rear connector, back through its own empty slot (the tray is pulled for inspection)
+    // and into the cable cartridge behind it: GB ASICs to the inner cartridges, Rubin's front pair to the outer ones
+    const cart=Math.sign(x)*(rubin&&z>0?.2:.12),face=ZB+.08-.067;
+    dataFlows.push(flow([[x,sy+.002,sz+z],[x,yb,sz+z-.05],[x,yb,sz-.33],[cart,yb,sz-.40],[cart,yb,face]],'nvl',
+      {count:8,speed:.55,size:.006,trailR:.002,audit:{within:[[x-.04,yb-.02,sz-.37,x+.04,yb+.02,sz-.29],[cart-.04,sy-.03,face-.013,cart+.04,sy+.03,ZB+.125]],why:'through the tray rear NVLink connector, then its own slot connector and cartridge'}}));
   });
   // Gold removal handles as bent rod (ServeTheHome: the gold features on the
   // NVLink switch shelves are handles), not full-width trim slabs.
@@ -735,7 +752,7 @@ function buildNVL({ quality, model, state }) {
   // them and the connector housings are representative (ASSUMPTIONS
   // 'nvl72-spine-mechanics'). cartZ keeps the audited flow plane (cartZ - 0.067).
   const cartX = [-0.2, -0.12, 0.12, 0.2], cartZ = ZB + 0.08;
-  const spanLo = trayY(3) - U / 2, spanHi = trayY(29) + U / 2, spanMid = (spanLo + spanHi) / 2, spanH = spanHi - spanLo;
+  const spanLo = trayY(4) - U / 2, spanHi = trayY(30) + U / 2, spanMid = (spanLo + spanHi) / 2, spanH = spanHi - spanLo;
   const cartD = 0.05, cartC = ZB + 0.055;                                   // rear face stays at ZB + 0.03
   const CART = new THREE.MeshStandardMaterial({ color: 0x20262d, roughness: 0.46, metalness: 0.62 }); CART.name = 'NVLink cartridge sheet steel';
   const TWINAX = new THREE.MeshStandardMaterial({ color: 0x0b0c0e, roughness: 0.55, metalness: 0.1 }); TWINAX.name = 'Twinax cable jacket';
@@ -773,7 +790,7 @@ function buildNVL({ quality, model, state }) {
   });
   // The voltage tag sits on the right-hand bar's rear face in the gap between two trays' contact lands, at the
   // height the busbar close-up frames (electrical-marks.js).
-  const busbarTag = { x: 0.018, y: trayY(16) + U / 2, z: bbZ };
+  const busbarTag = { x: 0.018, y: trayY(17) + U / 2, z: bbZ };
   // Busbar: a tin-plated contact land on each bar where every tray's clip grabs it.
   const TIN = new THREE.MeshStandardMaterial({ color: 0xc9ccd0, roughness: 0.42, metalness: 0.9 }); TIN.name = 'Busbar tin-plated contact';
   layout.forEach((k, i) => {
@@ -786,11 +803,11 @@ function buildNVL({ quality, model, state }) {
   // top label and the floor valve handles so the legend stays readable. The
   // coupler type, brackets, bleed valve and floor valves are representative
   // (ASSUMPTIONS 'nvl72-manifold-hardware').
-  const mX = [-0.255, 0.255], mZ = ZB + 0.05;
+  const mX = [-0.255, 0.255], mZ = ZB + 0.075;            // 3.5 mm in front of the corner posts (z ZB + 0.0475)
   const STAINLESS = new THREE.MeshStandardMaterial({ color: 0xb9c0c7, roughness: 0.42, metalness: 0.72 }); STAINLESS.name = 'Manifold brushed stainless';
   const KNURL = new THREE.MeshStandardMaterial({ color: 0x5d646c, roughness: 0.55, metalness: 0.8 }); KNURL.name = 'Coupler knurled sleeve';
   const HOSE = new THREE.MeshStandardMaterial({ color: 0x16181b, roughness: 0.7, metalness: 0.05 }); HOSE.name = 'EPDM coolant hose';
-  const mTop = bbTop + 0.1, mBot = trayY(3) - 0.08, mMid = (mTop + mBot) / 2, mLen = mTop - mBot;
+  const mTop = bbTop + 0.1, mBot = trayY(4) - 0.08, mMid = (mTop + mBot) / 2, mLen = mTop - mBot;
   const manifoldTags = mX.map((x, side) => ({ x, y: mMid, z: mZ, side }));   // pipe markers' spots (cooling-marks.js)
   mX.forEach((x, side) => {
     const band = side ? MAT.pipeRed : MAT.pipeBlue, out = Math.sign(x);
@@ -799,7 +816,7 @@ function buildNVL({ quality, model, state }) {
     N.cyl(0.006, 0.02, MAT.galv, x, mBot - 0.016, mZ, 10); N.cyl(0.009, 0.008, band, x, mBot - 0.03, mZ, 12);   // drain valve at the low point
     N.box(0.052, 0.07, 0.002, band, x, mTop - 0.06, mZ + 0.0265);                                               // supply / return label
     for (const y of [mBot + 0.06, mTop - 0.14]) N.box(0.0475, 0.018, 0.0505, band, x, y, mZ);                  // colored identification bands
-    for (let y = mBot + 0.12; y < mTop - 0.05; y += 0.5) N.box(0.03, 0.022, 0.04, MAT.darkSteel, x + out * 0.035, y, mZ);  // mounting bracket to the post
+    for (let y = mBot + 0.12; y < mTop - 0.05; y += 0.5) N.box(0.016, 0.022, 0.026, MAT.darkSteel, x + out * 0.0225, y, mZ - 0.026);  // mounting bracket to the corner post behind
   });
   layout.forEach((k, i) => {
     if (k !== 'compute' && k !== 'switch') return;
@@ -820,35 +837,50 @@ function buildNVL({ quality, model, state }) {
   // rear without fixing top or bottom. Supply and return leave the manifold heads through a lever ball valve, crimped
   // ferrule and hose, rise behind the trays and exit through roof grommets to dripless couplings, inboard of the rear
   // corner posts. Hose and valve hardware are representative.
-  const hoseX = x => x * 0.9;
+  const hoseX = x => x;                                   // straight up from the head: outboard of the rear rails, in front of the posts
   mX.forEach((x, side) => {
     const band = side ? MAT.pipeRed : MAT.pipeBlue, hx = hoseX(x);
     N.box(0.05, 0.05, 0.05, STAINLESS, x, mTop + 0.031, mZ);                        // ball valve body
     N.box(0.09, 0.012, 0.012, band, x - Math.sign(x) * 0.05, mTop + 0.031, mZ + 0.03);   // lever handle
     N.cyl(0.022, 0.03, MAT.galv, x, mTop + 0.075, mZ, 12);                          // crimped ferrule
-    N.strut([x, mTop + 0.07, mZ], [hx, mTop + 0.16, mZ], 0.019, HOSE, 12);
-    N.strut([hx, mTop + 0.16, mZ], [hx, H + 0.03, mZ], 0.019, HOSE, 12);
+    N.strut([x, mTop + 0.07, mZ], [hx, H + 0.03, mZ], 0.019, HOSE, 12);
     N.cyl(0.03, 0.01, GLAND, hx, H + 0.018, mZ, 16);                                 // roof grommet
     N.cyl(0.024, 0.05, STAINLESS, hx, H + 0.06, mZ, 12);                            // dripless coupling to the row loop
     N.cyl(0.0255, 0.012, band, hx, H + 0.07, mZ, 12);
   });
   // the layout the design-rule tests check (design-rules-rack-hall-site.test.ts): spine, busbar and manifolds at the rear, mirrored
   scene.userData.rackPlan = { frontZ: ZF, rearZ: ZB, depth: D, cartridgeX: cartX, cartridgeZ: cartC, busbarZ: bbZ, manifoldX: mX, manifoldZ: mZ,
-    coolantFeed: 'top', hoses: mX.map(x => ({ x: hoseX(x), top: H + 0.03 })), roofY: H, trayRearZ: ZF - 0.07 - trayD, representative: true };
+    coolantFeed: 'top', hoses: mX.map(x => ({ x: hoseX(x), top: H + 0.03 })), roofY: H, trayRearZ: ZF - 0.07 - trayD, representative: true,
+    shelves: layout.filter(k => k === 'ps').length, trayHalfWidth: trayW / 2,
+    // boxes as [x0, z0, x1, z1] in plan, for the collision rule: the right-hand rear corner post, rear rail and manifold
+    rearCorner: { post: [X - 0.02 - 0.0175, ZB + 0.03 - 0.0175, X - 0.02 + 0.0175, ZB + 0.03 + 0.0175], rail: [0.227 - 0.004, ZB + 0.1 - 0.006, 0.227 + 0.004, ZB + 0.1 + 0.006],
+      manifold: [mX[1] - 0.0225, mZ - 0.024, mX[1] + 0.0225, mZ + 0.024], cartridge: [0.2 - 0.0315, cartC - cartD / 2, 0.2 + 0.0315, cartC + cartD / 2] } };
 
 
   // ---------- feed from the busway above ----------
-  busway(scene, S, N, [-0.12, 0.12], glowMat(feedV === 'hvdc' ? '#d8f04a' : '#ff8a3d', 0.9), H);
-  for (const x of [-0.12, 0.12]) {
-    N.strut([x, TAP.glandY, -0.25], [x, H + 0.02, -0.25], 0.012, MAT.black, 8);
-    N.strut([x, H, -0.25], [x * 0.8, trayY(TOP_SHELF), ZB + 0.16], 0.012, MAT.black, 8);
+  // 2N: the A feed comes from a busway over the rack's rear quarter, the B feed from a second busway over its front
+  // quarter (the hall draws the same pair over every row, hall.js HALL_PLAN), each through its own tap-off.
+  const stripe = glowMat(feedV === 'hvdc' ? '#d8f04a' : '#ff8a3d', 0.9);
+  busway(scene, S, N, [FEED.A.tapX], stripe, H, { bz: FEED.A.bz, labels: ['A'], grommets: false });
+  busway(scene, S, N, [FEED.B.tapX], stripe, H, { bz: FEED.B.bz, labels: ['B'], grommets: false });
+  // Each cord drops from its tap to the roof, is dressed along the roof to a brush grommet over the rear cable
+  // space, and runs down that space (between the bus bar and the cable cartridges, behind the trays) with a short
+  // whip into the rear inlet of each of its four shelves: A feeds shelves 0-1 and 31-32, B shelves 2-3 and 33-34
+  // (N+N, as drawn). Nothing crosses a tray.
+  const CORD = MAT.black.clone(); CORD.name = 'Rack feed cable';
+  for (const f of [FEED.A, FEED.B]) {
+    const path = feedPath(f);
+    for (let k = 1; k < path.length; k++) N.strut(path[k - 1], path[k], 0.012, CORD, 8);
+    N.cyl(0.03, 0.01, GLAND, f.x, H + 0.018, FEED.z, 16); N.cyl(0.022, 0.012, MAT.black, f.x, H + 0.02, FEED.z, 16);   // brush grommet
+    for (const r of f.shelves) {
+      N.strut([f.x, trayY(r), FEED.z], [f.x, trayY(r), FEED.inletZ - 0.008], 0.009, CORD, 8);
+      N.box(0.03, U * 0.55, 0.016, MAT.darkSteel, f.x, trayY(r), FEED.inletZ);                               // shelf AC inlet
+    }
   }
-  // bottom power shelves take their feed by a cable down the back
-  N.strut([0.1, H, -0.3], [0.1, trayY(1), ZB + 0.16], 0.01, MAT.black, 8);
 
-  // ---------- data: scale-out fiber up the front, runway overhead ----------
-  const fx = 0.27, fz = ZF - 0.03;
-  S.box(RACK_RUNWAY.width,.03,RACK_RUNWAY.length,MAT.yellowTray,RACK_RUNWAY.x,RACK_RUNWAY.floorY,0); for(const side of [-1,1]) S.box(.012,.1,RACK_RUNWAY.length,MAT.yellowTray,RACK_RUNWAY.x+side*.14,3.66,0);
+  // ---------- data: scale-out fiber up the front, runway overhead along the row (as in the hall) ----------
+  const fx = 0.27, fz = ZF - 0.03, RW = ROW_RUNWAY;
+  S.box(RW.length,.03,RW.width,MAT.yellowTray,RW.x,RW.floorY,RW.z); for(const side of [-1,1]) S.box(RW.length,.1,.012,MAT.yellowTray,RW.x,3.66,RW.z+side*.14);
 
   scene.add(S.build()); scene.add(N.build({ cast: false }));
 
@@ -859,21 +891,23 @@ function buildNVL({ quality, model, state }) {
     const [a, b] = c % 2 ? [spanLo, spanHi] : [spanHi, spanLo];
     dataFlows.push(flow([[cx, a, cartZ - 0.067], [cx, b, cartZ - 0.067]], 'nvl', { count: 26, speed: 0.3, size: 0.009, k: 2.4, trail: false }));
   });
-  // Out of a tray: across behind the tray, clear of the neighbouring cartridges and connectors, then straight back
-  // through its own connector and cartridge (declared) onto the cartridge's rear face.
-  [4, 8, 12, 16, 22, 26].forEach(i => cartX.forEach(cx => dataFlows.push(flow([[0, trayY(i), ZB + 0.16], [cx, trayY(i), cartZ + 0.035], [cx, trayY(i), cartZ - 0.067]], 'nvl',
-    { count: 2, speed: 0.15, size: 0.007, k: 2.4, trail: false, audit: { within: [[cx - 0.04, trayY(i) - 0.03, cartZ - 0.08, cx + 0.04, trayY(i) + 0.03, cartZ + 0.045]], why: 'through its own NVLink connector and cable cartridge' } }))));
+  // Out of a tray: each tray has a blind-mate NVLink connector in front of each cartridge; every link leaves the tray
+  // through its own connector and runs straight back into the cartridge behind it (declared), onto its rear face.
+  [5, 9, 13, 17, 23, 27].forEach(i => cartX.forEach(cx => dataFlows.push(flow([[cx, trayY(i), ZB + 0.12], [cx, trayY(i), cartZ - 0.067]], 'nvl',
+    { count: 2, speed: 0.15, size: 0.007, k: 2.4, trail: false, audit: { within: [[cx - 0.04, trayY(i) - 0.03, cartZ - 0.08, cx + 0.04, trayY(i) + 0.03, ZB + 0.125]], why: 'out of its own tray through its own NVLink connector into the cartridge behind it' } }))));
 
   // ---------- flows ----------
-  // the feeds ride inside their drawn cables (above), which enter the rack through roof grommets
-  const inCable = { through: true, why: 'inside the feed cable, through the rack roof grommet' };
-  for (const x of [-0.12, 0.12]) flows.push(flow([[x, TAP.glandY, -0.25], [x, H + 0.02, -0.25], [x * 0.8, trayY(TOP_SHELF), ZB + 0.16]], feedV, { count: 8, speed: 0.35, size: 0.012, trailR: 0.004, audit: inCable }));
-  flows.push(flow([[0.1, H, -0.3], [0.1, trayY(1), ZB + 0.16]], feedV, { count: 10, speed: 0.35, size: 0.012, trailR: 0.004, audit: inCable }));
+  // the feeds ride inside their drawn cables: down from the tap, along the roof, down the rear cable space, into a shelf
+  for (const f of [FEED.A, FEED.B]) {
+    flows.push(flow(feedPath(f), feedV, { count: 14, speed: 0.35, size: 0.012, trailR: 0.004,
+      audit: { within: [[f.x - 0.03, H - 0.06, FEED.z - 0.03, f.x + 0.03, H + 0.045, FEED.z + 0.03]], why: 'through the roof at its brush grommet' } }));
+    for (const r of [f.shelves[1], f.shelves.at(-1)]) flows.push(flow([[f.x, trayY(r), FEED.z], [f.x, trayY(r), FEED.inletZ]], feedV, { count: 2, speed: 0.15, size: 0.008, trail: false }));
+  }
   // DC: from shelves onto the busbar, up and down the bar
   // Close rear views sit at the pulse screen-size ceiling, so these rails are
   // dimmed rather than shrunk: the bars, contact lands and cartridges stay readable.
   const busDC = { count: 42, speed: 0.22, size: 0.009, trailR: 0.003, k: 1.5, opacity: 0.72 };
-  flows.push(flow([[-0.018, trayY(31), bbZ - 0.045], [-0.018, bbBot + 0.1, bbZ - 0.045]], 'dc', busDC));
+  flows.push(flow([[-0.018, trayY(33), bbZ - 0.045], [-0.018, bbBot + 0.1, bbZ - 0.045]], 'dc', busDC));
   flows.push(flow([[0.018, trayY(1), bbZ - 0.045], [0.018, bbTop - 0.1, bbZ - 0.045]], 'dc', busDC));
   // DC into the pulled tray
   flows.push(flow([[0, py, bbZ + 0.06], [0, py, ZB + 0.3], [0, py - U / 2 + 0.03, pz - 0.2]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
@@ -891,12 +925,12 @@ function buildNVL({ quality, model, state }) {
   const water = f => tagHeat(f, 'rack-water', waterW, 'carrier'), airPath = f => tagHeat(f, 'rack-air', airW, 'carrier');
   heatFlows.push(water(flow([[hoseX(mX[0]), H + 0.1, mZ], [hoseX(mX[0]), mTop + 0.16, mZ], [mIn[0], bbTop + 0.05, mFz], [mIn[0], bbBot - 0.1, mFz]], 'cool', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 })));
   heatFlows.push(water(flow([[mIn[1], bbBot - 0.1, mFz], [mIn[1], bbTop + 0.05, mFz], [hoseX(mX[1]), mTop + 0.16, mZ], [hoseX(mX[1]), H + 0.1, mZ]], 'warm', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 })));
-  [4, 9, 14, 18, 22, 27].forEach(i => {
+  [5, 10, 15, 19, 23, 28].forEach(i => {
     heatFlows.push(water(flow([[mX[0], trayY(i), mZ + 0.06], [-0.16, trayY(i), ZB + 0.18], [-0.1, trayY(i), 0]], 'cool', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false })));
     heatFlows.push(water(flow([[0.1, trayY(i), 0], [0.16, trayY(i), ZB + 0.18], [mX[1], trayY(i), mZ + 0.06]], 'warm', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false })));
   });
   // the air share: power shelves, switches, optics exhaust out the back
-  const airRow = [1, 6, 12, 16, 20, 25, 31];
+  const airRow = [1, 7, 13, 17, 21, 26, 33];
   const airShare = model.accel.liquidShare < 0.99;
   if (airShare) for (const i of airRow) for (const x of [-0.15, 0.05, 0.2]) heatFlows.push(airPath(flow([[x, trayY(i), 0.2], [x, trayY(i) + 0.02, ZB], [x * 1.2, trayY(i) + 0.12, ZB - 0.7]], 'air', { count: 4, speed: 0.35, size: 0.024, k: 2.4, opacity: 0.9, trail: false })));
   balanceHeat(heatFlows);
@@ -931,19 +965,19 @@ function buildNVL({ quality, model, state }) {
   // Rear three-quarter across both manifolds: the card says "blue in, red out",
   // so the supply and the return stand either side of the busbar in one frame,
   // low enough that their colored bands, couplers and floor valves read.
-  const manifoldHot = { pos: [mX[1], trayY(6), mZ], view: componentView([0, trayY(4), mZ], [-0.22, 0.16, -0.9], [0.56, 0.3, 0.1]) };
+  const manifoldHot = { pos: [mX[1], trayY(7), mZ], view: componentView([0, trayY(5), mZ], [-0.22, 0.16, -0.9], [0.56, 0.3, 0.1]) };
   // Rear three-quarter on the cartridges: their side windows and blind-mate
   // housings read beside the busbar instead of a flat rear elevation.
-  const spineHot = { pos: [0.2, trayY(18), cartZ], view: componentView([0.1, trayY(16), ZB + 0.06], [0.85, 0.3, -0.95], [0.5, 0.75, 0.25]) };
+  const spineHot = { pos: [0.2, trayY(19), cartZ], view: componentView([0.1, trayY(17), ZB + 0.06], [0.85, 0.3, -0.95], [0.5, 0.75, 0.25]) };
   return {
     manifoldTags,
     busbarTag,
     scene, flows,
     camera: { pos: [3.1, 2.3, -3.7], target: [0, 1.1, -0.1], near: 0.01, far: 200, min: 0.4, max: 9 },
     hotspots: {
-      feed: { pos: [0.12, 3.03, -0.165], view: { pos: [1.2, 3.1, 1.0], target: [0, 2.7, -0.25] } },
-      shelves: { pos: [0.25, trayY(31), ZF - 0.05], view: { pos: [0.7, 1.9, 1.5], target: [0, trayY(31), ZF] } },
-      busbar: { pos: [0.03, trayY(10), bbZ], view: { pos: [0.9, 1.3, -1.3], target: [0, 0.9, bbZ] } },
+      feed: { pos: [-0.12, 3.03, -0.165], view: { pos: [1.2, 3.1, 1.0], target: [0, 2.7, 0] } },
+      shelves: { pos: [0.25, trayY(33), ZF - 0.05], view: { pos: [0.7, 1.9, 1.5], target: [0, trayY(33), ZF] } },
+      busbar: { pos: [0.03, trayY(11), bbZ], view: { pos: [0.9, 1.3, -1.3], target: [0, 0.9, bbZ] } },
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
       nvswitch: { pos: [-.12, sy + .04, sz], view: { pos: [.65, sy + .75, sz + 1.0], target: [0, sy, sz] } },
       spine: spineHot,
@@ -952,19 +986,19 @@ function buildNVL({ quality, model, state }) {
     dataFlows, heatFlows,
     heatHotspots: {
       manifold: manifoldHot,
-      rearair: { pos: [0.05, trayY(20), ZB - 0.4], view: { pos: [1.6, 1.6, -2.0], target: [0, 1.0, ZB - 0.3] } },
+      rearair: { pos: [0.05, trayY(21), ZB - 0.4], view: { pos: [1.6, 1.6, -2.0], target: [0, 1.0, ZB - 0.3] } },
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
     },
     dataHotspots: {
-      tp: { pos: [-0.2, trayY(15), ZF - 0.05], view: { pos: [1.2, 1.4, 2.2], target: [0, 1.0, 0] } },
+      tp: { pos: [-0.2, trayY(16), ZF - 0.05], view: { pos: [1.2, 1.4, 2.2], target: [0, 1.0, 0] } },
       nvswitch: { pos: [-.12, sy + .04, sz], view: { pos: [.65, sy + .75, sz + 1.0], target: [0, sy, sz] } },
       spine: spineHot,
       uplinks: { pos: [fx, H + 0.2, fz], view: { pos: [1.3, 2.9, 2.2], target: [0.2, 2.2, fz] } },
       // Front cage rows, fiber managers and the patch strip, with the opened
       // tray's seated modules in frame: scale-out optics, set against copper.
-      optical: { pos: [-0.195, trayY(27) - 0.009, ZF - 0.02], view: componentView([0.06, 1.4, ZF - 0.06], [0.75, 0.3, 0.95], [0.62, 1.05, 0.4]) },
+      optical: { pos: [-0.195, trayY(28) - 0.009, ZF - 0.02], view: componentView([0.06, 1.4, ZF - 0.06], [0.75, 0.3, 0.95], [0.62, 1.05, 0.4]) },
       compute: { pos: [0.2, py + 0.03, pz + 0.2], view: { pos: [0.6, 1.8, 1.7], target: [0, py, pz] } },
-      mgmt: { pos: [0.22, trayY(34), ZF - 0.03], view: componentView([0.02, trayY(33) + U / 2, ZF - 0.02], [0.32, 0.16, 0.9], [0.5, 0.15, 0.2]) },
+      mgmt: { pos: [0.22, trayY(36), ZF - 0.03], view: componentView([0.02, trayY(35) + U / 2, ZF - 0.02], [0.32, 0.16, 0.9], [0.5, 0.15, 0.2]) },
     },
     look: LOOK,
     update(t) {

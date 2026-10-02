@@ -324,12 +324,13 @@ def rack_hardware(accel,m):
     box('Cast cabinet base',(0,.042,0),(.62,.055,1.09),m['graphite'],u,.014)
     box('Black powder-coat top cap',(0,2.258,0),(.598,.022,1.06),m['graphite'],u,.007)
     if accel!='h100':
-        for i in range(34):
-            if i in [15,24,33]:continue  # pulled trays; the management switch has no tray handles
+        # rows follow src/scenes/nvl72-layout.js: ps 0-3, compute 4-11, switch 12-20, compute 21-30, ps 31-34, mgmt 35-36
+        for i in range(35):
+            if i in [16,25]:continue  # pulled trays; the management switches (35, 36) have no tray handles
             y=.12+i*.04445+.022225
             for x in [-.205,.185]:
                 box('Folded service handle',(x,y,.485),(.009,.026,.013),m['bright'],u,.003)
-            for k in range(17 if accel!='rubin' and 11<=i<=19 else 0):box('Vent grille relief',(-.186+k*.0075,y,.469),(.002,.019,.005),m['graphite'],u,0)
+            for k in range(17 if accel!='rubin' and 12<=i<=20 else 0):box('Vent grille relief',(-.186+k*.0075,y,.469),(.002,.019,.005),m['graphite'],u,0)
 
 def rounded_rect(half,r,n=6):
     # Counter-clockwise outline of a square with radiused corners (half-size, radius in native units).

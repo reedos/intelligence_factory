@@ -292,7 +292,7 @@ describe('generation-specific compute hardware',()=>{
    const m=meshes(b.scene).filter(o=>(Array.isArray(o.material)?o.material:[o.material]).some((m:any)=>/^NVLink [56] switch silicon/.test(m.name)));
    expect(m.length).toBeGreaterThan(0);
    // Each disjoint silicon envelope contains actual authored vertices.
-   const sy=.12+15*.04445+.022225,sz=.535-.07-.45+.5+.1;
+   const sy=.12+16*.04445+.022225,sz=.535-.07-.45+.5+.1;
    const positions=id==='rubin'?[[-.10,-.12],[.10,-.12],[-.10,.06],[.10,.06]]:[[-.11,-.08],[.11,-.08]];
    b.scene.updateMatrixWorld(true);
    for(const [x,z]of positions){let vertices=0;for(const mesh of m){const p=mesh.geometry.attributes.position;for(let i=0;i<p.count;i++){const v=new THREE.Vector3().fromBufferAttribute(p,i).applyMatrix4(mesh.matrixWorld);if(Math.abs(v.x-x)<.043&&Math.abs(v.z-(sz+z))<.043&&Math.abs(v.y-(sy+.004))<.006)vertices++;}}expect(vertices).toBeGreaterThan(12);}
@@ -392,7 +392,7 @@ it('rack optics seat on compute units, retain generation port counts and termina
   expect(info.storageCages).toHaveLength(count*(id==='gb200'||id==='h100'?4:2));
   expect(info.modules.filter((m:any)=>m.pulled)).toHaveLength(2);
   for(const m of info.modules){
-   if(id!=='h100')expect(m.row<11||m.row>19).toBe(true); // no optics on NVLink switch trays
+   if(id!=='h100')expect(m.row<12||m.row>20).toBe(true); // no optics on NVLink switch trays
    expect(m.capacityGbps).toBe(id==='gb200'?400:800);
    expect(m.connectors).toBe(id==='h100'||id==='gb300'?2:1);
   }
@@ -400,12 +400,21 @@ it('rack optics seat on compute units, retain generation port counts and termina
   expect(trunks).toHaveLength(8);
   for(const f of trunks){
    const end=f.path.getPoint(1);
-   expect(end.x).toBeGreaterThan(.08);expect(end.x).toBeLessThan(.32);
-   expect(end.y).toBeCloseTo(3.665,6);expect(end.z).toBeCloseTo(-1.58,6);
-   // Side-wall crossings happen above the 3.71 m rim; the long run is inside.
-   for(const curve of f.path.curves)for(const p of [curve.getPoint(0),curve.getPoint(1)]){
-    if(p.z<-1.2){expect(p.x).toBeGreaterThan(.08);expect(p.x).toBeLessThan(.32);expect(p.y).toBeCloseTo(3.665,6);}
-    if(Math.abs(p.x-.06)<.012||Math.abs(p.x-.34)<.012)expect(p.y).toBeGreaterThan(3.73);
+   if(id==='h100'){
+    expect(end.x).toBeGreaterThan(.08);expect(end.x).toBeLessThan(.32);
+    expect(end.y).toBeCloseTo(3.665,6);expect(end.z).toBeCloseTo(-1.58,6);
+    // Side-wall crossings happen above the 3.71 m rim; the long run is inside.
+    for(const curve of f.path.curves)for(const p of [curve.getPoint(0),curve.getPoint(1)]){
+     if(p.z<-1.2){expect(p.x).toBeGreaterThan(.08);expect(p.x).toBeLessThan(.32);expect(p.y).toBeCloseTo(3.665,6);}
+     if(Math.abs(p.x-.06)<.012||Math.abs(p.x-.34)<.012)expect(p.y).toBeGreaterThan(3.73);
+    }
+   } else {
+    // NVL72: the runway runs along the row (x) over the rack centerline; trunks end along it, inside its walls
+    expect(end.x).toBeCloseTo(-2.1,6);expect(end.y).toBeCloseTo(3.665,6);expect(Math.abs(end.z)).toBeLessThan(.13);
+    for(const curve of f.path.curves)for(const p of [curve.getPoint(0),curve.getPoint(1)]){
+     if(p.x<-.4){expect(Math.abs(p.z)).toBeLessThan(.13);expect(p.y).toBeCloseTo(3.665,6);}
+     if(Math.abs(Math.abs(p.z)-.14)<.012)expect(p.y).toBeGreaterThan(3.73);
+    }
    }
   }
   const links=b.dataFlows.filter((f:any)=>f.rackOpticalLink);
@@ -419,7 +428,8 @@ it('rack optics seat on compute units, retain generation port counts and termina
   expect(cables.length).toBeGreaterThan(0);
   for(const cable of cables){
    const box=new THREE.Box3().setFromObject(cable);
-   expect(box.min.x).toBeGreaterThan(-.3);expect(box.max.x).toBeLessThan(.3);
+   // NVL72 trunks continue along the row runway to its end (x -2.1); nothing passes the rack's open +x side
+   expect(box.min.x).toBeGreaterThan(id==='h100'?-.3:-2.2);expect(box.max.x).toBeLessThan(.3);
   }
 
   const ray=new THREE.Raycaster();

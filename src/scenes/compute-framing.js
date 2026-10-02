@@ -1,3 +1,4 @@
+import { PULLED as NVL_PULLED, SWITCH_PULLED as NVL_SWITCH_PULLED } from './nvl72-layout.js';
 import { componentView } from '../app/housing-frame.js';
 
 // Inspection regions are in each scene's own units (m, 10 cm, cm). Fit the
@@ -53,7 +54,7 @@ export function frameCompute(built, kind, accel) {
       continue;
     }
     if (kind === 'rack' && (id === 'compute' || id === 'servers' || id === 'tp')) {
-      const yb = h100 ? .16+2*(8*.04445+.004) : .12+24*.04445;
+      const yb = h100 ? .16+2*(8*.04445+.004) : .12+NVL_PULLED*.04445;
       const z = h100 ? 1.045 : .965;
       h.pos = id === 'tp' && !h100 ? [-.11,yb+.06,z-.20] : [.13,yb+(h100 ? .15 : .06),z+.10];
       h.view = componentView([0,yb+(h100 ? .17 : .03),z], [.7,.9,1.1], [.5,h100 ? .37 : .13,.96]);
@@ -61,7 +62,7 @@ export function frameCompute(built, kind, accel) {
     }
     if (kind === 'rack' && !h100 && id === 'nvswitch') {
       // Inspect below the extended compute tray instead of looking through it.
-      const y=.12+15*.04445+.022225;
+      const y=.12+NVL_SWITCH_PULLED*.04445+.022225;
       h.view=componentView([0,y+.018,.665],[.45,.17,1.1],[.48,.09,.82]);
       continue;
     }

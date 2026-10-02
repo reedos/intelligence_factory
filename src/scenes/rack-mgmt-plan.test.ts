@@ -13,9 +13,9 @@ const segs = (l: { up: P[]; down: P[] }) => {
 describe('rack management leads', () => {
   it('one lead to every compute and switch tray still in the rack, none to the two pulled out', () => {
     expect(MGMT_ROWS.length).toBe(25);
-    expect(MGMT_ROWS).not.toContain(24);
-    expect(MGMT_ROWS).not.toContain(15);
-    for (const r of [3, 10, 11, 19, 20, 29]) expect(MGMT_ROWS).toContain(r);
+    expect(MGMT_ROWS).not.toContain(25);
+    expect(MGMT_ROWS).not.toContain(16);
+    for (const r of [4, 11, 12, 20, 21, 30]) expect(MGMT_ROWS).toContain(r);
   });
   for (const accel of ['gb200', 'gb300', 'rubin']) it(`${accel}: no two visible leads touch`, () => {
     const leads = planMgmtLeads(accel), all = leads.map(segs);

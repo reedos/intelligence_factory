@@ -327,13 +327,13 @@ def drawer(g,top,height,pull=False):
  if pull:
   for x in [-.211,.211]:box('Captive service pull',(x,y,.65),(.018,max(.018,height*2.2/48-.018),.035),alloy,g,.006)
 g='NVL_FACE'
-# Same authoritative bottom-up34 rows as scene3:18compute,9switch,6power,1management.
-layout=['power']*3+['compute']*8+['switch']*9+['compute']*10+['power']*3+['management']
+# Same bottom-up rows as scene3 (src/scenes/nvl72-layout.js): 18 compute, 9 switch, 8 power, 1 management.
+layout=['power']*4+['compute']*8+['switch']*9+['compute']*10+['power']*4+['management']
 for i,kind in enumerate(layout):
  center=.12+i*.04445+.022225
  top=(2.25-center-.022225)*48/2.2
  drawer(g,top,.04445*48/2.2,kind in ['power','compute'])
-groups[g]['ifxDrawerCounts']='18 compute;9 switch;6 power;1 management;34 total'
+groups[g]['ifxDrawerCounts']='18 compute;9 switch;8 power;1 management;36 total'
 g='H100_FACE'
 for i in range(4):
  # Four existing8U servers. Open skeletal frame leaves fan texture visible.

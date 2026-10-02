@@ -15,12 +15,12 @@ export const U = 0.04445;
 export const trayY = i => 0.12 + i * U + U / 2;
 export const FACE_Z = 0.465;
 export const LEAD_R = 0.0022;               // ≈4.4 mm jacket: thin-gauge patch cord
-export const SWITCH_ROW = 34, BRUSH_ROW = 35;
-const PULLED = [24, 15];                    // rack.js PULLED and SWITCH_PULLED
+export const SWITCH_ROW = 36, BRUSH_ROW = 37;
+const PULLED = [25, 16];                    // rack.js PULLED and SWITCH_PULLED
 
-// rack.js layout: ps 0-2, compute 3-10, switch 11-19, compute 20-29, ps 30-32, mgmt 33-34
-const kindOf = row => (row >= 11 && row <= 19 ? 'switch' : 'compute');
-export const MGMT_ROWS = [...Array(27)].map((_, k) => 29 - k).filter(r => r >= 3 && !PULLED.includes(r));
+// rack.js layout (nvl72-layout.js): ps 0-3, compute 4-11, switch 12-20, compute 21-30, ps 31-34, mgmt 35-36
+const kindOf = row => (row >= 12 && row <= 20 ? 'switch' : 'compute');
+export const MGMT_ROWS = [...Array(27)].map((_, k) => 30 - k).filter(r => r >= 4 && !PULLED.includes(r));
 
 // SN2201 face as rack.js mgmtFace() paints it: four blocks of six RJ45 columns, two rows, on a 0.44 m face drawn as a
 // 1024 px texture. rack.js already patches lower-row ports 2, 5, 9, 16 and 21 to the side manager.

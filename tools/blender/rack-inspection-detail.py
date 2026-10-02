@@ -8,7 +8,7 @@ import bpy
 def enhance(accel,m,box,cylinder,material):
     U=.04445
     h100=accel=='h100';rubin=accel=='rubin'
-    py=.16+2*(8*U+.004)+4*U if h100 else .12+24*U+U/2
+    py=.16+2*(8*U+.004)+4*U if h100 else .12+25*U+U/2   # NVL72: the pulled compute tray, row 25 (nvl72-layout.js)
     yb=py-(4*U if h100 else U/2)
     pz=1.045 if h100 else .965
     depth=.84 if h100 else .9
@@ -164,7 +164,7 @@ def enhance(accel,m,box,cylinder,material):
     # Existing switch inspection tray: socket retainers, passives and board
     # alignment markings add detail without changing the two/four ASIC census.
     if not h100:
-        sy=.12+15*U+U/2;sz=.615
+        sy=.12+16*U+U/2;sz=.615   # NVL72 opened switch tray, row 16 (nvl72-layout.js)
         sites=[(-.10,-.12),(.10,-.12),(-.10,.06),(.10,.06)] if rubin else [(-.11,-.08),(.11,-.08)]
         for x,dz in sites:
             frame('switch socket outline',x,sy-.009,sz+dz,.112,.112)
