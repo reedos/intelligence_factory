@@ -107,3 +107,26 @@ through a runway or busway; rack-loop drops on their own header at their own rac
 opposite sides with routes straight through their huts; a chilled-water pair per hall that never crosses itself and
 clears roads by ≥ 5 m; NVL72 spine, bus bar and manifolds at the rear and mirror-symmetric, hoses through the roof;
 two separate terminals at this campus; the same plan rules in the Colossus 2 preset.
+
+## Follow-up (design/rack-followup, 10/01–10/02/2026)
+
+| # | Level | Element | Was | Fix | Evidence / screenshots (`rf-before`, `rf-after`) |
+|---|---|---|---|---|---|
+| 1 | Rack (NVL72) | Shelf feed cords | Bottom-shelf cable ran through every tray volume; top cords ran diagonally; flows declared "inside the cable" | A and B cords drop to the roof, are dressed to brush grommets over the rear cable space and run down it at x ±0.065 m (between bus bar and cartridges, behind the trays), with a whip into each shelf's rear inlet; only the roof-grommet pass is declared | `rf-rack-rear-top`, `rf-rack-rear-power`; test "feed cords never cross a tray" |
+| 2 | Rack | Tray-to-cartridge NVLink stubs | All started at x 0 and fanned out | Each runs straight back from its own connector into the cartridge behind it | `rf-rack-nvlink`; test "each NVLink stub runs straight back" |
+| 3 | Rack | Opened switch tray's NVLink | Ended 0.6 m short of any cartridge | Out of the tray's rear connector, back through its own empty slot and connector into the cartridge (GB inner pair; Rubin front ASICs to the outer pair) | `rf-rack-switchtray` |
+| 4 | Rack | Manifolds vs corner posts and rear rails | Clipped both by about 15 mm | Manifolds 3.5 mm in front of the posts; rear EIA rails just outboard of the 440 mm trays at the tray rears; hoses straight up | `rf-rack-corner`; test "manifold clear of the corner post, rear rail and cartridges" |
+| 5 | Hall, rack | A and B feeds | Both taps on one busway | 2N: A busway over each rack's rear quarter, B over its front quarter, each with its own riser, main and cross bus from the power room; one tap and drop from each per rack; cards updated (`dual-feed-redundancy` notes that NVIDIA states only N+N shelves) | `rf-hall-row-section`, `rf-hall-pod-plan`, `rf-rack-top-busways` |
+| 6 | Rack | Rack fiber runway | Ran front-to-back across the row | `ROW_RUNWAY` along the row over the centerline, as in the hall; trunks rise at the front managers, cross over the B busway's hanger rods and run along it. DGX H100 keeps `RACK_RUNWAY` until its rebuild lands | `rf-rack-runway` |
+| 7 | Hall (H100) | Rear-port risers | Rose through the hot-aisle roof | Leads turn back through the rear door, rise in the rack's rear cable manager and leave through a roof grommet | `rf-hall-h100-risers`; test "never through the hot-aisle roof" |
+| 8 | Campus (warm water) | Trim towers | Makeup water only, no pipe to any hall | Pair from the tower row straight into hall A's north wall; hall B's pair takes the corridor and pipe bridge; each carries half the towers' heat | `rf-campus-warm-towers`; test "trim towers are piped to every detailed hall" |
+| 9 | Rack | Power-shelf count | 6 drawn | 8, per NVIDIA's DGX GB200 user guide, Hardware: "The power shelf uses six air-cooled 5.5kW PSUs in eight power shelves that provide N+N redundancy"; GB300 per the NVL72 reference architecture ("8 power shelves of 33 kW"); Rubin assumed the same. Position (four under, four over the compute block) is as drawn; ServeTheHome gives the rest of the order top down (switches, 10 compute, 9 switch, 8 compute) | `rf-rack-front` |
+
+The elevation now lives in `src/scenes/nvl72-layout.js` (rows: shelves 0–3, compute 4–11, switch 12–20, compute
+21–30, shelves 31–34, management 35–36; pulled trays 25 and 16).
+
+Flow checker (DEFER_NONE=1, scenes 0–3): across, campus and hall 0 findings; rack 0 except the 32 H100 routes
+(owned by the H100 agent).
+
+Sources opened for the follow-up: https://docs.nvidia.com/dgx/dgxgb200-user-guide/hardware.html (shelf count),
+https://www.servethehome.com/this-is-the-nvidia-dgx-gb200-nvl72/ (tray order).
