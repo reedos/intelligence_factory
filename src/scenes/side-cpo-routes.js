@@ -1,8 +1,9 @@
 // Fiber cannot fold at a point. The route contract (side-geometry.js) stays a
 // reviewed polyline; the drawn fiber and its moving light follow the same path
-// with each interior corner rounded by a short quadratic arc (up to 3 mm,
-// representative bend radius). build-cpo.py applies the identical rounding.
-export function roundCorners(pts, keep = () => false, radius = .3, steps = 6) {
+// with each interior corner rounded by a quadratic arc of up to 5 mm (4 mm for the thinner laser fibers), a gentle
+// representative bend rather than a kink (design rule 5). build-cpo.py applies the identical rounding.
+export const CW_BEND = .4;
+export function roundCorners(pts, keep = () => false, radius = .5, steps = 6) {
   const out = [pts[0]];
   for (let k = 1; k < pts.length - 1; k++) {
     const p = pts[k], a = pts[k - 1], b = pts[k + 1];
@@ -15,5 +16,6 @@ export function roundCorners(pts, keep = () => false, radius = .3, steps = 6) {
   out.push(pts.at(-1));
   return out;
 }
-// Laser feeds keep the sharp drop from the module aperture and the final lift onto the engine.
-export const keepCwCorner = (k, n) => k === 1 || k === n - 2;
+// Laser feeds once kept a sharp drop from the module aperture and a sharp final lift onto the engine; every corner is
+// now rounded (design rule 5). Kept as a hook for routes that must keep a corner.
+export const keepCwCorner = () => false;

@@ -307,7 +307,7 @@ def segment(name,a,b,r,mat,role,n=8):
 def path(name,pts,r,mat,role,n=8):
     for a,b in zip(pts,pts[1:]):segment(name,a,b,r,mat,role,n)
 
-def round_corners(pts,keep=lambda k,n:False,radius=.3,steps=6):
+def round_corners(pts,keep=lambda k,n:False,radius=.5,steps=6):
     # Identical to roundCorners() in side-cpo.js: the animated light rides this path.
     out=[pts[0]]
     for k in range(1,len(pts)-1):
@@ -320,7 +320,7 @@ def round_corners(pts,keep=lambda k,n:False,radius=.3,steps=6):
             out.append([u*u*p1[j]+2*u*t*v+t*t*p2[j] for j,v in enumerate(p)])
     out.append(pts[-1]); return out
 
-def keep_cw(k,n): return k==1 or k==n-2
+def keep_cw(k,n): return False   # every laser-fiber corner rounded (design rule 5), as keepCwCorner
 
 def tube(name,pts,r,mat,role,n=6):
     # One continuous tube (shared rings, end caps only) along a rounded path.
@@ -447,8 +447,8 @@ for i,(e,conn) in enumerate(zip(LAYOUT['engines'],LAYOUT['connectors'])):
         box('Fiber in groove',fp(.83,(j-7.5)*.034,1.726),(.3,.007,.012),fiberTx if j<8 else fiberRx,'CPO_INTERFACES',0,angle)
     for j in range(2):
         box('Fiber in groove',fp(.83,.305+j*.028,1.726),(.3,.007,.012),fiberCw,'CPO_INTERFACES',0,angle)
-    # asicTap clamps the tangential coordinate to the 24 mm die's SerDes edge.
-    t=max(-1,min(1,e['t']*.6));a=(out[0]*1.2+tan[0]*t,out[1]*1.2+tan[1]*t)
+    # asicTap (side-geometry.js) places each engine's tap on the 24 mm die's SerDes edge.
+    a=tuple(VAR['ringTaps'][i])   # spread along the ASIC edge in engine order: no shared taps, no crossings
     b=(x-out[0]*.62,z-out[1]*.62)
     for j in range(4):
         o=(j-1.5)*.09
@@ -457,7 +457,7 @@ for i,(e,conn) in enumerate(zip(LAYOUT['engines'],LAYOUT['connectors'])):
     routes=LAYOUT['fiberRoutes'][i]
     ribbon('Engine tx ribbon',routes['tx'],ribbonTx,'CPO_FIBERS')
     ribbon('Engine rx ribbon',routes['rx'],ribbonRx,'CPO_FIBERS')
-    for points in routes['cw']:tube('Engine cw fiber',round_corners(points,keep_cw,.25),.008,fiberCw,'CPO_FIBERS')
+    for points in routes['cw']:tube('Engine cw fiber',round_corners(points,keep_cw,.4),.008,fiberCw,'CPO_FIBERS')
     # MT-style ferrule connector at the package edge (representative geometry):
     # molded body, two steel guide pins beside the fiber rows, boot and latch.
     def cp(r,t,y): return (ex+out[0]*r+tan[0]*t,y,ez+out[1]*r+tan[1]*t)
@@ -532,7 +532,7 @@ for i,(e,tap) in enumerate(zip(BL['tiles'],BL['taps'])):
     routes=BL['fiberRoutes'][i]
     ribbon('Tile tx ribbon',routes['tx'],ribbonTx,'CPO_MZM_FIBERS',half=.21)
     ribbon('Tile rx ribbon',routes['rx'],ribbonRx,'CPO_MZM_FIBERS',half=.21)
-    for points in routes['cw']:tube('Tile cw fiber',round_corners(points,keep_cw,.25),.008,fiberCw,'CPO_MZM_FIBERS')
+    for points in routes['cw']:tube('Tile cw fiber',round_corners(points,keep_cw,.4),.008,fiberCw,'CPO_MZM_FIBERS')
 # the exploded tile, drawn 2.5x, on its own backing
 MDX=-12.2
 box('Detail die backing',(MDX,1.245,-8.4),(DIE['mzm']['L']*2.5+.15,.15,DIE['mzm']['W']*2.5+.12),ceramic,'CPO_MZM_DETAIL',.04)
@@ -540,8 +540,9 @@ mzm_tile(MDX,1.4,-8.4,2.5,math.pi,True)
 # The Broadcom reference system is air-cooled (Bailly release: "4RU system design with high-efficiency air
 # cooling"): a finned heat sink, x-rayed like the ring package's cold plate, stands in for the plate.
 box('Heat sink base',(0,4.2,0),(9.27,.14,9.27),sinkGhost,'CPO_MZM_HEATSINK',.03)
+# Fins run front to back (along x, the front panel at +x), aligned with the system's airflow (design rule 4).
 for k in range(15):
-    box('Heat sink fin',(-4.2+k*.6,4.75,0),(.05,.95,9.0),sinkFin,'CPO_MZM_HEATSINK',0)
+    box('Heat sink fin',(0,4.75,-4.2+k*.6),(9.0,.95,.05),sinkFin,'CPO_MZM_HEATSINK',0)
 for i in range(5):box('Laser aperture',(7.24,1.5,-4.4+i*2.2),(.04,.18,.5),fiberCw,'CPO_ELS',.004)
 for x,m in [(-1.4,blue),(1.4,red)]:cylinder('Coolant pipe',(x,5.5,-4.2),.28,2.6,m,'CPO_COLDPLATE')
 

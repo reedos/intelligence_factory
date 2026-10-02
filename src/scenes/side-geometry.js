@@ -9,8 +9,21 @@ export const OUT = [[1, 0], [0, 1], [-1, 0], [0, -1]], TAN = OUT.map(([x, z]) =>
 // Representative 24 mm square face, not a measured vendor die. Keep the drawn
 // monolithic die within a conventional lithography field; taps follow its edge.
 export const ASIC_HALF = 1.2, TAP_MAX = 1.0, ELS_LANES = 32;
-// where an engine's traffic reaches the ASIC's SerDes edge: along the facing edge, never past its corner
-export const asicTap = e => { const t = Math.max(-TAP_MAX, Math.min(TAP_MAX, e.t * 0.6)); return [OUT[e.side][0] * ASIC_HALF + TAN[e.side][0] * t, OUT[e.side][1] * ASIC_HALF + TAN[e.side][1] * t]; };
+// where an engine's traffic reaches the ASIC's SerDes edge: along the facing edge, never past its corner. The taps of
+// one side spread over the edge in the same order as their engines (scaled by the side's widest engine offset,
+// tMax), so the buses fan out without crossing and no two engines share a tap (design rules 2 and 6; before
+// 10/01/2026 two engines per long side clamped onto one corner tap).
+export const asicTap = e => { const t = TAP_MAX * e.t / (e.tMax || Math.max(Math.abs(e.t), TAP_MAX)); return [OUT[e.side][0] * ASIC_HALF + TAN[e.side][0] * t, OUT[e.side][1] * ASIC_HALF + TAN[e.side][1] * t]; };
+// Laser modules sit at the front panel (+x), five along it from z = -4.4 to 4.4. Each engine takes its light from the
+// module nearest its own z, four engines (32 transmit lanes, NVIDIA) at most per module: engines are ranked front to
+// back and dealt out in fours from the front module, so a fiber's run round the package stays short (design rule 5).
+export const ELS_Z = [-4.4, -2.2, 0, 2.2, 4.4];
+/** @template {{ z: number, x: number, els: number, elsSlot: number }} T @param {T[]} list @param {number} perModule @returns {T[]} */
+function dealLasers(list, perModule) {
+  const order = list.map((e, i) => [e, i]).sort((a, b) => b[0].z - a[0].z || b[0].x - a[0].x);
+  order.forEach(([e], k) => { e.els = ELS_Z.length - 1 - Math.floor(k / perModule); e.elsSlot = k % perModule; });
+  return list;
+}
 // where its connector sits: on the package edge, in line with the engine; data and laser fibers both use it
 export const edgeConnOf = (e, SUB) => [OUT[e.side][0] * (SUB / 2 + 0.2) + TAN[e.side][0] * e.t, OUT[e.side][1] * (SUB / 2 + 0.2) + TAN[e.side][1] * e.t];
 // engines, in a fixed order, each with its side, its offset along the side and its position
@@ -18,12 +31,14 @@ export function engineLayout() {
   const r = 3.35, list = [];
   for (const [side, t0] of SUBS) for (let k = 0; k < 3; k++) {
     const t = t0 + (k - 1) * 1.12, out = OUT[side], tan = TAN[side];
-    list.push({ side, t, out, tan, rot: side * Math.PI / 2, x: out[0] * r + tan[0] * t, z: out[1] * r + tan[1] * t, sub: [side, t0] });
+    list.push({ side, t, out, tan, rot: side * Math.PI / 2, x: out[0] * r + tan[0] * t, z: out[1] * r + tan[1] * t, sub: [side, t0], tMax: 0, els: 0, elsSlot: 0 });
   }
-  return list;
+  for (const e of list) e.tMax = Math.max(...list.filter(o => o.side === e.side).map(o => Math.abs(o.t)));
+  return dealLasers(list, ELS_LANES / 8);
 }
 // each laser module lights 32 transmit lanes (NVIDIA), four engines of eight: 18 engines need four and a half
 export const elsOf = i => Math.floor(i / (ELS_LANES / 8));
+export const ELS_COUNT = ELS_Z.length;
 
 // Representative fan-out, not a vendor harness drawing. Data fibers continue
 // outward toward omitted front-panel ports; lower CW fibers terminate only at
@@ -34,15 +49,18 @@ export function cpoFiberRoutes(e, i) {
   const data = Array.from({ length: 16 }, (_, j) => {
     const t = e.t + (j - 7.5) * .034;
     return [point(4.18, 1.73, t), point(5.4, 1.2, t),
-      point(5.75, 1.2, t), point(6.8, 2.35, t), point(7.6, 2.35, t)];
+      point(6.1, 1.2, t), point(6.8, 2.35, t), point(7.6, 2.35, t)];
   });
   const cw = Array.from({ length: 2 }, (_, j) => {
-    const r = 5.94 + i * .032 + j * .013, y = .35 + i * .045 + j * .021;
-    const lz = -4.4 + elsOf(i) * 2.2 + (i % 4 - 1.5) * .10 + (j - .5) * .028;
+    const r = 5.94 + i * .032 + j * .013, y = .35 + i * .04 + j * .02;
+    const lz = ELS_Z[e.els ?? elsOf(i)] + ((e.elsSlot ?? i % 4) - 1.5) * .10 + (j - .5) * .028;
     const t = e.t + .305 + j * .028;
     // Descend outside the complete perimeter fan-out, then enter the assigned
     // elevation horizontally. A diagonal descent to r crosses other fibers.
-    const end = point(r, y, t), pts = [[7.24, 1.5, lz], [6.95, y, lz], [r, y, lz]];
+    // An engine on the panel side (side 0) takes its fiber straight across from its module at its own height, no
+    // short jog along the package edge (that tightened the bends); the others run round the outside.
+    const end = point(r, y, t), pts = [[7.24, 1.5, lz], [7.0, y, lz]];
+    if (side !== 0) pts.push([r, y, lz]);
     if (side === 1 || side === 3) pts.push([r, y, side === 3 ? -r : r]);
     if (side === 2) pts.push([r, y, r], [-r, y, r]);
     pts.push(end, point(5.4, 1.2, t), point(4.18, 1.73, t));
@@ -120,9 +138,9 @@ export function baillyLayout() {
   const { L, W } = CPO_DIE.mzm, list = [];
   for (const side of [1, 3, 0, 2]) for (const t of [-BAILLY.t, BAILLY.t]) {
     const out = OUT[side], tan = TAN[side], r = BAILLY.rIn + L / 2;
-    list.push({ side, t, out, tan, rot: side * Math.PI / 2, r, L, W, x: out[0] * r + tan[0] * t, z: out[1] * r + tan[1] * t });
+    list.push({ side, t, out, tan, rot: side * Math.PI / 2, r, L, W, tMax: BAILLY.t, els: 0, elsSlot: 0, x: out[0] * r + tan[0] * t, z: out[1] * r + tan[1] * t });
   }
-  return list;
+  return dealLasers(list, 2);
 }
 // Fibers out of each tile's connector: 16 transmit and 16 receive fibers (its sixteen 400G FR4 ports, duplex), drawn
 // as two flat ribbons that rise and leave toward the front panel, and two laser fibers from the remote laser modules
@@ -133,16 +151,17 @@ export function baillyFiberRoutes(e, i) {
   const point = (r, y, t) => [out[0] * r + tan[0] * t, y, out[1] * r + tan[1] * t];
   const data = Array.from({ length: 32 }, (_, j) => {
     const t = e.t + (j - 15.5) * .028;
-    return [point(rc, 1.62, t), point(rc + .65, 1.62, t), point(6.6, 2.35, t), point(7.6, 2.35, t)];
+    return [point(rc, 1.62, t), point(rc + .75, 1.62, t), point(6.6, 2.35, t), point(7.6, 2.35, t)];
   });
   const cw = Array.from({ length: 2 }, (_, j) => {
-    const r = 5.94 + i * .032 + j * .013, y = .35 + i * .045 + j * .021;
-    const lz = -4.4 + (i >> 1) * 2.2 + (i % 2 - .5) * .10 + (j - .5) * .028;
+    const r = 5.94 + i * .032 + j * .013, y = .35 + i * .04 + j * .02;
+    const lz = ELS_Z[e.els] + (e.elsSlot - .5) * .10 + (j - .5) * .028;
     const t = e.t + .52 + j * .028;
-    const end = point(r, y, t), pts = [[7.24, 1.5, lz], [6.95, y, lz], [r, y, lz]];
+    const end = point(r, y, t), pts = [[7.24, 1.5, lz], [7.0, y, lz]];
+    if (side !== 0) pts.push([r, y, lz]);
     if (side === 1 || side === 3) pts.push([r, y, side === 3 ? -r : r]);
     if (side === 2) pts.push([r, y, r], [-r, y, r]);
-    pts.push(end, point(rc + .35, 1.3, t), point(rc, 1.52, t));
+    pts.push(end, point(rc + .6, 1.3, t), point(rc, 1.52, t));
     return pts;
   });
   return { tx: data.slice(0, 16), rx: data.slice(16), cw };
@@ -160,6 +179,7 @@ export function cpoVariantLayout() {
       arm: M.arm, strip: M.strip, stripW: M.stripW, heater: M.heater,
       segs: Array.from({ length: M.segments }, (_, k) => M.seg(k)), pads: Array.from({ length: M.segments }, (_, k) => M.pad(k)) },
     bailly: { ...BAILLY, tiles, taps: tiles.map(asicTap), fiberRoutes: tiles.map(baillyFiberRoutes) },
+    ringTaps: engineLayout().map(asicTap),
   };
 }
 

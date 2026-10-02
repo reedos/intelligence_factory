@@ -10,7 +10,7 @@
 import { THREE, MAT, flow, die, strand, trace, label, FLOW, COL, note, unitCol } from './side-kit.js';
 import { CPO_MZM, CPO_EIC, CPO_DIE, BAILLY, baillyLayout, baillyFiberRoutes, asicTap, eicBox, frameToLocal, cpoBlocks } from './side-geometry.js';
 import { eicMzmTex, mzmCpoPicTex } from './cpo-variants.js';
-import { roundCorners, keepCwCorner } from './side-cpo-routes.js';
+import { roundCorners, keepCwCorner, CW_BEND } from './side-cpo-routes.js';
 
 export const BAILLY_DETAIL = { s: 2.5, DX: -12.2, DY: 1.4, DZ: -8.4 };
 export const MY = 1.56;   // the tiles' photonic die center: on the organic build-up layers (top 1.50)
@@ -44,7 +44,7 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
   });
   tiles.forEach((t, i) => {
     for (const [kind, material] of [['tx', M.fiberTx], ['rx', M.fiberRx], ['cw', M.fiberCw]])
-      for (const points of routes[i][kind]) strand(B, kind === 'cw' ? roundCorners(points, keepCwCorner, .25) : roundCorners(points), material, kind === 'cw' ? .008 : .007);
+      for (const points of routes[i][kind]) strand(B, kind === 'cw' ? roundCorners(points, keepCwCorner, CW_BEND) : roundCorners(points), material, kind === 'cw' ? .008 : .007);
   });
 
   // ---- the detail: one tile, lifted out, exploded, drawn 2.5x ----
@@ -103,13 +103,13 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
     addFlow('data', flow([[top[0] + ox, top[1], top[2] + oz], [ix + ox, Y.subTop + 0.04, iz + oz], [ax + ox, Y.subTop + 0.04, az + oz]], 'eth', FLOW.elec));
     addFlow('data', flow(roundCorners(routes[i].tx[7]), 'tx', FLOW.light));
     addFlow('data', flow(roundCorners([...routes[i].rx[7]].reverse()), 'rx', FLOW.light));
-    addFlow('data', flow(roundCorners(routes[i].cw[0], keepCwCorner, .25), 'cw', FLOW.cw));
+    addFlow('data', flow(roundCorners(routes[i].cw[0], keepCwCorner, CW_BEND), 'cw', FLOW.cw));
     addFlow('power', flow([[t.x, -1.0, t.z], [t.x, Y.sub, t.z], [t.x, MY, t.z]], 'v33', FLOW.power));
     const [ex, ez] = [t.x - t.out[0] * 0.8, t.z - t.out[1] * 0.8];   // over the electronic die
     addFlow('heat', flow([[ex, MY + 0.13, ez], [ex, Y.plate - 0.2, ez]], 'hot', FLOW.heat));
   });
-  // air through the heat sink's fin channels (the fins stand across x, so the channels run along z)
-  for (const x of [-3.0, -0.9, 1.5, 3.3]) addFlow('heat', flow([[x, Y.plate + 0.55, -4.9], [x, Y.plate + 0.55, 4.9], [x, Y.plate + 1.2, 6.2]], 'air', { count: 8, speed: 1.6, size: 0.06, k: 1.6, trail: false }));
+  // air through the heat sink's fin channels, front (+x, the panel) to back, along the fins
+  for (const z of [-3.3, -0.9, 1.5, 3.3]) addFlow('heat', flow([[4.9, Y.plate + 0.55, z], [-4.9, Y.plate + 0.55, z], [-6.2, Y.plate + 1.2, z]], 'air', { count: 8, speed: 1.6, size: 0.06, k: 1.6, trail: false }));
   // the detail: three sampled lanes, one in each electrode segment
   const pdx = pcx(Z.pdX);
   [1, 4, 6].forEach((i, n) => {
@@ -125,7 +125,7 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
   // ---- captions ----
   viewLabel('mzm', 'Size and layout representative · counts are Broadcom’s, 51.2T Bailly', [0, 0.1, FZ], note, 0.2);
   viewLabel('mzm', '8 engines × 6.4T = 51.2T · 64 lanes each · 400G FR4 ports', [0, -0.3, FZ], unitCol, 0.2);
-  viewLabel('mzm', 'Detail · one engine tile, lifted out and exploded · 2.5×', [DX, DY + 2.9, DZ], '#e8ecf2', 0.22);
+  viewLabel('mzm', 'Detail · one engine tile, lifted out and exploded · 2.5×', [DX, DY - 0.45, DZ + W / 2 + 1.3], '#e8ecf2', 0.15);
   viewLabel('mzm', 'Functional schematic · bonded faces unfolded · edge-coupled fibers', [DX, DY - 0.45, DZ + W / 2 + 0.9], note, 0.13);
   viewLabel('mzm', 'Electronic chip: drivers over the electrode ends (TX), TIAs (RX)', [DX + 1.6, DY + 2.35, DZ - 1.6], unitCol, 0.15);
   viewLabel('mzm', 'Photonic chip: Mach-Zehnder modulators, wavelength mux/demux, photodiodes', [DX - 0.6, DY + 0.55, DZ + W / 2 + 0.5], unitCol, 0.15);
@@ -139,7 +139,7 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
   const fitted = (p, v, t, size) => ({ pos: p, view: { pos: v, target: t, focus: p, detailSize: size } });
   const stack = w(0.3, 0.55, 0), stackSize = [L + 0.6, 1.2, W + 0.2];
   const conn = t => { const c = (BAILLY.conn[0] + BAILLY.conn[1]) / 2; return [t.out[0] * c + t.tan[0] * t.t, MY + 0.3, t.out[1] * c + t.tan[1] * t.t]; };
-  const T1 = tiles[0], [tx1, tz1] = asicTap(T1), fo = conn(tiles[1]);
+  const T1 = tiles[0], [tx1, tz1] = asicTap(T1), fo = conn(tiles[0]);   // the front tile right of center, clear of the landscape pins
   const hs = {
     asic: fitted([0, Y.die + 0.1, 0], [-1, 8.5, 7], [0, Y.die, 0], [3.6, 0.5, 3.6]),
     serdes: at([(tx1 + inner(T1)[0]) / 2, Y.subTop + 0.1, (tz1 + inner(T1)[1]) / 2 + 0.3], [T1.x + 1.5, 5, T1.z + 3.2], [T1.x * 0.5, Y.subTop, T1.z * 0.5]),

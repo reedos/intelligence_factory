@@ -14,7 +14,7 @@
 import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, label, outline, FLOW, COL, note, unitCol, asicTex, ringPicTex, RING, glowMat } from './side-kit.js';
 import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes, CPO_VARIANTS, CPO_RING, eicBox, frameToLocal } from './side-geometry.js';
 import { ringEicTex, cpoIntro, cpoPartCopy } from './cpo-variants.js';
-import { roundCorners, keepCwCorner } from './side-cpo-routes.js';
+import { roundCorners, keepCwCorner, CW_BEND } from './side-cpo-routes.js';
 import { buildBailly, BAILLY_DETAIL } from './cpo-bailly.js';
 export { roundCorners, keepCwCorner };
 
@@ -90,7 +90,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   engines.forEach(({ out }, i) => {
     const [ex, ez] = edgeConn[i];
     for (const [kind, material] of [['tx', M.fiberTx], ['rx', M.fiberRx], ['cw', M.fiberCw]])
-      for (const points of fiberRoutes[i][kind]) strand(R.B, kind === 'cw' ? roundCorners(points, keepCwCorner, .25) : roundCorners(points), material, kind === 'cw' ? .008 : .007);
+      for (const points of fiberRoutes[i][kind]) strand(R.B, kind === 'cw' ? roundCorners(points, keepCwCorner, CW_BEND) : roundCorners(points), material, kind === 'cw' ? .008 : .007);
     R.B.box(out[0] !== 0 ? .3 : .7, .3, out[0] !== 0 ? .7 : .3, MAT.polymer, ex, 1.2, ez);
   });
   // the laser modules at the front panel (both designs), each engine's two laser fibers running round the outside of
@@ -185,7 +185,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     const routes = fiberRoutes[i];
     R.addFlow('data', flow(roundCorners(routes.tx[3]), 'tx', FLOW.light));
     R.addFlow('data', flow(roundCorners([...routes.rx[3]].reverse()), 'rx', FLOW.light));
-    R.addFlow('data', flow(roundCorners(routes.cw[0], keepCwCorner, .25), 'cw', FLOW.cw));
+    R.addFlow('data', flow(roundCorners(routes.cw[0], keepCwCorner, CW_BEND), 'cw', FLOW.cw));
   });
   // in the detail: electrical in to a driver, down a bond to its ring; laser light along the bus; light out; light in
   // to a photodiode, up a bond to its TIA, electrical out
@@ -217,7 +217,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   label(scene, 'Co-packaged optics · one switch package', [0, 0.6, FZ], '#e8ecf2', 0.36);
   viewLabel('ring', 'Size and layout representative · counts are NVIDIA’s', [0, 0.1, FZ], note, 0.2);
   viewLabel('ring', '18 engines · 28.8T each way · 1 engine = 1.6T each way, like one module', [0, -0.3, FZ], unitCol, 0.2);
-  viewLabel('ring', 'Detail · one engine, lifted out and exploded · 2.5×', [DX, DY + 2.9, DZ], '#e8ecf2', 0.22);
+  viewLabel('ring', 'Detail · one engine, lifted out and exploded · 2.5×', [DX, DY - 0.45, DZ + 2.45], '#e8ecf2', 0.15);
   viewLabel('ring', 'Functional schematic · bonded faces and surface fiber coupling unfolded', [DX, DY - 0.45, DZ + 2.0], note, 0.13);
   viewLabel('ring', 'Electronic chip: drivers (TX) and TIAs (RX)', [DX, DY + 2.35, DZ - 1.6], unitCol, 0.15);
   viewLabel('ring', 'Photonic chip: ring modulators (TX), photodiodes (RX)', [DX, DY + 0.55, DZ + 2.0], unitCol, 0.15);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { engineLayout, asicTap, edgeConnOf, elsOf, ELS_LANES, ASIC_HALF, COPPER_HEADS, copperLane, copperChip, PAIR_HALF, cpoFiberRoutes, baillyLayout, baillyFiberRoutes, BAILLY, CPO_DIE } from './side-geometry.js';
+import { engineLayout, asicTap, edgeConnOf, elsOf, ELS_LANES, ASIC_HALF, COPPER_HEADS, copperLane, copperChip, PAIR_HALF, cpoFiberRoutes, baillyLayout, baillyFiberRoutes, BAILLY, CPO_DIE, ELS_Z } from './side-geometry.js';
 
 // Codex's optics review, 09/28: floating-point side vectors sent 12 of 18 ASIC taps outside the chip and 15 of 18
 // connectors off the package edge; four laser modules fed more lanes than one can; an AEC pair missed its retimer.
@@ -45,7 +45,7 @@ describe('CPO package geometry', () => {
   });
   it('no laser module lights more than its 32 transmit lanes', () => {
     const lanes = new Map();
-    engines.forEach((_, i) => lanes.set(elsOf(i), (lanes.get(elsOf(i)) || 0) + 8));
+    engines.forEach(e => lanes.set(e.els, (lanes.get(e.els) || 0) + 8));
     for (const [els, n] of lanes) expect(n, `laser module ${els}`).toBeLessThanOrEqual(ELS_LANES);
     expect([...lanes.values()].reduce((a, b) => a + b, 0)).toBe(144);
   });
@@ -137,6 +137,40 @@ describe('Broadcom-style CPO package geometry', () => {
       }
     }
     expect(violations).toEqual([]);
+  });
+});
+describe('CPO routing rules (design rules 2, 5 and 6)', () => {
+  const cross = (a: number[], b: number[], c: number[], d: number[]) => {
+    const o = (p: number[], q: number[], r: number[]) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+    return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
+  };
+  const packages: [string, any[], number][] = [['NVIDIA-style', engineLayout(), 2.73], ['Broadcom-style', baillyLayout(), BAILLY.rIn]];
+  for (const [name, list, rIn] of packages) it(`${name}: package traces fan out from distinct taps in engine order and never cross`, () => {
+    const inner = (e: any) => [e.out[0] * rIn + e.tan[0] * e.t, e.out[1] * rIn + e.tan[1] * e.t];
+    const keys = list.map(e => asicTap(e).map(v => v.toFixed(4)).join());
+    expect(new Set(keys).size).toBe(list.length);
+    for (const side of [0, 1, 2, 3]) {
+      const mine = list.filter(e => e.side === side).sort((a, b) => a.t - b.t);
+      const along = (e: any) => { const [x, z] = asicTap(e); return x * e.tan[0] + z * e.tan[1]; };
+      for (let k = 1; k < mine.length; k++) expect(along(mine[k])).toBeGreaterThan(along(mine[k - 1]));
+    }
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++)
+      expect(cross(asicTap(list[i]), inner(list[i]), asicTap(list[j]), inner(list[j])), `${name} traces ${i} and ${j}`).toBe(false);
+    // short and direct: no trace longer than twice the straight gap from the chip edge to the engine
+    for (const e of list) expect(Math.hypot(...asicTap(e).map((v, k) => v - inner(e)[k]))).toBeLessThan(2 * (rIn - ASIC_HALF) + 1.2);
+  });
+  for (const [name, list] of packages) it(`${name}: each engine takes laser light from a module near its own side of the front panel`, () => {
+    const sorted = [...list].sort((a, b) => b.z - a.z || b.x - a.x);
+    for (let k = 1; k < sorted.length; k++) expect(sorted[k].els).toBeLessThanOrEqual(sorted[k - 1].els);
+    for (const e of list) expect(Math.abs(ELS_Z[e.els] - e.z)).toBeLessThan(3.5);
+  });
+  it('fiber corners bend gently: no data corner tighter than 3 mm, no laser corner tighter than 2 mm (as drawn)', () => {
+    const d = (a: number[], b: number[]) => Math.hypot(...a.map((v, i) => v - b[i]));
+    const all = [...engineLayout().map((e, i) => cpoFiberRoutes(e, i)), ...baillyLayout().map((e, i) => baillyFiberRoutes(e, i))];
+    for (const routes of all) for (const [kind, list] of Object.entries(routes)) for (const pts of list as number[][][]) for (let i = 1; i < pts.length - 1; i++) {
+      const cut = Math.min(kind === 'cw' ? .4 : .5, .45 * d(pts[i - 1], pts[i]), .45 * d(pts[i], pts[i + 1]));
+      expect(cut, `${kind} corner ${i}`).toBeGreaterThan(kind === 'cw' ? .2 : .3);
+    }
   });
 });
 describe('copper plugs', () => {
