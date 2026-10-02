@@ -488,6 +488,11 @@ def mzm_tile(cx,cy,cz,scale,angle,exploded):
         return
     top=.082;radius=.0045
     box('EIC hybrid-bond face',w(ex,ey-.06,ez),(ew-.02*scale,.004,ed-.02*scale),bondFace,role,0,angle,uv_top=True,uv_face=2)
+    # Through-silicon vias (TSVs): in an EIC-on-PIC stack the package's signals and power reach the electronic die
+    # through vias in the photonic die beneath it. A few columns, representative in count, pitch and size, under the
+    # electronic die and clear of the waveguides (between the laser demultiplexers and the splitters).
+    for tx in MZ['tsvX']:
+        for tz in MZ['tsvZ']:cylinder('Through-silicon via',w(px(tx),0,pz(tz)),.02,.17,traceCu,role,8)
     a,st,sw=MZ['arm'],MZ['strip'],MZ['stripW']
     for g in range(2):
         rows=MZ['rows'][4*g:4*g+4]; dm=MZ['demux'][g]; mx=MZ['mux'][g]; rd=MZ['rxDemux'][g]

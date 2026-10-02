@@ -130,6 +130,7 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
   viewLabel('mzm', 'Functional schematic · bonded faces unfolded · edge-coupled fibers', [DX, DY - 0.45, DZ + W / 2 + 0.9], note, 0.13);
   viewLabel('mzm', 'Electronic chip: drivers over the electrode ends (TX), TIAs (RX)', [DX + 1.6, DY + 2.35, DZ - 1.6], unitCol, 0.15);
   viewLabel('mzm', 'Photonic chip: Mach-Zehnder modulators, wavelength mux/demux, photodiodes', [DX - 0.6, DY + 0.55, DZ + W / 2 + 0.5], unitCol, 0.15);
+  viewLabel('mzm', 'TSVs under the electronic chip · representative', [DX - 0.6, DY + 0.25, DZ + W / 2 + 0.5], note, 0.13);
   viewLabel('mzm', 'Light · 8 of 64 lanes: 2 TX, 2 RX, 2 laser fibers', [DX - L / 2 - 1.6, DY + 0.75, DZ], COL.tx, 0.15);
   viewLabel('mzm', 'TX / RX fibers → 128 duplex LC front-panel ports (outside this diagram)', [0, 2.8, 7.8], COL.tx, .16);
   viewLabel('mzm', 'Remote laser modules · front panel, field-replaceable · count illustrative', [ELSX, Y.sub + 1.6, 0], COL.cw, 0.16);

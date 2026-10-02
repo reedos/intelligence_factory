@@ -111,6 +111,9 @@ export const CPO_MZM = {
   rxDemux: [[730, 172, 770, 232], [730, 244, 770, 304]],              // receive demultiplexers
   split: 150, armIn: 166, armOut: 690, join: 708, arm: 3, strip: 5.5, stripW: 1.4, segments: 3,
   heater: [560, 640], seg: k => [170 + 52 * k, 216 + 52 * k], pad: k => 178 + 52 * k,
+  // through-silicon via columns drawn in the detail (representative): under the electronic die, between the laser
+  // demultiplexers and the splitters, midway between waveguide rows and clear of the laser buses
+  tsvX: [100, 120], tsvZ: [32, 64, 104, 136, 186, 218, 258, 290],
 };
 // The electronic die of each design, as a rect in its photonic frame: the ring's covers the die but for the fiber
 // landing (1.23 × 0.902 cm, set back 0.5 mm from the fiber edge); the Mach-Zehnder tile's covers only the electrical
@@ -176,7 +179,7 @@ export function cpoVariantLayout() {
       rings: lanes8(i => [R.ringX(i), R.ringZ(i)]), pads: lanes8(R.pad) },
     mzm: { rows: lanes8(M.row), rxRows: lanes8(M.rxRow), pdX: M.pdX, lasers: M.lasers, txOut: M.txOut, rxIn: M.rxIn,
       demux: M.demux, mux: M.mux, rxDemux: M.rxDemux, split: M.split, armIn: M.armIn, armOut: M.armOut, join: M.join,
-      arm: M.arm, strip: M.strip, stripW: M.stripW, heater: M.heater,
+      arm: M.arm, strip: M.strip, stripW: M.stripW, heater: M.heater, tsvX: M.tsvX, tsvZ: M.tsvZ,
       segs: Array.from({ length: M.segments }, (_, k) => M.seg(k)), pads: Array.from({ length: M.segments }, (_, k) => M.pad(k)) },
     bailly: { ...BAILLY, tiles, taps: tiles.map(asicTap), fiberRoutes: tiles.map(baillyFiberRoutes) },
     ringTaps: engineLayout().map(asicTap),

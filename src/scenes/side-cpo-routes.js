@@ -37,5 +37,5 @@ export const CPO_AUDIT = {
   throughGlass: { through: /(Transmit|Receive|Laser)[ _]glass/i, why: 'through the glass fiber-attach block on the photonic die' },
   // Broadcom-style tile: as drawn the EIC sits on the PIC's electrical end, so lanes from the substrate rise through
   // the photonic die and the bond into the stacked electronic die
-  intoStack: { through: /MZM[ _](photonic|electronic)[ _]die[ _]face/i, why: 'up through the photonic die and its bond into the stacked electronic die (as drawn)' },
+  intoStack: { through: /MZM[ _](photonic|electronic)[ _]die[ _]face/i, why: 'up through through-silicon vias (TSVs) in the photonic die, as drawn, into the stacked electronic die' },
 };

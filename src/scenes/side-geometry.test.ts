@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { engineLayout, asicTap, edgeConnOf, elsOf, ELS_LANES, ASIC_HALF, COPPER_HEADS, copperLane, copperChip, PAIR_HALF, cpoFiberRoutes, baillyLayout, baillyFiberRoutes, BAILLY, CPO_DIE, ELS_Z } from './side-geometry.js';
+import { engineLayout, asicTap, edgeConnOf, elsOf, ELS_LANES, ASIC_HALF, COPPER_HEADS, copperLane, copperChip, PAIR_HALF, cpoFiberRoutes, baillyLayout, baillyFiberRoutes, BAILLY, CPO_DIE, ELS_Z, CPO_MZM, CPO_EIC } from './side-geometry.js';
 
 // Codex's optics review, 09/28: floating-point side vectors sent 12 of 18 ASIC taps outside the chip and 15 of 18
 // connectors off the package edge; four laser modules fed more lanes than one can; an AEC pair missed its retimer.
@@ -102,6 +102,16 @@ describe('CPO package geometry', () => {
 });
 describe('Broadcom-style CPO package geometry', () => {
   const tiles = baillyLayout(), { L, W } = CPO_DIE.mzm;
+  it('draws its TSV columns under the electronic die, clear of every waveguide and buried part', () => {
+    const [x0, z0, x1, z1] = CPO_EIC.mzm, M = CPO_MZM, rows = [0, 1, 2, 3, 4, 5, 6, 7].flatMap(i => [M.row(i), M.rxRow(i)]);
+    const r = .02 / 2.5 / L * 810;                               // the via radius in frame units (drawn 2.5x in the detail)
+    for (const x of M.tsvX) for (const z of M.tsvZ) {
+      expect(x).toBeGreaterThan(x0); expect(x).toBeLessThan(x1); expect(z).toBeGreaterThan(z0); expect(z).toBeLessThan(z1);
+      expect(x - r).toBeGreaterThan(Math.max(...M.demux.map(d => d[2])));      // past the laser demultiplexers
+      expect(x + r).toBeLessThan(M.split);                                      // before the splitters
+      for (const w of [...rows, ...M.lasers]) expect(Math.abs(z - w)).toBeGreaterThan(4);  // between waveguide rows
+    }
+  });
   it('has eight radial tiles, two per side, each tapping the ASIC on the edge it faces', () => {
     expect(tiles).toHaveLength(8);
     for (const side of [0, 1, 2, 3]) expect(tiles.filter(t => t.side === side)).toHaveLength(2);
