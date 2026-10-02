@@ -106,9 +106,12 @@ describe('CPO packages: pins, flows and captions', () => {
     // modulator and photodiode pins on the photonic die; the electronic chip's pin on the electronic die, over a driver
     expect(pins[id('rings')].pos[1] - DY).toBeLessThan(.3); expect(pins[id('pd')].pos[1] - DY).toBeLessThan(.3); expect(pins[id('eic')].pos[1] - DY).toBeGreaterThan(.95);
     if (kind === 'ring') expect(Math.hypot(mpx - CPO_RING.ringX(3), mpy - CPO_RING.ringZ(3))).toBeLessThan(1);
-    else { expect(mpx).toBeGreaterThan(CPO_EIC.mzm[2]); expect(mpx).toBeLessThan(CPO_MZM.armOut); expect(Math.abs(mpy - CPO_MZM.row(29))).toBeLessThan(1); }
-    const [bx, by] = cpoBlocks(kind).drivers[6];
-    expect(Math.hypot(epx - bx, epy - by)).toBeLessThan(1);
+    else { expect(mpx).toBeGreaterThan(CPO_EIC.mzm[2]); expect(mpx).toBeLessThan(CPO_MZM.armOut); expect(Math.abs(mpy - CPO_MZM.row(0))).toBeLessThan(1); }
+    if (kind === 'ring') { const [bx, by] = cpoBlocks(kind).drivers[6]; expect(Math.hypot(epx - bx, epy - by)).toBeLessThan(1); }
+    else {   // over the last transmit lane's driver cell, which spans its three electrode segments
+      expect(Math.abs(epy - CPO_MZM.row(63))).toBeLessThan(1);
+      expect(epx).toBeGreaterThan(CPO_MZM.seg(0)[0]); expect(epx).toBeLessThan(CPO_MZM.seg(2)[1]);
+    }
     expect(Math.abs(dpx - (kind === 'ring' ? CPO_RING.pdX : CPO_MZM.pdX))).toBeLessThan(1);
     expect(Math.abs(dpy - (kind === 'ring' ? CPO_RING.rxRow(4) : CPO_MZM.rxRow(63)))).toBeLessThan(1);
     // the flows on screen are this package's (and the shared switch-chip and laser-module ones)

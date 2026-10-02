@@ -15,6 +15,8 @@ import { tagHeat, PART_W } from '../heat.js';
 
 export const BAILLY_DETAIL = BAILLY.detail;
 export const MY = 1.56;   // the tiles' photonic die center: on the organic build-up layers (top 1.50)
+// where the detail's electronic-chip and modulator pins sit along the tile, in frame px (see the pins below)
+export const PIN_EIC_X = 45, PIN_MOD_X = 375;
 
 export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, ELSX, els }) {
   const { group, addFlow } = view;
@@ -150,8 +152,11 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
     asic: fitted([0, Y.die + 0.1, 0], [-1, 8.5, 7], [0, Y.die, 0], [3.6, 0.5, 3.6]),
     serdes: at([(tx1 + inner(T1)[0]) / 2, Y.subTop + 0.1, (tz1 + inner(T1)[1]) / 2 + 0.3], [T1.x + 1.5, 5, T1.z + 3.2], [T1.x * 0.5, Y.subTop, T1.z * 0.5]),
     engine: at([EQ.x, MY + 0.15, EQ.z], [EQ.x + 2.5, 5.5, EQ.z + 3.6], [EQ.x, MY, EQ.z]),
-    eic: fitted(w(pcx(cpoBlocks('mzm').drivers[6][0]), 1.1, pcz(Z.row(6))), [DX + 2.0, DY + 4.6, DZ + 4.6], stack, stackSize),
-    mod: fitted(w(pcx((CPO_EIC.mzm[2] + Z.armOut) / 2), 0.12, pcz(Z.row(29))), [DX - 1.2, DY + 3.8, DZ + 4.2], stack, stackSize),
+    // The three detail pins stand apart even when the detail is small (the package overview, phone): the electronic
+    // chip's at its switch-chip end over the first lane's driver, the modulators' near the far end of the arms on a
+    // front lane, the photodiodes' on the last receive lane at the back.
+    eic: fitted(w(pcx(PIN_EIC_X), 1.1, pcz(Z.row(Z.lanes - 1))), [DX + 2.0, DY + 4.6, DZ + 4.6], stack, stackSize),
+    mod: fitted(w(pcx(PIN_MOD_X), 0.12, pcz(Z.row(0))), [DX - 1.2, DY + 3.8, DZ + 4.2], stack, stackSize),
     pd: fitted(w(pdx, 0.12, pcz(Z.rxRow(Z.lanes - 1))),   // the last receive lane: its label clears the die lettering
       [DX + 1.8, DY + 2.5, DZ - 4.4], stack, stackSize),
     laser: at([ELSX, Y.sub + 1.0, 0], [ELSX + 3.2, 5, 5.5], [ELSX - 1, Y.sub, 0]),
