@@ -11,6 +11,7 @@ import { THREE, MAT, flow, die, strand, trace, label, FLOW, COL, note, unitCol }
 import { CPO_MZM, CPO_EIC, CPO_DIE, BAILLY, baillyLayout, baillyFiberRoutes, asicTap, eicBox, frameToLocal, cpoBlocks } from './side-geometry.js';
 import { eicMzmTex, mzmCpoPicTex } from './cpo-variants.js';
 import { roundCorners, keepCwCorner, CW_BEND } from './side-cpo-routes.js';
+import { tagHeat, PART_W } from '../heat.js';
 
 export const BAILLY_DETAIL = { s: 2.5, DX: -12.2, DY: 1.4, DZ: -8.4 };
 export const MY = 1.56;   // the tiles' photonic die center: on the organic build-up layers (top 1.50)
@@ -106,10 +107,10 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
     addFlow('data', flow(roundCorners(routes[i].cw[0], keepCwCorner, CW_BEND), 'cw', FLOW.cw));
     addFlow('power', flow([[t.x, -1.0, t.z], [t.x, Y.sub, t.z], [t.x, MY, t.z]], 'v33', FLOW.power));
     const [ex, ez] = [t.x - t.out[0] * 0.8, t.z - t.out[1] * 0.8];   // over the electronic die
-    addFlow('heat', flow([[ex, MY + 0.13, ez], [ex, Y.plate - 0.2, ez]], 'hot', FLOW.heat));
+    addFlow('heat', tagHeat(flow([[ex, MY + 0.13, ez], [ex, Y.plate - 0.2, ez]], 'hot', FLOW.heat), `tile-${i}`, PART_W.cpo.tile));
   });
   // air through the heat sink's fin channels, front (+x, the panel) to back, along the fins
-  for (const z of [-3.3, -0.9, 1.5, 3.3]) addFlow('heat', flow([[4.9, Y.plate + 0.55, z], [-4.9, Y.plate + 0.55, z], [-6.2, Y.plate + 1.2, z]], 'air', { count: 8, speed: 1.6, size: 0.06, k: 1.6, trail: false }));
+  for (const z of [-3.3, -0.9, 1.5, 3.3]) addFlow('heat', tagHeat(flow([[4.9, Y.plate + 0.55, z], [-4.9, Y.plate + 0.55, z], [-6.2, Y.plate + 1.2, z]], 'air', { count: 8, speed: 1.6, size: 0.06, k: 1.6, trail: false }), 'heatsink-air', PART_W.cpo.asic + tiles.length * PART_W.cpo.tile, 'carrier'));
   // the detail: three sampled lanes, one in each electrode segment
   const pdx = pcx(Z.pdX);
   [1, 4, 6].forEach((i, n) => {

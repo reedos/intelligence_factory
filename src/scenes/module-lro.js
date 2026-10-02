@@ -80,7 +80,7 @@ export function lroIntro(mode) {
   return {
     data: 'Half-retimed (LRO): the DSP stays, but only on transmit. Host lanes enter it, are retimed, and leave for the driver and modulators. On receive there is no DSP: the TIA’s output runs straight to the host, whose own signal processing does the receive work. Internal placement and routing are representative.',
     power: 'Half-retimed (LRO): the DSP keeps its power branch, but retimes transmit only. The driver, TIA, laser sources and power conversion are unchanged. Semtech puts such modules at about 16 W at 200G per lane, between full-DSP and LPO modules. Arrows show the functional power path, not a board routing design.',
-    heat: 'Half-retimed (LRO): the transmit-only DSP still makes heat under its gap pad, but it retimes one direction instead of two; fewer arrows leave it. Arrow counts are qualitative. The driver, TIA and laser sources are unchanged.',
+    heat: 'Half-retimed (LRO): the transmit-only DSP still makes heat under its gap pad, but it retimes one direction instead of two; fewer arrows leave it: three of six, on the site’s log heat scale. The driver, TIA and laser sources are unchanged.',
   }[mode];
 }
 export function lroPartCopy(part, mode) {

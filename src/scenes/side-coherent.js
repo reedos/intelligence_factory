@@ -11,6 +11,7 @@
 // fiber end, off the RF path, and its pigtail runs back to the splitter.
 import { THREE, MAT, Builder, flow, canvasTex, setup, materials, die, strand, label, lidBox, FLOW, COL, note, unitCol, dspTex, glowMat } from './side-kit.js';
 import { componentView } from '../app/housing-frame.js';
+import { tagHeat, balanceHeat, heatWeight, PART_W } from '../heat.js';
 import { drawDiagram } from './face-diagram.js';
 import { iqDiagram, icrDiagram } from './coherent-faces.js';
 
@@ -219,11 +220,16 @@ export function build({ quality, state, authoredHardware = false }) {
     const pts = !side ? [start, end] : [start, [DSPX - DH - .15, yT, edge], [x, yT, edge], end];
     flows.push(flow(pts, 'core', FLOW.power));
   }
-  for (let i = 0; i < 10; i++) { const x = DSPX + (i % 5 - 2) * 0.18, z = (Math.floor(i / 5) - 0.5) * 0.45; heatFlows.push(flow([[x, Y.top + 0.16, z], [x, Y.lid, z], [x, Y.lid + 1.2, z]], 'hot', FLOW.heat)); }
-  for (let i = 0; i < 4; i++) heatFlows.push(flow([[ITX - 0.9 + i * 0.6, Y.top + ITH, 0], [ITX - 0.9 + i * 0.6, Y.lid, 0], [ITX - 0.9 + i * 0.6, Y.lid + 1.0, 0]], 'hot', FLOW.heat));
-  // Electronics and biased optics also reject heat; pulse counts are not watts.
-  for (const [x,z] of [[CX_,cdmZ],[DRX,drvZ],[RX_,icrZ],[TIAX,tiaZ]]) for (const dx of [-.18,.18])
-    heatFlows.push(flow([[x+dx,Y.top+(x===DRX?.25:.16),z],[x+dx,Y.lid,z],[x+dx,Y.lid+1,z]], 'hot', FLOW.heat));
+  // Heat streams follow the site's one log rule (src/heat.js) on each part's assumed watts (PART_W.coherent):
+  // the DSP, the laser, the driver and the TIA. The modulator's and photodiodes' bias, well under half a watt, draws none.
+  const P = PART_W.coherent;
+  for (let i = 0; i < 10; i++) { const x = DSPX + (i % 5 - 2) * 0.18, z = (Math.floor(i / 5) - 0.5) * 0.45; heatFlows.push(tagHeat(flow([[x, Y.top + 0.16, z], [x, Y.lid, z], [x, Y.lid + 1.2, z]], 'hot', FLOW.heat), 'cdsp', P.dsp)); }
+  for (let i = 0; i < 4; i++) heatFlows.push(tagHeat(flow([[ITX - 0.9 + i * 0.6, Y.top + ITH, 0], [ITX - 0.9 + i * 0.6, Y.lid, 0], [ITX - 0.9 + i * 0.6, Y.lid + 1.0, 0]], 'hot', FLOW.heat), 'itla', P.itla));
+  for (const [x, z, part, watts] of [[CX_, cdmZ, 'cdm', P.modulator], [DRX, drvZ, 'driver', P.driver], [RX_, icrZ, 'icr', P.receiverOptics], [TIAX, tiaZ, 'tia', P.tia]]) {
+    if (!heatWeight(watts, P.dsp)) continue;
+    for (const dx of [-.18, .18]) heatFlows.push(tagHeat(flow([[x+dx,Y.top+(x===DRX?.25:.16),z],[x+dx,Y.lid,z],[x+dx,Y.lid+1,z]], 'hot', FLOW.heat), part, watts));
+  }
+  balanceHeat(heatFlows);
   [flows, dataFlows, heatFlows].forEach(a => a.forEach(f => scene.add(f.group)));
 
   label(scene, 'Coherent pluggable · 800ZR, OSFP', [0, -0.35, 2.6], '#e8ecf2', 0.34);

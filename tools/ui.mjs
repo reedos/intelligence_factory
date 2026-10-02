@@ -20,6 +20,9 @@ const STATES = {
   side: async p => { await p.evaluate(() => ifx.go(6)); },
   // the CPO package, its engine toggle on the widest view
   cpo: async p => { await p.evaluate(() => { ifx.go(7); ifx.setCpoVariant?.('mzm'); }); },
+  // the heat layer's legend carries the log-scale note (src/heat.js), a second line on a phone
+  heat: async p => { await p.evaluate(() => { ifx.setMode('heat'); ifx.go(2); }); },
+  sideheat: async p => { await p.evaluate(() => { ifx.setMode('heat'); ifx.go(6); }); },
   clock: async p => { await p.evaluate(() => { ifx.go(1); document.getElementById('clock-btn').click(); }); },
   // the visualizer page has no hero button: start the overview through the player, then play it
   tour: async p => { await p.evaluate(() => { const h = document.getElementById('story-hero-play'); if (h) h.click(); else { window.ifx.enterStory('story'); document.getElementById('tour-play').click(); } }); },
@@ -92,7 +95,7 @@ for (const form of forms) {
     await p.waitForFunction(() => window.ifx && ifx.state.scene === 0, null, { timeout: 90000 });
     await p.evaluate(() => document.querySelector('.stage').scrollIntoView());
     // tours and the clock left the visualizer (Reed, 09/2026); their states run only on a page that still has them
-    const offered = await p.evaluate(n => ['explore', 'side', 'cpo'].includes(n) || (n === 'clock' ? !!document.getElementById('clock-btn') : typeof window.ifx.enterStory === 'function'), name);
+    const offered = await p.evaluate(n => ['explore', 'side', 'cpo', 'heat', 'sideheat'].includes(n) || (n === 'clock' ? !!document.getElementById('clock-btn') : typeof window.ifx.enterStory === 'function'), name);
     if (!offered) { console.log(`${form} ${name}: not on this page, skipped`); await p.close(); continue; }
     await run(p);
     await p.waitForTimeout(+process.env.WAIT || 6000);

@@ -144,17 +144,17 @@ describe('coherent packaging qualifications remain visible in the interactive sc
     for(const material of Array.isArray(pad!.material)?pad!.material:[pad!.material]) { expect(material.opacity).toBeLessThan(.25);expect(material.depthWrite).toBe(false); }
     opts.state.mode='heat';b.update(1,0);expect(pad!.visible).toBe(true);
   });
-  it('shows qualitative heat from both active optical packages as well as the DSP and laser',()=>{
+  it('draws heat from the driver and TIA packages, and none from the sub-half-watt optics (site heat scale)',()=>{
     const b=build(1);
-    for(const id of ['driver','cdm','icr','tia']) {
+    for(const [id,hot] of [['driver',true],['cdm',false],['icr',false],['tia',true]] as const) {
       // The part view's focus is the package; a die's pin may sit off-center, on an empty corner of its face drawing.
       const p=b.dataHotspots[id].view.focus;
       expect(b.heatFlows.some((f:any)=>{
         const a=f.path.getPoint(0),z=f.path.getPoint(1);
         return Math.abs(a.x-p[0])<.3 && Math.abs(a.z-p[2])<.1 && z.y>a.y;
-      })).toBe(true);
+      }),id).toBe(hot);
     }
-    expect(b.inspection.scope).toContain('pulse counts do not represent power ratios');
+    expect(b.inspection.scope).toContain('log heat scale');
   });
   it('states a representative option in the scope and both optical package labels',()=>{
     const b=build(1),captions:string[]=[];
@@ -301,7 +301,7 @@ describe('Blender mechanical layers preserve native technical diagrams',()=>{
       expect(Array.from(f.mesh.instanceMatrix.array)).not.toEqual(before);
       expect(f.mesh.material.depthTest).toBe(true);
     }
-    expect(b.inspection.scope).toContain('does not encode watts');
+    expect(b.inspection.scope).toContain('sized by each chip’s assumed watts on the site’s log heat scale');
   });
   it('CPO schematic ASIC remains plausible in size and its power/heat anchors stay on silicon',async()=>{
     const {ASIC_HALF}=await import('./side-geometry.js'),b=build(0);

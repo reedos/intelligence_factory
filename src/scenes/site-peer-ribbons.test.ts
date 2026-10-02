@@ -49,5 +49,5 @@ it('CPO activates all 18 actual engine CW paths and limits new stack x-ray to Po
    const m=b.scene.getObjectByName(name).material;expect(m.transparent).toBe(mode==='power');expect(m.opacity).toBe(mode==='power'?(name.includes('ASIC')?.58:.16):1);expect(m.depthWrite).toBe(mode!=='power');
   }
  }
- expect(b.inspection.scope).toContain('Moving marks show direction, not lane counts');expect(b.inspection.scope).toContain('ASIC partially translucent');
+ expect(b.inspection.scope).toContain('marks show direction, not lane counts');expect(b.inspection.scope).toContain('ASIC partially translucent');
 });

@@ -7,6 +7,7 @@ import { applyArtDirection } from './module-art-direction.js';
 import { MODULE_VARIANTS, LRO_COLOR, inVariant, splitByZ, lroDieTop, lroIntro, lroPartCopy, dspMarkingTop } from './module-lro.js';
 import { moduleLabel, moduleTier } from './lid-labels.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
+import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
 import { hardwareBounds, componentView } from '../app/housing-frame.js';
 
 let cached, pending;
@@ -223,22 +224,25 @@ export function build({ quality, state, model: scenario }) {
   const coverY = EXPLODED['04_COVER'][1] + 0.675, exhaustY = Math.max(shellAnchor[1] + 0.3, 5.6);
   for (let i = 0; i < 6; i++) {
     const x = dspAnchor[0] + (i % 3 - 1) * 0.22, z = dspAnchor[2] + (Math.floor(i / 3) - 0.5) * 0.4;
-    addFlow({ id: `heat-dsp-${i}`, points: [[x, dspAnchor[1], z], [x, padY, z], [x, coverY, z], [x, exhaustY, z]],
-      mode: 'heat', kind: 'heat', variant: 'dsp', from: 'dsp', to: 'shell', assembly: null });
+    tagHeat(addFlow({ id: `heat-dsp-${i}`, points: [[x, dspAnchor[1], z], [x, padY, z], [x, coverY, z], [x, exhaustY, z]],
+      mode: 'heat', kind: 'heat', variant: 'dsp', from: 'dsp', to: 'shell', assembly: null }), 'dsp', PART_W.module.dsp);
   }
   for (const [engineIndex, anchors] of analogAnchors.entries()) {
     const engineWorld = name => cm(anchors[name]).map((v, i) => v + EXPLODED['02_BOARD'][i]);
     for (const source of ['driver', 'tia', 'lasers']) {
       const p = engineWorld(source);
-      addFlow({ id: `heat-${source}-${engineIndex}`, points: [p, [p[0], coverY, p[2]], [p[0], exhaustY, p[2]]],
-        mode: 'heat', kind: 'heat', from: source, to: 'shell', assembly: null });
+      tagHeat(addFlow({ id: `heat-${source}-${engineIndex}`, points: [p, [p[0], coverY, p[2]], [p[0], exhaustY, p[2]]],
+        mode: 'heat', kind: 'heat', from: source, to: 'shell', assembly: null }), source, PART_W.module[source]);
     }
   }
   for (let i = 0; i < 5; i++) {
     const z = -1.2 + i * 0.35;
-    addFlow({ id: `heat-air-${i}`, points: [[6.3, exhaustY, z], [-6.2, exhaustY, z]],
-      mode: 'heat', kind: 'air', from: 'shell', to: 'air', assembly: null });
+    tagHeat(addFlow({ id: `heat-air-${i}`, points: [[6.3, exhaustY, z], [-6.2, exhaustY, z]],
+      mode: 'heat', kind: 'air', from: 'shell', to: 'air', assembly: null }), 'shell-air', PART_W.module.total, 'carrier');
   }
+  // One log rule for every heat stream (src/heat.js): the full DSP is the reference in every variant, so the LRO
+  // view keeps its three transmit-side DSP streams (the rule gives 3.3) and the LPO view drops the DSP's six.
+  balanceHeat(heatFlows);
 
   const dspGroup = object('PART_DSP'), thermal = object('03_THERMAL'), dspTraces = object('PART_DSP_TRACES');
   // Isolate the DSP material before animating its emissive heat cue: the export
@@ -285,12 +289,13 @@ export function build({ quality, state, model: scenario }) {
   // The driver, TIA and laser sources get their own, dimmer heat glow so every
   // heat arrow starts at a warm source; their silicon is shared with the PIC otherwise.
   const analogHeat = [];
-  for (const [name, pattern] of [['PART_DRIVER', /silicon/i], ['PART_TIA', /silicon/i], ['PART_LASERS', /Molded packages/i]]) {
+  for (const [name, pattern, watts] of [['PART_DRIVER', /silicon/i, PART_W.module.driver], ['PART_TIA', /silicon/i, PART_W.module.tia], ['PART_LASERS', /Molded packages/i, PART_W.module.lasers]]) {
     const isolated = new Map();
     object(name).traverse(node => {
       if (!node.isMesh || !pattern.test(node.material?.name || '')) return;
       if (!isolated.has(node.material)) {
         const copy = node.material.clone(); copy.emissive.set(0xff6a1a); copy.emissiveIntensity = 0;
+        copy.userData.heatGlow = heatIntensity(0.5, watts, PART_W.module.dsp);
         isolated.set(node.material, copy); analogHeat.push(copy);
       }
       node.material = isolated.get(node.material);
@@ -452,12 +457,13 @@ export function build({ quality, state, model: scenario }) {
       }
       syncFlows();
       // Without the DSP (LPO) the analog chips remain the sources, so the warm band moves and dims.
-      shellHeat.value = state.mode === 'heat' && amount === 1 ? (lpo ? 0.15 : kind === 'lro' ? 0.2 : 0.26) + 0.04 * Math.sin(t * 2) : 0;
+      // glows on the same log rule as the streams: the shell by the whole module's watts, each chip by its own
+      shellHeat.value = state.mode === 'heat' && amount === 1 ? heatIntensity(0.26, PART_W.module[lpo ? 'lpo' : kind === 'lro' ? 'lro' : 'total'], PART_W.module.total) + 0.04 * Math.sin(t * 2) : 0;
       heatX.value = lpo ? anchorWorld('driver')[0] : dspAnchor[0];
       coverBase.value = cover.position.y * CM + 0.615;
-      for (const material of analogHeat) material.emissiveIntensity = state.mode === 'heat' ? 0.25 + 0.05 * Math.sin(t * 2 + 1) : 0;
+      for (const material of analogHeat) material.emissiveIntensity = state.mode === 'heat' ? material.userData.heatGlow * (1 + 0.2 * Math.sin(t * 2 + 1)) : 0;
       for (const material of heatMaterials) material.emissiveIntensity = state.mode === 'heat' && !lpo
-        ? (kind === 'lro' ? 0.36 : 0.5) + 0.08 * Math.sin(t * 2) : 0;
+        ? heatIntensity(0.5, PART_W.module[kind === 'lro' ? 'lroDsp' : 'dsp'], PART_W.module.dsp) + 0.08 * Math.sin(t * 2) : 0;
       return moving;
     },
   };

@@ -16,6 +16,7 @@ import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cp
 import { ringEicTex, cpoIntro, cpoPartCopy } from './cpo-variants.js';
 import { roundCorners, keepCwCorner, CW_BEND } from './side-cpo-routes.js';
 import { buildBailly, BAILLY_DETAIL } from './cpo-bailly.js';
+import { tagHeat, balanceHeat, PART_W } from '../heat.js';
 export { roundCorners, keepCwCorner };
 
 export function build({ quality, state, authoredHardware = false, authoredAsicMaterial = null }) {
@@ -199,8 +200,9 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     R.addFlow('data', flow([w(pdX, 0.09, rxRowZ(i)), w(pdX, 0.89, rxRowZ(i)), w(electricalEdge, 0.96, zOut), w(electricalEdge - 1.6, 0.96, zOut)], 'eth', FLOW.elec));
   }
   engines.forEach(({ x, z }) => R.addFlow('power', flow([[x, -1.0, z], [x, Y.sub, z], [x, Y.eng, z]], 'v33', FLOW.power)));
-  engines.forEach(({ x, z }) => R.addFlow('heat', flow([[x, Y.eng + 0.1, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat)));
-  R.addFlow('heat', flow([[-1.4, pipeTop, pipeZ], [-1.4, Y.plate, pipeZ], [-1.4, Y.plate, 3], [1.4, Y.plate, 3], [1.4, Y.plate, pipeZ], [1.4, pipeTop, pipeZ]], 'cool', { count: 10, speed: 1.6, size: 0.06, k: 2.2, trail: false }));
+  // Heat per part on the site's one log rule (src/heat.js, PART_W.cpo): each engine, then the water carrying it all.
+  engines.forEach(({ x, z }, i) => R.addFlow('heat', tagHeat(flow([[x, Y.eng + 0.1, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat), `engine-${i}`, PART_W.cpo.engine)));
+  R.addFlow('heat', tagHeat(flow([[-1.4, pipeTop, pipeZ], [-1.4, Y.plate, pipeZ], [-1.4, Y.plate, 3], [1.4, Y.plate, 3], [1.4, Y.plate, pipeZ], [1.4, pipeTop, pipeZ]], 'cool', { count: 10, speed: 1.6, size: 0.06, k: 2.2, trail: false }), 'coldplate-water', PART_W.cpo.asic + engines.length * PART_W.cpo.engine, 'carrier'));
 
   // ---- shared flows: the switch chip's power and heat, the laser modules' power ----
   const shared = (mode, f) => { lists[mode].push(f); scene.add(f.group); };
@@ -208,7 +210,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   for (let i = 0; i < 24; i++) { const x = (rnd() - 0.5) * activeDieSpan, z = (rnd() - 0.5) * activeDieSpan; shared('power', flow([[x, -1.2, z], [x, Y.sub, z], [x, Y.die, z]], 'core', FLOW.power)); }
   els.forEach(([x, z]) => shared('power', flow([[x + 2.3, Y.sub + 0.45, z], [x + 0.9, Y.sub + 0.45, z]], 'v33', FLOW.power)));
   // A few sampled columns read as rising heat; a dense sheet hid the die and the plate behind it.
-  for (let i = 0; i < 14; i++) { const x = (rnd() - 0.5) * activeDieSpan, z = (rnd() - 0.5) * activeDieSpan; shared('heat', flow([[x, Y.die + 0.06, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat)); }
+  for (let i = 0; i < 14; i++) { const x = (rnd() - 0.5) * activeDieSpan, z = (rnd() - 0.5) * activeDieSpan; shared('heat', tagHeat(flow([[x, Y.die + 0.06, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat), 'asic', PART_W.cpo.asic)); }
 
   // ======================= labels =======================
   const FZ = SUB / 2 + 4.6;                              // the labels stand in front of the package, clear of the view's buttons
@@ -230,6 +232,8 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
 
   // ======================= Broadcom-style package =======================
   const bailly = buildBailly({ view: views.mzm, M, B: views.mzm.B, authoredHardware, Y, viewLabel, FZ, ELSX, els });
+  // one heat rule over both packages' streams: sources against sources, carriers (water, air) against carriers
+  balanceHeat(heatFlows);
 
   scene.add(S.build()); scene.add(N.build({ cast: false }));
   for (const k of CPO_VARIANTS) views[k].group.add(views[k].B.build({ cast: false }));
