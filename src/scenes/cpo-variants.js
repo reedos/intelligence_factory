@@ -1,27 +1,25 @@
-// The CPO level's three engine views (Reed, 10/01/2026), shared by the authored (Blender) and the native package:
-//   ring  electronic die stacked on the photonic die, micro-ring modulators: the NVIDIA-style original drawing
-//   mzm   electronic die stacked on the photonic die, segmented Mach-Zehnder modulators: Broadcom-style, as reported
-//         from write-ups of its ISSCC 2026 paper 23.4 (Tencent Cloud developer community, SemiAnalysis)
-//   mono  one die, drivers beside the rings and TIAs beside the photodiodes: Ranovus Odin / Ayar Labs TeraPHY-style
-// Only the engines change. The package, its 18 engines, every count and the fibers stay NVIDIA's; floorplans are
-// representative (evidence.js 'cpo-engine-variants'). Layout numbers live in side-geometry.js (CPO_RING, CPO_MZM,
-// CPO_MONO, CPO_EIC).
-// Spec rows stay those of the shared cards (their evidence chips are keyed by position): data.js carries the rows
-// for every view on each card, and this file changes only titles, kickers and bodies.
+// The CPO level's two designs (Reed, 10/01/2026): the faces painted at runtime and the panel's words.
+//   ring  NVIDIA-style: an electronic die stacked on a micro-ring photonic die, in NVIDIA's Quantum-X package
+//   mzm   Broadcom-style: a 51.2T Bailly-class package of eight radial tiles, each an electronic die over the
+//         electrical end of a photonic die with segmented Mach-Zehnder modulators (write-ups of Broadcom's ISSCC 2026
+//         paper 23.4) and FR4 wavelength multiplexing (Broadcom's Bailly release)
+// Layout numbers live in side-geometry.js (CPO_DIE, CPO_RING, CPO_MZM, CPO_EIC); floorplans are representative
+// (evidence.js 'cpo-circuit-partition', 'cpo-bailly-layout'). Each design has its own parts in data.js.
 import { THREE, canvasTex } from './side-kit.js';
-import { CPO_VARIANTS, CPO_MZM, CPO_MONO, CPO_EIC, cpoBlocks } from './side-geometry.js';
+import { CPO_VARIANTS, CPO_MZM, CPO_EIC, cpoBlocks } from './side-geometry.js';
 
 export { CPO_VARIANTS };
-export const CPO_VARIANT_COLOR = { ring: '#62e6ff', mzm: '#ffcf7a', mono: '#8fd3ff' };
+export const CPO_VARIANT_COLOR = { ring: '#62e6ff', mzm: '#ffcf7a' };
 
 // ---------- faces ----------
-// An electronic die's canvas (1024 × 768) is sampled with u mirrored, like the original EIC face: canvas top is the
-// die's +z edge (its receive side) and canvas left its fiber side, so the lettering reads from the default view, and
-// a block drawn at eicPixel(kind, px, py) lies directly over photonic-frame pixel (px, py) once the die is bonded
-// face-down over its rect (side-geometry CPO_EIC).
+// An electronic die's canvas is sampled with u mirrored, like the original EIC face: canvas top is the die's +z edge
+// (its receive side) and canvas left its fiber side, so the lettering reads from the default view, and a block drawn
+// at eicPixel(kind, px, py) lies directly over photonic-frame pixel (px, py) once the die is bonded face-down over its
+// rect (side-geometry CPO_EIC). Each canvas keeps its die's aspect.
+export const EIC_CANVAS = { ring: [1024, 768], mzm: [1024, 960] };
 export function eicPixel(kind, px, py) {
-  const [x0, y0, x1, y1] = CPO_EIC[kind];
-  return [(x1 - px) / (x1 - x0) * 1024, (y1 - py) / (y1 - y0) * 768];
+  const [x0, y0, x1, y1] = CPO_EIC[kind], [W, H] = EIC_CANVAS[kind];
+  return [(x1 - px) / (x1 - x0) * W, (y1 - py) / (y1 - y0) * H];
 }
 const srgb = v => Math.round(255 * Math.min(1, Math.max(0, v)) ** (1 / 2.2));
 // Bare silicon, as side-kit's eicTex: scribe lane, seal ring, guard ring, a mirror-dark die with faint thin-film
@@ -76,152 +74,127 @@ function macro(g, [x0, y0, x1, y1]) {
 }
 const around = (rects, pad) => [Math.min(...rects.map(r => r[0])) - pad, Math.min(...rects.map(r => r[1])) - pad, Math.max(...rects.map(r => r[2])) + pad, Math.max(...rects.map(r => r[3])) + pad];
 const centered = ([cx, cy], w, h) => [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
-// The stacked views' electronic dies: each driver block centered over the modulator it drives (the ring; the
-// middle of the Mach-Zehnder electrode run, which its block spans) and each TIA block over its photodiode, in lane
-// order. The Mach-Zehnder die also carries one shared block (the write-ups list a transmit PLL, shared circuits and
-// ADC/DAC blocks on the same die). Lettering names functions, not counts.
-const BLOCK = { ring: { drv: [76, 30], tia: [104, 26] }, mzm: { drv: [540, 36], tia: [104, 26] } };
+// The electronic dies: each driver block centered over the modulator it drives (the ring; the middle of the
+// Mach-Zehnder electrode run, which its block spans) and each TIA block over its photodiode, in lane order. The rest
+// of the die holds representative support blocks, lettered as such: the host interface along the electrical edge,
+// where the package traces land, then clocking, control, bias, test and power. On the Mach-Zehnder die the clocking,
+// transmit DSP and ADC/DAC blocks are the ones the write-ups of Broadcom's paper list on its single die (a transmit
+// PLL, a CDR and transmit DSP, ADC/DAC for photonic-die sensing and control); their placement is representative.
+// Support blocks are rects in the photonic frame [x0, y0, x1, y1].
+const BLOCK = { ring: { drv: [76, 30], tia: [64, 26] }, mzm: { drv: [500, 38], tia: [64, 24] } };
+const SUPPORT = {
+  ring: [['HOST I/O', [14, 30, 60, 360]], ['PLL · CLOCK', [75, 30, 170, 100]], ['CONTROL', [75, 115, 170, 190]],
+    ['RING BIAS · HEATERS', [240, 30, 420, 95]], ['TEST', [240, 140, 420, 190]], ['POWER · DECAP', [75, 214, 330, 360]]],
+  mzm: [['HOST I/O', [22, 20, 52, 300]], ['TX PLL', [66, 20, 150, 72]], ['TX DSP · CDR', [66, 92, 150, 152]],
+    ['ADC/DAC · CONTROL', [66, 172, 150, 236]], ['TEST', [66, 248, 150, 300]], ['POWER · DECAP', [162, 172, 278, 300]]],
+};
+// Lettering for the driver and TIA groups, placed in free space beside them; the arrow points at the group as seen
+// from the default view (canvas left is the die's fiber side).
+const GROUP_TEXT = {
+  ring: [['TX DRIVERS', [330, 117], [200, 117]], ['RX TIAs', [370, 290], [440, 290]]],
+  mzm: [['TX DRIVERS', [210, 161], [210, 144]], ['RX TIAs', [300, 163], [300, 178]]],
+};
+const NOTE_AT = { ring: [250, 202], mzm: [108, 82] };
+const toCanvasRect = (kind, [x0, y0, x1, y1]) => { const [a, b] = eicPixel(kind, x1, y1), [c, d] = eicPixel(kind, x0, y0); return [a, b, c, d]; };
 export function eicBlocks(kind) {
   const b = cpoBlocks(kind), size = BLOCK[kind];
   return { drivers: b.drivers.map(p => centered(eicPixel(kind, ...p), ...size.drv)), tias: b.tias.map(p => centered(eicPixel(kind, ...p), ...size.tia)),
-    shared: kind === 'mzm' ? [[120, 100, 400, 190]] : [] };
+    support: SUPPORT[kind].map(([name, r]) => ({ name, rect: toCanvasRect(kind, r) })) };
 }
-const LETTERING = {
-  ring: { tx: ['TX DRIVERS', 330, 600], rx: ['RX TIAs →', 640, 190] },
-  mzm: { tx: ['TX DRIVERS ↓', 300, 330], rx: ['RX TIAs →', 620, 150] },
-};
-function stackedEicTex(kind) {
-  const t = canvasTex(1024, 768, (g, w, h) => {
-    const { drivers, tias, shared } = eicBlocks(kind), all = [...drivers, ...tias, ...shared];
+function eicFaceTex(kind) {
+  const [CW, CH] = EIC_CANVAS[kind];
+  const t = canvasTex(CW, CH, (g, w, h) => {
+    const { drivers, tias, support } = eicBlocks(kind), all = [...drivers, ...tias, ...support.map(s => s.rect)];
     bareSilicon(g, w, h, all);
     g.fillStyle = 'rgba(150,160,175,0.16)';
     for (let x = 64; x < w - 32; x += 64) g.fillRect(x, 32, 3, h - 64);
     for (let y = 48; y < h - 32; y += 48) g.fillRect(32, y, w - 64, 3);
-    for (const r of all) macro(g, r);
+    for (const r of [...drivers, ...tias]) macro(g, r);
+    g.textBaseline = 'middle'; g.textAlign = 'center';
+    for (const { name, rect: [x0, y0, x1, y1] } of support) {
+      g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(x0, y0, x1 - x0, 1.5); g.fillRect(x0, y1 - 1.5, x1 - x0, 1.5); g.fillRect(x0, y0, 1.5, y1 - y0); g.fillRect(x1 - 1.5, y0, 1.5, y1 - y0);
+      const vertical = x1 - x0 < 120, size = vertical ? 15 : 17;
+      g.font = `600 ${size}px ui-monospace, Consolas, monospace`;
+      g.fillStyle = 'rgba(8,10,16,0.6)';
+      if (vertical) {   // a narrow block: one letter per line, top to bottom
+        const chars = [...name.replace(/ /g, '')], top = (y0 + y1) / 2 - chars.length * size * .55;
+        g.fillRect((x0 + x1) / 2 - size * .6, top - size * .6, size * 1.2, chars.length * size * 1.1 + size * .2);
+        g.fillStyle = 'rgba(190,198,212,0.7)';
+        chars.forEach((c, k) => g.fillText(c, (x0 + x1) / 2, top + k * size * 1.1));
+      } else {
+        const tw = g.measureText(name).width;
+        g.fillRect((x0 + x1) / 2 - tw / 2 - 6, (y0 + y1) / 2 - size * .7, tw + 12, size * 1.4);
+        g.fillStyle = 'rgba(190,198,212,0.7)'; g.fillText(name, (x0 + x1) / 2, (y0 + y1) / 2);
+      }
+    }
     g.lineWidth = 2.5;
     g.strokeStyle = 'rgba(98,230,255,0.7)';
     const o = kind === 'mzm' ? 2 : 4;   // the Mach-Zehnder blocks sit at nearly the lane pitch
     for (const r of drivers) g.strokeRect(r[0] - o, r[1] - o, r[2] - r[0] + 2 * o, r[3] - r[1] + 2 * o);
     const rx = around(tias, 6); rx[1] = Math.max(31, rx[1]);
     g.strokeStyle = 'rgba(255,122,217,0.7)'; g.strokeRect(rx[0], rx[1], rx[2] - rx[0], rx[3] - rx[1]);
-    g.textBaseline = 'middle'; g.textAlign = 'center'; g.font = '600 24px ui-monospace, Consolas, monospace';
-    const L = LETTERING[kind];
-    g.fillStyle = 'rgba(160,236,255,0.78)'; g.fillText(L.tx[0], L.tx[1], L.tx[2]);
-    g.fillStyle = 'rgba(255,170,230,0.78)'; g.fillText(L.rx[0], L.rx[1], L.rx[2]);
-    g.font = '500 18px ui-monospace, Consolas, monospace'; g.fillStyle = 'rgba(190,198,212,0.6)';
-    for (const r of shared) g.fillText('PLL · shared', (r[0] + r[2]) / 2, r[3] + 18);
-    g.textAlign = 'left'; g.fillStyle = 'rgba(190,198,212,0.5)'; g.fillText('EIC · as drawn', 48, 722);
+    g.font = '600 22px ui-monospace, Consolas, monospace';
+    for (const [text, at, toward] of GROUP_TEXT[kind]) {
+      const [cx, cy] = eicPixel(kind, ...at), [tx, ty] = eicPixel(kind, ...toward);
+      const arrow = Math.abs(tx - cx) > Math.abs(ty - cy) ? (tx < cx ? '← ' : ' →') : (ty < cy ? ' ↑' : ' ↓');
+      g.fillStyle = text.startsWith('TX') ? 'rgba(160,236,255,0.82)' : 'rgba(255,170,230,0.82)';
+      g.fillText(arrow === '← ' ? arrow + text : text + arrow, cx, cy);
+    }
+    g.font = '500 16px ui-monospace, Consolas, monospace'; g.fillStyle = 'rgba(190,198,212,0.55)';
+    g.fillText('EIC · blocks as drawn', ...eicPixel(kind, ...NOTE_AT[kind]));
   }, { repeat: [1, 1] });
   t.flipY = false; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.repeat.x = -1; t.offset.x = 1;
   return t;
 }
-export const ringEicTex = () => stackedEicTex('ring');
-export const eicMzmTex = () => stackedEicTex('mzm');
-// The one-die view's face: the photonics (laser bus, rings, lane waveguides, photodiodes) and the circuits beside
-// them, all on one silicon die. Sampled like eicTex (u mirrored, canvas top = the die's +z edge), so a photonic-frame
-// pixel (px, py) paints at (W - px·s, H - py·s) and the lettering reads from the default view. The Blender detail
-// lays its 3D waveguides and rings over exactly these painted positions; the packaged engines show the face alone.
-export const MONO_FACE = { w: 1024, h: 768, s: 2 };
-export const monoAt = (px, py) => [MONO_FACE.w - px * MONO_FACE.s, MONO_FACE.h - py * MONO_FACE.s];
-const monoRect = ([x0, y0, x1, y1]) => { const [a, b] = monoAt(x1, y1), [c, d] = monoAt(x0, y0); return [a, b, c, d]; };
-export function monoFaceTex() {
-  const t = canvasTex(MONO_FACE.w, MONO_FACE.h, (g, w, h) => {
-    const O = CPO_MONO, s = MONO_FACE.s, drivers = Array.from({ length: 8 }, (_, i) => monoRect(O.driver(i))), tias = Array.from({ length: 8 }, (_, i) => monoRect(O.tia(i)));
-    bareSilicon(g, w, h, [...drivers, ...tias], 41);
-    for (const r of [...drivers, ...tias]) macro(g, r);
-    g.lineCap = 'round'; g.lineJoin = 'round';
-    const line = (color, width, pts) => { g.strokeStyle = color; g.lineWidth = width; g.beginPath(); pts.forEach(([px, py], k) => { const [x, y] = monoAt(px, py); if (k) g.lineTo(x, y); else g.moveTo(x, y); }); g.stroke(); };
-    const amber = 'rgba(255,179,71,0.9)', cyan = 'rgba(98,230,255,0.95)', pink = 'rgba(255,122,217,0.9)', gold = 'rgba(214,170,112,0.95)';
-    line(amber, 3 * s, [[506, O.busY], [O.manX, O.busY], [O.manX, O.row(7)]]);
-    for (let i = 0; i < 8; i++) {
-      const y = O.row(i), rx = O.ringX(i), d1 = O.driver(i)[2];
-      line(amber, 3 * s, [[O.manX, y], [rx - 14, y]]);
-      line(cyan, 3 * s, [[rx - 14, y], [506, y]]);
-      const [cx, cy] = monoAt(rx, O.ringZ(i));
-      g.strokeStyle = cyan; g.lineWidth = 2.5 * s; g.beginPath(); g.arc(cx, cy, O.ringR * s, 0, Math.PI * 2); g.stroke();
-      line(gold, 1.5 * s, [[d1, O.ringZ(i)], [rx - O.ringR, O.ringZ(i)]]);   // the driver's own short metal to its ring
-    }
-    for (let i = 0; i < 8; i++) {
-      const y = O.rxRow(i);
-      line(pink, 3 * s, [[506, y], [O.pdX + 13, y]]);
-      const [px0, py0] = monoAt(O.pdX + 13, y + 6); g.fillStyle = 'rgba(255,122,217,0.95)'; g.fillRect(px0, py0, 26 * s, 12 * s);   // germanium photodiode
-      line(gold, 1.5 * s, [[O.pdX - 13, y], [O.tia(i)[2], y]]);   // photodiode to its TIA
-    }
-    g.lineWidth = 2;
-    const rx = around(tias, 5);
-    g.strokeStyle = 'rgba(98,230,255,0.55)';
-    for (const r of drivers) g.strokeRect(r[0] - 3, r[1] - 3, r[2] - r[0] + 6, r[3] - r[1] + 6);
-    g.strokeStyle = 'rgba(255,122,217,0.6)'; g.strokeRect(rx[0], rx[1], rx[2] - rx[0], rx[3] - rx[1]);
-    g.textBaseline = 'middle'; g.textAlign = 'center';
-    g.fillStyle = 'rgba(190,198,212,0.62)'; g.font = '600 17px ui-monospace, Consolas, monospace';
-    const [, my] = monoAt(0, (O.row(7) + O.rxRow(0)) / 2);
-    g.fillText('ONE DIE · drivers beside rings · TIAs beside photodiodes', w / 2, my);
-    g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(0, 0, 12, h);   // the fiber-coupling edge (+x local, the die's right in the frame)
-  }, { repeat: [1, 1] });
-  t.flipY = false; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.repeat.x = -1; t.offset.x = 1;
-  return t;
-}
-// The native package's flat stand-in for the Mach-Zehnder photonic die, drawn in ringPicTex's frame and convention
-// (the authored build models the same layout in 3D).
+export const ringEicTex = () => eicFaceTex('ring');
+export const eicMzmTex = () => eicFaceTex('mzm');
+// The Mach-Zehnder tile's photonic die face, frame 810 × 320, drawn as the authored detail models it: per FR4 group a
+// laser bus into a wavelength demultiplexer, four lanes that split into two arms with electrode segments alongside
+// and a bias heater, rejoin, and meet in a multiplexer on one transmit fiber; receive through a demultiplexer to four
+// photodiodes; edge couplers at the fiber edge. Painted onto the packaged tiles (sampled like the electronic die: u
+// mirrored, canvas top the +z edge, so frame pixel (px, py) paints at (W - px, H - py)), and used whole on the native
+// stand-in.
 export function mzmCpoPicTex() {
-  return canvasTex(512, 384, (g, w, h) => {
+  const W = 810, H = 320, P = (px, py) => [W - px, H - py];
+  const t = canvasTex(W, H, (g) => {
     const M = CPO_MZM;
-    g.fillStyle = '#4a5468'; g.fillRect(0, 0, w, h); g.lineCap = 'round'; g.lineJoin = 'round';
-    g.strokeStyle = 'rgba(255,179,71,0.9)'; g.lineWidth = 3;
-    g.beginPath(); g.moveTo(w - 12, M.busY); g.lineTo(M.manX, M.busY); g.lineTo(M.manX, M.row(7)); g.stroke();
-    for (let i = 0; i < 8; i++) {
-      const y = M.row(i);
-      g.strokeStyle = 'rgba(255,179,71,0.9)'; g.lineWidth = 3; g.beginPath(); g.moveTo(M.manX, y); g.lineTo(M.split, y); g.stroke();
-      g.strokeStyle = 'rgba(98,230,255,0.95)'; g.lineWidth = 1.5;
-      g.beginPath(); g.moveTo(M.split, y); g.lineTo(M.armIn, y - M.arm); g.lineTo(M.armOut, y - M.arm); g.lineTo(M.join, y); g.lineTo(w - 12, y); g.stroke();
-      g.beginPath(); g.moveTo(M.split, y); g.lineTo(M.armIn, y + M.arm); g.lineTo(M.armOut, y + M.arm); g.lineTo(M.join, y); g.stroke();
-      g.fillStyle = 'rgba(201,161,74,0.9)';
-      for (let k = 0; k < M.segments; k++) { const [a, b] = M.seg(k); for (const sgn of [-1, 1]) g.fillRect(a, y + sgn * M.strip - M.stripW / 2, b - a, M.stripW); }
-      g.fillStyle = 'rgba(200,80,60,0.85)'; g.fillRect(M.heater[0], y - M.strip - M.stripW / 2, M.heater[1] - M.heater[0], M.stripW);
+    g.fillStyle = '#4a5468'; g.fillRect(0, 0, W, H); g.lineCap = 'round'; g.lineJoin = 'round';
+    const line = (color, width, pts) => { g.strokeStyle = color; g.lineWidth = width; g.beginPath(); pts.forEach((q, k) => { const [x, y] = P(...q); if (k) g.lineTo(x, y); else g.moveTo(x, y); }); g.stroke(); };
+    const rect = (color, [x0, y0, x1, y1]) => { const [a, b] = P(x1, y1); g.fillStyle = color; g.fillRect(a, b, x1 - x0, y1 - y0); };
+    const amber = 'rgba(255,179,71,0.9)', cyan = 'rgba(98,230,255,0.95)', pink = 'rgba(255,122,217,0.9)', gold = 'rgba(201,161,74,0.9)';
+    for (let gi = 0; gi < 2; gi++) {
+      const dm = M.demux[gi], mx = M.mux[gi], rd = M.rxDemux[gi];
+      line(amber, 3, [[798, M.lasers[gi]], [dm[2], M.lasers[gi]]]);
+      for (let i = 4 * gi; i < 4 * gi + 4; i++) {
+        const y = M.row(i);
+        line(amber, 2.5, [[dm[2], y], [M.split, y]]);
+        line(cyan, 1.5, [[M.split, y], [M.armIn, y - M.arm], [M.armOut, y - M.arm], [M.join, y], [mx[0], y]]);
+        line(cyan, 1.5, [[M.split, y], [M.armIn, y + M.arm], [M.armOut, y + M.arm], [M.join, y]]);
+        for (let k = 0; k < M.segments; k++) { const [a, b] = M.seg(k); for (const sg of [-1, 1]) rect(gold, [a, y + sg * M.strip - M.stripW / 2, b, y + sg * M.strip + M.stripW / 2]); }
+        rect('rgba(200,80,60,0.85)', [M.heater[0], y - M.strip - M.stripW / 2, M.heater[1], y - M.strip + M.stripW / 2]);
+      }
+      line(cyan, 3, [[mx[2], M.txOut[gi]], [798, M.txOut[gi]]]);
+      line(pink, 3, [[798, M.rxIn[gi]], [rd[2], M.rxIn[gi]]]);
+      for (let i = 4 * gi; i < 4 * gi + 4; i++) { line(pink, 2, [[rd[0], M.rxRow(i)], [M.pdX + 13, M.rxRow(i)]]); rect('rgba(255,122,217,0.95)', [M.pdX - 13, M.rxRow(i) - 5, M.pdX + 13, M.rxRow(i) + 5]); }
+      for (const r of [dm, mx, rd]) rect('rgba(120,150,200,0.85)', r);
     }
-    g.fillStyle = 'rgba(255,255,255,0.4)'; g.fillRect(0, (M.row(7) + M.rxRow(0)) / 2, w, 2);
-    for (let i = 0; i < 8; i++) {
-      const y = M.rxRow(i);
-      g.strokeStyle = 'rgba(255,122,217,0.9)'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(w - 12, y); g.lineTo(90, y); g.stroke();
-      g.fillStyle = 'rgba(255,122,217,0.95)'; g.fillRect(64, y - 6, 26, 12);
-    }
-    g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(w - 12, 0, 12, h);
+    for (const y of [...M.lasers, ...M.txOut, ...M.rxIn]) rect('rgba(220,235,245,0.8)', [784, y - 4, 806, y + 4]);   // edge couplers
   });
+  t.flipY = false; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.repeat.x = -1; t.offset.x = 1;
+  return t;
 }
 
 // ---------- words ----------
-// What the panel says in each view. The ring view is the level's own text (data.js); the others replace titles,
-// kickers and bodies only.
-export const CPO_VARIANT_NAME = { ring: 'Rings, stacked', mzm: 'Mach-Zehnder, stacked', mono: 'One die' };
+// What the panel says in the Broadcom-style design. Its parts are its own (data.js, ids mzm-*); the NVIDIA-style
+// design is the level's own text.
+export const CPO_VARIANT_NAME = { ring: 'NVIDIA-style · micro-rings', mzm: 'Broadcom-style · Mach-Zehnder' };
 export function cpoIntro(kind, mode) {
-  if (kind === 'mzm') return {
-    power: 'Mach-Zehnder view: the same package and counts, with each engine drawn Broadcom-style. An electronic die still sits on a photonic die, but the photonic die modulates with Mach-Zehnder interferometers instead of rings, so its lanes run long and its drivers sit along them. The package’s size and counts stay NVIDIA’s; the engine floorplan is representative.',
-    data: 'Mach-Zehnder view, Broadcom-style as reported from its ISSCC 2026 paper: lanes leave the switch chip through package traces to each engine’s electronic die, whose drivers swing segmented Mach-Zehnder modulators on the photonic die below. Photodiodes there read incoming light for TIAs on the same electronic die. Eight lanes each way are drawn, as in the other views; Broadcom’s engine carries 64. Laser light still arrives by fiber from the front panel.',
-    heat: 'Mach-Zehnder view: the switch chip and every engine still sit in one package under one cold plate; only the engines’ modulators and their drivers are drawn differently. The cold plate drawn is representative.',
+  if (kind !== 'mzm') return null;
+  return {
+    power: 'A Broadcom-style switch package, in the class of its 51.2T Bailly: eight 6.4T optical engines around a Tomahawk 5 switch chip, each a long tile with its electronics at the switch-chip end and its fiber connector at the package edge. Each engine is fed from the package substrate like the switch chip. Remote laser modules at the front supply the light. The package’s size and layout are representative; the counts are Broadcom’s.',
+    data: 'Lanes leave the switch chip’s SerDes through package traces to the electronic die of each of the eight tiles, whose drivers swing segmented Mach-Zehnder modulators on the photonic die below; multiplexers put four wavelengths on each transmit fiber, as 400G FR4 ports do. Receive light is split by wavelength to photodiodes whose TIAs, on the electronic die, drive the switch chip directly. Laser light arrives by fiber from the front panel.',
+    heat: 'The switch chip and the eight engines share one package. Broadcom’s 51.2T reference system is air-cooled, so a finned heat sink is drawn over the package, in x-ray, with air through its channels; its shape is representative.',
   }[mode];
-  if (kind === 'mono') return {
-    power: 'One-die view, in the style of Ranovus Odin and Ayar Labs’ monolithic chips: each engine is a single die, its drivers and TIAs built on the same silicon as its ring modulators and photodiodes. No electronic die is stacked on top. The package’s size and counts stay NVIDIA’s; the floorplan is representative.',
-    data: 'One-die view: lanes leave the switch chip through package traces to each engine’s single die, where a driver beside each ring modulator swings it and a TIA beside each photodiode amplifies its current. No bond joins two chips; the circuits sit side by side on one die. Laser light still arrives by fiber from the front panel.',
-    heat: 'One-die view: each engine’s electronics and photonics share one die, and the switch chip and every engine still sit in one package under one cold plate. The cold plate drawn is representative.',
-  }[mode];
-  return null;
 }
-export function cpoPartCopy(kind, part, mode) {
-  if (kind === 'mzm') {
-    if (part.id === 'engine') return { ...part, body: 'Each engine, drawn Broadcom-style, is an electronic chip bonded on top of a photonic chip that modulates with Mach-Zehnder interferometers, fed from the package substrate like the switch chip beside it. The counts stay NVIDIA’s: 18 engines, each doing the work of one 1.6T module.' };
-    if (part.id === 'eic') return { ...part, kicker: 'One die drives every lane', body: 'In this Mach-Zehnder view the electronic die covers only the electrical end of the photonic die: one driver block per lane over that modulator’s electrode segments, one TIA over each photodiode, and a shared block. The modulator arms run on past it. That follows the write-ups of Broadcom’s ISSCC 2026 paper 23.4: one 7 nm die carries all 64 transmit and receive channels and a transmit PLL, retimes transmit before its segmented MZM drivers, and sends each TIA’s output straight to the switch chip through the package substrate. The write-ups place this engine in Broadcom’s 51.2T (Tomahawk 5) generation, at 106.25 Gb/s per lane. Short bonds join it to the photonic die below. Eight of its 64 lanes each way are drawn; the floorplan is representative.' };
-    if (part.id === 'rings') return { ...part, title: 'Mach-Zehnder modulators', kicker: 'Transmit', body: 'Each lane splits its laser light into two long arms on the photonic die and joins it again. Electrodes alongside the arms carry the driver’s signal, which shifts the light’s phase in the arms, so the rejoined light brightens or dims with the data. Broadcom’s modulators, as reported, are driven in three segments each: one for the PAM4 signal’s low bit, two for its high bit; the segments lie under the electronic die, and past it the arms run on, with a bias heater, to where they rejoin. Mach-Zehnder modulators are millimeters long, far longer than rings; these arms are drawn many times a ring’s size but not to scale. Eight lanes are drawn; the arrangement is representative.' };
-    if (part.id === 'pd') return { ...part, body: 'Incoming light reaches photodiodes on the photonic die. Short bonds carry their currents up to TIAs on the electronic die, which, in Broadcom’s design as reported, send their outputs straight to the switch chip through the package substrate with no retiming on the way. Placement is representative.' };
-    if (part.id === 'asic' && mode === 'heat') return { ...part, body: 'The switch chip and the optical engines around it share one package, and their heat goes up into one cold plate, whichever modulators the engines use.' };
-    return part;
-  }
-  if (kind === 'mono') {
-    if (part.id === 'engine') return { ...part, body: 'Each engine, drawn in the one-die style, is a single chip holding both its electronics and its photonics, fed from the package substrate like the switch chip beside it. The counts stay NVIDIA’s: 18 engines, each doing the work of one 1.6T module.' };
-    if (part.id === 'eic') return { ...part, title: 'Drivers and TIAs, on the same die', kicker: 'No separate electronic chip', body: 'In the one-die view no electronic chip is stacked on top. Each ring modulator has its driver beside it on the same silicon, and each photodiode its TIA. Ranovus describes its Odin engine as a monolithic electronic and photonic integrated circuit with RF drivers, TIAs and control logic; Ayar Labs has called its approach a micro-ring based monolithic electronic/photonic solution, and says later TeraPHY designs can move the electronics to a separate CMOS die. Block placement is representative.' };
-    if (part.id === 'rings') return { ...part, kicker: 'Transmit, each driver beside its ring', body: 'As in the stacked view, each ring sits beside a waveguide carrying laser light and changes how much of it passes. Here its driver is on the same die, right next to it, joined by on-chip metal instead of a bond between two chips. Ranovus names micro-ring modulators for Odin; Ayar Labs calls its approach micro-ring based. The ring arrangement is representative.' };
-    if (part.id === 'pd') return { ...part, body: 'Incoming light reaches photodiodes on the die, and each photodiode’s current goes straight to a TIA beside it on the same silicon; nothing is bonded between two chips. Placement is representative.' };
-    if (part.id === 'asic' && mode === 'heat') return { ...part, body: 'The switch chip and the optical engines around it share one package, and their heat goes up into one cold plate. In the one-die view each engine’s circuits and photonics share one die.' };
-    return part;
-  }
-  return part;
-}
+// The NVIDIA-style design's parts keep the level's own text.
+export const cpoPartCopy = (kind, part) => part;

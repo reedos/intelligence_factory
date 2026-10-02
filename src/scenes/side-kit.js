@@ -131,8 +131,11 @@ export function mzmPicTex() {
 // light passing it; the output is the same waveguide). Receive: eight waveguides from the fiber edge to photodiodes.
 // Each ring's bond to the driver above sits beside the ring, level with its center: between its own waveguide and the
 // previous lane's, clear of both (a pad above the ring would land on the previous lane's waveguide, 20 px up).
-export const RING = { busY: 24, manX: 24, row: i => 50 + i * 20, ringX: i => 110 + i * 40, ringR: 6, ringGap: 4, rxRow: i => 214 + i * 20, pdX: 77, w: 512, h: 384,
-  bondAt: i => [110 + i * 40 + 13, 50 + i * 20 - 10] };
+// Rings stand in a straight row across the lanes (one ring on each lane's own waveguide, one lane per fiber), so
+// the drivers above them form a row too; photodiodes sit near the fiber edge, where the receive waveguides arrive,
+// under their TIAs (Reed, 10/01/2026).
+export const RING = { busY: 24, manX: 24, row: i => 50 + i * 20, ringX: _i => 200, ringR: 6, ringGap: 4, rxRow: i => 214 + i * 20, pdX: 440, w: 512, h: 384,
+  bondAt: i => [200 + 13, 50 + i * 20 - 10] };
 export function ringPicTex() {
   return canvasTex(RING.w, RING.h, (g, w, h) => {
     g.fillStyle = '#4a5468'; g.fillRect(0, 0, w, h); g.lineCap = 'round'; g.lineJoin = 'round';
@@ -149,8 +152,8 @@ export function ringPicTex() {
     g.fillStyle = 'rgba(255,255,255,0.4)'; g.fillRect(0, (RING.row(7) + RING.rxRow(0)) / 2, w, 2);
     for (let i = 0; i < 8; i++) {
       const y = RING.rxRow(i);
-      g.strokeStyle = 'rgba(255,122,217,0.9)'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(w - 12, y); g.lineTo(90, y); g.stroke();
-      g.fillStyle = 'rgba(255,122,217,0.95)'; g.fillRect(64, y - 6, 26, 12);
+      g.strokeStyle = 'rgba(255,122,217,0.9)'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(w - 12, y); g.lineTo(RING.pdX + 13, y); g.stroke();
+      g.fillStyle = 'rgba(255,122,217,0.95)'; g.fillRect(RING.pdX - 13, y - 6, 26, 12);
     }
     g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(w - 12, 0, 12, h);
   });

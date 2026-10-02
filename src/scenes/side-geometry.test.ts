@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { engineLayout, asicTap, edgeConnOf, elsOf, ELS_LANES, ASIC_HALF, COPPER_HEADS, copperLane, copperChip, PAIR_HALF, cpoFiberRoutes } from './side-geometry.js';
+import { engineLayout, asicTap, edgeConnOf, elsOf, ELS_LANES, ASIC_HALF, COPPER_HEADS, copperLane, copperChip, PAIR_HALF, cpoFiberRoutes, baillyLayout, baillyFiberRoutes, BAILLY, CPO_DIE } from './side-geometry.js';
 
 // Codex's optics review, 09/28: floating-point side vectors sent 12 of 18 ASIC taps outside the chip and 15 of 18
 // connectors off the package edge; four laser modules fed more lanes than one can; an AEC pair missed its retimer.
@@ -95,6 +95,45 @@ describe('CPO package geometry', () => {
         const distance = segmentDistance(a.points[k-1], a.points[k], b.points[l-1], b.points[l]);
         if (distance < required - 1e-6)
           violations.push(`${a.name} segment ${k} / ${b.name} segment ${l}: ${distance} < ${required} cm`);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
+});
+describe('Broadcom-style CPO package geometry', () => {
+  const tiles = baillyLayout(), { L, W } = CPO_DIE.mzm;
+  it('has eight radial tiles, two per side, each tapping the ASIC on the edge it faces', () => {
+    expect(tiles).toHaveLength(8);
+    for (const side of [0, 1, 2, 3]) expect(tiles.filter(t => t.side === side)).toHaveLength(2);
+    for (const t of tiles) {
+      const [x, z] = asicTap(t), across = t.out[0] !== 0 ? x : z, along = t.out[0] !== 0 ? z : x;
+      expect(Math.abs(across)).toBeCloseTo(ASIC_HALF, 9); expect(Math.abs(along)).toBeLessThan(ASIC_HALF);
+      expect(BAILLY.rIn).toBeGreaterThan(ASIC_HALF + .3);                                  // room for the package traces
+      expect(BAILLY.conn[1]).toBeLessThan(SUB / 2);                                         // connector on the package
+      expect(t.r + L / 2).toBeCloseTo(BAILLY.conn[0], 9);                                  // connector at the tile's outer end
+    }
+  });
+  it('tiles never overlap, the corner tiles of neighbouring sides included', () => {
+    const box = (t: any) => { const r0 = BAILLY.rIn, r1 = BAILLY.conn[1], c = [t.out[0] !== 0 ? [r0 * t.out[0], r1 * t.out[0]] : [t.t - W / 2, t.t + W / 2].map(v => v * t.tan[0]), t.out[1] !== 0 ? [r0 * t.out[1], r1 * t.out[1]] : [t.t - W / 2, t.t + W / 2].map(v => v * t.tan[1])];
+      return c.map(([a, b]) => [Math.min(a, b), Math.max(a, b)]); };
+    for (let i = 0; i < tiles.length; i++) for (let j = i + 1; j < tiles.length; j++) {
+      const [ax, az] = box(tiles[i]), [bx, bz] = box(tiles[j]);
+      expect(ax[1] <= bx[0] || bx[1] <= ax[0] || az[1] <= bz[0] || bz[1] <= az[0], `tiles ${i} and ${j}`).toBe(true);
+    }
+  });
+  it('every tile fiber has clearance along its entire route, and data leaves outward above the laser corridor', () => {
+    const fibers = tiles.flatMap((t, i) => Object.entries(baillyFiberRoutes(t, i)).flatMap(([kind, paths]) => paths.map((points, lane) => ({ name: `tile ${i} ${kind} ${lane}`, points, radius: kind === 'cw' ? .008 : .007, kind, t }))));
+    for (const f of fibers) if (f.kind !== 'cw') {
+      const radii = f.points.map(p => p[0] * f.t.out[0] + p[2] * f.t.out[1]);
+      for (let k = 1; k < radii.length; k++) expect(radii[k]).toBeGreaterThan(radii[k - 1]);
+      expect(f.points.at(-1)![1]).toBeGreaterThan(2);
+    } else expect(f.points[0][0]).toBe(7.24);
+    const violations: string[] = [];
+    for (let i = 0; i < fibers.length; i++) for (let j = i + 1; j < fibers.length; j++) {
+      const a = fibers[i], b = fibers[j], required = a.radius + b.radius;
+      for (let k = 1; k < a.points.length; k++) for (let l = 1; l < b.points.length; l++) {
+        const d = segmentDistance(a.points[k - 1], a.points[k], b.points[l - 1], b.points[l]);
+        if (d < required - 1e-6) violations.push(`${a.name} ${k} / ${b.name} ${l}: ${d}`);
       }
     }
     expect(violations).toEqual([]);

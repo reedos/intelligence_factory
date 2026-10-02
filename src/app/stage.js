@@ -76,10 +76,9 @@ export const drillOf = p => p?.drill === 'out' ? backTarget() : p?.drill;
 // the pluggable module inside the optics: full DSP, half-retimed (LRO: DSP on transmit only) or no DSP (LPO); a view of
 // the module only, since the fabric this scenario counts still uses DSP modules
 let moduleVariant = 'dsp';
-// the CPO package's engines: ring modulators under a stacked electronic die (NVIDIA-style), Mach-Zehnder modulators
-// under one (Broadcom-style, as reported) or one die holding both (Ranovus Odin / Ayar Labs-style); a view of the
-// engines only, since the package and its counts stay NVIDIA's (scenes/cpo-variants.js)
-let cpoVariant = 'ring';
+// the CPO level's two packages: NVIDIA-style (micro-rings, the default) or Broadcom-style (Mach-Zehnder, a 51.2T
+// Bailly-class package); kept in the address as ?cpo=mzm so a link opens the same package (scenes/cpo-variants.js)
+let cpoVariant = new URLSearchParams(location.search).get('cpo') === 'mzm' ? 'mzm' : 'ring';
 // tours always narrate the DSP module and the ring engines, so entering one puts both views back
 export function resetVariant() {
   if (moduleVariant !== 'dsp') { moduleVariant = 'dsp'; applyVariant(); }
@@ -87,6 +86,11 @@ export function resetVariant() {
 }
 function applyCpoVariant() {
   built[CPO_LEVEL]?.variant?.set?.(cpoVariant);
+  try {
+    const q = new URLSearchParams(location.search);
+    if (cpoVariant === 'mzm') q.set('cpo', 'mzm'); else q.delete('cpo');
+    history.replaceState(null, '', `${location.pathname}${q.size ? `?${q}` : ''}${location.hash}`);
+  } catch { /* sandboxed viewers refuse */ }
   document.querySelectorAll('[data-cpo-variant]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cpoVariant === cpoVariant)));
   if (ui.scene === CPO_LEVEL && built[CPO_LEVEL]) {
     buildPanel(CPO_LEVEL);
@@ -1080,7 +1084,7 @@ function buildPanel(i) {
     back.innerHTML = `<span class="bo-action">← Back outside</span><span class="bo-destination">${t}</span>`;
     back.setAttribute('aria-label', `Back outside to ${t}`);
   }
-  $('hud-sub').textContent = `${s.kicker ? `${s.kicker} · ` : ''}${voltFor(s).name} · ${s.scale}`;
+  $('hud-sub').textContent = `${s.kicker ? `${s.kicker} · ` : ''}${built[i]?.variant?.sub?.(ui.mode) || voltFor(s).name} · ${s.scale}`;
   const list = $('parts'); list.innerHTML = '';
   $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · ${s.side ? 'interconnects' : `level ${s.n}`} · ${parts.length} parts`;
   const tabN = $('parts-n'); if (tabN) { tabN.textContent = parts.length; tabN.setAttribute('aria-label', `, ${parts.length} parts`); }
@@ -1329,7 +1333,10 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
     }
   }
   if (i === MODULE_LEVEL) applyVariant();
-  if (i === CPO_LEVEL) built[CPO_LEVEL]?.variant?.set?.(cpoVariant);
+  if (i === CPO_LEVEL) {
+    built[CPO_LEVEL]?.variant?.set?.(cpoVariant);
+    document.querySelectorAll('[data-cpo-variant]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cpoVariant === cpoVariant)));
+  }
   buildPanel(i);
   renderSteps();
   applyTier(i);
@@ -1403,6 +1410,11 @@ export async function show({ scene, mode, part }, { scroll = true, still = () =>
   if (scene !== ui.scene || !built[scene]) { go(scene, cinema ? ui.selected : null, { fromShow: true }); await until(() => !live() || (ui.scene === scene && !busy && !!built[scene])); }
   if (!live()) return;                                   // a newer jump, or the reader, took over while this scene was building
   if (mode && mode !== ui.mode) setMode(mode);
+  // a part of the other CPO package brings that package up first (its parts are mzm-*, the landscape cards are shared)
+  if (scene === CPO_LEVEL && part && !['today', 'next'].includes(part)) {
+    const want = part.startsWith('mzm-') ? 'mzm' : 'ring';
+    if (want !== cpoVariant) setCpoVariant(want);
+  }
   if (part) { select(part, true); beacon(part); }
   else {
     deselect();

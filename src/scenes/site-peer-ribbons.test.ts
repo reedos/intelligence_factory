@@ -38,8 +38,8 @@ it('actual module ribbons share exported board transforms and DSP/LPO/assembly v
 });
 it('CPO activates all 18 actual engine CW paths and limits new stack x-ray to Power',()=>{
  const state={mode:'data'},b=cpoBuilder.build({quality:{mobile:false,shadows:false},state});
- const cw=b.dataFlows.filter((f:any)=>f.cls==='cw'),engines=engineLayout();expect(cw).toHaveLength(27); // 18 package paths plus three enlarged-detail samples in each of the three engine views
- expect(cw.filter((f:any)=>f.group.parent?.visible!==false)).toHaveLength(21); // one engine view on screen
+ const cw=b.dataFlows.filter((f:any)=>f.cls==='cw'),engines=engineLayout();expect(cw).toHaveLength(32); // NVIDIA-style: 18 engine paths and three detail samples; Broadcom-style: 8 tile paths and three
+ expect(cw.filter((f:any)=>f.group.parent?.visible!==false)).toHaveLength(21); // one package on screen, the NVIDIA-style one by default
  for(const [i,e]of engines.entries()){
   const p=cw[i].path.getPoint(1);expect(p.x).toBeCloseTo(e.x+e.out[0]*.83+e.tan[0]*.305);expect(p.z).toBeCloseTo(e.z+e.out[1]*.83+e.tan[1]*.305);
  }

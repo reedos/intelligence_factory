@@ -72,8 +72,6 @@ for (const [label, s] of scenarios) {
     if (all || !J || typeof ifx.enterStory !== 'function') {
       const out = [];
       ifx.store.C.SCENES.forEach((sc, i) => [['power', ifx.store.C.PARTS], ['data', ifx.store.C.PARTS_DATA], ['heat', ifx.store.C.PARTS_HEAT]].forEach(([mode, P]) => (P[sc.id] || []).forEach(pt => out.push({ tour: 'explore', i: out.length, link: { scene: i, mode, part: pt.id } }))));
-      // the CPO package's other engine views (ring is the default above): every part again in each
-      if (ifx.setCpoVariant) ifx.store.C.SCENES.forEach((sc, i) => { if (sc.id === 'cpo') for (const variant of ['mzm', 'mono']) [['power', ifx.store.C.PARTS], ['data', ifx.store.C.PARTS_DATA], ['heat', ifx.store.C.PARTS_HEAT]].forEach(([mode, P]) => (P[sc.id] || []).forEach(pt => out.push({ tour: `cpo-${variant}`, i: out.length, variant, link: { scene: i, mode, part: pt.id } }))); });
       return out;
     }
     // the tours' stops, then every part of the side level inside the optics, which no tour passes through
@@ -83,8 +81,7 @@ for (const [label, s] of scenarios) {
   }, everything);
   if (!everything) await p.evaluate(() => ifx.enterStory?.('story'));
   for (const st of stops) {
-    await p.evaluate(async ({ link, sim, variant }) => {
-      ifx.setCpoVariant?.(variant || 'ring');
+    await p.evaluate(async ({ link, sim }) => {
       if (sim) ifx.openClock?.(sim); else ifx.closeClock?.();
       document.querySelector('.view').scrollIntoView({ block: 'start' });
       for (let k = 0; k < 3; k++) {                        // a tour's own first jump can race ours; land for sure

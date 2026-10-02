@@ -3,7 +3,7 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { build as buildDiagram } from './side-cpo.js';
 import { engineLayout, CPO_VARIANTS } from './side-geometry.js';
-import { ringEicTex, eicMzmTex, monoFaceTex } from './cpo-variants.js';
+import { ringEicTex, eicMzmTex, mzmCpoPicTex } from './cpo-variants.js';
 import { THREE, label, note, eicBondTex } from './side-kit.js';
 import { directLink } from './link-art-direction.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
@@ -119,10 +119,9 @@ export function build(args) {
   // packaged engines and the exploded detail.
   const eicMap = ringEicTex(), faceMaps = {
     'Electronic die face': eicMap, 'Detail electronic die face': eicMap,
-    'MZM electronic die face': eicMzmTex(), 'Monolithic die face': monoFaceTex(),
+    'MZM electronic die face': eicMzmTex(), 'MZM photonic die face': mzmCpoPicTex(),
   };
   faceMaps['Detail MZM electronic die face'] = faceMaps['MZM electronic die face'];
-  faceMaps['Detail monolithic die face'] = faceMaps['Monolithic die face'];
   asset.traverse(node => {
     const face = node.isMesh && node.material.name;
     if (faceMaps[face] && !node.material.map) {
@@ -142,15 +141,19 @@ export function build(args) {
   built.camera.pos = [-1, 27, 32];
   built.camera.target = [-1, 1, -2];
   built.scene.add(asset);
-  const plateNote = label(built.scene, 'Heat view: cold plate and coolant pipes in x-ray; mechanics representative', [0, 5.05, 5.2], note, .17);
-  const interposerNote = label(built.scene, 'Data / Power: interposer in x-ray to expose buried electrical routes', [0, 2.2, 5.2], note, .17);
+  // Notes for the inspection layers, one per design where they differ.
+  const tagged = (k, ...a) => { const n = label(built.scene, ...a); n.userData.cpoVariant = k; return n; };
+  const plateNotes = { ring: tagged('ring', 'Heat view: cold plate and coolant pipes in x-ray; mechanics representative', [0, 5.05, 5.2], note, .17),
+    mzm: tagged('mzm', 'Heat view: heat sink in x-ray; shape representative, the reference system is air-cooled', [0, 5.6, 5.2], note, .17) };
+  const slabNotes = { ring: tagged('ring', 'Data / Power: interposer in x-ray to expose buried electrical routes', [0, 2.2, 5.2], note, .17),
+    mzm: tagged('mzm', 'Data / Power: package build-up layers in x-ray to expose buried electrical routes', [0, 2.2, 5.2], note, .17) };
   directLink({ built, model: asset, kind: 'cpo', quality: args.quality, state: args.state });
   // Keep machined highlights crisp while the animated signal cores still bloom.
   Object.assign(built.look, { bloom: .54, threshold: 1.7, envIntensity: .7, exposure: 1.0 });
-  // X-ray plate: a view-angle rim keeps the translucent sheet readable face-on
+  // X-ray plate and heat sink: a view-angle rim keeps the translucent sheet readable face-on
   // and under bloom, instead of vanishing over the glowing die.
   asset.traverse(node => {
-    if (!node.isMesh || node.material.name !== 'Cutaway cold plate') return;
+    if (!node.isMesh || !['Cutaway cold plate', 'Cutaway heat sink', 'Heat sink fins'].includes(node.material.name)) return;
     const m = node.material;
     m.onBeforeCompile = shader => {
       shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>',
@@ -160,14 +163,16 @@ export function build(args) {
     };
     m.customProgramCacheKey = () => 'ifx-cpo-plate-rim';
   });
-  const plate = asset.getObjectByName('CPO_COLDPLATE');
-  if (!plate) throw new Error('CPO mechanical asset is missing its cold-plate assembly');
-  const interposer = asset.getObjectByName('CPO_PACKAGE__Silicon_interposer');
-  if (!interposer?.isMesh) throw new Error('CPO hardware is missing its shared interposer');
-  // The interposer has its own Blender material; the clone keeps the inspection
-  // treatment private to this build so no optical chip is ever ghosted with it.
-  interposer.material = interposer.material.clone();
-  const interposerMaterial = interposer.material;
+  // Each design's cooling: NVIDIA-style a cold plate with coolant pipes; Broadcom-style a heat sink.
+  const cooling = { ring: asset.getObjectByName(meta.coolingGroups.ring), mzm: asset.getObjectByName(meta.coolingGroups.mzm) };
+  if (!cooling.ring || !cooling.mzm) throw new Error('CPO mechanical asset is missing its cooling assemblies');
+  const plate = cooling.ring;
+  // The slab under each design's engines, x-rayed in Data and Power: the ring package's interposer, the Broadcom-style
+  // package's build-up layers. Each has its own Blender material; the clone keeps the inspection treatment private to
+  // this build so no optical chip is ever ghosted with it.
+  const slabs = { ring: asset.getObjectByName('CPO_RING_PACKAGE__Silicon_interposer'), mzm: asset.getObjectByName('CPO_MZM_PACKAGE__Organic_build-up_layers') };
+  if (!slabs.ring?.isMesh || !slabs.mzm?.isMesh) throw new Error('CPO hardware is missing its interposer or build-up layers');
+  for (const slab of Object.values(slabs)) slab.material = slab.material.clone();
   // Power arrives from below the board. An explicitly labeled inspection view
   // reveals those existing paths through selected stack layers; moving the
   // routes above the package would invent a different power connection.
@@ -190,8 +195,9 @@ export function build(args) {
     }
   });
   let showPlate = false, dirty = false;
+  const noteOn = () => !args.state.selected || built.inspection.annotations;
   const syncPlate = () => {
-    const heat = args.state.mode === 'heat', visible = showPlate || heat;
+    const kind = built.variant.kind, heat = args.state.mode === 'heat', visible = showPlate || heat;
     const power = args.state.mode === 'power';
     for (const layer of powerLayers) {
       const transparent = power || layer.transparent;
@@ -201,14 +207,15 @@ export function build(args) {
       layer.material.depthWrite = power ? false : layer.depthWrite;
       layer.mesh.castShadow = layer.castShadow && !power;
     }
-    powerNote.visible = power && (!args.state.selected || built.inspection.annotations);
+    powerNote.visible = power && noteOn();
     const electrical = args.state.mode === 'data' || args.state.mode === 'power';
-    if (interposerMaterial.transparent !== electrical) { interposerMaterial.needsUpdate = true; dirty = true; }
-    interposerMaterial.transparent = electrical;
-    interposerMaterial.opacity = electrical ? .1 : 1;
-    interposerMaterial.depthWrite = !electrical;
-    interposer.castShadow = !!args.quality.shadows && !electrical;
-    interposerNote.visible = electrical && (!args.state.selected || built.inspection.annotations);
+    for (const [k, slab] of Object.entries(slabs)) {
+      const m = slab.material;
+      if (m.transparent !== electrical) { m.needsUpdate = true; dirty = true; }
+      m.transparent = electrical; m.opacity = electrical ? .1 : 1; m.depthWrite = !electrical;
+      slab.castShadow = !!args.quality.shadows && !electrical;
+      slabNotes[k].visible = k === kind && electrical && noteOn();
+    }
     for (const [material, original] of pipeMaterials) {
       const transparent = heat || original.transparent;
       if (material.transparent !== transparent) { material.needsUpdate = true; dirty = true; }
@@ -217,27 +224,35 @@ export function build(args) {
       material.depthWrite = heat ? false : original.depthWrite;
     }
     for (const [mesh, castShadow] of pipeMeshes) mesh.castShadow = heat ? false : castShadow;
-    for (const object of [plate, built.coolingHardware]) {
-      dirty ||= object.visible !== visible; object.visible = visible;
+    for (const [object, on] of [[cooling.ring, visible && kind === 'ring'], [built.coolingHardware, visible && kind === 'ring'], [cooling.mzm, visible && kind === 'mzm']]) {
+      dirty ||= object.visible !== on; object.visible = on;
     }
-    plateNote.visible = visible && (!args.state.selected || built.inspection.annotations);
+    for (const [k, n] of Object.entries(plateNotes)) n.visible = k === kind && visible && noteOn();
   };
   Object.defineProperties(built.inspection, {
     covers: { get: () => showPlate || args.state.mode === 'heat' },
     coversForced: { get: () => args.state.mode === 'heat' },
-    hasCovers: { value: true }, coverLabel: { value: 'cold plate' },
+    hasCovers: { value: true }, coverLabel: { get: () => built.variant.kind === 'mzm' ? 'heat sink' : 'cold plate' },
   });
   built.inspection.setCovers = value => { showPlate = !!value; syncPlate(); };
-  built.inspection.scope = 'Representative package and mechanics; six groups of three engines. Package layers and the cold plate are separated for inspection. Data and Power show the interposer in x-ray to expose buried electrical routes; it is not transparent silicon. Power shows the board and package ceramic in x-ray, with the ASIC partially translucent so its footprint and the schematic supply paths from below remain visible. TX/RX fibers continue outward to front-panel ports outside this diagram; separate lower amber fibers supply laser light. Fiber routing is representative, with surface coupling unfolded for clarity rather than a literal edge-coupled NVIDIA die. Heat view shows the cold plate and coolant pipes in x-ray so their internal flow is visible; the fin channels inside the plate are representative. Moving marks show direction, not lane counts, speed or watts. Electrical and heat motion across display gaps is schematic. The separate engine detail is enlarged 2.5×: its EIC/PIC faces are bonded in hardware, and its dashed leader identifies the enlarged engine. The engine toggle redraws only the 18 engines and the detail: ring modulators under a stacked electronic die (NVIDIA-style), segmented Mach-Zehnder modulators under one (Broadcom-style, as reported), or one die holding the drivers and TIAs beside the rings and photodiodes (Ranovus Odin / Ayar Labs-style); every floorplan is representative, and the package and its counts stay NVIDIA’s.';
-  built.inspection.views = {
+  const SCOPE = {
+    ring: 'Representative package and mechanics; six groups of three engines, counts NVIDIA’s. Package layers and the cold plate are separated for inspection. Data and Power show the interposer in x-ray to expose buried electrical routes; it is not transparent silicon. Power shows the board and package ceramic in x-ray, with the ASIC partially translucent so its footprint and the schematic supply paths from below remain visible. TX/RX fibers continue outward to front-panel ports outside this diagram; separate lower amber fibers supply laser light. Fiber routing is representative, with surface coupling unfolded for clarity rather than a literal edge-coupled NVIDIA die. Heat view shows the cold plate and coolant pipes in x-ray so their internal flow is visible; the fin channels inside the plate are representative. Moving marks show direction, not lane counts, speed or watts. Electrical and heat motion across display gaps is schematic. The separate engine detail is enlarged 2.5×: its EIC/PIC faces are bonded in hardware, and its dashed leader identifies the enlarged engine. Each driver block sits over its ring and each TIA over its photodiode; the electronic die’s other blocks are representative.',
+    mzm: 'Representative Broadcom-style package in the class of the 51.2T Bailly: eight radial engine tiles, two per side, counts Broadcom’s. Tile proportions follow Broadcom’s published package images; sizes, the tile floorplan and the fiber routing are representative. Data and Power show the package build-up layers in x-ray to expose buried electrical routes. Power shows the board and package ceramic in x-ray, with the ASIC partially translucent. Each tile’s 16 transmit and 16 receive fibers leave its fiber connector toward front-panel ports outside this diagram; lower amber fibers bring laser light from remote laser modules, whose count and allocation are illustrative. Heat view shows a finned heat sink in x-ray, because the reference system is air-cooled; its shape is representative. The separate tile detail is enlarged 2.5× and shows eight of its 64 lanes as two FR4 groups of four wavelengths: its electronic die covers the electrical end, with each driver block over its modulator’s electrode segments and each TIA over its photodiode, and the Mach-Zehnder arms run on past it. Drawn arms are far shorter than real silicon Mach-Zehnder modulators. Moving marks show direction, not lane counts, speed or watts.',
+  };
+  Object.defineProperty(built.inspection, 'scope', { get: () => SCOPE[built.variant.kind], configurable: true });
+  const VIEWS = {
+    ring: { label: 'Engine detail · 2.5×', pos: [-10.7, 8.2, 1.8], target: [-11.7, 1.9, -8.4], portrait: { pos: [-10.7, 11, 6], target: [-11.7, 1.9, -8.4] } },
+    mzm: { label: 'Tile detail · 2.5×', pos: [-11.6, 10.2, 3.2], target: [-12.6, 1.9, -8.4], portrait: { pos: [-11.6, 14, 8], target: [-12.6, 1.9, -8.4] } },
+  };
+  const views = {
     diagram: { label: 'Complete diagram', ...built.camera },
     package: { label: 'Package', pos: [14, 18, 27], target: [1, 1.1, 0],
       portrait: { pos: [12, 23, 31], target: [.8, 1.1, 0] } },
-    detail: { label: 'Engine detail · 2.5×', pos: [-10.7, 8.2, 1.8], target: [-11.7, 1.9, -8.4],
-      portrait: { pos: [-10.7, 11, 6], target: [-11.7, 1.9, -8.4] } },
   };
-  // Each engine view's authored dies, bonds, waveguides and electrode segments sit in its own two groups (packaged
-  // engines, exploded detail); the toggle shows one view's groups and the scene's own flows and captions follow.
+  Object.defineProperty(views, 'detail', { get: () => VIEWS[built.variant.kind], enumerable: true });
+  built.inspection.views = views;
+  // Each design's authored meshes sit in its own groups (meta.variantGroups); the toggle shows one design's groups
+  // and the scene's own flows and captions follow.
   const viewGroups = Object.fromEntries(CPO_VARIANTS.map(k => [k, meta.variantGroups[k].map(name => {
     const group = asset.getObjectByName(name);
     if (!group) throw new Error(`CPO asset is missing engine view group ${name}`);
@@ -247,7 +262,7 @@ export function build(args) {
   built.variant.set = next => {
     setNative(next);
     for (const k of CPO_VARIANTS) for (const group of viewGroups[k]) group.visible = k === built.variant.kind;
-    dirty = true;
+    dirty = true; syncPlate();
   };
   built.variant.groups = viewGroups;
   built.variant.set(built.variant.kind);
