@@ -8,7 +8,7 @@
 // This file builds the runtime half of that package: native stand-in geometry (the authored build draws the real
 // meshes from the same layout), flows, captions, guides and pins, all into the package's own groups.
 import { THREE, MAT, flow, die, strand, trace, label, FLOW, COL, note, unitCol } from './side-kit.js';
-import { CPO_MZM, CPO_EIC, CPO_DIE, BAILLY, baillyLayout, baillyFiberRoutes, asicTap, eicBox, frameToLocal, cpoBlocks } from './side-geometry.js';
+import { CPO_MZM, CPO_EIC, CPO_DIE, BAILLY, baillyLayout, baillyFiberRoutes, asicTap, eicBox, frameToLocal, cpoBlocks, engineTraceLandings, landingWorld, tileEntry } from './side-geometry.js';
 import { eicMzmTex, mzmCpoPicTex } from './cpo-variants.js';
 import { roundCorners, keepCwCorner, CW_BEND, CPO_AUDIT as AU } from './side-cpo-routes.js';
 import { tagHeat, PART_W } from '../heat.js';
@@ -39,11 +39,19 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
     die(group, M, D.L * s, 0.15, D.W * s, dp, DX, DY, DZ, Math.PI);
     die(group, M, ed.w, 0.12, ed.d, de, DX - ed.cx, DY + 0.95, DZ - ed.cz, Math.PI);
   }
-  // package traces from the switch chip's SerDes edge to each tile's inner end
-  const inner = t => [t.out[0] * BAILLY.rIn + t.tan[0] * t.t, t.out[1] * BAILLY.rIn + t.tan[1] * t.t];
+  // the substrate's entrance point for each tile (also used below by the data flow and the SerDes pin): the inner
+  // edge, on the tile's own radial line, inside every tile's own footprint and nothing else's
+  const inner = tileEntry;
+  // package traces from the switch chip's SerDes edge to each tile's inner edge, then fanned from there so they
+  // land across the full electrical edge of the tile's electronic chip, under the driver and TIA cells they feed
+  // (one trace per FR4 group, 16; see engineTraceLandings in side-geometry.js for the representation this stands in
+  // for). The fan stays inside the tile's own footprint (every landing is inside its electronic chip, a convex
+  // rect, and tiles never overlap), so no tile's traces cross another's.
+  const landings = engineTraceLandings('mzm');
   tiles.forEach(t => {
     const [ax, az] = asicTap(t), [ix, iz] = inner(t);
-    for (let j = 0; j < 4; j++) { const o = (j - 1.5) * 0.09, px = t.tan[0] * o, pz = t.tan[1] * o; trace(B, [ax + px, az + pz], [ix + px, iz + pz], Y.subTop + 0.001, 0.03); }
+    trace(B, [ax, az], [ix, iz], Y.subTop + 0.001, 0.06);
+    for (const [px, py] of landings) { const [lx, lz] = landingWorld('mzm', t, t.r, px, py); trace(B, [ix, iz], [lx, lz], Y.subTop + 0.001, 0.02); }
   });
   tiles.forEach((t, i) => {
     for (const [kind, material] of [['tx', M.fiberTx], ['rx', M.fiberRx], ['cw', M.fiberCw]])

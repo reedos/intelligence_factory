@@ -11,7 +11,7 @@ import { attachFlowRibbons } from '../flow-ribbons.js';
 let source, pending;
 export function preload() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=24`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=25`)
     .then(gltf => { source = gltf.scene; return source; })
     .catch(error => { pending = undefined; throw error; });
 }

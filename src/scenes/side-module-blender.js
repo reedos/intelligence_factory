@@ -27,7 +27,7 @@ const PIN_OFFSET = {
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
 
-export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=relayout1`) {
+export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=relayout2`) {
   if (cached) return Promise.resolve(cached);
   if (!pending) pending = new GLTFLoader().loadAsync(url).then(gltf => {
     cached = gltf;

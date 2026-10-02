@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { engineLayout, asicTap, edgeConnOf, elsOf, ELS_LANES, ASIC_HALF, COPPER_HEADS, copperLane, copperChip, PAIR_HALF, cpoFiberRoutes, baillyLayout, baillyFiberRoutes, BAILLY, CPO_DIE, ELS_Z, CPO_MZM, CPO_EIC } from './side-geometry.js';
+import { engineLayout, asicTap, edgeConnOf, elsOf, ELS_LANES, ASIC_HALF, COPPER_HEADS, copperLane, copperChip, PAIR_HALF, cpoFiberRoutes, baillyLayout, baillyFiberRoutes, BAILLY, CPO_DIE, ELS_Z, CPO_MZM, CPO_EIC, engineTraceLandings, landingWorld, frameToLocal, eicBox, RING_R, tileEntry, ringEntry } from './side-geometry.js';
 
 // Codex's optics review, 09/28: floating-point side vectors sent 12 of 18 ASIC taps outside the chip and 15 of 18
 // connectors off the package edge; four laser modules fed more lanes than one can; an AEC pair missed its retimer.
@@ -149,6 +149,57 @@ describe('Broadcom-style CPO package geometry', () => {
       }
     }
     expect(violations).toEqual([]);
+  });
+});
+describe('CPO package traces land across the whole electrical edge, not a sliver (Reed, 10/02/2026)', () => {
+  const cases: [string, number][] = [['ring', RING_R], ['mzm', BAILLY.rIn + CPO_DIE.mzm.L / 2]];
+  for (const [kind, r] of cases) it(`${kind}: traces span at least 80% of the electronic chip's electrical edge and land inside it`, () => {
+    const landings = engineTraceLandings(kind), box = eicBox(kind);
+    expect(landings.length).toBeGreaterThanOrEqual(kind === 'mzm' ? CPO_MZM.groups : 8);
+    const lzs = landings.map(([px, py]) => frameToLocal(kind, px, py)[1]);
+    const span = Math.max(...lzs) - Math.min(...lzs);
+    expect(span, `${kind} landing span vs electrical edge depth ${box.d}`).toBeGreaterThanOrEqual(box.d * 0.8);
+    for (const [px, py] of landings) {
+      const [lx, lz] = frameToLocal(kind, px, py);
+      expect(lx, `${kind} landing x inside the electronic chip`).toBeGreaterThan(box.cx - box.w / 2);
+      expect(lx).toBeLessThan(box.cx + box.w / 2);
+      expect(lz, `${kind} landing z inside the electronic chip`).toBeGreaterThan(box.cz - box.d / 2);
+      expect(lz).toBeLessThan(box.cz + box.d / 2);
+    }
+  });
+  const cross = (a: number[], b: number[], c: number[], d: number[]) => {
+    const o = (p: number[], q: number[], r: number[]) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+    return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
+  };
+  // Each engine's drawn route bends once, at its own entrance (tileEntry/ringEntry): the ASIC-to-entrance trunk
+  // (already proven not to cross in 'CPO routing rules' above) then fans out from there to each landing, entirely
+  // inside the engine's own die footprint, so two different engines' fans can never cross.
+  it(`mzm: fanned tile traces never cross each other's engine, or another tile's`, () => {
+    const tiles = baillyLayout(), landings = engineTraceLandings('mzm');
+    const segs = tiles.flatMap(t => { const entry = tileEntry(t); return landings.map(([px, py]) => [entry, landingWorld('mzm', t, t.r, px, py)]); });
+    let crossings = 0;
+    for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++)
+      if (cross(segs[i][0], segs[i][1], segs[j][0], segs[j][1])) crossings++;
+    expect(crossings).toBe(0);
+  });
+  it(`ring: fanned engine traces never cross another engine's`, () => {
+    const engines = engineLayout(), landings = engineTraceLandings('ring');
+    const segs = engines.flatMap(e => { const entry = ringEntry(e); return landings.map(([px, py]) => [entry, landingWorld('ring', e, RING_R, px, py)]); });
+    let crossings = 0;
+    for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++)
+      if (cross(segs[i][0], segs[i][1], segs[j][0], segs[j][1])) crossings++;
+    expect(crossings).toBe(0);
+  });
+  it('each design: the entrance is inside the engine/tile\'s own die footprint, so the fan never leaves it', () => {
+    for (const [kind, list, r, entryOf] of [['mzm', baillyLayout(), null, tileEntry], ['ring', engineLayout(), RING_R, ringEntry]] as const) {
+      for (const e of list) {
+        const radius = r ?? (e as any).r;
+        const [ex, ez] = entryOf(e as any);
+        const depth = (ex - e.x) * e.out[0] + (ez - e.z) * e.out[1];     // signed distance from the die centre, along out
+        const { L } = CPO_DIE[kind];
+        expect(Math.abs(depth), `${kind} entrance depth vs half die length ${L / 2}`).toBeLessThanOrEqual(L / 2 + 1e-9);
+      }
+    }
   });
 });
 describe('CPO routing rules (design rules 2, 5 and 6)', () => {

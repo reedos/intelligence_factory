@@ -27,11 +27,12 @@ function dealLasers(list, perModule) {
 // where its connector sits: on the package edge, in line with the engine; data and laser fibers both use it
 export const edgeConnOf = (e, SUB) => [OUT[e.side][0] * (SUB / 2 + 0.2) + TAN[e.side][0] * e.t, OUT[e.side][1] * (SUB / 2 + 0.2) + TAN[e.side][1] * e.t];
 // engines, in a fixed order, each with its side, its offset along the side and its position
+export const RING_R = 3.35;
 export function engineLayout() {
-  const r = 3.35, list = [];
+  const r = RING_R, list = [];
   for (const [side, t0] of SUBS) for (let k = 0; k < 3; k++) {
     const t = t0 + (k - 1) * 1.12, out = OUT[side], tan = TAN[side];
-    list.push({ side, t, out, tan, rot: side * Math.PI / 2, x: out[0] * r + tan[0] * t, z: out[1] * r + tan[1] * t, sub: [side, t0], tMax: 0, els: 0, elsSlot: 0 });
+    list.push({ side, t, out, tan, rot: side * Math.PI / 2, r, x: out[0] * r + tan[0] * t, z: out[1] * r + tan[1] * t, sub: [side, t0], tMax: 0, els: 0, elsSlot: 0 });
   }
   for (const e of list) e.tMax = Math.max(...list.filter(o => o.side === e.side).map(o => Math.abs(o.t)));
   return dealLasers(list, ELS_LANES / 8);
@@ -138,6 +139,34 @@ export function eicBox(kind, s = 1) {
   const [cx, cz] = frameToLocal(kind, (x0 + x1) / 2, (y0 + y1) / 2, s);
   return { cx, cz, w: (x1 - x0) / d.fw * d.L * s, d: (y1 - y0) / d.fh * d.W * s };
 }
+// Representative substrate-trace landing cells per engine (Reed, 10/02/2026): enough traces to read clearly at
+// package scale, each ending under a driver (transmit) or TIA (receive) cell so the fan spans the engine's whole
+// electrical edge and bump field, as the real SerDes bus does, instead of a single spot (design-rules.md). Each
+// Mach-Zehnder engine takes 128 differential pairs (64 lanes each way) across its electronic chip's whole
+// electrical edge: one trace per FR4 group (16) stands in for that, alternating a representative lane's driver and
+// TIA cell so the set still covers both the transmit and receive halves of the edge. Each ring engine takes 16
+// pairs (8 lanes each way): one trace per lane (8), alternating driver and TIA the same way.
+export function engineTraceLandings(kind) {
+  const B = cpoBlocks(kind);
+  if (kind === 'mzm') return Array.from({ length: CPO_MZM.groups }, (_, g) => {
+    const lane = g * CPO_MZM.perGroup + 1;                       // a representative lane near the group's middle
+    return g % 2 === 0 ? B.drivers[lane] : B.tias[lane];
+  });
+  return B.drivers.map((d, i) => (i % 2 === 0 ? d : B.tias[i]));
+}
+// A landing cell (frame px, py) as a world [x, z] offset from the package center, for an engine at radius r along
+// `out` with tan-offset `e.t`: frameToLocal centers the die on its own frame, so its local x (electrical edge at
+// -L/2, frame px = 0) runs along `out` and its local z runs along `tan`, both added to the engine's own position.
+export function landingWorld(kind, e, r, px, py) {
+  const [lx, lz] = frameToLocal(kind, px, py);
+  return [e.out[0] * (r + lx) + e.tan[0] * (e.t + lz), e.out[1] * (r + lx) + e.tan[1] * (e.t + lz)];
+}
+// The substrate's single entrance point for a tile or engine, on its own radial line (no lateral fan yet): where
+// the package trace from the ASIC's SerDes edge reaches the die's own footprint, before it fans out inside that
+// footprint to the driver and TIA cells (engineTraceLandings, landingWorld). Used by both designs' trace fan, data
+// flow and SerDes pin, so every one of those agrees on where the engine "starts".
+export const tileEntry = t => [t.out[0] * BAILLY.rIn + t.tan[0] * t.t, t.out[1] * BAILLY.rIn + t.tan[1] * t.t];
+export const ringEntry = e => [e.x - e.out[0] * 0.62, e.z - e.out[1] * 0.62];
 // ---- the Broadcom-style package: eight radial tiles, two per side ----
 // Short edge at the switch chip, fiber connector (Broadcom Fiber Connector, BFC) at the outer end. Tiles on a side
 // sit 2 cm apart, clear of the corner tiles of the next side; their inner ends leave an 8 mm band for the package
@@ -194,6 +223,14 @@ export function cpoVariantLayout() {
       segs: Array.from({ length: M.segments }, (_, k) => M.seg(k)), pads: Array.from({ length: M.segments }, (_, k) => M.pad(k)) },
     bailly: { ...BAILLY, tiles, taps: tiles.map(asicTap), fiberRoutes: tiles.map(baillyFiberRoutes) },
     ringTaps: engineLayout().map(asicTap),
+    // Fanned package-trace landings (Reed, 10/02/2026): each engine's own entrance point, then the world [x, z] of
+    // every trace that fans from there to a driver or TIA cell, across its electronic chip's whole electrical edge
+    // (engineTraceLandings, landingWorld, tileEntry, ringEntry). Pre-computed here so the Blender build draws the
+    // same traces as the native scene, not a re-derivation of the same math.
+    ringEntry: engineLayout().map(ringEntry),
+    ringLandings: engineLayout().map(e => engineTraceLandings('ring').map(([px, py]) => landingWorld('ring', e, RING_R, px, py))),
+    tileEntry: tiles.map(tileEntry),
+    mzmLandings: tiles.map(t => engineTraceLandings('mzm').map(([px, py]) => landingWorld('mzm', t, t.r, px, py))),
   };
 }
 
