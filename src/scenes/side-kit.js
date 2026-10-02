@@ -155,14 +155,113 @@ export function ringPicTex() {
     g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(w - 12, 0, 12, h);
   });
 }
-// a CPO engine's electronic chip: drivers for the rings (transmit), TIAs for the photodiodes (receive)
+// A CPO engine's electronic chip as bare silicon, representative (no floorplan is published): scribe margin, seal
+// ring and guard ring at the edge, alignment marks in the corners, a mirror-dark die with faint thin-film color, and
+// one analog macro per lane, eight transmit drivers and eight receive TIAs. Each macro is drawn with generic
+// standard-cell rows, a multi-finger output device, a capacitor array, one spiral inductor (a common peaking
+// element, not a claimed circuit) and a top-metal power grid. Driver and TIA blocks are circuit regions of this one
+// die, outlined thinly in the transmit and receive colors and marked in small die lettering, not separate chips.
+// Canvas top is the die's +z edge (receive) with flipY off, so the GLB's 0-1 top UVs and the native box agree; the
+// texture's u is mirrored so the lettering reads from the viewer's side, and the canvas is drawn mirrored to match.
+// Lane columns keep the layout the Blender detail was built on: centers at (23 + 29i)/256 of the width.
+export const EIC = { w: 1024, h: 768, laneX: i => (23 + i * 29) * 4, laneW: 88, rx: [53, 329], tx: [415, 690] };
 export function eicTex() {
-  return canvasTex(256, 256, (g, w, h) => {
-    g.fillStyle = '#23283a'; g.fillRect(0, 0, w, h);
-    for (let i = 0; i < 8; i++) { g.fillStyle = 'rgba(98,230,255,0.35)'; g.fillRect(12 + i * 29, 18, 22, 92); g.fillStyle = 'rgba(255,122,217,0.3)'; g.fillRect(12 + i * 29, 146, 22, 92); }
-    g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(0, h / 2 - 1, w, 2);
-    g.strokeStyle = 'rgba(255,255,255,0.16)'; g.lineWidth = 3; g.strokeRect(3, 3, w - 6, h - 6);
-  });
+  const t = canvasTex(EIC.w, EIC.h, (g, w, h) => {
+    let seed = 29; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const lanes = Array.from({ length: 8 }, (_, i) => w - EIC.laneX(i) - EIC.laneW / 2).reverse();   // drawn mirrored, left to right
+    const inMacro = (x, y) => lanes.some(l => x >= l && x < l + EIC.laneW) && ((y >= EIC.rx[0] && y < EIC.rx[1]) || (y >= EIC.tx[0] && y < EIC.tx[1]));
+    // per-pixel base: scribe, seal ring, guard ring, silicon with thin-film tint, cell rows inside the macros
+    const img = g.createImageData(w, h), cellEdge = new Float32Array(w);
+    const blocks = Array.from({ length: (h >> 4) + 1 }, () => Array.from({ length: (w >> 4) + 1 }, rnd));
+    const srgb = v => Math.round(255 * Math.min(1, Math.max(0, v)) ** (1 / 2.2));
+    let row = -1;
+    for (let y = 0; y < h; y++) {
+      if ((y / 6 | 0) !== row) { row = y / 6 | 0; let x = 0; cellEdge.fill(0); while (x < w) { cellEdge[x] = 1; x += 3 + (rnd() * 14 | 0); } }
+      for (let x = 0; x < w; x++) {
+        const e = Math.min(x, w - 1 - x, y, h - 1 - y), n = (blocks[y >> 4][x >> 4] - .5) * .014;
+        let c;
+        if (e < 8) c = [.07 + n, .075 + n, .08 + n];                                         // scribe lane, matte
+        else if (e < 22) c = (e % 3 === 0) ? [.11, .12, .13] : [.42 + n, .45 + n, .48 + n];  // seal ring, stacked metal
+        else if (e < 26) c = [.025, .03, .04];
+        else if (e < 29) c = [.30, .32, .35];                                               // guard ring
+        else {
+          const p = .8 * Math.sin(x * .0041 + y * .0029) + .5 * Math.sin(x * .0017 - y * .0053);
+          const film = k => .018 * Math.cos(6.283 * (p + k));                                // thin-film interference tint
+          c = [.045 + n + film(0), .055 + n + film(.33), .075 + n + film(.67)];
+          if (inMacro(x, y)) {
+            const k = (y % 6 === 0 ? -.03 : 0) + (cellEdge[x] ? -.02 : 0) + ((x * 7 + row * 13) % 11 < 2 ? .012 : 0);
+            c = [.085 + k + n, .095 + k + n, .11 + k + n];
+          } else if (y % 10 === 0) c = c.map(v => v - .008);                                // fill / decap rows
+        }
+        const i = (y * w + x) * 4;
+        img.data[i] = srgb(c[0]); img.data[i + 1] = srgb(c[1]); img.data[i + 2] = srgb(c[2]); img.data[i + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    // alignment marks, one cross and an L in each corner inside the guard ring
+    g.fillStyle = 'rgba(205,212,222,0.75)';
+    for (const [ax, ay, sx, sy] of [[44, 38, 1, 1], [w - 44, 38, -1, 1], [44, h - 38, 1, -1], [w - 44, h - 38, -1, -1]]) {
+      g.fillRect(ax - 9, ay - 1.5, 18, 3); g.fillRect(ax - 1.5, ay - 9, 3, 18);
+      g.fillRect(ax + sx * 14 - (sx < 0 ? 10 : 0), ay + sy * 10, 10, 2); g.fillRect(ax + sx * 14 - (sx < 0 ? 2 : 0), ay + sy * 10 - (sy < 0 ? 8 : 0), 2, 10);
+    }
+    // global top-metal power grid
+    g.fillStyle = 'rgba(150,160,175,0.16)';
+    for (let x = 64; x < w - 32; x += 64) g.fillRect(x, 32, 3, h - 64);
+    for (let y = 48; y < h - 32; y += 48) g.fillRect(32, y, w - 64, 3);
+    for (const [y0, y1, tx] of [[EIC.rx[0], EIC.rx[1], false], [EIC.tx[0], EIC.tx[1], true]]) {
+      for (const lx of lanes) {
+        const W = EIC.laneW, H = y1 - y0;
+        // denser lane grid straps
+        g.fillStyle = 'rgba(190,198,212,0.26)';
+        for (let x = lx + 6; x < lx + W - 2; x += 19) g.fillRect(x, y0, 2, H);
+        for (let y = y0 + 8; y < y1 - 2; y += 26) g.fillRect(lx, y, W, 2);
+        // spiral inductor near the bond edge, in a metal keep-out
+        const S = 62, ix = lx + (W - S) / 2, iy = tx ? y1 - S - 12 : y0 + 12;
+        g.fillStyle = '#0b0f16'; g.fillRect(ix - 4, iy - 4, S + 8, S + 8);
+        g.fillStyle = 'rgba(214,170,112,0.92)';
+        const tw = 4, st = 8, sp = [[ix, iy + S]];
+        for (let k = 0; k < 3; k++) {
+          const l = ix + k * st, t0 = iy + k * st, r = ix + S - tw - k * st, b = iy + S - tw - k * st;
+          sp.push([l, t0], [r, t0], [r, b], [l + st, b]);
+        }
+        for (let k = 1; k < sp.length; k++) {
+          const [x0, y0_] = sp[k - 1], [x1, y1_] = sp[k];
+          g.fillRect(Math.min(x0, x1), Math.min(y0_, y1_), Math.abs(x1 - x0) + tw, Math.abs(y1_ - y0_) + tw);
+        }
+        g.fillRect(ix + S / 2 - 4, iy + S / 2 - 4, 8, 8);                                    // center tap via
+        // multi-finger output device and a capacitor array, mid-macro
+        const dy = tx ? y0 + 30 : y1 - 70;
+        g.fillStyle = '#121822'; g.fillRect(lx + 10, dy, W - 20, 40);
+        g.fillStyle = 'rgba(176,186,204,0.55)'; for (let x = lx + 13; x < lx + W - 12; x += 4) g.fillRect(x, dy + 3, 1.5, 34);
+        const cy = tx ? y0 + 84 : y1 - 124;
+        g.fillStyle = 'rgba(120,132,160,0.5)';
+        for (let r = 0; r < 4; r++) for (let q = 0; q < 6; q++) g.fillRect(lx + 12 + q * 11, cy + r * 11, 8, 8);
+        // macro boundary, a dark hairline
+        g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(lx, y0, W, 1.5); g.fillRect(lx, y1 - 1.5, W, 1.5); g.fillRect(lx, y0, 1.5, H); g.fillRect(lx + W - 1.5, y0, 1.5, H);
+      }
+    }
+    // thin data-layer outlines around each block region: receive TIAs (magenta), transmit drivers (cyan)
+    g.lineWidth = 2.5;
+    g.strokeStyle = 'rgba(255,122,217,0.7)'; g.strokeRect(lanes[0] - 8, EIC.rx[0] - 8, lanes[7] + EIC.laneW - lanes[0] + 16, EIC.rx[1] - EIC.rx[0] + 16);
+    g.strokeStyle = 'rgba(98,230,255,0.7)'; g.strokeRect(lanes[0] - 8, EIC.tx[0] - 8, lanes[7] + EIC.laneW - lanes[0] + 16, EIC.tx[1] - EIC.tx[0] + 16);
+    // die lettering in the band between the two regions
+    g.font = '600 26px ui-monospace, Consolas, monospace'; g.textBaseline = 'middle'; g.textAlign = 'left';
+    g.fillStyle = 'rgba(255,170,230,0.78)'; g.fillText('RX TIAs ×8', lanes[0], EIC.rx[1] + 30);
+    g.fillStyle = 'rgba(160,236,255,0.78)'; g.fillText('TX DRIVERS ×8', lanes[0], EIC.tx[0] - 30);
+    g.textAlign = 'right'; g.fillStyle = 'rgba(190,198,212,0.5)'; g.font = '500 18px ui-monospace, Consolas, monospace';
+    g.fillText('EIC · as drawn', lanes[7] + EIC.laneW, EIC.tx[0] - 30);
+  }, { repeat: [1, 1] });
+  t.flipY = false; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.repeat.x = -1; t.offset.x = 1;
+  return t;
+}
+// The EIC's underside, tiled: a hybrid-bond copper pad array in dielectric. Representative pitch, not a spec.
+export function eicBondTex(repeat = [48, 36]) {
+  const t = canvasTex(32, 32, (g, w, h) => {
+    g.fillStyle = '#10141b'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#b07a48'; g.fillRect(9, 9, 14, 14);
+    g.fillStyle = 'rgba(255,220,180,0.35)'; g.fillRect(10, 10, 12, 2.5);
+  }, { repeat });
+  return t;
 }
 export function asicTex() {
   return canvasTex(768, 768, (g, w, h) => {

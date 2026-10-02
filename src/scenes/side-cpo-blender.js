@@ -3,21 +3,21 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { build as buildDiagram } from './side-cpo.js';
 import { engineLayout } from './side-geometry.js';
-import { THREE, label, note } from './side-kit.js';
+import { THREE, label, note, eicTex, eicBondTex } from './side-kit.js';
 import { directLink } from './link-art-direction.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
 
 let source, pending;
 export function preload() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=20`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=21`)
     .then(gltf => { source = gltf.scene; return source; })
     .catch(error => { pending = undefined; throw error; });
 }
 
 // Representative die faces painted at runtime onto the GLB's 0-1 top-face UVs.
-// Not floorplans: dark silicon, a seal ring, faint cell rows, and for the EIC a
-// 36% tint marking the transmit (driver) and receive (TIA) halves.
+// Not floorplans: dark silicon and a seal ring. The EIC face (side-kit eicTex) is
+// shared by the eighteen packaged engines and the exploded detail.
 const srgb = v => Math.round(255 * Math.min(1, Math.max(0, v)) ** (1 / 2.2));
 function paintFace(W, H, shade) {
   const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
@@ -33,19 +33,6 @@ function paintFace(W, H, shade) {
   tex.colorSpace = THREE.SRGBColorSpace; tex.flipY = false; tex.anisotropy = 4;
   return tex;
 }
-const mix = (a, b, k) => a.map((v, i) => v * (1 - k) + b[i] * k);
-function eicFace() {
-  return paintFace(512, 384, (u, v, e, block, x, y) => {
-    if (e <= 7) return [.022, .03, .042];
-    if (e < 10.5) return [.16, .18, .20];
-    const grain = (y % 6 < 1 ? .010 : 0) + ((x + Math.floor(y / 6) * 37) % 29 < 1 ? .006 : 0) + (block - .5) * .012;
-    let c = [.030 + grain, .045 + grain, .070 + grain];
-    if (e > 14 && v > .53) c = mix(c, [.05, .19, .24], .36);      // transmit drivers
-    if (e > 14 && v < .47) c = mix(c, [.20, .07, .15], .36);      // receive TIAs
-    return c;
-  });
-}
-
 // Bare switch die back: ground-silicon sheen, faint grind arcs and a seal ring.
 // No part mark: nothing published identifies the die face.
 function asicFace() {
@@ -125,9 +112,14 @@ export function build(args) {
       const m = node.material; m.map = boardFace(); m.bumpMap = m.map; m.bumpScale = .6; m.color.set(0xffffff); m.needsUpdate = true;
     }
   });
+  const eicMap = eicTex();
   asset.traverse(node => {
-    if (node.isMesh && node.material.name === 'Electronic die face' && !node.material.map) {
-      node.material.map = eicFace(); node.material.color.set(0xffffff); node.material.needsUpdate = true;
+    const face = node.isMesh && node.material.name;
+    if ((face === 'Electronic die face' || face === 'Detail electronic die face') && !node.material.map) {
+      const m = node.material; m.map = eicMap; m.bumpMap = eicMap; m.bumpScale = .25; m.color.set(0xffffff); m.needsUpdate = true;
+    }
+    if (face === 'Detail EIC hybrid-bond face' && !node.material.map) {
+      node.material.map = eicBondTex(); node.material.color.set(0xffffff); node.material.needsUpdate = true;
     }
     const lane = node.isMesh && RIBBONS[node.material.name];
     if (lane && !node.material.map) {

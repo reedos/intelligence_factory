@@ -41,7 +41,7 @@ def material(name, color, metal=0, rough=.4, alpha=1):
 
 # Materials named in UV_MATERIALS keep a 0-1 top-face UV; side-cpo-blender.js
 # paints their face textures at runtime (no embedded images in the GLB).
-UV_MATERIALS={'Electronic die face','Transmit ribbon','Receive ribbon','Switch ASIC silicon','Midnight laminate'}
+UV_MATERIALS={'Electronic die face','Detail electronic die face','Detail EIC hybrid-bond face','Transmit ribbon','Receive ribbon','Switch ASIC silicon','Midnight laminate'}
 
 nickel = material('Satin nickel retainers', (.5,.57,.62), .82,.29)
 edge = material('Polished screw heads', (.68,.73,.76), .9,.22)
@@ -57,7 +57,6 @@ silicon = material('Polished silicon', (.025,.045,.075), .78,.20)
 asic = material('Switch ASIC silicon', (1,1,1), .35,.22)
 asic.node_tree.nodes.get('Principled BSDF').inputs['Emission Color'].default_value=(1,.15,.015,1)
 asic.node_tree.nodes.get('Principled BSDF').inputs['Emission Strength'].default_value=0
-eic = material('Electronic die passivation', (.035,.055,.085), .5,.3)
 pic = material('Photonic die passivation', (.08,.11,.16), .15,.26)
 # The interposer keeps its own polished-silicon finish; only the photonic dies
 # read as dielectric passivation.
@@ -82,9 +81,11 @@ bondLine = material('Hybrid bond interface', (.015,.016,.02), .2,.5)
 # modulators so they read at the rings hotspot, matte labels that do not smear.
 detailPic = material('Detail photonic die cladding', (.08,.11,.16), .15,.26)
 ringGlow = material('Ring modulator rim', (.37,.80,.90), 0,.25)
-labelTx = material('Detail label transmit', (.37,.80,.90), 0,.6)
-labelRx = material('Detail label receive', (.82,.37,.66), 0,.6)
-for m,k in [(ringGlow,3.0),(labelTx,.18),(labelRx,.18)]:
+# The exploded EIC is bare silicon: side-cpo-blender.js paints its top (seal ring,
+# per-lane driver/TIA macros, die lettering) and its hybrid-bond underside.
+detailEic = material('Detail electronic die face', (.05,.06,.08), .35,.3)
+bondFace = material('Detail EIC hybrid-bond face', (.25,.18,.12), .6,.35)
+for m,k in [(ringGlow,3.0)]:
     b=m.node_tree.nodes.get('Principled BSDF'); b.inputs['Emission Color'].default_value=m.diffuse_color; b.inputs['Emission Strength'].default_value=k
 vgroove = material('Fiber array V-groove block', (.04,.05,.06), .1,.35)
 lidGlass = material('Fiber array lid glass', (.6,.8,.95), 0,.05,.25)
@@ -94,7 +95,6 @@ pinSteel = material('Guide pin steel', (.42,.44,.47), .85,.5)
 # Small interface cheeks are bead-blasted: polished nickel at this size only
 # caught pin-point key-light glints that bloomed into white bars.
 cheek = material('Bead-blasted interface cheeks', (.36,.41,.45), .7,.55)
-driver = material('Driver schematic regions', (.05,.19,.24), .45,.32)
 tia = material('TIA schematic regions', (.20,.07,.15), .45,.32)
 blue = material('Supply coolant pipe', (.025,.20,.36), .38,.28)
 red = material('Return coolant pipe', (.38,.07,.035), .38,.28)
@@ -106,7 +106,7 @@ groups = {name: group(name) for name in ['CPO_BOARD','CPO_PACKAGE','CPO_RETAINER
 
 def world(p): return (p[0]*CM, -p[2]*CM, p[1]*CM)
 
-def box(name, p, d, mat, role, bevel=.02, angle=0, uv_top=False):
+def box(name, p, d, mat, role, bevel=.02, angle=0, uv_top=False, uv_face=3):
     # Work in native scene coordinates then convert to Blender Z-up meters.
     verts = []
     for z in [-1,1]:
@@ -118,12 +118,12 @@ def box(name, p, d, mat, role, bevel=.02, angle=0, uv_top=False):
     faces = [(0,4,6,2),(1,3,7,5),(0,1,5,4),(2,6,7,3),(0,2,3,1),(4,5,7,6)]
     mesh = bpy.data.meshes.new(name); mesh.from_pydata(verts,[],faces); mesh.update()
     if uv_top:
-        # Top face (+Y native) spans the texture; other faces sample its dark rim.
+        # The top face (+Y native; uv_face=2 for the bottom) spans the texture; other faces sample its dark rim.
         uv=mesh.uv_layers.new(name='UVMap')
         for poly in mesh.polygons:
             for li in poly.loop_indices:
                 vi=mesh.loops[li].vertex_index
-                uv.data[li].uv=((vi&1),(vi>>2)&1) if poly.index==3 else (.002,.002)
+                uv.data[li].uv=((vi&1),(vi>>2)&1) if poly.index==uv_face else (.002,.002)
     o=bpy.data.objects.new(name,mesh); S.collection.objects.link(o); o.parent=groups[role]; mesh.materials.append(mat)
     # Sub-0.15 mm parts get no bevel and thin parts a single chamfer: their
     # rounding is sub-pixel at every app camera but tripled the triangle count.
@@ -364,22 +364,12 @@ def photonic_die(cx,cy,cz,scale,angle,exploded=False):
     # In the package the EIC sits back from the fiber edge so the photonic die's
     # fiber-array landing shows, on a thin dark hybrid-bond line (representative).
     ex0=0 if exploded else -.05
-    box('Electronic EIC',w(ex0,ey,0),(1.23*scale,.12 if exploded else .07,.902*scale),eic if exploded else eicFace,role,.005*scale,angle,uv_top=not exploded)
+    box('Electronic EIC',w(ex0,ey,0),(1.23*scale,.12 if exploded else .07,.902*scale),detailEic if exploded else eicFace,role,.005*scale,angle,uv_top=True)
     if not exploded: box('Hybrid bond line',w(ex0,.0340,0),(1.21,.007,.88),bondLine,role,0,angle)
     if not exploded: return
-    # Regions are schematic functional blocks, not a photographed die floorplan.
-    for i in range(8):
-        ex=-1.23*scale/2+(23+i*29)/256*(1.23*scale)
-        for z,m in [(-.198*scale,driver),(.227*scale,tia)]:
-            box('Driver' if m==driver else 'TIA',w(ex,ey+.062,z),(.106*scale,.004,.324*scale),m,role,0,angle)
-    for words,z,mat in [('TX DRIVERS',-.198*scale,labelTx),('RX TIAs',.227*scale,labelRx)]:
-        curve=bpy.data.curves.new(words,'FONT');curve.body=words;curve.size=.16*CM
-        curve.align_x='CENTER';curve.align_y='CENTER';curve.extrude=0
-        obj=bpy.data.objects.new(words,curve);S.collection.objects.link(obj)
-        obj.location=world(w(0,ey+.071,z));obj.rotation_euler[2]=math.pi-angle
-        obj.parent=groups[role];curve.materials.append(mat)
-        bpy.context.view_layer.objects.active=obj;obj.select_set(True)
-        bpy.ops.object.convert(target='MESH');obj.select_set(False)
+    # The underside: a hybrid-bond pad array (painted, representative pitch) on a
+    # thin face just below the die, seen when the exploded view is orbited low.
+    box('EIC hybrid-bond face',w(ex0,ey-.06,0),(1.21*scale,.004,.88*scale),bondFace,role,0,angle,uv_top=True,uv_face=2)
     top=.082;radius=.0045
     path('CW bus',[w(px(512),top,pz(24)),w(px(24),top,pz(24)),w(px(24),top,pz(190))],radius,fiberCw,role)
     for i in range(8):
