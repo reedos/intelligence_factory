@@ -26,7 +26,7 @@ const DEFER = [{ level: 'tray', accel: 'h100', why: 'the DGX H100 chassis is bei
   { level: 'rack', accel: 'h100', why: 'the H100 rack DGX units are being rebuilt with the chassis (Reed, 10/01/2026); re-run after it lands' },
   // Levels other agents own as of 10/01/2026 (site and hall cabling, packages and modules, CPO). Their flow fixes, written
   // against this checker, were handed over as a patch; drop an entry once its owner lands them. DEFER_NONE=1 counts all.
-  ...['across', 'campus', 'hall', 'chip', 'module', 'cpo', 'coherent', 'copper'].map(level => ({ level, accel: '', why: 'owned by another agent (handed over as flow-fixes-other-owners.patch)' }))];
+  ...['across', 'campus', 'hall', 'cpo'].map(level => ({ level, accel: '', why: 'owned by another agent (handed over as flow-fixes-other-owners.patch)' }))];
 const deferOf = (level, key) => process.env.DEFER_NONE ? null : DEFER.find(d => d.level === level && (!d.accel || key.startsWith(d.accel + ' ')));
 const onlyScene = process.env.ONLY_SCENE?.split(',').map(Number), onlyAccel = process.env.ONLY_ACCEL?.split(',');
 const b = await chromium.launch({ headless: true, args: gateArgs });
