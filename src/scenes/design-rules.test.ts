@@ -83,10 +83,10 @@ describe('GPU package (scene 5): place and route', () => {
       expect(planCrossings(routes.hbm), accel).toBe(0);
     }
   });
-  it('the drawn HBM arcs (schematic, lifted for visibility) stay parallel and drop into the die on the stack's side', () => {
+  it("the drawn HBM waterfall (schematic, lifted for visibility): evenly spaced parallel strands that drop into the die on the stack's side", () => {
     for (const { accel, model, routes } of builds()) {
       const twin = model.accel.dies > 1;
-      expect(routes.hbmDrawn.length, accel).toBe(routes.hbm.length);
+      expect(routes.hbmDrawn.length, accel).toBe((routes.hbm.length / 3) * 11);   // eleven strands per live stack
       for (const r of routes.hbmDrawn) {
         const along = r.map((p: P3) => twin ? p[0] : p[2]), across = r.map((p: P3) => twin ? p[2] : p[0]);
         expect(new Set(along.map((v: number) => v.toFixed(9))).size, `${accel}: one lane, no convergence`).toBe(1);
@@ -97,6 +97,11 @@ describe('GPU package (scene 5): place and route', () => {
         expect(Math.sign(across.at(-1)!), accel).toBe(Math.sign(across[0]));
       }
       expect(planCrossings(routes.hbmDrawn), accel).toBe(0);
+      // evenly spaced across each stack's sheet
+      for (let g = 0; g < routes.hbmDrawn.length; g += 11) {
+        const t = routes.hbmDrawn.slice(g, g + 11).map((r: P3[]) => twin ? r[0][0] : r[0][2]);
+        for (let i = 2; i < t.length; i++) expect(t[i] - t[i - 1], accel).toBeCloseTo(t[1] - t[0], 9);
+      }
     }
   });
   it('the die-to-die link runs straight across the seam, lanes evenly spaced', () => {

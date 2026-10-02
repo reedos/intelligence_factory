@@ -396,6 +396,7 @@ function applyTier(i) {
   built[i]?.flowRibbons?.setQuality({ halo: t.halo });
   for (const key of ['flows', 'dataFlows', 'heatFlows'])
     for (const f of built[i]?.[key] || []) f.setRenderBudget?.(t.particles);
+  built[i]?.setRenderTier?.(t);   // levels with their own overlays (the package's HBM waterfall) follow the tier too
   if (c) for (const rt of [c.renderTarget1, c.renderTarget2]) { const n = mobile ? 0 : t.msaa; if (rt.samples !== n) { rt.samples = n; rt.dispose(); } }
   if (i !== ui.scene) return false;
   emit('render-quality');

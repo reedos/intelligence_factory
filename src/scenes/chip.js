@@ -9,6 +9,7 @@ import { frameCompute } from './compute-framing.js';
 import { componentView } from '../app/housing-frame.js';
 import { installTokenMath } from './token-math.js';
 import { tagHeat, balanceHeat } from '../heat.js';
+import { hbmWaterfall, waterfallProfile } from './hbm-waterfall.js';
 
 // The visible top of a flip-chip die is its polished silicon backside. A faint
 // roughness pattern (a grayscale map) lets the key light break across it.
@@ -421,26 +422,22 @@ function buildPackage({ quality, state, model }) {
       routes.hbm.push(pts);
       dataFlows.push(flow(pts, 'hbm', { count: 4, speed: 0.9, size: 0.042, k: 4.0, trail: false }));
     }
-    // The drawn "waterfall" (schematic, evidence 'hbm-flow-drawing'): the buried route above sits under the dies and
-    // stacks and is hard to see from above, so each stack also shows its traffic lifted onto the surfaces. Three lanes
-    // per stack arc off the stack's top, over its inner edge (the edge whose PHY faces the die) and the gap, and drop
-    // into the die from above on that side (Reed, 10/01/2026: "have it drop into the die still, the viewer will get the
-    // idea"). The lanes stay parallel and keep to the stack's own stretch of the die edge.
-    const top = hb + stackH + 0.03, dieTop = Y.dies + 0.065;
-    for (let k = 0; k < 3; k++) {
-      const d = (k - 1) * (twin ? HW : HD) * 0.3;
-      // a point at distance r from the package centre toward the stack, offset t along the shared edge
-      const P = twin ? (r, y) => [x + d, y, Math.sign(z) * r] : (r, y) => [Math.sign(x) * r, y, z + d];
-      const far = twin ? Math.abs(z) : Math.abs(x), inner = far - (twin ? HD : HW) / 2, dieEdge = twin ? DIE_HALF.z : DIE_HALF.x;
-      const gap = (inner + dieEdge) / 2;
-      // an arc: up off the stack's top, over its die-facing edge and the gap, down onto the die's top from that side
-      const pts = [P(inner + 0.35, top), P(inner + 0.1, top + 0.12), P(gap, top + 0.2), P(dieEdge - 0.3, top + 0.16),
-        P(dieEdge - 0.6, dieTop + 0.08), P(dieEdge - 0.85, dieTop)];
-      routes.hbmDrawn.push(pts);
-      dataFlows.push(flow(pts, 'hbm', { count: 5, speed: 0.8, size: 0.045, k: 3.4, trailR: 0.016, trailK: 0.9,
-        audit: { why: 'schematic lift of the HBM traffic over the stack, the gap and the die edge (the wires run beneath: microbumps, bridge or interposer, PHY)' } }));
-    }
   });
+  // The drawn waterfall (schematic, evidence 'hbm-flow-drawing'): the buried route above sits under the dies and stacks
+  // and is hard to see from above, so each stack also shows its traffic as one sheet of fine strands lifted over the
+  // parts: level across the stack's top toward the edge whose PHY faces the die, over that edge in a smooth parabola
+  // and down onto the die on that side (Reed, 10/01/2026: "drop into the die still, the viewer will get the idea";
+  // "clean and dramatic"). The stacks pulse in a slow wave around the package, one after another, so each stack reads
+  // as its own channel while the whole package keeps one rhythm (hbm-waterfall.js).
+  const waterfall = hbmWaterfall({ stacks: live.map(([x, z]) => {
+    const s = twin ? Math.sign(z) : Math.sign(x), far = twin ? Math.abs(z) : Math.abs(x), depth = twin ? HD : HW, inner = far - depth / 2;
+    const dieEdge = twin ? DIE_HALF.z : DIE_HALF.x;
+    return { out: twin ? [0, s] : [s, 0], along: twin ? [1, 0] : [0, 1], centre: twin ? x : z, width: (twin ? HW : HD) * 0.72,
+      phase: ((Math.atan2(z, x) / (2 * Math.PI)) + 1) % 1,
+      profile: waterfallProfile({ start: far + 0.18, edge: inner, land: dieEdge - 0.32, top: hb + stackH, dieTop: Y.dies + 0.045, lift: 0.07 }) };
+  }) });
+  scene.add(waterfall.group);
+  routes.hbmDrawn = waterfall.centerlines;
   const serdes = glowMat('#ff5fd2', 0.5);                // an inlaid strip in power and heat, lit in the data layer
   // NVLink leaves the free edges: outer die edges on twins, top/bottom on H100. Below the die each lane takes the
   // same path: microbumps, out along the interposer to the C4 field's edge, down into the substrate, out through
@@ -622,7 +619,8 @@ function buildPackage({ quality, state, model }) {
       cpo: { pos: [-4.2, Y.sub + 0.3, 3.8], view: { pos: [-8, 5, 9], target: [-2.5, 1.5, 2] } },
       tokens: tokensHS,
     },
-    dispose() { cache.forEach(({ tex }) => tex.dispose()); tokenMath.dispose(); },
+    dispose() { cache.forEach(({ tex }) => tex.dispose()); tokenMath.dispose(); waterfall.dispose(); },
+    setRenderTier(tier) { waterfall.setTier(tier); },
     update(t, dt) {
       const e = tick(genLen);
       if (e < genLastE) { genCycle = buildCycle(model); genLen = genCycle.timings.totalS; resetGen(); }
@@ -683,6 +681,7 @@ function buildPackage({ quality, state, model }) {
       });
       hbmFill.instanceMatrix.needsUpdate = true;
       hbmFill.visible = state.mode === 'data';          // the cache is a data-layer idea: hardware stays hardware in power and heat
+      waterfall.update(t, state.mode === 'data');
 
       pulse.v = Math.max(0, pulse.v - dt * 3);
       const dataOn = state.mode === 'data', xrayOn = dataOn || state.mode === 'heat' || ['dies', 'junction', 'flux', 'hbi'].includes(state.selected);
