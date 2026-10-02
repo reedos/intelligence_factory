@@ -5,6 +5,7 @@ import { rbox } from '../fx.js';
 import { componentView } from '../app/housing-frame.js';
 import { computeMaterials, finishCompute, boardFinish } from './compute-finish.js';
 import { etch } from './package-marks.js';
+import { tagHeat, balanceHeat } from '../heat.js';
 export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,trayLidLabels}) {
  const scene=new THREE.Scene();lights(scene,quality);
  const S=new Builder(),N=new Builder(),flows=[],dataFlows=[],heatFlows=[],finish=computeMaterials();
@@ -62,10 +63,15 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  // Lifted cold plates reveal packages. Internal rigid liquid manifold is shown
  // at its top surface; colored motion is a schematic view of enclosed channels.
  const cooled=[...gp.map(p=>[...p,.88,1.0]),...cp.map(p=>[...p,.80,.85]),...nic.map(p=>[...p,1.08,1.65]),[...dpu,.76,1.65]];
+ // Heat per plate: GPU and CPU from the accelerator table; the tray's share of the rack's NIC/DPU power split
+ // over four SuperNICs per NIC board and one DPU, counted as two NICs (an assumption: heat-visual-scale).
+ const A=model.accel,nicTrayW=A.nicKW*1000/18,nicW=nicTrayW*4/10,dpuW=nicTrayW*2/10;
+ const plateW=[...gp.map((_,i)=>[`gpu-${i}`,A.gpuW]),...cp.map((_,i)=>[`cpu-${i}`,A.cpuW]),...nic.map((_,i)=>[`nic-board-${i}`,nicW]),['dpu',dpuW]];
+ const deviceW=new Map(cooled.map((c,i)=>[c,plateW[i][1]]));
  // Each plate: a chamfered copper base, a dark seal line, a nickel-plated cap,
  // brazed inlet/outlet blocks on the manifold side and four sprung captive
  // screws. Plate shape and fastening are representative, not a drawing.
- for(const [x,z,w,d] of cooled){
+ for(const [ci,[x,z,w,d]] of cooled.entries()){
   rbox(S,w,.045,d,MAT.copper,x,.665,z,{r:.14});
   N.box(w*.93,.008,d*.93,finish.recess,x,.692,z);
   rbox(S,w*.86,.034,d*.86,MAT.nickel,x,.712,z,{r:.22});
@@ -73,14 +79,14 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
   for(const sx of [-1,1])for(const sz of [-1,1]){const px=x+sx*w*.38,pz=z+sz*d*.38;
    N.cyl(.02,.05,MAT.darkSteel,px,.745,pz,10);for(const dy of [.732,.752])N.cyl(.027,.005,MAT.galv,px,dy,pz,10);
    N.cyl(.031,.014,MAT.nickel,px,.772,pz,12);N.box(.036,.002,.006,MAT.black,px,.7805,pz);}
-  heatFlows.push(flow([[x,.22,z],[x,.77,z]],'hot',{count:4,speed:.4,size:.028,trail:false}));
+  heatFlows.push(tagHeat(flow([[x,.22,z],[x,.77,z]],'hot',{count:4,speed:.4,size:.028,trail:false}),...plateW[ci]));
  }
  for(const [side,x] of [[-1,-2.02],[1,2.02]]){
   S.cylZ(.062,8.55,MAT.nickel,x,.662,-.05,24);S.box(.05,.09,8.4,MAT.nickel,x,.585,-.05);
   for(const z of [-3.9,-2.3,-.3,1.6,3.3])S.box(.16,.05,.1,MAT.darkSteel,x+side*.08,.56,z);
   const path=[[x,.825,-4.55],[x,.825,4.20]];if(side===1)path.reverse();
   flows.push(flow(path,side===-1?'cool':'warm',{count:20,speed:.8,size:.022,k:1.5,trail:false}));
-  heatFlows.push(flow(path,side===-1?'cool':'warm',{count:26,speed:.8,size:.040,trailR:.015}));
+  heatFlows.push(tagHeat(flow(path,side===-1?'cool':'warm',{count:26,speed:.8,size:.040,trailR:.015}),'manifold',plateW.reduce((a,p)=>a+p[1],0),'carrier'));
   S.cylZ(.075,.1,MAT.nickel,x,.662,-4.34,24);S.cylZ(.05,.14,MAT.darkSteel,x,.662,-4.45,16);
  }
  // No flexible internal hoses. Flush rigid branches are grouped under the
@@ -89,14 +95,16 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  for(const [z,zSupply,zReturn] of [[-2.7,-3.45,-1.95],[-.65,-1.32,.05],[2.85,1.75,3.95]]) {
   const devices=cooled.filter(p=>p[1]===z),lo=Math.min(...devices.map(p=>p[0])),hi=Math.max(...devices.map(p=>p[0]));
   rigid([-2.02,zSupply],[hi,zSupply]);rigid([lo,zReturn],[2.02,zReturn]);
-  heatFlows.push(flow([[-2.02,.825,zSupply],[hi,.825,zSupply]],'cool',{count:8,speed:.65,size:.022,trail:false}));
-  heatFlows.push(flow([[lo,.825,zReturn],[2.02,.825,zReturn]],'warm',{count:8,speed:.65,size:.022,trail:false}));
-  for(const [x,,w,d] of devices){
+  const rowW=devices.reduce((a,c)=>a+deviceW.get(c),0);
+  heatFlows.push(tagHeat(flow([[-2.02,.825,zSupply],[hi,.825,zSupply]],'cool',{count:8,speed:.65,size:.022,trail:false}),`row-${z}`,rowW,'carrier'));
+  heatFlows.push(tagHeat(flow([[lo,.825,zReturn],[2.02,.825,zReturn]],'warm',{count:8,speed:.65,size:.022,trail:false}),`row-${z}`,rowW,'carrier'));
+  for(const c of devices){const [x,,w,d]=c;
    rigid([x,zSupply],[x,z-d*.48]);rigid([x,z+d*.48],[x,zReturn]);
-   heatFlows.push(flow([[x,.825,zSupply],[x,.825,z-d*.48]],'cool',{count:3,speed:.5,size:.022,trail:false}));
-   heatFlows.push(flow([[x,.825,z+d*.48],[x,.825,zReturn]],'warm',{count:3,speed:.5,size:.022,trail:false}));
+   heatFlows.push(tagHeat(flow([[x,.825,zSupply],[x,.825,z-d*.48]],'cool',{count:3,speed:.5,size:.022,trail:false}),`branch-${x}-${z}`,deviceW.get(c),'carrier'));
+   heatFlows.push(tagHeat(flow([[x,.825,z+d*.48],[x,.825,zReturn]],'warm',{count:3,speed:.5,size:.022,trail:false}),`branch-${x}-${z}`,deviceW.get(c),'carrier'));
   }
  }
+ balanceHeat(heatFlows);
  // Spine connectors remain at the back; eight front 800G port positions are
  // represented as four pairs so each GPU has 1.6T of scale-out capacity.
  // Routed runs: straight legs joined by short bends (45-degree jogs, a dip

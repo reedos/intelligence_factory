@@ -10,6 +10,7 @@ import { componentView } from '../app/housing-frame.js';
 import { printDecals, textTexture } from './print-kit.js';
 import { nicLabel, labelLines } from './lid-labels.js';
 import { etch, GPU_NAME } from './package-marks.js';
+import { tagHeat, balanceHeat, heatIntensity } from '../heat.js';
 
 // Printed lid labels on the modules seated in the NIC cages: the scenario's NIC-side class (lid-labels.js).
 export function trayLidLabels(scene, accel, placements, size) {
@@ -215,7 +216,7 @@ function lights(scene, quality) {
 }
 
 // ---------- DGX H100: 8U, air-cooled ----------
-function buildHGX({ quality }) {
+function buildHGX({ quality, model }) {
   const scene = new THREE.Scene();
   lights(scene, quality);
   const flows = [], dataFlows = [], heatFlows = [];
@@ -293,8 +294,8 @@ function buildHGX({ quality }) {
     // through the substrate edge, so the die and HBM tops stay clear.
     if (i === 0) for (const s of [-1, 1]) for (const dz of [-0.3, 0, 0.3]) flows.push(flow([[x + s * 0.36, fy + 0.08, z + dz], [x + s * 0.22, fy + 0.08, z + dz * 0.8]], 'core', { count: 3, speed: 0.35, size: 0.018, trailR: 0.006, k: 2.6, trailK: 0.2 }));
     // heat: up from the die into the sink, then swept back by the air
-    heatFlows.push(flow([[x, fy + 0.12, z], [x, y0 + 0.1, z]], 'hot', { count: 3, speed: 0.4, size: 0.035, k: 2.6, trail: false }));
-    for (const dx of [-0.25, 0.25]) heatFlows.push(flow([[x + dx, y0 + 0.6, z + 0.9], [x + dx, y0 + 0.6, z - 0.7], [x + dx * 1.1, y0 + 0.65, z - 2.0]], 'air', { count: 4, speed: 1.0, size: 0.045, k: 2.2, opacity: 0.85, trail: false }));
+    heatFlows.push(tagHeat(flow([[x, fy + 0.12, z], [x, y0 + 0.1, z]], 'hot', { count: 3, speed: 0.4, size: 0.035, k: 2.6, trail: false }), `gpu-${i}`, model.accel.gpuW));
+    for (const dx of [-0.25, 0.25]) heatFlows.push(tagHeat(flow([[x + dx, y0 + 0.6, z + 0.9], [x + dx, y0 + 0.6, z - 0.7], [x + dx * 1.1, y0 + 0.65, z - 2.0]], 'air', { count: 4, speed: 1.0, size: 0.045, k: 2.2, opacity: 0.85, trail: false }), `gpu-${i}-sink-air`, model.accel.gpuW, 'carrier'));
   });
   // small local fill so GPU0's lifted-lid package reads clearly from the 'gpu' hotspot, not just lit from the far key
   const gpuFill = new THREE.PointLight(0xfff2df, 0.9, 3.2, 2); gpuFill.position.set(gpuX[0] - 0.15, 0.7, gpuZ[0] + 1.1); scene.add(gpuFill);
@@ -400,7 +401,10 @@ function buildHGX({ quality }) {
   cpus.forEach(([x, z]) => dataFlows.push(flow([[x, ty + 0.1, z + 0.4], [x * 0.9, ty + 0.1, pcieZ]], 'pcie', { count: 3, speed: 0.5, size: 0.025, k: 2.0, trail: false })));
   dataFlows.forEach(f => scene.add(f.group));
   // air through the whole server, front to back
-  for (let i = 0; i < 6; i++) for (const y of [0.9, 2.6]) heatFlows.push(flow([[fanX(i), y, ZF - 0.6], [fanX(i), y, 0.2], [fanX(i) * 0.95, y, ZB + 1.4], [fanX(i) * 0.9, y + 0.1, ZB - 0.8]], 'air', { count: 5, speed: 1.1, size: 0.05, k: 2.0, opacity: 0.75, trail: false }));
+  // the whole server's air carries all of its heat: one rack's draw over its servers of eight GPUs
+  const serverW = model.rack.kw * 1000 / (model.accel.gpusPerRack / 8);
+  for (let i = 0; i < 6; i++) for (const y of [0.9, 2.6]) heatFlows.push(tagHeat(flow([[fanX(i), y, ZF - 0.6], [fanX(i), y, 0.2], [fanX(i) * 0.95, y, ZB + 1.4], [fanX(i) * 0.9, y + 0.1, ZB - 0.8]], 'air', { count: 5, speed: 1.1, size: 0.05, k: 2.0, opacity: 0.75, trail: false }), 'server-air', serverW, 'carrier'));
+  balanceHeat(heatFlows);
   heatFlows.forEach(f => scene.add(f.group));
 
   // status LEDs on the NICs, DPU and PSUs; a faint heat shimmer over the hottest heat sinks
@@ -562,13 +566,16 @@ function buildNVL({ quality, model }) {
   // ---------- cold plates, lifted to show the chips ----------
   const lift = 0.55;
   const plateLoop = [];
+  // heat per plate: a GPU package or a CPU with its memory; each board's loop carries its three plates
+  const { gpuW, cpuW } = model.accel, boardW = 2 * gpuW + cpuW;
   for (const bx of [-1.1, 1.1]) {
     const pts = [];
-    [[bx, 1.75, 0.66], [bx, 0.2, 0.9], [bx, -1.55, 0.9]].forEach(([x, z, s]) => {
+    [[bx, 1.75, 0.66], [bx, 0.2, 0.9], [bx, -1.55, 0.9]].forEach(([x, z, s], k) => {
       coldPlateDetail(S, finish, x, floorY + 0.1 + lift, z, s, heavy);
       N.cyl(0.035, 0.08, MAT.nickel, x - 0.2, floorY + 0.23 + lift, z, 10); N.cyl(0.035, 0.08, MAT.nickel, x + 0.2, floorY + 0.23 + lift, z, 10);
       pts.push([x, z]);
-      for (const [dx, dz] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) heatFlows.push(flow([[x + dx * s, floorY + 0.09, z + dz * s], [x + dx * s, floorY + 0.1 + lift, z + dz * s]], 'hot', { count: 3, speed: 0.5, size: 0.028, k: 2.6, trail: false }));
+      const [part, watts] = k === 0 ? [`cpu-${bx}`, cpuW] : [`gpu-${bx}-${k}`, gpuW];
+      for (const [dx, dz] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) heatFlows.push(tagHeat(flow([[x + dx * s, floorY + 0.09, z + dz * s], [x + dx * s, floorY + 0.1 + lift, z + dz * s]], 'hot', { count: 3, speed: 0.5, size: 0.028, k: 2.6, trail: false }), part, watts));
     });
     plateLoop.push(pts);
     const y = floorY + 0.28 + lift;
@@ -593,8 +600,8 @@ function buildNVL({ quality, model }) {
     // power-mode coolant beads stay small and below clipping: the heat layer carries the coolant story
     flows.push(flow(sup, 'cool', { count: 14, speed: 0.8, size: 0.022, k: 1.5, trail: false }));
     flows.push(flow(ret, 'warm', { count: 14, speed: 0.8, size: 0.022, k: 1.5, trail: false }));
-    heatFlows.push(flow(sup, 'cool', { count: 20, speed: 0.8, size: 0.045, k: 2.4, trailR: 0.034, trailK: 0.45 }));
-    heatFlows.push(flow(ret, 'warm', { count: 20, speed: 0.8, size: 0.045, k: 2.4, trailR: 0.034, trailK: 0.45 }));
+    heatFlows.push(tagHeat(flow(sup, 'cool', { count: 20, speed: 0.8, size: 0.045, k: 2.4, trailR: 0.034, trailK: 0.45 }), `water-${bx}`, boardW, 'carrier'));
+    heatFlows.push(tagHeat(flow(ret, 'warm', { count: 20, speed: 0.8, size: 0.045, k: 2.4, trailR: 0.034, trailK: 0.45 }), `water-${bx}`, boardW, 'carrier'));
     S.cylZ(0.07, 0.2, MAT.nickel, qdX, 0.25, ZB - 0.1, 12); S.cylZ(0.07, 0.2, MAT.nickel, qdX + 0.15, 0.25, ZB - 0.1, 12);
   }
 
@@ -709,12 +716,18 @@ function buildNVL({ quality, model }) {
   for (const x of dpuX) dataFlows.push(flow([[x, floorY + 0.3, ZF - 1.2], [x, 0.24, ZF]], 'eth', { count: 5, speed: 0.6, size: 0.028, k: 1.6, trailR: 0.01 }));
   dataFlows.forEach(f => scene.add(f.group));
   // air over the parts water does not reach, front to back
-  if (!allLiquid) for (let i = 0; i < 6; i++) { const x = -1.9 + i * 0.76 + 0.19; heatFlows.push(flow([[x, 0.3, ZF - 1.75], [x, 0.3, ZF - 3.2], [x * 0.9, 0.34, ZB + 1.5]], 'air', { count: 6, speed: 0.9, size: 0.04, k: 2.0, opacity: 0.8, trail: false })); }
+  // the air carries what water does not reach: one tray's share of the rack's NICs, DPUs, drives, fans and
+  // management, and of its bus-converter losses
+  const trayAirW = (model.accel.nicKW + model.accel.otherKW + model.rack.ibcLossKW) * 1000 / 18;
+  if (!allLiquid) for (let i = 0; i < 6; i++) { const x = -1.9 + i * 0.76 + 0.19; heatFlows.push(tagHeat(flow([[x, 0.3, ZF - 1.75], [x, 0.3, ZF - 3.2], [x * 0.9, 0.34, ZB + 1.5]], 'air', { count: 6, speed: 0.9, size: 0.04, k: 2.0, opacity: 0.8, trail: false }), 'tray-air', trayAirW, 'carrier')); }
+  balanceHeat(heatFlows);
   heatFlows.forEach(f => scene.add(f.group));
 
   // status LEDs on the NICs, DPU, drives and converters; a faint warm-air shimmer over the bus converters
   const leds = blinkers(statusLeds); scene.add(leds.mesh);
-  const shimmer = heavy ? plumes(warmTops.map(p => ({ p, dir: [0, 1, 0] })), { perEmitter: 8, size: 0.13, grow: 2.0, life: 1.8, rise: 0.3, drift: [0.03, 0, 0.015], spread: 0.14, color: '#ffddb0', opacity: 0.1, additive: true }) : null;
+  // each bus converter's loss (the rack's over 18 trays and four converters) against a GPU: on the one log rule
+  const ibcW = model.rack.ibcLossKW * 1000 / 18 / ibcX.length;
+  const shimmer = heavy ? plumes(warmTops.map(p => ({ p, dir: [0, 1, 0] })), { perEmitter: 8, size: 0.13, grow: 2.0, life: 1.8, rise: 0.3, drift: [0.03, 0, 0.015], spread: 0.14, color: '#ffddb0', opacity: heatIntensity(0.1, ibcW, gpuW), additive: true }) : null;
   if (shimmer) scene.add(shimmer.points);
 
   const [g0x, g0z] = gpus[1];
