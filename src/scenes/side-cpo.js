@@ -288,8 +288,8 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
     variant: {
       get kind() { return kind; }, set: setVariant, views, bailly,
       intro: mode => cpoIntro(kind, mode),
-      // the subtitle's figure for the Broadcom-style package (the level's own is NVIDIA's 28.8T)
-      sub: mode => kind === 'mzm' && mode === 'data' ? '51.2T per switch chip' : null,
+      // the data subtitle names each package by its engines (the level's own, for the ring package, is in data.js)
+      sub: mode => kind === 'mzm' && mode === 'data' ? '8 Mach-Zehnder engine tiles · 51.2T' : null,
       partCopy: (part, mode) => cpoPartCopy(kind, part, mode),
       spriteVisible: sprite => !sprite.userData.cpoVariant || sprite.userData.cpoVariant === kind,
     },

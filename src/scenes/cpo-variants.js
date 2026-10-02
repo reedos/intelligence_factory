@@ -205,12 +205,12 @@ export function mzmCpoPicTex() {
 // ---------- words ----------
 // What the panel says in the Broadcom-style design. Its parts are its own (data.js, ids mzm-*); the NVIDIA-style
 // design is the level's own text.
-export const CPO_VARIANT_NAME = { ring: 'NVIDIA-style · micro-rings', mzm: 'Broadcom-style · Mach-Zehnder' };
+export const CPO_VARIANT_NAME = { ring: 'Micro-ring modulators', mzm: 'Mach-Zehnder modulators' };
 export function cpoIntro(kind, mode) {
   if (kind !== 'mzm') return null;
   return {
-    power: 'A Broadcom-style switch package, in the class of its 51.2T Bailly: eight 6.4 Tb/s optical engines around a Tomahawk 5 switch chip (8 × 6.4 Tb/s = 51.2 Tb/s), each a tile with its electronics at the switch-chip end and its fiber connector at the package edge. Each engine is fed from the package substrate like the switch chip. Remote laser modules at the front supply the light. The package’s size and layout are representative; the counts are Broadcom’s.',
-    data: 'Lanes leave the switch chip’s SerDes through package traces to the electronic die of each of the eight tiles, whose drivers swing segmented Mach-Zehnder modulators on the photonic die below; multiplexers put four wavelengths on each transmit fiber, as 400G FR4 ports do: 16 ports per engine, 64 lanes × 100 Gb/s = 6.4 Tb/s each way. Receive light is split by wavelength to photodiodes whose TIAs, on the electronic die, drive the switch chip directly. Laser light arrives by fiber from the front panel.',
+    power: 'A switch package with Mach-Zehnder modulators: eight 6.4 Tb/s optical engine tiles around a Tomahawk 5-class switch chip (8 × 6.4 Tb/s = 51.2 Tb/s). It follows the approach in Broadcom’s 51.2T Bailly-class CPO, as reported. Each engine is a tile with its electronics at the switch-chip end and its fiber connector at the package edge. Each engine is fed from the package substrate like the switch chip. Remote laser modules at the front supply the light. The package’s size and layout are representative; the counts are Broadcom’s.',
+    data: 'Lanes leave the switch chip’s SerDes through package traces to the electronic die of each of the eight tiles, whose drivers swing segmented Mach-Zehnder modulators on the photonic die below; multiplexers put four wavelengths on each transmit fiber, as 400G FR4 ports do: 16 ports per engine, 64 lanes × 100 Gb/s = 6.4 Tb/s each way. Receive light is split by wavelength to photodiodes whose TIAs, on the electronic die, drive the switch chip directly. Laser light arrives by fiber from the front panel. It follows the approach in Broadcom’s 51.2T Bailly-class CPO, as reported.',
     heat: 'The switch chip and the eight engines share one package. Broadcom’s 51.2T reference system is air-cooled, so a finned heat sink is drawn over the package, in x-ray, with air through its channels; its shape is representative.',
   }[mode];
 }
