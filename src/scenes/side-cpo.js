@@ -14,7 +14,7 @@
 import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, label, outline, FLOW, COL, note, unitCol, asicTex, ringPicTex, RING, glowMat } from './side-kit.js';
 import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes, CPO_VARIANTS, CPO_RING, eicBox, frameToLocal } from './side-geometry.js';
 import { ringEicTex, cpoIntro, cpoPartCopy } from './cpo-variants.js';
-import { roundCorners, keepCwCorner, CW_BEND } from './side-cpo-routes.js';
+import { roundCorners, keepCwCorner, CW_BEND, CPO_AUDIT as AU } from './side-cpo-routes.js';
 import { buildBailly, BAILLY_DETAIL } from './cpo-bailly.js';
 import { tagHeat, balanceHeat, PART_W } from '../heat.js';
 export { roundCorners, keepCwCorner };
@@ -176,30 +176,30 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   // ---- NVIDIA-style flows ----
   engines.forEach((e, i) => {
     const [ax, az] = asicEdge(e), [ex, ez] = eicIn(e), tn = e.tan;
-    R.addFlow('data', flow([[ax, Y.subTop + 0.02, az], [ex, Y.subTop + 0.02, ez], [e.x - e.out[0] * 0.3, Y.eng + 0.1, e.z - e.out[1] * 0.3]], 'eth', FLOW.elec));
+    R.addFlow('data', flow([[ax, Y.subTop + 0.02, az], [ex, Y.subTop + 0.02, ez], [e.x - e.out[0] * 0.3, Y.eng + 0.1, e.z - e.out[1] * 0.3]], 'eth', { ...FLOW.elec, audit: AU.intoEngine }));
     // The receive lanes return electrically from the EIC to the switch ASIC,
     // offset along the same substrate corridor so both directions remain readable.
     const rxOffset = 0.045, rxX = tn[0] * rxOffset, rxZ = tn[1] * rxOffset;
-    R.addFlow('data', flow([[e.x - e.out[0] * 0.3 + rxX, Y.eng + 0.1, e.z - e.out[1] * 0.3 + rxZ], [ex + rxX, Y.subTop + 0.04, ez + rxZ], [ax + rxX, Y.subTop + 0.04, az + rxZ]], 'eth', FLOW.elec));
+    R.addFlow('data', flow([[e.x - e.out[0] * 0.3 + rxX, Y.eng + 0.1, e.z - e.out[1] * 0.3 + rxZ], [ex + rxX, Y.subTop + 0.04, ez + rxZ], [ax + rxX, Y.subTop + 0.04, az + rxZ]], 'eth', { ...FLOW.elec, audit: AU.intoEngine }));
     // Every modeled engine is active. These route-level marks sample its lane
     // bundle; they are not a count of fibers or a bandwidth scale.
     const routes = fiberRoutes[i];
-    R.addFlow('data', flow(roundCorners(routes.tx[3]), 'tx', FLOW.light));
-    R.addFlow('data', flow(roundCorners([...routes.rx[3]].reverse()), 'rx', FLOW.light));
-    R.addFlow('data', flow(roundCorners(routes.cw[0], keepCwCorner, CW_BEND), 'cw', FLOW.cw));
+    R.addFlow('data', flow(roundCorners(routes.tx[3]), 'tx', { ...FLOW.light, audit: AU.throughConnector }));
+    R.addFlow('data', flow(roundCorners([...routes.rx[3]].reverse()), 'rx', { ...FLOW.light, audit: AU.throughConnector }));
+    R.addFlow('data', flow(roundCorners(routes.cw[0], keepCwCorner, CW_BEND), 'cw', { ...FLOW.cw, audit: AU.throughConnector }));
   });
   // in the detail: electrical in to a driver, down a bond to its ring; laser light along the bus; light out; light in
   // to a photodiode, up a bond to its TIA, electrical out
   for (const i of [1, 4, 6]) {
     const zIn = -0.55 + (i % 3) * 0.22, zOut = 0.55 - (i % 3) * 0.22;
     const [rx_] = ringAt(i), [bondX, bondZ] = ringBondAt(i);
-    R.addFlow('data', flow([w(electricalEdge - 1.6, 0.96, zIn), w(electricalEdge, 0.96, zIn), w(bondX, 0.89, bondZ), w(bondX, 0.09, bondZ)], 'eth', FLOW.elec));
-    R.addFlow('data', flow([w(PW / 2 + 2.6, 0.1, pcz(RING.busY)), w(PW / 2, 0.09, pcz(RING.busY)), w(pcx(RING.manX), 0.09, pcz(RING.busY)), w(pcx(RING.manX), 0.09, txRowZ(i)), w(rx_, 0.09, txRowZ(i))], 'cw', FLOW.cw));
-    R.addFlow('data', flow([w(rx_, 0.09, txRowZ(i)), w(PW / 2, 0.09, txRowZ(i)), w(PW / 2 + 2.6, 0.1, txRowZ(i))], 'tx', FLOW.light));
-    R.addFlow('data', flow([w(PW / 2 + 2.6, 0.14, rxRowZ(i)), w(PW / 2, 0.09, rxRowZ(i)), w(pdX, 0.09, rxRowZ(i))], 'rx', FLOW.light));
-    R.addFlow('data', flow([w(pdX, 0.09, rxRowZ(i)), w(pdX, 0.89, rxRowZ(i)), w(electricalEdge, 0.96, zOut), w(electricalEdge - 1.6, 0.96, zOut)], 'eth', FLOW.elec));
+    R.addFlow('data', flow([w(electricalEdge - 1.6, 0.96, zIn), w(electricalEdge, 0.96, zIn), w(bondX, 0.89, bondZ), w(bondX, 0.09, bondZ)], 'eth', { ...FLOW.elec, audit: AU.throughBond }));
+    R.addFlow('data', flow([w(PW / 2 + 2.6, 0.1, pcz(RING.busY)), w(PW / 2, 0.09, pcz(RING.busY)), w(pcx(RING.manX), 0.09, pcz(RING.busY)), w(pcx(RING.manX), 0.09, txRowZ(i)), w(rx_, 0.09, txRowZ(i))], 'cw', { ...FLOW.cw, audit: AU.throughGlass }));
+    R.addFlow('data', flow([w(rx_, 0.09, txRowZ(i)), w(PW / 2, 0.09, txRowZ(i)), w(PW / 2 + 2.6, 0.1, txRowZ(i))], 'tx', { ...FLOW.light, audit: AU.throughGlass }));
+    R.addFlow('data', flow([w(PW / 2 + 2.6, 0.14, rxRowZ(i)), w(PW / 2, 0.09, rxRowZ(i)), w(pdX, 0.09, rxRowZ(i))], 'rx', { ...FLOW.light, audit: AU.throughGlass }));
+    R.addFlow('data', flow([w(pdX, 0.09, rxRowZ(i)), w(pdX, 0.89, rxRowZ(i)), w(electricalEdge, 0.96, zOut), w(electricalEdge - 1.6, 0.96, zOut)], 'eth', { ...FLOW.elec, audit: AU.throughBond }));
   }
-  engines.forEach(({ x, z }) => R.addFlow('power', flow([[x, -1.0, z], [x, Y.sub, z], [x, Y.eng, z]], 'v33', FLOW.power)));
+  engines.forEach(({ x, z }) => R.addFlow('power', flow([[x, -1.0, z], [x, Y.sub, z], [x, Y.eng, z]], 'v33', { ...FLOW.power, audit: AU.upStack })));
   // Heat per part on the site's one log rule (src/heat.js, PART_W.cpo): each engine, then the water carrying it all.
   engines.forEach(({ x, z }, i) => R.addFlow('heat', tagHeat(flow([[x, Y.eng + 0.1, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat), `engine-${i}`, PART_W.cpo.engine)));
   R.addFlow('heat', tagHeat(flow([[-1.4, pipeTop, pipeZ], [-1.4, Y.plate, pipeZ], [-1.4, Y.plate, 3], [1.4, Y.plate, 3], [1.4, Y.plate, pipeZ], [1.4, pipeTop, pipeZ]], 'cool', { count: 10, speed: 1.6, size: 0.06, k: 2.2, trail: false }), 'coldplate-water', PART_W.cpo.asic + engines.length * PART_W.cpo.engine, 'carrier'));
@@ -207,8 +207,8 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   // ---- shared flows: the switch chip's power and heat, the laser modules' power ----
   const shared = (mode, f) => { lists[mode].push(f); scene.add(f.group); };
   const activeDieSpan = (ASIC_HALF - .2) * 2;
-  for (let i = 0; i < 24; i++) { const x = (rnd() - 0.5) * activeDieSpan, z = (rnd() - 0.5) * activeDieSpan; shared('power', flow([[x, -1.2, z], [x, Y.sub, z], [x, Y.die, z]], 'core', FLOW.power)); }
-  els.forEach(([x, z]) => shared('power', flow([[x + 2.3, Y.sub + 0.45, z], [x + 0.9, Y.sub + 0.45, z]], 'v33', FLOW.power)));
+  for (let i = 0; i < 24; i++) { const x = (rnd() - 0.5) * activeDieSpan, z = (rnd() - 0.5) * activeDieSpan; shared('power', flow([[x, -1.2, z], [x, Y.sub, z], [x, Y.die, z]], 'core', { ...FLOW.power, audit: AU.upStack })); }
+  els.forEach(([x, z]) => shared('power', flow([[x + 2.3, Y.sub + 0.45, z], [x + 0.9, Y.sub + 0.45, z]], 'v33', { ...FLOW.power, audit: AU.intoEls })));
   // A few sampled columns read as rising heat; a dense sheet hid the die and the plate behind it.
   for (let i = 0; i < 14; i++) { const x = (rnd() - 0.5) * activeDieSpan, z = (rnd() - 0.5) * activeDieSpan; shared('heat', tagHeat(flow([[x, Y.die + 0.06, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat), 'asic', PART_W.cpo.asic)); }
 

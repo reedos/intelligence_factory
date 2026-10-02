@@ -679,7 +679,11 @@ function buildNVL({ quality, model, state }) {
     const m=new THREE.Mesh(new THREE.BoxGeometry(.085,.010,.085),silicon);
     m.name=`NVLink switch ASIC ${i+1}`;m.position.set(x,sy+.004,sz+z);scene.add(m);
     N.box(.099,.003,.099,MAT.nickel,x,sy-.003,sz+z);
-    dataFlows.push(flow([[x,sy+.022,sz+z],[x,sy+.022,sz-.43],[x,sy+.022,ZB+.16]],'nvl',{count:8,speed:.55,size:.006,trailR:.002}));
+    // out of the ASIC's rear edge onto the board, straight back along it (both ASICs alike, mirrored), then the
+    // schematic tether to the spine, inboard of the rear frame's vertical members
+    const yb=sy-U/2+.0135;
+    dataFlows.push(flow([[x,sy+.002,sz+z],[x,yb,sz+z-.05],[x,yb,sz-.33],[x*.6,yb,sz-.38],[x*.6,yb,ZB+.16]],'nvl',
+      {count:8,speed:.55,size:.006,trailR:.002,audit:{within:[[x-.04,yb-.02,sz-.37,x+.04,yb+.02,sz-.29]],why:'through the tray rear NVLink connector'}}));
   });
   // Gold removal handles as bent rod (ServeTheHome: the gold features on the
   // NVLink switch shelves are handles), not full-width trim slabs.
@@ -820,11 +824,16 @@ function buildNVL({ quality, model, state }) {
     const [a, b] = c % 2 ? [spanLo, spanHi] : [spanHi, spanLo];
     dataFlows.push(flow([[cx, a, cartZ - 0.067], [cx, b, cartZ - 0.067]], 'nvl', { count: 26, speed: 0.3, size: 0.009, k: 2.4, trail: false }));
   });
-  [4, 8, 12, 16, 22, 26].forEach(i => cartX.forEach(cx => dataFlows.push(flow([[0, trayY(i), ZB + 0.16], [cx, trayY(i), cartZ - 0.067]], 'nvl', { count: 2, speed: 0.15, size: 0.007, k: 2.4, trail: false }))));
+  // Out of a tray: across behind the tray, clear of the neighbouring cartridges and connectors, then straight back
+  // through its own connector and cartridge (declared) onto the cartridge's rear face.
+  [4, 8, 12, 16, 22, 26].forEach(i => cartX.forEach(cx => dataFlows.push(flow([[0, trayY(i), ZB + 0.16], [cx, trayY(i), cartZ + 0.035], [cx, trayY(i), cartZ - 0.067]], 'nvl',
+    { count: 2, speed: 0.15, size: 0.007, k: 2.4, trail: false, audit: { within: [[cx - 0.04, trayY(i) - 0.03, cartZ - 0.08, cx + 0.04, trayY(i) + 0.03, cartZ + 0.045]], why: 'through its own NVLink connector and cable cartridge' } }))));
 
   // ---------- flows ----------
-  for (const x of [-0.12, 0.12]) flows.push(flow([[x, TAP.glandY, -0.25], [x, H + 0.02, -0.25], [x * 0.8, trayY(TOP_SHELF), ZB + 0.16]], feedV, { count: 8, speed: 0.35, size: 0.012, trailR: 0.004 }));
-  flows.push(flow([[0.1, H, -0.3], [0.1, trayY(1), ZB + 0.16]], feedV, { count: 10, speed: 0.35, size: 0.012, trailR: 0.004 }));
+  // the feeds ride inside their drawn cables (above), which enter the rack through roof grommets
+  const inCable = { through: true, why: 'inside the feed cable, through the rack roof grommet' };
+  for (const x of [-0.12, 0.12]) flows.push(flow([[x, TAP.glandY, -0.25], [x, H + 0.02, -0.25], [x * 0.8, trayY(TOP_SHELF), ZB + 0.16]], feedV, { count: 8, speed: 0.35, size: 0.012, trailR: 0.004, audit: inCable }));
+  flows.push(flow([[0.1, H, -0.3], [0.1, trayY(1), ZB + 0.16]], feedV, { count: 10, speed: 0.35, size: 0.012, trailR: 0.004, audit: inCable }));
   // DC: from shelves onto the busbar, up and down the bar
   // Close rear views sit at the pulse screen-size ceiling, so these rails are
   // dimmed rather than shrunk: the bars, contact lands and cartridges stay readable.

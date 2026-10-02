@@ -10,7 +10,7 @@
 import { THREE, MAT, flow, die, strand, trace, label, FLOW, COL, note, unitCol } from './side-kit.js';
 import { CPO_MZM, CPO_EIC, CPO_DIE, BAILLY, baillyLayout, baillyFiberRoutes, asicTap, eicBox, frameToLocal, cpoBlocks } from './side-geometry.js';
 import { eicMzmTex, mzmCpoPicTex } from './cpo-variants.js';
-import { roundCorners, keepCwCorner, CW_BEND } from './side-cpo-routes.js';
+import { roundCorners, keepCwCorner, CW_BEND, CPO_AUDIT as AU } from './side-cpo-routes.js';
 import { tagHeat, PART_W } from '../heat.js';
 
 export const BAILLY_DETAIL = { s: 2.5, DX: -12.2, DY: 1.4, DZ: -8.4 };
@@ -99,13 +99,13 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
   // ---- flows ----
   tiles.forEach((t, i) => {
     const [ax, az] = asicTap(t), [ix, iz] = inner(t), top = [ix + t.out[0] * 0.3, MY + 0.12, iz + t.out[1] * 0.3];
-    addFlow('data', flow([[ax, Y.subTop + 0.02, az], [ix, Y.subTop + 0.02, iz], top], 'eth', FLOW.elec));
+    addFlow('data', flow([[ax, Y.subTop + 0.02, az], [ix, Y.subTop + 0.02, iz], top], 'eth', { ...FLOW.elec, audit: AU.intoStack }));
     const o = 0.045, ox = t.tan[0] * o, oz = t.tan[1] * o;
-    addFlow('data', flow([[top[0] + ox, top[1], top[2] + oz], [ix + ox, Y.subTop + 0.04, iz + oz], [ax + ox, Y.subTop + 0.04, az + oz]], 'eth', FLOW.elec));
-    addFlow('data', flow(roundCorners(routes[i].tx[7]), 'tx', FLOW.light));
-    addFlow('data', flow(roundCorners([...routes[i].rx[7]].reverse()), 'rx', FLOW.light));
-    addFlow('data', flow(roundCorners(routes[i].cw[0], keepCwCorner, CW_BEND), 'cw', FLOW.cw));
-    addFlow('power', flow([[t.x, -1.0, t.z], [t.x, Y.sub, t.z], [t.x, MY, t.z]], 'v33', FLOW.power));
+    addFlow('data', flow([[top[0] + ox, top[1], top[2] + oz], [ix + ox, Y.subTop + 0.04, iz + oz], [ax + ox, Y.subTop + 0.04, az + oz]], 'eth', { ...FLOW.elec, audit: AU.intoStack }));
+    addFlow('data', flow(roundCorners(routes[i].tx[7]), 'tx', { ...FLOW.light, audit: AU.throughConnector }));
+    addFlow('data', flow(roundCorners([...routes[i].rx[7]].reverse()), 'rx', { ...FLOW.light, audit: AU.throughConnector }));
+    addFlow('data', flow(roundCorners(routes[i].cw[0], keepCwCorner, CW_BEND), 'cw', { ...FLOW.cw, audit: AU.throughConnector }));
+    addFlow('power', flow([[t.x, -1.0, t.z], [t.x, Y.sub, t.z], [t.x, MY, t.z]], 'v33', { ...FLOW.power, audit: AU.upStack }));
     const [ex, ez] = [t.x - t.out[0] * 0.8, t.z - t.out[1] * 0.8];   // over the electronic die
     addFlow('heat', tagHeat(flow([[ex, MY + 0.13, ez], [ex, Y.plate - 0.2, ez]], 'hot', FLOW.heat), `tile-${i}`, PART_W.cpo.tile));
   });
@@ -116,11 +116,11 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
   [1, 4, 6].forEach((i, n) => {
     const g = i < 4 ? 0 : 1, row = Z.row(i), zr = pcz(row), zs = pcz(row - Z.strip), [, s1] = Z.seg(n), padX = pcx(Z.pad(n));
     const zIn = -0.55 + (i % 3) * 0.22, zOut = 0.55 - (i % 3) * 0.22, dm = Z.demux[g], mx = Z.mux[g], rd = Z.rxDemux[g], rr = pcz(Z.rxRow(i));
-    addFlow('data', flow([w(eEdge - 1.6, 0.96, zIn), w(eEdge, 0.96, zIn), w(padX, 0.89, zs), w(padX, 0.09, zs), w(pcx(s1), 0.09, zs)], 'eth', FLOW.elec), true);
-    addFlow('data', flow([w(L / 2 + 2.6, 0.1, pcz(Z.lasers[g])), w(L / 2, 0.09, pcz(Z.lasers[g])), w(pcx(dm[2]), 0.09, pcz(Z.lasers[g])), w(pcx(dm[2]), 0.09, zr), w(pcx(Z.split), 0.09, zr)], 'cw', FLOW.cw), true);
-    addFlow('data', flow([w(pcx(Z.split), 0.09, zr), w(pcx(Z.armIn), 0.09, pcz(row - Z.arm)), w(pcx(Z.armOut), 0.09, pcz(row - Z.arm)), w(pcx(Z.join), 0.09, zr), w(pcx(mx[0]), 0.09, zr), w(pcx(mx[2]), 0.09, pcz(Z.txOut[g])), w(L / 2, 0.09, pcz(Z.txOut[g])), w(L / 2 + 2.6, 0.1, pcz(Z.txOut[g]))], 'tx', FLOW.light), true);
-    addFlow('data', flow([w(L / 2 + 2.6, 0.14, pcz(Z.rxIn[g])), w(L / 2, 0.09, pcz(Z.rxIn[g])), w(pcx(rd[2]), 0.09, pcz(Z.rxIn[g])), w(pcx(rd[0]), 0.09, rr), w(pdx, 0.09, rr)], 'rx', FLOW.light), true);
-    addFlow('data', flow([w(pdx, 0.09, rr), w(pdx, 0.89, rr), w(eEdge, 0.96, zOut), w(eEdge - 1.6, 0.96, zOut)], 'eth', FLOW.elec), true);
+    addFlow('data', flow([w(eEdge - 1.6, 0.96, zIn), w(eEdge, 0.96, zIn), w(padX, 0.89, zs), w(padX, 0.09, zs), w(pcx(s1), 0.09, zs)], 'eth', { ...FLOW.elec, audit: AU.throughBond }), true);
+    addFlow('data', flow([w(L / 2 + 2.6, 0.1, pcz(Z.lasers[g])), w(L / 2, 0.09, pcz(Z.lasers[g])), w(pcx(dm[2]), 0.09, pcz(Z.lasers[g])), w(pcx(dm[2]), 0.09, zr), w(pcx(Z.split), 0.09, zr)], 'cw', { ...FLOW.cw, audit: AU.throughGlass }), true);
+    addFlow('data', flow([w(pcx(Z.split), 0.09, zr), w(pcx(Z.armIn), 0.09, pcz(row - Z.arm)), w(pcx(Z.armOut), 0.09, pcz(row - Z.arm)), w(pcx(Z.join), 0.09, zr), w(pcx(mx[0]), 0.09, zr), w(pcx(mx[2]), 0.09, pcz(Z.txOut[g])), w(L / 2, 0.09, pcz(Z.txOut[g])), w(L / 2 + 2.6, 0.1, pcz(Z.txOut[g]))], 'tx', { ...FLOW.light, audit: AU.throughGlass }), true);
+    addFlow('data', flow([w(L / 2 + 2.6, 0.14, pcz(Z.rxIn[g])), w(L / 2, 0.09, pcz(Z.rxIn[g])), w(pcx(rd[2]), 0.09, pcz(Z.rxIn[g])), w(pcx(rd[0]), 0.09, rr), w(pdx, 0.09, rr)], 'rx', { ...FLOW.light, audit: AU.throughGlass }), true);
+    addFlow('data', flow([w(pdx, 0.09, rr), w(pdx, 0.89, rr), w(eEdge, 0.96, zOut), w(eEdge - 1.6, 0.96, zOut)], 'eth', { ...FLOW.elec, audit: AU.throughBond }), true);
   });
 
   // ---- captions ----

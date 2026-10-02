@@ -51,7 +51,7 @@ describe('the checker catches each fault', () => {
   it('a bus through a package it does not end on, and through a part modelled in 3D', () => {
     const p = base(); p.buses.push(bus('thru', [[0.3, -1.2], [1.9, -1.2]], ['in']));
     expect(checkPcb(p).some(v => v.includes('thru (in) runs through package'))).toBe(true);
-    const q = base(); q.buses.push(bus('under bar', [[1.1, -2.5], [1.1, -2.9]], ['top'], 2));
+    const q = base(); q.buses.push(bus('under bar', [[0.15, -2.5], [0.15, -2.9]], ['top'], 2));   // the 12 V bar on the right board's inboard edge
     expect(checkPcb(q).some(v => v.includes('under bar (top) runs through part 12 V bar'))).toBe(true);
   });
   it('a same-layer crossing, and the same crossing with one bus on an inner layer passes the crossing rule', () => {

@@ -91,10 +91,13 @@ describe('coherent packaging qualifications remain visible in the interactive sc
     const first=(points:number[][],box:THREE.Box3)=>points.findIndex(p=>insideXZ(box,new THREE.Vector3(...p)));
     for(const p of routes.lineTx) {expect(first(p,driver)).toBeGreaterThan(-1);expect(first(p,modulator)).toBeGreaterThan(first(p,driver));}
     for(const p of routes.lineRx) {expect(first(p,receiver)).toBe(0);expect(first(p,tia)).toBeGreaterThan(0);}
-    for(const p of routes.hostTx) expect(p.at(-1)[0]).toBeCloseTo(-2.875);
-    for(const p of routes.hostRx) expect(p[0][0]).toBeCloseTo(-2.875);
-    for(const p of routes.lineTx) expect(p[0][0]).toBeCloseTo(-1.725);
-    for(const p of routes.lineRx) expect(p.at(-1)[0]).toBeCloseTo(-1.725);
+    // host and line banks rise into the die at its west and east edges (design review 10/01/2026: DSP at -2.8 cm)
+    const west=routes.dspX-routes.dieHalf,east=routes.dspX+routes.dieHalf;
+    expect(west).toBeCloseTo(-3.375);expect(east).toBeCloseTo(-2.225);
+    for(const p of routes.hostTx) expect(p.at(-1)[0]).toBeCloseTo(west);
+    for(const p of routes.hostRx) expect(p[0][0]).toBeCloseTo(west);
+    for(const p of routes.lineTx) expect(p[0][0]).toBeCloseTo(east);
+    for(const p of routes.lineRx) expect(p.at(-1)[0]).toBeCloseTo(east);
 
   });
   it('keeps DSP-to-driver and TIA-to-DSP routes short and direct, with the laser off the RF path (OIF packaging order)',()=>{
@@ -131,7 +134,8 @@ describe('coherent packaging qualifications remain visible in the interactive sc
     }
     const routes=b.scene.userData.coherentRouting;
     for(const route of [...routes.hostTx,...routes.hostRx]) for(const p of route) {
-      if(p[0]<-3.2&&p[0]>-4.4)expect(Math.abs(p[2])).toBeGreaterThan(.4);
+      // the four point-of-load inductors occupy x -4.43..-3.80, |z| <= 0.36 (design review 10/01/2026)
+      if(p[0]<-3.8&&p[0]>-4.45)expect(Math.abs(p[2])).toBeGreaterThan(.4);
     }
     expect(routes.hostTx).toHaveLength(4);expect(routes.hostRx).toHaveLength(4);
     expect(routes.hostPathGroupsAreNotLaneCounts).toBe(true);

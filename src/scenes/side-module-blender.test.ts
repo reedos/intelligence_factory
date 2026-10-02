@@ -682,7 +682,8 @@ describe('twin-port authored module correction', () => {
       }
       // One contiguous bank: uniform lane pitch, including lanes four and five.
       const zs = Array.from({length:8}, (_, i) => metadata.routes.find(r => r.name === `${direction} host copper ${i} -1`)!.points.at(-1)![2]);
-      for (let i=1;i<8;i++) expect(zs[i-1]-zs[i]).toBeCloseTo(.00079 * .7, 8);
+      // the host pairs run straight from the breakout into the DSP (design review 10/01/2026): the bank's 0.24 mm pitch
+      for (let i=1;i<8;i++) expect(zs[i-1]-zs[i]).toBeCloseTo(.00024, 8);
     }
   });
   it('maps each vertical ferrule to the MSA dual-MPO channel orientation with physically separated fiber crossings', () => {
@@ -707,7 +708,7 @@ describe('twin-port authored module correction', () => {
   });
   it('powers one DSP and both analog banks and removes the DSP and pad in LPO', () => {
     const {result}=build('power');
-    expect(result.flows.filter(f=>f.route.to==='dsp')).toHaveLength(1);
+    expect(result.flows.filter(f=>f.route.to==='dsp')).toHaveLength(2);   // one rail from each point-of-load stage (design review 10/01/2026)
     for(const target of ['driver','tia','lasers'])expect(result.flows.filter(f=>f.route.to===target)).toHaveLength(1);
     expect(result.heatFlows.filter(f=>f.route.from==='dsp')).toHaveLength(6);
     result.variant.setLpo(true);result.update(1);
@@ -802,5 +803,84 @@ describe('hall and tray optics cards name only modules their scenario uses', () 
       if (want) { expect(rows[0][1]).toBe(want); expect(rows.some((r: any[]) => /1\.6T/.test(r[0]))).toBe(false); }
       else expect(rows.filter((r: any[]) => /1\.6T/.test(r[0])).every((r: any[]) => /switch-end/.test(r[0]))).toBe(true);
     }
+  });
+});
+
+// Engineering layout rules (Reed, 10/01/2026; research/design-review-packages-modules-2026-10-01.md), checked on the
+// authored asset: units are metres in the glTF rest frame.
+describe('module board follows place-and-route rules', () => {
+  const plan = (p: number[]) => [p[0], p[2]];
+  const segBoxDistance = (a: number[], b: number[], box: { min: number[]; max: number[] }) => {
+    let best = Infinity;
+    for (let t = 0; t <= 1; t += 1 / 40) {
+      const x = a[0] + (b[0] - a[0]) * t, z = a[1] + (b[1] - a[1]) * t;
+      const dx = Math.max(box.min[0] - x, 0, x - box.max[0]), dz = Math.max(box.min[1] - z, 0, z - box.max[1]);
+      best = Math.min(best, Math.hypot(dx, dz));
+    }
+    return best;
+  };
+  const cross = (a: number[], b: number[], c: number[], d: number[]) => {
+    const o = (p: number[], q: number[], r: number[]) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+    return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
+  };
+  // switching parts: the inductors and controllers (everything in PART_DCDC taller than the passives), clustered in plan
+  function powerParts() {
+    asset.scene.updateMatrixWorld(true);
+    const boxes: { min: number[]; max: number[] }[] = [], v = new THREE.Vector3();
+    asset.scene.getObjectByName('PART_DCDC')!.traverse((o: any) => {
+      if (!o.isMesh) return;
+      const pos = o.geometry.attributes.position, index = o.geometry.index;
+      const n = index ? index.count : pos.count;
+      for (let t = 0; t < n; t += 3) {
+        const tri = [0, 1, 2].map(k => v.fromBufferAttribute(pos, index ? index.getX(t + k) : t + k).applyMatrix4(o.matrixWorld).toArray());
+        if (tri.some(p => p[1] <= .0033)) continue;
+        boxes.push({ min: [Math.min(...tri.map(p => p[0])), Math.min(...tri.map(p => p[2]))], max: [Math.max(...tri.map(p => p[0])), Math.max(...tri.map(p => p[2]))] });
+      }
+    });
+    // merge boxes that touch until none do (point order can split one part into several boxes)
+    for (let merged = true; merged;) {
+      merged = false;
+      for (let i = 0; i < boxes.length && !merged; i++) for (let j = i + 1; j < boxes.length && !merged; j++) {
+        const A = boxes[i], C = boxes[j];
+        if (A.min[0] - .00005 < C.max[0] && C.min[0] - .00005 < A.max[0] && A.min[1] - .00005 < C.max[1] && C.min[1] - .00005 < A.max[1]) {
+          A.min = [Math.min(A.min[0], C.min[0]), Math.min(A.min[1], C.min[1])]; A.max = [Math.max(A.max[0], C.max[0]), Math.max(A.max[1], C.max[1])];
+          boxes.splice(j, 1); merged = true;
+        }
+      }
+    }
+    return boxes;
+  }
+  const route = (name: string) => metadata.routes.find(r => r.name === name)!.points;
+  it('host pairs run straight from the connector breakout into the DSP, a few millimetres', () => {
+    for (const d of ['TX', 'RX']) for (let i = 0; i < 8; i++) for (const s of [-1, 1]) {
+      const pts = route(`${d} host copper ${i} ${s}`), via = pts.findIndex(p => p[1] > .0027 && p[0] > -.0445);
+      const after = pts.slice(via);
+      expect(after.reduce((n, p, k) => k ? n + Math.hypot(p[0] - after[k - 1][0], p[2] - after[k - 1][2]) : 0, 0)).toBeLessThan(.005);
+      expect(new Set(after.map(p => p[2])).size, 'straight: one z after the via').toBe(1);
+    }
+  });
+  it('no high-speed pair passes within 1 mm of a switching inductor or controller', () => {
+    const parts = powerParts();
+    expect(parts.length).toBe(7);   // four inductors, three controller packages
+    for (const r of metadata.routes.filter(r => /(host|engine|LPO) copper/.test(r.name))) for (let k = 1; k < r.points.length; k++)
+      for (const box of parts) expect(segBoxDistance(plan(r.points[k - 1]), plan(r.points[k]), box), r.name).toBeGreaterThan(.001);
+  });
+  it('drivers sit right at the modulators: short RF lines that no laser feed crosses', () => {
+    for (let i = 1; i <= 8; i++) {
+      const rf = route(`TX RF feed ${i}`);
+      expect(rf.slice(1).reduce((n, p, k) => n + Math.hypot(p[0] - rf[k][0], p[2] - rf[k][2]), 0)).toBeLessThan(.004);
+      for (let k = 0; k < 4; k++) for (const h of [0, 1]) {
+        const cw = route(`CW feed ${k} ${h}`);
+        for (let a = 1; a < rf.length; a++) for (let b = 1; b < cw.length; b++) expect(cross(plan(rf[a - 1]), plan(rf[a]), plan(cw[b - 1]), plan(cw[b])), `RF ${i} × CW ${k} ${h}`).toBe(false);
+      }
+    }
+  });
+  it('the analog anchors keep their order along the board: DSP, driver and TIA, lasers, modulators', () => {
+    const a = metadata.anchors;
+    expect(a.dsp.position[0]).toBeLessThan(a.dcdc.position[0]);
+    expect(a.dcdc.position[0]).toBeLessThan(a.driver.position[0]);
+    expect(a.driver.position[0]).toBeLessThan(a.lasers.position[0]);
+    expect(a.lasers.position[0]).toBeLessThan(a.mzm.position[0]);
+    expect(a.dsp.position[0] - a.fingers.position[0]).toBeLessThan(.02);   // the DSP is the part next to the connector
   });
 });

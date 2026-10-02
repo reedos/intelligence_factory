@@ -19,3 +19,23 @@ export function roundCorners(pts, keep = () => false, radius = .5, steps = 6) {
 // Laser feeds once kept a sharp drop from the module aperture and a sharp final lift onto the engine; every corner is
 // now rounded (design rule 5). Kept as a hook for routes that must keep a corner.
 export const keepCwCorner = () => false;
+
+// Declared pass-throughs for the flow audit (tools/flow-audit.mjs): solids a CPO route enters on purpose, each with
+// the reason. Everything else a route crosses is still a finding.
+export const CPO_AUDIT = {
+  // power rises from the board through the package's seating recess into the substrate, then up the stack
+  upStack: { through: /Anodized[ _]recess/i, why: 'vertical power up through the package seat and substrate' },
+  // the electrical lanes rise from the substrate into the engine inside its socket retainer
+  intoEngine: { through: /RETAINERS/, why: 'up into the engine through its socket retainer' },
+  // fiber leaves (and the laser feed arrives) through the engine's own fiber connector
+  throughConnector: { through: /CPO_INTERFACES__Connector|Connector molding|strain relief/i, why: 'through the engine fiber connector it is plugged into' },
+  // laser power arrives through the laser module's own connector
+  intoEls: { through: /CPO_ELS__Connector|Connector molding/i, why: 'into the laser module through its power connector' },
+  // detail: electrical lanes cross the bond pads and the EIC-to-PIC hybrid bond, inside the electronic die they belong to
+  throughBond: { through: /Gold[ _]bond[ _]pads|electronic[ _]die[ _]face|hybrid-bond[ _]face/i, why: 'down through the EIC and its hybrid bond to the photonic die' },
+  // detail: light enters and leaves the photonic die through its glass fiber-attach blocks
+  throughGlass: { through: /(Transmit|Receive|Laser)[ _]glass/i, why: 'through the glass fiber-attach block on the photonic die' },
+  // Broadcom-style tile: as drawn the EIC sits on the PIC's electrical end, so lanes from the substrate rise through
+  // the photonic die and the bond into the stacked electronic die
+  intoStack: { through: /MZM[ _](photonic|electronic)[ _]die[ _]face/i, why: 'up through the photonic die and its bond into the stacked electronic die (as drawn)' },
+};
