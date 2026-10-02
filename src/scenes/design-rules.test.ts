@@ -47,7 +47,7 @@ beforeAll(async () => {
 afterAll(() => vi.unstubAllGlobals());
 
 describe('GPU package (scene 5): place and route', () => {
-  const builds = () => ['h100', 'gb200', 'gb300', 'rubin'].map(accel => {
+  const builds = () => (['h100', 'gb200', 'gb300', 'rubin'] as const).map(accel => {
     const model = compute({ ...DEFAULT_SCENARIO, accel });
     const built = chip.build({ quality: { shadows: false, reflections: false, mobile: false }, state: { mode: 'data', selected: null }, model });
     return { accel, model, built, routes: built.scene.userData.packageRouting };
@@ -174,14 +174,16 @@ describe('Coherent module (scene 8): place and route', () => {
 describe('Copper plugs (scene 9): place and route', () => {
   it('pairs keep at least 1 mm from the AEC power inductors and the supply trace in the centre channel', async () => {
     const { copperLane, PAIR_HALF, COPPER_HEADS } = await import('./side-geometry.js');
-    for (const [, hx] of COPPER_HEADS) for (let i = 0; i < 4; i++) for (const rx of [false, true]) {
+    for (const [, h] of COPPER_HEADS) for (let i = 0; i < 4; i++) for (const rx of [false, true]) {
+      const hx = Number(h);
       const inner = Math.abs(copperLane(hx, i, rx) - hx) - PAIR_HALF - 0.008;   // nearest trace edge to the centre line
       expect(inner - 0.1).toBeGreaterThanOrEqual(0.1);                         // inductor half-width 0.1 cm
     }
   });
   it('transmit and receive banks are mirror images, evenly pitched, inside the card', async () => {
     const { copperLane, PAIR_HALF, COPPER_HEADS } = await import('./side-geometry.js');
-    for (const [, hx] of COPPER_HEADS) for (let i = 0; i < 4; i++) {
+    for (const [, h] of COPPER_HEADS) for (let i = 0; i < 4; i++) {
+      const hx = Number(h);
       expect(copperLane(hx, i, false) - hx).toBeCloseTo(-(copperLane(hx, 3 - i, true) - hx), 9);
       if (i) expect(copperLane(hx, i, true) - copperLane(hx, i - 1, true)).toBeCloseTo(0.15, 9);
       expect(Math.abs(copperLane(hx, i, true) - hx) + PAIR_HALF + 0.008).toBeLessThan((1.84 - 0.3) / 2);
@@ -189,7 +191,8 @@ describe('Copper plugs (scene 9): place and route', () => {
   });
   it('edge-pad breakouts on the same card face never cross', async () => {
     const { copperLane, copperPad, COPPER_HEADS } = await import('./side-geometry.js');
-    for (const [, hx] of COPPER_HEADS) for (const top of [true, false]) {
+    for (const [, h] of COPPER_HEADS) for (const top of [true, false]) {
+      const hx = Number(h);
       const legs: P3[][] = [];
       for (let i = 0; i < 4; i++) for (const rx of [false, true]) {
         const pad = copperPad(hx, i, rx); if (pad.top !== top) continue;

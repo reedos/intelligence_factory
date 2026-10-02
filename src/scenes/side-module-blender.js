@@ -27,7 +27,7 @@ const PIN_OFFSET = {
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
 
-export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=vertical-mpo11`) {
+export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=relayout1`) {
   if (cached) return Promise.resolve(cached);
   if (!pending) pending = new GLTFLoader().loadAsync(url).then(gltf => {
     cached = gltf;
@@ -205,18 +205,28 @@ export function build({ quality, state, model: scenario }) {
   };
 
   // Power and thermal arrows are functional diagrams, not exported PCB routing
-  // or literal conduction through the display's exploded air gaps.
-  const fingers = anchorLocal('fingers'), converter = anchorLocal('dcdc');
-  addFlow({ id: 'power-input', points: [[fingers[0] - 1, fingers[1], fingers[2]], fingers, converter],
-    mode: 'power', kind: 'power', voltage: 'v33', from: 'fingers', to: 'dcdc' });
+  // or literal conduction through the display's exploded air gaps. They follow the board's layout
+  // (design review 10/01/2026): the host's 3.3 V enters on the VCC pads at the centre of the card edge and runs
+  // in an inner plane under the DSP to the two point-of-load stages beside its line-side edge, one each side,
+  // outboard of the line bus. Each stage feeds the DSP back under its edge; the analog rails leave the stages
+  // along the board edges, outboard of every lane, into the driver, the TIA and the lasers' bias pads.
+  const fingers = anchorLocal('fingers'), converter = anchorLocal('dcdc'), dspLocal = anchorLocal('dsp');
   const analogAnchors = metadata.analogAnchors;
   if (analogAnchors?.length !== 1) throw new Error('Module requires one authored eight-channel analog anchor set.');
-  const dspLocal = anchorLocal('dsp');
-  addFlow({ id: 'power-dsp', points: [converter, [converter[0] + 0.4, converter[1], dspLocal[2]], dspLocal],
-    mode: 'power', kind: 'power', from: 'dcdc', to: 'dsp', variant: 'dsp' });
+  const yB = fingers[1] + 0.005, stageZ = Math.abs(converter[2]), ctrlX = converter[0] - 0.4, eastX = converter[0] + 0.45, edgeZ = 0.93;
+  for (const s of [1, -1]) {
+    const stage = [converter[0], converter[1], s * stageZ];
+    addFlow({ id: s > 0 ? 'power-input' : 'power-input-2', points: [[fingers[0] - 1, yB, 0], [fingers[0], yB, 0], [dspLocal[0], yB, 0],
+      [dspLocal[0] + 0.6, yB, s * 0.68], [ctrlX, yB, s * 0.68], [stage[0], stage[1], s * 0.68]],
+      mode: 'power', kind: 'power', voltage: 'v33', from: 'fingers', to: 'dcdc' });
+    addFlow({ id: s > 0 ? 'power-dsp' : 'power-dsp-2', points: [[stage[0], stage[1], s * 0.48], [ctrlX, yB, s * 0.48], [dspLocal[0] + 0.6, yB, s * 0.48], dspLocal],
+      mode: 'power', kind: 'power', from: 'dcdc', to: 'dsp', variant: 'dsp' });
+  }
   for (const [engineIndex, anchors] of analogAnchors.entries()) for (const target of ['driver', 'tia', 'lasers']) {
-    const end = cm(anchors[target]);
-    addFlow({ id: `power-${target}-${engineIndex}`, points: [converter, [converter[0] + 0.4, converter[1], end[2]], end],
+    const end = cm(anchors[target]), s = Math.sign(end[2]) || 1;
+    // the lasers' bias enters on pads at the photonic chip's outer edge, clear of the transmit RF lines
+    const into = target === 'lasers' ? [end[0], end[1], s * 0.72] : end;
+    addFlow({ id: `power-${target}-${engineIndex}`, points: [[eastX, converter[1], s * stageZ], [eastX + 0.5, yB, s * edgeZ], [into[0], yB, s * edgeZ], into],
       mode: 'power', kind: 'power', from: 'dcdc', to: target });
   }
   const dspAnchor = anchorWorld('dsp'), shellAnchor = anchorWorld('shell');
