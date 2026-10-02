@@ -2,6 +2,9 @@ import { THREE } from '../kit.js';
 
 export const FIBER_JACKET = 0xd3b940;
 export const RACK_RUNWAY = { x: .2, floorY: 3.62, cableY: 3.665, width: .3, length: 3.2, rimTop: 3.71 };
+// NVL72 racks: the runway runs along the row over the rack centerline, as the hall draws it (x is its center along the
+// row, z its centerline). The DGX H100 rack keeps RACK_RUNWAY until its rebuild lands.
+export const ROW_RUNWAY = { x: -.6, z: 0, floorY: 3.62, cableY: 3.665, width: .3, length: 3.2, rimTop: 3.71, end: -2.1 };
 // cables lie on the ladder's rungs (rung tops at 4.393) and pass over a crossing runway's rim, not through them
 export const HALL_RUNWAY = { floorY: 4.3, cableY: 4.41, rimTop: 4.4, entryY: 4.55 };
 

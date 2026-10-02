@@ -31,9 +31,9 @@ def enhance(kind,accel,m,box,cylinder,p3,material):
         for y in [2.046,2.164]:box('Fascia chamfer edge',(0,y,.495),(.418,.008,.008),trim,1,.003)
         for x in [-.185,.185]:box('Recessed fascia latch',(x,2.105,.497),(.026,.080,.008),dark,1,.005)
         if accel!='h100':
-            layout=['ps']*3+['compute']*8+['switch']*9+['compute']*10+['ps']*3+['mgmt']
-            for i in range(34):
-                if i in [15,24]:continue
+            layout=['ps']*4+['compute']*8+['switch']*9+['compute']*10+['ps']*4+['mgmt']   # src/scenes/nvl72-layout.js
+            for i in range(36):
+                if i in [16,25]:continue
                 y=.12+i*.04445+.022225
                 front_frame('Service tray machined bezel',0,y,.479,.444,.039,.0045,1)
                 # Offset embossed grille over the pre-existing vent half only.

@@ -422,11 +422,27 @@ export function build({ quality, model }) {
   // on sleepers at 2.2 m. Kept west of hall A's office block (x -58) and east of the staffed-entrance road (x -110); it
   // crosses the main spine road (z -62..-48) on a pipe bridge at 6.5 m, clear of trucks, not at sleeper height.
   const PIPE_BRIDGE = { z0: -70, z1: -40, y: 6.5 };
-  function chilledToHallB(x0) {
+  function chilledToHallB(x0, { x0R = x0, from = null } = {}) {
     const leg = x => [[x, 2.2, PIPE_BRIDGE.z0], [x, PIPE_BRIDGE.y, PIPE_BRIDGE.z0], [x, PIPE_BRIDGE.y, PIPE_BRIDGE.z1], [x, 2.2, PIPE_BRIDGE.z1]];
-    const supply = [[x0, 2.2, -243], [-73, 2.2, -243], ...leg(-73), [-73, 2.2, 10], [-25, 2.2, 10], [-25, 2.2, hallB.z0]];
-    const ret = [[x0, 2.2, -247], [-77, 2.2, -247], ...leg(-77), [-77, 2.2, 12.5], [-28, 2.2, 12.5], [-28, 2.2, hallB.z0]];
+    // from: the z of a source south face (the trim towers) the pair first runs from, straight to the corridor
+    const supply = [...(from ? [[x0, 2.2, from]] : []), [x0, 2.2, -243], [-73, 2.2, -243], ...leg(-73), [-73, 2.2, 10], [-25, 2.2, 10], [-25, 2.2, hallB.z0]];
+    const ret = [...(from ? [[x0R, 2.2, from]] : []), [x0R, 2.2, -247], [-77, 2.2, -247], ...leg(-77), [-77, 2.2, 12.5], [-28, 2.2, 12.5], [-28, 2.2, hallB.z0]];
     return { supply, ret, bridge: PIPE_BRIDGE };
+  }
+  // Warm-water campuses: the evaporative towers trim the hottest afternoons, so they must reach the halls they serve.
+  // A short pair runs from the tower row's south face straight into hall A's north wall, and hall B's pair leaves
+  // the tower row further west and takes the same corridor and pipe bridge as the chilled-water pair (as drawn).
+  const TRIM = { z: -269.5, hallA: { s: 40, r: 36 }, hallB: { s: 22, r: 19 } };
+  const trimToHallA = () => ({ supply: [[TRIM.hallA.s, 2.2, TRIM.z], [TRIM.hallA.s, 2.2, hallA.z0]], ret: [[TRIM.hallA.r, 2.2, TRIM.z], [TRIM.hallA.r, 2.2, hallA.z0]] });
+  const trimToHallB = () => chilledToHallB(TRIM.hallB.s, { x0R: TRIM.hallB.r, from: TRIM.z });
+  function drawCorridorPair({ supply, ret }) {
+    for (const [path, mat] of [[supply, MAT.pipeBlue], [ret, MAT.pipeRed]]) for (let i = 1; i < path.length; i++) N.strut(path[i - 1], path[i], 0.6, mat, 12);
+    for (let z = -235; z < 4; z += 12) if (z < PIPE_BRIDGE.z0 - 1 || z > PIPE_BRIDGE.z1 + 1) S.slab(6.5, 1.5, 0.6, MAT.concrete, -75, 0.15, z);   // sleepers
+    // pipe-bridge portals either side of the road: two steel legs and a crossbeam under the pair
+    for (const z of [PIPE_BRIDGE.z0 + 3, PIPE_BRIDGE.z1 - 3]) {
+      for (const x of [-79.5, -70.5]) N.box(0.4, PIPE_BRIDGE.y - 0.45, 0.4, MAT.darkSteel, x, (PIPE_BRIDGE.y - 0.45) / 2 + 0.15, z);
+      N.box(9.4, 0.4, 0.4, MAT.darkSteel, -75, PIPE_BRIDGE.y - 0.8, z);
+    }
   }
   const plantX = Math.max(hallX0 + 45, Math.min(100, hcx + 20));
   towerRows.forEach(tz => { for (let i = 0; i < 6; i++) { const x = 15 + i * 12; heatFlows.push(tagHeat(flow([[x, 11.5, tz], [x + 2, 35, tz - 3], [x + 6, 65, tz - 9]], 'vapor', { count: warm ? 5 : 7, speed: 6, size: 2.4, k: 1.2, opacity: warm ? 0.4 : 0.55, trail: false }), 'towers', towerW, 'carrier')); } });
@@ -447,6 +463,15 @@ export function build({ quality, model }) {
     else for (let i = 0; i < 6; i++) { const x = plantX - 24 + i * 9.5; heatFlows.push(tagHeat(flow([[x, 12.8, -245], [x + 2, 34, -248], [x + 6, 60, -254]], 'air', { count: 5, speed: 7, size: 2.4, k: 2.0, opacity: 0.6, trail: false }), 'chiller-fan-air', rejectW, 'carrier')); }
   }
   if (towerRows.length) heatFlows.push(tagHeat(flow([[125, 1, -280], [80, 1, -280], [80, 1, -275], [20, 1, -275]], 'cool', { count: 10, speed: 12, size: 0.6, k: 2.2, trailR: 0.2 }), 'towers', towerW, 'carrier'));
+  if (warm && towerRows.length) {
+    // trim water: each hall's share of the towers' heat comes in warm on its return and goes back cooled on its supply
+    const pairs = [trimToHallA(), ...(nHalls > 1 ? [trimToHallB()] : [])], trimW = towerW / pairs.length;
+    for (const [i, pair] of pairs.entries()) {
+      heatFlows.push(tagHeat(flow(pair.supply, 'cool', { count: i ? 40 : 10, speed: 14, size: 0.8, k: 2.4, trailR: 0.3 }), `trim-water-${i ? 'b' : 'a'}`, trimW, 'carrier'));
+      heatFlows.push(tagHeat(flow([...pair.ret].reverse(), 'warm', { count: i ? 40 : 10, speed: 14, size: 0.8, k: 2.4, trailR: 0.3 }), `trim-water-${i ? 'b' : 'a'}`, trimW, 'carrier'));
+    }
+    scene.userData.campusTrimWater = { pairs, representative: true };
+  }
   scene.add(authoredCampus ? campusCatalogInstances('UNITSUB',unitSubMx) : unitSub.instance(unitSubMx));
 
   // ---------- generator yard and fuel (a campus whose operator names batteries as its backup has neither) ----------
@@ -534,6 +559,11 @@ export function build({ quality, model }) {
   } });
   if (towerMx.length) scene.add(campusCatalogInstances('TOWER_CELL', towerMx, { cast: true }));
   if (towerRows.length) S.slab(205, 0.04, 55, MAT.gravel, 100, 0.15, -280);
+  if (warm && towerRows.length) {
+    const a = trimToHallA();
+    for (const [path, mat] of [[a.supply, MAT.pipeBlue], [a.ret, MAT.pipeRed]]) N.strut(path[0], path[1], 0.6, mat, 12);
+    if (nHalls > 1) drawCorridorPair(trimToHallB());
+  }
   if (!warm) {
     // chiller plant: a long shed with louvered walls, headers to hall A and to the towers
     S.slab(60, 11, 18, MAT.white, plantX, 0.15, -245); S.slab(61, 0.5, 19, MAT.roof, plantX, 11.15, -245);
@@ -544,14 +574,7 @@ export function build({ quality, model }) {
       // Hall B's pair: out of the plant's west wall, along the service corridor west of hall A and its office block,
       // and into hall B's north wall beside the office, on sleepers at grade. The pair keeps one side (supply inside),
       // so the two never cross; it crosses roads and the hall-to-hall duct bank above them, 1.6 m over the cables.
-      const { supply, ret } = chilledToHallB(plantX - 30);
-      for (const [path, mat] of [[supply, MAT.pipeBlue], [ret, MAT.pipeRed]]) for (let i = 1; i < path.length; i++) N.strut(path[i - 1], path[i], 0.6, mat, 12);
-      for (let z = -235; z < 4; z += 12) if (z < PIPE_BRIDGE.z0 - 1 || z > PIPE_BRIDGE.z1 + 1) S.slab(6.5, 1.5, 0.6, MAT.concrete, -75, 0.15, z);   // sleepers
-      // pipe-bridge portals either side of the road: two steel legs and a crossbeam under the pair
-      for (const z of [PIPE_BRIDGE.z0 + 3, PIPE_BRIDGE.z1 - 3]) {
-        for (const x of [-79.5, -70.5]) N.box(0.4, PIPE_BRIDGE.y - 0.45, 0.4, MAT.darkSteel, x, (PIPE_BRIDGE.y - 0.45) / 2 + 0.15, z);
-        N.box(9.4, 0.4, 0.4, MAT.darkSteel, -75, PIPE_BRIDGE.y - 0.8, z);
-      }
+      drawCorridorPair(chilledToHallB(plantX - 30));
     }
     if (towerRows.length) {
       S.cylZ(0.6, 8, MAT.pipeRed, plantX - 20, 2.2, -258); S.cylX(0.6, plantX - 35, MAT.pipeRed, (plantX - 20 + 15) / 2, 2.2, -262);
