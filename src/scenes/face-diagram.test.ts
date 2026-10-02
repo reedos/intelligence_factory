@@ -26,7 +26,7 @@ describe('coherent die faces (checked as data)', () => {
       expect(path(`rf${k}`)).toMatchObject({ from: `pd${k}.out`, to: `rf${k}.out` });
     }
     // only the one crossing a planar layout cannot avoid
-    expect(d.crossings).toEqual([['loY', 'sX']]);
+    expect(d.crossings).toEqual([['sX', 'loY']]);   // [hop, under]: the pink X signal hops the orange LO
   });
   it('modulator topology: carrier in, four Mach-Zehnders fed from the RF pads, PR on Y, PBC out', () => {
     const d = iqDiagram(), path = (id: string): any => d.paths.find((p: any) => p.id === id);

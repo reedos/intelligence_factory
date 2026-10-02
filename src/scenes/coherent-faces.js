@@ -57,7 +57,7 @@ export function icrDiagram() {
     { text: 'LO', x: 474, y: 12, size: 11, color: C.lo },
     { text: 'SIGNAL', x: 476, y: 114, size: 10, color: C.sig },
   ];
-  return { w, h, bg: BG, boxes, paths, texts, crossings: [['loY', 'sX']] };
+  return { w, h, bg: BG, boxes, paths, texts, crossings: [['sX', 'loY']] };   // the pink signal hops the orange LO
 }
 
 // ---------- modulator: a dual-polarization IQ modulator ----------

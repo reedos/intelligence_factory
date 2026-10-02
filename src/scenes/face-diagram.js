@@ -8,7 +8,8 @@
 //   path: { id, pts: [[x, y], ...], color, width }
 //         each end is a box port ('box.port' in from/to), a canvas edge, or a junction with another path's vertex
 //   text: { text, x, y, size, color }   free label, centered on (x, y); must clear every path, box and label
-//   crossings: [[pathA, pathB]]          the only pairs allowed to cross; each crossing gets a drawn marker
+//   crossings: [[hop, under]]            the only pairs allowed to cross; the first path hops over the second in a
+//                                        half-circle (the schematic convention for "crosses without connecting")
 
 const FONT = 'system-ui, sans-serif';
 // Width of a label in canvas pixels. In a browser the real advance is measured; the checker (no DOM) uses a
@@ -32,9 +33,17 @@ export function drawDiagram(g, d) {
     g.strokeStyle = p.color; g.lineWidth = p.width;
     g.beginPath(); p.pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke();
   }
-  for (const [x, y] of crossingPoints(d)) {          // a waveguide crossing or crossover: a small ringed node
-    g.fillStyle = d.bg; g.beginPath(); g.arc(x, y, 5.5, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = 'rgba(255,255,255,0.8)'; g.lineWidth = 1.5; g.stroke();
+  // A crossing is drawn the schematic way: the first path of the pair hops over the second in a half-circle,
+  // and the second runs on unbroken beneath it.
+  for (const { x, y, hop, under } of crossingDetails(d)) {
+    const r = HOP_R, u = unit(hop.a, hop.b), v = unit(under.a, under.b);
+    g.strokeStyle = d.bg; g.lineWidth = hop.path.width + 3; g.lineCap = 'butt';
+    g.beginPath(); g.moveTo(x - u[0] * r, y - u[1] * r); g.lineTo(x + u[0] * r, y + u[1] * r); g.stroke();
+    g.strokeStyle = under.path.color; g.lineWidth = under.path.width;
+    g.beginPath(); g.moveTo(x - v[0] * (r + 2), y - v[1] * (r + 2)); g.lineTo(x + v[0] * (r + 2), y + v[1] * (r + 2)); g.stroke();
+    const a0 = Math.atan2(-u[1], -u[0]);
+    g.strokeStyle = hop.path.color; g.lineWidth = hop.path.width; g.lineCap = 'round';
+    g.beginPath(); g.arc(x, y, r, a0, a0 + Math.PI, false); g.stroke();
   }
   for (const b of d.boxes) {
     if (b.fill) { g.fillStyle = b.fill; g.fillRect(b.x, b.y, b.w, b.h); }
@@ -86,13 +95,22 @@ const onOutline = ([x, y], b) => (Math.abs(x - b.x) < .01 || Math.abs(x - b.x - 
   || (Math.abs(y - b.y) < .01 || Math.abs(y - b.y - b.h) < .01) && x >= b.x - .01 && x <= b.x + b.w + .01;
 
 export function crossingPoints(d) {
+  return crossingDetails(d).map(c => [c.x, c.y]);
+}
+// Each declared crossing with the two segments that meet there: [hop, under] — the first path hops over the second.
+export function crossingDetails(d) {
   const out = [];
   for (const [ia, ib] of d.crossings || []) {
     const A = d.paths.find(p => p.id === ia), B = d.paths.find(p => p.id === ib);
-    for (const [a, b] of segs(A)) for (const [c, e] of segs(B)) { const x = segmentCross(a, b, c, e); if (x) out.push(x); }
+    for (const [a, b] of segs(A)) for (const [c, e] of segs(B)) {
+      const x = segmentCross(a, b, c, e);
+      if (x) out.push({ x: x[0], y: x[1], hop: { path: A, a, b }, under: { path: B, a: c, b: e } });
+    }
   }
   return out;
 }
+export const HOP_R = 6;
+const unit = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1; return [dx / L, dy / L]; };
 
 // Every rule the drawing must keep. Returns readable violations; [] means clean.
 export function checkDiagram(d, { gap = 3 } = {}) {
