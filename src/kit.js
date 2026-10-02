@@ -351,7 +351,12 @@ Flow.prototype.setLevel = function (gain, bright = 1) {
     if (this.trail) this.trail.material.color.copy(this.base.trail).multiplyScalar(bright);
   }
 };
-export const flow = (points, volt, opts) => Object.assign(new Flow(points, VOLT[volt]?.css ?? volt, opts), { cls: volt });
+// opts.audit: { through: RegExp | true, why } declares a solid the route passes through on purpose (tools/flow-audit.mjs)
+export const flow = (points, volt, opts) => {
+  const f = Object.assign(new Flow(points, VOLT[volt]?.css ?? volt, opts), { cls: volt });
+  if (opts?.audit) f.audit = opts.audit;
+  return f;
+};
 
 // ---------- recurring parts ----------
 // A stack of insulator sheds on a core: porcelain or polymer.
