@@ -103,7 +103,8 @@ if (process.argv.includes('--compute')) {
     const only = process.env.IFX_ONLY?.split(',');
     for (const accel of ['h100', 'gb200', 'gb300', 'rubin']) {
       const model = compute({ ...DEFAULT_SCENARIO, accel });
-      for (const [scene, unitMeters] of [['rack', 1], ['tray', .1], ['chip', .01]]) {
+      const scenes = (process.env.IFX_COMPUTE_SCENES || 'rack,tray,chip').split(',');
+      for (const [scene, unitMeters] of [['rack', 1], ['tray', .1], ['chip', .01]].filter(([scene]) => scenes.includes(scene))) {
         if (only && !only.includes(`${scene}-${accel}`)) continue;
         await exportReference({ name: `${scene}-${accel}`, module: `/src/scenes/${scene}.js`, options: { quality: { shadows: false, reflections: false, mobile: false }, state: { mode: 'data' }, model }, unitMeters });
       }

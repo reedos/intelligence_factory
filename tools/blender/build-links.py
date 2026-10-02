@@ -388,7 +388,9 @@ def refine_edges(o, width, segments=2):
 # then the driver and TIA beside its line-side edge, then the optics, whose fiber
 # ports face the laser and the LC end (OIF HB-CDM / micro-ICR / IC-TROSA: RF at
 # the end facing the DSP, fibers at the opposite end).
-DSPX=-2.30; ANALOGX=-.85; OPTX=.25; OPT_END=.80; ITLAX=3.15; TAPX=1.15
+# Native side-coherent.js layout (design review 10/01/2026): converters behind the power pad, DSP right after,
+# shorter optics and the laser moved toward the host so the line fibers reach the LC with gentle bends.
+DSPX=-2.80; ANALOGX=-1.35; OPTL=.90; OPTX=-.80+OPTL/2; OPT_END=-.80+OPTL; ITLAX=2.75; TAPX=.85; INDX=[-4.285,-3.945]; IND=.28
 
 def coherent_board_detail(m):
     """Package and board detail on the imported audited layout (scene cm).
@@ -443,11 +445,11 @@ def coherent_board_detail(m):
     # edge, and a glass fiber-attach block where each fiber meets the die.
     for cx,cz in [(OPTX,-.55),(OPTX,.55)]:
         for s in [-1,1]:
-            box('Photonic die edge',(cx+s*.558,1.415,cz),(.016,.03,.676),m['inp'],.003)
-            box('Photonic die edge',(cx,1.415,cz+s*.338),(1.132,.03,.016),m['inp'],.003)
+            box('Photonic die edge',(cx+s*(OPTL/2+.008),1.415,cz),(.016,.03,.676),m['inp'],.003)
+            box('Photonic die edge',(cx,1.415,cz+s*.338),(OPTL+.032,.03,.016),m['inp'],.003)
         for o in offs:
             for g,wd in [(-.034,.018),(0,.014),(.034,.018)]:
-                box('RF edge bond pad',(OPTX-.55+.035,1.4615,cz+o+g),(.04,.003,wd),m['gold'],0)
+                box('RF edge bond pad',(OPTX-OPTL/2+.035,1.4615,cz+o+g),(.04,.003,wd),m['gold'],0)
     # All four fiber ports are on the far (fiber) end: modulator carrier in and
     # light out, receiver signal and local oscillator in (offsets as iqTex/icrTex).
     for z in [-.55,-.55+.33-14/256*.66,.55,.55-.33+24/256*.66]:
@@ -470,11 +472,11 @@ def coherent_board_detail(m):
                 p.inputs['Alpha'].default_value=1;p.inputs['Roughness'].default_value=.25
     # Inductors: silver end terminations on the rounded molded bodies.
     for i in range(4):
-        x=-5.39+1.35+(i%2)*.48;z=-.22 if i<2 else .22
-        for s in [-1,1]:box('Inductor termination',(x+s*.158,T+.113,z),(.03,.226,.30),m['tin'],.006)
+        x=INDX[i%2];z=-.22 if i<2 else .22
+        for s in [-1,1]:box('Inductor termination',(x+s*(IND/2-.012),T+.113,z),(.03,.226,IND-.04),m['tin'],.006)
     # Representative passives and two small controller/PMIC packages, placed
     # clear of every native trace, fiber and animated feed.
-    for x,z,l in [(1.6,.5,.22),(-4.62,0,.24)]:
+    for x,z,l in [(.85,.5,.22),(-4.605,0,.2)]:
         box('Board QFN controller',(x,T+.03,z),(l,.06,l),m['package'],.012)
         for i in range(5):
             u=-l/2+.04+i*(l-.08)/4
@@ -482,12 +484,13 @@ def coherent_board_detail(m):
                 box('Board QFN land',(x+u,T+.002,z+s*(l/2+.012)),(.018,.004,.03),m['tin'],0)
                 box('Board QFN land',(x+s*(l/2+.012),T+.002,z+u),(.03,.004,.018),m['tin'],0)
     # Clear of every native trace, fiber, port and animated feed in the new order.
-    for z in [-.12,0,.12]:cap(ANALOGX,z,False)
-    for z in [-.1,0,.1]:cap(OPTX,z,False)
-    for z in [-.36,-.1,.1,.36]:cap(-3.25,z,False,(.1,.05,.05))
+    # Decoupling beside the centre power channel (z = -0.02), never on it or on its branches.
+    for z in [-.12,.12]:
+        for dx in [-.15,.15]:cap(ANALOGX+dx,z,False);cap(OPTX+dx*1.4,z,False)
+    for z in [-.36,.36]:cap(-3.73,z,False,(.1,.05,.05))
     for s in [-1,1]:
-        cap(-4.9,s*.2,False)
-    for x in [1.35,1.85]:cap(x,.5,False)
+        cap(-4.63,s*.22,False)
+    for x in [.55,1.25]:cap(x,.5,False)
 
 def tube(name, x0, x1, y, z, r, material, n=24, inner=0):
     # A cylinder (or open tube when inner>0) along +x, in scene cm.
@@ -636,8 +639,8 @@ def coherent():
     # board-to-board receptacle (a nano-ITLA vendor page lists a PANDA fiber
     # pigtail and a Molex board connector; which end carries which is drawn).
     ox=ix-1.25; oy=1.68
-    tube('ITLA pigtail feedthrough snout',ox-.3,ox+.01,oy,0,.08,m['kovar'],24)
-    tube('ITLA pigtail strain relief boot',ox-.6,ox-.3,oy,0,.06,m['boot'],20)
+    tube('ITLA pigtail feedthrough snout',ox-.25,ox+.01,oy,0,.08,m['kovar'],24)
+    tube('ITLA pigtail strain relief boot',ox-.5,ox-.25,oy,0,.06,m['boot'],20)
     hx=ix+1.25
     box('ITLA flex tail riser',(hx+.012,1.53,0),(.015,.34,.5),m['flex'],0)
     box('ITLA flex tail run',(hx+.053,1.362,0),(.095,.015,.5),m['flex'],0)
@@ -645,9 +648,9 @@ def coherent():
     # Four independent board footprints: closed electronic packages are imported
     # with marked tops; optical assemblies remain open for the photonic schematic.
     for name,cx,cz,length,width in [
-        ('Modulator island',OPTX,-.55,1.18,.72),
+        ('Modulator island',OPTX,-.55,OPTL+.08,.72),
         ('Driver island',ANALOGX,-.55,.61,.61),
-        ('Receiver island',OPTX,.55,1.18,.72),
+        ('Receiver island',OPTX,.55,OPTL+.08,.72),
         ('TIA island',ANALOGX,.55,.61,.61)]:
         box(name+' carrier',(cx,1.375,cz),(length,.05,width),m['ceramic'],.012)
     duplex_lc_receptacle(m)
@@ -665,7 +668,7 @@ def copper_active_package(kind, x, zc, m):
     # laser-etch bars and a pin-1 dot; the UI caption carries the function.
     top=.94
     if kind=='ACC':
-        cx,cw,cd,h=x+.39,.62,.6,.085
+        cx,cw,cd,h=x+.475,.58,.6,.085
         box('ACC active QFN body',(cx,top+h/2-.001,zc),(cw-.05,h,cd-.05),m['package'],.012)
         for i in range(8):
             t=(i-3.5)*.062
@@ -676,7 +679,7 @@ def copper_active_package(kind, x, zc, m):
         for j,w in enumerate([.16,.11,.2]):
             box('ACC active laser etch',(cx-.02,top+h+.0006,zc-.1+j*.075),(w,.001,.022),m['etch'],0)
         return
-    cx,cw,cd=x,1.42,.95
+    cx,cw,cd=x,1.5,.95
     sub=.1; lw,ld,lh=1.08,.72,.07
     box('AEC active BGA shadow',(cx,top+.011,zc),(cw-.06,.024,cd-.06),m['dark'],.004)
     box('AEC active FCBGA substrate',(cx,top+.024+sub/2,zc),(cw,sub,cd),m['substrate'],.01)
@@ -717,9 +720,10 @@ def copper_card_detail(kind, x, zc, m):
                 box(kind+' power inductor termination',(x,top+.059,iz+s*.09),(.18,.12,.022),m['lead'],.006)
     # ground stitching vias: rows midway between neighbouring pairs, clear of
     # the breakout, the packages and the rear termination
-    lanes=[-.63+i*.16 for i in range(4)]+[.15+i*.16 for i in range(4)]
-    rows=[-.71]+[(lanes[i]+lanes[i+1])/2 for i in range(7) if i!=3]+[.71]
-    chip={'ACC':(x+.08,x+.70,zc-.35,zc+.35),'AEC':(x-.76,x+.76,zc-.52,zc+.52)}.get(kind)
+    # lanes as side-geometry.js copperLane: banks at 0.15 cm pitch either side of a 0.25 cm half-channel
+    lanes=[-(.25+(3-i)*.15) for i in range(4)]+[.25+i*.15 for i in range(4)]
+    rows=[(lanes[i]+lanes[i+1])/2 for i in range(7) if i!=3]
+    chip={'ACC':(x+.185,x+.765,zc-.35,zc+.35),'AEC':(x-.79,x+.79,zc-.52,zc+.52)}.get(kind)
     k=0
     for rx in rows:
         for j in range(15):

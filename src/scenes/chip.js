@@ -81,6 +81,19 @@ function chunkTexture(words, lane, startParity) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return { tex: t, aspect: tw / h };
 }
 
+// The host board's BGA land pattern (26 x 26 pads at 0.3 cm, as drawn) and the escape runs that leave its outer
+// row: run k of a side starts on outer-row pad k + 1, leaves straight for 0.35 cm, jogs 45 degrees toward the
+// nearer corner (more for runs nearer the corner, so neighbours never cross) and ends on a via at 5.25 cm.
+// Points are world [x, z] in cm, package centre at the origin. Side 0 leaves toward +x, 1 toward -x, 2 toward
+// +z, 3 toward -z (the texture's pixel axes map to world x and z).
+export const BGA = { pitch: 0.3, n: 26, half: 3.75 }, BGA_RUNS = 24;
+export function bgaRun(side, k) {
+  const along = -BGA.half + (k + 1) * BGA.pitch, t = (k - (BGA_RUNS - 1) / 2) / ((BGA_RUNS - 1) / 2), jog = t * Math.abs(t) * 0.85;
+  const r0 = BGA.half, r1 = 5.25;
+  const pt = (r, a) => side === 0 ? [r, a] : side === 1 ? [-r, -a] : side === 2 ? [-a, r] : [a, -r];
+  return [pt(r0, along), pt(r0 + 0.35, along), pt(r0 + 0.35 + Math.abs(jog), along + jog), pt(r1, along + jog)];
+}
+
 export function build(options) {
   const result = buildPackage(options);
   frameCompute(result, 'chip', options.model.accel.id);
@@ -134,19 +147,16 @@ function buildPackage({ quality, state, model }) {
     const px = w / BOARD, c = w / 2;
     g.fillStyle = '#0d2a26'; g.fillRect(0, 0, w, h);
     let seed = 9; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    // Trace fan-out on every side of the BGA field, the outer rows jogging 45
-    // degrees toward the corners so the corners carry routing too.
-    // Copper under the green mask reads lighter than the bare laminate; each
-    // trace ends on a tented via, the escape pattern a BGA breakout uses.
-    // The jog stays short enough that every run still moves outward to its via (no hook back) and ends on the board.
+    // Trace fan-out on every side of the BGA field: each run starts on an outer-row pad (the dog-bone escape a BGA
+    // breakout uses for its outer row), leaves straight, and the runs nearer the corners jog 45 degrees so the
+    // corners carry routing too. Copper under the green mask reads lighter than the bare laminate; each run ends on
+    // a tented via. bgaRun is shared with the NVLink flows, which leave the package along the same runs.
     g.strokeStyle = 'rgba(80,150,124,0.78)'; g.lineWidth = w / 560;
     const runs = [], ends = [];
-    for (let side = 0; side < 4; side++) for (let k = 0; k < 24; k++) {
-      const t = (k - 11.5) / 11.5, along = t * 3.6 * px, r0 = 3.95 * px, r1 = 5.25 * px, jog = t * Math.abs(t) * 0.85 * px;
-      const pt = (r, a) => side === 0 ? [c + r, c + a] : side === 1 ? [c - r, c - a] : side === 2 ? [c - a, c + r] : [c + a, c - r];
-      const run = [pt(r0, along), pt(r0 + 0.35 * px, along), pt(r0 + 0.35 * px + Math.abs(jog), along + jog), pt(r1, along + jog)];
+    for (let side = 0; side < 4; side++) for (let k = 0; k < BGA_RUNS; k++) {
+      const run = bgaRun(side, k).map(([x, z]) => [c + x * px, c + z * px]);
       g.beginPath(); run.forEach((q, i) => i ? g.lineTo(...q) : g.moveTo(...q)); g.stroke(); runs.push(run);
-      const [vx, vy] = pt(r1, along + jog); ends.push([vx, vy]);
+      const [vx, vy] = run.at(-1); ends.push([vx, vy]);
       g.fillStyle = 'rgba(150,196,164,0.9)'; g.beginPath(); g.arc(vx, vy, 0.05 * px, 0, Math.PI * 2); g.fill();
       g.fillStyle = 'rgba(12,30,26,1)'; g.beginPath(); g.arc(vx, vy, 0.022 * px, 0, Math.PI * 2); g.fill();
     }
@@ -213,19 +223,20 @@ function buildPackage({ quality, state, model }) {
     N.box(0.008, 0.008, SUB - 0.08, finish.laminate, side * (SUB / 2 + 0.004), Y.sub + dy, 0);
   }
   // The stiffener ring is authored in Blender (tools/blender/build-compute.py).
-  // C4 bumps between substrate and interposer
-  const bump = new THREE.SphereGeometry(0.045, 8, 6), nx = 34, nz = 32;
+  // C4 bumps between substrate and interposer, only under the interposer they bond to (the H100 interposer is
+  // shallower than the Blackwell one, so its field is too; IW and ID are set below with the interposer).
+  const cowosL0 = A.id !== 'h100', IW0 = twin ? 6.2 : 6.0, ID0 = twin ? 5.9 : 4.0;
+  const bump = new THREE.SphereGeometry(0.045, 8, 6), C4 = 0.18, nx = Math.floor((IW0 - 0.2) / C4) + 1, nz = Math.floor((ID0 - 0.2) / C4) + 1;
   const bumps = new THREE.InstancedMesh(bump, MAT.nickel, nx * nz); bi = 0;
   bumps.userData.computeDynamic = 'c4';
-  for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) { o.position.set(-2.97 + i * 0.18, Y.bumps, -2.79 + j * 0.18); o.updateMatrix(); bumps.setMatrixAt(bi++, o.matrix); }
+  for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) { o.position.set((i - (nx - 1) / 2) * C4, Y.bumps, (j - (nz - 1) / 2) * C4); o.updateMatrix(); bumps.setMatrixAt(bi++, o.matrix); }
   scene.add(bumps);
   // Interposer. H100 (CoWoS-S): one monolithic silicon interposer, drawn as
   // mirror-grey silicon with a fine TSV dot field. Blackwell and Rubin
   // (CoWoS-L): an organic redistribution interposer with small silicon bridges
   // embedded under the die seam and the die-to-HBM edges. Bridge count, size
   // and placement are representative (cowos-bridge-drawing).
-  const cowosL = A.id !== 'h100';
-  const IW = twin ? 6.2 : 6.0, ID = twin ? 5.9 : 4.0;
+  const cowosL = cowosL0, IW = IW0, ID = ID0;
   const interMat = cowosL
     ? new THREE.MeshStandardMaterial({ color: 0x1c1a1a, roughness: 0.5, metalness: 0.1 })
     : new THREE.MeshStandardMaterial({ color: 0x8e96a2, map: dots(16, 2.2, '#b8bec8', '#8a8f98'), roughness: 0.15, metalness: 0.55 });
@@ -381,21 +392,63 @@ function buildPackage({ quality, state, model }) {
   // die-to-die traffic across NV-HBI
   flows.forEach(f => scene.add(f.group));
   // ---------- data: die to die, HBM into the dies, NVLink out of the package edge ----------
-  if (twin) for (let i = 0; i < 7; i++) { const z = -1.35 + i * 0.45; dataFlows.push(flow([[-1.2, Y.dies + 0.06, z], [1.2, Y.dies + 0.06, z]], 'hbi', { count: 3, speed: 2.4, size: 0.035, k: 3.2, trail: false })); dataFlows.push(flow([[1.2, Y.dies + 0.07, z + 0.1], [-1.2, Y.dies + 0.07, z + 0.1]], 'hbi', { count: 3, speed: 2.4, size: 0.035, k: 3.2, trail: false })); }
-  live.forEach(([x, z]) => { for (const d of [-0.25, 0, 0.25]) dataFlows.push(flow(twin ? [[x + d, Y.dies + 0.3, z], [x * 0.85 + d, Y.dies + 0.06, z * 0.5]] : [[x, Y.dies + 0.3, z + d], [x * 0.5, Y.dies + 0.06, z * 0.8 + d]], 'hbm', { count: 3, speed: 1.2, size: 0.03, k: 3.4, trail: false })); });
+  // Every route follows the package's layers in the exploded view: down from a die or stack through its
+  // microbumps, along the interposer (on CoWoS-L, across the silicon bridge drawn under that edge), and up into its
+  // partner; NVLink continues down through the C4 bumps, out through the substrate to its ball and onto the host
+  // board's escape runs. Lanes of one link run parallel and evenly spaced, straight across the edge they cross.
+  const DIE_HALF = { x: 1.3, z: 1.65 }, yUnder = Y.dies - 0.04, yRdl = Y.inter + 0.085, ySub = Y.sub;
+  const routes = { hbi: [], hbm: [], nvl: [] };
+  if (twin) for (let i = 0; i < 7; i++) {
+    // NV-HBI: straight across the seam over the long bridge under it, both directions (bridge spans |x| < 0.23)
+    const z = -1.2 + i * 0.4, x0 = 0.15;
+    const ab = [[-x0, yUnder, z], [-x0, yRdl, z], [x0, yRdl, z], [x0, yUnder, z]];
+    const ba = [[x0, yUnder, z + 0.1], [x0, yRdl, z + 0.1], [-x0, yRdl, z + 0.1], [-x0, yUnder, z + 0.1]];
+    routes.hbi.push(ab, ba);
+    dataFlows.push(flow(ab, 'hbi', { count: 3, speed: 1.2, size: 0.035, k: 3.2, trail: false }), flow(ba, 'hbi', { count: 3, speed: 1.2, size: 0.035, k: 3.2, trail: false }));
+  }
+  live.forEach(([x, z]) => {
+    // each stack's PHY edge faces the die edge it sits beside; its lanes cross that gap perpendicular to it
+    for (const d of [-0.25, 0, 0.25]) {
+      let pts;
+      if (twin) { const s = Math.sign(z), hz = s * (Math.abs(z) - HD / 2 + 0.1), dz = s * (DIE_HALF.z - 0.1);
+        pts = [[x + d, hb, hz], [x + d, yRdl, hz], [x + d, yRdl, dz], [x + d, yUnder, dz]]; }
+      else { const s = Math.sign(x), hx0 = s * (Math.abs(x) - HW / 2 + 0.1), dx0 = s * (DIE_HALF.x - 0.1);
+        pts = [[hx0, hb, z + d], [hx0, yRdl, z + d], [dx0, yRdl, z + d], [dx0, yUnder, z + d]]; }
+      routes.hbm.push(pts);
+      dataFlows.push(flow(pts, 'hbm', { count: 4, speed: 0.9, size: 0.042, k: 4.0, trail: false }));
+    }
+  });
   const serdes = glowMat('#ff5fd2', 0.5);                // an inlaid strip in power and heat, lit in the data layer
-  // NVLink leaves the free edges: outer die edges on twins, top/bottom on H100.
-  // The substrate leg is a buried electrical route, below the metal stiffener;
-  // its previous top-surface height falsely ran through that structural frame.
+  // NVLink leaves the free edges: outer die edges on twins, top/bottom on H100. Below the die each lane takes the
+  // same path: microbumps, out along the interposer to the C4 field's edge, down into the substrate, out through
+  // the substrate (fanning to the coarser ball pitch) to an outer-row ball, then along that ball's escape run on
+  // the host board (bgaRun). The substrate leg is buried, below the metal stiffener.
+  // n consecutive escape runs, centred in the side's 24 (0.3 cm apart at the ball row)
+  const n = A.nvlink.linksPerGpu / 2, runK = i => Math.floor((BGA_RUNS - n) / 2) + i;
   for (const side of [-1, 1]) {
-    if (twin) {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 3.0), serdes); m.position.set(side * 2.6, Y.dies + 0.035, 0); scene.add(m);
-      for (let i = 0, n = A.nvlink.linksPerGpu / 2; i < n; i++) { const z = -1.3 + i * 2.6 / (n - 1); dataFlows.push(flow([[side * 2.62, Y.dies + 0.04, z], [side * 3.1, Y.inter + 0.06, z], [side * 3.1, Y.sub - 0.01, z * 1.2], [side * 4.2, Y.sub - 0.01, z * 1.25]], 'nvl', { count: 3, speed: 1.6, size: 0.035, k: 2.8, trailR: 0.008, trailK: 0.3 })); }
-    } else {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.02, 0.04), serdes); m.position.set(0, Y.dies + 0.035, side * 1.63); scene.add(m);
-      for (let i = 0; i < 9; i++) { const x = -1.1 + i * 0.275; dataFlows.push(flow([[x, Y.dies + 0.04, side * 1.62], [x, Y.inter + 0.06, side * 2.1], [x * 1.2, Y.sub - 0.01, side * 2.6], [x * 1.25, Y.sub - 0.01, side * 4.0]], 'nvl', { count: 3, speed: 1.6, size: 0.035, k: 2.8, trailR: 0.008, trailK: 0.3 })); }
+    const boardSide = twin ? (side > 0 ? 0 : 1) : (side > 0 ? 2 : 3);
+    if (twin) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 3.0), serdes); m.position.set(side * 2.6, Y.dies + 0.035, 0); scene.add(m); }
+    else { const m = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.02, 0.04), serdes); m.position.set(0, Y.dies + 0.035, side * 1.63); scene.add(m); }
+    for (let i = 0; i < n; i++) {
+      const u = n > 1 ? -1 + 2 * i / (n - 1) : 0, along = (twin ? 1.3 : 1.1) * u;        // along the die edge
+      // on sides where the run index counts against the die edge's direction, take the runs in reverse so the
+      // substrate fan keeps the lanes in order (no crossings)
+      const flip = (twin ? bgaRun(boardSide, 1)[0][1] - bgaRun(boardSide, 0)[0][1] : bgaRun(boardSide, 1)[0][0] - bgaRun(boardSide, 0)[0][0]) < 0;
+      const run = bgaRun(boardSide, runK(flip ? n - 1 - i : i)).map(([x, z]) => [x, 0.004, z]);
+      const ball = run[0];
+      // world point at distance r from the package centre toward this side, offset t along the edge
+      const P = (r, y, t) => twin ? [side * r, y, t] : [t, y, side * r];
+      const die = twin ? dieX[1] + DIE_HALF.x - 0.11 : DIE_HALF.z - 0.1;               // the SerDes strip, just inside the outer edge
+      const c4 = twin ? IW / 2 - 0.25 : ID / 2 - 0.15;                                 // last C4 column inside the interposer
+      const subOut = (twin ? Math.abs(ball[0]) : Math.abs(ball[2])) - 0.3;            // one row in from the outer ball
+      const tBall = twin ? ball[2] : ball[0];
+      const pts = [P(die, yUnder, along), P(die, yRdl, along), P(c4, yRdl, along), P(c4, ySub, along),
+        P(subOut, ySub, tBall), P(subOut + 0.3, ySub, tBall), P(subOut + 0.3, Y.balls, tBall), ...run];
+      routes.nvl.push(pts);
+      dataFlows.push(flow(pts, 'nvl', { count: 4, speed: 1.6, size: 0.035, k: 2.8, trailR: 0.008, trailK: 0.3 }));
     }
   }
+  scene.userData.packageRouting = routes;
   dataFlows.forEach(f => scene.add(f.group));
   // ---------- heat: up out of the dies and HBM, through the heat spreader ----------
   // Watts per source (src/heat.js): the GPU silicon is the package less its HBM share; each live stack carries an
