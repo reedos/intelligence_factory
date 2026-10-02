@@ -11,74 +11,17 @@
 // fiber end, off the RF path, and its pigtail runs back to the splitter.
 import { THREE, MAT, Builder, flow, canvasTex, setup, materials, die, strand, label, lidBox, FLOW, COL, note, unitCol, dspTex, glowMat } from './side-kit.js';
 import { componentView } from '../app/housing-frame.js';
+import { drawDiagram } from './face-diagram.js';
+import { iqDiagram, icrDiagram } from './coherent-faces.js';
 
-// The IQ modulator seen from above, as one dual-polarization IQ modulator: laser in at the fiber end (right, as the
-// OIF HB-CDM puts both fibers on the end opposite its RF pads), split into an X and
-// a Y polarization branch; each holds an I and a Q Mach-Zehnder, with a 90-degree phase section on Q; the Y branch
-// passes a polarization rotator (PR) and a combiner (PBC) joins both onto one output at the right. Pads for the RF
-// driver's electrical terminals along the left edge, one per modulator (XI, XQ, YI, YQ).
-function iqTex() {
-  return canvasTex(640, 256, (g, w, h) => {
-    g.fillStyle = '#4a5468'; g.fillRect(0, 0, w, h); g.lineCap = 'round'; g.lineJoin = 'round';
-    const txt = (t, x, y, c = 'rgba(255,255,255,0.8)') => { g.fillStyle = c; g.font = '600 15px system-ui'; g.fillText(t, x, y); };
-    g.strokeStyle = 'rgba(255,179,71,0.9)'; g.lineWidth = 3; g.beginPath(); g.moveTo(w, h - 14); g.lineTo(40, h - 14); g.lineTo(40, h / 2); g.lineTo(70, 70); g.moveTo(40, h / 2); g.lineTo(70, 186); g.stroke();
-    const pol = [[70, 'X'], [186, 'Y']];
-    pol.forEach(([py, name], p) => {
-      txt(name, 78, py + 5);
-      for (const [dy, iq] of [[-26, 'I'], [26, 'Q']]) {
-        const y = py + dy;
-        g.strokeStyle = 'rgba(255,179,71,0.9)'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(70, py); g.lineTo(110, y); g.lineTo(130, y); g.stroke();
-        g.strokeStyle = 'rgba(98,230,255,0.95)'; g.beginPath(); g.moveTo(130, y); g.lineTo(145, y - 8); g.lineTo(355, y - 8); g.lineTo(370, y); g.moveTo(130, y); g.lineTo(145, y + 8); g.lineTo(355, y + 8); g.lineTo(370, y); g.lineTo(420, y); g.stroke();
-        g.fillStyle = 'rgba(201,161,74,0.85)'; g.fillRect(150, y - 13, 200, 3); g.fillRect(150, y + 10, 200, 3);
-        txt(iq, 112, y - 6, 'rgba(98,230,255,0.9)');
-        if (iq === 'Q') { g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(382, y - 9, 30, 18); txt('90°', 383, y + 5); }
-        g.strokeStyle = 'rgba(98,230,255,0.95)'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(420, y); g.lineTo(450, py); g.stroke();
-      }
-      g.beginPath(); g.moveTo(450, py); g.lineTo(p ? 480 : 540, py); g.stroke();
-    });
-    g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(480, 174, 34, 24); txt('PR', 485, 191);                  // rotate Y
-    g.strokeStyle = 'rgba(98,230,255,0.95)'; g.beginPath(); g.moveTo(514, 186); g.lineTo(540, 186); g.stroke();
-    g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(540, 60, 40, 136); txt('PBC', 543, 133);                 // combine X and Y
-    g.strokeStyle = 'rgba(98,230,255,0.95)'; g.lineWidth = 3; g.beginPath(); g.moveTo(580, h / 2); g.lineTo(w, h / 2); g.stroke();
-    for (let k = 0; k < 4; k++) {
-      const py=58+k*46, electrode=[44,96,160,212][k]-13;
-      g.fillStyle='rgba(201,161,74,.9)';g.fillRect(0,py-6,16,12);
-      g.strokeStyle='rgba(201,161,74,.9)';g.lineWidth=2;g.beginPath();
-      g.moveTo(16,py);g.lineTo(85+k*9,py);g.lineTo(125,electrode);g.lineTo(150,electrode);g.stroke();
-    }   // RF pads: XI, XQ, YI, YQ
-    g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(w - 12, 0, 12, h);
-  });
-}
-// The coherent receiver: the signal and the laser's own light (the local oscillator) both in from the right, the
-// fiber end (OIF micro-ICR: fiber inputs and RF outputs on opposite ends), each split by polarization (PBS); an X
-// and a Y 90-degree hybrid mix them; four balanced photodiode pairs at the left edge read XI, XQ, YI, YQ for the
-// separate TIA package.
-function icrTex() {
-  return canvasTex(512, 256, (g, w, h) => {
-    g.fillStyle = '#4a5468'; g.fillRect(0, 0, w, h); g.lineCap = 'round'; g.lineJoin = 'round';
-    const txt = (t, x, y) => { g.fillStyle = 'rgba(255,255,255,0.8)'; g.font = '600 14px system-ui'; g.fillText(t, x, y); };
-    g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(420, 40, 34, 40); txt('PBS', 421, 65);                  // signal split
-    g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(40, 40, 34, 40); txt('PBS', 41, 65);                    // LO split
-    g.strokeStyle = 'rgba(255,122,217,0.9)'; g.lineWidth = 3; g.beginPath(); g.moveTo(w, h / 2); g.lineTo(480, h / 2); g.lineTo(480, 60); g.lineTo(454, 60); g.moveTo(420, 52); g.lineTo(330, 100); g.moveTo(420, 68); g.lineTo(220, 100); g.stroke();
-    g.strokeStyle = 'rgba(255,179,71,0.9)'; g.beginPath(); g.moveTo(w, 24); g.lineTo(40, 24); g.lineTo(40, 60); g.moveTo(74, 52); g.lineTo(160, 100); g.moveTo(74, 68); g.lineTo(290, 100); g.stroke();
-    for (const [x0, name] of [[140, 'X'], [270, 'Y']]) {
-      g.strokeStyle = 'rgba(255,255,255,0.65)'; g.lineWidth = 2; g.strokeRect(x0, 100, 100, 70); txt(`90° ${name}`, x0 + 22, 141);
-    }
-    // Four balanced photodiode pairs terminate at the left electrical edge.
-    // Each pair receives complementary optical outputs from its hybrid.
-    for (let k=0;k<4;k++) {
-      const y=58+k*46, hx=k<2 ? 140 : 270, hy=115+(k%2)*35;
-      g.strokeStyle='rgba(255,122,217,0.8)'; g.lineWidth=2;
-      for (const d of [-4,4]) { g.beginPath(); g.moveTo(hx,hy+d); g.lineTo(65,y+d); g.lineTo(44,y+d); g.stroke(); }
-      g.fillStyle='rgba(255,122,217,0.95)';g.fillRect(24,y-10,18,8);g.fillRect(24,y+2,18,8);
-      g.strokeStyle='rgba(201,161,74,.9)';g.beginPath();g.moveTo(24,y);g.lineTo(0,y);g.stroke();
-    }
-
-  });
-}
+// The IQ modulator and the coherent receiver seen from above, drawn from checked block diagrams
+// (coherent-faces.js): RF pads at the left edge, facing the driver or TIA, both fibers on the far end (OIF HB-CDM,
+// micro-ICR), every waveguide entering its component at a port, and the crossings a planar layout cannot avoid marked.
+export const iqTex = () => { const d = iqDiagram(); return canvasTex(d.w, d.h, g => drawDiagram(g, d)); };
+export const icrTex = () => { const d = icrDiagram(); return canvasTex(d.w, d.h, g => drawDiagram(g, d)); };
 
 // A visible package marking makes these closed, discrete electronics unmistakable.
-function analogTex(name) {
+export function analogTex(name) {
   return canvasTex(256,256,(g,w,h)=>{
     g.fillStyle='#111a22';g.fillRect(0,0,w,h);
     g.fillStyle='#d6dce3';g.font='600 40px system-ui';g.textAlign='center';g.fillText(name,w/2,118);
@@ -179,6 +122,8 @@ export function build({ quality, state, authoredHardware = false }) {
   // carrier in and modulated light out of the modulator; the signal and the
   // local oscillator into the receiver. Offsets match iqTex() and icrTex().
   const OPT=CX0+CL;
+  // A point on a die face given in its drawing's canvas pixels (x along the die from its RF end, y toward +z).
+  const face=(x0,len,z0,cw,px,py,lift=.12)=>[x0+px/cw*len,Y.top+lift,z0-.33+py/256*.66];
   const cdmIn=[OPT,Y.top+.1,cdmZ+.33-14/256*.66],cdmOut=[OPT,Y.top+.1,cdmZ];
   const icrSig=[OPT,Y.top+.1,icrZ],icrLo=[OPT,Y.top+.1,icrZ-.33+24/256*.66];
   // Fibers follow smooth cubic bends, never kinks. The laser pigtail leaves
@@ -260,8 +205,10 @@ export function build({ quality, state, authoredHardware = false }) {
   dataFlows.push(flow(laserTrunk,'cw',FLOW.cw));
   dataFlows.push(flow(carrierPath, 'cw', FLOW.cw));
   dataFlows.push(flow(loPath, 'cw', FLOW.cw));
-  dataFlows.push(flow([[CX0 + 0.25, Y.top + 0.12, cdmZ], cdmOut, ...txLead, lcTx, [MX1 + 0.7, LCY, -0.3]], 'tx', FLOW.light));
-  dataFlows.push(flow([[MX1 + 0.7, LCY, 0.3], lcRx, ...rxLead, icrSig, [RX_, Y.top + 0.12, icrZ]], 'rx', FLOW.light));
+  // The modulated light leaves from the combiner's output port and the received signal stops at the PBS's input
+  // port: the face drawings carry the paths inside the dies, so no flow cuts across them in a straight line.
+  dataFlows.push(flow([face(CX0, CL, cdmZ, 640, 610, 128), cdmOut, ...txLead, lcTx, [MX1 + 0.7, LCY, -0.3]], 'tx', FLOW.light));
+  dataFlows.push(flow([[MX1 + 0.7, LCY, 0.3], lcRx, ...rxLead, icrSig, face(RX0, RL, icrZ, 512, 448, 128)], 'rx', FLOW.light));
   for (let i = 0; i < 4; i++) flows.push(flow([[MX0 - 1.1, yT, -0.9 + i * 0.6], [mx(0.3), yT, -0.9 + i * 0.6], [mx(1.35+(i%2)*.48), Y.top + 0.12, i < 2 ? -0.22 : 0.22]], 'v33', FLOW.power));
   for (const [x, z, side] of [[DSPX, 0, 0], [ITX, 0, 1], [CX_, cdmZ, -1], [DRX, drvZ, -1], [RX_, icrZ, 1], [TIAX, tiaZ, 1]]) {
     const start = [mx(2.0), yT, z * 0.4], end = [x, Y.top + 0.12, z];
@@ -296,10 +243,12 @@ export function build({ quality, state, authoredHardware = false }) {
   const hs = {
     cdsp: { pos: [DSPX, Y.top + .2, .3] },
     itla: { pos: [ITX, Y.top + ITH + .1, 0] },
-    cdm: { pos: [CX_, Y.top + .15, cdmZ] },
+    // The die pins sit on empty corners of the face drawings, clear of their labels; each part view keeps its
+    // framing on the die center (the shifts in `detail`).
+    cdm: { pos: face(CX0, CL, cdmZ, 640, 560, 248, .15) },
     driver: { pos: [DRX, Y.top + .27, drvZ] },
     tia: { pos: [TIAX, Y.top + .27, tiaZ] },
-    icr: { pos: [RX_, Y.top + .15, icrZ] },
+    icr: { pos: face(RX0, RL, icrZ, 512, 440, 222, .15) },
     lc: { pos: [LCX, Y.top + .5, 0] },
     // The pluggable itself: the pin sits on the pull tab's finger loop.
     pluggable: { pos: [MX1 + .42, .45, 0] },
@@ -310,8 +259,8 @@ export function build({ quality, state, authoredHardware = false }) {
     driver: [[-.55, 1.0, -2.4], [1.45, .45, 1.2]],
     // Aim a little host-side of the modulator so the LC receptacle stays a
     // small block at the frame edge instead of a dark mass beside the die.
-    cdm: [[.65, 1.3, -2.3], [1.5, .4, 1.1], [-.25, 0, -.05]],
-    icr: [[.65, 1.0, 2.4], [1.8, .4, 1.2]],
+    cdm: [[.65, 1.3, -2.3], [1.5, .4, 1.1], [CX_ - .25, 0, cdmZ - .05].map((v, i) => v - hs.cdm.pos[i] * (i !== 1))],
+    icr: [[.65, 1.0, 2.4], [1.8, .4, 1.2], [RX_, 0, icrZ].map((v, i) => v - hs.icr.pos[i] * (i !== 1))],
     tia: [[-.55, 1.0, 2.4], [1.45, .45, 1.2]],
     // From the transmit side and above the board: the receptacle sits beside
     // the IQ modulator, not in front of it, so each pin lands on its own part.

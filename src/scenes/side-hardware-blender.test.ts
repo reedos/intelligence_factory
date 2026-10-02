@@ -147,7 +147,8 @@ describe('coherent packaging qualifications remain visible in the interactive sc
   it('shows qualitative heat from both active optical packages as well as the DSP and laser',()=>{
     const b=build(1);
     for(const id of ['driver','cdm','icr','tia']) {
-      const p=b.dataHotspots[id].pos;
+      // The part view's focus is the package; a die's pin may sit off-center, on an empty corner of its face drawing.
+      const p=b.dataHotspots[id].view.focus;
       expect(b.heatFlows.some((f:any)=>{
         const a=f.path.getPoint(0),z=f.path.getPoint(1);
         return Math.abs(a.x-p[0])<.3 && Math.abs(a.z-p[2])<.1 && z.y>a.y;

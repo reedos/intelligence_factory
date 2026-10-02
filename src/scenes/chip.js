@@ -26,7 +26,7 @@ function dieRoughness() {
 // X-ray floorplan decal: thin lines, not filled boxes. Illustrative, not a
 // literal floorplan or SM count (die-floorplan-drawing). hbmEdges: 'z' puts the
 // HBM PHY along the long edges (twin dies), 'x' along the short edges (H100).
-function floorplanTexture(hbmEdges, seam) {
+export function floorplanTexture(hbmEdges, seam) {
   return canvasTex(1024, 1300, (g, w, h) => {
     g.clearRect(0, 0, w, h);
     const line = (a, width = 2) => { g.strokeStyle = `rgba(150,225,255,${a})`; g.lineWidth = width; };

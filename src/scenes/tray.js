@@ -31,7 +31,7 @@ export function pkgTex(label) {
 // Bare die backside: near-black polished silicon with a faint thin-film tint
 // that shifts across the face, and a thin seal-ring border. Representative
 // appearance, matching published package photos (dark and specular, not blue).
-function dieTex() {
+export function dieTex() {
   return canvasTex(512, 640, (g, w, h) => {
     const gr = g.createLinearGradient(0, 0, w, h);
     gr.addColorStop(0, '#121419'); gr.addColorStop(0.42, '#1b1e2a'); gr.addColorStop(0.58, '#1f1c2b'); gr.addColorStop(1, '#101216');

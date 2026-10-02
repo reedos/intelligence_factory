@@ -13,7 +13,7 @@ import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, bondWi
 
 // A representative shared PIC: eight TX lanes, eight RX lanes; four CW sources feed TX only.
 const EMZ = { w: 640, h: 680, row: i => 26 + i * 40, laserY: k => 46 + k * 80, split: 60, mzIn: 250, mzOut: 440, arm: 7, padX: 232, rxRow: i => 360 + i * 40, pdX: 68, rxPadX: 25 };
-function ePicTex() {
+export function ePicTex() {
   return canvasTex(EMZ.w, EMZ.h, (g, w, h) => {
     g.fillStyle = '#4a5468'; g.fillRect(0, 0, w, h);
     g.fillStyle = 'rgba(255,255,255,0.05)'; for (let i = 0; i < 26; i++) g.fillRect(0, i * 13, w, 1);
