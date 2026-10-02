@@ -26,6 +26,12 @@ function dieRoughness() {
 // X-ray floorplan decal: thin lines, not filled boxes. Illustrative, not a
 // literal floorplan or SM count (die-floorplan-drawing). hbmEdges: 'z' puts the
 // HBM PHY along the long edges (twin dies), 'x' along the short edges (H100).
+// distance from point p to segment ab (canvas pixels)
+function distToSeg(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+  const t = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) : 0;
+  return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+}
 export function floorplanTexture(hbmEdges, seam) {
   return canvasTex(1024, 1300, (g, w, h) => {
     g.clearRect(0, 0, w, h);
@@ -131,17 +137,22 @@ function buildPackage({ quality, state, model }) {
     // degrees toward the corners so the corners carry routing too.
     // Copper under the green mask reads lighter than the bare laminate; each
     // trace ends on a tented via, the escape pattern a BGA breakout uses.
+    // The jog stays short enough that every run still moves outward to its via (no hook back) and ends on the board.
     g.strokeStyle = 'rgba(80,150,124,0.78)'; g.lineWidth = w / 560;
+    const runs = [], ends = [];
     for (let side = 0; side < 4; side++) for (let k = 0; k < 24; k++) {
-      const t = (k - 11.5) / 11.5, along = t * 3.6 * px, r0 = 3.95 * px, r1 = 5.25 * px, jog = t * Math.abs(t) * 1.3 * px;
+      const t = (k - 11.5) / 11.5, along = t * 3.6 * px, r0 = 3.95 * px, r1 = 5.25 * px, jog = t * Math.abs(t) * 0.85 * px;
       const pt = (r, a) => side === 0 ? [c + r, c + a] : side === 1 ? [c - r, c - a] : side === 2 ? [c - a, c + r] : [c + a, c - r];
-      g.beginPath(); g.moveTo(...pt(r0, along)); g.lineTo(...pt(r0 + 0.35 * px, along)); g.lineTo(...pt(r0 + 0.35 * px + Math.abs(jog), along + jog)); g.lineTo(...pt(r1, along + jog)); g.stroke();
-      const [vx, vy] = pt(r1, along + jog);
+      const run = [pt(r0, along), pt(r0 + 0.35 * px, along), pt(r0 + 0.35 * px + Math.abs(jog), along + jog), pt(r1, along + jog)];
+      g.beginPath(); run.forEach((q, i) => i ? g.lineTo(...q) : g.moveTo(...q)); g.stroke(); runs.push(run);
+      const [vx, vy] = pt(r1, along + jog); ends.push([vx, vy]);
       g.fillStyle = 'rgba(150,196,164,0.9)'; g.beginPath(); g.arc(vx, vy, 0.05 * px, 0, Math.PI * 2); g.fill();
       g.fillStyle = 'rgba(12,30,26,1)'; g.beginPath(); g.arc(vx, vy, 0.022 * px, 0, Math.PI * 2); g.fill();
     }
     g.fillStyle = 'rgba(110,140,120,0.5)';
-    for (let k = 0; k < 500; k++) { const x = rnd() * w, y = rnd() * h; if (Math.max(Math.abs(x - c), Math.abs(y - c)) > 4.0 * px) { g.beginPath(); g.arc(x, y, 0.018 * px, 0, Math.PI * 2); g.fill(); } }
+    // stray vias in the open board, never on a run or its end via
+    const clearOfRuns = (x, y, d) => runs.every(run => run.slice(1).every((q, i) => distToSeg([x, y], run[i], q) > d)) && ends.every(([ex, ey]) => Math.hypot(x - ex, y - ey) > d + 0.05 * px);
+    for (let k = 0; k < 500; k++) { const x = rnd() * w, y = rnd() * h; if (Math.max(Math.abs(x - c), Math.abs(y - c)) > 4.0 * px && clearOfRuns(x, y, 0.018 * px + w / 1120 + 3)) { g.beginPath(); g.arc(x, y, 0.018 * px, 0, Math.PI * 2); g.fill(); } }
     for (let i = 0; i < 26; i++) for (let j = 0; j < 26; j++) {          // BGA land pattern, ENIG gold, with a via beside each pad
       const x = c + (-3.75 + i * 0.3) * px, y = c + (-3.75 + j * 0.3) * px;
       g.fillStyle = '#c9a54f'; g.beginPath(); g.arc(x, y, 0.075 * px, 0, Math.PI * 2); g.fill();
@@ -169,9 +180,11 @@ function buildPackage({ quality, state, model }) {
     g.fillStyle = '#0f2420'; g.fillRect(0, 0, w, h);
     let seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
     g.strokeStyle = 'rgba(40,78,66,0.55)'; g.lineWidth = 3;
-    for (let k = 0; k < 7; k++) { const y0 = rnd() * h; g.beginPath(); g.moveTo(0, y0); g.lineTo(w * 0.4, y0); g.lineTo(w * 0.55, y0 + 60); g.lineTo(w, y0 + 60); g.stroke(); }
+    // seven bundles, evenly spread (random heights let two run on top of each other), each kept on the tile
+    const lanes = [];
+    for (let k = 0; k < 7; k++) { const y0 = 12 + (k + 0.2 + rnd() * 0.6) * (h - 84) / 7, lane = [[0, y0], [w * 0.4, y0], [w * 0.55, y0 + 60], [w, y0 + 60]]; lanes.push(lane); g.beginPath(); lane.forEach((q, i) => i ? g.lineTo(...q) : g.moveTo(...q)); g.stroke(); }
     g.fillStyle = 'rgba(120,150,120,0.5)';
-    for (let k = 0; k < 900; k++) { g.beginPath(); g.arc(rnd() * w, rnd() * h, 1.6, 0, Math.PI * 2); g.fill(); }
+    for (let k = 0; k < 900; k++) { const x = rnd() * w, y = rnd() * h; if (lanes.every(l => l.slice(1).every((q, i) => distToSeg([x, y], l[i], q) > 1.6 + 1.5 + 2))) { g.beginPath(); g.arc(x, y, 1.6, 0, Math.PI * 2); g.fill(); } }
   });
   const mask = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: maskTex, roughness: 0.45, metalness: 0.05, clearcoat: 0.3, clearcoatRoughness: 0.4 }); mask.name = 'Substrate solder mask';
   texBox(SUB - 0.1, 0.01, SUB - 0.1, mask, 0, Y.sub + 0.13, 0, 2.8);

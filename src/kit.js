@@ -35,6 +35,57 @@ export const glowMat = (css, k = 1.4, opacity = 1) => new THREE.MeshBasicMateria
 export const DETAIL = { unit: { value: 1 } };
 function noiseCanvas(n, draw) { const c = document.createElement('canvas'); c.width = c.height = n; draw(c.getContext('2d'), n); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; return t; }
 const rng = s => () => (s = (s * 16807) % 2147483647) / 2147483647;
+// The board-trace detail tile (one 6 cm square, repeated across every generic board): routed runs at 0, 45 and 90
+// degrees that never cross or touch one another, wrapped copies included, with a via at each end and a field of
+// vias that keep clear of every run. Pure data, so kit.test.ts checks it without a canvas.
+const WRAP = [-1, 0, 1].flatMap(dx => [-1, 0, 1].map(dy => [dx, dy]));
+function pointSeg2(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+  const t = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) : 0;
+  return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy);
+}
+function segCross2(a, b, c, d) {
+  const r = [b[0] - a[0], b[1] - a[1]], s = [d[0] - c[0], d[1] - c[1]], den = r[0] * s[1] - r[1] * s[0];
+  if (Math.abs(den) < 1e-9) return false;
+  const t = ((c[0] - a[0]) * s[1] - (c[1] - a[1]) * s[0]) / den, u = ((c[0] - a[0]) * r[1] - (c[1] - a[1]) * r[0]) / den;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+}
+export function segDist2(a, b, c, d) {
+  return segCross2(a, b, c, d) ? 0 : Math.min(pointSeg2(a, c, d), pointSeg2(b, c, d), pointSeg2(c, a, b), pointSeg2(d, a, b));
+}
+export const TRACE_GAP = 3, VIA_R = 1.4;
+// distance between two runs, the second at each of its wrapped copies
+const bbox = p => p.box || (p.box = p.pts.reduce((b, [x, y]) => [Math.min(b[0], x), Math.min(b[1], y), Math.max(b[2], x), Math.max(b[3], y)], [Infinity, Infinity, -Infinity, -Infinity]));
+export function runGap(p, q, n, enough = Infinity) {
+  let m = Infinity; const A = bbox(p), B = bbox(q);
+  for (const [dx, dy] of WRAP) {
+    // whole copies farther apart than `enough` cannot decide the answer
+    if (Math.max(A[0] - B[2] - dx * n, B[0] + dx * n - A[2], A[1] - B[3] - dy * n, B[1] + dy * n - A[3]) > enough) continue;
+    for (let i = 1; i < p.pts.length; i++) for (let j = 1; j < q.pts.length; j++) {
+    const sh = v => [v[0] + dx * n, v[1] + dy * n];
+    m = Math.min(m, segDist2(p.pts[i - 1], p.pts[i], sh(q.pts[j - 1]), sh(q.pts[j])));
+    }
+  }
+  return m;
+}
+export function tracePattern(n = 512, { seed = 7, count = 150, vias = 260 } = {}) {
+  const r = rng(seed), paths = [], out = [];
+  // a via ring at each end is wider than the run, so runs keep the gap from the via, not just the copper
+  const need = (p, q) => Math.max(p.w, 2 * VIA_R) / 2 + Math.max(q.w, 2 * VIA_R) / 2 + TRACE_GAP;
+  for (let tries = 0; paths.length < count && tries < 6000; tries++) {
+    let x = r() * n, y = r() * n; const w = 1 + (r() < 0.2 ? 2 : 0), pts = [[x, y]];
+    for (let s = 0; s < 4; s++) { const d = 14 + r() * 50, a = [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4][Math.floor(r() * 4)]; x += Math.cos(a) * d; y += Math.sin(a) * d; pts.push([x, y]); }
+    const p = { pts, w };
+    if (paths.every(q => runGap(p, q, n, need(p, q)) >= need(p, q))) paths.push(p);
+  }
+  for (const p of paths) out.push(p.pts[0], p.pts.at(-1));
+  for (let i = 0; i < vias; i++) {
+    const v = [r() * n, r() * n], probe = { pts: [v, v], w: 2 * VIA_R };
+    if (paths.every(q => { const need = VIA_R + Math.max(q.w, 2 * VIA_R) / 2 + TRACE_GAP; return runGap(probe, q, n, need) >= need; })
+      && out.every(u => { let m = Infinity; for (const [dx, dy] of WRAP) m = Math.min(m, Math.hypot(v[0] - u[0] - dx * n, v[1] - u[1] - dy * n)); return m >= 2 * VIA_R + 1; })) out.push(v);
+  }
+  return { paths, vias: out, n };
+}
 // tileable value noise: a few octaves of blurred random cells
 const NOISE = {
   grain: noiseCanvas(256, (g, n) => {
@@ -57,14 +108,15 @@ const NOISE = {
     for (let i = 0; i < 1400; i++) { const y = r() * n, v = Math.round(90 + r() * 80); g.fillStyle = `rgba(${v},${v},${v},${0.18 + r() * 0.3})`; g.fillRect(0, y, n, 0.6 + r() * 1.2); }
   }),
   traces: noiseCanvas(512, (g, n) => {
-    const r = rng(7); g.fillStyle = '#6a6a6a'; g.fillRect(0, 0, n, n);
-    g.strokeStyle = '#b4b4b4'; g.lineCap = 'round';
-    for (let i = 0; i < 90; i++) {            // routed traces: horizontal, vertical and 45° runs
-      let x = r() * n, y = r() * n; g.lineWidth = 1 + (r() < 0.2 ? 2 : 0); g.beginPath(); g.moveTo(x, y);
-      for (let s = 0; s < 4; s++) { const d = 20 + r() * 90, a = [0, Math.PI / 2, Math.PI / 4, -Math.PI / 4][Math.floor(r() * 4)]; x += Math.cos(a) * d; y += Math.sin(a) * d; g.lineTo(x, y); }
-      g.stroke();
+    const { paths, vias } = tracePattern(n);
+    g.fillStyle = '#6a6a6a'; g.fillRect(0, 0, n, n);
+    g.strokeStyle = '#b4b4b4'; g.lineCap = 'round'; g.lineJoin = 'round';
+    // each run is drawn at its wrapped copies too, so a trace crossing the tile edge continues on the next tile
+    for (const { pts, w } of paths) for (const [dx, dy] of WRAP) {
+      g.lineWidth = w; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x + dx * n, y + dy * n) : g.moveTo(x + dx * n, y + dy * n)); g.stroke();
     }
-    g.fillStyle = '#d0d0d0'; for (let i = 0; i < 260; i++) { g.beginPath(); g.arc(r() * n, r() * n, 1.4, 0, Math.PI * 2); g.fill(); }   // vias
+    g.fillStyle = '#d0d0d0';
+    for (const [x, y] of vias) for (const [dx, dy] of WRAP) { g.beginPath(); g.arc(x + dx * n, y + dy * n, 1.4, 0, Math.PI * 2); g.fill(); }
   }),
 };
 function withDetail(mat, tex, meters, amt, rough) {

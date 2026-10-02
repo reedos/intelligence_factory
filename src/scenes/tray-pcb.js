@@ -7,7 +7,13 @@
 // every board shows the part of the layout under it. Layout is representative
 // (assumption 'tray-mechanical-detail'): it follows common server-board practice
 // around the real device positions in tray.js, not a vendor's routing.
+// Routing keeps the design rules a real board would (pcb-check.js, tray-pcb.test.ts):
+// buses leave a package on an inner layer, drawn dim, under its decoupling rows and
+// regulator ring, and come up to the top layer through a via row where the channel is
+// clear; nothing runs through a hole, pad, package or a part tray.js models on the
+// board, nothing crosses on its own layer, and everything keeps a 3 px clearance.
 import * as THREE from 'three';
+import { Clearance, segsOf, pointSeg } from './pcb-check.js';
 
 export const PCB_MATERIAL = 'Tray solder mask';
 export const RACK_PCB_MATERIAL = 'Rack tray solder mask';
@@ -15,61 +21,107 @@ const SPAN = { x0: -2.2, z0: -4.5, w: 4.4, d: 9 };
 
 let C = {
   mask: '#0d3a2b', maskHi: '#114434', pour: '#145139', trace: '#1d6849', traceOnPour: '#228058', clear: '#0a3024',
-  tented: '#2b7a59', viaRing: '#b8bab4', hole: '#070908', silk: '#dfe6dc', gold: '#caa24c', tin: '#b9bcbd', lam: '#6a6446',
+  traceIn: '#165a3f', tented: '#2b7a59', viaRing: '#b8bab4', hole: '#070908', silk: '#dfe6dc', gold: '#caa24c', tin: '#b9bcbd', lam: '#6a6446',
 };
 // surface map channels: R height (bump), G roughness, B metalness
 const S = {
-  mask: 'rgb(0,120,0)', pour: 'rgb(70,112,0)', trace: 'rgb(120,104,0)', clear: 'rgb(0,128,0)', tented: 'rgb(150,100,0)',
+  mask: 'rgb(0,120,0)', pour: 'rgb(70,112,0)', trace: 'rgb(120,104,0)', traceIn: 'rgb(20,116,0)', clear: 'rgb(0,128,0)', tented: 'rgb(150,100,0)',
   metal: 'rgb(150,80,255)', hole: 'rgb(0,235,0)', silk: 'rgb(185,205,0)', lam: 'rgb(30,200,0)',
 };
 
 // ---------- layouts, in tray units (10 cm), front +z; positions mirror tray.js ----------
+// Keep-outs for the parts tray.js models in 3D on the board surface (passive rows, power stages, regulators,
+// copper bars, DIMM slots): no top-layer copper runs under them. smdRow extents: a 0402 is 1 x 0.5 mm.
+function smdRowPart(L, [x0, z0], [x1, z1], alongZ, id) {
+  const hx = alongZ ? 0.0026 : 0.005, hz = alongZ ? 0.005 : 0.0026;
+  L.parts.push({ id, kind: 'passive row', x: (x0 + x1) / 2, z: (z0 + z1) / 2, w: Math.abs(x1 - x0) + 2 * hx, d: Math.abs(z1 - z0) + 2 * hz });
+}
+function smdFramePart(L, x, z, w, d, g, id) {
+  for (const s of [-1, 1]) {
+    smdRowPart(L, [x - w / 2, z + s * (d / 2 + g)], [x + w / 2, z + s * (d / 2 + g)], true, id);
+    smdRowPart(L, [x + s * (w / 2 + g), z - d / 2], [x + s * (w / 2 + g), z + d / 2], false, id);
+  }
+}
+const part = (L, id, x, z, w, d, more = {}) => L.parts.push({ id, kind: 'part', x, z, w, d, ...more });
+
 function nvlLayout(accel) {
   const L = base();
   for (const bx of [-1.1, 1.1]) {
+    const s = Math.sign(bx), X = u => bx + s * u, side = bx < 0 ? 'left' : 'right';
     L.boards.push({ x: bx, z: -0.35, w: 2.0, d: 5.8 });
     const cz = 1.75;
-    L.pkgs.push({ x: bx, z: cz, w: 0.62, d: 0.62, ref: bx < 0 ? 'U1' : 'U2', fan: 3 });
-    for (const side of [-1, 1]) for (let i = 0; i < 4; i++) L.pkgs.push({ x: bx + side * 0.55, z: cz - 0.36 + i * 0.24, w: 0.16, d: 0.2, ref: `U${30 + i + (side > 0 ? 4 : 0)}`, fan: 1 });
-    for (const [k, gz] of [0.2, -1.55].entries()) {
-      L.pkgs.push({ x: bx, z: gz, w: 0.95, d: 0.95, ref: `U${3 + k + (bx > 0 ? 2 : 0)}`, fan: 4 });
-      for (let i = 0; i < 8; i++) for (const sx of [-1, 1]) L.vrms.push({ x: bx + sx * 0.72, z: gz - 0.42 + i * 0.12, w: 0.1, d: 0.09 });
-      for (let i = 0; i < 7; i++) L.vrms.push({ x: bx - 0.36 + i * 0.12, z: gz - 0.62, w: 0.1, d: 0.09 });
-      L.pours.push({ x: bx - 0.72, z: gz, w: 0.2, d: 1.05 }, { x: bx + 0.72, z: gz, w: 0.2, d: 1.05 }, { x: bx, z: gz - 0.64, w: 0.9, d: 0.16 });
-      L.conns.push({ x: bx, z: gz - 0.46, w: 0.84, d: 0.05, ref: `J${1 + k + (bx > 0 ? 2 : 0)}` });
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) L.holes.push([bx + sx * 0.279, gz + sz * 0.279, 0.018]);
-      // NVLink to the rear connectors: a side channel outboard of the VRM column
-      const ch = bx + Math.sign(bx) * 0.87, rx = bx + Math.sign(bx) * 0.4;
-      L.buses.push({ pts: [[rx - Math.sign(bx) * 0.1, gz - 0.5], [rx, gz - 0.56], [ch, gz - 0.56], [ch, -3.2]], pairs: 12 });
-      // PCIe / C2C from the GPU's front edge
-      L.buses.push({ pts: [[bx - 0.25, gz + 0.48], [bx - 0.25, gz + 0.62], [bx - 0.86 * Math.sign(bx), gz + 0.78]], pairs: 6 });
+    // Grace with its decoupling frame (tray.js smdFrame .58, gap .05) and LPDDR5X either side
+    L.pkgs.push({ x: bx, z: cz, w: 0.62, d: 0.62, ref: bx < 0 ? 'U1' : 'U2', fan: 1, m: 0.005 });
+    smdFramePart(L, bx, cz, 0.58, 0.58, 0.05, `Grace ${side} decoupling`);
+    for (const sd of [-1, 1]) for (let i = 0; i < 4; i++) {
+      const lz = cz - 0.36 + i * 0.24;
+      L.pkgs.push({ x: bx + sd * 0.55, z: lz, w: 0.16, d: 0.2, ref: `U${30 + i + (sd > 0 ? 4 : 0)}`, fan: 0, m: 0.008 });
+      smdRowPart(L, [bx + sd * 0.655, lz - 0.04], [bx + sd * 0.655, lz + 0.04], false, `LPDDR bypass ${side}`);
+      // memory channel: Grace's edge to each package, on an inner layer under the decoupling row
+      const mz = Math.max(cz - 0.3, Math.min(cz + 0.3, lz));
+      L.buses.push({ id: `LPDDR ${side} ${sd}${i}`, pts: [[bx + sd * 0.3, mz], [bx + sd * 0.5, mz]], pairs: 4, layer: 'in' });
     }
-    // C2C: Grace to the upper GPU (short and wide), and to the lower GPU along the inboard channel
-    L.buses.push({ pts: [[bx + 0.1, 1.44], [bx + 0.1, 0.68]], pairs: 16 });
-    const inb = bx - Math.sign(bx) * 0.87;
-    L.buses.push({ pts: [[bx - Math.sign(bx) * 0.31, 1.6], [inb, 1.6], [inb, -1.2], [bx - Math.sign(bx) * 0.48, -1.35]], pairs: 10 });
-    // Grace to the NIC side of the tray (PCIe to the mezzanine connectors)
-    L.buses.push({ pts: [[bx + 0.15, 2.06], [bx + 0.15, 2.2], [bx + 0.45, 2.5]], pairs: 8 });
-    for (const side of [-1, 1]) L.buses.push({ pts: [[bx + side * 0.31, cz], [bx + side * 0.47, cz]], pairs: 6 });
-    // 12 V: the copper runs down the board sit on a pour
+    for (const [k, gz] of [0.2, -1.55].entries()) {
+      const g = `GPU ${side} ${k ? 'rear' : 'front'}`;
+      L.pkgs.push({ x: bx, z: gz, w: 0.95, d: 0.95, ref: `U${3 + k + (bx > 0 ? 2 : 0)}`, fan: 1, m: 0.005 });
+      // VRM ring: inductors with their power stages (tray.js), the controller, a ring of caps and the decoupling rows
+      const ring = [];
+      for (let i = 0; i < 8; i++) for (const sx of [-1, 1]) ring.push([bx + sx * 0.72, gz - 0.42 + i * 0.12]);
+      for (let i = 0; i < 7; i++) ring.push([bx - 0.36 + i * 0.12, gz - 0.62]);
+      for (const [x, z] of ring) {
+        L.vrms.push({ x, z, w: 0.1, d: 0.09 });
+        const inward = Math.sign(bx - x) || 0;
+        part(L, `${g} power stage`, x + inward * 0.1, z + (inward === 0 ? 0.1 : 0), 0.06, 0.06, { land: true });
+      }
+      part(L, `${g} controller`, bx + 0.6, gz - 0.62, 0.08, 0.08, { land: true });
+      for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; part(L, `${g} cap ring`, bx + Math.cos(a) * 0.56, gz + Math.sin(a) * 0.56, 0.02, 0.02); }
+      for (const [gg] of [[0.03], [0.05]]) {
+        smdRowPart(L, [bx - 0.46, gz + 0.475 + gg], [bx + 0.46, gz + 0.475 + gg], true, `${g} decoupling`);
+        for (const sx of [-1, 1]) smdRowPart(L, [bx + sx * (0.475 + gg), gz - 0.44], [bx + sx * (0.475 + gg), gz + 0.46], false, `${g} decoupling`);
+      }
+      for (let i = 0; i < 8; i++) for (const sx of [-1, 1]) smdRowPart(L, [bx + sx * 0.565, gz - 0.44 + i * 0.12], [bx + sx * 0.565, gz - 0.4 + i * 0.12], false, `${g} bypass`);
+      L.pours.push({ x: bx - 0.72, z: gz, w: 0.12, d: 1.05 }, { x: bx + 0.72, z: gz, w: 0.12, d: 1.05 }, { x: bx, z: gz - 0.64, w: 0.9, d: 0.16 });
+      // cold-plate mounting holes at the package corners, outside the regulator ring
+      for (const sx of [-1, 1]) { L.holes.push([bx + sx * 0.6, gz + 0.6, 0.018]); L.holes.push([bx + sx * 0.62, gz - 0.75, 0.018]); }
+    }
+    // Buses. A bus leaves a package on an inner layer (its breakout vias), under the decoupling rows and the
+    // regulator ring, and comes up to the top layer with a via row where it has a clear channel.
+    const ch = 0.8325;                                        // the channel between the VRM column and the edge holes
+    // NVLink from the front GPU: out its outboard side, then back along the outboard channel to the rear connector
+    L.buses.push({ id: `NVLink ${side} front`, pts: [[X(0.42), 0.0], [X(ch), 0.0], [X(ch), -3.08]], pairs: 8, layers: ['in', 'top'] });
+    L.conns.push({ x: X(ch), z: -3.12, w: 0.12, d: 0.05, ref: `J${s > 0 ? 22 : 20}` });
+    // NVLink from the rear GPU: straight back under its regulator row, then on top to the rear connector
+    L.buses.push({ id: `NVLink ${side} rear`, pts: [[X(-0.36), -1.95], [X(-0.36), -2.35], [X(-0.36), -3.08]], pairs: 8, layers: ['in', 'top'] });
+    L.conns.push({ x: X(-0.36), z: -3.12, w: 0.12, d: 0.05, ref: `J${s > 0 ? 23 : 21}` });
+    // C2C: Grace to the front GPU, short and wide, on an inner layer under the 12 V copper
+    L.buses.push({ id: `C2C ${side} front`, pts: [[bx + 0.08, 1.45], [bx + 0.08, 0.66]], pairs: 14, layer: 'in' });
+    // C2C to the rear GPU: out of Grace's rear corner, across to the inboard channel, back past the front GPU, in
+    L.buses.push({ id: `C2C ${side} rear`, pts: [[X(-0.24), 1.46], [X(-0.24), 1.2], [X(-ch), 1.2], [X(-ch), -1.35], [X(-0.45), -1.35]], pairs: 8, layers: ['in', 'in', 'top', 'in'] });
+    // Grace to the NIC mezzanines (PCIe), to a board-to-board connector at the front edge
+    L.buses.push({ id: `PCIe ${side} NIC`, pts: [[bx + 0.15, 2.05], [bx + 0.15, 2.18], [bx + 0.15, 2.3]], pairs: 8, layers: ['in', 'top'] });
+    L.conns.push({ x: bx + 0.15, z: 2.34, w: 0.16, d: 0.04, ref: `J${s > 0 ? 25 : 24}` });
+    // 12 V: the copper bars run down the board on a pour (tray.js: two bars at bx and bx + .16)
     L.pours.push({ x: bx + 0.08, z: -0.9, w: 0.34, d: 5.2 });
-    for (const sx of [-1, 1]) for (const z of [-3.15, -1.0, 1.0, 2.45]) L.holes.push([bx + sx * 0.93, z, 0.02]);
-    for (let i = 0; i < 10; i++) L.tps.push([bx + 0.93 * Math.sign(bx) - Math.sign(bx) * 0.03, -2.8 + i * 0.5]);
+    for (const dx of [0, 0.16]) part(L, `12 V bar ${side}`, bx + dx, -0.9, 0.12, 5.2);
+    for (const z of [-3.0, -1.0, 1.0, 2.45]) for (const sx of [-1, 1]) L.holes.push([bx + sx * 0.93, z, 0.02]);
+    for (let i = 0; i < 10; i++) L.tps.push([X(0.9), -2.8 + i * 0.5, s]);
   }
   // NIC mezzanine boards and the front cage boards
   const ultra = accel === 'gb300';
   const mezz = ultra ? [[0.45, 0.92], [1.45, 0.92]] : [0.2, 0.7, 1.2, 1.7].map(x => [x, 0.42]);
   mezz.forEach(([x, w], i) => {
     L.boards.push({ x, z: 3.315, w, d: 0.93 });
-    L.conns.push({ x, z: 2.9, w: w * 0.65, d: 0.06, ref: `J${10 + i}` });
+    L.conns.push({ x, z: 2.9, w: w * 0.5, d: 0.06, ref: `J${10 + i}` });
     for (const sx of [-1, 1]) for (const z of [2.9, 3.73]) L.holes.push([x + sx * (w / 2 - 0.04), z, 0.014]);
   });
   for (const x of [0.2, 0.7, 1.2, 1.7]) {
-    L.pkgs.push({ x, z: 3.3, w: 0.26, d: 0.26, ref: '', fan: 2, hidden: true });
-    L.buses.push({ pts: [[x, 3.44], [x, 3.66]], pairs: 8 });
-    L.buses.push({ pts: [[x - 0.05, 3.16], [x - 0.05, 2.96]], pairs: 8 });
+    L.pkgs.push({ x, z: 3.3, w: 0.26, d: 0.26, ref: '', fan: 2, m: 0.02, hidden: true });
+    smdRowPart(L, [x - 0.12, 3.03], [x + 0.12, 3.03], true, 'NIC bypass');
+    smdRowPart(L, [x + 0.19, 3.1], [x + 0.19, 3.5], false, 'NIC bypass');
+    L.buses.push({ id: `NIC ${x} out`, pts: [[x, 3.44], [x, 3.66]], pairs: 8 });
+    L.buses.push({ id: `NIC ${x} host`, pts: [[x - 0.05, 3.16], [x - 0.05, 2.96]], pairs: 8, layer: 'in' });
     L.conns.push({ x, z: 3.93, w: 0.15, d: 0.075, ref: '' });
-    L.buses.push({ pts: [[x, 3.97], [x, 4.4]], pairs: 8 });
+    L.buses.push({ id: `cage ${x}`, pts: [[x, 3.97], [x, 4.4]], pairs: 8 });
   }
   const cage = ultra ? [[0.45, 0.92], [1.45, 0.92]] : [[0.95, 1.96]];
   for (const [x, w] of cage) {
@@ -81,28 +133,57 @@ function nvlLayout(accel) {
 function h100Layout() {
   const L = base();
   L.boards.push({ x: 0, z: 1.3, w: 4.2, d: 5.0 });
-  const gpuX = [-1.62, -0.54, 0.54, 1.62], gpuZ = [2.75, 1.05], swX = [-1.5, -0.5, 0.5, 1.5];
-  gpuZ.forEach((z, r) => gpuX.forEach((x, c) => {
-    L.pkgs.push({ x, z, w: 0.9, d: 1.4, ref: `SXM${r * 4 + c + 1}`, fan: 0 });
-    L.buses.push({ pts: [[x + 0.15, z - 0.72], [x + 0.15, -0.0], [swX[c] + 0.1, -0.02]], pairs: 12 });
-    L.buses.push({ pts: [[x - 0.15, z - 0.72], [x - 0.15, -0.72], [x - 0.3, -0.85], [x - 0.3, -1.15]], pairs: 8 });
-  }));
-  swX.forEach((x, i) => { L.pkgs.push({ x, z: -0.25, w: 0.42, d: 0.42, ref: `U${60 + i}`, fan: 3 }); L.pours.push({ x, z: -0.95, w: 0.4, d: 0.36 }); });
+  const gpuX = [-1.62, -0.54, 0.54, 1.62], gpuZ = [2.75, 1.05], swX = [-1.5, -0.5, 0.5, 1.5], swZ = -0.25;
+  gpuZ.forEach((z, r) => gpuX.forEach((x, c) => L.pkgs.push({ x, z, w: 0.9, d: 1.4, ref: `SXM${r * 4 + c + 1}`, fan: 0, m: 0.01 })));
+  swX.forEach((x, i) => {
+    L.pkgs.push({ x, z: swZ, w: 0.42, d: 0.42, ref: `U${60 + i}`, fan: 2, m: 0.005 });
+    for (const g of [0.04, 0.058]) smdFramePart(L, x, swZ, 0.42, 0.42, g, `NVSwitch ${i + 1} decoupling`);
+    L.pours.push({ x, z: -0.95, w: 0.4, d: 0.36 });
+  });
   for (let i = 0; i < 8; i++) L.vrms.push({ x: -1.75 + i * 0.5, z: -0.95, w: 0.3, d: 0.3 });
-  for (const sx of [-1, 1]) for (const z of [-1.1, 0.35, 1.9, 3.7]) L.holes.push([sx * 2.03, z, 0.022]);
-  for (let i = 0; i < 14; i++) L.tps.push([-1.95 + i * 0.3, 0.3]);
+  part(L, '54 V bus bar', 0, -1.125, 0.3, 0.15);
+  // NVLink: each lower GPU straight down into its NVSwitch; each upper GPU down the gaps between the lower modules
+  // (the module footprints are its connectors: nothing routes under them) and into a switch's side. A bus comes
+  // up from or dives to an inner layer to pass the switches' decoupling rows.
+  const vertical = [];
+  swX.forEach((x, c) => { const bx = x + 0.1; L.buses.push({ id: `NVLink SXM${5 + c}`, pts: [[bx, 0.4], [bx, 0.1], [bx, -0.05]], pairs: 12, layers: ['top', 'in'] }); vertical.push([bx, 0.07]); });
+  const gapX = [-1.08, -0.0365, 0.0365, 1.08], pairs = [6, 5, 5, 6];
+  gpuX.forEach((x, c) => {
+    const gx = gapX[c], s = c < 2 ? -1 : 1;                       // toward the switch on this gap's own side
+    const sw = c === 0 ? swX[0] : c === 3 ? swX[3] : swX[c];
+    const edge = sw - s * 0.21, via = edge - s * 0.12, start = gx + (c < 2 ? -1 : 1) * 0.17;
+    L.buses.push({ id: `NVLink SXM${1 + c}`, pts: [[start, 2.1], [start, 1.84], [gx, 1.84], [gx, swZ], [via, swZ], [edge + s * 0.1, swZ]], pairs: pairs[c], layers: ['top', 'top', 'top', 'top', 'in'] });
+    vertical.push([gx, 0.04]);
+  });
+  // the outer upper modules also reach the next switch inward, on an inner layer under the first link
+  for (const [c, gx, sw, s] of [[0, -1.08, swX[1], 1], [3, 1.08, swX[2], -1]]) {
+    const start = gx - s * 0.27;
+    L.buses.push({ id: `NVLink SXM${1 + c} b`, pts: [[start, 2.1], [start, 1.96], [gx, 1.96], [gx, swZ - 0.08], [sw - s * 0.12, swZ - 0.08]], pairs: 5, layer: 'in' });
+  }
+  for (const sx of [-1, 1]) for (const z of [-1.1, 0.18, 1.9, 3.7]) L.holes.push([sx * 2.03, z, 0.022]);
+  // test points between the module rows and the switches, clear of every bus
+  for (let i = 0; i < 27; i++) { const x = -1.95 + i * 0.15; if (vertical.every(([vx, hw]) => Math.abs(x - vx) > hw + 0.04)) L.tps.push([x, 0.2]); }
   // CPU tray board, NIC cards and the rear cage boards (upper deck)
   L.boards.push({ x: 0, z: -2.775, w: 4.2, d: 2.95 });
   for (const x of [-1.0, 1.0]) {
-    L.pkgs.push({ x, z: -2.2, w: 0.62, d: 0.75, ref: x < 0 ? 'CPU1' : 'CPU2', fan: 3 });
-    for (const s of [-1, 1]) L.buses.push({ pts: [[x + s * 0.31, -2.2], [x + s * 0.4, -2.2]], pairs: 16, pitch: 0.012 });
-    L.buses.push({ pts: [[x, -1.82], [x, -1.62], [x * 0.55, -1.55]], pairs: 8 });
+    L.pkgs.push({ x, z: -2.2, w: 0.62, d: 0.75, ref: x < 0 ? 'CPU1' : 'CPU2', fan: 1, m: 0.01 });
+    smdFramePart(L, x, -2.2, 0.62, 0.75, 0.04, `CPU ${x} decoupling`);
+    // DDR5 slots, eight either side (tray.js): pressed-in connectors, so a keep-out on every layer
+    for (const s of [-1, 1]) {
+      part(L, `DIMM slots ${x}/${s}`, x + s * 0.6125, -2.2, 0.41, 1.25, { layer: 'all', term: true });
+      L.buses.push({ id: `DDR5 ${x}/${s}`, pts: [[x + s * 0.31, -2.2], [x + s * 0.42, -2.2]], pairs: 16, pitch: 0.012, layer: 'in' });
+    }
+    // PCIe to the two switches on this side: under the CPU's front decoupling, up on top, down again at the switch
+    const s = Math.sign(x);
+    for (const [u, sw] of [[0.25, 1.6], [-0.15, 0.55]]) {
+      const vx = x + s * u, tx = s * sw, side = Math.sign(tx - vx), stop = tx - side * 0.245;
+      L.buses.push({ id: `PCIe CPU${x < 0 ? 1 : 2} → ${sw}`, pts: [[vx, -1.85], [vx, -1.72], [vx, -1.5], [stop, -1.5], [tx - side * 0.05, -1.5]], pairs: 8, layers: ['in', 'top', 'top', 'in'] });
+    }
   }
-  for (const x of [-1.6, -0.55, 0.55, 1.6]) L.pkgs.push({ x, z: -1.55, w: 0.3, d: 0.3, ref: 'U', fan: 2 });
+  for (const x of [-1.6, -0.55, 0.55, 1.6]) { L.pkgs.push({ x, z: -1.55, w: 0.3, d: 0.3, ref: 'U', fan: 1, m: 0.01 }); smdFramePart(L, x, -1.55, 0.3, 0.3, 0.03, `PCIe switch ${x} bypass`); }
   for (const x of [-1.65, -1.05, 1.05, 1.65]) {
     L.boards.push({ x, z: -3.3, w: 0.4, d: 0.9 });
-    for (const z of [-3.05, -3.5]) L.pkgs.push({ x, z, w: 0.28, d: 0.31, ref: '', fan: 2, hidden: true });
-    L.buses.push({ pts: [[x, -2.9], [x, -2.7]], pairs: 8 });
+    for (const z of [-3.05, -3.5]) L.pkgs.push({ x, z, w: 0.28, d: 0.31, ref: '', fan: 1, m: 0.005, hidden: true });
   }
   for (const x of [-1.35, 1.35]) L.boards.push({ x, z: -4.17, w: 0.95, d: 0.62 });
   for (const sx of [-1, 1]) for (const z of [-4.1, -2.9, -1.45]) L.holes.push([sx * 2.03, z, 0.02]);
@@ -112,32 +193,112 @@ function rubinLayout() {
   const L = base();
   const gp = [[-1.6, -2.7], [-0.62, -2.7], [0.62, -2.7], [1.6, -2.7]], cp = [[-1.1, -0.65], [1.1, -0.65]];
   for (const x of [-1.1, 1.1]) L.boards.push({ x, z: -1.52, w: 2.02, d: 4.9 });
+  // regulator rows as tray-rubin.js builds them: inductors, power stages toward the package, a cap ring at its edge
+  const vrmRow = (x0, z, n, inward, id) => { for (let k = 0; k < n; k++) { L.vrms.push({ x: x0 + k * 0.12, z, w: 0.1, d: 0.09 }); part(L, `${id} power stage`, x0 + k * 0.12, z + inward * 0.085, 0.06, 0.05, { land: true }); } };
   gp.forEach(([x, z], i) => {
-    L.pkgs.push({ x, z, w: 0.83, d: 0.95, ref: `U${i + 1}`, fan: 4 });
-    for (let k = 0; k < 7; k++) for (const s of [-1, 1]) L.vrms.push({ x: x - 0.36 + k * 0.12, z: z + s * 0.66, w: 0.1, d: 0.09 });
-    L.buses.push({ pts: [[x + 0.2, z - 0.5], [x + 0.2, -3.9]], pairs: 10 });
+    L.pkgs.push({ x, z, w: 0.83, d: 0.95, ref: `U${i + 1}`, fan: 1, m: 0.005 });
+    vrmRow(x - 0.36, z - 0.66, 7, 1, `GPU ${i + 1}`); vrmRow(x - 0.36, z + 0.66, 7, -1, `GPU ${i + 1}`);
+    for (let k = 0; k < 8; k++) for (const s of [-1, 1]) part(L, `GPU ${i + 1} cap ring`, x - 0.45 + (k + 0.5) * 0.1125, z + s * 0.54, 0.018, 0.012);
+    // NVLink to the rear connectors: under the regulator row on an inner layer, up to the top for the run out
+    for (const dx of [-0.2, 0.2]) {
+      L.buses.push({ id: `NVLink GPU${i + 1} ${dx}`, pts: [[x + dx, z - 0.42], [x + dx, z - 0.8], [x + dx, -3.84]], pairs: 10, layers: ['in', 'top'] });
+      L.conns.push({ x: x + dx, z: -3.88, w: 0.16, d: 0.04, ref: '' });
+    }
   });
   cp.forEach(([x, z], i) => {
-    L.pkgs.push({ x, z, w: 0.75, d: 0.77, ref: `U${10 + i}`, fan: 3 });
-    for (let k = 0; k < 5; k++) for (const s of [-1, 1]) L.vrms.push({ x: x - 0.24 + k * 0.12, z: z + s * 0.52, w: 0.1, d: 0.09 });
-    for (const s of [-1, 1]) L.buses.push({ pts: [[x + s * 0.3, z - 0.4], [x + s * 0.5, -2.1]], pairs: 10 });
-    L.buses.push({ pts: [[x, z + 0.4], [x, 0.9]], pairs: 12 });
+    L.pkgs.push({ x, z, w: 0.75, d: 0.77, ref: `U${10 + i}`, fan: 1, m: 0.005 });
+    vrmRow(x - 0.24, z - 0.52, 5, 1, `CPU ${i + 1}`); vrmRow(x - 0.24, z + 0.52, 5, -1, `CPU ${i + 1}`);
     for (const s of [-1, 1]) L.boards.push({ x: x + s * 0.64, z, w: 0.3, d: 1.05, module: true });
+    // C2C to its two GPUs: under the CPU's rear regulator row, across on top, under the GPU's front row
+    for (const [a, b] of [[-0.25, -0.35], [0.25, 0.35]]) {
+      L.buses.push({ id: `C2C CPU${i + 1} ${a}`, pts: [[x + a, z - 0.35], [x + a, -1.3], [x + b, -1.9], [x + b, -2.35]], pairs: 10, layers: ['in', 'top', 'in'] });
+    }
+    // PCIe forward to the midplane connectors, under the front regulator row
+    for (const dx of [-0.25, 0.25]) {
+      L.buses.push({ id: `PCIe CPU${i + 1} ${dx}`, pts: [[x + dx, z + 0.35], [x + dx, 0.02], [x + dx, 0.82]], pairs: 12, layers: ['in', 'top'] });
+      L.conns.push({ x: x + dx, z: 0.86, w: 0.2, d: 0.04, ref: '' });
+    }
   });
+  for (const x of [-1.1, 1.1]) part(L, '12 V bar', x, -1.7, 0.11, 4.5);
   for (const [x, z] of [[-1.35, 2.85], [1.35, 2.85]]) {
     L.boards.push({ x, z, w: 1.35, d: 2.15 });
     for (const dx of [-0.3, 0.3]) for (const dz of [-0.47, 0.47]) L.pkgs.push({ x: x + dx, z: z + dz, w: 0.4, d: 0.52, ref: '', fan: 2 });
   }
   L.boards.push({ x: 0, z: 2.85, w: 0.85, d: 2.15 });
   L.pkgs.push({ x: 0, z: 2.85, w: 0.66, d: 0.75, ref: 'U20', fan: 3 });
-  for (const sx of [-1, 1]) for (const z of [-3.8, -2.0, -0.2, 0.8]) L.holes.push([sx * 1.1 + sx * 0.95, z, 0.02]);
+  for (const sx of [-1, 1]) for (const z of [-3.8, -1.75, -0.2, 0.8]) L.holes.push([sx * 2.05, z, 0.02]);
   return L;
 }
-function base() { return { boards: [], pkgs: [], vrms: [], pours: [], buses: [], holes: [], tps: [], conns: [] }; }
+function base() { return { boards: [], pkgs: [], vrms: [], pours: [], buses: [], holes: [], tps: [], conns: [], parts: [] }; }
 export function pcbLayout(accel) { return accel === 'h100' ? h100Layout() : accel === 'rubin' ? rubinLayout() : nvlLayout(accel); }
 
-// ---------- painter ----------
+// ---------- plan: the layout as design-rule objects, plus the procedural fill ----------
+// The painter draws exactly the plan and pcb-check.js checks exactly the plan, so the two cannot drift.
+export const PCB_GAP = 0.0064;                        // clearance: 3 px of the 2048 px tray atlas
+const PAIR = 0.0105, INNER = 0.0032, THERMAL_R = 0.004;           // thermal via: 0.0032 drill, tented ring 1.25x                  // differential-pair pitch and the gap inside a pair
+const pkgOutline = p => [p.w / 2 + (p.m ?? 0.03) + (p.fan || 0) * 0.0125, p.d / 2 + (p.m ?? 0.03) + (p.fan || 0) * 0.0125];
 function rng(seed) { let s = seed >>> 0 || 1; return () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296; }
+const busLayers = b => b.layers || b.pts.slice(1).map(() => b.layer || 'top');
+const busWidth = b => b.pairs * (b.pitch ?? PAIR);
+
+export function pcbPlan(accel, lod = 'tray') {
+  const L = pcbLayout(accel), rack = lod === 'rack', rnd = rng(accel.length * 7919 + (rack ? 3 : 0) + 101);
+  const obstacles = [];
+  L.pkgs.forEach((p, i) => { const [ow, od] = pkgOutline(p); obstacles.push({ id: p.ref || `pkg${i}`, kind: 'package', x: p.x, z: p.z, w: ow * 2 + 0.0044, d: od * 2 + 0.0044, layer: 'all', term: true, pad: true }); });
+  L.vrms.forEach((v, i) => obstacles.push({ id: `L${i + 1}`, kind: 'VRM pad', x: v.x, z: v.z, w: v.w + 0.014, d: v.d + 0.014, layer: 'top', pad: true }));
+  L.conns.forEach((c, i) => obstacles.push({ id: c.ref || `conn${i}`, kind: 'connector', x: c.x, z: c.z, w: c.w + 0.022, d: c.d + 0.022, layer: 'all', term: true, pad: true }));
+  L.tps.forEach(([x, z], i) => obstacles.push({ id: `TP${i + 1}`, kind: 'test point', x, z, r: 0.008, layer: 'top', pad: true }));
+  L.holes.forEach(([x, z, r], i) => obstacles.push({ id: `H${i + 1} (${x.toFixed(2)}, ${z.toFixed(2)})`, kind: 'hole', x, z, r: r * 2.1, layer: 'all' }));
+  L.pours.forEach((p, i) => obstacles.push({ id: `pour${i}`, kind: 'pour', x: p.x, z: p.z, w: p.w, d: p.d, layer: 'top' }));
+  L.boards.filter(b => b.module).forEach((b, i) => obstacles.push({ id: `M${i + 1}`, kind: 'module', x: b.x, z: b.z, w: b.w, d: b.d, layer: 'all', pad: true }));
+  L.parts.forEach((p, i) => obstacles.push({ id: p.id || `part${i}`, kind: p.kind || 'part', x: p.x, z: p.z, w: p.w, d: p.d, layer: p.layer || 'top', term: !!p.term, pad: true, model: true }));
+  const buses = L.buses.map((b, i) => ({ ...b, id: b.id || `bus ${i}`, layers: busLayers(b), hw: (busWidth(b) + 0.006) / 2 }));
+  // thermal vias through each pour, a through-hole each, so none lands on an inner-layer run passing under the pour
+  const inner = buses.flatMap(b => segsOf(b).filter(sg => sg[2] !== 'top').map(sg => [sg[0], sg[1], b.hw]));
+  const pours = L.pours.map(p => {
+    const pitch = rack ? 0.045 : 0.02, vias = [];
+    for (let x = p.x - p.w / 2 + pitch / 2; x < p.x + p.w / 2; x += pitch) for (let z = p.z - p.d / 2 + pitch / 2; z < p.z + p.d / 2; z += pitch)
+      if (rnd() < 0.55 && inner.every(([a, c, hw]) => pointSeg([x, z], a, c) >= hw + PCB_GAP + THERMAL_R)) vias.push([x, z]);
+    return { ...p, vias };
+  });
+  // fill: short routed groups, via fields and small parts in what is left of each board, never closer than the gap
+  const fill = { obstacles: [], buses: [] }, CL = new Clearance(PCB_GAP);
+  for (const o of obstacles) CL.addObstacle(o);
+  for (const b of buses) CL.addBus(b);
+  const inBoard = (x0, z0, x1, z1) => L.boards.some(b => !b.module && x0 > b.x - b.w / 2 + 0.03 && x1 < b.x + b.w / 2 - 0.03 && z0 > b.z - b.d / 2 + 0.03 && z1 < b.z + b.d / 2 - 0.03);
+  const boardOf = (x, z) => L.boards.filter(b => Math.abs(x - b.x) < b.w / 2 && Math.abs(z - b.z) < b.d / 2).at(-1);
+  for (const b of L.boards) {
+    if (b.module) continue;
+    const n = Math.round(b.w * b.d * (rack ? 60 : 150));
+    for (let k = 0; k < n; k++) {
+      const x = b.x + (rnd() - 0.5) * (b.w - 0.12), z = b.z + (rnd() - 0.5) * (b.d - 0.12), kind = rnd();
+      if (boardOf(x, z) !== b) continue;                                          // under an upper-deck board
+      if (kind < 0.45) {                                                           // a short bus with a 45-degree jog
+        const len = 0.08 + rnd() * 0.25, horiz = rnd() < 0.5, jog = (rnd() - 0.5) * 0.12, pairs = 2 + Math.floor(rnd() * 5);
+        const pts = horiz ? [[x, z], [x + len * 0.5, z], [x + len * 0.5 + Math.abs(jog), z + jog], [x + len + Math.abs(jog), z + jog]]
+          : [[x, z], [x, z + len * 0.5], [x + jog, z + len * 0.5 + Math.abs(jog)], [x + jog, z + len + Math.abs(jog)]];
+        const fb = { id: `fill bus ${fill.buses.length}`, pts, pairs, horiz, layers: ['top', 'top', 'top'], hw: pairs * PAIR / 2 + 0.004, fill: true };
+        const xs = pts.map(p => p[0]), zs = pts.map(p => p[1]);
+        if (!inBoard(Math.min(...xs) - fb.hw, Math.min(...zs) - fb.hw, Math.max(...xs) + fb.hw, Math.max(...zs) + fb.hw) || CL.busFaults(fb).length) continue;
+        CL.addBus(fb); fill.buses.push(fb);
+      } else if (kind < 0.7) {                                                     // a via field
+        const w = 0.04 + rnd() * 0.08, d = 0.04 + rnd() * 0.08, seed = Math.floor(rnd() * 1e9);
+        const o = { id: `via field ${fill.obstacles.length}`, kind: 'via field', x, z, w: w + 0.008, d: d + 0.008, fw: w, fd: d, seed, layer: 'all' };
+        if (!inBoard(x - o.w / 2, z - o.d / 2, x + o.w / 2, z + o.d / 2) || CL.obstacleFaults(o).length) continue;
+        CL.addObstacle(o); fill.obstacles.push(o);
+      } else if (!rack) {                                                          // a small part footprint: pads, outline, designator
+        const w = 0.03 + rnd() * 0.05, d = 0.03 + rnd() * 0.05, pins = 3 + Math.floor(rnd() * 5), ref = `${'RCUQ'[Math.floor(rnd() * 4)]}${100 + Math.floor(rnd() * 800)}`;
+        const tw = Math.max(w, ref.length * 0.011 * 0.62) + 0.004;                 // the outline and its designator above
+        const o = { id: ref, kind: 'small part', x: x - w / 2 + tw / 2 - 0.002, z: z - 0.011, w: tw, d: d + 0.026, px: x, pz: z, pw: w, pd: d, pins, layer: 'top', pad: true };
+        if (!inBoard(o.x - o.w / 2, o.z - o.d / 2, o.x + o.w / 2, o.z + o.d / 2) || CL.obstacleFaults(o).length) continue;
+        CL.addObstacle(o); fill.obstacles.push(o);
+      }
+    }
+  }
+  return { accel, lod, L, boards: L.boards.filter(b => !b.module), obstacles, buses, pours, fill };
+}
+
+// ---------- painter ----------
 const cache = new Map();
 function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
 
@@ -149,12 +310,12 @@ export function paintPcb(accel, { W = 2048, lod = 'tray' } = {}) {
   const sz = H / SPAN.d / (W / SPAN.w);            // z stretch relative to x (≈1)
   const each = (cs, ss, fn) => { for (const [g, k, t] of layers) { g.setTransform(k, 0, 0, k * sz, -SPAN.x0 * k, -SPAN.z0 * k * sz); fn(g, t === 'c' ? cs : ss, t); } };
   const rect = (x, z, w, d, cs, ss) => each(cs, ss, (g, st) => { g.fillStyle = st; g.fillRect(x - w / 2, z - d / 2, w, d); });
-  const stroke = (pts, width, cs, ss) => each(cs, ss, (g, st) => { g.strokeStyle = st; g.lineWidth = width; g.lineJoin = 'round'; g.lineCap = 'round'; g.beginPath(); pts.forEach(([x, z], i) => i ? g.lineTo(x, z) : g.moveTo(x, z)); g.stroke(); });
+  const stroke = (pts, width, cs, ss, cap = 'round') => each(cs, ss, (g, st) => { g.strokeStyle = st; g.lineWidth = width; g.lineJoin = 'round'; g.lineCap = cap; g.beginPath(); pts.forEach(([x, z], i) => i ? g.lineTo(x, z) : g.moveTo(x, z)); g.stroke(); });
   const disc = (x, z, r, cs, ss) => each(cs, ss, (g, st) => { g.fillStyle = st; g.beginPath(); g.arc(x, z, r, 0, Math.PI * 2); g.fill(); });
   const rack = lod === 'rack', rnd = rng(accel.length * 7919 + (rack ? 3 : 0));
   if (rack) C.silk = '#9fb0a2';                                 // at rack distance a full-white silk line reads as a glare stripe
   else C.silk = '#dfe6dc';
-  const L = pcbLayout(accel);
+  const plan = pcbPlan(accel, lod), L = plan.L;
   const px = SPAN.w / W;                            // one color pixel in tray units
   const text = (x, z, str, h) => {                  // silkscreen text, in color and surface
     if (rack || !str) return;
@@ -164,13 +325,6 @@ export function paintPcb(accel, { W = 2048, lod = 'tray' } = {}) {
       g.fillText(str, (x - SPAN.x0) * k, (z - SPAN.z0) * k * sz);
     }
   };
-  // occupancy (cell 0.04) so the fill does not paint over the planned parts
-  const cell = 0.04, occ = new Set(), mark = (x, z, w, d, pad = 0.02) => {
-    for (let i = Math.floor((x - w / 2 - pad) / cell); i <= Math.floor((x + w / 2 + pad) / cell); i++)
-      for (let j = Math.floor((z - d / 2 - pad) / cell); j <= Math.floor((z + d / 2 + pad) / cell); j++) occ.add(`${i},${j}`);
-  };
-  const free = (x, z, w, d) => { for (let i = Math.floor((x - w / 2) / cell); i <= Math.floor((x + w / 2) / cell); i++) for (let j = Math.floor((z - d / 2) / cell); j <= Math.floor((z + d / 2) / cell); j++) if (occ.has(`${i},${j}`)) return false; return true; };
-  const inBoard = (x, z, m = 0.04) => L.boards.some(b => Math.abs(x - b.x) < b.w / 2 - m && Math.abs(z - b.z) < b.d / 2 - m);
 
   // background outside boards (never seen) and each board, in order (upper decks paint last)
   rect(0, 0, SPAN.w, SPAN.d, C.mask, S.mask);
@@ -197,38 +351,52 @@ export function paintPcb(accel, { W = 2048, lod = 'tray' } = {}) {
     if (tented) { disc(x, z, r * 1.25, C.tented, S.tented); if (!rack) disc(x, z, r * 0.45, C.clear, S.pour); }
     else { disc(x, z, r * 1.3, C.viaRing, S.metal); disc(x, z, r * 0.55, C.hole, S.hole); }
   }
-  // copper pours under power parts, with thermal via arrays
-  for (const p of L.pours) {
+  // routed buses: differential pairs; top-layer runs in a clearance channel, inner-layer runs dim beneath the
+  // laminate; a row of vias wherever a bus changes layer and at both ends
+  const off = (pts, o) => pts.map(([x, z], i) => {             // offset a polyline sideways (miter-free, fine for 45/90 degree bends)
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+    return [x - dz * o, z + dx * o];
+  });
+  const runs = bus => {                                          // maximal same-layer stretches: [layer, pts]
+    const out = [];
+    bus.layers.forEach((l, i) => { if (out.length && out.at(-1)[0] === l) out.at(-1)[1].push(bus.pts[i + 1]); else out.push([l, [bus.pts[i], bus.pts[i + 1]]]); });
+    return out;
+  };
+  const viaRow = (bus, at, dir, ahead) => {                      // vias across the bus at a point, `ahead` along dir
+    const n = bus.pairs, pp = bus.pitch ?? PAIR, width = n * pp;
+    for (let k = 0; k < n; k++) { const o = -width / 2 + (k + 0.5) * pp; for (const s of [-1, 1]) via(at[0] - dir[1] * (o + s * INNER / 2) + dir[0] * ahead, at[1] + dir[0] * (o + s * INNER / 2) + dir[1] * ahead, 0.0022, true); }
+  };
+  const unit = (a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l]; };
+  const drawBus = (bus, layer) => {
+    const n = bus.pairs, pp = bus.pitch ?? PAIR, width = n * pp, tw = rack ? 0.004 : 0.0016;
+    for (const [l, pts] of runs(bus)) {
+      if (l !== layer) continue;
+      if (l === 'in') {
+        if (rack) stroke(pts, width * 0.9, C.traceIn, S.traceIn);
+        else for (let k = 0; k < n; k++) { const o = -width / 2 + (k + 0.5) * pp; for (const s of [-1, 1]) stroke(off(pts, o + s * INNER / 2), tw * 1.2, C.traceIn, S.traceIn); }
+        continue;
+      }
+      stroke(pts, width + 0.006, C.clear, S.clear, 'butt');
+      if (rack) stroke(pts, width * 0.9, '#155a40', S.trace);
+      else for (let k = 0; k < n; k++) { const o = -width / 2 + (k + 0.5) * pp; for (const s of [-1, 1]) stroke(off(pts, o + s * INNER / 2), tw, C.trace, S.trace); }
+    }
+  };
+  for (const bus of plan.buses) drawBus(bus, 'in');
+  // copper pours under power parts, with thermal via arrays (over any inner-layer run beneath them)
+  for (const p of plan.pours) {
     rect(p.x, p.z, p.w, p.d, C.pour, S.pour);
-    const pitch = rack ? 0.045 : 0.02;
-    for (let x = p.x - p.w / 2 + pitch / 2; x < p.x + p.w / 2; x += pitch) for (let z = p.z - p.d / 2 + pitch / 2; z < p.z + p.d / 2; z += pitch) if (rnd() < 0.55) via(x, z, 0.0032, true);
-    mark(p.x, p.z, p.w, p.d, 0);
+    for (const [x, z] of p.vias) via(x, z, 0.0032, true);
   }
-  // routed buses: differential pairs with a clearance channel, via transitions at the ends
-  for (const bus of L.buses) {
-    const n = bus.pairs, pp = bus.pitch ?? 0.0105, inner = 0.0032, tw = rack ? 0.004 : 0.0016;
-    const width = n * pp;
-    const off = (pts, o) => pts.map(([x, z], i) => {           // offset a polyline sideways (miter-free, fine for 45/90 degree bends)
-      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
-      let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
-      return [x - dz * o, z + dx * o];
-    });
-    stroke(bus.pts, width + 0.006, C.clear, S.clear);
-    if (rack) { stroke(bus.pts, width * 0.9, '#155a40', S.trace); }
-    else for (let k = 0; k < n; k++) {
-      const o = -width / 2 + (k + 0.5) * pp;
-      for (const s of [-1, 1]) stroke(off(bus.pts, o + s * inner / 2), tw, C.trace, S.trace);
-    }
-    for (const [i, end] of [[0, bus.pts[0]], [1, bus.pts.at(-1)]]) {
-      const nb = bus.pts[i ? bus.pts.length - 2 : 1];
-      let dx = end[0] - nb[0], dz = end[1] - nb[1]; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
-      for (let k = 0; k < n; k++) { const o = -width / 2 + (k + 0.5) * pp; for (const s of [-1, 1]) via(end[0] - dz * (o + s * inner / 2) + dx * 0.01, end[1] + dx * (o + s * inner / 2) + dz * 0.01, 0.0022, true); }
-    }
-    for (let i = 1; i < bus.pts.length; i++) { const [a, b] = [bus.pts[i - 1], bus.pts[i]]; mark((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, Math.abs(a[0] - b[0]) + width, Math.abs(a[1] - b[1]) + width); }
+  for (const bus of plan.buses) drawBus(bus, 'top');
+  for (const bus of plan.buses) {
+    const p = bus.pts;
+    viaRow(bus, p[0], unit(p[1], p[0]), 0.01);
+    viaRow(bus, p.at(-1), unit(p.at(-2), p.at(-1)), 0.01);
+    for (let i = 1; i < p.length - 1; i++) if (bus.layers[i - 1] !== bus.layers[i]) viaRow(bus, p[i], unit(p[i - 1], p[i + 1]), 0);
   }
-  // package footprints: silkscreen outline and courtyard, pin-1 mark, breakout via ring, decoupling pads
+  // package footprints: silkscreen outline and courtyard, pin-1 mark, breakout via ring
   for (const p of L.pkgs) {
-    const m = 0.03;
     if (p.fan) {
       const ring = p.fan, pitch = rack ? 0.03 : 0.0125;
       for (let r = 0; r < ring; r++) {
@@ -237,28 +405,28 @@ export function paintPcb(accel, { W = 2048, lod = 'tray' } = {}) {
         for (let z = -d + pitch; z < d; z += pitch) for (const s of [-1, 1]) if (rnd() < 0.8) via(p.x + s * w, p.z + z, 0.0024, r % 2 === 1);
       }
     }
-    const ow = p.w / 2 + m + (p.fan || 0) * 0.0125, od = p.d / 2 + m + (p.fan || 0) * 0.0125;
+    const [ow, od] = pkgOutline(p);
     if (!p.hidden) {
       stroke([[p.x - ow, p.z - od], [p.x + ow, p.z - od], [p.x + ow, p.z + od], [p.x - ow, p.z + od], [p.x - ow, p.z - od]], rack ? 0.005 : 0.0022, C.silk, S.silk);
       disc(p.x - ow + 0.018, p.z - od + 0.018, 0.006, C.silk, S.silk);
       text(p.x - ow, p.z - od - 0.022, p.ref, p.w > 0.4 ? 0.028 : 0.016);
     }
-    mark(p.x, p.z, ow * 2, od * 2, 0.01);
   }
-  // VRM phases: two large pads per inductor, a power-stage pad beside it, outline and designator
+  // VRM phases: two large pads per inductor, outline and designator
   L.vrms.forEach((v, i) => {
     for (const s of [-1, 1]) rect(v.x + s * v.w * 0.3, v.z, v.w * 0.32, v.d * 0.8, C.tin, S.metal);
     stroke([[v.x - v.w / 2 - 0.006, v.z - v.d / 2 - 0.006], [v.x + v.w / 2 + 0.006, v.z - v.d / 2 - 0.006], [v.x + v.w / 2 + 0.006, v.z + v.d / 2 + 0.006], [v.x - v.w / 2 - 0.006, v.z + v.d / 2 + 0.006], [v.x - v.w / 2 - 0.006, v.z - v.d / 2 - 0.006]], rack ? 0.004 : 0.0018, C.silk, S.silk);
     if (i % 2 === 0) text(v.x - v.w / 2, v.z + v.d / 2 + 0.014, `L${i + 1}`, 0.012);
-    mark(v.x, v.z, v.w, v.d, 0.01);
   });
+  // land pads under the parts modelled in 3D (passive rows, power stages): bare tin, mostly hidden by the part
+  const onVrm = p => L.vrms.some(v => Math.abs(p.x - v.x) < (p.w + v.w) / 2 && Math.abs(p.z - v.z) < (p.d + v.d) / 2);
+  for (const p of L.parts) if (p.land && !onVrm(p)) rect(p.x, p.z, p.w * 0.8, p.d * 0.8, C.tin, S.metal);
   // connectors: pad rows, outline, designator
   for (const c of L.conns) {
     const n = Math.max(6, Math.round(c.w / 0.02));
     for (let k = 0; k < n; k++) for (const s of [-1, 1]) rect(c.x - c.w / 2 + (k + 0.5) * c.w / n, c.z + s * c.d * 0.28, c.w / n * 0.5, c.d * 0.3, C.gold, S.metal);
     stroke([[c.x - c.w / 2 - 0.01, c.z - c.d / 2 - 0.01], [c.x + c.w / 2 + 0.01, c.z - c.d / 2 - 0.01], [c.x + c.w / 2 + 0.01, c.z + c.d / 2 + 0.01], [c.x - c.w / 2 - 0.01, c.z + c.d / 2 + 0.01], [c.x - c.w / 2 - 0.01, c.z - c.d / 2 - 0.01]], rack ? 0.004 : 0.0018, C.silk, S.silk);
     text(c.x + c.w / 2 + 0.016, c.z, c.ref, 0.014);
-    mark(c.x, c.z, c.w, c.d, 0.02);
   }
   // plated mounting holes with a keep-out ring, and gold test points with designators
   for (const [x, z, r] of L.holes) {
@@ -266,42 +434,27 @@ export function paintPcb(accel, { W = 2048, lod = 'tray' } = {}) {
     disc(x, z, r * 1.55, C.tin, S.metal);
     disc(x, z, r, C.hole, S.hole);
     for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; via(x + Math.cos(a) * r * 1.3, z + Math.sin(a) * r * 1.3, 0.0022, false); }
-    mark(x, z, r * 4, r * 4, 0);
   }
-  L.tps.forEach(([x, z], i) => { disc(x, z, 0.007, C.gold, S.metal); text(x + 0.012, z, `TP${i + 1}`, 0.011); mark(x, z, 0.03, 0.03, 0); });
-  // fill: short routed groups, via pairs and small pad sets in the free board area
-  for (const b of L.boards) {
-    const n = Math.round(b.w * b.d * (rack ? 30 : 60));
-    for (let k = 0; k < n; k++) {
-      const x = b.x + (rnd() - 0.5) * (b.w - 0.12), z = b.z + (rnd() - 0.5) * (b.d - 0.12), kind = rnd();
-      if (kind < 0.45) {                                                           // a short bus with a 45-degree jog
-        const len = 0.08 + rnd() * 0.25, horiz = rnd() < 0.5, jog = (rnd() - 0.5) * 0.12, pairs = 2 + Math.floor(rnd() * 5);
-        const pts = horiz ? [[x, z], [x + len * 0.5, z], [x + len * 0.5 + Math.abs(jog), z + jog], [x + len + Math.abs(jog), z + jog]]
-          : [[x, z], [x, z + len * 0.5], [x + jog, z + len * 0.5 + Math.abs(jog)], [x + jog, z + len + Math.abs(jog)]];
-        const bx = pts.map(p => p[0]), bz = pts.map(p => p[1]);
-        const cx = (Math.min(...bx) + Math.max(...bx)) / 2, cz = (Math.min(...bz) + Math.max(...bz)) / 2, w = Math.max(...bx) - Math.min(...bx) + pairs * 0.01, d = Math.max(...bz) - Math.min(...bz) + pairs * 0.01;
-        if (!free(cx, cz, w, d) || !inBoard(cx - w / 2, cz - d / 2) || !inBoard(cx + w / 2, cz + d / 2)) continue;
-        const tw = rack ? 0.004 : 0.0016;
-        for (let p = 0; p < pairs; p++) {
-          const o = (p - (pairs - 1) / 2) * 0.0105;
-          for (const s of [-1, 1]) stroke(pts.map(([px2, pz2]) => horiz ? [px2, pz2 + o + s * 0.0016] : [px2 + o + s * 0.0016, pz2]), tw, C.trace, S.trace);
-        }
-        for (const e of [pts[0], pts.at(-1)]) for (let p = 0; p < pairs; p++) { const o = (p - (pairs - 1) / 2) * 0.0105; via(horiz ? e[0] : e[0] + o, horiz ? e[1] + o : e[1], 0.0022, true); }
-        mark(cx, cz, w, d, 0.01);
-      } else if (kind < 0.7) {                                                     // a via field
-        const w = 0.04 + rnd() * 0.08, d = 0.04 + rnd() * 0.08;
-        if (!free(x, z, w, d) || !inBoard(x, z)) continue;
-        for (let i = -w / 2; i <= w / 2; i += 0.0125) for (let j = -d / 2; j <= d / 2; j += 0.0125) via(x + i, z + j, 0.0024, rnd() < 0.8);
-        mark(x, z, w, d, 0.01);
-      } else if (!rack) {                                                          // a small part footprint: pads, outline, designator
-        const w = 0.03 + rnd() * 0.05, d = 0.03 + rnd() * 0.05;
-        if (!free(x, z, w, d) || !inBoard(x, z)) continue;
-        const pins = 3 + Math.floor(rnd() * 5);
-        for (let i = 0; i < pins; i++) for (const s of [-1, 1]) rect(x - w / 2 + (i + 0.5) * w / pins, z + s * d * 0.42, w / pins * 0.45, d * 0.14, C.tin, S.metal);
-        stroke([[x - w / 2, z - d / 2], [x + w / 2, z - d / 2], [x + w / 2, z + d / 2], [x - w / 2, z + d / 2], [x - w / 2, z - d / 2]], 0.0016, C.silk, S.silk);
-        text(x - w / 2, z - d / 2 - 0.012, `${'RCUQ'[Math.floor(rnd() * 4)]}${100 + Math.floor(rnd() * 800)}`, 0.011);
-        mark(x, z, w, d, 0.01);
-      }
+  L.tps.forEach(([x, z, dir = 1], i) => { disc(x, z, 0.007, C.gold, S.metal); const t = `TP${i + 1}`; text(dir > 0 ? x + 0.012 : x - 0.012 - t.length * 0.011 * 0.62, z, t, 0.011); });
+  // fill, as planned
+  const tw = rack ? 0.004 : 0.0016;
+  for (const fb of plan.fill.buses) {
+    const { pts, pairs, horiz } = fb;
+    for (let p = 0; p < pairs; p++) {
+      const o = (p - (pairs - 1) / 2) * PAIR;
+      for (const s of [-1, 1]) stroke(pts.map(([px2, pz2]) => horiz ? [px2, pz2 + o + s * 0.0016] : [px2 + o + s * 0.0016, pz2]), tw, C.trace, S.trace);
+    }
+    for (const e of [pts[0], pts.at(-1)]) for (let p = 0; p < pairs; p++) { const o = (p - (pairs - 1) / 2) * PAIR; via(horiz ? e[0] : e[0] + o, horiz ? e[1] + o : e[1], 0.0022, true); }
+  }
+  for (const o of plan.fill.obstacles) {
+    if (o.kind === 'via field') {
+      const r2 = rng(o.seed);
+      for (let i = -o.fw / 2; i <= o.fw / 2; i += 0.0125) for (let j = -o.fd / 2; j <= o.fd / 2; j += 0.0125) via(o.x + i, o.z + j, 0.0024, r2() < 0.8);
+    } else {
+      const { px: x, pz: z, pw: w, pd: d, pins } = o;
+      for (let i = 0; i < pins; i++) for (const s of [-1, 1]) rect(x - w / 2 + (i + 0.5) * w / pins, z + s * d * 0.42, w / pins * 0.45, d * 0.14, C.tin, S.metal);
+      stroke([[x - w / 2, z - d / 2], [x + w / 2, z - d / 2], [x + w / 2, z + d / 2], [x - w / 2, z + d / 2], [x - w / 2, z - d / 2]], 0.0016, C.silk, S.silk);
+      text(x - w / 2, z - d / 2 - 0.012, o.id, 0.011);
     }
   }
   cache.set(key, { col, surf });
