@@ -473,7 +473,9 @@ function buildHGX({ quality, model, state }) {
   for (const x of DGX.driveX) for (const y of DGX.driveY) pulled.box(0.074, 0.014, 0.1, MAT.alu, tx(x), ty(y), tz(DGX.ZF - 0.6));
   pulled.box(sw - 0.01, 0.34, 0.003, MAT.pcbBlack, 0, ty(1.75), tz(DGX.ZM));                                           // midplane
   // GPU tray: pan, baseboard, eight sinks, four NVSwitch sinks
-  pulled.box(sw - 0.01, 0.003, sd * 0.86, MAT.galv, 0, ty(DGX.deck), tz(-0.615));
+  // both trays' pans end short of the midplane, where the 54 V blade rises between them
+  const panD = (3.1 - DGX.ZB) * kz, panZ = tz((3.1 + DGX.ZB) / 2);
+  pulled.box(sw - 0.01, 0.003, panD, MAT.galv, 0, ty(DGX.deck), panZ);
   pulled.box(0.42, 0.003, 6.6 * kz, TRAY_PCB, 0, ty(DGX.gy - 0.015), tz(-0.05));
   const sinks = [];
   // fins get their own material, not the shared MAT.alu: at close range under the studio env, MAT.alu's high
@@ -486,7 +488,7 @@ function buildHGX({ quality, model, state }) {
   }
   for (const x of DGX.swX) pulled.box(0.088, 0.09, 1.08 * kz, MAT.alu, tx(x), ty(DGX.gy + 0.5), tz(DGX.swZ));
   // motherboard tray: pan, boards, CPU sinks, DIMMs, network modules
-  pulled.box(sw - 0.01, 0.003, sd * 0.86, MAT.galv, 0, ty(0.495), tz(-0.615));
+  pulled.box(sw - 0.01, 0.003, panD, MAT.galv, 0, ty(0.495), panZ);
   pulled.box(0.42, 0.003, 4.44 * kz, TRAY_PCB, 0, ty(DGX.my - 0.015), tz(-2.1));
   pulled.box(0.42, 0.003, 3.02 * kz, TRAY_PCB, 0, ty(DGX.my - 0.015), tz(1.71));
   for (const x of DGX.cpuX) pulled.box(0.07, 0.055, 0.92 * kz, MAT.alu, tx(x), ty(DGX.my + 0.32), tz(DGX.cpuZ));
@@ -535,10 +537,10 @@ function buildHGX({ quality, model, state }) {
   scene.add(S.build()); scene.add(N.build({ cast: false }));
 
   // ---------- flows ----------
-  pduX.forEach(x => flows.push(flow([[x * 0.5, TAP.glandY, -0.25], [x * 0.5, H + 0.02, -0.25], [x, pTop + 0.085, pduZ], [x, pBot, pduZ]], 'lv', { count: 16, speed: 0.35, size: 0.012, trailR: 0.004 })));
-  cordEnds.forEach(({ from, to }) => flows.push(flow([from, [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2 - 0.04, (from[2] + to[2]) / 2], to], 'lv', { count: 3, speed: 0.2, size: 0.009, trail: false })));
+  pduX.forEach(x => flows.push(flow([[x * 0.5, TAP.glandY, -0.25], [x * 0.5, H + 0.02, -0.25], [x, pTop + 0.085, pduZ], [x, pBot, pduZ]], 'lv', { count: 16, speed: 0.35, size: 0.012, trailR: 0.004, audit: { through: true, why: 'current inside the drawn feed cord: down from the busway tap, through its grommet in the top cap, into the strip head and down the strip' } })));
+  cordEnds.forEach(({ from, to }) => flows.push(flow([from, [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2 - 0.04, (from[2] + to[2]) / 2], to], 'lv', { count: 3, speed: 0.2, size: 0.009, trail: false, audit: { through: true, why: 'current inside the drawn C19/C20 cord from the strip outlet to the supply inlet' } })));
   // 54 V forward along the floor copper under the motherboard tray, up the midplane into the GPU tray
-  flows.push(flow([[tx(DGX.busX[1]), ty(0.1), tz(DGX.ZB + 2.75)], [tx(DGX.busX[1]), ty(0.1), tz(DGX.ZM - 0.1)], [tx(DGX.busX[1]), ty(DGX.gy + 0.04), tz(DGX.ZM - 0.1)], [tx(DGX.busX[1]), ty(DGX.gy + 0.04), tz(2.2)]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
+  flows.push(flow([[tx(DGX.busX[1]), ty(0.1), tz(DGX.ZB + 2.75)], [tx(DGX.busX[1]), ty(0.1), tz(DGX.ZM - 0.04)], [tx(DGX.busX[1]), ty(DGX.gy + 0.04), tz(DGX.ZM - 0.04)], [tx(DGX.busX[1]), ty(DGX.gy + 0.04), tz(2.2)]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
   // scale-up: NVLink only inside the pulled server, GPUs to the switch row
   sinks.forEach(([x, z]) => dataFlows.push(flow([[x, ty(DGX.gy + 0.04), z], [x * 0.95, ty(DGX.gy + 0.04), tz(DGX.swZ + 0.3)]], 'nvl', { count: 3, speed: 0.12, size: 0.006, k: 2.4, trail: false })));
   // heat: cold air in the front of every server, hot air out the back

@@ -63,7 +63,8 @@ export function addRackOptics(built, accel) {
         const cx=x+(connectorCount===2?(lane-.5)*.009:0);
         hardware.box(connectorCount===2?.0075:.014,.007,.018,connector,cx,y,z+direction*.03);
         for(let rib=0;rib<4;rib++)hardware.box(connectorCount===2?.0078:.0143,.0074,.0012,MAT.black,cx,y,z+direction*(.035+rib*.002));
-        const side = Math.sign(x), rail = side*(.252+(index%6)*.0028);
+        // DGX H100: the leads keep outboard of the rear rail post at x +-.25 on their run to the manager
+        const side = Math.sign(x), rail = side*((h100?.262:.252)+(index%6)*.0028);
         const managerZ=(h100?-.575:.575)+direction*(Math.floor(index/6)*.007+lane*.0032);
         const start=[cx,y,z+direction*.044], end=[rail,2.32,managerZ];
         // one tag per module, hanging under its lead or straddling a twin pair, clear of the connector faces
@@ -130,7 +131,9 @@ export function addRackOptics(built, accel) {
       const x=center+(strand-1.5)*.0035,z=managerZ;
       const laneX=RACK_RUNWAY.x+(side<0?-.085:.035)+strand*.012;
       // Pass above the side lip before settling inside the yellow raceway.
-      const f=flow(managedRoute([[x,2.34,z],[x,RACK_RUNWAY.rimTop+.10,z],
+      // DGX H100: the right-hand loom rises outboard of the runway's side wall, not through its floor
+      const out = h100 && side>0 ? [[.37,2.34,z],[.37,RACK_RUNWAY.rimTop+.10,z]] : [[x,RACK_RUNWAY.rimTop+.10,z]];
+      const f=flow(managedRoute([[x,2.34,z],...out,
         [laneX,RACK_RUNWAY.rimTop+.10,z],[laneX,RACK_RUNWAY.cableY,z-.12],
         [laneX,RACK_RUNWAY.cableY,-1.58]],.055),'eth',{count:9,speed:.4,size:.0017,k:1,trail:false});
       f.ribbonIntensity=.30;f.rackOpticalTrunk={laneX,runway:RACK_RUNWAY};
