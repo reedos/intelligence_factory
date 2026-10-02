@@ -65,6 +65,26 @@ async function run(page, { url, label }) {
   await page.goto(url);
   await page.waitForFunction(() => window.ifx?.state.scene === 0);
   await page.evaluate(() => ifx.setTransitions('instant'));
+  // Wait for N consecutive animation frames where the camera is unchanged, instead of a flat
+  // wall-clock delay (the same approach as tools/views.mjs, 7dca82b): ifx.settle() snaps the camera
+  // synchronously, but a scenario/variant switch rebuilds the scene and schedules its own arrival
+  // tween, which a fixed setTimeout can still be mid-flight through under GPU load. Counting frames
+  // instead of milliseconds is what caught the tray(gb200) miss as resource-contention noise, not a
+  // real bug: under swiftshader with another heavy job running, a flat 150-400ms wait wasn't enough.
+  await page.evaluate(() => {
+    window.stable = ({ want = 3, maxFrames = 300 } = {}) => new Promise(resolve => {
+      let prev = null, run = 0, frames = 0;
+      const tick = () => {
+        frames++;
+        const cam = ifx.camera, pos = cam.position, q = cam.quaternion, t = ifx.controls.target;
+        const cur = [pos.x, pos.y, pos.z, q.x, q.y, q.z, q.w, t.x, t.y, t.z].join(',');
+        run = prev === cur ? run + 1 : 0;
+        prev = cur;
+        if (run >= want || frames >= maxFrames) resolve({ frames, run }); else requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+  });
 
   // scene -> level name. 0 (across) and 6/8/9 (module, coherent, copper) are intentionally excluded:
   // 0's camera aims at a scenario-chosen grid location, not a fixed assembly, and 6/8/9 already orbit
@@ -77,11 +97,19 @@ async function run(page, { url, label }) {
   for (const [sceneStr, name] of Object.entries(LEVELS)) {
     const scene = Number(sceneStr);
     for (const accel of accelsFor(scene)) {
-      if (accel) { await page.evaluate(accel => ifx.setScenario({ accel }), accel); await page.waitForTimeout(400); }
-      for (const variant of variantsFor(scene)) {
-        if (variant) { await page.evaluate(v => ifx.setCpoVariant(v), variant); await page.waitForTimeout(200); }
+      if (accel) {
+        await page.evaluate(accel => ifx.setScenario({ accel }), accel);
         await page.evaluate(async (scene) => { await ifx.show({ scene, mode: 'power', part: null }, { scroll: false }); ifx.settle(); }, scene);
-        await page.waitForTimeout(150);
+        await page.evaluate(() => window.stable());
+      }
+      for (const variant of variantsFor(scene)) {
+        if (variant) {
+          await page.evaluate(v => ifx.setCpoVariant(v), variant);
+          await page.evaluate(() => ifx.settle());
+          await page.evaluate(() => window.stable());
+        }
+        await page.evaluate(async (scene) => { await ifx.show({ scene, mode: 'power', part: null }, { scroll: false }); ifx.settle(); }, scene);
+        await page.evaluate(() => window.stable());
         const info = await bboxInfo(page, EXCLUDE.source);
         const tag = `${label} ${name}${accel ? ` (${accel})` : ''}${variant ? ` [${variant}]` : ''}`;
         assert.ok(info, `${tag}: no hardware mesh found to measure`);

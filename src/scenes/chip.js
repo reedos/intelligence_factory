@@ -113,8 +113,11 @@ export function build(options) {
   if (options.quality?.mobile) {
     // Portrait phones are width-limited: a steeper view and a tighter fit on the
     // 8.4 cm package (the board is context) let the stack fill more of the height.
-    result.camera = { ...result.camera, ...componentView([0, 1.655, 0], [6, 11, 7.5], [7.9, 5.6, 7.9]) };
-    result.cameraByMode.power = { ...componentView([0, 1.62, 0], [8, 5.6, 9.8], [8.1, 5.0, 8.1]) };
+    // {pos, target} only, not componentView's full result: carrying its `detailSize` into
+    // built.camera makes stage.js's cameraPreset() treat the whole overview as a part/hotspot view
+    // (see the comment in compute-framing.js) instead of landing on this pivot directly.
+    result.camera = { ...result.camera, pos: [6, 12.655, 7.5], target: [0, 1.655, 0] };
+    result.cameraByMode.power = { pos: [8, 7.22, 9.8], target: [0, 1.62, 0] };
   }
   return result;
 }
