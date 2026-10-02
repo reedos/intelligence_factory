@@ -12,6 +12,7 @@ import { printDecals, textTexture } from './print-kit.js';
 import { nicLabel, labelLines } from './lid-labels.js';
 import { etch, GPU_NAME } from './package-marks.js';
 import { DGX } from './dgx-h100-layout.js';
+import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
 
 // Printed lid labels on the modules seated in the NIC cages: the scenario's NIC-side class (lid-labels.js).
 export function trayLidLabels(scene, accel, placements, size) {
@@ -226,7 +227,7 @@ function lights(scene, quality) {
 // rear to front: four NVSwitches, the 2 x 4 GPU grid, the midplane. Depths, the midplane's openings, the power
 // distribution under the motherboard tray and the PCIe switch positions are representative.
 
-function buildHGX({ quality }) {
+function buildHGX({ quality, model }) {
   const scene = new THREE.Scene();
   lights(scene, quality);
   const flows = [], dataFlows = [], heatFlows = [];
@@ -237,7 +238,6 @@ function buildHGX({ quality }) {
   const statusLeds = [], hotTops = [];
   // Vertical boards (midplane, risers, backplanes) keep a plain mask: the painted atlas is a top-down projection.
   const vBoard = Object.assign(new THREE.MeshStandardMaterial({ color: 0x0f3a2b, roughness: 0.55, metalness: 0.08 }), { name: 'Vertical board mask' });
-  const heat = (f, watts, note) => Object.assign(f, { watts, wattsBasis: note });
 
   // ---------- chassis: floor, far wall, rear frame; lid off, the near wall cut down to the supplies, like a section ----------
   S.box(W, 0.03, D, MAT.galv, 0, 0.015, 0);
@@ -362,7 +362,7 @@ function buildHGX({ quality }) {
     cbl.push(pts);
   }));
   // two molded ties hold the bundle, each on a post in the board's center channel
-  for (const z of [-0.8, -2.0]) { N.box(0.92, 0.012, 0.035, MAT.black, 0, 1.152, z); N.box(0.03, 1.146 - my, 0.03, MAT.black, 0, (1.146 + my) / 2, z); }
+  for (const z of [-0.8, -2.0]) { N.box(0.92, 0.012, 0.035, MAT.black, 0, 1.172, z); N.box(0.03, 1.166 - my, 0.03, MAT.black, 0, (1.166 + my) / 2, z); }
   // rear: OSFP cage board and four cages with their seated twin-port modules
   S.box(1.15, 0.016, 0.62, MAT.pcb, 0, cageBoardTop - 0.008, ZB + 0.33);
   for (const sx of [-1, 1]) for (const z of [ZB + 0.08, ZB + 0.58]) N.cyl(0.012, cageBoardTop - my, MAT.nickel, sx * 0.53, (cageBoardTop + my) / 2, z, 8);
@@ -519,21 +519,41 @@ function buildHGX({ quality }) {
     const nx = DGX.nvmeX[s < 0 ? 0 : 1];
     dataFlows.push(flow([[s * 0.87, 0.43, ZF - 1.0], [s * 0.87, 0.43, ZM + 0.12], [s * 0.87, 0.3, ZM - 0.04], [nx, 0.3, ZM - 0.04], [nx, my + 0.1, ZM - 0.04], [nx, my + 0.02, ZM - 0.2], [nx, my + 0.02, 0.2], [px, my + 0.02, pcieZ + 0.15]], 'pcie', { count: 6, speed: 0.6, size: 0.024, k: 2.0, trailR: 0.008 }));
   }
+  // Flow-path audit (tools/flow-audit.mjs): each route may share space only with the conductors it stands for. Boxes in
+  // tray units: the midplane (its connectors on both faces, the board's own lanes and 54 V blades), the PSU card edges
+  // into the distribution board, the 54 V straps running into their converters, the inner-layer lanes and 12 V plane
+  // under each SXM module, the network modules' mezzanine connectors, the CPU-to-interposer connectors, the storage
+  // risers and their cards, the drives' own connectors, and the seated OSFP modules the electrical lanes end in.
+  const box = (x, y, z, w, h, d) => [x - w / 2, y - h / 2, z - d / 2, x + w / 2, y + h / 2, z + d / 2];
+  const MID = [[-2.2, 0.03, ZM - 0.16, 2.2, 3.48, ZM + 0.11]];
+  const PDB = [[-2.2, 0.03, ZB + 2.38, 2.2, 0.2, ZB + 3.0]];
+  const STRAP = DGX.ibcs.map(([x, z, w]) => box(x, gy + 0.07, z, w + 0.02, 0.15, 0.38)).concat(DGX.gpuPwrX.map(x => box(x, gy + 0.04, 2.78, 0.32, 0.08, 0.8)));
+  const SXM = gpus.map(([x, z]) => box(x, gy + 0.02, z, 0.92, 0.08, 1.42));
+  const MEZZ = modX.map(mx => box(mx, (my + ny) / 2, modZ, 1.44, 0.1, 1.32)).concat(cpuX.map(x => box(x - Math.sign(x) * DGX.cpuPcieDX, my + 0.03, 0.16, 0.32, 0.08, 0.16)));
+  const RISER = [-1, 1].flatMap(s => [box(s * DGX.riserX, my + 0.37, DGX.cardZ + 0.35, 0.1, 0.78, 2.2), ...DGX.cardY.map(y => box(s * DGX.cardX, y, DGX.cardZ, 1.32, 0.05, 1.7))]);
+  const DRIVES = DGX.driveX.flatMap(x => DGX.driveY.map(y => box(x, y, ZF - 0.62, 0.76, 0.16, 1.02)));
+  const CAGE = cageX.map(x => box(x, cageY, ZB + 0.1, 0.24, 0.16, 0.8));
+  const why = 'inside the connector, board, copper or module it runs through: midplane, PSU card edge, 54 V strap into its converters, inner layers under an SXM module, mezzanine and CPU connectors, risers, drive connectors, seated OSFP module';
+  for (const f of flows) if (f.cls === 'dc' || f.cls === 'bus12') f.audit = { within: [...MID, ...PDB, ...STRAP, ...SXM, ...MEZZ], why };
+  for (const f of dataFlows) f.audit = { within: [...MID, ...SXM, ...MEZZ, ...RISER, ...DRIVES, ...CAGE], why };
   dataFlows.forEach(f => scene.add(f.group));
 
-  // ---------- heat: watts on every source (sourced where NVIDIA or Intel publish them; see the comments) ----------
+  // ---------- heat: every source tagged with its part and watts, drawn on the site's log rule (src/heat.js) ----------
+  const PW = PART_W.dgxH100, cpuW = PW.cpu, srcHot = (f, part, watts) => heatFlows.push(tagHeat(f, part, watts));
   gpus.forEach(([x, z], i) => {
     const y0 = gy + 0.09 + (i === DGX.lifted ? LIFT : 0);
-    heatFlows.push(heat(flow([[x, gy + 0.09, z], [x, y0 + 0.1, z]], 'hot', { count: 3, speed: 0.4, size: 0.035, k: 2.6, trail: false }), 700, 'H100 SXM5 TDP, NVIDIA product page'));
-    for (const dx of [-0.25, 0.25]) heatFlows.push(heat(flow([[x + dx, y0 + 0.9, z + 1.0], [x + dx, y0 + 0.9, z - 0.8], [x + dx * 1.1, y0 + 0.95, z - 2.2]], 'air', { count: 4, speed: 1.0, size: 0.045, k: 2.2, opacity: 0.85, trail: false }), 350, 'half of one GPU’s 700 W'));
+    srcHot(flow([[x, gy + 0.09, z], [x, y0 + 0.1, z]], 'hot', { count: 3, speed: 0.4, size: 0.035, k: 2.6, trail: false }), `gpu-${i}`, model.accel.gpuW);
+    for (const dx of [-0.25, 0.25]) heatFlows.push(tagHeat(flow([[x + dx, y0 + 0.9, z + 1.0], [x + dx, y0 + 0.9, z - 0.8], [x + dx * 1.1, y0 + 0.95, z - 2.2]], 'air', { count: 4, speed: 1.0, size: 0.045, k: 2.2, opacity: 0.85, trail: false }), `gpu-${i}-sink-air`, model.accel.gpuW, 'carrier'));
   });
-  swX.forEach(x => heatFlows.push(heat(flow([[x, gy + 0.05, swZ], [x, gy + 0.7, swZ]], 'hot', { count: 2, speed: 0.35, size: 0.03, k: 2.4, trail: false }), 60, 'assumed, NVSwitch power is not published')));
-  cpuX.forEach(x => heatFlows.push(heat(flow([[x, my + 0.07, cpuZ], [x, my + 0.62, cpuZ]], 'hot', { count: 3, speed: 0.4, size: 0.032, k: 2.4, trail: false }), 350, 'Xeon 8480C TDP, Intel')));
-  bankX.forEach(bx => heatFlows.push(heat(flow([[bx, my + 0.2, cpuZ + 0.7], [bx, my + 0.2, cpuZ - 0.75], [bx, my + 0.25, cpuZ - 1.6]], 'air', { count: 3, speed: 0.8, size: 0.03, k: 2.0, opacity: 0.8, trail: false }), 80, 'assumed, eight RDIMMs at about 10 W')));
-  cxPts.forEach(([x, z]) => heatFlows.push(heat(flow([[x, ny + 0.02, z], [x, ny + 0.3, z]], 'hot', { count: 2, speed: 0.35, size: 0.026, k: 2.2, trail: false }), 25, 'ConnectX-7 single-port OSFP card, 24.9 W typical (NVIDIA)')));
-  for (let i = 0; i < 6; i++) heatFlows.push(heat(flow([[psuX(i), psuY, ZB + 2.3], [psuX(i), psuY, ZB + 0.3], [psuX(i), psuY + 0.05, ZB - 0.7]], 'air', { count: 3, speed: 0.8, size: 0.035, k: 2.0, opacity: 0.8, trail: false }), 70, 'assumed: 10.2 kW at about 96% efficiency, shared by six supplies'));
-  // the fan wall: each module's air through the midplane openings and out the rear grille or the motherboard tray's rear
-  fanY.forEach((y, r) => fanX.forEach(x => heatFlows.push(heat(flow([[x, y, ZF - 0.5], [x, y, ZM - 0.3], [x * 0.95, y, -2.0], [x * 0.9, y + (r ? 0.1 : 0), ZB - 0.8]], 'air', { count: 5, speed: 1.1, size: 0.05, k: 2.0, opacity: 0.75, trail: false }), 25, 'assumed fan input power; the stream carries the heat above it'))));
+  swX.forEach((x, k) => srcHot(flow([[x, gy + 0.05, swZ], [x, gy + 0.7, swZ]], 'hot', { count: 2, speed: 0.35, size: 0.03, k: 2.4, trail: false }), `nvswitch-${k}`, PW.nvswitch));
+  cpuX.forEach((x, k) => srcHot(flow([[x, my + 0.07, cpuZ], [x, my + 0.62, cpuZ]], 'hot', { count: 3, speed: 0.4, size: 0.032, k: 2.4, trail: false }), `cpu-${k}`, cpuW));
+  bankX.forEach((bx, k) => srcHot(flow([[bx, my + 0.2, cpuZ + 0.7], [bx, my + 0.2, cpuZ - 0.75], [bx, my + 0.25, cpuZ - 1.6]], 'air', { count: 3, speed: 0.8, size: 0.03, k: 2.0, opacity: 0.8, trail: false }), `dimm-bank-${k}`, 8 * PW.dimm));
+  cxPts.forEach(([x, z], k) => srcHot(flow([[x, ny + 0.02, z], [x, ny + 0.3, z]], 'hot', { count: 2, speed: 0.35, size: 0.026, k: 2.2, trail: false }), `connectx7-${k}`, PW.connectx7));
+  for (let i = 0; i < 6; i++) srcHot(flow([[psuX(i), psuY, ZB + 2.3], [psuX(i), psuY, ZB + 0.3], [psuX(i), psuY + 0.05, ZB - 0.7]], 'air', { count: 3, speed: 0.8, size: 0.035, k: 2.0, opacity: 0.8, trail: false }), `psu-${i}-loss`, PW.psuLoss);
+  // the fan wall: each module's air through the midplane openings and out the rear; together they carry the server's heat
+  const serverW = model.rack.kw * 1000 / (model.accel.gpusPerRack / 8);
+  fanY.forEach((y, r) => fanX.forEach(x => heatFlows.push(tagHeat(flow([[x, y, ZF - 0.5], [x, y, ZM - 0.3], [x * 0.95, y, -2.0], [x * 0.9, y + (r ? 0.1 : 0), ZB - 0.8]], 'air', { count: 5, speed: 1.1, size: 0.05, k: 2.0, opacity: 0.75, trail: false }), 'server-air', serverW, 'carrier'))));
+  balanceHeat(heatFlows);
   heatFlows.forEach(f => scene.add(f.group));
 
   const leds = blinkers(statusLeds); scene.add(leds.mesh);
@@ -651,6 +671,8 @@ function buildNVL({ quality, model }) {
   });
   // 12 V copper runs forward along each board
   for (const bx of [-1.1, 1.1]) { S.box(0.12, 0.02, 5.2, MAT.copper, bx, floorY + 0.04, -0.9); S.box(0.12, 0.02, 5.2, MAT.copper, bx + 0.16, floorY + 0.04, -0.9); }
+  // the bars' volumes: a 12 V route inside one is inside the conductor it stands for (tools/flow-audit.mjs)
+  const bars12 = [-1.1, -0.94, 1.1, 1.26].map(x => [x - 0.06, floorY + 0.03, -3.5, x + 0.06, floorY + 0.05, 1.7]);
 
   // ---------- two superchip boards ----------
   const gpus = [], cpus = [];
@@ -690,27 +712,35 @@ function buildNVL({ quality, model }) {
       });
       for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; N.box(0.02, 0.012, 0.012, MAT.beige, bx + Math.cos(a) * 0.56, floorY + 0.026, gz + Math.sin(a) * 0.56); }
       N.box(0.08, 0.01, 0.08, MAT.black, bx + 0.6, floorY + 0.025, gz - 0.62);          // controller
-      // 12 V into the ring, core power into the package
-      flows.push(flow([[bx, floorY + 0.06, ZB + 1.3], [bx, floorY + 0.06, gz - 0.62], [bx - 0.36, floorY + 0.09, gz - 0.62]], 'bus12', { count: 10, speed: 0.9, size: 0.03, trailR: 0.01 }));
+      // 12 V into the ring: forward inside the copper bar (the bar runs under the rear package and its regulator row
+      // in this model, so the route shares their space there), then out along the back of the ring, on its pour.
+      flows.push(flow([[bx, floorY + 0.04, ZB + 1.1], [bx, floorY + 0.04, gz - 0.72], [bx - 0.36, floorY + 0.04, gz - 0.72]], 'bus12',
+        { count: 10, speed: 0.9, size: 0.03, trailR: 0.01, audit: { within: bars12, why: 'current in the 12 V copper bar, which passes under the rear package and regulator row' } }));
       // Core power runs from the ring into the substrate edge, below the die and HBM tops.
       for (const side of [-1, 1]) for (const dz of [-0.3, 0, 0.3]) flows.push(flow([[bx + side * 0.64, floorY + 0.05, gz + dz], [bx + side * 0.42, floorY + 0.05, gz + dz * 0.8]], 'core', { count: 3, speed: 0.35, size: 0.018, trailR: 0.006, k: 2.6, trailK: 0.2 }));
     }
   }
-  // clip to the converters, converters onto the 12 V runs
-  flows.push(flow([[0, 0.2, ZB - 0.2], [0, 0.2, ZB + 0.4], [-1.5, 0.12, ZB + 0.6], [-1.5, 0.12, ZB + 0.85]], 'dc', { count: 10, speed: 1.2, size: 0.028, k: 1.8, trailR: 0.01 }));
-  flows.push(flow([[0, 0.2, ZB - 0.2], [0, 0.2, ZB + 0.4], [1.5, 0.12, ZB + 0.6], [1.5, 0.12, ZB + 0.85]], 'dc', { count: 10, speed: 1.2, size: 0.028, k: 1.8, trailR: 0.01 }));
-  for (const bx of [-1.1, 1.1]) flows.push(flow([[bx * 1.36, 0.12, ZB + 1.1], [bx, floorY + 0.06, ZB + 1.3], [bx, floorY + 0.06, 1.4]], 'bus12', { count: 18, speed: 1.1, size: 0.03, trailR: 0.01 }));
+  // clip to the converters, converters onto the 12 V runs. The rack busbar's current passes through the clip's
+  // sprung contacts inside its housing; the 12 V trunk leaves each converter and runs inside the copper bar.
+  const clipBox = [[-0.25, 0.03, ZB - 0.3, 0.25, 0.33, ZB + 0.25]];
+  for (const s of [-1, 1]) flows.push(flow([[0, 0.2, ZB - 0.2], [0, 0.2, ZB + 0.4], [s * 1.5, 0.12, ZB + 0.6], [s * 1.5, 0.12, ZB + 0.85]], 'dc',
+    { count: 10, speed: 1.2, size: 0.028, k: 1.8, trailR: 0.01, audit: { within: clipBox, why: 'through the busbar clip contacts in their housing' } }));
+  for (const bx of [-1.1, 1.1]) flows.push(flow([[bx * 1.27, floorY + 0.04, ZB + 0.9], [bx, floorY + 0.04, ZB + 1.05], [bx, floorY + 0.04, 1.4]], 'bus12',
+    { count: 18, speed: 1.1, size: 0.03, trailR: 0.01, audit: { within: bars12, why: 'current in the 12 V copper bar, which passes under both packages and regulator rows' } }));
 
   // ---------- cold plates, lifted to show the chips ----------
   const lift = 0.55;
   const plateLoop = [];
+  // heat per plate: a GPU package or a CPU with its memory; each board's loop carries its three plates
+  const { gpuW, cpuW } = model.accel, boardW = 2 * gpuW + cpuW;
   for (const bx of [-1.1, 1.1]) {
     const pts = [];
-    [[bx, 1.75, 0.66], [bx, 0.2, 0.9], [bx, -1.55, 0.9]].forEach(([x, z, s]) => {
+    [[bx, 1.75, 0.66], [bx, 0.2, 0.9], [bx, -1.55, 0.9]].forEach(([x, z, s], k) => {
       coldPlateDetail(S, finish, x, floorY + 0.1 + lift, z, s, heavy);
       N.cyl(0.035, 0.08, MAT.nickel, x - 0.2, floorY + 0.23 + lift, z, 10); N.cyl(0.035, 0.08, MAT.nickel, x + 0.2, floorY + 0.23 + lift, z, 10);
       pts.push([x, z]);
-      for (const [dx, dz] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) heatFlows.push(flow([[x + dx * s, floorY + 0.09, z + dz * s], [x + dx * s, floorY + 0.1 + lift, z + dz * s]], 'hot', { count: 3, speed: 0.5, size: 0.028, k: 2.6, trail: false }));
+      const [part, watts] = k === 0 ? [`cpu-${bx}`, cpuW] : [`gpu-${bx}-${k}`, gpuW];
+      for (const [dx, dz] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) heatFlows.push(tagHeat(flow([[x + dx * s, floorY + 0.09, z + dz * s], [x + dx * s, floorY + 0.1 + lift, z + dz * s]], 'hot', { count: 3, speed: 0.5, size: 0.028, k: 2.6, trail: false }), part, watts));
     });
     plateLoop.push(pts);
     const y = floorY + 0.28 + lift;
@@ -735,8 +765,8 @@ function buildNVL({ quality, model }) {
     // power-mode coolant beads stay small and below clipping: the heat layer carries the coolant story
     flows.push(flow(sup, 'cool', { count: 14, speed: 0.8, size: 0.022, k: 1.5, trail: false }));
     flows.push(flow(ret, 'warm', { count: 14, speed: 0.8, size: 0.022, k: 1.5, trail: false }));
-    heatFlows.push(flow(sup, 'cool', { count: 20, speed: 0.8, size: 0.045, k: 2.4, trailR: 0.034, trailK: 0.45 }));
-    heatFlows.push(flow(ret, 'warm', { count: 20, speed: 0.8, size: 0.045, k: 2.4, trailR: 0.034, trailK: 0.45 }));
+    heatFlows.push(tagHeat(flow(sup, 'cool', { count: 20, speed: 0.8, size: 0.045, k: 2.4, trailR: 0.034, trailK: 0.45 }), `water-${bx}`, boardW, 'carrier'));
+    heatFlows.push(tagHeat(flow(ret, 'warm', { count: 20, speed: 0.8, size: 0.045, k: 2.4, trailR: 0.034, trailK: 0.45 }), `water-${bx}`, boardW, 'carrier'));
     S.cylZ(0.07, 0.2, MAT.nickel, qdX, 0.25, ZB - 0.1, 12); S.cylZ(0.07, 0.2, MAT.nickel, qdX + 0.15, 0.25, ZB - 0.1, 12);
   }
 
@@ -826,9 +856,21 @@ function buildNVL({ quality, model }) {
   trayLidLabels(scene, model.accel, lidAt, [.13, .065]);
 
   // ---------- data: NVLink out the back, C2C to the CPU, NIC and optics out the front ----------
-  const nvX = [-1.9, -1.15, 1.15, 1.9], yD = floorY + 0.14;
+  // NVLink follows the board's own NVLink buses (tray-pcb.js nvlLayout): out of the package on an inner layer, under
+  // the decoupling rows and the regulator ring (the route runs inside the board there), up a via row, then on top
+  // along its channel to the board-edge connector (J20-J23 at z -3.12). Across the 1 cm gap onto the rear board, then
+  // between the bus converters into the NVLink connector: the front GPU along the outboard channel straight into the
+  // outer connector, the rear GPU through the lane between the converters (clear of the 12 V bars) into the inner one.
+  // Never through a package, regulator, converter or connector body on the way, never off the boards.
+  const yD = floorY + 0.14, yT = floorY + 0.07, yIn = floorY + 0.01, ch = 0.8325;
+  const inBoard = { within: [[-2.1, floorY, -3.25, 2.1, floorY + 0.02, 2.55]], why: 'inner-layer breakout under the decoupling rows and regulator ring' };
   gpus.forEach(([gx, gz], i) => {
-    dataFlows.push(flow([[gx, yD, gz - 0.3], [gx + (nvX[i] - gx) * 0.5, yD, ZB + 0.9], [nvX[i], 0.16, ZB + 0.36]], 'nvl', { count: 10, speed: 0.9, size: 0.03, k: 2.4, trailR: 0.01 }));
+    const s = Math.sign(gx), X = u => gx + s * u, front = gz > 0;
+    const route = front
+      ? [[X(0.30), yIn, gz - 0.2], [X(ch), yIn, gz - 0.2], [X(ch), yT, gz - 0.2], [X(ch), yT, ZB + 0.3]]
+      : [[X(-0.36), yIn, gz - 0.4], [X(-0.36), yIn, gz - 0.8], [X(-0.36), yT, gz - 0.8], [X(-0.36), yT, ZB + 1.38],
+        [s * 0.95, yT, ZB + 1.14], [s * 0.95, yT, ZB + 0.55], [s * 1.15, yT, ZB + 0.42], [s * 1.15, yT, ZB + 0.3]];
+    dataFlows.push(flow(route, 'nvl', { count: 10, speed: 0.9, size: 0.026, k: 2.4, trailR: 0.009, audit: inBoard }));
     // Representative board routing, not an OEM trace map. Cross the fan row
     // through its open service gaps; a diagonal to the NIC used to cut through
     // the fan motors. Keep the NIC leg beside its heat sink before entering
@@ -837,26 +879,39 @@ function buildNVL({ quality, model }) {
     const fanGapX = [-1.33, -0.57, 0.95, 1.71][i];
     dataFlows.push(flow([[gx + 0.3, yD, gz + 0.3],
       [laneX, 0.20, gz + 0.3], [laneX, 0.20, 2.16],
-      [fanGapX, 0.20, 2.16], [fanGapX, 0.20, 2.88],
-      [nicX[i] - 0.22, 0.25, 2.88], [nicX[i] - 0.22, 0.25, 3.62],
+      [fanGapX, 0.20, 2.16], [fanGapX, 0.20, 2.835],
+      // up onto the NIC board ahead of its edge (z 2.85), not through it
+      [nicX[i] - 0.22, 0.26, 2.835], [nicX[i] - 0.22, 0.26, 3.62],
       // then out along its flyover cable, riding just above the jacket, into the cage
       [nicX[i], 0.33, 3.70], [nicX[i], 0.35, 3.80], [nicX[i], 0.30, 3.90],
       [nicX[i], 0.24, 3.97], [nicX[i], 0.24, ZF]],
     'eth', { count: 10, speed: 0.9, size: 0.03, k: 2.3, trailR: 0.01 }));
   });
+  // C2C: Grace to the front GPU along the board's C2C bus (bx + .08), one lane each way, just above the board
   cpus.forEach(([cx, cz]) => {
-    dataFlows.push(flow([[cx, yD, cz - 0.3], [cx, yD, 0.55]], 'c2c', { count: 5, speed: 0.6, size: 0.028, k: 2.2, trailR: 0.01 }));
-    dataFlows.push(flow([[cx + 0.1, yD, 0.55], [cx + 0.1, yD, cz - 0.3]], 'c2c', { count: 5, speed: 0.6, size: 0.028, k: 2.2, trailR: 0.01 }));
+    // out of Grace's rear edge below its lid, just above the board to the front GPU, into its substrate
+    const lane = x => [[x, floorY + 0.015, cz - 0.2], [x, floorY + 0.015, cz - 0.4], [x, yT, cz - 0.48], [x, yT, 0.78], [x, floorY + 0.04, 0.6]];
+    // (the C2C bus runs under the 12 V bars, so the route crosses a bar's volume where it rises and where it lands)
+    const underBars = { within: bars12, why: 'the C2C bus lies under the 12 V copper bars it rises past' };
+    dataFlows.push(flow(lane(cx + 0.04), 'c2c', { count: 5, speed: 0.6, size: 0.024, k: 2.2, trailR: 0.008, audit: underBars }));
+    dataFlows.push(flow(lane(cx + 0.12).reverse(), 'c2c', { count: 5, speed: 0.6, size: 0.024, k: 2.2, trailR: 0.008, audit: underBars }));
   });
-  for (const x of dpuX) dataFlows.push(flow([[x, floorY + 0.3, ZF - 1.2], [x, 0.24, ZF]], 'eth', { count: 5, speed: 0.6, size: 0.028, k: 1.6, trailR: 0.01 }));
+  // the DPU's ports: out of the chip under its sink, forward over its board to the bezel
+  for (const x of dpuX) dataFlows.push(flow([[x, floorY + 0.27, 3.65], [x, floorY + 0.27, 4.05], [x, 0.26, 4.15], [x, 0.26, ZF]], 'eth', { count: 5, speed: 0.6, size: 0.028, k: 1.6, trailR: 0.01 }));
   dataFlows.forEach(f => scene.add(f.group));
   // air over the parts water does not reach, front to back
-  if (!allLiquid) for (let i = 0; i < 6; i++) { const x = -1.9 + i * 0.76 + 0.19; heatFlows.push(flow([[x, 0.3, ZF - 1.75], [x, 0.3, ZF - 3.2], [x * 0.9, 0.34, ZB + 1.5]], 'air', { count: 6, speed: 0.9, size: 0.04, k: 2.0, opacity: 0.8, trail: false })); }
+  // the air carries what water does not reach: one tray's share of the rack's NICs, DPUs, drives, fans and
+  // management, and of its bus-converter losses
+  const trayAirW = (model.accel.nicKW + model.accel.otherKW + model.rack.ibcLossKW) * 1000 / 18;
+  if (!allLiquid) for (let i = 0; i < 6; i++) { const x = -1.9 + i * 0.76 + 0.19; heatFlows.push(tagHeat(flow([[x, 0.3, ZF - 1.75], [x, 0.3, ZF - 3.2], [x * 0.9, 0.34, ZB + 1.5]], 'air', { count: 6, speed: 0.9, size: 0.04, k: 2.0, opacity: 0.8, trail: false }), 'tray-air', trayAirW, 'carrier')); }
+  balanceHeat(heatFlows);
   heatFlows.forEach(f => scene.add(f.group));
 
   // status LEDs on the NICs, DPU, drives and converters; a faint warm-air shimmer over the bus converters
   const leds = blinkers(statusLeds); scene.add(leds.mesh);
-  const shimmer = heavy ? plumes(warmTops.map(p => ({ p, dir: [0, 1, 0] })), { perEmitter: 8, size: 0.13, grow: 2.0, life: 1.8, rise: 0.3, drift: [0.03, 0, 0.015], spread: 0.14, color: '#ffddb0', opacity: 0.1, additive: true }) : null;
+  // each bus converter's loss (the rack's over 18 trays and four converters) against a GPU: on the one log rule
+  const ibcW = model.rack.ibcLossKW * 1000 / 18 / ibcX.length;
+  const shimmer = heavy ? plumes(warmTops.map(p => ({ p, dir: [0, 1, 0] })), { perEmitter: 8, size: 0.13, grow: 2.0, life: 1.8, rise: 0.3, drift: [0.03, 0, 0.015], spread: 0.14, color: '#ffddb0', opacity: heatIntensity(0.1, ibcW, gpuW), additive: true }) : null;
   if (shimmer) scene.add(shimmer.points);
 
   const [g0x, g0z] = gpus[1];
@@ -889,6 +944,10 @@ function buildNVL({ quality, model }) {
       nvconn: { pos: [1.9, 0.4, ZB + 0.2], view: { pos: [3.6, 2.2, -6.4], target: [1.6, 0.2, ZB] } },
     },
     dataFlows, heatFlows,
+    // tools/flows.mjs: NVLink and C2C stay over a board: the two superchip boards and the rear power board, plus the
+    // gap between them where each NVLink route leaves its board-edge connector for the rear board
+    flowAudit: { floatR: 0.25, boardCls: ['nvl', 'c2c'], boards: [[-2.1, -0.1, -3.25, 2.55], [0.1, 2.1, -3.25, 2.55], [-2.1, 2.1, ZB + 0.15, ZB + 1.15],
+      ...[-1, 1].flatMap(s => [[s * 1.9325 - 0.06, s * 1.9325 + 0.06], [Math.min(s * 0.74, s * 0.95) - 0.02, Math.max(s * 0.74, s * 0.95) + 0.02]].map(([a, b]) => [a, b, ZB + 1.1, ZB + 1.3]))] },
     heatHotspots: {
       osfp: { pos: [0.7, 0.4, ZF - 0.2], view: { pos: [1.6, 1.4, 6.8], target: [0.9, 0.2, ZF - 0.3] } },
       coldplates: { pos: [-1.1, 0.95, 0.2], view: { pos: [-3.6, 2.6, 2.4], target: [-1.1, 0.6, 0] } },

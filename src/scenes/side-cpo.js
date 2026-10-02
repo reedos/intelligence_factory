@@ -9,6 +9,7 @@
 import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, label, lidBox, outline, FLOW, COL, note, unitCol, asicTex, ringPicTex, RING, eicTex, glowMat } from './side-kit.js';
 
 import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes } from './side-geometry.js';
+import { tagHeat, balanceHeat, PART_W } from '../heat.js';
 
 // Fiber cannot fold at a point. The route contract (side-geometry.js) stays a
 // reviewed polyline; the drawn fiber and its moving light follow the same path
@@ -203,9 +204,11 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   engines.forEach(({ x, z }) => flows.push(flow([[x, -1.0, z], [x, Y.sub, z], [x, Y.eng, z]], 'v33', FLOW.power)));
   els.forEach(([x, z]) => flows.push(flow([[x + 2.3, Y.sub + 0.45, z], [x + 0.9, Y.sub + 0.45, z]], 'v33', FLOW.power)));
   // A few sampled columns read as rising heat; a dense sheet hid the die and the plate behind it.
-  for (let i = 0; i < 14; i++) { const x = (rnd() - 0.5) * activeDieSpan, z = (rnd() - 0.5) * activeDieSpan; heatFlows.push(flow([[x, Y.die + 0.06, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat)); }
-  engines.forEach(({ x, z }) => heatFlows.push(flow([[x, Y.eng + 0.1, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat)));
-  heatFlows.push(flow([[-1.4, pipeTop, pipeZ], [-1.4, Y.plate, pipeZ], [-1.4, Y.plate, 3], [1.4, Y.plate, 3], [1.4, Y.plate, pipeZ], [1.4, pipeTop, pipeZ]], 'cool', { count: 10, speed: 1.6, size: 0.06, k: 2.2, trail: false }));
+  // Heat per part on the site's one log rule (src/heat.js, PART_W.cpo): the switch ASIC, then each engine.
+  for (let i = 0; i < 14; i++) { const x = (rnd() - 0.5) * activeDieSpan, z = (rnd() - 0.5) * activeDieSpan; heatFlows.push(tagHeat(flow([[x, Y.die + 0.06, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat), 'asic', PART_W.cpo.asic)); }
+  engines.forEach(({ x, z }, i) => heatFlows.push(tagHeat(flow([[x, Y.eng + 0.1, z], [x, Y.plate - 0.2, z]], 'hot', FLOW.heat), `engine-${i}`, PART_W.cpo.engine)));
+  heatFlows.push(tagHeat(flow([[-1.4, pipeTop, pipeZ], [-1.4, Y.plate, pipeZ], [-1.4, Y.plate, 3], [1.4, Y.plate, 3], [1.4, Y.plate, pipeZ], [1.4, pipeTop, pipeZ]], 'cool', { count: 10, speed: 1.6, size: 0.06, k: 2.2, trail: false }), 'coldplate-water', PART_W.cpo.asic + engines.length * PART_W.cpo.engine, 'carrier'));
+  balanceHeat(heatFlows);
   [flows, dataFlows, heatFlows].forEach(a => a.forEach(f => scene.add(f.group)));
 
   // ======================= labels =======================

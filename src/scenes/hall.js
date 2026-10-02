@@ -14,6 +14,7 @@ import { switchLabel, labelLines } from './lid-labels.js';
 import { hallMarks } from './electrical-marks.js';
 import { hallPipeMarks } from './cooling-marks.js';
 import { hallIds, cduPlates } from './site-signs.js';
+import { tagHeat, balanceHeat, heatIntensity, heatWeight } from '../heat.js';
 
 // Cabinet front textures (drawn once).
 function frontTex(kind) {
@@ -845,26 +846,33 @@ export function build({ quality, model }) {
   flows.push(flow([[X0 + 2, hdrY, -16.4], [rowX1 + 2, hdrY, -16.4]], 'cool', { count: 24, speed: 3, size: 0.12, k: 1.6, trail: false }));
   flows.push(flow([[rowX1 + 2, hdrY - 0.7, -16.4], [facilityReturnX, hdrY - 0.7, -16.4]], 'warm', { count: 24, speed: 3, size: 0.12, k: 1.6, trail: false }));
   // ---------- heat layer ----------
-  heatFlows.push(flow([[X0 + 2, hdrY + 3, -16.4], [X0 + 2, hdrY, -16.4], [rowX1 + 2, hdrY, -16.4]], 'cool', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 }));
-  heatFlows.push(flow([[rowX1 + 2, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY - 0.7, returnRiserZ], [X0 + 2.8, hdrY + 2.8, returnRiserZ]], 'warm', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 }));
+  // Two heat paths, as the level's intro says: water (the liquid share, through the coolant units to the facility
+  // loop) and air (the rest, through the hot aisles). In an air-cooled hall all of it rides the air to the in-row
+  // coolers, and the chilled water then carries all of it out. Watts are for the racks drawn.
+  const hallW = rackMx.length * model.rack.kw * 1000, liq = air ? 0 : model.accel.liquidShare;
+  const waterW = air ? hallW : hallW * liq, airW = air ? hallW : hallW * (1 - liq);
+  const water = f => tagHeat(f, 'hall-water', waterW, 'carrier'), hallAir = f => tagHeat(f, 'hall-air', airW, 'carrier');
+  heatFlows.push(water(flow([[X0 + 2, hdrY + 3, -16.4], [X0 + 2, hdrY, -16.4], [rowX1 + 2, hdrY, -16.4]], 'cool', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 })));
+  heatFlows.push(water(flow([[rowX1 + 2, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY - 0.7, -16.4], [X0 + 2.8, hdrY - 0.7, returnRiserZ], [X0 + 2.8, hdrY + 2.8, returnRiserZ]], 'warm', { count: 36, speed: 3, size: 0.14, k: 2.4, trailR: 0.1, trailK: 0.4 })));
   cduMx.forEach(c => {
-    heatFlows.push(flow([[c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z]], 'cool', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false }));
-    heatFlows.push(flow([[c.x + 0.15, 2.3, c.z], [c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, hdrY - 0.7, -16.4]], 'warm', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false }));
+    heatFlows.push(water(flow([[c.x - 0.15, hdrY, -16.4], [c.x - 0.15, hdrY, c.z], [c.x - 0.15, 2.3, c.z]], 'cool', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false })));
+    heatFlows.push(water(flow([[c.x + 0.15, 2.3, c.z], [c.x + 0.15, hdrY - 0.7, c.z], [c.x + 0.15, hdrY - 0.7, -16.4]], 'warm', { count: 5, speed: 2.2, size: 0.13, k: 1.5, trail: false })));
   });
   if (!air) rowZs.forEach((z, r) => {
     const lz = z - facing[r] * 0.35;
     for (let gI = 0; gI < groups; gI++) {
       const x0 = rowX0 + gI * (CW + perGroup * RW + GAP), x1 = x0 + CW + perGroup * RW;
-      heatFlows.push(flow([[x0 + CW / 2 - .18, 2.45, lz - 0.05], [x1, 2.45, lz - 0.05]], 'cool', { count: 6, speed: 1.2, size: 0.1, k: 1.5, trail: false }));
-      heatFlows.push(flow([[x1, 2.45, lz + 0.05], [x0 + CW / 2 + .18, 2.45, lz + 0.05]], 'warm', { count: 6, speed: 1.2, size: 0.1, k: 1.5, trail: false }));
+      heatFlows.push(water(flow([[x0 + CW / 2 - .18, 2.45, lz - 0.05], [x1, 2.45, lz - 0.05]], 'cool', { count: 6, speed: 1.2, size: 0.1, k: 1.5, trail: false })));
+      heatFlows.push(water(flow([[x1, 2.45, lz + 0.05], [x0 + CW / 2 + .18, 2.45, lz + 0.05]], 'warm', { count: 6, speed: 1.2, size: 0.1, k: 1.5, trail: false })));
     }
   });
-  // hot air: along each contained aisle, out the end, through the fan wall, back cool
-  for (let p = 0; p < 3; p++) {
+  // hot air: along each contained aisle, out the end, through the fan wall, back cool (none from all-liquid racks)
+  if (heatWeight(airW, waterW)) for (let p = 0; p < 3; p++) {
     const zc = (rowZs[p * 2] + rowZs[p * 2 + 1]) / 2;
-    for (const y of [0.8, 1.5, 2.1]) heatFlows.push(flow([[rowX0 + 1, y, zc], [rowX1 + 1.2, y + 0.4, zc], [X1 - 1.8, y + 1.2, zc]], 'air', { count: 16, speed: 2.2, size: 0.13, k: 1.5, opacity: 0.9, trail: false }));
-    heatFlows.push(flow([[X1 - 2.2, 0.7, zc + 3.3], [rowX0 + 2, 0.5, zc + 3.3]], 'cool', { count: 14, speed: 2.0, size: 0.12, k: 2.0, opacity: 0.6, trail: false }));
+    for (const y of [0.8, 1.5, 2.1]) heatFlows.push(hallAir(flow([[rowX0 + 1, y, zc], [rowX1 + 1.2, y + 0.4, zc], [X1 - 1.8, y + 1.2, zc]], 'air', { count: 16, speed: 2.2, size: 0.13, k: 1.5, opacity: 0.9, trail: false })));
+    heatFlows.push(hallAir(flow([[X1 - 2.2, 0.7, zc + 3.3], [rowX0 + 2, 0.5, zc + 3.3]], 'cool', { count: 14, speed: 2.0, size: 0.12, k: 2.0, opacity: 0.6, trail: false })));
   }
+  balanceHeat(heatFlows);
   // A separate panel port exits through the sleeve into the cross-hall duct.
   const crossPatch=[odfItems[6].x+.12,2.17,14.52];
   N.box(.08,.06,.04,mpoBody,...crossPatch);
@@ -1020,7 +1028,8 @@ export function build({ quality, model }) {
     const za = rowZs[p * 2], zb = rowZs[p * 2 + 1], zc = (za + zb) / 2;
     for (const dz of quality.mobile ? [0] : [-2.5, 2.5]) plumeEmitters.push({ p: [(rowX0 + rowX1) / 2, 2.0, zc + dz], dir: [0, 1, 0] });
   }
-  const hotPlumes = plumes(plumeEmitters, { perEmitter: quality.mobile ? 8 : 16, size: 0.5, grow: 2.4, life: 5, rise: 0.35, drift: [0.15, 0, 0], spread: 0.5, color: '#ffb37a', opacity: 0.16, additive: true });
+  // the hot-aisle haze is part of the air path: it fades with the air share on the same log rule (src/heat.js)
+  const hotPlumes = plumes(plumeEmitters, { perEmitter: quality.mobile ? 8 : 16, size: 0.5, grow: 2.4, life: 5, rise: 0.35, drift: [0.15, 0, 0], spread: 0.5, color: '#ffb37a', opacity: heatIntensity(0.16, airW, Math.max(airW, waterW)), additive: true });
   scene.add(hotPlumes.points);
 
   // polished-concrete floor tile joints

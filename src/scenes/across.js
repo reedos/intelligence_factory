@@ -8,6 +8,7 @@ import { feature, mesh } from 'topojson-client';
 import us from 'us-atlas/states-10m.json';
 import { THREE, MAT, Builder, mtx, flow, canvasTex, sky, glowMat, spinners } from '../kit.js';
 import { rbox, plumes } from '../fx.js';
+import { tagHeat, balanceHeat } from '../heat.js';
 import { SITES, STATE_CARBON, DEFAULT_PLACE, PLACES, placeKey, albers, greatCircleKm } from '../model/sites.ts';
 import { preloadCampusCatalog, campusCatalogInstances } from './campus-blender-catalog.js';
 import { preloadAcrossAssets, hasAcrossAssets, acrossAssetInstances, acrossSurfaceGeometry, replaceWindRotor } from './across-blender-assets.js';
@@ -268,7 +269,8 @@ export function build({ quality, model, state = {} }) {
   // where the regional HV lines land: the gantry beam of the substation yard at the -X edge of each campus symbol
   // (MAP_CAMPUS local x -23.6, beam top 4.9)
   const gantry = ([x, z], k) => [x - 23.6 * k, 4.9 * k, z];
-  const campus = ([x, z], main) => {
+  // heat out of a campus is its power in: the scenario's meter for this campus, each real campus's own (sites.ts)
+  const campus = ([x, z], main, watts, id) => {
     const k = main ? 1 : 0.85;
     halos.push([x, z, (main ? 150 : 125) * k, main ? 1 : 0.8]);
     // Local heat rejection on exaggerated campus icons, not regional heat
@@ -277,7 +279,7 @@ export function build({ quality, model, state = {} }) {
       const heat = flow([[x + 2 * k, 7, z + dz * k], [x + 2 * k, 18, z + dz * k],
         [x + 5 * k, 30, z + (dz + 3) * k]], 'air',
       { count: 5, speed: 8, size: .75 * k, k: 2.8, opacity: .8, trail: false });
-      heatFlows.push(heat); scene.add(heat.group);
+      heatFlows.push(tagHeat(heat, id, watts)); scene.add(heat.group);
     }
     if (authored) {
       campusSymbols.push(mtx(x, 0, z, 0, k));
@@ -300,8 +302,9 @@ export function build({ quality, model, state = {} }) {
     rbox(S, 6 * k, 3, 10 * k, MAT.xfmr, x - 14 * k, 2.1, z, { r: 0.08 });
     if (main) S.slab(36, 0.4, 28, glowMat('#ffb14e', 0.65), x, 0.62, z);
   };
-  campus(H, true);
-  others.forEach(p => campus(world(p.site.lon, p.site.lat), false));
+  campus(H, true, model.meterMW * 1e6, 'home');
+  others.forEach(p => campus(world(p.site.lon, p.site.lat), false, p.ids.reduce((w, id) => w + SITES[id].scenario.meterMW * 1e6, 0), placeKey(p)));
+  balanceHeat(heatFlows);
   scene.add(S.build({ cast: false }));
   // every campus symbol, home and remote, in one instanced mesh per material
   if (authored) scene.add(campusCatalogInstances('MAP_CAMPUS', campusSymbols));

@@ -11,6 +11,7 @@ import { etch } from './package-marks.js';
 import { rackUnits } from './site-signs.js';
 import { componentView } from '../app/housing-frame.js';
 import { DGX } from './dgx-h100-layout.js';
+import { tagHeat, balanceHeat, heatIntensity } from '../heat.js';
 
 const U = 0.04445;
 // product-shot trim: the champagne bezel band from the server texture, in real geometry; and quick-disconnect collars
@@ -405,7 +406,7 @@ function serviceFace(B, y, z, heavy, kind) {
 // ---------- four DGX H100 servers, air-cooled ----------
 // Pulled-tray boards get the PCB surface at rack distance (tray-pcb.js, rack LOD).
 const TRAY_PCB = Object.assign(new THREE.MeshStandardMaterial({ color: 0x10362a, roughness: 0.6, metalness: 0.05 }), { name: 'Rack tray solder mask' });
-function buildHGX({ quality, state }) {
+function buildHGX({ quality, model, state }) {
   const scene = new THREE.Scene();
   const flows = [], dataFlows = [], heatFlows = [];
   const S = new Builder(), N = new Builder();
@@ -541,11 +542,14 @@ function buildHGX({ quality, state }) {
   // scale-up: NVLink only inside the pulled server, GPUs to the switch row
   sinks.forEach(([x, z]) => dataFlows.push(flow([[x, ty(DGX.gy + 0.04), z], [x * 0.95, ty(DGX.gy + 0.04), tz(DGX.swZ + 0.3)]], 'nvl', { count: 3, speed: 0.12, size: 0.006, k: 2.4, trail: false })));
   // heat: cold air in the front of every server, hot air out the back
+  // each closed server's air carries all of that server's heat; in the pulled one, each GPU sink's air its GPU's
+  const serverW = model.rack.kw * 1000 / (model.accel.gpusPerRack / 8);
   [0, 1, 3].forEach(k => { for (const x of [-0.14, 0, 0.14]) for (const dy of [-0.08, 0.08]) {
-    heatFlows.push(flow([[x, sy(k) + dy, ZF + 0.8], [x, sy(k) + dy, ZF]], 'cool', { count: 3, speed: 0.4, size: 0.02, k: 2.0, opacity: 0.8, trail: false }));
-    heatFlows.push(flow([[x, sy(k) + dy, ZB], [x * 1.3, sy(k) + dy + 0.1, ZB - 0.8]], 'air', { count: 3, speed: 0.45, size: 0.024, k: 2.4, opacity: 0.9, trail: false }));
+    heatFlows.push(tagHeat(flow([[x, sy(k) + dy, ZF + 0.8], [x, sy(k) + dy, ZF]], 'cool', { count: 3, speed: 0.4, size: 0.02, k: 2.0, opacity: 0.8, trail: false }), `server-${k}-air`, serverW, 'carrier'));
+    heatFlows.push(tagHeat(flow([[x, sy(k) + dy, ZB], [x * 1.3, sy(k) + dy + 0.1, ZB - 0.8]], 'air', { count: 3, speed: 0.45, size: 0.024, k: 2.4, opacity: 0.9, trail: false }), `server-${k}-air`, serverW, 'carrier'));
   } });
-  sinks.forEach(([x, z]) => heatFlows.push(flow([[x, ty(2.4), pz + sd / 2 - 0.08], [x, ty(2.4), z], [x, ty(2.5), pz - sd / 2 - 0.2]], 'air', { count: 3, speed: 0.25, size: 0.012, k: 2.4, trail: false })));
+  sinks.forEach(([x, z], i) => heatFlows.push(tagHeat(flow([[x, ty(2.4), pz + sd / 2 - 0.08], [x, ty(2.4), z], [x, ty(2.5), pz - sd / 2 - 0.2]], 'air', { count: 3, speed: 0.25, size: 0.012, k: 2.4, trail: false }), `gpu-${i}-sink-air`, model.accel.gpuW, 'carrier')));
+  balanceHeat(heatFlows);
   [flows, dataFlows, heatFlows].forEach(list => list.forEach(f => scene.add(f.group)));
 
   // ---------- activity: status LEDs and warm exhaust shimmer (all four servers are air-cooled) ----------
@@ -860,16 +864,20 @@ function buildNVL({ quality, model, state }) {
   flows.push(flow([[mIn[0], bbBot, mFz], [mIn[0], bbTop + 0.05, mFz]], 'cool', coolRail));
   flows.push(flow([[mIn[1], bbTop + 0.05, mFz], [mIn[1], bbBot, mFz]], 'warm', coolRail));
   // The illustrated system is floor-fed: supply rises, return falls in both layers.
-  heatFlows.push(flow([[mX[0], 0.0, mZ - 0.1], [mIn[0], bbBot - 0.1, mFz], [mIn[0], bbTop + 0.05, mFz]], 'cool', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 }));
-  heatFlows.push(flow([[mIn[1], bbTop + 0.05, mFz], [mIn[1], bbBot - 0.1, mFz], [mX[1], 0.0, mZ - 0.1]], 'warm', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 }));
+  // Two heat paths leave the rack: the liquid share in the manifolds and their tray branches, the rest as air.
+  const rackW = model.rack.kw * 1000, waterW = rackW * model.accel.liquidShare, airW = rackW - waterW;
+  const water = f => tagHeat(f, 'rack-water', waterW, 'carrier'), airPath = f => tagHeat(f, 'rack-air', airW, 'carrier');
+  heatFlows.push(water(flow([[mX[0], 0.0, mZ - 0.1], [mIn[0], bbBot - 0.1, mFz], [mIn[0], bbTop + 0.05, mFz]], 'cool', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 })));
+  heatFlows.push(water(flow([[mIn[1], bbTop + 0.05, mFz], [mIn[1], bbBot - 0.1, mFz], [mX[1], 0.0, mZ - 0.1]], 'warm', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 })));
   [4, 9, 14, 18, 22, 27].forEach(i => {
-    heatFlows.push(flow([[mX[0], trayY(i), mZ + 0.06], [-0.16, trayY(i), ZB + 0.18], [-0.1, trayY(i), 0]], 'cool', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false }));
-    heatFlows.push(flow([[0.1, trayY(i), 0], [0.16, trayY(i), ZB + 0.18], [mX[1], trayY(i), mZ + 0.06]], 'warm', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false }));
+    heatFlows.push(water(flow([[mX[0], trayY(i), mZ + 0.06], [-0.16, trayY(i), ZB + 0.18], [-0.1, trayY(i), 0]], 'cool', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false })));
+    heatFlows.push(water(flow([[0.1, trayY(i), 0], [0.16, trayY(i), ZB + 0.18], [mX[1], trayY(i), mZ + 0.06]], 'warm', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false })));
   });
   // the air share: power shelves, switches, optics exhaust out the back
   const airRow = [1, 6, 12, 16, 20, 25, 31];
   const airShare = model.accel.liquidShare < 0.99;
-  if (airShare) for (const i of airRow) for (const x of [-0.15, 0.05, 0.2]) heatFlows.push(flow([[x, trayY(i), 0.2], [x, trayY(i) + 0.02, ZB], [x * 1.2, trayY(i) + 0.12, ZB - 0.7]], 'air', { count: 4, speed: 0.35, size: 0.024, k: 2.4, opacity: 0.9, trail: false }));
+  if (airShare) for (const i of airRow) for (const x of [-0.15, 0.05, 0.2]) heatFlows.push(airPath(flow([[x, trayY(i), 0.2], [x, trayY(i) + 0.02, ZB], [x * 1.2, trayY(i) + 0.12, ZB - 0.7]], 'air', { count: 4, speed: 0.35, size: 0.024, k: 2.4, opacity: 0.9, trail: false })));
+  balanceHeat(heatFlows);
   for (const x of [-0.11, 0.11]) {
     flows.push(flow([[x - 0.02, py - U / 2 + 0.035, pz - 0.44], [x - 0.02, py - U / 2 + 0.035, pz + 0.26]], 'cool', { count: 6, speed: 0.15, size: 0.006, trail: false }));
     flows.push(flow([[x + 0.02, py - U / 2 + 0.035, pz + 0.26], [x + 0.02, py - U / 2 + 0.035, pz - 0.44]], 'warm', { count: 6, speed: 0.15, size: 0.006, trail: false }));
@@ -893,7 +901,8 @@ function buildNVL({ quality, model, state }) {
   let haze = null;
   if (airShare) {
     const emit = (quality.mobile ? airRow.filter((_, i) => i % 2 === 0) : airRow).map(i => ({ p: [0, trayY(i) + 0.02, ZB - 0.1], dir: [0, 1, 0] }));
-    haze = plumes(emit, { perEmitter: quality.mobile ? 5 : 12, size: 0.04, grow: 2.2, life: 2.4, rise: 0.28, drift: [0, 0.12, -0.4], spread: 0.04, color: AIR_HAZE, opacity: 0.12, additive: true });
+    // the air share's haze, on the same log rule as the streams (src/heat.js)
+    haze = plumes(emit, { perEmitter: quality.mobile ? 5 : 12, size: 0.04, grow: 2.2, life: 2.4, rise: 0.28, drift: [0, 0.12, -0.4], spread: 0.04, color: AIR_HAZE, opacity: heatIntensity(0.12, airW, waterW), additive: true });
     scene.add(haze.points);
   }
 
