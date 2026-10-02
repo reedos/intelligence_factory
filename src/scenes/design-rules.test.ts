@@ -119,3 +119,83 @@ describe('GPU package (scene 5): place and route', () => {
     }
   });
 });
+
+// polyline points of a native flow (kit.js Flow: a CurvePath of line segments)
+const flowPoints = (f: any): P3[] => [f.path.curves[0].v1.toArray(), ...f.path.curves.map((c: any) => c.v2.toArray())];
+// smallest radius of curvature along a sampled polyline: circumradius of each consecutive point triple
+function minBendRadius(pts: P3[]) {
+  let min = Infinity;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const a = len(sub(pts[i], pts[i - 1])), b = len(sub(pts[i + 1], pts[i])), c = len(sub(pts[i + 1], pts[i - 1]));
+    const s = (a + b + c) / 2, area = Math.sqrt(Math.max(0, s * (s - a) * (s - b) * (s - c)));
+    if (a < 1e-9 || b < 1e-9 || area < 1e-12) continue;
+    min = Math.min(min, a * b * c / (4 * area));
+  }
+  return min;
+}
+
+describe('Coherent module (scene 8): place and route', () => {
+  const build = () => coherent.build({ quality: { shadows: false }, state: { mode: 'data' } });
+  it('DSP copper escapes from under the package edge: nothing runs across the package top', () => {
+    const { scene } = build(), r = scene.userData.coherentRouting;
+    const DSPX = r.dspX, dieHalf = r.dieHalf, yTop = 1.35;
+    for (const path of [...r.hostTx, ...r.hostRx, ...r.lineTx, ...r.lineRx]) for (let i = 1; i < path.length; i++) {
+      const a = path[i - 1], b = path[i];
+      const raised = Math.max(a[1], b[1]) > yTop + 0.02;
+      if (!raised || Math.abs(a[0] - DSPX) > r.dspHalf + 0.01 || Math.abs(b[0] - DSPX) > r.dspHalf + 0.01) continue;
+      // only vertical risers into the die, inside its footprint
+      expect(Math.abs(a[0] - b[0]) + Math.abs(a[2] - b[2])).toBeLessThan(1e-9);
+      expect(Math.abs(a[0] - DSPX)).toBeLessThanOrEqual(dieHalf + 1e-9);
+    }
+  });
+  it('DSP-to-driver and DSP-to-TIA copper is short and direct', () => {
+    const { scene } = build(), r = scene.userData.coherentRouting;
+    for (const path of [...r.lineTx, ...r.lineRx]) {
+      const flat = path.map((p: P3) => [p[0], 0, p[2]]);
+      expect(pathLength(flat)).toBeLessThan(1.8);                 // die bank to the optics: under 1 cm of board plus the package and bond legs
+    }
+    expect(planCrossings(r.lineTx)).toBe(0); expect(planCrossings(r.lineRx)).toBe(0);
+    expect(planCrossings(r.hostTx)).toBe(0); expect(planCrossings(r.hostRx)).toBe(0);
+  });
+  it('power paths never cross a high-speed lane in plan', () => {
+    const built = build(), r = built.scene.userData.coherentRouting;
+    const hs = [...r.hostTx, ...r.hostRx, ...r.lineTx, ...r.lineRx];
+    for (const f of built.flows) {
+      const pw = flowPoints(f);
+      for (const lane of hs) expect(planCrossings([pw, lane])).toBe(0);
+    }
+  });
+  it('fibers bend gently: no radius under 3 mm (bend-insensitive fiber inside a module)', () => {
+    const r = build().scene.userData.coherentRouting;
+    for (const [name, fiber] of Object.entries({ tx: r.txFiber, rx: r.rxFiber, carrier: r.carrierPath, lo: r.loPath, trunk: r.laserTrunk })) expect(minBendRadius(fiber as P3[]), name).toBeGreaterThanOrEqual(0.3);
+  });
+});
+
+describe('Copper plugs (scene 9): place and route', () => {
+  it('pairs keep at least 1 mm from the AEC power inductors and the supply trace in the centre channel', async () => {
+    const { copperLane, PAIR_HALF, COPPER_HEADS } = await import('./side-geometry.js');
+    for (const [, hx] of COPPER_HEADS) for (let i = 0; i < 4; i++) for (const rx of [false, true]) {
+      const inner = Math.abs(copperLane(hx, i, rx) - hx) - PAIR_HALF - 0.008;   // nearest trace edge to the centre line
+      expect(inner - 0.1).toBeGreaterThanOrEqual(0.1);                         // inductor half-width 0.1 cm
+    }
+  });
+  it('transmit and receive banks are mirror images, evenly pitched, inside the card', async () => {
+    const { copperLane, PAIR_HALF, COPPER_HEADS } = await import('./side-geometry.js');
+    for (const [, hx] of COPPER_HEADS) for (let i = 0; i < 4; i++) {
+      expect(copperLane(hx, i, false) - hx).toBeCloseTo(-(copperLane(hx, 3 - i, true) - hx), 9);
+      if (i) expect(copperLane(hx, i, true) - copperLane(hx, i - 1, true)).toBeCloseTo(0.15, 9);
+      expect(Math.abs(copperLane(hx, i, true) - hx) + PAIR_HALF + 0.008).toBeLessThan((1.84 - 0.3) / 2);
+    }
+  });
+  it('edge-pad breakouts on the same card face never cross', async () => {
+    const { copperLane, copperPad, COPPER_HEADS } = await import('./side-geometry.js');
+    for (const [, hx] of COPPER_HEADS) for (const top of [true, false]) {
+      const legs: P3[][] = [];
+      for (let i = 0; i < 4; i++) for (const rx of [false, true]) {
+        const pad = copperPad(hx, i, rx); if (pad.top !== top) continue;
+        legs.push([[pad.x, 0, 2.6], [copperLane(hx, i, rx), 0, 2.25]]);
+      }
+      expect(planCrossings(legs)).toBe(0);
+    }
+  });
+});
