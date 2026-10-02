@@ -98,8 +98,8 @@ export function eicMzmTex() {
     g.strokeStyle = 'rgba(255,122,217,0.7)'; g.strokeRect(rx[0], rx[1], rx[2] - rx[0], rx[3] - rx[1]);
     g.textBaseline = 'middle'; g.font = '600 24px ui-monospace, Consolas, monospace';
     g.textAlign = 'center'; g.fillStyle = 'rgba(160,236,255,0.78)';
-    g.fillText('TX DRIVERS', 160, 500); g.fillText('3 per lane', 160, 534);
-    g.textAlign = 'right'; g.fillStyle = 'rgba(255,170,230,0.78)'; g.fillText('RX TIAs ×8', rx[0] - 14, 300);
+    g.fillText('TX DRIVERS', 160, 500); g.fillText('3 segments', 160, 534); g.fillText('per lane', 160, 566);   // three driver segments per MZM, as reported (data.js bcmSeg)
+    g.fillStyle = 'rgba(255,170,230,0.78)'; g.fillText('RX TIAs ×8 →', 510, 80);   // clear of the photodiode pin, which sits under the TIA column
     g.textAlign = 'center'; g.fillStyle = 'rgba(190,198,212,0.6)'; g.font = '500 18px ui-monospace, Consolas, monospace';
     g.fillText('PLL · shared', (shared[0] + shared[2]) / 2, shared[3] + 18);
     g.textAlign = 'left'; g.fillStyle = 'rgba(190,198,212,0.5)'; g.fillText('EIC · as drawn', 48, 722);
