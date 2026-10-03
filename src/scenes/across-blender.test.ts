@@ -110,3 +110,24 @@ it('every power line starts at a drawn source and ends at a campus or a substati
   expect(near(ends,b,30),`line ends at ${b.x.toFixed(0)},${b.z.toFixed(0)}`).toBe(true);
  }
 });
+it('across campus miniature and campus level share one layout: same hall count and positions, scaled',async()=>{
+ const {campusFootprint,campusHallCells}=await import('./campus-layout.js');
+ const {SITES,PLACES}=await import('../model/sites');
+ const scenarios=[{meterMW:100,accel:'gb200',power:'ac415',cooling:'warm'},{meterMW:5000,accel:'gb300',power:'ac415',cooling:'liquid'},{meterMW:1000,accel:'h100',power:'ac415',cooling:'air'}] as any[];
+ const others=PLACES.map((p:any)=>campusHallCells(campusFootprint(compute({...(SITES as any)[p.ids[0]].scenario,site:p.ids[0]}))).length).reduce((a:number,n:number)=>a+n,0);
+ for(const s of scenarios){
+  const model=compute(s),cells=campusHallCells(campusFootprint(model));
+  expect(cells.length).toBe(model.halls);                       // hall count is the model's, in both drawings
+  const b=across.build({quality:{mobile:true,shadows:false},model});
+  const mini=b.scene.getObjectByName('Mini campus halls');expect(mini).toBeDefined();
+  const mesh=mini.children[0];
+  expect(mesh.count).toBe(model.halls+others);                  // home campus plus every other place
+  // the home campus's instances come first: their offsets are the layout's cells times one scale
+  const m=new Matrix4(),pos=(i:number)=>{mesh.getMatrixAt(i,m);return new Vector3().setFromMatrixPosition(m);};
+  mesh.getMatrixAt(0,m);const sc=new Vector3().setFromMatrixScale(m).y;
+  for(let i=1;i<cells.length;i++){
+   expect(pos(i).x-pos(0).x).toBeCloseTo((cells[i].x-cells[0].x)*sc,3);
+   expect(pos(i).z-pos(0).z).toBeCloseTo((cells[i].z-cells[0].z)*sc,3);
+  }
+ }
+});
