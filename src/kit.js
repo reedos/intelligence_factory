@@ -358,6 +358,97 @@ export const flow = (points, volt, opts) => {
   return f;
 };
 
+// A bus of several real parallel lanes (e.g. a wide trace bus's own drawn lanes) animated as ONE InstancedMesh —
+// one draw call, however many lanes — each lane's own pulses confined to it, never crossing into a neighbour's
+// (unlike CurvePath.getPointAt on a single concatenated path, which would teleport a particle between disjoint
+// lanes at each lane boundary). `lanes`: one polyline per lane (same point-list shape as Flow's `points`); `count`
+// in `opts` is pulses per lane, not the total. A single continuous CurvePath (every lane's segments, in order) is
+// still kept on `this.path` for the flow audit and the route ribbons: both only ever sample or draw one curve at a
+// time, never interpolate across a lane boundary, so the disjoint concatenation is safe there.
+export class LaneFlow {
+  constructor(lanes, css, { count = 3, speed = 1, size = 1, k = 2.2, opacity = 1, role } = {}) {
+    this.role = role; this.gain = 1; this.bright = 1; this.lastT = undefined; this.perLane = count;
+    this.lanePaths = lanes.map(points => {
+      const path = new THREE.CurvePath();
+      const pts = points.map(p => new THREE.Vector3(...p));
+      for (let i = 0; i < pts.length - 1; i++) path.add(new THREE.LineCurve3(pts[i], pts[i + 1]));
+      return path;
+    });
+    this.laneLens = this.lanePaths.map(p => p.getLength());
+    this.laneOf = []; this.phaseOf = [];
+    lanes.forEach((_, L) => { for (let p = 0; p < count; p++) { this.laneOf.push(L); this.phaseOf.push((p + 0.08 * ((L * 7 + p * 3) % 5)) / count); } });
+    this.count = this.laneOf.length; this.speed = speed; this.size = size;
+    this.phase = Math.random();   // unused by this class's own update; kept so flow-ribbons' phase math has a number
+    this.color = new THREE.Color(css).multiplyScalar(k);
+    this.mesh = new THREE.InstancedMesh(pulseGeo, new PulseMaterial({ color: this.color, transparent: true, opacity, depthWrite: false }), this.count);
+    this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.mesh.frustumCulled = false;
+    this.group = new THREE.Group(); this.group.add(this.mesh);
+    this.v = new THREE.Vector3(); this.tangent = new THREE.Vector3(); this.pulseAxis = new THREE.Vector3(0, 0, 1);
+    this.base = { color: this.color.clone(), opacity };
+    this.path = new THREE.CurvePath();
+    for (const lp of this.lanePaths) for (const c of lp.curves) this.path.add(c);
+    this.len = this.laneLens.reduce((a, b) => a + b, 0);
+    this.acc = 0;
+    this.update(0);
+  }
+  setMotionStyle({ density = 1, brightness = 1, radius = 1, pixels = 0, stretch = 1 } = {}) {
+    if (this.motionStyle) return;
+    const minLen = Math.min(...this.laneLens);
+    const perLaneLimit = Math.max(this.perLane, Math.floor(minLen / (this.size * radius * 7)));
+    const perLane = Math.min(Math.ceil(this.perLane * density), perLaneLimit);
+    if (perLane > this.perLane) {
+      const laneOf = [], phaseOf = [];
+      this.laneLens.forEach((_, L) => { for (let p = 0; p < perLane; p++) { laneOf.push(L); phaseOf.push((p + 0.08 * ((L * 7 + p * 3) % 5)) / perLane); } });
+      this.perLane = perLane; this.laneOf = laneOf; this.phaseOf = phaseOf; this.count = laneOf.length;
+      this.mesh.instanceMatrix = new THREE.InstancedBufferAttribute(new Float32Array(this.count * 16), 16);
+      this.mesh.count = this.count;
+    }
+    this.base.color.multiplyScalar(brightness);
+    this.mesh.material.color.copy(this.base.color).multiplyScalar(this.bright);
+    this.motionStyle = { radius, pixels, stretch };
+  }
+  setRenderBudget(fraction = 1) {
+    this.renderFraction = Math.max(.1, Math.min(1, fraction));
+    this.mesh.count = particleBudget(this.count, this.renderFraction);
+  }
+  update(t, projection) {
+    const dt = this.lastT === undefined ? 0 : Math.max(0, t - this.lastT);
+    this.lastT = t; this.acc += this.speed * this.gain * dt;
+    const activeCount = this.mesh.count;
+    for (let i = 0; i < activeCount; i++) {
+      const L = this.laneOf[i], len = this.laneLens[L], path = this.lanePaths[L];
+      const u = (((this.acc / len) + this.phaseOf[i]) % 1 + 1) % 1;
+      path.getPointAt(u, this.v);
+      const style = this.motionStyle;
+      let radius = this.size * (style?.radius || 1);
+      if (projection) {
+        const perPixel = this.v.distanceTo(projection.position) * projection.worldPerPixelAtUnit;
+        if (style?.pixels) radius = Math.max(radius, Math.min(this.size * 1.6, perPixel * style.pixels));
+        radius = Math.min(radius, perPixel * PULSE_MAX_PX);
+      }
+      if (style) radius = Math.min(radius, len / this.perLane / 3.2);
+      const s = radius * (style ? 0.85 + 0.15 * Math.sin(u * 40) : 0.75 + 0.25 * Math.sin(u * 40));
+      const stretch = style ? Math.max(1, Math.min(style.stretch, len / this.perLane / (radius * 3))) : 1;
+      _o.position.copy(this.v);
+      if (stretch > 1) { path.getTangentAt(u, this.tangent); _o.quaternion.setFromUnitVectors(this.pulseAxis, this.tangent); }
+      else _o.rotation.set(0, 0, 0);
+      _o.scale.set(s, s, s * stretch); _o.updateMatrix();
+      this.mesh.setMatrixAt(i, _o.matrix);
+    }
+    this.mesh.instanceMatrix.clearUpdateRanges();
+    this.mesh.instanceMatrix.addUpdateRange(0, activeCount * 16);
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+}
+LaneFlow.prototype.setLevel = Flow.prototype.setLevel;
+// Same contract as flow(): opts.audit declares a solid the route passes through on purpose.
+export const laneFlow = (lanes, volt, opts) => {
+  const f = Object.assign(new LaneFlow(lanes, VOLT[volt]?.css ?? volt, opts), { cls: volt });
+  if (opts?.audit) f.audit = opts.audit;
+  return f;
+};
+
 // ---------- recurring parts ----------
 // A stack of insulator sheds on a core: porcelain or polymer.
 export function insulator(b, x, y0, z, h, r, mat = MAT.porcelain, { axis = 'y', sheds } = {}) {

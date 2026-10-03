@@ -104,9 +104,14 @@ export function build(args) {
     throw new Error('CPO asset does not match the technical layout');
   }
   asset.scale.setScalar(100); asset.name = 'Blender CPO complete hardware';
-  let asicMaterial;
-  asset.traverse(node => { if (node.isMesh && node.material.name === 'Switch ASIC silicon') asicMaterial = node.material; });
+  let asicMaterial, copperMaterial;
+  asset.traverse(node => {
+    if (!node.isMesh) return;
+    if (node.material.name === 'Switch ASIC silicon') asicMaterial = node.material;
+    if (node.material.name === 'Electrical copper') copperMaterial = node.material;
+  });
   if (!asicMaterial) throw new Error('CPO asset is missing its authored switch ASIC');
+  if (!copperMaterial) throw new Error('CPO asset is missing its authored electrical copper');
   asicMaterial.emissive.set(0xff6a1a);
   if (!asicMaterial.map) { asicMaterial.map = asicFace(); asicMaterial.needsUpdate = true; }
   asset.traverse(node => {
@@ -225,6 +230,12 @@ export function build(args) {
       slab.castShadow = !!args.quality.shadows && !electrical;
       slabNotes[k].visible = k === kind && electrical && noteOn();
     }
+    // The wide package-trace bus reads thin next to the bright green data streams it carries once the build-up
+    // layer goes to x-ray above: a small emissive lift keeps the copper legible between the moving pulses without
+    // turning it green itself. Power and heat keep the plain, unlit copper.
+    const dataOn = args.state.mode === 'data';
+    copperMaterial.emissive.set(dataOn ? 0xd98a4a : 0x000000);
+    copperMaterial.emissiveIntensity = dataOn ? 0.35 : 0;
     for (const [material, original] of pipeMaterials) {
       const transparent = heat || original.transparent;
       if (material.transparent !== transparent) { material.needsUpdate = true; dirty = true; }

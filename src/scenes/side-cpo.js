@@ -11,8 +11,8 @@
 // receive fibers in. One engine of each design is drawn again beside the package, lifted and exploded, as a labeled
 // 2.5x detail. Shared by both: the board, the substrate, the switch chip, the front-panel laser modules and their
 // power, the switch chip's power and heat. Everything else sits in its design's own groups, shown one at a time.
-import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, label, outline, FLOW, COL, note, unitCol, asicTex, ringPicTex, RING, glowMat } from './side-kit.js';
-import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes, CPO_VARIANTS, CPO_RING, eicBox, frameToLocal, engineTraceLandings, landingWorld, RING_R, ringEntry, engineBusWidth, engineBusPoint, engineEntryRadius } from './side-geometry.js';
+import { THREE, MAT, Builder, flow, laneFlow, setup, materials, die, strand, trace, label, outline, FLOW, COL, note, unitCol, asicTex, ringPicTex, RING, glowMat } from './side-kit.js';
+import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes, CPO_VARIANTS, CPO_RING, eicBox, frameToLocal, engineTraceLandings, landingWorld, RING_R, engineBusWidth, engineBusPoint, engineEntryRadius } from './side-geometry.js';
 import { ringEicTex, cpoIntro, cpoPartCopy } from './cpo-variants.js';
 import { roundCorners, keepCwCorner, CW_BEND, CPO_AUDIT as AU } from './side-cpo-routes.js';
 import { buildBailly, BAILLY_DETAIL, MY } from './cpo-bailly.js';
@@ -84,9 +84,9 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   // engineTraceLandings in side-geometry.js). Each trace leaves the ASIC already at its own lane's offset — no
   // shared trunk — narrowed at the ASIC only where engineBusWidth found a same-side neighbour or the chip's own
   // face requires it, spreading to full width over the run out to the engine's own inner edge
-  // (engineEntryRadius), then running straight into the die to its cell. eicIn (ringEntry) is kept only for the
-  // data flow and the SerDes pin below.
-  const asicEdge = asicTap, eicIn = ringEntry;
+  // (engineEntryRadius), then running straight into the die to its cell. asicEdge (asicTap) is kept only for the
+  // SerDes pin below; the data flow now rides engineBusPoint's own per-lane points directly.
+  const asicEdge = asicTap;
   const ringLandings = engineTraceLandings('ring'), ringEntryR = engineEntryRadius('ring');
   engines.forEach(e => {
     const { desired, scale } = engineBusWidth('ring', engines, e);
@@ -187,13 +187,28 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   const dot = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), new THREE.MeshBasicMaterial({ color: 0x8a96a8 })); dot.position.set(EQ.x, eqTop, EQ.z); R.group.add(dot);
 
   // ---- NVIDIA-style flows ----
+  // Electrical data rides the wide bus's own lanes (one real animated stream per drawn lane — all 16, the
+  // engine's whole lane count, not a subset) instead of one abstracted line: a 1.6T engine should read as
+  // carrying as much as its fibers, not a trickle next to them. Transmit lanes (the drivers' half of
+  // engineTraceLandings) run toward the engine; receive lanes (the TIAs' half) run back toward the switch chip —
+  // both riding the same asic/entry/land points the trace above is drawn from, with a short rise at the end into
+  // the stacked die (the same pierce the single abstracted flow used before). One LaneFlow per direction keeps
+  // this at the same two dataFlow entries (and draw calls) per engine as before.
+  const ringHalf = ringLandings.length / 2;
   engines.forEach((e, i) => {
-    const [ax, az] = asicEdge(e), [ex, ez] = eicIn(e), tn = e.tan;
-    R.addFlow('data', flow([[ax, Y.subTop + 0.02, az], [ex, Y.subTop + 0.02, ez], [e.x - e.out[0] * 0.3, Y.eng + 0.1, e.z - e.out[1] * 0.3]], 'eth', { ...FLOW.elec, audit: AU.intoEngine }));
-    // The receive lanes return electrically from the EIC to the switch ASIC,
-    // offset along the same substrate corridor so both directions remain readable.
-    const rxOffset = 0.045, rxX = tn[0] * rxOffset, rxZ = tn[1] * rxOffset;
-    R.addFlow('data', flow([[e.x - e.out[0] * 0.3 + rxX, Y.eng + 0.1, e.z - e.out[1] * 0.3 + rxZ], [ex + rxX, Y.subTop + 0.04, ez + rxZ], [ax + rxX, Y.subTop + 0.04, az + rxZ]], 'eth', { ...FLOW.elec, audit: AU.intoEngine }));
+    const { scale } = engineBusWidth('ring', engines, e);
+    const laneUp = ([asic, entry, land]) => {
+      const [lx, lz] = land, top = [lx - e.out[0] * 0.3, Y.eng + 0.1, lz - e.out[1] * 0.3];
+      return [[asic[0], Y.subTop + 0.02, asic[1]], [entry[0], Y.subTop + 0.02, entry[1]], [land[0], Y.subTop + 0.02, land[1]], top];
+    };
+    const lanesOf = set => set.map(([px, py]) => engineBusPoint('ring', e, RING_R, px, py, scale, ringEntryR)).map(laneUp);
+    // The route-ribbon overlay (flow-ribbons.js) draws every one of a flow's own path segments at full glow; with
+    // 16 real lane segments this close together, across 18 engines, that reads as one solid sheet rather than a
+    // bus. Tone it down the same way rack-optics.js does for its own per-lane flows; the moving pulses still
+    // carry the "several lanes" read at full brightness.
+    const bus = lanes => Object.assign(laneFlow(lanes, 'eth', { ...FLOW.elecBus, audit: AU.onBus }), { ribbonIntensity: 0.3 });
+    R.addFlow('data', bus(lanesOf(ringLandings.slice(0, ringHalf))));
+    R.addFlow('data', bus(lanesOf(ringLandings.slice(ringHalf)).map(l => [...l].reverse())));
     // Every modeled engine is active. These route-level marks sample its lane
     // bundle; they are not a count of fibers or a bandwidth scale.
     const routes = fiberRoutes[i];

@@ -38,4 +38,8 @@ export const CPO_AUDIT = {
   // Broadcom-style tile: as drawn the EIC sits on the PIC's electrical end, so lanes from the substrate rise through
   // the photonic die and the bond into the stacked electronic die
   intoStack: { through: /MZM[ _](photonic|electronic)[ _]die[ _]face/i, why: 'up through through-silicon vias (TSVs) in the photonic die, as drawn, into the stacked electronic die' },
+  // the per-lane bus flows (cpo-bailly.js, side-cpo.js): every sampled point rides the same three points
+  // (asic tap, entry, landing cell) the wide package-trace bus itself is drawn from, end to end, including the
+  // tap on the switch chip's own edge and the landing cell on the engine's die
+  onBus: { through: true, why: "the whole run rides the drawn package-trace bus end to end: the ASIC tap, the trace to the engine's own inner edge, then straight into its landing cell" },
 };

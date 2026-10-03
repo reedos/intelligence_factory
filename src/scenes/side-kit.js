@@ -5,8 +5,8 @@
 //   - light runs in glass: waveguides drawn on a photonic chip, fibers as pale glass strands tinted by what they carry;
 //   - transmit and receive are separate chains, transmit on the far side (z < 0), receive on the near side (z > 0);
 //   - what has a published size is drawn to it, and each diagram says which parts those are.
-import { THREE, MAT, Builder, flow, canvasTex, glowMat, textSprite } from '../kit.js';
-export { THREE, MAT, Builder, flow, canvasTex, glowMat, textSprite };
+import { THREE, MAT, Builder, flow, laneFlow, canvasTex, glowMat, textSprite } from '../kit.js';
+export { THREE, MAT, Builder, flow, laneFlow, canvasTex, glowMat, textSprite };
 
 export const COL = { tx: '#62e6ff', rx: '#ff7ad9', cw: '#ffb347', elec: '#a6f35a' };
 export const note = '#8a96a8', unitCol = '#9ff1ff';
@@ -71,6 +71,10 @@ export function lidBox(scene, M, w, d, pos) {
 // flows ride exactly on the drawn paths; `opts` sets how they look, by kind
 export const FLOW = {
   elec: { count: 3, speed: 1.5, size: 0.028, k: 2.8, trail: false },
+  // The CPO package-trace bus (cpo-bailly.js, side-cpo.js): several real lanes land close together on one small
+  // die edge, so each lane's own count stays low — enough lanes lit at once reads as a dense bus without their
+  // pulses blooming into one sheet of light the way FLOW.elec's count would packed this tight.
+  elecBus: { count: 2, speed: 1.6, size: 0.022, k: 2.2, trail: false },
   light: { count: 4, speed: 1.9, size: 0.032, k: 3.2, trailR: 0.007, trailK: 0.3 },
   cw: { count: 3, speed: 1.2, size: 0.028, k: 2.6, trail: false },
   power: { count: 3, speed: 1.4, size: 0.032, k: 2.6, trail: false },

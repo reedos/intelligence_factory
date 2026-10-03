@@ -7,7 +7,7 @@
 // floorplan and the fiber routing are representative (evidence.js 'cpo-bailly-layout').
 // This file builds the runtime half of that package: native stand-in geometry (the authored build draws the real
 // meshes from the same layout), flows, captions, guides and pins, all into the package's own groups.
-import { THREE, MAT, flow, die, strand, trace, label, FLOW, COL, note, unitCol } from './side-kit.js';
+import { THREE, MAT, flow, laneFlow, die, strand, trace, label, FLOW, COL, note, unitCol } from './side-kit.js';
 import { CPO_MZM, CPO_EIC, CPO_DIE, BAILLY, baillyLayout, baillyFiberRoutes, asicTap, eicBox, frameToLocal, cpoBlocks, engineTraceLandings, landingWorld, tileEntry, engineBusWidth, engineBusPoint, engineEntryRadius } from './side-geometry.js';
 import { eicMzmTex, mzmCpoPicTex } from './cpo-variants.js';
 import { roundCorners, keepCwCorner, CW_BEND, CPO_AUDIT as AU } from './side-cpo-routes.js';
@@ -114,11 +114,28 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
   leader.computeLineDistances(); group.add(leader);
 
   // ---- flows ----
+  // Electrical data rides the wide bus's own lanes (one real animated stream per drawn lane, matching the 16
+  // traces drawn above, of the tile's 64) instead of one abstracted line: a 6.4T tile should read as carrying as
+  // much as its fibers, not a trickle next to them. Transmit lanes (the drivers' half of engineTraceLandings) run
+  // toward the engine; receive lanes (the TIAs' half) run back toward the switch chip — both riding the same
+  // asic/entry/land points the trace is drawn from, with a short rise at the end into the stacked die (the same
+  // pierce the single abstracted flow used before). One LaneFlow per direction keeps this at the same two
+  // dataFlow entries (and draw calls) per tile as before, whatever lane count is drawn.
+  const half = landings.length / 2;
   tiles.forEach((t, i) => {
-    const [ax, az] = asicTap(t), [ix, iz] = inner(t), top = [ix + t.out[0] * 0.3, MY + 0.12, iz + t.out[1] * 0.3];
-    addFlow('data', flow([[ax, Y.subTop + 0.02, az], [ix, Y.subTop + 0.02, iz], top], 'eth', { ...FLOW.elec, audit: AU.intoStack }));
-    const o = 0.045, ox = t.tan[0] * o, oz = t.tan[1] * o;
-    addFlow('data', flow([[top[0] + ox, top[1], top[2] + oz], [ix + ox, Y.subTop + 0.04, iz + oz], [ax + ox, Y.subTop + 0.04, az + oz]], 'eth', { ...FLOW.elec, audit: AU.intoStack }));
+    const { scale } = engineBusWidth('mzm', tiles, t);
+    const laneUp = ([asic, entry, land]) => {
+      const [lx, lz] = land, top = [lx + t.out[0] * 0.3, MY + 0.12, lz + t.out[1] * 0.3];
+      return [[asic[0], Y.subTop + 0.02, asic[1]], [entry[0], Y.subTop + 0.02, entry[1]], [land[0], Y.subTop + 0.02, land[1]], top];
+    };
+    const lanesOf = set => set.map(([px, py]) => engineBusPoint('mzm', t, t.r, px, py, scale, entryR)).map(laneUp);
+    // The route-ribbon overlay (flow-ribbons.js) draws every one of a flow's own path segments at full glow; with
+    // 16 real lane segments this close together that reads as one solid sheet rather than a bus. Tone it down the
+    // same way rack-optics.js does for its own per-lane flows; the moving pulses still carry the "several lanes"
+    // read at full brightness.
+    const bus = lanes => Object.assign(laneFlow(lanes, 'eth', { ...FLOW.elecBus, audit: AU.onBus }), { ribbonIntensity: 0.3 });
+    addFlow('data', bus(lanesOf(landings.slice(0, half))));
+    addFlow('data', bus(lanesOf(landings.slice(half)).map(l => [...l].reverse())));
     addFlow('data', flow(roundCorners(routes[i].tx[7]), 'tx', { ...FLOW.light, audit: AU.throughConnector }));
     addFlow('data', flow(roundCorners([...routes[i].rx[7]].reverse()), 'rx', { ...FLOW.light, audit: AU.throughConnector }));
     addFlow('data', flow(roundCorners(routes[i].cw[0], keepCwCorner, CW_BEND), 'cw', { ...FLOW.cw, audit: AU.throughConnector }));
