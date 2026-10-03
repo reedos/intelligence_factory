@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { build as rack } from './rack.js';
 import { build as tray } from './tray.js';
 import { build as chip } from './chip.js';
-import { applyPcb } from './tray-pcb.js';
+import { applyPcb, pcbLayout } from './tray-pcb.js';
 import { rackMarks } from './electrical-marks.js';
 import { rackManifoldMarks } from './cooling-marks.js';
 import { surfaceHit, realizeSpots } from './print-kit.js';
@@ -17,7 +17,7 @@ const assetKey = (kind, model) => `compute-${kind}-${variant(kind, model)}`;
 
 async function load(key) {
   if (cache.has(key)) return;
-  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=rackfu1-dgx-hbm2`)
+  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=rackfu2-tray-match`)
     .then(gltf => { cache.set(key, gltf.scene); pending.delete(key); })
     .catch(error => { pending.delete(key); throw error; }));
   await pending.get(key);
@@ -147,8 +147,10 @@ function rackBoards(accel) {
     { from: [-0.21, 0.21, 0.6418, 1.0562], to: [2.3, 6.5, -4.32, 0.12], y: 0.9322 },
     { from: [-0.21, 0.21, 1.0637, 1.3455], to: [2.3, 6.5, 0.2, 3.22], y: 0.9322 },
   ];
-  const [z0, z1] = accel === 'rubin' ? [-3.97, 0.93] : [-3.25, 2.55];
-  return [{ from: [-0.209, -0.007, 0.636, 1.194], to: [-2.1, -0.1, z0, z1] }, { from: [0.007, 0.209, 0.636, 1.194], to: [0.1, 2.1, z0, z1] }];
+  // Superchip boards: the extents the tray level builds (tray-pcb.js pcbLayout), at the pulled tray's z.
+  const B = pcbLayout(accel).boards[0], PZ = 0.965, z0 = B.z - B.d / 2, z1 = B.z + B.d / 2;
+  const f0 = PZ + z0 * 0.1, f1 = PZ + z1 * 0.1;
+  return [{ from: [-0.209, -0.007, f0, f1], to: [-2.1, -0.1, z0, z1] }, { from: [0.007, 0.209, f0, f1], to: [0.1, 2.1, z0, z1] }];
 }
 export const rackBuilder = { preload: ({ model }) => preloadCompute('rack', model), build: options => build('rack', rack, options) };
 export const trayBuilder = { preload: ({ model }) => preloadCompute('tray', model), build: options => build('tray', tray, options) };

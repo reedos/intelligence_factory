@@ -7,11 +7,19 @@ import { computeMaterials, finishCompute, boardFinish } from './compute-finish.j
 import { etch } from './package-marks.js';
 import { tagHeat, balanceHeat, PART_W } from '../heat.js';
 import { FABRICS } from '../model/engine.ts';
+// GPU, CPU, NIC-board and DPU centers (tray units, 10 cm, tray-local frame, front +z) and the cold-plate footprint
+// over each. Exported so the rack's pulled-tray LOD (rack.js) draws the same nine plates at the same spots instead
+// of a hand-picked stand-in, and the two views can never drift apart.
+export const RUBIN_GPU=[[-1.60,-2.7],[-.62,-2.7],[.62,-2.7],[1.60,-2.7]],RUBIN_CPU=[[-1.1,-.65],[1.1,-.65]];
+export const RUBIN_NIC=[[-1.35,2.85],[1.35,2.85]],RUBIN_DPU=[0,2.85];
+export const RUBIN_COLD_PLATES=[...RUBIN_GPU.map(([x,z])=>({x,z,w:.88,d:1.0,kind:'gpu'})),...RUBIN_CPU.map(([x,z])=>({x,z,w:.80,d:.85,kind:'cpu'})),
+ ...RUBIN_NIC.map(([x,z])=>({x,z,w:1.08,d:1.65,kind:'nic'})),{x:RUBIN_DPU[0],z:RUBIN_DPU[1],w:.76,d:1.65,kind:'dpu'}];
+
 export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,trayLidLabels}) {
  const scene=new THREE.Scene();lights(scene,quality);
  const S=new Builder(),N=new Builder(),flows=[],dataFlows=[],heatFlows=[],finish=computeMaterials();
- const gp=[[-1.60,-2.7],[-.62,-2.7],[.62,-2.7],[1.60,-2.7]],cp=[[-1.1,-.65],[1.1,-.65]];
- const nic=[[-1.35,2.85],[1.35,2.85]],dpu=[0,2.85];
+ const gp=RUBIN_GPU,cp=RUBIN_CPU;
+ const nic=RUBIN_NIC,dpu=RUBIN_DPU;
  // Full-length open chassis, midplane and independently serviceable bay floors.
  S.box(4.4,.035,9,MAT.galv,0,.0175,0);
  for(const x of [-2.2,2.2])S.box(.035,.44,9,MAT.galv,x,.22,0);
@@ -71,7 +79,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  for(const x of [-1.1,1.1])S.box(.11,.028,4.5,MAT.copper,x,.102,-1.7);
  // Lifted cold plates reveal packages. Internal rigid liquid manifold is shown
  // at its top surface; colored motion is a schematic view of enclosed channels.
- const cooled=[...gp.map(p=>[...p,.88,1.0]),...cp.map(p=>[...p,.80,.85]),...nic.map(p=>[...p,1.08,1.65]),[...dpu,.76,1.65]];
+ const cooled=RUBIN_COLD_PLATES.map(p=>[p.x,p.z,p.w,p.d]);
  // Heat per plate: GPU and CPU from the accelerator table; the tray's share of the rack's NIC/DPU power split
  // over four SuperNICs per NIC board and one DPU, counted as two NICs (an assumption: heat-visual-scale).
  const A=model.accel,nicTrayW=A.nicKW*1000/18,nicW=nicTrayW*4/10,dpuW=nicTrayW*2/10;

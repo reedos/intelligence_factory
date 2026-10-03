@@ -12,6 +12,18 @@ import { rackUnits } from './site-signs.js';
 import { LAYOUT as NVL_LAYOUT, trayY as nvlTrayY, ROWS as NVL_ROWS, PULLED as NVL_PULLED, SWITCH_PULLED as NVL_SWITCH_PULLED } from './nvl72-layout.js';
 import { componentView } from '../app/housing-frame.js';
 import { DGX } from './dgx-h100-layout.js';
+// The pulled compute tray's cold plates and fans come from the same layout tray.js and tray-rubin.js build the
+// tray level from, in tray units (10 cm) converted to the rack's meters below (TRAY_UNIT), so the rack's LOD
+// tray cannot silently drift from the authoritative one (tests/rack-tray-match.test.ts checks this stays wired).
+import { pcbLayout } from './tray-pcb.js';
+import { NVL_BOARD_X, NVL_CPU, NVL_GPU_Z, NVL_GPU_SIZE, NVL_FAN_X, NVL_FAN_Z } from './tray.js';
+import { RUBIN_COLD_PLATES } from './tray-rubin.js';
+const TRAY_UNIT = 0.1;
+export const NVL_COLD_PLATES = NVL_BOARD_X.flatMap(bx => [
+  { x: bx, z: NVL_CPU.z, w: NVL_CPU.size, d: NVL_CPU.size, kind: 'cpu' },
+  { x: bx, z: NVL_GPU_Z[0], w: NVL_GPU_SIZE, d: NVL_GPU_SIZE, kind: 'gpu' },
+  { x: bx, z: NVL_GPU_Z[1], w: NVL_GPU_SIZE, d: NVL_GPU_SIZE, kind: 'gpu' },
+]);
 import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
 
 const U = 0.04445;
@@ -684,21 +696,20 @@ function buildNVL({ quality, model, state }) {
   const PAN = new THREE.MeshStandardMaterial({ color: 0x7a828a, roughness: 0.62, metalness: 0.5 }); PAN.name = 'Tray pan satin steel';
   pulled.box(trayW, 0.004, trayD, PAN, 0, py - U / 2 + 0.004, pz);
   pulled.box(0.004, U * 0.9, trayD, PAN, -trayW / 2, py, pz); pulled.box(0.004, U * 0.9, trayD, PAN, trayW / 2, py, pz);
-  for (const x of [-.108,.108]) pulled.box(.202, 0.003, trayD * 0.62, TRAY_PCB, x, py - U / 2 + 0.008, pz - 0.05);
-  const plates = rubin ? [[-.165,-.23],[-.06,-.23],[.06,-.23],[.165,-.23]] : [[-0.11,-0.2],[0.11,-0.2],[-0.11,0.08],[0.11,0.08]];
+  // Every board from the tray level's own plan (tray-pcb.js pcbLayout, the layout its solder mask is painted from):
+  // the two superchip boards, and the NIC mezzanines and front cage boards (GB) or NIC and DPU boards (Rubin).
+  const TU = TRAY_UNIT, by = py - U / 2 + 0.008;
+  const lift = b => rubin ? (b.z > 2 ? 0.003 : 0) : b.z > 4 ? 0.012 : b.z > 3 ? 0.019 : 0;   // NIC/cage boards stand above the superchip boards, as at tray level
+  for (const b of pcbLayout(model.accel.id).boards) if (!b.module) pulled.box(b.w * TU, 0.003, b.d * TU, TRAY_PCB, b.x * TU, by + lift(b), pz + b.z * TU);
+  const plates = (rubin ? RUBIN_COLD_PLATES : NVL_COLD_PLATES).map(p => ({ x: p.x * TRAY_UNIT, z: p.z * TRAY_UNIT, w: p.w * TRAY_UNIT, d: p.d * TRAY_UNIT, kind: p.kind }));
   // Brushed lids, not mirror nickel: upward-facing polished slabs bloomed to white under the studio softbox.
   const LID = new THREE.MeshStandardMaterial({ color: 0x6b7178, roughness: 0.72, metalness: 0.3 }); LID.name = 'Brushed cold plate lid';
-  plates.forEach(([x, z]) => { pulled.box(0.1, 0.018, 0.12, MAT.copper, x, py - U / 2 + 0.02, pz + z); pulled.box(0.07, 0.006, 0.09, LID, x, py - U / 2 + 0.032, pz + z); });
-  for (const x of [-0.11, 0.11]) { pulled.box(0.07, 0.014, 0.07, MAT.copper, x, py - U / 2 + 0.018, pz + 0.26); }
-  if (!rubin) for (const x of [-0.11, 0.11]) { pulled.strut([x - 0.02, py - U / 2 + 0.03, pz + 0.26], [x - 0.02, py - U / 2 + 0.03, pz - 0.44], 0.005, MAT.pipeBlue, 6); pulled.strut([x + 0.02, py - U / 2 + 0.03, pz + 0.26], [x + 0.02, py - U / 2 + 0.03, pz - 0.44], 0.005, MAT.pipeRed, 6); }
+  plates.forEach(({ x, z, w, d }) => { pulled.box(w, 0.018, d, MAT.copper, x, py - U / 2 + 0.02, pz + z); pulled.box(w * 0.74, 0.006, d * 0.74, LID, x, py - U / 2 + 0.032, pz + z); });
+  if (!rubin) for (const x of NVL_BOARD_X.map(bx => bx * TRAY_UNIT)) { pulled.strut([x - 0.02, py - U / 2 + 0.03, pz + NVL_CPU.z * TRAY_UNIT], [x - 0.02, py - U / 2 + 0.03, pz + NVL_GPU_Z[1] * TRAY_UNIT], 0.005, MAT.pipeBlue, 6); pulled.strut([x + 0.02, py - U / 2 + 0.03, pz + NVL_CPU.z * TRAY_UNIT], [x + 0.02, py - U / 2 + 0.03, pz + NVL_GPU_Z[1] * TRAY_UNIT], 0.005, MAT.pipeRed, 6); }
   const fanItems = [];
-  if (!rubin) for (let i = 0; i < 6; i++) { const fx0 = -0.15 + i * 0.06; pulled.box(0.05, 0.03, 0.04, MAT.fan, fx0, py - U / 2 + 0.02, pz + 0.38); fanItems.push({ p: [fx0, py - U / 2 + 0.02, pz + 0.38 + 0.022], axis: 'z', r: 0.018 }); }
-  if (model.accel.id === 'gb300') for (const x of [-.11,.11]) for (const dx of [-.045,.045]) pulled.box(.025,.006,.105,MAT.pcbBlack,x+dx,py+.01,pz+.26);
-  if (rubin) {
-    pulled.box(.42,.026,.022,MAT.darkSteel,0,py,pz+.14);
-    for(const x of [-.20,.20])pulled.box(.012,.014,.82,LID,x,py+.005,pz);
-    for(const x of [-.13,0,.13])pulled.box(.10,.016,.18,LID,x,py+.01,pz+.30);
-  }
+  if (!rubin) NVL_FAN_X.forEach(fx0 => { const x = fx0 * TRAY_UNIT, z = pz + NVL_FAN_Z * TRAY_UNIT; pulled.box(0.05, 0.03, 0.04, MAT.fan, x, py - U / 2 + 0.02, z); fanItems.push({ p: [x, py - U / 2 + 0.02, z + 0.022], axis: 'z', r: 0.018 }); });
+  // Rubin's midplane (tray-rubin.js, z 1.1): the blind-mate wall between the superchip boards and the NIC/DPU bay.
+  if (rubin) pulled.box(.41, .024, .004, MAT.pcbBlack, 0, py - U / 2 + 0.02, pz + 0.112);
   const pFront = new THREE.Mesh(new THREE.BoxGeometry(trayW, U * 0.94, 0.02), [MAT.rackFace, MAT.rackFace, MAT.rackFace, MAT.rackFace, new THREE.MeshStandardMaterial({ map: TEX.compute, roughness: 0.5, metalness: 0.35 }), MAT.rackFace]);
   pFront.position.set(0, py, pz + trayD / 2); scene.add(pFront);
   // Thin service-face returns leave both rows of optical cages accessible.
@@ -943,9 +954,11 @@ function buildNVL({ quality, model, state }) {
   const airShare = model.accel.liquidShare < 0.99;
   if (airShare) for (const i of airRow) for (const x of [-0.15, 0.05, 0.2]) heatFlows.push(airPath(flow([[x, trayY(i), 0.2], [x, trayY(i) + 0.02, ZB], [x * 1.2, trayY(i) + 0.12, ZB - 0.7]], 'air', { count: 4, speed: 0.35, size: 0.024, k: 2.4, opacity: 0.9, trail: false })));
   balanceHeat(heatFlows);
-  for (const x of [-0.11, 0.11]) {
-    flows.push(flow([[x - 0.02, py - U / 2 + 0.035, pz - 0.44], [x - 0.02, py - U / 2 + 0.035, pz + 0.26]], 'cool', { count: 6, speed: 0.15, size: 0.006, trail: false }));
-    flows.push(flow([[x + 0.02, py - U / 2 + 0.035, pz + 0.26], [x + 0.02, py - U / 2 + 0.035, pz - 0.44]], 'warm', { count: 6, speed: 0.15, size: 0.006, trail: false }));
+  // coolant along the drawn hoses (supply and return struts above), Grace's plate to the rear GPU's; Rubin draws no hoses
+  const hoseFront = pz + NVL_CPU.z * TRAY_UNIT, hoseRear = pz + NVL_GPU_Z[1] * TRAY_UNIT;
+  if (!rubin) for (const x of NVL_BOARD_X.map(bx => bx * TRAY_UNIT)) {
+    flows.push(flow([[x - 0.02, py - U / 2 + 0.035, hoseRear], [x - 0.02, py - U / 2 + 0.035, hoseFront]], 'cool', { count: 6, speed: 0.15, size: 0.006, trail: false }));
+    flows.push(flow([[x + 0.02, py - U / 2 + 0.035, hoseFront], [x + 0.02, py - U / 2 + 0.035, hoseRear]], 'warm', { count: 6, speed: 0.15, size: 0.006, trail: false }));
   }
   flows.forEach(f => scene.add(f.group));
   dataFlows.forEach(f => scene.add(f.group));
@@ -990,9 +1003,12 @@ function buildNVL({ quality, model, state }) {
     PD.push({ id: `${k}-${i}`, part: PART[k], watts: trayW_[k], at: [0, trayY(i), ZF - 0.07 + 0.004], size: [trayW, U * 0.9], normal: [0, 0, 1], margin: 0.008, fill: 0.04 });
   });
   const floor = py - U / 2 + 0.0085;
-  plates.forEach(([x, z], i) => PD.push({ id: `pulled-gpu-${i}`, part: 'compute', watts: A_.gpuW, volt: 'core', at: [x, floor, pz + z], size: [0.095, 0.095] }));
-  for (const x of [-0.11, 0.11]) PD.push({ id: `pulled-cpu-${x}`, part: 'compute', watts: A_.cpuW, volt: 'core', at: [x, floor, pz + 0.26], size: [0.07, 0.07] });
-  fanItems.forEach((f, i) => PD.push({ id: `pulled-fan-${i}`, watts: A_.otherKW * 1000 / 18 / 10, at: [f.p[0], py - U / 2 + 0.0045, pz + 0.38], size: [0.05, 0.04] }));
+  // Each plate by what it actually covers: a GPU on gpuW, Grace/Vera on cpuW; the rack's NIC/DPU share (as the tray
+  // level's cold plates split it, tray-rubin.js) on Rubin's NIC-board and DPU plates.
+  const nicDpuW = rubin ? A_.nicKW * 1000 / 18 : 0;
+  const plateW = { gpu: A_.gpuW, cpu: A_.cpuW, nic: nicDpuW * 4 / 10, dpu: nicDpuW * 2 / 10 };
+  plates.forEach(({ x, z, w, d, kind }, i) => PD.push({ id: `pulled-${kind}-${i}`, part: 'compute', watts: plateW[kind], volt: kind === 'gpu' || kind === 'cpu' ? 'core' : undefined, at: [x, floor, pz + z], size: [w * 0.9, d * 0.9] }));
+  fanItems.forEach((f, i) => PD.push({ id: `pulled-fan-${i}`, watts: A_.otherKW * 1000 / 18 / 10, at: [f.p[0], py - U / 2 + 0.0045, f.p[2]], size: [0.05, 0.04] }));
   switchPositions.forEach(([x, z], i) => PD.push({ id: `pulled-switch-${i}`, part: 'nvswitch', watts: A_.scaleupKW * 1000 / 9 / switchPositions.length, at: [x, sy - 0.0015, sz + z], size: [0.099, 0.099] }));
   return {
     manifoldTags,

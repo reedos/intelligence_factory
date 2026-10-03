@@ -642,6 +642,16 @@ function buildHGX({ quality, model }) {
 }
 
 // ---------- NVL72 compute tray: two superchip boards, liquid-cooled ----------
+// Cold-plate and fan layout, GB200/GB300 (shared with the rack's pulled-tray LOD in rack.js so the two can never
+// drift apart): tray units (10 cm), tray-local frame, front +z. Two superchip boards at NVL_BOARD_X; on each,
+// Grace's plate at NVL_CPU.z, the two GPU plates at NVL_GPU_Z (front, rear). Square plates, side = size.
+export const NVL_BOARD_X = [-1.1, 1.1];
+export const NVL_LPDDR = { dx: 0.55, z0: -0.36, pitch: 0.24, n: 4 };   // LPDDR5X packages beside Grace, each side
+export const NVL_CPU = { z: 1.75, size: 0.66 };
+export const NVL_GPU_Z = [0.2, -1.55], NVL_GPU_SIZE = 0.9;
+export const NVL_FAN_Z = 2.55;                         // ZF (4.5) - 1.95
+export const NVL_FAN_X = Array.from({ length: 6 }, (_, i) => -1.9 + i * 0.76 + 0.19);
+
 function buildNVL({ quality, model }) {
   const cpuLabel = 'GRACE', ultra = model.accel.id === 'gb300';
   const scene = new THREE.Scene();
@@ -715,7 +725,7 @@ function buildNVL({ quality, model }) {
     // Soldered LPDDR5X beside Grace on both GB200 and GB300 (NVIDIA's GB300
     // reference architecture lists LPDDR5 CPU memory; SOCAMM on GB300 is disputed).
     for (const side of [-1, 1]) for (let i = 0; i < 4; i++) {
-      const lx = bx + side * 0.55, lz = cz - 0.36 + i * 0.24;
+      const lx = bx + side * NVL_LPDDR.dx, lz = cz + NVL_LPDDR.z0 + i * NVL_LPDDR.pitch;
       S.box(0.16, 0.025, 0.2, MAT.black, lx, floorY + 0.03, lz);                                            // LPDDR5X package
       if (heavy) N.box(0.1, 0.008, 0.13, MAT.hbm, lx, floorY + 0.043, lz);                                   // die-side detail, one shade lighter
     }
@@ -763,9 +773,9 @@ function buildNVL({ quality, model }) {
   const plateLoop = [];
   // heat per plate: a GPU package or a CPU with its memory; each board's loop carries its three plates
   const { gpuW, cpuW } = model.accel, boardW = 2 * gpuW + cpuW;
-  for (const bx of [-1.1, 1.1]) {
+  for (const bx of NVL_BOARD_X) {
     const pts = [];
-    [[bx, 1.75, 0.66], [bx, 0.2, 0.9], [bx, -1.55, 0.9]].forEach(([x, z, s], k) => {
+    [[bx, NVL_CPU.z, NVL_CPU.size], [bx, NVL_GPU_Z[0], NVL_GPU_SIZE], [bx, NVL_GPU_Z[1], NVL_GPU_SIZE]].forEach(([x, z, s], k) => {
       coldPlateDetail(S, finish, x, floorY + 0.1 + lift, z, s, heavy);
       N.cyl(0.035, 0.08, MAT.nickel, x - 0.2, floorY + 0.23 + lift, z, 10); N.cyl(0.035, 0.08, MAT.nickel, x + 0.2, floorY + 0.23 + lift, z, 10);
       pts.push([x, z]);
@@ -833,7 +843,7 @@ function buildNVL({ quality, model }) {
   }
   for (let i = 0; i < 4; i++) { const dx = -1.95 + i * 0.26; S.box(0.22, 0.34, 1.1, MAT.darkSteel, dx, 0.2, ZF - 0.6); statusLeds.push({ p: [dx, 0.38, ZF - 0.06], color: '#5cf29a', rate: 0.3 }); }  // E1.S drives
   const trayFans = [];
-  for (let i = 0; i < 6; i++) { S.box(0.38, 0.36, 0.3, MAT.fan, -1.9 + i * 0.76 + 0.19, 0.2, ZF - 1.95); N.cylZ(0.15, 0.02, MAT.darkSteel, -1.9 + i * 0.76 + 0.19, 0.2, ZF - 1.79, 16); trayFans.push({ p: [-1.9 + i * 0.76 + 0.19, 0.2, ZF - 1.76], axis: 'z', r: 0.14 }); }
+  NVL_FAN_X.forEach(fx => { S.box(0.38, 0.36, 0.3, MAT.fan, fx, 0.2, ZF - 1.95); N.cylZ(0.15, 0.02, MAT.darkSteel, fx, 0.2, ZF - 1.79, 16); trayFans.push({ p: [fx, 0.2, ZF - 1.76], axis: 'z', r: 0.14 }); });
   // Blackwell retains peripheral air cooling; Rubin has a separate fanless builder.
   const allLiquid = false;
   const nvlFans = spinners(trayFans, MAT.darkSteel, { speed: allLiquid ? 0 : 9 }); nvlFans.mesh.userData.computeDynamic = 'rotor'; scene.add(nvlFans.mesh);

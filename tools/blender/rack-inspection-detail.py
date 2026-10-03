@@ -3,7 +3,10 @@ language. Device counts and functional route centers belong to rack.js. Small
 passives, fasteners and fabrication marks are representative, not a vendor BOM.
 Only the exposed tray receives this detail; repeated closed trays stay batched.
 """
-import bpy
+import bpy, json
+from pathlib import Path
+
+LAY=json.loads((Path(__file__).resolve().parent/'references'/'rack-tray-layout.json').read_text())
 
 def enhance(accel,m,box,cylinder,material):
     U=.04445
@@ -103,39 +106,50 @@ def enhance(accel,m,box,cylinder,material):
                 b('power connector',(x,yb+.020,pz+dz),(.013,.014,.027),m['graphite'])
                 for k in range(3):b('power terminal',(x-.004+k*.004,yb+.0275,pz+dz),(.0015,.001,.016),m['bright'],0)
         for x in [-.009,.009]:tube('supply harness',[(x,yb+.023,pz-.43),(x,yb+.023,pz-.34),(x,yb+.031,pz+.12),(x,yb+.022,pz+.29)],.003,power)
-        for side in [-1,1]:
-            control_board('network mezzanine',side*.112,yb+.013,pz+.185,.178,.072)
-        nic_sites=[(x,.185) for x in [-.175,-.05,.05,.175]]
-        if rubin:nic_sites=[(x,z) for x in [-.175,-.05,.05,.175] for z in [.175,.215]]
+        # Network hardware where the tray level puts it (rack-tray-layout.json, written by export-native-reference.mjs
+        # from the constants tray.js and tray-rubin.js build from; tray units x .1). The NIC mezzanine, cage and DPU
+        # boards themselves come from tray-pcb.js pcbLayout in rack.js.
+        TU=LAY['unit']
+        if rubin:
+            nic_sites=[(nx*TU+dx*TU,nz*TU+dz*TU) for nx,nz in [(-1.35,2.85),(1.35,2.85)] for dx in [-.3,.3] for dz in [-.47,.47]]
+        else:
+            nic_sites=[(x*TU,3.3*TU) for x in [.2,.7,1.2,1.7]]
+        nl=.003 if rubin else .019   # the NIC boards' height above the superchip boards (rack.js)
         for x,dz in nic_sites:
-            b('network package',(x,yb+.017,pz+dz),(.024,.005,.024),m['graphite'])
-            b('network thermal base',(x,yb+.021,pz+dz),(.028,.003,.029),m['shell'])
+            b('network package',(x,yb+.017+nl,pz+dz),(.024,.005,.024),m['graphite'])
+            b('network thermal base',(x,yb+.021+nl,pz+dz),(.028,.003,.029),m['shell'])
             if not rubin:
-                for k in range(9):b('network heatsink fin',(x-.0112+k*.0028,yb+.026,pz+dz),(.0009,.008,.027),m['shell'],.0002)
-        dpu_sites=[-.048,.048] if accel=='gb200' else [.048]
-        for x in dpu_sites:
-            control_board('storage control board',x,yb+.012,pz+.305,.043,.068)
-            b('DPU thermal assembly',(x,yb+.020,pz+.305),(.028,.013,.041),m['shell'])
-            if not rubin:
-                for k in range(8):b('DPU cooling fin',(x-.012+k*.0034,yb+.030,pz+.305),(.001,.008,.038),m['shell'],.0002)
-        # Small memory and support packages sit around the existing processors;
-        # they are illustrative support population rather than exact vendor BOM.
-        for side in [-1,1]:
-            for dz in [-.31,-.29,-.04,-.02,.12]:
-                for x in [side*.075,side*.145]:
-                    b('support memory package',(x,yb+.012,pz+dz),(.018,.003,.012),m['graphite'])
-                    passives(x,yb+.011,pz+dz+.010,.018,5)
-        # Six existing processor cold plates get the same copper/seal/milled-lid
-        # construction as the close-up, at their rack diagram coordinates.
-        plates=([(-.165,-.23),(-.06,-.23),(.06,-.23),(.165,-.23)] if rubin else [(-.11,-.2),(.11,-.2),(-.11,.08),(.11,.08)])
-        for x,dz,w,d,y in [(x,z,.10,.12,yb+.035) for x,z in plates]+[(x,.26,.07,.07,yb+.026) for x in [-.11,.11]]:
-            z=pz+dz
+                for k in range(9):b('network heatsink fin',(x-.0112+k*.0028,yb+.026+nl,pz+dz),(.0009,.008,.027),m['shell'],.0002)
+        if not rubin:
+            for x in ([-.08,-.03] if accel=='gb200' else [-.035]):
+                control_board('storage control board',x,yb+.032,pz+.365,.040,.120)
+                b('DPU thermal assembly',(x,yb+.040,pz+.365),(.030,.014,.065),m['shell'])
+                for k in range(8):b('DPU cooling fin',(x-.012+k*.0034,yb+.050,pz+.365),(.001,.008,.062),m['shell'],.0002)
+        # LPDDR5X beside each Grace (GB: four packages a side), the SOCAMM modules beside each Vera (Rubin).
+        if rubin:
+            for cx in [-1.1,1.1]:
+                for side in [-1,1]:
+                    for k in range(4):
+                        b('support memory package',((cx+side*.64)*TU,yb+.016,pz+(-.65-.33+k*.22)*TU),(.022,.004,.017),m['graphite'])
+        else:
+            lp=LAY['nvl']['lpddr']
+            for bx in LAY['nvl']['boardX']:
+                for side in [-1,1]:
+                    for k in range(lp['n']):
+                        x=(bx+side*lp['dx'])*TU;z=(LAY['nvl']['cpu']['z']+lp['z0']+k*lp['pitch'])*TU
+                        b('support memory package',(x,yb+.0125,pz+z),(.016,.0025,.020),m['graphite'])
+                        passives(x,yb+.011,pz+z+.012,.016,4)
+        # Cold plates: the tray level's own plates (6 on GB: Grace + two GPUs a board; 9 on Rubin: four GPUs, two
+        # Vera, two NIC boards, the DPU), with the same copper/seal/milled-lid construction as the close-up.
+        plates=LAY['rubin' if rubin else 'nvl']['plates']
+        for pl in plates:
+            x,z,w,d,y=pl['x']*TU,pz+pl['z']*TU,pl['w']*TU,pl['d']*TU,yb+.035
             b('cold plate perimeter seal',(x,y,z),(w*.86,.0016,d*.86),m['dark'])
             b('milled cold plate crown',(x,y+.0025,z),(w*.80,.0035,d*.80),lid,.0013)
-            # The original coolant lines at x +/- .02 retain clear space.
             for sx in [-1,1]:
                 for sz in [-1,1]:screw(x+sx*w*.39,y+.0048,z+sz*d*.37,.0022)
             for k in range(5):b('lid identification mark',(x-.008+k*.004,y+.0044,z),(.0013,.00015,.006),m['etch'],0)
+            if pl['kind'] not in ('gpu','cpu'):continue
             frame('socket silkscreen',x,yb+.010,z,w+.008,d+.010)
             for sz in [-1,1]:passives(x,yb+.011,z+sz*(d/2+.009),w*.80,12)
             for sx in [-1,1]:
@@ -146,21 +160,20 @@ def enhance(accel,m,box,cylinder,material):
                     b('power stage',(xx-sx*.007,yb+.011,zz),(.003,.0015,.006),m['dark'],.0002)
         # Solder mask on the unused board margins, representative support
         # passives and thermal vias; no extra accelerator or network devices.
+        bz,bd=(-1.52,4.9) if rubin else (-.35,5.8)
+        edge_n=int((bd*TU-.09)/.021)
         for x in [-.193,.193]:
-            b('board edge',(x,yb+.0096,pz-.05),(.029,.0008,.49),pcb,0)
-            for j in range(22):
-                z=pz-.282+j*.021
+            b('board edge',(x,yb+.0096,pz+bz*TU),(.029,.0008,bd*TU-.09),pcb,0)
+            for j in range(edge_n):
+                z=pz+bz*TU-(edge_n-1)*.0105+j*.021
                 passives(x,yb+.011,z,.018,4)
                 if j%4==0:screw(x,yb+.011,z+.009,.0017)
         if not rubin:
-            for i in range(6):
-                x=-.15+i*.06
+            for fx in LAY['nvl']['fanX']:
+                x=fx*TU
                 for s in [-1,1]:
-                    b('fan cassette rim',(x+s*.024,yb+.02,pz+.402),(.002,.029,.003),m['shell'])
-                    b('fan cassette rim',(x,yb+.02+s*.014,pz+.402),(.048,.002,.003),m['shell'])
-        else:
-            for x in [-.13,0,.13]:
-                for s in [-1,1]:b('modular bay retainer',(x+s*.045,py+.02,pz+.30),(.004,.003,.17),m['bright'])
+                    b('fan cassette rim',(x+s*.024,yb+.02,pz+LAY['nvl']['fanZ']*TU+.0225),(.002,.029,.003),m['shell'])
+                    b('fan cassette rim',(x,yb+.02+s*.014,pz+LAY['nvl']['fanZ']*TU+.0225),(.048,.002,.003),m['shell'])
     # Existing switch inspection tray: socket retainers, passives and board
     # alignment markings add detail without changing the two/four ASIC census.
     if not h100:
