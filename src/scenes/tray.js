@@ -646,6 +646,7 @@ function buildHGX({ quality, model }) {
 // drift apart): tray units (10 cm), tray-local frame, front +z. Two superchip boards at NVL_BOARD_X; on each,
 // Grace's plate at NVL_CPU.z, the two GPU plates at NVL_GPU_Z (front, rear). Square plates, side = size.
 export const NVL_BOARD_X = [-1.1, 1.1];
+export const NVL_LPDDR = { dx: 0.55, z0: -0.36, pitch: 0.24, n: 4 };   // LPDDR5X packages beside Grace, each side
 export const NVL_CPU = { z: 1.75, size: 0.66 };
 export const NVL_GPU_Z = [0.2, -1.55], NVL_GPU_SIZE = 0.9;
 export const NVL_FAN_Z = 2.55;                         // ZF (4.5) - 1.95
@@ -724,7 +725,7 @@ function buildNVL({ quality, model }) {
     // Soldered LPDDR5X beside Grace on both GB200 and GB300 (NVIDIA's GB300
     // reference architecture lists LPDDR5 CPU memory; SOCAMM on GB300 is disputed).
     for (const side of [-1, 1]) for (let i = 0; i < 4; i++) {
-      const lx = bx + side * 0.55, lz = cz - 0.36 + i * 0.24;
+      const lx = bx + side * NVL_LPDDR.dx, lz = cz + NVL_LPDDR.z0 + i * NVL_LPDDR.pitch;
       S.box(0.16, 0.025, 0.2, MAT.black, lx, floorY + 0.03, lz);                                            // LPDDR5X package
       if (heavy) N.box(0.1, 0.008, 0.13, MAT.hbm, lx, floorY + 0.043, lz);                                   // die-side detail, one shade lighter
     }

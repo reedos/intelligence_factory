@@ -109,5 +109,11 @@ if (process.argv.includes('--compute')) {
         await exportReference({ name: `${scene}-${accel}`, module: `/src/scenes/${scene}.js`, options: { quality: { shadows: false, reflections: false, mobile: false }, state: { mode: 'data' }, model }, unitMeters });
       }
     }
+    // The pulled tray's layout, from the same constants tray.js / tray-rubin.js build the tray level from, for
+    // rack-inspection-detail.py (Blender cannot import them): tray units, tray-local frame; unit = 0.1 m.
+    const T = await server.ssrLoadModule('/src/scenes/tray.js'), R = await server.ssrLoadModule('/src/scenes/tray-rubin.js'), K = await server.ssrLoadModule('/src/scenes/rack.js');
+    await fs.writeFile(path.join(referenceDirectory, 'rack-tray-layout.json'), JSON.stringify({ unit: 0.1,
+      nvl: { boardX: T.NVL_BOARD_X, cpu: T.NVL_CPU, gpuZ: T.NVL_GPU_Z, gpuSize: T.NVL_GPU_SIZE, fanX: T.NVL_FAN_X, fanZ: T.NVL_FAN_Z, lpddr: T.NVL_LPDDR, plates: K.NVL_COLD_PLATES },
+      rubin: { plates: R.RUBIN_COLD_PLATES } }, null, 1));
   } finally { await server.close(); }
 }
