@@ -46,6 +46,18 @@ describe('rack pulled compute tray matches the tray level (GB200/GB300)', () => 
   });
 });
 
+describe('the Blender hand-off file stays in step with the layout', () => {
+  it('tools/blender/references/rack-tray-layout.json (read by rack-inspection-detail.py) matches the exported constants', async () => {
+    // @ts-ignore vite ?raw import
+    const j = JSON.parse((await import('../../tools/blender/references/rack-tray-layout.json?raw')).default);
+    expect(j.nvl.plates).toEqual(rack.NVL_COLD_PLATES);
+    expect(j.nvl.fanX).toEqual(tray.NVL_FAN_X);
+    expect(j.nvl.cpu).toEqual(tray.NVL_CPU);
+    expect(j.nvl.gpuZ).toEqual(tray.NVL_GPU_Z);
+    expect(j.rubin.plates).toEqual(trayRubin.RUBIN_COLD_PLATES);
+  });
+});
+
 describe('rack pulled compute tray matches the tray level (Rubin)', () => {
   it('nine cold plates (4 GPU, 2 CPU, 2 NIC board, 1 DPU), at tray-rubin.js\'s own positions', () => {
     const r = rack.build(opts({ accel: 'rubin' }));
