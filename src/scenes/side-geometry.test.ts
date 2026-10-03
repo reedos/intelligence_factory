@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { engineLayout, asicTap, edgeConnOf, elsOf, ELS_LANES, ASIC_HALF, COPPER_HEADS, copperLane, copperChip, PAIR_HALF, cpoFiberRoutes, baillyLayout, baillyFiberRoutes, BAILLY, CPO_DIE, ELS_Z, CPO_MZM, CPO_EIC, engineTraceLandings, landingWorld, frameToLocal, eicBox, RING_R, tileEntry, ringEntry } from './side-geometry.js';
+import { engineLayout, asicTap, edgeConnOf, elsOf, ELS_LANES, ASIC_HALF, COPPER_HEADS, copperLane, copperChip, PAIR_HALF, cpoFiberRoutes, baillyLayout, baillyFiberRoutes, BAILLY, CPO_DIE, ELS_Z, CPO_MZM, CPO_EIC, engineTraceLandings, landingWorld, frameToLocal, eicBox, RING_R, tileEntry, ringEntry, engineBusWidth, engineBusPoint, engineEntryRadius } from './side-geometry.js';
 
 // Codex's optics review, 09/28: floating-point side vectors sent 12 of 18 ASIC taps outside the chip and 15 of 18
 // connectors off the package edge; four laser modules fed more lanes than one can; an AEC pair missed its retimer.
@@ -171,25 +171,37 @@ describe('CPO package traces land across the whole electrical edge, not a sliver
     const o = (p: number[], q: number[], r: number[]) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
     return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
   };
-  // Each engine's drawn route bends once, at its own entrance (tileEntry/ringEntry): the ASIC-to-entrance trunk
-  // (already proven not to cross in 'CPO routing rules' above) then fans out from there to each landing, entirely
-  // inside the engine's own die footprint, so two different engines' fans can never cross.
-  it(`mzm: fanned tile traces never cross each other's engine, or another tile's`, () => {
-    const tiles = baillyLayout(), landings = engineTraceLandings('mzm');
-    const segs = tiles.flatMap(t => { const entry = tileEntry(t); return landings.map(([px, py]) => [entry, landingWorld('mzm', t, t.r, px, py)]); });
-    let crossings = 0;
-    for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++)
-      if (cross(segs[i][0], segs[i][1], segs[j][0], segs[j][1])) crossings++;
-    expect(crossings).toBe(0);
-  });
-  it(`ring: fanned engine traces never cross another engine's`, () => {
-    const engines = engineLayout(), landings = engineTraceLandings('ring');
-    const segs = engines.flatMap(e => { const entry = ringEntry(e); return landings.map(([px, py]) => [entry, landingWorld('ring', e, RING_R, px, py)]); });
-    let crossings = 0;
-    for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++)
-      if (cross(segs[i][0], segs[i][1], segs[j][0], segs[j][1])) crossings++;
-    expect(crossings).toBe(0);
-  });
+  // The wide-bus route (Reed, 10/02/2026, revised after review): each trace is its own two-segment polyline, a
+  // tap on the ASIC's SerDes edge (already at its lane's full offset, unless engineBusWidth found that would not
+  // fit) to an entry point at the die's own inner edge (every lane of one engine shares that radius), then
+  // straight into the die to its landing cell. No segment is shared between two traces, so a "no crossings"
+  // check here has to look at every trace's full route, not a single stand-in line per engine, and the ASIC-end
+  // bus width itself needs its own check (two engines' bus intervals must not overlap, not just their individual
+  // trace segments never crossing — parallel, non-crossing lines can still overlap).
+  const busRoutes = (kind: 'ring' | 'mzm', list: any[], r: (e: any) => number) => {
+    const entryR = engineEntryRadius(kind);
+    return list.map(e => {
+      const { desired, scale } = engineBusWidth(kind, list, e);
+      return { e, desired, scale, points: engineTraceLandings(kind).map(([px, py]) => engineBusPoint(kind, e, r(e), px, py, scale, entryR)) };
+    });
+  };
+  for (const [kind, list, r] of [['mzm', baillyLayout(), (t: any) => t.r], ['ring', engineLayout(), () => RING_R]] as const)
+    it(`${kind}: the wide bus never crosses another engine's, at the ASIC end or along the run`, () => {
+      const routes = busRoutes(kind, list, r);
+      const segs = routes.flatMap(({ points }) => points.flatMap(([asic, entry, land]) => [[asic, entry], [entry, land]]));
+      let crossings = 0;
+      for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++)
+        if (cross(segs[i][0], segs[i][1], segs[j][0], segs[j][1])) crossings++;
+      expect(crossings).toBe(0);
+      // the ASIC-end bus width itself: no two same-side engines' tap intervals overlap
+      const along = (e: any, v: number[]) => v[0] * e.tan[0] + v[1] * e.tan[1];
+      for (const side of [0, 1, 2, 3]) {
+        const mine = routes.filter(({ e }) => e.side === side)
+          .map(({ e, desired, scale }) => { const c = along(e, asicTap(e)); return [c - desired * scale, c + desired * scale]; })
+          .sort((a, b) => a[0] - b[0]);
+        for (let k = 1; k < mine.length; k++) expect(mine[k][0], `${kind} side ${side} bus ${k}`).toBeGreaterThanOrEqual(mine[k - 1][1]);
+      }
+    });
   it('each design: the entrance is inside the engine/tile\'s own die footprint, so the fan never leaves it', () => {
     for (const [kind, list, r, entryOf] of [['mzm', baillyLayout(), null, tileEntry], ['ring', engineLayout(), RING_R, ringEntry]] as const) {
       for (const e of list) {

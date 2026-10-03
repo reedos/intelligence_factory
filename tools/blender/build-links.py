@@ -80,17 +80,12 @@ def screw(name, x, y, z, mats, r=.058):
     bpy.ops.object.modifier_apply(modifier=b.name)
     box(name+'_slot', (x,y+.010,z), (r*1.2,.002,r*.22), mats['dark'], .001)
 
-# The OSFP shell (closed-top integrated heat sink) and its pull tab are shared with the
-# pluggable module's build (build-module-shell.py), from osfp_parts.py: one correct shell and
-# one correct pull tab, differing only in color code, label and internals (Reed, 10/02/2026).
-def osfp_top_housing(name, cx, cy, cz, length, width, mats):
-    osfp_parts.osfp_top_housing(box, name, cx, cy, cz, length, width, mats)
-
+# The coherent pluggable's OSFP shell and pull tab are imported from the pluggable module's own
+# GLB, not authored a second time here -- see osfp_parts.import_module_shell, called from
+# coherent() below (Reed, 10/02/2026, revised after review).
 def lid(name, cx, cy, cz, length, width, along_x, mats):
-    # Opaque metal, lifted for inspection. The UI can hide the cover entirely.
-    if along_x:
-        osfp_top_housing(name,cx,cy,cz,length,width,mats)
-        return
+    # Opaque metal, lifted for inspection. The UI can hide the cover entirely. (along_x is unused
+    # now that the OSFP cover comes from osfp_parts.import_module_shell; kept for copper's call.)
     dims=(width,.09,length)
     box(name+'_cutaway', (cx,cy,cz), dims, mats['lid'], .035)
     for x in [-width/2+.05,width/2-.05]: box(name+'_fold', (cx+x,cy,cz), (.1,.12,length), mats['edge'])
@@ -507,11 +502,6 @@ def duplex_lc_receptacle(m):
     box('LC receptacle bracket',(4.83,1.23,0),(1.06,.04,1.3),m['edge'],.008)
     for z in [-.45,.45]:screw('LC bracket screw',4.66,1.25,z,m,.04)
 
-def osfp_pull_tab(m, x_nose=5.39, reach=.8):
-    # Color: OSFP MSA rev 5.22 Table 3-3 gives white for 1550 nm modules up to 80 km; it has no
-    # coherent row, so white is the nearest entry (assumption).
-    return osfp_parts.osfp_pull_tab(box, xyz, mat, m, (.80, .81, .80), 'white (coherent, no MSA row)', x_nose, reach)
-
 def dsp_gap_pad(m, lid_y=3.4, lid_half=.045):
     # The native layout carries a loose pad halfway between board and lid.
     # Replace it with a lid-mounted stack that travels with the cover: a
@@ -608,11 +598,17 @@ def coherent():
         ('TIA island',ANALOGX,.55,.61,.61)]:
         box(name+' carrier',(cx,1.375,cz),(length,.05,width),m['ceramic'],.012)
     duplex_lc_receptacle(m)
-    lid('OSFP lifted cover',0,3.4,0,L,W,True,m)
-    osfp_pull_tab(m)
+    # The shell and pull tab: the pluggable module's own '04_COVER'/'05_PULL_TAB' (Reed's call:
+    # the finned shell with its flat label section, and its rectangular tab, are correct as
+    # drawn there), imported rather than authored a second time, recolored white (OSFP MSA rev
+    # 5.22 sec. 3.8, Table 3-3: no coherent row, nearest entry is 1550 nm up to 80 km). Lifted a
+    # little higher than the module's own gap so its end band clears the driver/TIA sightlines
+    # from the package overview camera (side-hardware-blender.test.ts).
+    LID_Y=3.7
+    osfp_parts.import_module_shell(OUT/'osfp-module-runtime.glb', 0, LID_Y, m, (.80, .81, .80), 'white (coherent, no MSA row)')
     internals('coherent')
     coherent_board_detail(m)
-    dsp_gap_pad(m)
+    dsp_gap_pad(m, lid_y=LID_Y)
     export('coherent-hardware',m,[L,W])
 
 def copper_active_package(kind, x, zc, m):

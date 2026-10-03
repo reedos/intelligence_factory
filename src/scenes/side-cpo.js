@@ -12,7 +12,7 @@
 // 2.5x detail. Shared by both: the board, the substrate, the switch chip, the front-panel laser modules and their
 // power, the switch chip's power and heat. Everything else sits in its design's own groups, shown one at a time.
 import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, label, outline, FLOW, COL, note, unitCol, asicTex, ringPicTex, RING, glowMat } from './side-kit.js';
-import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes, CPO_VARIANTS, CPO_RING, eicBox, frameToLocal, engineTraceLandings, landingWorld, RING_R, ringEntry } from './side-geometry.js';
+import { SUBS, OUT, TAN, ASIC_HALF, asicTap, edgeConnOf, engineLayout, elsOf, cpoFiberRoutes, CPO_VARIANTS, CPO_RING, eicBox, frameToLocal, engineTraceLandings, landingWorld, RING_R, ringEntry, engineBusWidth, engineBusPoint, engineEntryRadius } from './side-geometry.js';
 import { ringEicTex, cpoIntro, cpoPartCopy } from './cpo-variants.js';
 import { roundCorners, keepCwCorner, CW_BEND, CPO_AUDIT as AU } from './side-cpo-routes.js';
 import { buildBailly, BAILLY_DETAIL, MY } from './cpo-bailly.js';
@@ -79,18 +79,24 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
       const f = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.8), M.glass); f.position.set(x + out[0] * 0.83, Y.eng + 0.08, z + out[1] * 0.83); f.rotation.y = -rot; R.group.add(f);
     });
   }
-  // electrical: copper traces in the substrate from the ASIC's SerDes edge to each engine's own entrance (eicIn,
-  // also used below by the data flow and the SerDes pin), then fanned from there so they land across the full
-  // electrical edge of the engine's electronic chip, under the driver and TIA cells they feed (one trace per lane,
-  // 8; see engineTraceLandings in side-geometry.js for the representation this stands in for). The fan stays
-  // inside the engine's own footprint (every landing is inside its electronic chip, a convex rect, and engines
-  // never overlap), so no engine's traces cross another's.
+  // electrical: a wide, evenly pitched bus of copper traces in the substrate from the ASIC's SerDes edge, landing
+  // straight on the driver and TIA cells across the engine's whole electrical edge (every lane shown, 16; see
+  // engineTraceLandings in side-geometry.js). Each trace leaves the ASIC already at its own lane's offset — no
+  // shared trunk — narrowed at the ASIC only where engineBusWidth found a same-side neighbour or the chip's own
+  // face requires it, spreading to full width over the run out to the engine's own inner edge
+  // (engineEntryRadius), then running straight into the die to its cell. eicIn (ringEntry) is kept only for the
+  // data flow and the SerDes pin below.
   const asicEdge = asicTap, eicIn = ringEntry;
-  const ringLandings = engineTraceLandings('ring');
+  const ringLandings = engineTraceLandings('ring'), ringEntryR = engineEntryRadius('ring');
   engines.forEach(e => {
-    const [ax, az] = asicEdge(e), [ex0, ez0] = eicIn(e);
-    trace(R.B, [ax, az], [ex0, ez0], Y.subTop + 0.001, 0.05);
-    for (const [px, py] of ringLandings) { const [ex, ez] = landingWorld('ring', e, RING_R, px, py); trace(R.B, [ex0, ez0], [ex, ez], Y.subTop + 0.001, 0.02); }
+    const { desired, scale } = engineBusWidth('ring', engines, e);
+    const pitch = ringLandings.length > 1 ? (2 * desired) / (ringLandings.length - 1) : desired;
+    const w = Math.min(0.022, pitch * 0.4);
+    for (const [px, py] of ringLandings) {
+      const [asic, entry, land] = engineBusPoint('ring', e, RING_R, px, py, scale, ringEntryR);
+      trace(R.B, asic, entry, Y.subTop + 0.001, w);
+      trace(R.B, entry, land, Y.subTop + 0.001, w);
+    }
   });
   // light: each engine's 8 transmit and 8 receive fibers to its own connector at the package edge
   const edgeConn = engines.map(e => edgeConnOf(e, SUB));

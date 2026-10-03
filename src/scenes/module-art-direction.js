@@ -1,7 +1,8 @@
 // Studio finish for the representative Blender module. This changes illumination
 // and material response only: no geometry, physical connections, or signal colors.
 import { THREE } from './side-kit.js';
-import { moduleLabel } from './lid-labels.js';
+import { moduleLabel, moduleLabelLines } from './lid-labels.js';
+import { drawLines, SANS, MONO } from './print-kit.js';
 
 export const MODULE_LOOK = Object.freeze({
   env: 'studio',
@@ -66,38 +67,29 @@ function orangePeelNormal() {
   return t;
 }
 
-// Representative cover label, printed as a texture on the authored label plate:
-// the scenario's switch-side module, as the hall prints it (OSFP 800G 2xDR4, OSFP 1.6T 2xDR4 or,
-// for Vera Rubin, OSFP 1.6T), and the LPO view adds "LPO" the way vendors name linear-drive
-// modules (lid-labels.js). Not a vendor label.
-function drawLabel(g, w, h, text) {
-  g.fillStyle = '#e9e8e2'; g.fillRect(0, 0, w, h);
-  g.fillStyle = '#16181c'; g.textBaseline = 'alphabetic';
-  g.font = '600 150px "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif'; g.fillText('OSFP', 70, 200);
-  const [, rate] = text.match(/^OSFP (.*)$/);
-  g.font = '500 92px "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif'; g.fillText(rate, 70, 330);
-  g.font = '500 44px "IBM Plex Mono", Menlo, Consolas, monospace'; g.fillText('DESIGN STUDY · REPRESENTATIVE', 72, 410);
-  // Evenly weighted bars from a fixed sequence; no encoded data.
-  let x = 70, seed = 11;
-  const rand = () => (seed = (seed * 48271) % 2147483647) / 2147483647;
-  while (x < 690) { const bar = 5 + Math.floor(rand() * 3) * 5; g.fillRect(x, 480, bar, 250); x += bar + 5 + Math.floor(rand() * 3) * 5; }
-  // A 2D code block: a finder square in three corners plus a fixed pattern.
-  const cx = 740, cy = 480, cell = 12, n = 21;
-  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-    const finder = (a, b) => i >= a && i < a + 7 && j >= b && j < b + 7;
-    const f = finder(0, 0) || finder(0, n - 7) || finder(n - 7, 0);
-    const ring = f && ((i % (n - 7)) === 1 || (j % (n - 7)) === 1 || (i % (n - 7)) === 5 || (j % (n - 7)) === 5) && !((i % (n - 7)) >= 2 && (i % (n - 7)) <= 4 && (j % (n - 7)) >= 2 && (j % (n - 7)) <= 4);
-    if (f ? !ring : rand() < 0.48) g.fillRect(cx + i * cell, cy + j * cell, cell, cell);
-  }
+// Representative cover label, printed as a texture on the authored label plate: the scenario's switch-side
+// module, as the hall prints it (OSFP 800G 2xDR4, OSFP 1.6T 2xDR4 or, for Vera Rubin, OSFP 1.6T), the LPO view
+// adding "LPO" the way vendors name linear-drive modules, and the DR4 reach (lid-labels.js, module-lid-labels).
+// Shares its plate colors, type sizes and drawLines() layout engine with the coherent pluggable's own lid label
+// (side-links-blender.js) so the two read as a matched pair (Reed, 10/02/2026): three main lines, the smaller
+// "design study" caption, no barcode or 2D code block on either. Not a vendor label.
+function drawLabel(g, w, h, accel, lpo) {
+  const [osfp, rate, reach] = moduleLabelLines(accel, lpo);
+  drawLines(g, w, h, [
+    { text: osfp, size: .17, weight: 600, font: SANS },
+    { text: rate, size: .36, weight: 800, font: SANS },
+    { text: reach, size: .14, weight: 600, font: SANS },
+    { text: 'DESIGN STUDY · REPRESENTATIVE', size: .052, weight: 500, font: MONO },
+  ], { ink: '#1c2228', align: 'left', pad: .07, plate: '#e6e9ec', gap: .05 });
 }
 function labelTexture(accel) {
   if (typeof document === 'undefined') return null;
   const w = 1024, h = 840, c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d');
-  drawLabel(g, w, h, moduleLabel(accel, false));
+  drawLabel(g, w, h, accel, false);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   t.userData.text = moduleLabel(accel, false);
-  t.userData.setLpo = lpo => { t.userData.text = moduleLabel(accel, !!lpo); drawLabel(g, w, h, t.userData.text); t.needsUpdate = true; };
+  t.userData.setLpo = lpo => { t.userData.text = moduleLabel(accel, !!lpo); drawLabel(g, w, h, accel, !!lpo); t.needsUpdate = true; };
   return t;
 }
 function printLabel(mesh, accel) {

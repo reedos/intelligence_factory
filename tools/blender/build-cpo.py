@@ -447,15 +447,14 @@ for i,(e,conn) in enumerate(zip(LAYOUT['engines'],LAYOUT['connectors'])):
         box('Fiber in groove',fp(.83,(j-7.5)*.034,1.726),(.3,.007,.012),fiberTx if j<8 else fiberRx,'CPO_INTERFACES',0,angle)
     for j in range(2):
         box('Fiber in groove',fp(.83,.305+j*.028,1.726),(.3,.007,.012),fiberCw,'CPO_INTERFACES',0,angle)
-    # asicTap (side-geometry.js) places each engine's tap on the 24 mm die's SerDes edge. The trunk runs to the
-    # engine's own entrance (ringEntry, inside its own footprint and nothing else's); from there it fans to each
-    # landing (engineTraceLandings/landingWorld), across the electronic chip's whole electrical edge, under the
-    # driver and TIA cells they feed (one trace per lane, 8) -- the same numbers the native build draws.
-    a=tuple(VAR['ringTaps'][i])   # spread along the ASIC edge in engine order: no shared taps, no crossings
-    b=tuple(VAR['ringEntry'][i])
-    flat_trace(a,b,1.041,.05,'CPO_CONDUCTORS')
-    for lx,lz in VAR['ringLandings'][i]:
-        flat_trace(b,(lx,lz),1.041,.02,'CPO_CONDUCTORS')
+    # A wide, evenly pitched bus (Reed, 10/02/2026, revised after review): each lane already at its own offset
+    # leaving the ASIC's SerDes edge (narrowed only where engineBusWidth found a same-side neighbour or the
+    # chip's own face required it), spreading to full width by the engine's own inner edge, then straight into
+    # the die to its driver or TIA cell (every lane, 16) -- the same points the native build draws
+    # (engineBusWidth/engineBusPoint via link-layout.json's ringBus).
+    for asic,entry,land in VAR['ringBus'][i]:
+        flat_trace(tuple(asic),tuple(entry),1.041,.025,'CPO_CONDUCTORS')
+        flat_trace(tuple(entry),tuple(land),1.041,.025,'CPO_CONDUCTORS')
     ex,ez=conn
     routes=LAYOUT['fiberRoutes'][i]
     ribbon('Engine tx ribbon',routes['tx'],ribbonTx,'CPO_FIBERS')
@@ -541,14 +540,13 @@ def mzm_tile(cx,cy,cz,scale,angle,exploded):
 for i,(e,tap) in enumerate(zip(BL['tiles'],BL['taps'])):
     x,z=e['x'],e['z'];out,tan=e['out'],e['tan'];angle=e['rot']
     mzm_tile(x,MY,z,1,angle,False)
-    # The trunk runs to the tile's own entrance (tileEntry, inside its own footprint and nothing else's); from
-    # there it fans to each landing (engineTraceLandings/landingWorld), across the electronic chip's whole
-    # electrical edge, under the driver and TIA cells they feed (one trace per FR4 group, 16) -- the same numbers
-    # the native build draws.
-    b=tuple(VAR['tileEntry'][i])
-    flat_trace(tap,b,1.041,.06,'CPO_MZM_CONDUCTORS')
-    for lx,lz in VAR['mzmLandings'][i]:
-        flat_trace(b,(lx,lz),1.041,.02,'CPO_MZM_CONDUCTORS')
+    # A wide, evenly pitched bus (Reed, 10/02/2026, revised after review): each lane already at its own offset
+    # leaving the ASIC's SerDes edge, spreading to full width by the tile's own inner edge, then straight into
+    # the die to its driver or TIA cell (one trace per FR4 group, 16) -- the same points the native build draws
+    # (engineBusWidth/engineBusPoint via link-layout.json's mzmBus).
+    for asic,entry,land in VAR['mzmBus'][i]:
+        flat_trace(tuple(asic),tuple(entry),1.041,.025,'CPO_MZM_CONDUCTORS')
+        flat_trace(tuple(entry),tuple(land),1.041,.025,'CPO_MZM_CONDUCTORS')
     routes=BL['fiberRoutes'][i]
     ribbon('Tile tx ribbon',routes['tx'],ribbonTx,'CPO_MZM_FIBERS',half=.21)
     ribbon('Tile rx ribbon',routes['rx'],ribbonRx,'CPO_MZM_FIBERS',half=.21)

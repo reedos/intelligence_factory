@@ -41,6 +41,15 @@ export function nicLabel(accel) {
 export function moduleLabel(accel, lpo = false) {
   return switchLabel(accel) + (lpo ? ' LPO' : '');
 }
+/** The module side level's lid print as three lines (matching the coherent pluggable's own three-line label,
+ *  module-art-direction.js's drawLabel): OSFP, the tier's rate (plus LPO in that view), then the reach. Every
+ *  module this level draws is a DR4-style twin-port (moduleTier), reported at 1310 nm up to 500 m: the OSFP MSA's
+ *  own DR4 color-code row (rev 5.22 sec. 3.8, Table 3-3, "OSFP 1310nm solutions for up to 500m ... DR4") and
+ *  NVIDIA's MMS4X00/MMS4A00 datasheets (module-lid-labels) agree. */
+export function moduleLabelLines(accel, lpo = false) {
+  const [, rate] = moduleLabel(accel, lpo).match(/^OSFP (.*)$/);
+  return ['OSFP', rate, '1310 nm · 500 m'];
+}
 /** The switch-side twin-port module the module side level opens for this scenario: H100 and GB200 use the 800G
  *  twin-port (NVIDIA MMS4X00, 2 × 400G DR4, 8 × 100G PAM4 each way), GB300 the 1.6T twin-port (MMS4A00, 2 × 800G DR4,
  *  8 × 200G PAM4), and Vera Rubin a 1.6T-class module whose exact type is unpublished (drawn as the 1.6T twin-port). */

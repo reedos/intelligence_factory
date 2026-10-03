@@ -139,20 +139,22 @@ export function eicBox(kind, s = 1) {
   const [cx, cz] = frameToLocal(kind, (x0 + x1) / 2, (y0 + y1) / 2, s);
   return { cx, cz, w: (x1 - x0) / d.fw * d.L * s, d: (y1 - y0) / d.fh * d.W * s };
 }
-// Representative substrate-trace landing cells per engine (Reed, 10/02/2026): enough traces to read clearly at
-// package scale, each ending under a driver (transmit) or TIA (receive) cell so the fan spans the engine's whole
-// electrical edge and bump field, as the real SerDes bus does, instead of a single spot (design-rules.md). Each
-// Mach-Zehnder engine takes 128 differential pairs (64 lanes each way) across its electronic chip's whole
-// electrical edge: one trace per FR4 group (16) stands in for that, alternating a representative lane's driver and
-// TIA cell so the set still covers both the transmit and receive halves of the edge. Each ring engine takes 16
-// pairs (8 lanes each way): one trace per lane (8), alternating driver and TIA the same way.
+// Representative substrate-trace landing cells per engine (Reed, 10/02/2026, revised after review): a wide,
+// evenly pitched bus, not traces converging on one spot, landing on real driver (transmit) or TIA (receive) cells
+// across the engine's whole electrical edge and bump field (design-rules.md). Two blocks, transmit then receive
+// in that order (not interleaved), so the drawn bus shows a visible gap between them, as a real one would (the
+// die's own transmit and receive halves sit apart, so this falls out of the real cell positions, not a drawn
+// gap). Each Mach-Zehnder engine takes 128 differential pairs (64 lanes each way): 8 representative lanes each
+// way (every other FR4 group's driver, then the same groups' TIA) stand in for the full edge. Each ring engine
+// takes 16 pairs (8 lanes each way): every driver, then every TIA — its whole lane count, not a subset.
 export function engineTraceLandings(kind) {
   const B = cpoBlocks(kind);
-  if (kind === 'mzm') return Array.from({ length: CPO_MZM.groups }, (_, g) => {
-    const lane = g * CPO_MZM.perGroup + 1;                       // a representative lane near the group's middle
-    return g % 2 === 0 ? B.drivers[lane] : B.tias[lane];
-  });
-  return B.drivers.map((d, i) => (i % 2 === 0 ? d : B.tias[i]));
+  if (kind === 'mzm') {
+    const groups = Array.from({ length: CPO_MZM.groups / 2 }, (_, i) => i * 2);          // every other group: 8 of 16
+    const lane = g => g * CPO_MZM.perGroup + 1;                                          // a representative lane near the group's middle
+    return [...groups.map(g => B.drivers[lane(g)]), ...groups.map(g => B.tias[lane(g)])];
+  }
+  return [...B.drivers, ...B.tias];
 }
 // A landing cell (frame px, py) as a world [x, z] offset from the package center, for an engine at radius r along
 // `out` with tan-offset `e.t`: frameToLocal centers the die on its own frame, so its local x (electrical edge at
@@ -161,12 +163,57 @@ export function landingWorld(kind, e, r, px, py) {
   const [lx, lz] = frameToLocal(kind, px, py);
   return [e.out[0] * (r + lx) + e.tan[0] * (e.t + lz), e.out[1] * (r + lx) + e.tan[1] * (e.t + lz)];
 }
-// The substrate's single entrance point for a tile or engine, on its own radial line (no lateral fan yet): where
-// the package trace from the ASIC's SerDes edge reaches the die's own footprint, before it fans out inside that
-// footprint to the driver and TIA cells (engineTraceLandings, landingWorld). Used by both designs' trace fan, data
-// flow and SerDes pin, so every one of those agrees on where the engine "starts".
+// The substrate's single entrance point for a tile or engine, on its own radial line (no lateral fan yet): used
+// only by the data flow and the SerDes pin now (the package-trace bus below no longer funnels through it).
 export const tileEntry = t => [t.out[0] * BAILLY.rIn + t.tan[0] * t.t, t.out[1] * BAILLY.rIn + t.tan[1] * t.t];
 export const ringEntry = e => [e.x - e.out[0] * 0.62, e.z - e.out[1] * 0.62];
+// How wide this engine's bus can leave the ASIC's SerDes edge before it would either run past the chip's own face
+// (the corner tiles, whose single tap already sits at the face's edge) or crowd a same-side neighbour's own bus.
+// Returns the bus's wanted half-width (the landing cells' own lateral spread) and a 0-1 scale: 1 where the full
+// width fits at the ASIC edge already (the common case), less only where it would not, so that tile steps its
+// pitch down and jogs out to full width over a short run instead (design-rules.md: 45 degree jogs, never a
+// crossing).
+export function engineBusWidth(kind, list, e) {
+  const lzs = engineTraceLandings(kind).map(([px, py]) => frameToLocal(kind, px, py)[1]);
+  const desired = Math.max(...lzs.map(Math.abs));
+  const along = v => v[0] * e.tan[0] + v[1] * e.tan[1];
+  const mine = along(asicTap(e));
+  const sameSide = list.filter(o => o.side === e.side).map(o => along(asicTap(o))).sort((a, b) => a - b);
+  const idx = sameSide.findIndex(v => Math.abs(v - mine) < 1e-9);
+  const gaps = [];
+  if (idx > 0) gaps.push((sameSide[idx] - sameSide[idx - 1]) / 2);
+  if (idx < sameSide.length - 1) gaps.push((sameSide[idx + 1] - sameSide[idx]) / 2);
+  const margin = 0.05, cornerRoom = ASIC_HALF - Math.abs(mine) - margin;
+  const avail = Math.max(0.03, Math.min(cornerRoom, ...(gaps.length ? gaps.map(g => g - margin) : [Infinity])));
+  return { desired, scale: Math.min(1, avail / desired) };
+}
+// One trace's three points for the wide-bus route: a tap on the ASIC's SerDes edge, already at the lane's own
+// lateral offset (`lz`, its position within the engine's own electrical edge) when `scale` is 1 — a real
+// parallel, evenly pitched bus straight from the ASIC to the cell, no bend at all — narrowed toward the engine's
+// single compressed tap (asicTap) only by what engineBusWidth found necessary (a same-side neighbour, or the
+// engine's own compression toward the ASIC's small face when its true position sits far out along the tan axis,
+// e.g. a ring engine two or three slots from its side's centre); an entry point at the die's own inner edge
+// (`entryR`, same for every lane of this engine), already at the lane's true full offset, so every lane's run
+// from there to its cell (`land`) stays inside that one die's own footprint; and the landing cell. Two engines'
+// entry-to-land runs can never cross (different dies never overlap), and their asic-to-entry runs can't either:
+// both span the very same two radii (the ASIC edge and `entryR`) in the same lane order at each end, so the
+// ladder between those two circles never tangles — unlike a trace that ran straight from the (narrow) ASIC tap
+// to a (wide, far-out) landing cell directly, which a TIA cell's extra radial reach could still cross a
+// neighbour's nearer driver-cell trace despite every width check passing.
+// The die's own inner (electrical) edge radius, measured from the package centre: where the bus's per-lane
+// spread (engineBusPoint's `entry`) takes over from the ASIC-edge taper, same for every lane and every engine
+// of that design.
+export const engineEntryRadius = kind => kind === 'mzm' ? BAILLY.rIn : RING_R - CPO_DIE.ring.L / 2;
+// Returns a plain [asic, entry, land] triple (each a [x, z] pair) rather than named fields, so it serializes to
+// and from link-layout.json (tools/blender/export-cpo-layout.mjs, build-cpo.py) without translation.
+export function engineBusPoint(kind, e, r, px, py, scale, entryR) {
+  const [, lz] = frameToLocal(kind, px, py), tap = asicTap(e), full = e.t + lz;
+  return [
+    [tap[0] + e.tan[0] * lz * scale, tap[1] + e.tan[1] * lz * scale],
+    [e.out[0] * entryR + e.tan[0] * full, e.out[1] * entryR + e.tan[1] * full],
+    landingWorld(kind, e, r, px, py),
+  ];
+}
 // ---- the Broadcom-style package: eight radial tiles, two per side ----
 // Short edge at the switch chip, fiber connector (Broadcom Fiber Connector, BFC) at the outer end. Tiles on a side
 // sit 2 cm apart, clear of the corner tiles of the next side; their inner ends leave an 8 mm band for the package
@@ -223,14 +270,18 @@ export function cpoVariantLayout() {
       segs: Array.from({ length: M.segments }, (_, k) => M.seg(k)), pads: Array.from({ length: M.segments }, (_, k) => M.pad(k)) },
     bailly: { ...BAILLY, tiles, taps: tiles.map(asicTap), fiberRoutes: tiles.map(baillyFiberRoutes) },
     ringTaps: engineLayout().map(asicTap),
-    // Fanned package-trace landings (Reed, 10/02/2026): each engine's own entrance point, then the world [x, z] of
-    // every trace that fans from there to a driver or TIA cell, across its electronic chip's whole electrical edge
-    // (engineTraceLandings, landingWorld, tileEntry, ringEntry). Pre-computed here so the Blender build draws the
-    // same traces as the native scene, not a re-derivation of the same math.
-    ringEntry: engineLayout().map(ringEntry),
-    ringLandings: engineLayout().map(e => engineTraceLandings('ring').map(([px, py]) => landingWorld('ring', e, RING_R, px, py))),
-    tileEntry: tiles.map(tileEntry),
-    mzmLandings: tiles.map(t => engineTraceLandings('mzm').map(([px, py]) => landingWorld('mzm', t, t.r, px, py))),
+    // The wide package-trace bus (Reed, 10/02/2026, revised after review): each engine/tile's own three route
+    // points per lane (asic tap, entry at the die's own inner edge, landing cell), already fully computed in
+    // world [x, z] (engineBusWidth, engineBusPoint). Pre-computed here so the Blender build draws the exact same
+    // traces as the native scene, not a re-derivation of the same math.
+    ringBus: (() => { const list = engineLayout(), entryR = engineEntryRadius('ring'); return list.map(e => {
+      const { scale } = engineBusWidth('ring', list, e);
+      return engineTraceLandings('ring').map(([px, py]) => engineBusPoint('ring', e, RING_R, px, py, scale, entryR));
+    }); })(),
+    mzmBus: (() => { const entryR = engineEntryRadius('mzm'); return tiles.map(t => {
+      const { scale } = engineBusWidth('mzm', tiles, t);
+      return engineTraceLandings('mzm').map(([px, py]) => engineBusPoint('mzm', t, t.r, px, py, scale, entryR));
+    }); })(),
   };
 }
 
