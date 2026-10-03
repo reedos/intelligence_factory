@@ -302,16 +302,17 @@ export function build({ quality, model, state = {} }) {
     const bw = Math.max(1, B.x1 - B.x0), bd = Math.max(1, B.z1 - B.z0);
     const sc = k * Math.min(40 / bw, 32 / bd);                         // fit the real footprint into the old icon's box
     const refX = (B.x0 + B.x1) / 2, refZ = (B.z0 + B.z1) / 2;
+    const VX = 5, tok = sc * 3;                                        // heights exaggerated like the rest of the map; single-unit tokens drawn larger
     const toX = rx => x + (rx - refX) * sc, toZ = rz => z + (rz - refZ) * sc;
     rbox(S, bw * sc, 0.15, bd * sc, main ? apronHome : apronOther, toX(refX), 0.05, toZ(refZ), { r: 0.05 });
-    if (main) S.slab(bw * sc + 2, 0.4 * k, bd * sc + 2, glowMat('#ffb14e', 0.65), toX(refX), 0.62, toZ(refZ));
+    if (main) S.slab(bw * sc + 2, 0.05, bd * sc + 2, glowMat('#ffb14e', 0.65), toX(refX), 0.1, toZ(refZ));
     // a tiny, otherwise-invisible MAP_CAMPUS instance at the campus center: where the regional HV
     // lines (gantry(), above) still land, kept for that routing rather than drawn as the campus body.
     if (authored) campusSymbols.push(mtx(x, 0, z, 0, Math.max(0.001, k * 0.001)));
     if (authoredHalls) {
       // data halls, the real hall cells (campus-layout.js's campusHallCells: the detailed pair plus
       // any repeated expansion envelopes), each a Blender HALL instance at map scale.
-      campusHallCells(F).forEach(c => hallMx.push(new THREE.Matrix4().makeScale(c.len / 260 * sc, sc, sc).setPosition(toX(c.x), 0, toZ(c.z))));
+      campusHallCells(F).forEach(c => hallMx.push(new THREE.Matrix4().makeScale(c.len / 260 * sc, sc * VX, sc).setPosition(toX(c.x), 0, toZ(c.z))));
     } else {
       F.hallList.forEach(h => {
         const cx = toX(F.hcx), cz = toZ((h.z0 + h.z1) / 2), w = F.hallLen * sc, d = (h.z1 - h.z0) * sc, hh = 5 * k;
@@ -327,9 +328,9 @@ export function build({ quality, model, state = {} }) {
       }
     }
     // substation yard and main transformer row, west of the halls, as campus.js places it
-    const subM = () => new THREE.Matrix4().makeScale((F.substation.x1 - F.substation.x0) * sc / 8, 3 * k, (F.substation.z1 - F.substation.z0) * sc / 34)
+    const subM = () => new THREE.Matrix4().makeScale((F.substation.x1 - F.substation.x0) * sc / 8, sc * VX * .6, (F.substation.z1 - F.substation.z0) * sc / 34)
       .setPosition(toX((F.substation.x0 + F.substation.x1) / 2), 0, toZ((F.substation.z0 + F.substation.z1) / 2));
-    const xfmrM = () => new THREE.Matrix4().makeScale(sc, 2 * k, sc).setPosition(toX(F.mptX), 0, toZ((F.hallA.z0 + F.hallA.z1) / 2));
+    const xfmrM = () => new THREE.Matrix4().makeScale(tok, tok * 1.5, tok).setPosition(toX(F.mptX), 0, toZ((F.hallA.z0 + F.hallA.z1) / 2));
     if (authored) { subMx.push(subM()); xfmrMx.push(xfmrM()); } else {
       rbox(S, (F.substation.x1 - F.substation.x0) * sc, 1.2 * k, (F.substation.z1 - F.substation.z0) * sc, MAT.concreteDark,
         toX((F.substation.x0 + F.substation.x1) / 2), 0.6 * k, toZ((F.substation.z0 + F.substation.z1) / 2), { r: 0.05 });
@@ -339,28 +340,28 @@ export function build({ quality, model, state = {} }) {
     if (F.towerRows.length) {
       const tz = toZ(F.towerRows[0]), tx0 = toX(9), tx1 = toX(87);
       const td = F.towerRows.length > 1 ? Math.abs(F.towerRows[1] - F.towerRows[0]) * sc + 8 * sc : 10 * sc;
-      if (authored) towerMx.push(new THREE.Matrix4().makeScale(sc, sc, sc).setPosition((tx0 + tx1) / 2, 0, tz));
+      if (authored) towerMx.push(new THREE.Matrix4().makeScale(tok, tok, tok).setPosition((tx0 + tx1) / 2, 0, tz));
       else rbox(S, Math.max(2, tx1 - tx0), 3 * k, td, iconTrim, (tx0 + tx1) / 2, 1.5 * k, tz, { r: 0.1 });
     } else if (!F.warm) {
-      if (authored) plantMx.push(new THREE.Matrix4().makeScale(60 * sc / 8, 2 * k, 18 * sc / 34).setPosition(toX(F.plantX), 0, toZ(-245)));
+      if (authored) plantMx.push(new THREE.Matrix4().makeScale(60 * sc / 8, sc * VX * .6, 18 * sc / 34).setPosition(toX(F.plantX), 0, toZ(-245)));
       else rbox(S, 60 * sc, 3 * k, 18 * sc, iconTrim, toX(F.plantX), 1.5 * k, toZ(-245), { r: 0.08 });
     }
     // generator/fuel yard, or the battery field a battery-backed campus (plant.backup, sites.ts) runs instead
     if (F.genset) {
       F.genset.blocks.forEach(b => {
         const cx = toX((F.genset.x0 + F.genset.x1) / 2), cz = toZ((b.z0 + b.z1) / 2);
-        if (authored) gensetMx.push(new THREE.Matrix4().makeScale(sc, sc, sc).setPosition(cx, 0, cz));
+        if (authored) gensetMx.push(new THREE.Matrix4().makeScale(tok, tok, tok).setPosition(cx, 0, cz));
         else rbox(S, (F.genset.x1 - F.genset.x0) * sc, 2 * k, (b.z1 - b.z0) * sc, iconTrim, cx, 1 * k, cz, { r: 0.1 });
       });
       if (F.fuel) {
         const cx = toX((F.fuel.x0 + F.fuel.x1) / 2), cz = toZ((F.fuel.z0 + F.fuel.z1) / 2);
-        if (authored) fuelMx.push(new THREE.Matrix4().makeScale(sc, sc, sc).setPosition(cx, 0, cz));
+        if (authored) fuelMx.push(new THREE.Matrix4().makeScale(tok, tok, tok).setPosition(cx, 0, cz));
         else rbox(S, (F.fuel.x1 - F.fuel.x0) * sc, 2 * k, (F.fuel.z1 - F.fuel.z0) * sc, MAT.concreteDark, cx, 1 * k, cz, { r: 0.1 });
       }
     }
     if (F.bigBattery) {
       const cx = toX((F.bigBattery.x0 + F.bigBattery.x1) / 2), cz = toZ((F.bigBattery.z0 + F.bigBattery.z1) / 2);
-      if (authored) bessMx.push(new THREE.Matrix4().makeScale(sc, sc, sc).setPosition(cx, 0, cz));
+      if (authored) bessMx.push(new THREE.Matrix4().makeScale(tok, tok, tok).setPosition(cx, 0, cz));
       else rbox(S, (F.bigBattery.x1 - F.bigBattery.x0) * sc, 2 * k, (F.bigBattery.z1 - F.bigBattery.z0) * sc, iconTrim, cx, 1 * k, cz, { r: 0.1 });
     }
   };

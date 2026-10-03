@@ -11,12 +11,13 @@ export function preloadCampusArchitecture() {
 export const hasCampusArchitecture = () => !!source;
 // One assembly (HALL or OFFICE) as palette-merged geometry in its own frame: the same meshes and finishes, drawn in
 // one call per shading instead of one per finish.
-function assembly(name, materials) {
+function assembly(name, materials, keep = () => true) {
   source.updateMatrixWorld(true);
   const root = source.getObjectByName(name), inv = root.matrixWorld.clone().invert(), B = new Builder();
   root.traverse(o => {
     if (!o.isMesh) return;
     const m = Array.isArray(o.material) ? o.material[0] : o.material;
+    if (!keep(m)) return;
     if (!materials.has(m)) materials.set(m, m.clone());
     B.addM(o.geometry, materials.get(m), inv.clone().multiply(o.matrixWorld));
   });
@@ -56,9 +57,12 @@ export function addBlenderCampusArchitecture(scene, hallList, x0, x1, quality) {
 // own length, y/z with the miniature's map-units-per-meter scale), the same convention
 // campusCatalogInstances' matrices use.
 let miniHallParts;
+const MINI_SHELL = new Set(['Honed concrete plinth', 'Hall graphite wall panels', 'Hall roof membrane']);
 export function campusHallMiniGroup(matrices) {
   if (!source || !matrices.length) return null;
-  miniHallParts ||= assembly('HALL', new Map());
+  // The full hall is ~35k triangles (louvers, fixtures, reveals); at map scale only its massing reads, so draw
+  // just the authored plinth, wall and roof-membrane shells (about 560 triangles), same meshes, same finishes.
+  miniHallParts ||= assembly('HALL', new Map(), m => MINI_SHELL.has(m.name));
   const group = new THREE.Group(); group.name = 'Mini campus halls';
   for (const [mat, geo] of miniHallParts) {
     const mesh = new THREE.InstancedMesh(geo, mat, matrices.length);
