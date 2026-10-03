@@ -124,7 +124,7 @@ it('across campus miniature and campus level share one layout: same hall count a
   expect(mesh.count).toBe(model.halls+others);                  // home campus plus every other place
   // the home campus's instances come first: their offsets are the layout's cells times one scale
   const m=new Matrix4(),pos=(i:number)=>{mesh.getMatrixAt(i,m);return new Vector3().setFromMatrixPosition(m);};
-  mesh.getMatrixAt(0,m);const sc=new Vector3().setFromMatrixScale(m).z;
+  mesh.getMatrixAt(0,m);const sc=new Vector3().setFromMatrixScale(m).z/90;
   for(let i=1;i<cells.length;i++){
    expect(pos(i).x-pos(0).x).toBeCloseTo((cells[i].x-cells[0].x)*sc,3);
    expect(pos(i).z-pos(0).z).toBeCloseTo((cells[i].z-cells[0].z)*sc,3);

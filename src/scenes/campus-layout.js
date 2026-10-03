@@ -67,3 +67,37 @@ export function campusBounds(F) {
   if (F.bigBattery) { xs.push(F.bigBattery.x1); zs.push(F.bigBattery.z0, F.bigBattery.z1); }
   return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
 }
+
+// The campus's yards as plain footprints (meters), for the across level's miniature: the substation pad, main
+// transformers and e-houses, the cooling tower cells or chiller plant, the generator and fuel yards, the battery
+// fields. Same positions and counts campus.js places them at (its generator grid, fuel farm, BESS grids, tower
+// cells), so the miniature's yards read where the campus level's do. `kind` picks the miniature's color.
+export function campusYardItems(F, L) {
+  const items = [], add = (kind, x, z, w, d, h) => items.push({ kind, x, z, w, d, h });
+  const S = F.substation;
+  add('pad', (S.x0 + S.x1) / 2, (S.z0 + S.z1) / 2, S.x1 - S.x0, S.z1 - S.z0, 0.3);
+  add('bus', -470, -150, 1.5, 150, 10);
+  [-195, -150, -105].forEach(z => add('xfmr', F.mptX, z, 8, 11, 8));
+  [-178, -122].forEach(z => add('ehouse', -378, z, 8, 34, 4.2));
+  if (F.towerRows.length) {
+    add('pad', 100, -280, 205, 55, 0.3);
+    F.towerRows.forEach(tz => { for (let i = 0; i < 6; i++) add('tower', 15 + i * 12, tz, 11, 11, 11); });
+    add('tank', 125, -280, 26, 26, 12); add('tank', 158, -280, 26, 26, 12);
+  }
+  if (!F.warm) add('plant', F.plantX, -245, 60, 18, 11);
+  if (L.gensets) {
+    add('pad', 320, -187, 94, 50, 0.2); if (L.gensets > 20) add('pad', 320, 38, 94, 50, 0.2);
+    let n = 0;
+    for (const bz of [-205, 20]) for (let c = 0; c < 4; c++) for (let r = 0; r < 5; r++) if (n++ < Math.min(40, L.gensets)) add('genset', 290 + c * 21, bz + r * 8, 13, 3.8, 4.5);
+    add('pad', 397, -103, 42, 68, 0.2);
+    for (let i = 0; i < 6; i++) add('fuel', 390 + (i % 2) * 14, -120 + Math.floor(i / 2) * 18, 12, 16, 5);
+  }
+  add('pad', -305, 77, 80, 72, 0.2);
+  let nb = 0;
+  for (let c = 0; c < 5; c++) for (let r = 0; r < 4; r++) if (nb++ < Math.min(20, Math.max(2, Math.ceil(L.bessMWh / 2)))) add('bess', -335 + c * 9, 55 + r * 14, 6.5, 3.2, 3);
+  if (F.bigBattery) {
+    add('pad', 350, -154, 145, 124, 0.2);
+    for (let c = 0; c < 14; c++) for (let r = 0; r < 9; r++) add('bess', 292 + c * 9, -206 + r * 13, 6.5, 3.2, 3);
+  }
+  return items;
+}

@@ -11,13 +11,12 @@ export function preloadCampusArchitecture() {
 export const hasCampusArchitecture = () => !!source;
 // One assembly (HALL or OFFICE) as palette-merged geometry in its own frame: the same meshes and finishes, drawn in
 // one call per shading instead of one per finish.
-function assembly(name, materials, keep = () => true) {
+function assembly(name, materials) {
   source.updateMatrixWorld(true);
   const root = source.getObjectByName(name), inv = root.matrixWorld.clone().invert(), B = new Builder();
   root.traverse(o => {
     if (!o.isMesh) return;
     const m = Array.isArray(o.material) ? o.material[0] : o.material;
-    if (!keep(m)) return;
     if (!materials.has(m)) materials.set(m, m.clone());
     B.addM(o.geometry, materials.get(m), inv.clone().multiply(o.matrixWorld));
   });
@@ -48,30 +47,6 @@ export function addBlenderCampusArchitecture(scene, hallList, x0, x1, quality) {
     scene.add(hall,office);
   }
   scene.userData.blenderCampusArchitecture = { source:'Blender', version:1, representative:true, detailedHalls:hallList.length, originalShellSuppressed:true };
-}
-
-// The same HALL architecture, shrunk to a map-icon scale for the across level's campus miniature
-// (across.js): one InstancedMesh per material across every hall across every campus on screen, so
-// a 5 GW campus's dozens of halls still cost the same couple of draw calls as a 100 MW campus's
-// two. Each matrix is a plain THREE.Matrix4 (non-uniform scale allowed: x scales with that hall's
-// own length, y/z with the miniature's map-units-per-meter scale), the same convention
-// campusCatalogInstances' matrices use.
-let miniHallParts;
-const MINI_SHELL = new Set(['Honed concrete plinth', 'Hall graphite wall panels', 'Hall roof membrane']);
-export function campusHallMiniGroup(matrices) {
-  if (!source || !matrices.length) return null;
-  // The full hall is ~35k triangles (louvers, fixtures, reveals); at map scale only its massing reads, so draw
-  // just the authored plinth, wall and roof-membrane shells (about 560 triangles), same meshes, same finishes.
-  miniHallParts ||= assembly('HALL', new Map(), m => MINI_SHELL.has(m.name));
-  const group = new THREE.Group(); group.name = 'Mini campus halls';
-  for (const [mat, geo] of miniHallParts) {
-    const mesh = new THREE.InstancedMesh(geo, mat, matrices.length);
-    mesh.name = `Mini ${mat.name}`;
-    matrices.forEach((m, i) => mesh.setMatrixAt(i, m));
-    mesh.castShadow = false; mesh.receiveShadow = false;
-    group.add(mesh);
-  }
-  return group;
 }
 
 // Material-batched exterior instances retain the same architectural language at

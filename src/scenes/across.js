@@ -14,9 +14,9 @@ import { preloadCampusCatalog, campusCatalogInstances } from './campus-blender-c
 import { preloadAcrossAssets, hasAcrossAssets, acrossAssetInstances, acrossSurfaceGeometry, replaceWindRotor } from './across-blender-assets.js';
 import { WIND_R, WIND_SCALE, WIND_HUB, windLayout, windFootprint, solarLayout, solarFootprint, SOLAR, placePlants, plantAvoid, METROS, siteSupply, REMOTE_SCALE, compactFootprint } from './across-plants.js';
 import { compute } from '../model/engine.ts';
-import { campusFootprint, campusBounds, campusHallCells } from './campus-layout.js';
-import { preloadCampusArchitecture, hasCampusArchitecture, campusHallMiniGroup } from './campus-blender-architecture.js';
-export const preload = () => Promise.all([preloadCampusCatalog(), preloadAcrossAssets(), preloadCampusArchitecture()]);
+import { campusFootprint, campusBounds, campusHallCells, campusYardItems } from './campus-layout.js';
+import { campusRoadPlan } from './campus-road-plan.js';
+export const preload = () => Promise.all([preloadCampusCatalog(), preloadAcrossAssets()]);
 
 const ORIGIN = albers(-92, 37);
 const world = (lon, lat) => { const [x, y] = albers(lon, lat); return [x - ORIGIN[0], -(y - ORIGIN[1])]; };
@@ -259,32 +259,28 @@ export function build({ quality, model, state = {} }) {
   scene.add(power, data);
   const flows = [], dataFlows = [], heatFlows = [];
 
-  // campuses: a faithful miniature of each scenario's own campus-level layout (campus-layout.js,
-  // the same geometry campus.js draws from), not a fixed building regardless of scenario. Every
-  // structural piece reuses the campus level's own authored geometry/catalog (campusHallMiniGroup
-  // for the halls, campusCatalogInstances for the rest) merged into one instanced mesh per material
-  // across every campus on screen, so a big campus's extra halls or a crowded map still cost the
-  // same few draw calls. Exaggerated to a fixed on-screen footprint so it reads at this zoom
-  // (ASSUMPTIONS across-campus-miniature: a satellite-night symbol, not drawn to the map's own km
-  // scale); only the SHAPE — hall count/arrangement, substation and cooling plant position, overall
-  // aspect — is scenario-accurate, derived instead of hand-drawn per campus. Without the Blender
-  // catalog (no assets loaded yet) everything falls back to the same raw boxes the old fixed icon used.
-  const S = new Builder();
-  const roofGlow = glowMat('#ffd49a', 1.35);
+  // campuses: a shrunken copy of each scenario's own campus level (campus-layout.js, the geometry campus.js draws
+  // from): the halls in their real count and arrangement, the substation yard, main transformers and e-houses to the
+  // west, the cooling towers or chiller plant, the generator, fuel and battery yards, all on a dark ground pad with the
+  // campus's own spine and loop roads, and the dusk lighting the campus level has (lit hall edges and apron, road
+  // lamps). Everything is plain unit boxes in two instanced meshes plus one lit strip mesh across every campus on
+  // screen, so a 5 GW campus costs a few draw calls. The footprint is exaggerated to the old icon's box so it reads at
+  // this zoom (ASSUMPTIONS across-campus-miniature): the shape is scenario-accurate, the size is not to the km scale.
   const iconRoof = new THREE.MeshStandardMaterial({ color: 0x58687b, roughness: .42, metalness: .55 });
   const iconTrim = new THREE.MeshStandardMaterial({ color: 0xa5b6c4, roughness: .32, metalness: .7 });
-  // Night light on every campus symbol, home or remote: a warm apron at the plinth edge and a soft ground halo
-  // like the light a large site throws in satellite night imagery.
-  const apronHome = glowMat('#ffb14e', 0.5), apronOther = glowMat('#ffb14e', 0.32);
   const halos = [], campusSymbols = [];
-  // where the regional HV lines land: the substation yard sits at the -X edge of every campus (campus.js draws
-  // it there too), a little below the apron so the two never share a plane.
-  const gantry = ([x, z], k) => [x - 23.6 * k, 4.9 * k, z];
+  // where the regional HV lines land: the miniature's substation gantry (campus.js: gantryX -548, mid of the two
+  // circuits at z -150), keyed by the campus center the callers pass in
+  const gantryAt = new Map(), gkey = (x, z) => `${x.toFixed(2)},${z.toFixed(2)}`;
+  const gantry = ([x, z], k) => gantryAt.get(gkey(x, z)) || [x - 23.6 * k, 4.9 * k, z];
   // heat out of a campus is its power in: the scenario's meter for this campus, each real campus's own (sites.ts)
   const powerDraw = [];
   // instanced across every campus, filled in by campus() below, drawn once after the loop
-  const authoredHalls = hasCampusArchitecture();
-  const hallMx = [], subMx = [], xfmrMx = [], towerMx = [], plantMx = [], gensetMx = [], fuelMx = [], bessMx = [];
+  const unit = new THREE.BoxGeometry(1, 1, 1).translate(0, .5, 0);
+  const hallMx = [], yardMx = [], yardCol = [], litMx = [], litCol = [];
+  const yardBox = (x, z, w, d, h, hex, y = 0) => { yardMx.push(new THREE.Matrix4().makeScale(w, h, d).setPosition(x, y, z)); yardCol.push(new THREE.Color(hex)); };
+  const litBox = (x, z, w, d, h, col, y = 0) => { litMx.push(new THREE.Matrix4().makeScale(w, h, d).setPosition(x, y, z)); litCol.push(col); };
+  const YARD = { pad: 0x80858a, bus: 0xc9d0d4, xfmr: 0x4a5560, ehouse: 0xe4e8ea, tower: 0xd5dadd, tank: 0xe4e8ea, plant: 0xe4e8ea, genset: 0xb3a58c, fuel: 0xeef0f0, bess: 0xdfe4e6 };
   const campus = ([x, z], main, watts, id, campusModel) => {
     const k = main ? 1 : 0.85;
     // the power layer's glow (src/power-glow.js): each campus hugged by its meter power, the heat streams' watts
@@ -298,95 +294,70 @@ export function build({ quality, model, state = {} }) {
       { count: 5, speed: 8, size: .75 * k, k: 2.8, opacity: .8, trail: false });
       heatFlows.push(tagHeat(heat, id, watts)); scene.add(heat.group);
     }
-    const F = campusFootprint(campusModel), B = campusBounds(F);
+    const F = campusFootprint(campusModel), B = campusBounds(F), L = campusModel.layout;
     const bw = Math.max(1, B.x1 - B.x0), bd = Math.max(1, B.z1 - B.z0);
-    const sc = k * Math.min(40 / bw, 32 / bd);                         // fit the real footprint into the old icon's box
+    const sc = k * Math.min(56 / bw, 45 / bd);                         // fit the real footprint into the old icon's box
     const refX = (B.x0 + B.x1) / 2, refZ = (B.z0 + B.z1) / 2;
-    const VX = 5, tok = sc * 3;                                        // heights exaggerated like the rest of the map; single-unit tokens drawn larger
     const toX = rx => x + (rx - refX) * sc, toZ = rz => z + (rz - refZ) * sc;
-    rbox(S, bw * sc, 0.15, bd * sc, main ? apronHome : apronOther, toX(refX), 0.05, toZ(refZ), { r: 0.05 });
-    if (main) S.slab(bw * sc + 2, 0.05, bd * sc + 2, glowMat('#ffb14e', 0.65), toX(refX), 0.1, toZ(refZ));
-    // a tiny, otherwise-invisible MAP_CAMPUS instance at the campus center: where the regional HV
-    // lines (gantry(), above) still land, kept for that routing rather than drawn as the campus body.
-    if (authored) campusSymbols.push(mtx(x, 0, z, 0, Math.max(0.001, k * 0.001)));
-    if (authoredHalls) {
-      // data halls, the real hall cells (campus-layout.js's campusHallCells: the detailed pair plus
-      // any repeated expansion envelopes), each a Blender HALL instance at map scale.
-      campusHallCells(F).forEach(c => hallMx.push(new THREE.Matrix4().makeScale(c.len / 260 * sc, sc * VX, sc).setPosition(toX(c.x), 0, toZ(c.z))));
-    } else {
-      F.hallList.forEach(h => {
-        const cx = toX(F.hcx), cz = toZ((h.z0 + h.z1) / 2), w = F.hallLen * sc, d = (h.z1 - h.z0) * sc, hh = 5 * k;
-        rbox(S, w, hh, d, MAT.wall, cx, hh / 2, cz, { r: 0.08 });
-        S.slab(w, 0.3 * k, d, iconRoof, cx, hh, cz);
-        for (const edge of [-1, 1]) S.box(w, .22 * k, .3 * k, roofGlow, cx, hh + .2, cz + edge * d / 2 * .92);
-      });
-      // extra halls east of the detailed pair repeat in campus.js; the fallback keeps them as one
-      // envelope block, cheaper than drawing each (LOD: many campuses may be on screen at once).
-      if (F.extra) {
-        const x0 = toX(F.hallX1 + 20), x1 = toX(F.extentEast), cz = toZ(0), d = Math.min(bd * sc, (F.hallB.z1 - F.hallA.z0 + 40) * sc);
-        rbox(S, Math.max(2, x1 - x0), 4 * k, d, MAT.wall, (x0 + x1) / 2, 2 * k, cz, { r: 0.08 });
-      }
+    const VX = 5, E = 3;                                             // heights read like the rest of the map; small equipment drawn wider
+    const glow = main ? new THREE.Color(1, .72, .34) : new THREE.Color(.78, .52, .24);
+    // the HV landing: the real substation's gantry, and a tiny anchor instance there for the line routing/tests
+    const gp = [toX(F.gantryX), 4.9 * k, toZ(-150)];
+    gantryAt.set(gkey(x, z), gp);
+    if (authored) campusSymbols.push(mtx(gp[0], 0, gp[2], 0, 0.001));
+    // ground: the dark site pad, then the campus's own roads from its road plan, clipped to the pad
+    const pad = 14;
+    yardBox(toX(refX), toZ(refZ), (bw + 2 * pad) * sc, (bd + 2 * pad) * sc, .1, 0x2f5a3c);
+    const plan = campusRoadPlan({ extra: F.extra, perCol: F.perCol, cols: F.cols, hallX1: F.hallX1, nHalls: F.nHalls, batteryYard: F.batteryYard, gensets: L.gensets });
+    const lampStep = 70;
+    for (const s of plan.segments) {
+      if (s.id === 'public road') continue;
+      const [ax, az] = s.a, [bx, bz] = s.b, horiz = Math.abs(az - bz) < 1e-6;
+      const lo = horiz ? Math.max(Math.min(ax, bx), B.x0 - pad) : Math.max(Math.min(az, bz), B.z0 - pad);
+      const hi = horiz ? Math.min(Math.max(ax, bx), B.x1 + pad) : Math.min(Math.max(az, bz), B.z1 + pad);
+      if (hi - lo < 4) continue;
+      const w = Math.max(s.width * sc * 1.6, .22 * k);
+      if (horiz) yardBox(toX((lo + hi) / 2), toZ(az), (hi - lo) * sc, w, .06, 0x70767d, .1); else yardBox(toX(ax), toZ((lo + hi) / 2), w, (hi - lo) * sc, .06, 0x70767d, .1);
+      // road lamps along the spine and the loops: small warm lit dots
+      for (let t = lo + lampStep / 2; t < hi; t += lampStep) litBox(horiz ? toX(t) : toX(ax) + w * .7, horiz ? toZ(az) + w * .7 : toZ(t), .3 * k, .3 * k, .35 * k, glow.clone().multiplyScalar(1.8), .16);
     }
-    // substation yard and main transformer row, west of the halls, as campus.js places it
-    const subM = () => new THREE.Matrix4().makeScale((F.substation.x1 - F.substation.x0) * sc / 8, sc * VX * .6, (F.substation.z1 - F.substation.z0) * sc / 34)
-      .setPosition(toX((F.substation.x0 + F.substation.x1) / 2), 0, toZ((F.substation.z0 + F.substation.z1) / 2));
-    const xfmrM = () => new THREE.Matrix4().makeScale(tok, tok * 1.5, tok).setPosition(toX(F.mptX), 0, toZ((F.hallA.z0 + F.hallA.z1) / 2));
-    if (authored) { subMx.push(subM()); xfmrMx.push(xfmrM()); } else {
-      rbox(S, (F.substation.x1 - F.substation.x0) * sc, 1.2 * k, (F.substation.z1 - F.substation.z0) * sc, MAT.concreteDark,
-        toX((F.substation.x0 + F.substation.x1) / 2), 0.6 * k, toZ((F.substation.z0 + F.substation.z1) / 2), { r: 0.05 });
-      rbox(S, 6 * sc, 3 * k, 10 * sc, MAT.xfmr, toX(F.mptX), 1.5 * k, toZ((F.hallA.z0 + F.hallA.z1) / 2), { r: 0.08 });
-    }
-    // cooling: the tower row(s) where campus.js draws them, or the chiller plant shed when there are none
-    if (F.towerRows.length) {
-      const tz = toZ(F.towerRows[0]), tx0 = toX(9), tx1 = toX(87);
-      const td = F.towerRows.length > 1 ? Math.abs(F.towerRows[1] - F.towerRows[0]) * sc + 8 * sc : 10 * sc;
-      if (authored) towerMx.push(new THREE.Matrix4().makeScale(tok, tok, tok).setPosition((tx0 + tx1) / 2, 0, tz));
-      else rbox(S, Math.max(2, tx1 - tx0), 3 * k, td, iconTrim, (tx0 + tx1) / 2, 1.5 * k, tz, { r: 0.1 });
-    } else if (!F.warm) {
-      if (authored) plantMx.push(new THREE.Matrix4().makeScale(60 * sc / 8, sc * VX * .6, 18 * sc / 34).setPosition(toX(F.plantX), 0, toZ(-245)));
-      else rbox(S, 60 * sc, 3 * k, 18 * sc, iconTrim, toX(F.plantX), 1.5 * k, toZ(-245), { r: 0.08 });
-    }
-    // generator/fuel yard, or the battery field a battery-backed campus (plant.backup, sites.ts) runs instead
-    if (F.genset) {
-      F.genset.blocks.forEach(b => {
-        const cx = toX((F.genset.x0 + F.genset.x1) / 2), cz = toZ((b.z0 + b.z1) / 2);
-        if (authored) gensetMx.push(new THREE.Matrix4().makeScale(tok, tok, tok).setPosition(cx, 0, cz));
-        else rbox(S, (F.genset.x1 - F.genset.x0) * sc, 2 * k, (b.z1 - b.z0) * sc, iconTrim, cx, 1 * k, cz, { r: 0.1 });
-      });
-      if (F.fuel) {
-        const cx = toX((F.fuel.x0 + F.fuel.x1) / 2), cz = toZ((F.fuel.z0 + F.fuel.z1) / 2);
-        if (authored) fuelMx.push(new THREE.Matrix4().makeScale(tok, tok, tok).setPosition(cx, 0, cz));
-        else rbox(S, (F.fuel.x1 - F.fuel.x0) * sc, 2 * k, (F.fuel.z1 - F.fuel.z0) * sc, MAT.concreteDark, cx, 1 * k, cz, { r: 0.1 });
-      }
-    }
-    if (F.bigBattery) {
-      const cx = toX((F.bigBattery.x0 + F.bigBattery.x1) / 2), cz = toZ((F.bigBattery.z0 + F.bigBattery.z1) / 2);
-      if (authored) bessMx.push(new THREE.Matrix4().makeScale(tok, tok, tok).setPosition(cx, 0, cz));
-      else rbox(S, (F.bigBattery.x1 - F.bigBattery.x0) * sc, 2 * k, (F.bigBattery.z1 - F.bigBattery.z0) * sc, iconTrim, cx, 1 * k, cz, { r: 0.1 });
+    // the halls: the real cells (detailed pair plus any repeated expansion halls), pale roofs, lit edges and apron
+    campusHallCells(F).forEach((c, ci) => {
+      const w = c.len * sc, d = 90 * sc, h = 22 * sc * VX, cx = toX(c.x), cz = toZ(c.z);
+      hallMx.push(new THREE.Matrix4().makeScale(w, h, d).setPosition(cx, .16, cz));
+      if (ci < F.nHalls) litBox(cx, cz, w * 1.1, d * 1.35, .05, glow.clone().multiplyScalar(.9), .17);                    // the apron glow
+      for (const e of [-1, 1]) litBox(cx, cz + e * d * .5, w, .3 * k, .3 * k, glow.clone().multiplyScalar(ci < F.nHalls ? 2 : .9), h + .02);      // lit roof edges
+    });
+    // the yards, where the campus level has them
+    for (const it of campusYardItems(F, L)) {
+      const w = it.kind === 'pad' || it.kind === 'plant' || it.kind === 'ehouse' || it.kind === 'bus' ? it.w * sc : Math.max(it.w * sc * E, .18 * k);
+      const d = it.kind === 'pad' || it.kind === 'plant' || it.kind === 'ehouse' || it.kind === 'bus' ? it.d * sc : Math.max(it.d * sc * E, .18 * k);
+      yardBox(toX(it.x), toZ(it.z), w, d, it.kind === 'pad' ? it.h * sc * VX : Math.max(it.h * sc * VX * (it.kind === 'xfmr' ? 1 : .8), .1 * k), YARD[it.kind], it.kind === 'pad' ? .11 : .13);
     }
   };
   campus(H, true, model.meterMW * 1e6, 'home', model);
   others.forEach(p => campus(world(p.site.lon, p.site.lat), false, p.ids.reduce((w, id) => w + SITES[id].scenario.meterMW * 1e6, 0), placeKey(p),
     compute({ ...SITES[p.ids[0]].scenario, site: p.ids[0] })));
   balanceHeat(heatFlows);
-  scene.add(S.build({ cast: false }));
-  // the campus miniature's structural pieces, one instanced mesh per material across every campus
-  // on screen (the anchor-only MAP_CAMPUS marker keeps the HV routing's gantry() landing point).
-  if (authored) scene.add(campusCatalogInstances('MAP_CAMPUS', campusSymbols));
-  if (authoredHalls && hallMx.length) scene.add(campusHallMiniGroup(hallMx));
-  if (authored) {
-    if (subMx.length) scene.add(campusCatalogInstances('EHOUSE', subMx));
-    if (xfmrMx.length) scene.add(campusCatalogInstances('UNITSUB', xfmrMx));
-    if (towerMx.length) scene.add(campusCatalogInstances('TOWER_CELL', towerMx));
-    if (plantMx.length) scene.add(campusCatalogInstances('EHOUSE', plantMx));
-    if (gensetMx.length) scene.add(campusCatalogInstances('GENSET', gensetMx));
-    if (fuelMx.length) scene.add(campusCatalogInstances('FUEL_TANK', fuelMx));
-    if (bessMx.length) scene.add(campusCatalogInstances('BESS', bessMx));
+  if (authored) scene.add(campusCatalogInstances('MAP_CAMPUS', campusSymbols));    // anchor-only: where the HV lines land
+  {
+    // lit materials so the miniature takes the map's light, plus a little emission so it stays readable at night
+    const mk = (n, mat, mats, cols) => {
+      const m = new THREE.InstancedMesh(unit, mat, mats.length); m.name = n;
+      mats.forEach((mm, i) => { m.setMatrixAt(i, mm); if (cols) m.setColorAt(i, cols[i]); });
+      m.castShadow = m.receiveShadow = false; m.frustumCulled = false; return m;
+    };
+    const group = new THREE.Group(); group.name = 'Mini campus halls';
+    group.add(mk('Mini hall roofs', new THREE.MeshLambertMaterial({ color: 0xf0f3f5, emissive: 0x4c535a }), hallMx));
+    scene.add(group);
+    const yards = mk('Mini campus yards', new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x24282c }), yardMx, yardCol); yards.name = 'Mini campus yards';
+    const lit = mk('Mini campus lights', new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), litMx, litCol);
+    scene.add(yards, lit);
   }
   {
     const tex = radialTex();
     const halo = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color('#ff9a3c').multiplyScalar(0.55), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }), halos.length);
+      new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color('#ff9a3c').multiplyScalar(0.3), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }), halos.length);
     const hm = new THREE.Matrix4();
     halos.forEach(([x, z, size, a], i) => { hm.makeScale(size, 1, size).setPosition(x, 0.2, z); halo.setMatrixAt(i, hm); halo.setColorAt(i, new THREE.Color(a, a, a)); });
     halo.name = 'Campus night-light halo'; halo.renderOrder = 1; halo.userData.runtimeOverlay = true;
