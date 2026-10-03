@@ -8,7 +8,7 @@ import { beforeAll, describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { CPO_VARIANTS, CPO_RING, CPO_MZM, CPO_EIC, CPO_DIE, BAILLY, cpoBlocks, cpoVariantLayout, engineLayout, baillyLayout, eicBox, asicTap } from './side-geometry.js';
+import { CPO_VARIANTS, CPO_RING, CPO_MZM, CPO_EIC, CPO_DIE, BAILLY, cpoBlocks, cpoVariantLayout, engineLayout, baillyLayout, eicBox, asicTap, baillyAsicTap } from './side-geometry.js';
 
 function canvasDocument() {
   return { createElement(tag: string) {
@@ -224,7 +224,7 @@ describe('CPO engine layouts', () => {
     const check = (e: any, L: number, kind: 'ring' | 'mzm') => {
       const along = (d: number) => [e.x + Math.cos(e.rot) * d, e.z + Math.sin(e.rot) * d], dist = (p: number[]) => Math.hypot(p[0], p[1]);
       expect(Math.cos(e.rot) * e.out[0] + Math.sin(e.rot) * e.out[1]).toBeCloseTo(1);
-      const electrical = along(-L / 2), fiber = along(L / 2), tap = asicTap(e);
+      const electrical = along(-L / 2), fiber = along(L / 2), tap = (kind === 'mzm' ? baillyAsicTap : asicTap)(e);
       expect(dist(electrical)).toBeLessThan(dist(fiber));
       expect(Math.hypot(tap[0] - electrical[0], tap[1] - electrical[1])).toBeLessThan(Math.hypot(tap[0] - fiber[0], tap[1] - fiber[1]));
       const b = eicBox(kind);

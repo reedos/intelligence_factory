@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { engineLayout, asicTap, edgeConnOf, elsOf, ELS_LANES, ASIC_HALF, COPPER_HEADS, copperLane, copperChip, PAIR_HALF, cpoFiberRoutes, baillyLayout, baillyFiberRoutes, BAILLY, CPO_DIE, ELS_Z, CPO_MZM, CPO_EIC, engineTraceLandings, landingWorld, frameToLocal, eicBox, RING_R, tileEntry, ringEntry, engineBusWidth, engineBusPoint, engineEntryRadius } from './side-geometry.js';
+import { engineLayout, asicTap, baillyAsicTap, edgeConnOf, elsOf, ELS_LANES, ASIC_HALF, COPPER_HEADS, copperLane, copperChip, PAIR_HALF, cpoFiberRoutes, baillyLayout, baillyFiberRoutes, BAILLY, CPO_DIE, ELS_Z, CPO_MZM, CPO_EIC, engineTraceLandings, landingWorld, frameToLocal, eicBox, RING_R, tileEntry, ringEntry, engineBusWidth, engineBusPoint, engineEntryRadius } from './side-geometry.js';
 
 // Codex's optics review, 09/28: floating-point side vectors sent 12 of 18 ASIC taps outside the chip and 15 of 18
 // connectors off the package edge; four laser modules fed more lanes than one can; an AEC pair missed its retimer.
@@ -114,12 +114,14 @@ describe('Broadcom-style CPO package geometry', () => {
       for (const w of M.lasers) expect(Math.abs(z - w)).toBeGreaterThan(4);     // clear of the laser buses
     }
   });
-  it('has eight radial tiles, two per side, each tapping the ASIC on the edge it faces', () => {
+  it('has eight squared tiles, two per side, each tapping the ASIC directly under its own offset (not corner-pinned)', () => {
     expect(tiles).toHaveLength(8);
     for (const side of [0, 1, 2, 3]) expect(tiles.filter(t => t.side === side)).toHaveLength(2);
     for (const t of tiles) {
-      const [x, z] = asicTap(t), across = t.out[0] !== 0 ? x : z, along = t.out[0] !== 0 ? z : x;
+      const tap = baillyAsicTap(t), [x, z] = tap, across = t.out[0] !== 0 ? x : z, along = t.out[0] !== 0 ? z : x;
       expect(Math.abs(across)).toBeCloseTo(ASIC_HALF, 9); expect(Math.abs(along)).toBeLessThan(ASIC_HALF);
+      const tanAlong = tap[0] * t.tan[0] + tap[1] * t.tan[1];
+      expect(tanAlong).toBeCloseTo(t.t, 9);                                                // straight under the tile, no corner renormalization
       expect(BAILLY.rIn).toBeGreaterThan(ASIC_HALF + .3);                                  // room for the package traces
       expect(BAILLY.conn[1]).toBeLessThan(SUB / 2);                                         // connector on the package
       expect(t.r + L / 2).toBeCloseTo(BAILLY.conn[0], 9);                                  // connector at the tile's outer end
@@ -178,16 +180,16 @@ describe('CPO package traces land across the whole electrical edge, not a sliver
   // check here has to look at every trace's full route, not a single stand-in line per engine, and the ASIC-end
   // bus width itself needs its own check (two engines' bus intervals must not overlap, not just their individual
   // trace segments never crossing — parallel, non-crossing lines can still overlap).
-  const busRoutes = (kind: 'ring' | 'mzm', list: any[], r: (e: any) => number) => {
+  const busRoutes = (kind: 'ring' | 'mzm', list: any[], r: (e: any) => number, tapFn: (e: any) => number[]) => {
     const entryR = engineEntryRadius(kind);
     return list.map(e => {
-      const { desired, scale } = engineBusWidth(kind, list, e);
-      return { e, desired, scale, points: engineTraceLandings(kind).map(([px, py]) => engineBusPoint(kind, e, r(e), px, py, scale, entryR)) };
+      const { desired, scale } = engineBusWidth(kind, list, e, tapFn);
+      return { e, desired, scale, points: engineTraceLandings(kind).map(([px, py]) => engineBusPoint(kind, e, r(e), px, py, scale, entryR, tapFn)) };
     });
   };
-  for (const [kind, list, r] of [['mzm', baillyLayout(), (t: any) => t.r], ['ring', engineLayout(), () => RING_R]] as const)
+  for (const [kind, list, r, tapFn] of [['mzm', baillyLayout(), (t: any) => t.r, baillyAsicTap], ['ring', engineLayout(), () => RING_R, asicTap]] as const)
     it(`${kind}: the wide bus never crosses another engine's, at the ASIC end or along the run`, () => {
-      const routes = busRoutes(kind, list, r);
+      const routes = busRoutes(kind, list, r, tapFn);
       const segs = routes.flatMap(({ points }) => points.flatMap(([asic, entry, land]) => [[asic, entry], [entry, land]]));
       let crossings = 0;
       for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++)
@@ -197,11 +199,33 @@ describe('CPO package traces land across the whole electrical edge, not a sliver
       const along = (e: any, v: number[]) => v[0] * e.tan[0] + v[1] * e.tan[1];
       for (const side of [0, 1, 2, 3]) {
         const mine = routes.filter(({ e }) => e.side === side)
-          .map(({ e, desired, scale }) => { const c = along(e, asicTap(e)); return [c - desired * scale, c + desired * scale]; })
+          .map(({ e, desired, scale }) => { const c = along(e, tapFn(e)); return [c - desired * scale, c + desired * scale]; })
           .sort((a, b) => a[0] - b[0]);
         for (let k = 1; k < mine.length; k++) expect(mine[k][0], `${kind} side ${side} bus ${k}`).toBeGreaterThanOrEqual(mine[k - 1][1]);
       }
     });
+  it('mzm: the bus leaves the ASIC edge already at full width — straight, perpendicular, no taper (Reed/Opus, 10/02/2026)', () => {
+    const list = baillyLayout(), entryR = engineEntryRadius('mzm'), tol = 1e-9;
+    for (const t of list) {
+      const { scale } = engineBusWidth('mzm', list, t, baillyAsicTap);
+      expect(scale, `tile side ${t.side}/${t.t} bus scale`).toBeCloseTo(1, 6);
+      for (const [px, py] of engineTraceLandings('mzm')) {
+        const [asic, entry, land] = engineBusPoint('mzm', t, t.r, px, py, scale, entryR, baillyAsicTap);
+        // every lane: asic -> entry -> land is one straight line, parallel to `out`, perpendicular to the ASIC edge
+        const alongTan = (p: number[]) => p[0] * t.tan[0] + p[1] * t.tan[1];
+        expect(alongTan(asic), 'tan offset at the ASIC edge').toBeCloseTo(alongTan(entry), 6);
+        expect(alongTan(entry)).toBeCloseTo(alongTan(land), 6);
+        const alongOut = (p: number[]) => p[0] * t.out[0] + p[1] * t.out[1];
+        expect(alongOut(entry)).toBeGreaterThan(alongOut(asic) + tol);
+        expect(alongOut(land)).toBeGreaterThan(alongOut(entry) - tol);
+      }
+      // width at the ASIC end matches the width at the landing (lane spread, in tan), within 10%
+      const lzs = engineTraceLandings('mzm').map(([px, py]) => frameToLocal('mzm', px, py)[1]);
+      const landWidth = Math.max(...lzs) - Math.min(...lzs);
+      const asicWidth = landWidth * scale;
+      expect(Math.abs(asicWidth - landWidth) / landWidth, `tile side ${t.side}/${t.t} width ratio`).toBeLessThan(0.1);
+    }
+  });
   it('each design: the entrance is inside the engine/tile\'s own die footprint, so the fan never leaves it', () => {
     for (const [kind, list, r, entryOf] of [['mzm', baillyLayout(), null, tileEntry], ['ring', engineLayout(), RING_R, ringEntry]] as const) {
       for (const e of list) {
@@ -219,20 +243,20 @@ describe('CPO routing rules (design rules 2, 5 and 6)', () => {
     const o = (p: number[], q: number[], r: number[]) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
     return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
   };
-  const packages: [string, any[], number][] = [['NVIDIA-style', engineLayout(), 2.73], ['Broadcom-style', baillyLayout(), BAILLY.rIn]];
-  for (const [name, list, rIn] of packages) it(`${name}: package traces fan out from distinct taps in engine order and never cross`, () => {
+  const packages: [string, any[], number, (e: any) => number[]][] = [['NVIDIA-style', engineLayout(), 2.73, asicTap], ['Broadcom-style', baillyLayout(), BAILLY.rIn, baillyAsicTap]];
+  for (const [name, list, rIn, tapFn] of packages) it(`${name}: package traces fan out from distinct taps in engine order and never cross`, () => {
     const inner = (e: any) => [e.out[0] * rIn + e.tan[0] * e.t, e.out[1] * rIn + e.tan[1] * e.t];
-    const keys = list.map(e => asicTap(e).map(v => v.toFixed(4)).join());
+    const keys = list.map(e => tapFn(e).map(v => v.toFixed(4)).join());
     expect(new Set(keys).size).toBe(list.length);
     for (const side of [0, 1, 2, 3]) {
       const mine = list.filter(e => e.side === side).sort((a, b) => a.t - b.t);
-      const along = (e: any) => { const [x, z] = asicTap(e); return x * e.tan[0] + z * e.tan[1]; };
+      const along = (e: any) => { const [x, z] = tapFn(e); return x * e.tan[0] + z * e.tan[1]; };
       for (let k = 1; k < mine.length; k++) expect(along(mine[k])).toBeGreaterThan(along(mine[k - 1]));
     }
     for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++)
-      expect(cross(asicTap(list[i]), inner(list[i]), asicTap(list[j]), inner(list[j])), `${name} traces ${i} and ${j}`).toBe(false);
+      expect(cross(tapFn(list[i]), inner(list[i]), tapFn(list[j]), inner(list[j])), `${name} traces ${i} and ${j}`).toBe(false);
     // short and direct: no trace longer than twice the straight gap from the chip edge to the engine
-    for (const e of list) expect(Math.hypot(...asicTap(e).map((v, k) => v - inner(e)[k]))).toBeLessThan(2 * (rIn - ASIC_HALF) + 1.2);
+    for (const e of list) expect(Math.hypot(...tapFn(e).map((v, k) => v - inner(e)[k]))).toBeLessThan(2 * (rIn - ASIC_HALF) + 1.2);
   });
   for (const [name, list] of packages) it(`${name}: each engine takes laser light from a module near its own side of the front panel`, () => {
     const sorted = [...list].sort((a, b) => b.z - a.z || b.x - a.x);

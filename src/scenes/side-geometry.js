@@ -173,12 +173,12 @@ export const ringEntry = e => [e.x - e.out[0] * 0.62, e.z - e.out[1] * 0.62];
 // width fits at the ASIC edge already (the common case), less only where it would not, so that tile steps its
 // pitch down and jogs out to full width over a short run instead (design-rules.md: 45 degree jogs, never a
 // crossing).
-export function engineBusWidth(kind, list, e) {
+export function engineBusWidth(kind, list, e, tapFn = asicTap) {
   const lzs = engineTraceLandings(kind).map(([px, py]) => frameToLocal(kind, px, py)[1]);
   const desired = Math.max(...lzs.map(Math.abs));
   const along = v => v[0] * e.tan[0] + v[1] * e.tan[1];
-  const mine = along(asicTap(e));
-  const sameSide = list.filter(o => o.side === e.side).map(o => along(asicTap(o))).sort((a, b) => a - b);
+  const mine = along(tapFn(e));
+  const sameSide = list.filter(o => o.side === e.side).map(o => along(tapFn(o))).sort((a, b) => a - b);
   const idx = sameSide.findIndex(v => Math.abs(v - mine) < 1e-9);
   const gaps = [];
   if (idx > 0) gaps.push((sameSide[idx] - sameSide[idx - 1]) / 2);
@@ -206,8 +206,8 @@ export function engineBusWidth(kind, list, e) {
 export const engineEntryRadius = kind => kind === 'mzm' ? BAILLY.rIn : RING_R - CPO_DIE.ring.L / 2;
 // Returns a plain [asic, entry, land] triple (each a [x, z] pair) rather than named fields, so it serializes to
 // and from link-layout.json (tools/blender/export-cpo-layout.mjs, build-cpo.py) without translation.
-export function engineBusPoint(kind, e, r, px, py, scale, entryR) {
-  const [, lz] = frameToLocal(kind, px, py), tap = asicTap(e), full = e.t + lz;
+export function engineBusPoint(kind, e, r, px, py, scale, entryR, tapFn = asicTap) {
+  const [, lz] = frameToLocal(kind, px, py), tap = tapFn(e), full = e.t + lz;
   return [
     [tap[0] + e.tan[0] * lz * scale, tap[1] + e.tan[1] * lz * scale],
     [e.out[0] * entryR + e.tan[0] * full, e.out[1] * entryR + e.tan[1] * full],
@@ -218,10 +218,24 @@ export function engineBusPoint(kind, e, r, px, py, scale, entryR) {
 // Short edge at the switch chip, fiber connector (Broadcom Fiber Connector, BFC) at the outer end. Tiles on a side
 // sit 2 cm apart, clear of the corner tiles of the next side; their inner ends leave an 8 mm band for the package
 // traces from the switch chip's SerDes edge. The tile order sets laser-fiber elevations, as for the ring engines.
+// Reed/Opus review (10/02/2026): the two tiles on a side sit close enough to the switch chip's own
+// centreline (t = 0.65, against a tile half-width of 0.5 and each tile's own bus half-width of about
+// 0.457 — engineBusWidth('mzm', ...).desired) that baillyAsicTap below needs no corner compression:
+// cornerRoom (ASIC_HALF - t - margin = 1.2 - .65 - .05 = .5) and the same-side gap (t - margin = .6)
+// both clear desired with room to spare, so every mzm bus leaves the ASIC edge already at its tile's
+// full electrical-edge width (design-review-packages-modules-2026-10-01.md: straight, perpendicular,
+// evenly pitched, no fan past the tile's own footprint).
 const BAILLY_IN = 2.0, BAILLY_CONN = .6;
-export const BAILLY = { n: 8, rIn: BAILLY_IN, conn: [BAILLY_IN + CPO_DIE.mzm.L, BAILLY_IN + CPO_DIE.mzm.L + BAILLY_CONN], t: 1.0, connH: .3,
+export const BAILLY = { n: 8, rIn: BAILLY_IN, conn: [BAILLY_IN + CPO_DIE.mzm.L, BAILLY_IN + CPO_DIE.mzm.L + BAILLY_CONN], t: .65, connH: .3,
   // the exploded detail of one tile: its scale and center (the die drawn 3.5x, so the 64 lanes' pitch reads)
   detail: { s: 3.5, DX: -12.2, DY: 1.4, DZ: -8.4 } };
+// The Bailly-style package's own tap rule, distinct from the ring engines' asicTap (which pins every tap to the
+// ASIC's corner margin via TAP_MAX/tMax, right for the ring's eighteen asymmetric offsets but wrong here): the two
+// tiles on a side are always the same symmetric pair, so each tap sits directly under its own tile's true tan
+// offset, not renormalized toward the corner. With BAILLY.t chosen above that needs no further compression, so
+// the asic-to-entry run is dead straight and parallel to the entry-to-land run — one unbroken perpendicular
+// ribbon, not a taper (see engineBusWidth/engineBusPoint's tapFn parameter).
+export const baillyAsicTap = e => [OUT[e.side][0] * ASIC_HALF + TAN[e.side][0] * e.t, OUT[e.side][1] * ASIC_HALF + TAN[e.side][1] * e.t];
 export function baillyLayout() {
   const { L, W } = CPO_DIE.mzm, list = [];
   for (const side of [1, 3, 0, 2]) for (const t of [-BAILLY.t, BAILLY.t]) {
@@ -268,7 +282,7 @@ export function cpoVariantLayout() {
       split: M.split, armIn: M.armIn, armOut: M.armOut, join: M.join, coupler: M.coupler,
       arm: M.arm, elecW: M.elecW, heater: M.heater, tsvX: M.tsvX, tsvZ: M.tsvZ,
       segs: Array.from({ length: M.segments }, (_, k) => M.seg(k)), pads: Array.from({ length: M.segments }, (_, k) => M.pad(k)) },
-    bailly: { ...BAILLY, tiles, taps: tiles.map(asicTap), fiberRoutes: tiles.map(baillyFiberRoutes) },
+    bailly: { ...BAILLY, tiles, taps: tiles.map(baillyAsicTap), fiberRoutes: tiles.map(baillyFiberRoutes) },
     ringTaps: engineLayout().map(asicTap),
     // The wide package-trace bus (Reed, 10/02/2026, revised after review): each engine/tile's own three route
     // points per lane (asic tap, entry at the die's own inner edge, landing cell), already fully computed in
@@ -279,8 +293,8 @@ export function cpoVariantLayout() {
       return engineTraceLandings('ring').map(([px, py]) => engineBusPoint('ring', e, RING_R, px, py, scale, entryR));
     }); })(),
     mzmBus: (() => { const entryR = engineEntryRadius('mzm'); return tiles.map(t => {
-      const { scale } = engineBusWidth('mzm', tiles, t);
-      return engineTraceLandings('mzm').map(([px, py]) => engineBusPoint('mzm', t, t.r, px, py, scale, entryR));
+      const { scale } = engineBusWidth('mzm', tiles, t, baillyAsicTap);
+      return engineTraceLandings('mzm').map(([px, py]) => engineBusPoint('mzm', t, t.r, px, py, scale, entryR, baillyAsicTap));
     }); })(),
   };
 }

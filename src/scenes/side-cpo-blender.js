@@ -11,7 +11,7 @@ import { attachFlowRibbons } from '../flow-ribbons.js';
 let source, pending;
 export function preload() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=25`)
+  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=26`)
     .then(gltf => { source = gltf.scene; return source; })
     .catch(error => { pending = undefined; throw error; });
 }
@@ -150,7 +150,9 @@ export function build(args) {
   // rather than assigning into it, since buildDiagram's native `built.camera` is itself a getter.
   const CPO_CAMERA = {
     ring: { pos: [-2.82, 27.17, 32.58], target: [-2.82, 1.17, -1.42], portrait: { pos: [13.18, 29.47, 26.58], target: [-2.82, 1.17, -1.42] } },
-    mzm: { pos: [-4.06, 27.17, 32.51], target: [-4.07, 1.17, -1.5], portrait: { pos: [11.94, 29.47, 26.51], target: [-4.07, 1.17, -1.5] } },
+    // mzm's target re-measured 10/02/2026 (tools/orbit-center.mjs) after the tile bus fix moved BAILLY.t: the
+    // package's own bbox centre shifted about 0.3 cm on x and z. pos keeps the same offset from target as before.
+    mzm: { pos: [-3.77, 27.17, 32.3], target: [-3.78, 1.17, -1.71], portrait: { pos: [12.23, 29.47, 26.3], target: [-3.78, 1.17, -1.71] } },
   };
   Object.defineProperty(built, 'camera', { configurable: true,
     get: () => ({ ...CPO_CAMERA[built.variant.kind], near: 0.05, far: 500, min: 2, max: 90 }) });
@@ -233,9 +235,12 @@ export function build(args) {
     // The wide package-trace bus reads thin next to the bright green data streams it carries once the build-up
     // layer goes to x-ray above: a small emissive lift keeps the copper legible between the moving pulses without
     // turning it green itself. Power and heat keep the plain, unlit copper.
+    // Halved 10/02/2026 (Reed/Opus review): with the mzm package's 16 real lane segments this close together, the
+    // emissive lift plus ribbonIntensity read as a yellow haze rather than a legible bus, worst on phone. Shared
+    // with the ring package's own traces, which stay legible at the lower level too.
     const dataOn = args.state.mode === 'data';
     copperMaterial.emissive.set(dataOn ? 0xd98a4a : 0x000000);
-    copperMaterial.emissiveIntensity = dataOn ? 0.35 : 0;
+    copperMaterial.emissiveIntensity = dataOn ? 0.175 : 0;
     for (const [material, original] of pipeMaterials) {
       const transparent = heat || original.transparent;
       if (material.transparent !== transparent) { material.needsUpdate = true; dirty = true; }

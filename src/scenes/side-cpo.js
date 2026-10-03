@@ -334,7 +334,9 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   // mzm's package, so the two pivots differ in y by more than the two packages' x offset alone would.
   const CAMERA = {
     ring: { pos: [-3.27, 24.37, 25.51], target: [-3.27, 3.37, -.99], portrait: { pos: [12.73, 31.67, 27.01], target: [-3.27, 3.37, -.99] } },
-    mzm: { pos: [-4.51, 23.5, 25.43], target: [-4.51, 2.5, -1.07], portrait: { pos: [11.49, 30.8, 26.93], target: [-4.51, 2.5, -1.07] } },
+    // mzm's target re-measured 10/02/2026 (tools/orbit-center.mjs) after the tile bus fix moved BAILLY.t: the
+    // package's own bbox centre shifted about 0.3 cm on x and z. pos keeps the same offset from target as before.
+    mzm: { pos: [-4.23, 23.5, 25.22], target: [-4.23, 2.5, -1.28], portrait: { pos: [11.77, 30.8, 26.72], target: [-4.23, 2.5, -1.28] } },
   };
   return builtRef = {
     scene, flows, dataFlows, heatFlows, coolingHardware,

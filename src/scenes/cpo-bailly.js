@@ -8,7 +8,7 @@
 // This file builds the runtime half of that package: native stand-in geometry (the authored build draws the real
 // meshes from the same layout), flows, captions, guides and pins, all into the package's own groups.
 import { THREE, MAT, flow, laneFlow, die, strand, trace, label, FLOW, COL, note, unitCol } from './side-kit.js';
-import { CPO_MZM, CPO_EIC, CPO_DIE, BAILLY, baillyLayout, baillyFiberRoutes, asicTap, eicBox, frameToLocal, cpoBlocks, engineTraceLandings, landingWorld, tileEntry, engineBusWidth, engineBusPoint, engineEntryRadius } from './side-geometry.js';
+import { CPO_MZM, CPO_EIC, CPO_DIE, BAILLY, baillyLayout, baillyFiberRoutes, baillyAsicTap, eicBox, frameToLocal, cpoBlocks, engineTraceLandings, landingWorld, tileEntry, engineBusWidth, engineBusPoint, engineEntryRadius } from './side-geometry.js';
 import { eicMzmTex, mzmCpoPicTex } from './cpo-variants.js';
 import { roundCorners, keepCwCorner, CW_BEND, CPO_AUDIT as AU } from './side-cpo-routes.js';
 import { tagHeat, PART_W } from '../heat.js';
@@ -49,11 +49,11 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
   // into the die to its cell.
   const landings = engineTraceLandings('mzm'), entryR = engineEntryRadius('mzm');
   tiles.forEach(t => {
-    const { desired, scale } = engineBusWidth('mzm', tiles, t);
+    const { desired, scale } = engineBusWidth('mzm', tiles, t, baillyAsicTap);
     const pitch = landings.length > 1 ? (2 * desired) / (landings.length - 1) : desired;
     const w = Math.min(0.022, pitch * 0.4);
     for (const [px, py] of landings) {
-      const [asic, entry, land] = engineBusPoint('mzm', t, t.r, px, py, scale, entryR);
+      const [asic, entry, land] = engineBusPoint('mzm', t, t.r, px, py, scale, entryR, baillyAsicTap);
       trace(B, asic, entry, Y.subTop + 0.001, w);
       trace(B, entry, land, Y.subTop + 0.001, w);
     }
@@ -123,17 +123,21 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
   // dataFlow entries (and draw calls) per tile as before, whatever lane count is drawn.
   const half = landings.length / 2;
   tiles.forEach((t, i) => {
-    const { scale } = engineBusWidth('mzm', tiles, t);
+    const { scale } = engineBusWidth('mzm', tiles, t, baillyAsicTap);
     const laneUp = ([asic, entry, land]) => {
       const [lx, lz] = land, top = [lx + t.out[0] * 0.3, MY + 0.12, lz + t.out[1] * 0.3];
       return [[asic[0], Y.subTop + 0.02, asic[1]], [entry[0], Y.subTop + 0.02, entry[1]], [land[0], Y.subTop + 0.02, land[1]], top];
     };
-    const lanesOf = set => set.map(([px, py]) => engineBusPoint('mzm', t, t.r, px, py, scale, entryR)).map(laneUp);
+    const lanesOf = set => set.map(([px, py]) => engineBusPoint('mzm', t, t.r, px, py, scale, entryR, baillyAsicTap)).map(laneUp);
     // The route-ribbon overlay (flow-ribbons.js) draws every one of a flow's own path segments at full glow; with
     // 16 real lane segments this close together that reads as one solid sheet rather than a bus. Tone it down the
     // same way rack-optics.js does for its own per-lane flows; the moving pulses still carry the "several lanes"
     // read at full brightness.
-    const bus = lanes => Object.assign(laneFlow(lanes, 'eth', { ...FLOW.elecBus, audit: AU.onBus }), { ribbonIntensity: 0.3 });
+    // Toned down about half from the ring package's own bus glow (Reed/Opus review, 10/02/2026): 16 real lane
+    // segments this close together already reads as "busy," and ribbonIntensity 0.3 plus the full-brightness
+    // electrical color read as a yellow haze across the whole package, worst on phone where the segments sit
+    // closer together on screen.
+    const bus = lanes => Object.assign(laneFlow(lanes, 'eth', { ...FLOW.elecBus, audit: AU.onBus }), { ribbonIntensity: 0.15 });
     addFlow('data', bus(lanesOf(landings.slice(0, half))));
     addFlow('data', bus(lanesOf(landings.slice(half)).map(l => [...l].reverse())));
     addFlow('data', flow(roundCorners(routes[i].tx[7]), 'tx', { ...FLOW.light, audit: AU.throughConnector }));
@@ -177,7 +181,7 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
   const fitted = (p, v, t, size) => ({ pos: p, view: { pos: v, target: t, focus: p, detailSize: size } });
   const stack = w(0.3, 0.55, 0), stackSize = [L + 0.6, 1.2, W + 0.2];
   const conn = t => { const c = (BAILLY.conn[0] + BAILLY.conn[1]) / 2; return [t.out[0] * c + t.tan[0] * t.t, MY + 0.3, t.out[1] * c + t.tan[1] * t.t]; };
-  const T1 = tiles[0], [tx1, tz1] = asicTap(T1), fo = conn(tiles[0]);   // the front tile right of center, clear of the landscape pins
+  const T1 = tiles[0], [tx1, tz1] = baillyAsicTap(T1), fo = conn(tiles[0]);   // the front tile right of center, clear of the landscape pins
   const hs = {
     asic: fitted([0, Y.die + 0.1, 0], [-1, 8.5, 7], [0, Y.die, 0], [3.6, 0.5, 3.6]),
     serdes: at([(tx1 + inner(T1)[0]) / 2, Y.subTop + 0.1, (tz1 + inner(T1)[1]) / 2 + 0.3], [T1.x + 1.5, 5, T1.z + 3.2], [T1.x * 0.5, Y.subTop, T1.z * 0.5]),
