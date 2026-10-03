@@ -271,6 +271,7 @@ export function build({ quality, model, state = {} }) {
   const halos = [], campusSymbols = [];
   // where the regional HV lines land: the miniature's substation gantry (campus.js: gantryX -548, mid of the two
   // circuits at z -150), keyed by the campus center the callers pass in
+  const edgeAt = new Map();                                            // half-extents of each miniature's pad, for the fiber terminals outside it
   const gantryAt = new Map(), gkey = (x, z) => `${x.toFixed(2)},${z.toFixed(2)}`;
   const gantry = ([x, z], k) => gantryAt.get(gkey(x, z)) || [x - 23.6 * k, 4.9 * k, z];
   // heat out of a campus is its power in: the scenario's meter for this campus, each real campus's own (sites.ts)
@@ -278,8 +279,9 @@ export function build({ quality, model, state = {} }) {
   // instanced across every campus, filled in by campus() below, drawn once after the loop
   const unit = new THREE.BoxGeometry(1, 1, 1).translate(0, .5, 0);
   const hallMx = [], yardMx = [], yardCol = [], litMx = [], litCol = [];
-  const yardBox = (x, z, w, d, h, hex, y = 0) => { yardMx.push(new THREE.Matrix4().makeScale(w, h, d).setPosition(x, y, z)); yardCol.push(new THREE.Color(hex)); };
-  const litBox = (x, z, w, d, h, col, y = 0) => { litMx.push(new THREE.Matrix4().makeScale(w, h, d).setPosition(x, y, z)); litCol.push(col); };
+  let yo = 0, ncampus = 0;                                              // a hair of height per campus so neighbours never share a plane
+  const yardBox = (x, z, w, d, h, hex, y = 0) => { y += yo; yardMx.push(new THREE.Matrix4().makeScale(w, h, d).setPosition(x, y, z)); yardCol.push(new THREE.Color(hex)); };
+  const litBox = (x, z, w, d, h, col, y = 0) => { litMx.push(new THREE.Matrix4().makeScale(w, h, d).setPosition(x, y + yo, z)); litCol.push(col); };
   const YARD = { pad: 0x80858a, bus: 0xc9d0d4, xfmr: 0x4a5560, ehouse: 0xe4e8ea, tower: 0xd5dadd, tank: 0xe4e8ea, plant: 0xe4e8ea, genset: 0xb3a58c, fuel: 0xeef0f0, bess: 0xdfe4e6 };
   const campus = ([x, z], main, watts, id, campusModel) => {
     const k = main ? 1 : 0.85;
@@ -294,6 +296,7 @@ export function build({ quality, model, state = {} }) {
       { count: 5, speed: 8, size: .75 * k, k: 2.8, opacity: .8, trail: false });
       heatFlows.push(tagHeat(heat, id, watts)); scene.add(heat.group);
     }
+    yo = (ncampus++ % 17) * 0.05;
     const F = campusFootprint(campusModel), B = campusBounds(F), L = campusModel.layout;
     const bw = Math.max(1, B.x1 - B.x0), bd = Math.max(1, B.z1 - B.z0);
     const sc = k * Math.min(56 / bw, 45 / bd);                         // fit the real footprint into the old icon's box
@@ -304,6 +307,7 @@ export function build({ quality, model, state = {} }) {
     // the HV landing: the real substation's gantry, and a tiny anchor instance there for the line routing/tests
     const gp = [toX(F.gantryX), 4.9 * k, toZ(-150)];
     gantryAt.set(gkey(x, z), gp);
+    edgeAt.set(gkey(x, z), [(bw / 2 + 14) * sc, (bd / 2 + 14) * sc]);
     if (authored) campusSymbols.push(mtx(gp[0], 0, gp[2], 0, 0.001));
     // ground: the dark site pad, then the campus's own roads from its road plan, clipped to the pad
     const pad = 14;
@@ -317,22 +321,23 @@ export function build({ quality, model, state = {} }) {
       const hi = horiz ? Math.min(Math.max(ax, bx), B.x1 + pad) : Math.min(Math.max(az, bz), B.z1 + pad);
       if (hi - lo < 4) continue;
       const w = Math.max(s.width * sc * 1.6, .22 * k);
-      if (horiz) yardBox(toX((lo + hi) / 2), toZ(az), (hi - lo) * sc, w, .06, 0x70767d, .1); else yardBox(toX(ax), toZ((lo + hi) / 2), w, (hi - lo) * sc, .06, 0x70767d, .1);
+      if (horiz) yardBox(toX((lo + hi) / 2), toZ(az), (hi - lo) * sc, w, .14, 0x70767d, .17); else yardBox(toX(ax), toZ((lo + hi) / 2), w, (hi - lo) * sc, .14, 0x70767d, .17);
       // road lamps along the spine and the loops: small warm lit dots
-      for (let t = lo + lampStep / 2; t < hi; t += lampStep) litBox(horiz ? toX(t) : toX(ax) + w * .7, horiz ? toZ(az) + w * .7 : toZ(t), .3 * k, .3 * k, .35 * k, glow.clone().multiplyScalar(1.8), .16);
+      for (let t = lo + lampStep / 2; t < hi; t += lampStep) litBox(horiz ? toX(t) : toX(ax) + w * .7, horiz ? toZ(az) + w * .7 : toZ(t), .3 * k, .3 * k, .35 * k, glow.clone().multiplyScalar(1.8), .3);
     }
     // the halls: the real cells (detailed pair plus any repeated expansion halls), pale roofs, lit edges and apron
     campusHallCells(F).forEach((c, ci) => {
       const w = c.len * sc, d = 90 * sc, h = 22 * sc * VX, cx = toX(c.x), cz = toZ(c.z);
       hallMx.push(new THREE.Matrix4().makeScale(w, h, d).setPosition(cx, .16, cz));
-      if (ci < F.nHalls) litBox(cx, cz, w * 1.1, d * 1.35, .05, glow.clone().multiplyScalar(.9), .17);                    // the apron glow
+      if (ci < F.nHalls) litBox(cx, cz, w * 1.1, d * 1.35, .05, glow.clone().multiplyScalar(.9), .3);                    // the apron glow
       for (const e of [-1, 1]) litBox(cx, cz + e * d * .5, w, .3 * k, .3 * k, glow.clone().multiplyScalar(ci < F.nHalls ? 2 : .9), h + .02);      // lit roof edges
     });
     // the yards, where the campus level has them
+    let padN = 0;
     for (const it of campusYardItems(F, L)) {
       const w = it.kind === 'pad' || it.kind === 'plant' || it.kind === 'ehouse' || it.kind === 'bus' ? it.w * sc : Math.max(it.w * sc * E, .18 * k);
       const d = it.kind === 'pad' || it.kind === 'plant' || it.kind === 'ehouse' || it.kind === 'bus' ? it.d * sc : Math.max(it.d * sc * E, .18 * k);
-      yardBox(toX(it.x), toZ(it.z), w, d, it.kind === 'pad' ? it.h * sc * VX : Math.max(it.h * sc * VX * (it.kind === 'xfmr' ? 1 : .8), .1 * k), YARD[it.kind], it.kind === 'pad' ? .11 : .13);
+      yardBox(toX(it.x), toZ(it.z), w, d, it.kind === 'pad' ? it.h * sc * VX : Math.max(it.h * sc * VX * (it.kind === 'xfmr' ? 1 : .8), .1 * k), YARD[it.kind], it.kind === 'pad' ? .17 : .5);
     }
   };
   campus(H, true, model.meterMW * 1e6, 'home', model);
@@ -642,7 +647,7 @@ export function build({ quality, model, state = {} }) {
   let longest = null;
   // each line terminal sits on the east edge of its campus plinth; the route ends at a lit fiber-entrance vault
   // on the terminal's outer wall rather than at the campus center
-  const terminalAt = ([x, z], k, side = 1) => [x + side * (17 * k + 5.4), z - 6 * k];
+  const terminalAt = ([x, z], k, side = 1) => [x + side * (Math.max(edgeAt.get(gkey(x, z))?.[0] ?? 0, 17 * k) + 5.4), z - 6 * k];
   // a far campus's terminal stands on the side its route arrives from, so the fiber reaches its vault without
   // crossing the building (east of the campus for a route from the east, west for one from the west)
   const farSide = B => (H[0] >= B[0] ? 1 : -1);
@@ -651,7 +656,7 @@ export function build({ quality, model, state = {} }) {
   // its two fiber entrances (diverse entrances, at least 20 m apart: VA OIT telecom infrastructure standard after
   // TIA-942). The northernmost route leaves by the north terminal, the other by the east one; the west side is the
   // grid's (the substation and the incoming lines).
-  const HT = terminalAt(H, 1), HN = [H[0] + 6, H[1] - 21];
+  const HT = terminalAt(H, 1), HN = [H[0] + 6, H[1] - (Math.max(edgeAt.get(gkey(H[0], H[1]))?.[1] ?? 0, 16) + 5)];
   const northFirst = near.map(({ p }, i) => [world(p.site.lon, p.site.lat)[1], i]).sort((a, b) => a[0] - b[0])[0]?.[1];
   const homeFor = i => near.length > 1 && i === northFirst ? { t: HN, north: true } : { t: HT, north: false };
   near.forEach(({ p, km }, i) => {
@@ -667,7 +672,7 @@ export function build({ quality, model, state = {} }) {
     for (const dir of [1, -1]) {
       const pp = dir > 0 ? pts : [...pts].reverse().map(q => [q[0], q[1] + 1.5, q[2]]);
       // the fiber enters each in-line amplifier hut on its route (see above), so it passes through them on purpose
-      const f = flow(pp, 'dci', { count: Math.round(L / 22), speed: 240, size: 1.4, k: 1.7, trailR: 0.38, trailK: 0.4, audit: { through: /MAP_HUT/, why: 'the fiber runs through each in-line amplifier hut' } });
+      const f = flow(pp, 'dci', { count: Math.round(L / 22), speed: 240, size: 1.4, k: 1.7, trailR: 0.38, trailK: 0.4, audit: { through: /MAP_HUT|HUT_SITE/, why: 'the fiber runs through each in-line amplifier hut' } });
       // Keep a readable moving map symbol at long range, without a huge marker
       // covering an amplifier shelter when the user inspects it close up.
       const advance = f.update.bind(f), midpoint = new THREE.Vector3(...pointAt(pts, L / 2));
