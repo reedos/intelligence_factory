@@ -25,22 +25,37 @@ export function campusLightPools(scene, fixtures) {
 }
 
 export function campusHorizon(scene, { reach }) {
-  // A low ridgeline beyond the modeled campus, clear of the transmission corridor.
-  const radius = Math.max(3500, reach + 1800), segments = 160;
-  const geo = new THREE.BufferGeometry(), vertices = [], indices = [];
+  // A low ridgeline beyond the modeled campus, clear of the transmission corridor. Enough segments for the
+  // crest to read as a smooth curve rather than a stepped line at phone resolution, and the taller peaks -
+  // the part of the silhouette that cuts against the sky - are tinted toward the fog/dusk-horizon color, so
+  // any facet that remains softens into haze instead of showing a hard, high-contrast edge.
+  const radius = Math.max(3500, reach + 1800), segments = 480;
+  const geo = new THREE.BufferGeometry(), vertices = [], colors = [], indices = [];
+  const base = new THREE.Color(0x243c48);
+  const haze = (scene.fog ? scene.fog.color.clone() : new THREE.Color(0x243a55)).lerp(new THREE.Color(0x9b807a), 0.4);
+  const heights = [];
   for (let i = 0; i <= segments; i++) {
     const a = i / segments * Math.PI * 2;
-    const height = 65 + 30 * Math.sin(a * 5 + 1) + 18 * Math.sin(a * 11) + 9 * Math.sin(a * 23);
+    heights.push(65 + 30 * Math.sin(a * 5 + 1) + 18 * Math.sin(a * 11) + 9 * Math.sin(a * 23));
+  }
+  const minH = Math.min(...heights), maxH = Math.max(...heights);
+  for (let i = 0; i <= segments; i++) {
+    const a = i / segments * Math.PI * 2, height = heights[i];
+    // the top third of each peak's rise fades toward the haze color; valleys stay the solid hill color
+    const fade = THREE.MathUtils.smoothstep(height, minH + (maxH - minH) * 0.35, maxH);
+    const c = base.clone().lerp(haze, fade * 0.85);
     for (const [r, y] of [[radius - 550, -1], [radius, height], [radius + 700, 10]]) {
       vertices.push(Math.cos(a) * r, y, Math.sin(a) * r);
+      colors.push(c.r, c.g, c.b);
     }
     if (i < segments) for (let row = 0; row < 2; row++) {
       const n = i * 3 + row; indices.push(n, n + 3, n + 1, n + 1, n + 3, n + 4);
     }
   }
   geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   geo.setIndex(indices); geo.computeVertexNormals();
-  const hills = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x243c48, roughness: 1, side: THREE.DoubleSide }));
+  const hills = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide }));
   hills.name = 'Illustrative distant ridgeline'; scene.add(hills);
 }
 

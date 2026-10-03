@@ -8,6 +8,7 @@ import { HardwareGTAOPass } from './hardware-ao.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { HardwareBokehPass } from './hardware-bokeh.js';
 import { DETAIL } from '../kit.js';
 import { TIERS, qualityPressure } from './render-quality.js';
@@ -360,6 +361,13 @@ function getComposer(i) {
     c.flowBloom.enabled = tierOf(i).bloom;
     c.addPass(c.flowBloom);
     c.addPass(new OutputPass());
+    // cheap edge AA for the tiers that have no MSAA (every mobile tier, plus the lower desktop tiers): after tone
+    // mapping/output conversion so it acts on display-space color, before the grain so grain stays sharp. The
+    // resolution uniform is in real device pixels and has no setSize of its own (ShaderPass/Pass no-op it), so
+    // sizeComposer keeps it current on resize and on every governor ratio change.
+    const fxaa = new ShaderPass(FXAAShader);
+    fxaa.enabled = mobile || tierOf(i).msaa === 0;
+    c.addPass(fxaa); c.fxaaPass = fxaa;
     const fin = new ShaderPass(FINISH);
     fin.uniforms.uGrain.value = L.grain ?? 0.035;
     fin.uniforms.uVignette.value = L.vignette ?? 0.32;
@@ -390,6 +398,8 @@ function disposeComposer(c) { if (!c) return; c.passes.forEach(p => p.dispose?.(
 function sizeComposer(c) {
   c.setSize(view.clientWidth, view.clientHeight);
   if (c.tierRatio !== ratio) { c.tierRatio = ratio; c.setPixelRatio(ratio); }
+  // FXAA's resolution is real device pixels (CSS size times the render pixel ratio), and nothing resizes it for us.
+  if (c.fxaaPass) c.fxaaPass.material.uniforms.resolution.value.set(1 / (view.clientWidth * ratio), 1 / (view.clientHeight * ratio));
 }
 // put level i's effects at its tier; the renderer-wide settings follow the level on screen. True if the size changed.
 function applyTier(i) {
@@ -403,6 +413,7 @@ function applyTier(i) {
   built[i]?.powerGlow?.setTier(t);
   built[i]?.setRenderTier?.(t);   // levels with their own overlays (the package's HBM waterfall) follow the tier too
   if (c) for (const rt of [c.renderTarget1, c.renderTarget2]) { const n = mobile ? 0 : t.msaa; if (rt.samples !== n) { rt.samples = n; rt.dispose(); } }
+  if (c?.fxaaPass) c.fxaaPass.enabled = mobile || t.msaa === 0;
   if (i !== ui.scene) return false;
   emit('render-quality');
   renderer.shadowMap.autoUpdate = t.liveShadows; renderer.shadowMap.needsUpdate = true;   // a frozen map still draws once
