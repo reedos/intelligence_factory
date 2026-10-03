@@ -12,11 +12,11 @@ beforeAll(async()=>{
  across=await import('./across.js');const options={quality:{mobile:true,shadows:false},model:compute(DEFAULT_SCENARIO)};
  native=across.build(options);
  const assets=new Map();
- for(const name of ['campus-catalog','across-infrastructure']){
+ for(const name of ['campus-catalog','across-infrastructure','campus-architecture']){
   const b=readFileSync(new URL(`../../public/models/${name}.glb`,import.meta.url));
   assets.set(name,await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),''));
  }
- vi.spyOn(GLTFLoader.prototype,'loadAsync').mockImplementation(async url=>assets.get(url.includes('across-infrastructure')?'across-infrastructure':'campus-catalog'));
+ vi.spyOn(GLTFLoader.prototype,'loadAsync').mockImplementation(async url=>assets.get(url.includes('across-infrastructure')?'across-infrastructure':url.includes('campus-architecture')?'campus-architecture':'campus-catalog'));
  await across.preload();built=across.build(options);
 });
 afterAll(()=>{vi.restoreAllMocks();vi.unstubAllGlobals();});

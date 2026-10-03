@@ -49,6 +49,27 @@ export function addBlenderCampusArchitecture(scene, hallList, x0, x1, quality) {
   scene.userData.blenderCampusArchitecture = { source:'Blender', version:1, representative:true, detailedHalls:hallList.length, originalShellSuppressed:true };
 }
 
+// The same HALL architecture, shrunk to a map-icon scale for the across level's campus miniature
+// (across.js): one InstancedMesh per material across every hall across every campus on screen, so
+// a 5 GW campus's dozens of halls still cost the same couple of draw calls as a 100 MW campus's
+// two. Each matrix is a plain THREE.Matrix4 (non-uniform scale allowed: x scales with that hall's
+// own length, y/z with the miniature's map-units-per-meter scale), the same convention
+// campusCatalogInstances' matrices use.
+let miniHallParts;
+export function campusHallMiniGroup(matrices) {
+  if (!source || !matrices.length) return null;
+  miniHallParts ||= assembly('HALL', new Map());
+  const group = new THREE.Group(); group.name = 'Mini campus halls';
+  for (const [mat, geo] of miniHallParts) {
+    const mesh = new THREE.InstancedMesh(geo, mat, matrices.length);
+    mesh.name = `Mini ${mat.name}`;
+    matrices.forEach((m, i) => mesh.setMatrixAt(i, m));
+    mesh.castShadow = false; mesh.receiveShadow = false;
+    group.add(mesh);
+  }
+  return group;
+}
+
 // Material-batched exterior instances retain the same architectural language at
 // large fleet sizes. These are representative envelopes, not an inventory of
 // offices, cooling plant, or server equipment in the expanded halls.

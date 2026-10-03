@@ -16,6 +16,7 @@ import { addLineTerminalCutaway } from './dwdm-terminal.js';
 import { campusMarks } from './electrical-marks.js';
 import { campusSigns } from './site-signs.js';
 import { preloadCampusTransformer, hasCampusTransformer, campusTransformerInstances } from './campus-blender-transformer.js';
+import { campusFootprint, campusHallCells } from './campus-layout.js';
 import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
 import { ledgerW } from '../power-glow.js';
 export const preload = () => Promise.all([preloadCampusArchitecture(), preloadCampusCatalog(), preloadSiteConstruction(), preloadCampusVehicles(), preloadCampusTransformer()]);
@@ -25,13 +26,10 @@ export function build({ quality, model }) {
   const authoredCampus = hasCampusArchitecture();
   // a real campus's published plant (sites.ts): battery backup instead of a diesel yard, a closed loop instead of towers
   const batteryYard = model.backup === 'battery', closed = model.closedLoop;
-  const nHalls = Math.min(2, model.halls), extra = Math.max(0, model.halls - 2);
-  // Additional representative hall envelopes repeat east of the detailed utility plant.
-  const perCol = Math.min(12, Math.max(2, Math.ceil(Math.sqrt(extra / 1.2)))), cols = Math.ceil(extra / perCol);
-  const reach = extra ? 620 + cols * 320 : 0;
-  const extentWest=-1100,extentEast=extra?750+(cols-1)*320+132:440,span=extentEast-extentWest;
-  const hallLen = nHalls === 1 ? Math.round(Math.max(70, Math.min(260, 260 * model.IT_MW / 45))) : 260;
-  const hallX0 = -30, hallX1 = hallX0 + hallLen, hcx = (hallX0 + hallX1) / 2, hallA = { z0: -215, z1: -125 }, hallB = { z0: 15, z1: 105 };
+  // Hall count/sizing, the utility yards and the cooling plant's position: shared with the across
+  // level's campus miniature (campus-layout.js) so the two cannot draw different campuses.
+  const F = campusFootprint(model);
+  const { nHalls, extra, perCol, cols, reach, extentWest, extentEast, span, hallLen, hallX0, hallX1, hcx, hallA, hallB } = F;
   const roadPlan=campusRoadPlan({extra,perCol,cols,hallX1,nHalls,batteryYard,gensets:L.gensets});
   const scene = new THREE.Scene();
   // Clear blue-hour atmosphere: architecture stays readable against the landscape.
@@ -418,7 +416,7 @@ export function build({ quality, model }) {
       }
     }
   });
-  const towerRows = closed ? [] : warm ? [-275] : [-275, -290];
+  const towerRows = F.towerRows;
   // Hall B's chilled-water pair from the plant's west wall (plan, meters): supply inside, return outside, offset 4 m,
   // on sleepers at 2.2 m. Kept west of hall A's office block (x -58) and east of the staffed-entrance road (x -110); it
   // crosses the main spine road (z -62..-48) on a pipe bridge at 6.5 m, clear of trucks, not at sleeper height.
@@ -445,7 +443,7 @@ export function build({ quality, model }) {
       N.box(9.4, 0.4, 0.4, MAT.darkSteel, -75, PIPE_BRIDGE.y - 0.8, z);
     }
   }
-  const plantX = Math.max(hallX0 + 45, Math.min(100, hcx + 20));
+  const plantX = F.plantX;
   towerRows.forEach(tz => { for (let i = 0; i < 6; i++) { const x = 15 + i * 12; heatFlows.push(tagHeat(flow([[x, 11.5, tz], [x + 2, 35, tz - 3], [x + 6, 65, tz - 9]], 'vapor', { count: warm ? 5 : 7, speed: 6, size: 2.4, k: 1.2, opacity: warm ? 0.4 : 0.55, trail: false }), 'towers', towerW, 'carrier')); } });
   if (!warm) {
     // chiller plant between hall A and the towers: warm return in, cold supply back, heat on to the towers
@@ -674,7 +672,9 @@ export function build({ quality, model }) {
   // ---------- the rest of a big campus: representative authored hall exteriors ----------
   if (extra) {
     const z0 = -55 - (perCol - 1) * 120 / 2;
-    const expansionMatrices=Array.from({length:extra},(_,i)=>mtx(750+Math.floor(i/perCol)*320,0,z0+(i%perCol)*120));
+    // Same cells the across level's campus miniature draws (campus-layout.js): every expansion
+    // hall's real center, so the two never disagree about where the extra halls sit.
+    const expansionMatrices=campusHallCells(F).slice(nHalls).map(c=>mtx(c.x,0,c.z));
     // Conceptual campus distribution, not a surveyed Colossus routing plan.
     // Branches terminate at each representative hall envelope; no device or
     // conduit count/capacity is inferred from these aggregate utility symbols.
