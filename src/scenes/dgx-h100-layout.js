@@ -1,6 +1,7 @@
 // DGX H100 layout shared by the server level (tray.js buildHGX) and the pulled server in the rack (rack.js), in
 // tray units (10 cm), front +z. Arrangement from NVIDIA's DGX H100 user guide figures; every dimension inside the
 // chassis is representative (assumption 'dgx-h100-internal-layout', research/dgx-h100-2026-10-01.md).
+import { U, BASE } from './nvl72-layout.js';
 export const DGX = {
   W: 4.4, D: 9, H: 3.56, ZF: 4.5, ZB: -4.5,
   ZM: 3.3,                                     // midplane, its rear face toward the trays
@@ -32,3 +33,22 @@ export const DGX = {
   fanX: [-1.62, -0.54, 0.54, 1.62], fanY: [0.965, 1.975, 2.985],
   driveX: [-1.68, -0.88, 0.87, 1.67], driveY: [0.35, 0.185],
 };
+
+// The DGX H100 rack's front, in meters in rack.js's frame (front +z, floor at y 0): four 8U chassis, each closed by a
+// removable metal-foam bezel (NVIDIA: "decorative metal foam") with two carry handles and a small control panel, one
+// 1U management switch above them. rack.js builds its closed servers from this and the hall's rack faces (hall-rack-face.js,
+// and tools/blender/build-hall-finish.py through references/hall-layout.json) draw the same bezels, so the two levels
+// cannot disagree about what a DGX H100 rack looks like from the aisle.
+const SU = 8 * U;
+export const DGX_RACK = {
+  servers: 4, SU, first: 0.06, gap: 0.004,           // chassis pitch is SU + gap, the first chassis starts BASE + first
+  chassisW: 0.44, chassisD: 0.84,                    // DGX.W (4.4 tray units) x 10 cm; the chassis sits 0.07 behind the rack front
+  fans: DGX.fanX.length * DGX.fanY.length,           // twelve fan modules behind the bezel (not visible on a closed server)
+  bezel: { w: 0.44 - 0.016, h: SU * 0.89, rgb: [204, 178, 128] },                // the foam's base color; rack.js shades it with pores
+  ears: { x: [-0.245, 0.245], w: 0.03, h: SU * 0.9 },                            // galvanized mounting ears either side
+  handle: { x: [-0.19, 0.19], dy: -0.02, w: 0.014, h: 0.13, standoffDy: [-0.055, 0.055] },
+  panel: { x: 0.155, dy: SU * 0.3, w: 0.022, h: 0.078, buttonsDy: [0.024, 0, -0.024] },   // power button, ID button, fault LED
+  mgmt: { h: U * 0.94 },                                                         // the 1U switch above the top chassis
+};
+// the chassis centers, bottom up
+export const dgxServerY = k => BASE + DGX_RACK.first + k * (SU + DGX_RACK.gap) + SU / 2;

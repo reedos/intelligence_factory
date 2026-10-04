@@ -58,7 +58,7 @@ const mats = () => ({
   band: new THREE.MeshStandardMaterial({ color: 0xb9bec4, roughness: .5, metalness: 0, name: 'Splitter label band' }),
 });
 
-export function buildBreakout({ model, scene, layer, leafX, rowZs, ports, racks, quality }) {
+export function buildBreakout({ model, scene, layer, leafX, rowZs, ports, racks, quality, rackDz = 0 }) {   // rackDz: how far the racks' fronts sit from the 1.2 m depth the offsets below were typed for
   if (!breakoutDrawn(model) || !ports || ports.length < 64) return null;
   const M = mats(), B = new Builder(), rowZ = rowZs[ROW], seg = quality.mobile ? 6 : 8;
   const group = new THREE.Group(); group.name = 'Multimode links and 1:2 splitters (representative)';
@@ -79,7 +79,7 @@ export function buildBreakout({ model, scene, layer, leafX, rowZs, ports, racks,
   // adapter side: a flat-top single-port 400G OSFP (tan tab) in a GB200 tray front, two trays under the
   // rack's drawn scale-out module, with its green MPO shell and boot
   const adapterEnd = k => {
-    const f = k.f, x = k.x + .2, y = 1.333375 - 2 * .0445, z = k.z + f * .62;
+    const f = k.f, x = k.x + .2, y = 1.333375 - 2 * .0445, z = k.z + f * (.62 + rackDz);
     B.box(OSFP.w, OSFP.h, .035, M.metal, x, y, z);
     B.box(.005, .0034, .03, M.tan, x, y - .0047, z + f * .016);
     B.box(.0074, .0052, .012, M.green, x, y + .0012, z + f * .0235);
@@ -93,7 +93,7 @@ export function buildBreakout({ model, scene, layer, leafX, rowZs, ports, racks,
   };
   // from the leaf face up into the leaf runway, along the row runway, down the rack face to the adapter
   const overhead = (zf, k, lane, upX) => {
-    const f = k.f, rail = k.x + .232, rz = k.z + f * .67, ry = rowZ + lane;
+    const f = k.f, rail = k.x + .232, rz = k.z + f * (.67 + rackDz), ry = rowZ + lane;
     const end = adapterEnd(k);
     return [[upX, HALL_RUNWAY.entryY, zf], [upX, HALL_RUNWAY.entryY, ry], [upX, HALL_RUNWAY.cableY, ry],
       [rail, HALL_RUNWAY.cableY, ry], [rail, HALL_RUNWAY.entryY, ry], [rail, HALL_RUNWAY.entryY, rz], [rail, end[1] + .05, rz],

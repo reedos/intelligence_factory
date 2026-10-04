@@ -8,6 +8,9 @@
 // sit is not published; they are drawn as drawn, four under the compute block and four over it, so the bus bar is fed
 // from both ends.
 export const U = 0.04445, BASE = 0.1;
+// The cabinet both generations stand in (NVIDIA's NVL72 and DGX H100 racks), in rack.js's frame. rack.js builds from it
+// and the hall's racks take their depth from it (hall.js), so the two levels draw the same cabinet.
+export const RACK = { W: 0.6, D: 1.07, H: 2.25 };
 export const SHELVES_BOTTOM = 4, SHELVES_TOP = 4;
 export const LAYOUT = [
   ...Array(SHELVES_BOTTOM).fill('ps'), ...Array(8).fill('compute'), ...Array(9).fill('switch'),

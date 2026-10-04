@@ -9,9 +9,9 @@ import { addRackOptics } from './rack-optics.js';
 import { addRackMgmt } from './rack-mgmt.js';
 import { etch } from './package-marks.js';
 import { rackUnits } from './site-signs.js';
-import { LAYOUT as NVL_LAYOUT, trayY as nvlTrayY, ROWS as NVL_ROWS, PULLED as NVL_PULLED, SWITCH_PULLED as NVL_SWITCH_PULLED } from './nvl72-layout.js';
+import { RACK, BASE as RACK_BASE, LAYOUT as NVL_LAYOUT, trayY as nvlTrayY, ROWS as NVL_ROWS, PULLED as NVL_PULLED, SWITCH_PULLED as NVL_SWITCH_PULLED } from './nvl72-layout.js';
 import { componentView } from '../app/housing-frame.js';
-import { DGX } from './dgx-h100-layout.js';
+import { DGX, DGX_RACK, dgxServerY } from './dgx-h100-layout.js';
 // The pulled compute tray's cold plates and fans come from the same layout tray.js and tray-rubin.js build the
 // tray level from, in tray units (10 cm) converted to the rack's meters below (TRAY_UNIT), so the rack's LOD
 // tray cannot silently drift from the authoritative one (tests/rack-tray-match.test.ts checks this stays wired).
@@ -334,7 +334,7 @@ function foamMaps(w = 512, h = 400, seed = 7) {
     const img = g.createImageData(w, h), d = img.data;
     for (let i = 0; i < w * h; i++) {
       const k = 0.46 + 0.62 * Math.pow(H[i], 1.6), j = 0.96 + 0.08 * ((i * 2654435761 >>> 0) / 4294967296);
-      d[i * 4] = Math.min(255, 204 * k * j); d[i * 4 + 1] = Math.min(255, 178 * k * j); d[i * 4 + 2] = Math.min(255, 128 * k * j); d[i * 4 + 3] = 255;
+      d[i * 4] = Math.min(255, DGX_RACK.bezel.rgb[0] * k * j); d[i * 4 + 1] = Math.min(255, DGX_RACK.bezel.rgb[1] * k * j); d[i * 4 + 2] = Math.min(255, DGX_RACK.bezel.rgb[2] * k * j); d[i * 4 + 3] = 255;
     }
     g.putImageData?.(img, 0, 0);
   }, { repeat });
@@ -432,10 +432,10 @@ function buildHGX({ quality, model, state }) {
   const scene = new THREE.Scene();
   const flows = [], dataFlows = [], heatFlows = [];
   const S = new Builder(), N = new Builder();
-  const W = 0.6, D = 1.07, H = 2.25, X = W / 2, ZF = D / 2, ZB = -D / 2, base = 0.1;
+  const { W, D, H } = RACK, X = W / 2, ZF = D / 2, ZB = -D / 2, base = RACK_BASE;
   room(scene, quality, S, N, W, H, D);
-  const SU = 8 * U, sw = 0.44, sd = 0.84;
-  const sy = k => base + 0.06 + k * (SU + 0.004) + SU / 2;                              // server centers, bottom up
+  const SU = DGX_RACK.SU, sw = DGX_RACK.chassisW, sd = DGX_RACK.chassisD;      // dgx-h100-layout.js: the hall's rack faces draw the same bezels
+  const sy = dgxServerY;                                                       // server centers, bottom up
   // An exploded service position exposes the complete server instead of
   // burying the CPU board under the next chassis. Not an operating position.
   const PULLED = 2, out = 1.0;
@@ -446,25 +446,26 @@ function buildHGX({ quality, model, state }) {
   const m = new THREE.InstancedMesh(new THREE.BoxGeometry(sw, SU * 0.98, sd), [side, side, side, side, MAT.rackFace, rear], inRack.length);
   inRack.forEach((k, n) => m.setMatrixAt(n, mtx(0, sy(k), ZF - 0.07 - sd / 2)));
   m.castShadow = m.receiveShadow = true; scene.add(m);
-  inRack.forEach(k => { N.box(0.03, SU * 0.9, 0.01, MAT.galv, -0.245, sy(k), ZF - 0.065); N.box(0.03, SU * 0.9, 0.01, MAT.galv, 0.245, sy(k), ZF - 0.065); });
+  inRack.forEach(k => { for (const x of DGX_RACK.ears.x) N.box(DGX_RACK.ears.w, DGX_RACK.ears.h, 0.01, MAT.galv, x, sy(k), ZF - 0.065); });
   if (!quality.mobile) inRack.forEach(k => earFasteners(N, sy(k), ZF - 0.0585, [-SU * 0.36, SU * 0.36]));
   // Removable metal-foam bezel on every closed server: a proud plate inside the
   // service perimeter, two carry handles, and the published front controls
   // (power button, ID button, fault LED) on a small panel at the right.
   const bz = ZF - 0.07 + 0.0075, bzFront = bz + 0.006;
   // Instanced so the plate keeps its UVs (Builder geometry drops them).
-  const plates = new THREE.InstancedMesh(new THREE.BoxGeometry(sw - 0.016, SU * 0.89, 0.012), [side, side, side, side, foam, side], inRack.length);
+  const plates = new THREE.InstancedMesh(new THREE.BoxGeometry(DGX_RACK.bezel.w, DGX_RACK.bezel.h, 0.012), [side, side, side, side, foam, side], inRack.length);
   inRack.forEach((k, n) => plates.setMatrixAt(n, mtx(0, sy(k), bz)));
   plates.castShadow = plates.receiveShadow = true; scene.add(plates);
   inRack.forEach(k => {
-    for (const x of [-0.19, 0.19]) {
-      rbox(N, 0.014, 0.13, 0.012, COLLAR, x, sy(k) - 0.02, bzFront + 0.007, { r: 0.35 });
-      for (const dy of [-0.055, 0.055]) N.box(0.01, 0.012, 0.008, MAT.darkSteel, x, sy(k) - 0.02 + dy, bzFront + 0.002);
+    const { handle: hd, panel: pn } = DGX_RACK;
+    for (const x of hd.x) {
+      rbox(N, hd.w, hd.h, 0.012, COLLAR, x, sy(k) + hd.dy, bzFront + 0.007, { r: 0.35 });
+      for (const dy of hd.standoffDy) N.box(0.01, 0.012, 0.008, MAT.darkSteel, x, sy(k) + hd.dy + dy, bzFront + 0.002);
     }
-    rbox(N, 0.022, 0.078, 0.004, MAT.black, 0.155, sy(k) + SU * 0.3, bzFront + 0.0022, { r: 0.3 });
-    N.cylZ(0.0055, 0.004, COLLAR, 0.155, sy(k) + SU * 0.3 + 0.024, bzFront + 0.0048, 16);   // power button
-    N.cylZ(0.0045, 0.004, COLLAR, 0.155, sy(k) + SU * 0.3, bzFront + 0.0048, 16);          // ID button
-    N.box(0.005, 0.005, 0.002, new THREE.MeshStandardMaterial({ color: 0x3a2508, roughness: 0.3 }), 0.155, sy(k) + SU * 0.3 - 0.024, bzFront + 0.0048); // fault LED, dark
+    rbox(N, pn.w, pn.h, 0.004, MAT.black, pn.x, sy(k) + pn.dy, bzFront + 0.0022, { r: 0.3 });
+    N.cylZ(0.0055, 0.004, COLLAR, pn.x, sy(k) + pn.dy + pn.buttonsDy[0], bzFront + 0.0048, 16);   // power button
+    N.cylZ(0.0045, 0.004, COLLAR, pn.x, sy(k) + pn.dy + pn.buttonsDy[1], bzFront + 0.0048, 16);   // ID button
+    N.box(0.005, 0.005, 0.002, new THREE.MeshStandardMaterial({ color: 0x3a2508, roughness: 0.3 }), pn.x, sy(k) + pn.dy + pn.buttonsDy[2], bzFront + 0.0048); // fault LED, dark
   });
   // Rear supplies: a pull handle proud of each of the six bays.
   inRack.forEach(k => { for (let i = 0; i < 6; i++) rbox(N, 0.034, 0.006, 0.012, MAT.galv, 0.185 - i * 0.0705 - 0.005, sy(k) - SU * 0.49 + 0.012, ZF - 0.07 - sd - 0.006, { r: 0.4 }); });
@@ -649,7 +650,7 @@ function buildNVL({ quality, model, state }) {
   const scene = new THREE.Scene();
   const flows = [], dataFlows = [], heatFlows = [];
   const S = new Builder(), N = new Builder();
-  const W = 0.6, D = 1.07, H = 2.25, X = W / 2, ZF = D / 2, ZB = -D / 2;
+  const { W, D, H } = RACK, X = W / 2, ZF = D / 2, ZB = -D / 2;
   const base = 0.1;
   // Rear EIA rails 4 mm outboard of the 440 mm trays, at the tray rears, so the corner manifolds and their couplers
   // stand clear of them and of the corner posts (they used to clip both by about 15 mm).

@@ -318,28 +318,40 @@ cyl('Threaded body',(0,-.012,0),.011,.024,brass,g,'y',10)
 for sx in [-1,1]:box('Frame arm',(sx*.009,-.038,0),(.004,.03,.006),brass,g,0)
 cyl('Glass bulb',(0,-.036,0),.004,.022,bulb,g,'y',8)
 cyl('Deflector',(0,-.056,0),.022,.003,brass,g,'y',16)
-# Face relief follows existing rack texture rows, not an invented tray count.
-# Canonical cabinet envelope .58 wide x2.3 high, front z=.6.
-def drawer(g,top,height,pull=False):
- y=2.25-(top+height/2)*2.2/48
- box('Recessed service drawer',(0,y,.615),(.468,height*2.2/48-.008,.022),graphite,g,.007)
- box('Drawer upper rolled edge',(0,y+height*2.2/96-.006,.631),(.472,.011,.018),steel,g,.004)
+# Face relief follows the rack level's elevation. Nothing here is typed: rows, pitch and the DGX H100 bezel record come from
+# references/hall-layout.json, which export-native-reference.mjs --hall writes from nvl72-layout.js and dgx-h100-layout.js
+# (the same records rack.js and hall.js build from; hall-rack-face.test.ts keeps the file and this GLB in step).
+# Cabinet envelope .58 wide x2.3 high, front z=.6, on which the face texture plane stands at z=.632.
+import json
+HL=json.loads((HERE/'references'/'hall-layout.json').read_text())
+FACE_Z=.632
+def drawer(g,y,pitch,pull=False):
+ box('Recessed service drawer',(0,y,.615),(.468,pitch-.008,.022),graphite,g,.007)
+ box('Drawer upper rolled edge',(0,y+pitch/2-.006,.631),(.472,.011,.018),steel,g,.004)
  if pull:
-  for x in [-.211,.211]:box('Captive service pull',(x,y,.65),(.018,max(.018,height*2.2/48-.018),.035),alloy,g,.006)
+  for x in [-.211,.211]:box('Captive service pull',(x,y,.65),(.018,max(.018,pitch-.018),.035),alloy,g,.006)
 g='NVL_FACE'
-# Same bottom-up rows as scene3 (src/scenes/nvl72-layout.js): 18 compute, 9 switch, 8 power, 1 management.
-layout=['power']*4+['compute']*8+['switch']*9+['compute']*10+['power']*4+['management']
-for i,kind in enumerate(layout):
- center=.12+i*.04445+.022225
- top=(2.25-center-.022225)*48/2.2
- drawer(g,top,.04445*48/2.2,kind in ['power','compute'])
-groups[g]['ifxDrawerCounts']='18 compute;9 switch;8 power;1 management;36 total'
+# The rack level's rows, bottom up (nvl72-layout.js LAYOUT): 8 power shelves, 18 compute, 9 switch, 2 management.
+nvl_rows=HL['nvl']['rows']
+for r in nvl_rows:
+ drawer(g,r['y'],HL['nvl']['pitch'],r['kind'] in HL['nvl']['pulledKinds'])
+counts={}
+for r in nvl_rows:counts[r['kind']]=counts.get(r['kind'],0)+1
+groups[g]['ifxDrawerCounts']=';'.join('%d %s'%(counts[k],k) for k in ['compute','switch','power','management'])+';%d total'%len(nvl_rows)
 g='H100_FACE'
-for i in range(4):
- # Four existing8U servers. Open skeletal frame leaves fan texture visible.
- y=.05+(3+i*8.2+4)*2.2/48
- for yy in [y-8*2.2/96,y+8*2.2/96]:box('HGX drawer rolled edge',(0,yy,.622),(.48,.014,.023),steel,g,.004)
- for x in [-.228,.228]:box('HGX captive pull',(x,y,.641),(.018,.18,.036),alloy,g,.006)
+# The DGX H100 rack's four closed 8U chassis (dgx-h100-layout.js DGX_RACK): mounting ears, the foam bezel's rolled lips, two
+# carry handles on standoffs and the control panel. The foam itself, and the shadows of the handles, are the face texture.
+H=HL['h100']
+for y in H['serverY']:
+ for x in H['ears']['x']:box('DGX mounting ear',(x,y,FACE_Z+.0065),(H['ears']['w'],H['ears']['h'],.007),steel,g,.002)
+ for sgn in [-1,1]:box('DGX bezel rolled lip',(0,y+sgn*(H['bezel']['h']/2+.0015),FACE_Z+.0035),(H['bezel']['w']+.012,.007,.005),steel,g,.002)
+ hd=H['handle']
+ for x in hd['x']:
+  box('DGX carry handle',(x,y+hd['dy'],FACE_Z+.0155),(hd['w'],hd['h'],.012),alloy,g,.004)
+  for dy in hd['standoffDy']:box('DGX handle standoff',(x,y+hd['dy']+dy,FACE_Z+.0045),(.01,.012,.008),steel,g,.001)
+ pn=H['panel']
+ box('DGX control panel',(pn['x'],y+pn['dy'],FACE_Z+.0035),(pn['w'],pn['h'],.005),graphite,g,.002)
+groups[g]['ifxFace']='%d servers;%d fans each;pitch %.5f'%(H['servers'],H['fans'],H['SU']+H['gap'])
 g='STORAGE_FACE'
 # Twelve 4U drive shelves, matching the storage face texture rows top-down (face spans y .05-2.25).
 # Representative JBOD-style bezels: a rolled top lip and two bezel ears per shelf, no bay count claimed.
