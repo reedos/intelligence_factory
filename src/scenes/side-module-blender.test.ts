@@ -202,25 +202,30 @@ describe('Blender optical module integration', () => {
     const { result } = build();
     result.scene.updateMatrixWorld(true);
     const exported = new Map(metadata.routes.map(route => [route.name, route]));
-    const sourced = result.dataFlows.filter(flow => flow.route.source);
-    expect(sourced.length).toBeGreaterThan(20);
+    // one instanced bus per class; each lane is one exported conductor (or a bond joined to its RF feed)
+    const sourced = result.dataFlows.filter(flow => flow.route.sources);
+    expect(sourced.reduce((n, flow) => n + flow.lanePaths.length, 0), 'lanes carried by the buses').toBeGreaterThan(80);
     for (const flow of sourced) {
-      const route = exported.get(flow.route.source)!;
-      expect(route, flow.route.id).toBeDefined();
-      const points = flow.route.direction === 'reverse' ? [...route.points].reverse() : route.points;
-      expect(flow.path.curves, flow.route.id).toHaveLength(points.length - 1);
-      const assembly = result.scene.getObjectByName(route.assembly)!;
-      for (let i = 0; i < points.length - 1; i++) {
-        const curve = flow.path.curves[i];
-        for (const [u, point] of [[0, points[i]], [1, points[i + 1]]] as const) {
-          const actual = flow.group.localToWorld(curve.getPoint(u)).toArray();
-          const expected = assembly.localToWorld(new THREE.Vector3(...point)).toArray();
-          expectPoint(actual, expected, `${flow.route.id} segment ${i}/${u}`);
+      expect(flow.lanePaths, flow.route.id).toHaveLength(flow.route.sources.length);
+      flow.route.sources.forEach((group: string | string[], lane: number) => {
+        const routesOf = (Array.isArray(group) ? group : [group]).map(name => exported.get(name)!);
+        routesOf.forEach((route, k) => expect(route, `${flow.route.id} ${Array.isArray(group) ? group[k] : group}`).toBeDefined());
+        let points = routesOf.flatMap(route => route.points);
+        if (flow.route.direction === 'reverse') points = [...points].reverse();
+        const path = flow.lanePaths[lane];
+        expect(path.curves, `${flow.route.id} lane ${lane}`).toHaveLength(points.length - 1);
+        const assembly = result.scene.getObjectByName(routesOf[0].assembly)!;
+        for (let i = 0; i < points.length - 1; i++) {
+          for (const [u, point] of [[0, points[i]], [1, points[i + 1]]] as const) {
+            const actual = flow.group.localToWorld(path.curves[i].getPoint(u)).toArray();
+            const expected = assembly.localToWorld(new THREE.Vector3(...point)).toArray();
+            expectPoint(actual, expected, `${flow.route.id} lane ${lane} segment ${i}/${u}`);
+          }
         }
-      }
-      const start = flow.path.getPoint(0), end = flow.path.getPoint(1);
-      // Host is left of the optical engine: transmit advances +X; receive returns -X.
-      if (flow.route.kind !== 'cw') expect(Math.sign(end.x - start.x), flow.route.id).toBe(flow.route.id.startsWith('RX') ? -1 : 1);
+        const start = path.getPoint(0), end = path.getPoint(1);
+        // Host is left of the optical engine: transmit advances +X; receive returns -X.
+        if (flow.route.kind !== 'cw') expect(Math.sign(end.x - start.x), `${flow.route.id} lane ${lane}`).toBe(flow.route.id.startsWith('RX') ? -1 : 1);
+      });
     }
   });
 
@@ -350,15 +355,18 @@ describe('Blender optical module integration', () => {
     const { result } = build();
     const routes = new Map(metadata.routes.map(route => [route.name, route]));
     const bypasses = result.dataFlows.filter(flow => flow.route.variant === 'lpo');
-    expect(bypasses.filter(flow => flow.route.from === 'fingers')).toHaveLength(4);
-    expect(bypasses.filter(flow => flow.route.to === 'fingers')).toHaveLength(4);
+    expect(bypasses, 'one bus per direction').toHaveLength(2);
+    expect(bypasses.filter(flow => flow.route.from === 'fingers').flatMap(flow => flow.lanePaths), 'all eight transmit lanes').toHaveLength(8);
+    expect(bypasses.filter(flow => flow.route.to === 'fingers').flatMap(flow => flow.lanePaths), 'all eight receive lanes').toHaveLength(8);
     for (const flow of bypasses) {
-      const [, direction, lane] = /^(TX|RX)-(\d+)-/.exec(flow.route.id)!;
-      const host = routes.get(`${direction} host copper ${lane} -1`)!.points[0];
-      const analog = routes.get(`${direction} engine copper ${lane} -1`)!.points.at(-1)!;
-      const [start, end] = direction === 'TX' ? [host, analog] : [analog, host];
-      expectPoint(flow.path.getPoint(0).toArray(), start.map(value => value * 100), `${flow.route.id} start`);
-      expectPoint(flow.path.getPoint(1).toArray(), end.map(value => value * 100), `${flow.route.id} end`);
+      const direction = flow.route.id.startsWith('TX') ? 'TX' : 'RX';
+      flow.lanePaths.forEach((path: any, lane: number) => {
+        const host = routes.get(`${direction} host copper ${lane} -1`)!.points[0];
+        const analog = routes.get(`${direction} engine copper ${lane} -1`)!.points.at(-1)!;
+        const [start, end] = direction === 'TX' ? [host, analog] : [analog, host];
+        expectPoint(path.getPoint(0).toArray(), start.map(value => value * 100), `${flow.route.id} lane ${lane} start`);
+        expectPoint(path.getPoint(1).toArray(), end.map(value => value * 100), `${flow.route.id} lane ${lane} end`);
+      });
     }
   });
 
@@ -461,13 +469,13 @@ describe('Blender optical module integration', () => {
       expect(result.variant.lpo, `LPO at assembly ${amount}`).toBe(true);
       expect(result.scene.getObjectByName('PART_DSP')!.visible).toBe(false);
       expect(result.scene.getObjectByName('03_THERMAL')!.visible).toBe(false);
-      for (const flow of result.dataFlows.filter(flow => flow.route.source)) {
-        const source = routes.get(flow.route.source)!;
-        const point = flow.route.direction === 'reverse' ? source.points.at(-1)! : source.points[0];
+      for (const flow of result.dataFlows.filter(flow => flow.route.sources)) flow.route.sources.forEach((group: string | string[], lane: number) => {
+        const source = routes.get(Array.isArray(group) ? group[0] : group)!, last = routes.get(Array.isArray(group) ? group.at(-1)! : group)!;
+        const point = flow.route.direction === 'reverse' ? last.points.at(-1)! : source.points[0];
         const assembly = result.scene.getObjectByName(source.assembly)!;
-        expectPoint(flow.group.localToWorld(flow.path.getPoint(0)).toArray(),
-          assembly.localToWorld(new THREE.Vector3(...point)).toArray(), `${flow.route.id} at ${amount}`);
-      }
+        expectPoint(flow.group.localToWorld(flow.lanePaths[lane].getPoint(0)).toArray(),
+          assembly.localToWorld(new THREE.Vector3(...point)).toArray(), `${flow.route.id} lane ${lane} at ${amount}`);
+      });
     }
     const visible = result.dataFlows.filter(flow => flow.group.visible);
     expect(visible.some(flow => flow.route.variant === 'lpo')).toBe(true);
@@ -737,7 +745,7 @@ describe('module level follows the scenario', () => {
     result.variant.set('dsp'); expect(result.variant.lid).toBe(switchLabel(accel));
     const captions: string[] = [];
     result.scene.traverse((o: THREE.Object3D) => { if (o.userData.caption) captions.push(o.userData.caption.text); });
-    expect(captions).toContain(`One DSP · ${rate} · 8 TX + 8 RX · two ${port} ports`);
+    expect(captions).toContain(`One DSP · ${rate} · 8 TX + 8 RX at ${lane} PAM4 · two ${port} ports`);
     expect(captions.some(t => t.startsWith(`Pluggable module · ${rate}`)), captions.join(' | ')).toBe(true);
     if (id === 'rubin') expect(captions.some(t => /type unpublished/.test(t))).toBe(true);
     // the DSP's printed capacity: the asset's modeled 1.6T text, or the 800G overlay in its place
