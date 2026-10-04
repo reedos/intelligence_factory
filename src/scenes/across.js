@@ -758,20 +758,20 @@ export function build({ quality, model, state = {} }) {
     hotspots: {
       grid: { pos: [(plants[1][0] + hx) / 2, 12, (plants[1][1] + hz) / 2], view: view((plants[1][0] + hx) / 2, (plants[1][1] + hz) / 2, 700) },
       plants: { pos: [plants[0][0] + 5 * Math.cos(GAS_RY) - 7 * Math.sin(GAS_RY), 24, plants[0][1] - 5 * Math.sin(GAS_RY) - 7 * Math.cos(GAS_RY)], view: view(plants[0][0] + 2, plants[0][1] - 4, 95) },
-      home: { pos: [hx, 10, hz], view: view(hx - 8, hz, 130) },          // close enough that the lit halls and substation fill the frame
+      home: { pos: [hx, 10, hz], mapNamed: true, view: view(hx - 8, hz, 130) },          // close enough that the lit halls and substation fill the frame
       carbon: (() => { const c = CENTROID[(site || DEFAULT_PLACE).state] || [hx, hz]; return { pos: [c[0], 34, c[1]], view: { pos: [c[0], 1300, c[1] + 1100], target: [c[0], 0, c[1]] } }; })(),
       ...siteSpots,
     },
     heatHotspots: {
       climate: { pos: [hx - 300, 12, hz + 200], view: { pos: [hx - 300, 1400, hz + 1500], target: [hx - 300, 0, hz] } },
-      home: { pos: [hx + 2, 12, hz + 6], view: view(hx, hz + 6, 150) },
+      home: { pos: [hx + 2, 12, hz + 6], mapNamed: true, view: view(hx, hz + 6, 150) },
     },
     dataHotspots: {
       dci: { pos: [HT[0], 8, HT[1]], view: view(HT[0] - 6, HT[1], 110) },
       ila: { pos: [h0[0], 9, h0[2]], view: view(h0[0], h0[2], 60) },
       route: { pos: [longest?.mid[0] ?? hx, 60, longest?.mid[2] ?? hz], view: { pos: [(longest?.mid[0] ?? hx) - 100, 900, (longest?.mid[2] ?? hz) + 900], target: [longest?.mid[0] ?? hx, 0, longest?.mid[2] ?? hz] } },
       remote: { pos: [R0[0], 10, R0[1]], view: view(R0[0] - 10, R0[1], 340) },
-      home: { pos: [hx - 40, 10, hz + 40], view: view(hx, hz, 220) },
+      home: { pos: [hx - 40, 10, hz + 40], mapNamed: true, view: view(hx, hz, 220) },
     },
     update(t) {
       plumeUpdates.forEach(u => u(t)); if (turbines) turbines.update(t);

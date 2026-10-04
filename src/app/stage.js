@@ -37,6 +37,7 @@ import { buildTriGrid } from './tri-grid.js';
 import { fitHousing, fitComponent } from './housing-frame.js';
 import { overlapsRect, pinLabelBox, declutterPins } from './pin-layout.js';
 import { renderIntro } from './intro-hook.js';
+import { createSceneCaptions } from './scene-captions.js';
 
 // six levels in a line, outermost first, then the side levels inside the links, each its own diagram: the module, the
 // CPO package, the coherent module, the copper cables. Each is entered from the part that holds it and left back to
@@ -1118,6 +1119,7 @@ export function setMode(m) {
 document.querySelectorAll('[data-mode]').forEach(x => x.addEventListener('click', () => setMode(x.dataset.mode)));
 
 const pinsEl = $('pins');
+const sceneCaptions = createSceneCaptions(pinsEl);
 let pins = [];
 let expandedPins = null;          // ids of a pin group the reader opened (small screens)
 const pinGroups = new Map();
@@ -1169,7 +1171,7 @@ function buildPanel(i) {
     el.setAttribute('aria-label', p.title);
     el.addEventListener('click', () => select(p.id, true));
     pinsEl.appendChild(el);
-    return { el, id: p.id, pos: V(hs[p.id].pos) };
+    return { el, id: p.id, pos: V(hs[p.id].pos), mapNamed: !!hs[p.id].mapNamed };
   });
   // Heat motion is drawn on one log rule (src/heat.js): the legend says so, so the compression is not hidden.
   $('legend').innerHTML = legends(store.M)[ui.mode][i].map(([k, l]) => `<span class="legend-item" style="--c:${VOLT[k].css}"><span class="sw"></span>${l}</span>`).join('')
@@ -1547,7 +1549,7 @@ function syncPinGroups(groups, w, h) {
 // a tap anywhere else in the view folds an opened group back up
 view.addEventListener('pointerdown', e => { if (expandedPins && !e.target.closest?.('.pin, .pin-group')) expandedPins = null; });
 function updatePins() {
-  const w = view.clientWidth, h = view.clientHeight, placed = [];
+  const w = view.clientWidth, h = view.clientHeight, placed = [], shown = [];
   const vr = view.getBoundingClientRect(), reserved = [];
   for (const el of document.querySelectorAll('#view .hud, #hud-btns, #view .hint')) {
     if (el.hidden || getComputedStyle(el).display === 'none' || getComputedStyle(el).visibility === 'hidden') continue;
@@ -1574,7 +1576,8 @@ function updatePins() {
       cands.push(q);
     }
     cands.sort((a, b) => pins.findIndex(p => p.id === a.id) - pins.findIndex(p => p.id === b.id));
-    clutter = declutterPins(cands, { expanded: expandedPins });
+    const selPoint = pinPoints.find(q => q.id === ui.selected && q.z <= 1);
+    clutter = declutterPins(cands, { expanded: expandedPins, fixed: selPoint ? [{ x: selPoint.x, y: selPoint.y }] : [] });
   }
   syncPinGroups(clutter?.groups || [], w, h);
   for (const p of ordered) {
@@ -1598,20 +1601,53 @@ function updatePins() {
     if (off) continue;
     p.el.style.transform = `translate(${(x - 11).toFixed(1)}px, ${(y - 11).toFixed(1)}px)`;
     p.el.querySelector('.num').style.visibility = markerBlocked ? 'hidden' : '';
-    const lbl = p.el.querySelector('.lbl'), labelWidth = (p.lw ||= lbl.offsetWidth) || 120;
-    const labelBox = pinLabelBox(x, y, labelWidth, w, h, reserved, p.id === ui.selected);
-    p.el.classList.remove('flip');
-    const left = labelBox?.left ?? x + 18, right = labelBox?.right ?? left + labelWidth;
-    Object.assign(lbl.style, { position: 'absolute', right: 'auto', left: `${left - x + 11}px`, top: `${(labelBox?.top ?? y - 9) - y + 11}px` });
-    // Also reserve future numbered buttons: a later circle must not obscure an
-    // earlier label merely because it was visited later in the part list.
-    const crowded = placed.some(q => Math.abs(q[1] - y) < 24 && left < q[3] + 12 && right > q[2] - 12)
-      || pinPoints.some(q => q.id !== p.id && q.z <= 1 && Math.abs(q.y - y) < 24 && q.x + 13 > left && q.x - 13 < right);
-    const hideLabel = !labelBox || (crowded && p.id !== ui.selected);
-    p.el.classList.toggle('hide-lbl', hideLabel); lbl.style.visibility = hideLabel ? 'hidden' : '';
-    if (p.id === ui.selected && labelBox) reserved.push(labelBox);
-    placed.push([x, y, hideLabel ? x - 11 : Math.min(x - 11, left), hideLabel ? x + 11 : Math.max(x + 11, right)]);
+    placed.push([x, y]);
+    shown.push({ p, x, y });
   }
+  // Labels, once every pin's place is known. A label goes beside its pin (right, then left; the selected one has more
+  // places to try) wherever its box is clear of the title, layer switch and buttons, every pin's circle and the labels
+  // already placed; a label with no such place is not drawn, and shows on hover or focus instead (.hide-lbl). The
+  // selected pin goes first, then pins in list order.
+  const circles = shown.map(({ x, y }) => ({ left: x - 11, right: x + 11, top: y - 11, bottom: y + 11 }));
+  const taken = [...reserved], namesInChip = chipQuery.matches;
+  for (const { p, x, y } of shown) {
+    const lbl = p.el.querySelector('.lbl'), labelWidth = (p.lw ||= lbl.offsetWidth) || 120;
+    const sel = p.id === ui.selected;
+    // on a phone only the selected pin's name is drawn, in the chip: no label to place; a pin whose name the scene
+    // already draws on the map (L1's home campus tag) keeps its number and leaves the name to the map
+    const labelBox = namesInChip || p.mapNamed ? null : pinLabelBox(x, y, labelWidth, w, h, [...taken, ...circles], sel, true);
+    p.el.classList.remove('flip');
+    const hideLabel = !labelBox;
+    const left = labelBox?.left ?? x + 18;
+    Object.assign(lbl.style, { position: 'absolute', right: 'auto', left: `${left - x + 11}px`, top: `${(labelBox?.top ?? y - 9) - y + 11}px`, visibility: '' });
+    p.el.classList.toggle('hide-lbl', hideLabel);
+    if (labelBox) taken.push(labelBox);
+  }
+  // the side levels' captions, as page text: clear of the title, buttons, pins and pin labels
+  sceneCaptions.update(isSide(ui.scene) ? built[ui.scene]?.scene : null, camera, w, h, [...taken, ...circles], THREE);
+  syncPinChip(namesInChip ? pins.find(q => q.id === ui.selected) : null, [...taken, ...circles], w, h);
+}
+// phones: the selected pin's name, in a chip along the foot of the view (above the sheet); it moves to the top when
+// a pin sits where it would be
+let pinChip = null;
+const chipQuery = matchMedia('(max-width: 760px)');   // the width at which styles.css stops drawing labels beside pins
+function syncPinChip(sel, obstacles, w, h) {
+  if (!sel) { if (pinChip) pinChip.style.display = 'none'; return; }
+  if (!pinChip || !pinChip.isConnected) { pinChip = document.createElement('div'); pinChip.id = 'pin-chip'; pinChip.className = 'pin-chip'; pinChip.setAttribute('aria-hidden', 'true'); pinsEl.appendChild(pinChip); }
+  const num = sel.el.querySelector('.num').textContent, title = sel.el.getAttribute('aria-label');
+  const html = `<b>${num}</b>${title.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}`;
+  pinChip.style.display = 'flex';
+  if (pinChip.dataset.k !== html || pinChip.dataset.w !== String(w)) { pinChip.innerHTML = html; pinChip.dataset.k = html; pinChip.dataset.w = String(w); const r = pinChip.getBoundingClientRect(); pinChip.dataset.cw = String(r.width); }
+  const cw = Math.min(+pinChip.dataset.cw || 120, w - 24), ch = 28;
+  // along the foot of the view, just above the sheet: centred, else to a side, else a row higher, and so on up
+  const ys = []; for (let y = h - 10 - ch; y >= 10; y -= 10) ys.push(y);
+  const xs = [(w - cw) / 2, 12, w - 12 - cw];
+  let at = [xs[0], ys[0]];
+  find: for (const y of ys) for (const x of xs) {
+    const box = { left: x, right: x + cw, top: y, bottom: y + ch };
+    if (!obstacles.some(o => overlapsRect(box, o, 2))) { at = [x, y]; break find; }
+  }
+  pinChip.style.transform = `translate(${at[0].toFixed(1)}px, ${at[1].toFixed(1)}px)`;
 }
 
 // ---------- depth range ----------
