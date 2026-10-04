@@ -46,7 +46,7 @@ const measure = () => {
   const named = [
     ['top bar', '.topbar'], ['scale tabs', '.steps'], ['title', '.hud.tl'], ['layer switch', '.hud.tr .mode'], ['view buttons', '.hud-row'], ['key hints', '.hint'],
     ['scale bar', '.hud.bl'], ['legend', '.hud.br'], ['clock', '#clock'], ['transport', '.transport'], ['tour picker', '.tour-pick'],
-    ['tally', '#tally'], ['beat', '.beat.on'], ['part card', '#card'], ['engine toggle', '#cpo-variant'],
+    ['tally', '#tally'], ['beat', '.beat.on'], ['part card', '#card'], ['engine toggle', '#cpo-variant'], ['DSP toggle', '#optics-variant'], ['side toggle', '#module-side'],
   ];
   // a beat's box can reach under the sticky head while its words sit clear; judge the words
   const inked = el => { const r = vis(el); if (!r || !el.matches('.beat')) return r; const k = [...el.children].map(c => c.getBoundingClientRect()).filter(c => c.height);

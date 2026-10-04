@@ -123,3 +123,17 @@ describe('lane math: drawn lanes × lane rate = stated rate', () => {
     expect(line).toBeGreaterThan(800); expect(line / 800).toBeLessThan(1.25);         // the payload plus coding overhead
   });
 });
+
+describe('lane math, both sides of the link: drawn lanes × lane rate = the module rate, per tier', () => {
+  it('switch side draws 8 lanes (all routes), NIC side the 4 of engine 1 (GB200 400G, GB300 800G); H100 and Rubin draw one module at both ends', () => {
+    const routes = module.meta.routes as { name: string; engine?: number }[];
+    const fibers = (engineOnly: boolean) => routes.filter(r => /^TX glass fiber \d+$/.test(r.name) && (!engineOnly || r.engine === 1)).length;
+    for (const accel of Object.keys(ACCELERATORS)) for (const side of ['switch', 'nic']) {
+      const t = moduleTier(accel, side), drawn = side === 'nic' && !t.same ? fibers(true) : fibers(false);
+      expect(drawn, `${accel} ${side}: lanes drawn`).toBe(t.lanes);
+      expect(drawn * t.laneGbps, `${accel} ${side}: ${drawn} × ${t.lane} = ${t.rate}`).toBe(gbps(t.rate));
+      expect(t.ports * gbps(t.port), `${accel} ${side}: ports`).toBe(gbps(t.rate));
+      expect((t.lanes / t.ports) * t.laneGbps, `${accel} ${side}: a DR4 port is four lanes`).toBe(gbps(t.port));
+    }
+  });
+});

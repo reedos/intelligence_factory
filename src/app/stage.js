@@ -15,7 +15,7 @@ import { TIERS, qualityPressure } from './render-quality.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VOLT, BASIS } from '../data.js';
 import { chip as basisChip } from '../evidence.js';
-import { store, on, emit } from './store.js';
+import { store, on, emit, setModuleSide } from './store.js';
 import * as campus from '../scenes/campus.js';
 import * as hall from '../scenes/hall.js';
 import * as rack from '../scenes/rack.js';
@@ -72,9 +72,10 @@ export const isSide = i => i >= MAIN_LEVELS;
 // how the reader entered the side levels: the level, the door part and the layer, restored by Back out. A link opened
 // straight into a side level has none, and Back out goes to the level that holds that diagram instead.
 let sideFrom = 4, sideVia = null, sideMode = null, sideEntered = false;
-const SIDE_PARENT = { 6: 4, 7: 2, 8: 0, 9: 3 };           // module: the tray; CPO: the hall; coherent: Scale across; copper: the rack
+const SIDE_PARENT = { 6: 4, 7: 2, 8: 0, 9: 3 };           // module: the tray (NIC side) or the hall (switch side); CPO: the hall; coherent: Scale across; copper: the rack
+const sideParent = i => (i === 6 ? (store.moduleSide === 'nic' ? 4 : 2) : SIDE_PARENT[i]);
 // where a part's go-button leads: a number, or 'out' for the side level's way back
-const backTarget = () => sideEntered ? sideFrom : SIDE_PARENT[ui.scene] ?? 4;
+const backTarget = () => sideEntered ? sideFrom : sideParent(ui.scene) ?? 4;
 export const drillOf = p => p?.drill === 'out' ? backTarget() : p?.drill;
 // the pluggable module inside the optics: full DSP, half-retimed (LRO: DSP on transmit only) or no DSP (LPO); a view of
 // the module only, since the fabric this scenario counts still uses DSP modules
@@ -86,6 +87,7 @@ let cpoVariant = new URLSearchParams(location.search).get('cpo') === 'mzm' ? 'mz
 export function resetVariant() {
   if (moduleVariant !== 'dsp') { moduleVariant = 'dsp'; applyVariant(); }
   if (cpoVariant !== 'ring') { cpoVariant = 'ring'; applyCpoVariant(); }
+  if (store.moduleSide !== 'switch') setModuleSide('switch');
 }
 function applyCpoVariant() {
   built[CPO_LEVEL]?.variant?.set?.(cpoVariant);
@@ -117,6 +119,34 @@ function applyVariant() {
   }
 }
 document.querySelectorAll('[data-variant]').forEach(b => b.addEventListener('click', () => { moduleVariant = b.dataset.variant; applyVariant(); }));
+// the module level's side: the switch cages' module or the compute tray's own (store.moduleSide, lid-labels.js moduleTier).
+// The geometry differs (the NIC side's single-port module is one engine of the twin-port drawing), so a change drops the
+// built level and builds it again for the new side; the tab text, the panel and the address follow. Door, tab and link
+// entries set the side before the level is built (go); the toggle flips it in place.
+function dropLevel(i) {
+  if (built[i]) { disposeScene(built[i]); built[i] = undefined; }
+  if (composers[i]) { disposeComposer(composers[i]); composers[i] = undefined; }
+  aos[i] = dofs[i] = finishes[i] = undefined;
+}
+function syncSideUi() {
+  document.querySelectorAll('[data-module-side]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.moduleSide === store.moduleSide)));
+  try {
+    const q = new URLSearchParams(location.search);
+    if (store.moduleSide === 'nic') q.set('module-side', 'nic'); else q.delete('module-side');
+    history.replaceState(null, '', `${location.pathname}${q.size ? `?${q}` : ''}${location.hash}`);
+  } catch { /* sandboxed viewers refuse */ }
+}
+on('module-side', async () => {
+  dropLevel(MODULE_LEVEL);
+  syncSideUi();
+  renderSteps();
+  if (ui.scene !== MODULE_LEVEL) return;                     // not on the level: go() builds it for the new side
+  const was = ui.selected;
+  await go(MODULE_LEVEL, null, { force: true, keepCamera: true });
+  if (was && ui.scene === MODULE_LEVEL && hasPart(MODULE_LEVEL, was)) select(was, false);
+  emit('module-variant');
+});
+document.querySelectorAll('[data-module-side]').forEach(b => b.addEventListener('click', () => setModuleSide(b.dataset.moduleSide)));
 // whether moving from one level to another goes in: a side level counts as inside whatever it was entered from, and
 // moving between two side levels (a tour crossing from the module to the CPO package) goes across, drawn as in
 export const isInward = (from, to) => isSide(to) ? true : isSide(from) ? false : to > from;
@@ -306,7 +336,7 @@ controls.addEventListener('start', () => {
 export const built = [], composers = [];
 function getScene(i) {
   if (!built[i]) {
-    const b = BUILDERS[i].build({ quality: { ...quality, reduced }, state: ui, model: store.M });
+    const b = BUILDERS[i].build({ quality: { ...quality, reduced }, state: ui, model: store.M, side: store.moduleSide });
     applyComputeArtDirection({ built: b, level: i, quality, matched: params.get('finish') === 'matched' });
     applyVisualDirection({ built: b, level: i, matched: params.get('finish') === 'matched' });
     // Art direction can change pulse counts unevenly (spacing limits): put every heat stream back on the one rule.
@@ -1001,7 +1031,7 @@ for (const [cls, label, side] of GROUPS) {
     if (isSide(i) !== side) continue;
     const b = document.createElement('button');
     b.className = side ? 'step side' : 'step'; b.type = 'button';
-    b.addEventListener('click', () => go(i));
+    b.addEventListener('click', () => go(i, null, i === MODULE_LEVEL ? { side: 'switch' } : undefined));
     row.appendChild(b); stepBtns[i] = b;
   }
   g.append(h, row); stepsEl.appendChild(g); stepGroups.push([g, side]);
@@ -1017,7 +1047,7 @@ if (levelMenu) {
       if (isSide(i) !== side) continue;
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'lm-item'; b.dataset.level = String(i);
-      b.addEventListener('click', () => go(i));
+      b.addEventListener('click', () => go(i, null, i === MODULE_LEVEL ? { side: 'switch' } : undefined));
       g.append(b); levelItems[i] = b;
     }
     levelMenu.append(g);
@@ -1048,7 +1078,8 @@ function renderSteps() {
     b.innerHTML = s.side
       ? `<span class="top"><span class="t">${tabName(s)}</span></span><span class="meta"><span class="dot"></span><span>${s.kicker || s.scale}</span></span>`
       : `<span class="top"><span class="n">${s.n}</span><span class="t">${s.title}</span></span><span class="meta"><span class="dot"></span><span>${v.short} · ${s.scale}</span></span>`;
-    b.setAttribute('aria-label', s.side ? `${tabName(s)}${s.kicker ? `, ${s.kicker}` : ''}, ${v.name}` : `${s.n}. ${s.title}, ${v.name}`);
+    if (i === MODULE_LEVEL) b.dataset.module = '';
+    b.setAttribute('aria-label', s.side ?`${tabName(s)}${s.kicker ? `, ${s.kicker}` : ''}, ${v.name}` : `${s.n}. ${s.title}, ${v.name}`);
   });
   markCurrent(ui.scene);
 }
@@ -1098,6 +1129,7 @@ function buildPanel(i) {
   }
   $('hud-title').textContent = s.side ? s.title : `${s.n}. ${s.title}`;
   $('optics-variant').hidden = i !== MODULE_LEVEL;
+  const sideToggle = $('module-side'); if (sideToggle) sideToggle.hidden = i !== MODULE_LEVEL;
   const cpoToggle = $('cpo-variant'); if (cpoToggle) cpoToggle.hidden = i !== CPO_LEVEL;
   // Back outside on every level below the top: a side level goes back the way the reader came in, a main level to
   // the one above it
@@ -1258,17 +1290,24 @@ function stepIris(dt) {
 }
 function jumpLabel(from, to) {
   const a = SCENES()[from], b = SCENES()[to];
-  const where = isSide(to) && isSide(from) ? 'Across' : isSide(to) ? `In · Interconnects · from level ${SCENES()[sideEntered ? from : SIDE_PARENT[to]].n}` : isSide(from) ? `Out · level ${b.n} of ${MAIN_LEVELS}` : `${to > from ? 'In' : 'Out'} · level ${b.n} of ${MAIN_LEVELS}`;
+  const where = isSide(to) && isSide(from) ? 'Across' : isSide(to) ? `In · Interconnects · from level ${SCENES()[sideEntered ? from : sideParent(to)].n}` : isSide(from) ? `Out · level ${b.n} of ${MAIN_LEVELS}` : `${to > from ? 'In' : 'Out'} · level ${b.n} of ${MAIN_LEVELS}`;
   return `<div class="jump"><span class="jump-k">${where}</span><b>${b.title}</b><span class="jump-s">${a.scale} → ${b.scale}</span></div>`;
 }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------- scene switching ----------
 let busy = false, queued = null, goingTo = -1, levelMin = 0;
-export async function go(i, fromId, { force = false, keepCamera = false, fromShow = false } = {}) {
+export async function go(i, fromId, { force = false, keepCamera = false, fromShow = false, side } = {}) {
   if (!force && !fromShow) showSeq++;                      // the reader moved: drop any jump still waiting for its scene
-  if (busy) { queued = [i, fromId, { force, keepCamera }]; return; }   // the latest request runs when this switch lands
+  if (busy) { queued = [i, fromId, { force, keepCamera, side }]; return; }   // the latest request runs when this switch lands
   if ((i === ui.scene && !force) || i < 0 || i >= BUILDERS.length) return;
+  // The module level follows the end of the link it is entered from: the compute tray's module door opens the NIC side, the
+  // hall's switch door the switch side, and the top bar's tab (side: 'switch') the default. A link or a jump (show) keeps
+  // the side the address or the reader last chose. Set before the level is built, so it is built for that side.
+  if (i === MODULE_LEVEL && i !== ui.scene) {
+    const door = fromId && !cinema && ui.scene >= 0 && !isSide(ui.scene) ? ({ 4: 'nic', 2: 'switch' })[ui.scene] : undefined;
+    if (side ?? door) setModuleSide(side ?? door);
+  }
   busy = true; goingTo = i;
   const veil = $('veil');
   const same = i === ui.scene;
@@ -1357,7 +1396,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
       flyTo(end.toArray(), tgt.toArray(), from >= 0 && cut ? 0.01 : 1.6);   // the first load still flies in
     }
   }
-  if (i === MODULE_LEVEL) applyVariant();
+  if (i === MODULE_LEVEL) { applyVariant(); syncSideUi(); }
   if (i === CPO_LEVEL) {
     built[CPO_LEVEL]?.variant?.set?.(cpoVariant);
     document.querySelectorAll('[data-cpo-variant]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cpoVariant === cpoVariant)));

@@ -5,7 +5,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { THREE, flow, laneFlow, setup, label, FLOW, COL, note, unitCol } from './side-kit.js';
 import { applyArtDirection } from './module-art-direction.js';
 import { MODULE_VARIANTS, LRO_COLOR, inVariant, splitByZ, lroDieTop, lroIntro, lroPartCopy, dspMarkingTop } from './module-lro.js';
-import { moduleLabel, moduleTier } from './lid-labels.js';
+import { moduleLabel, moduleTier, moduleName, normSide } from './lid-labels.js';
+import { keepEngine } from './module-engine.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
 import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
 import { hardwareBounds, componentView } from '../app/housing-frame.js';
@@ -64,14 +65,17 @@ function cloneAsset(source) {
   return copy;
 }
 
-// The level opens the scenario's switch-side module (lid-labels.js moduleTier): the 800G twin-port for H100 and GB200,
-// the 1.6T twin-port for GB300, a 1.6T-class module of unpublished type for Vera Rubin. Both twin-ports are finned
-// OSFPs with eight lanes each way, so one drawing serves both; the captions, DSP marking and lid print follow the tier
-// (evidence.js 'module-follows-scenario').
-/** @param {{ quality: any, state: any, model?: any }} options */
-export function build({ quality, state, model: scenario }) {
+// The level opens the module of the end of the link the reader came from (lid-labels.js moduleTier). Switch side (the
+// default): the 800G twin-port for H100 and GB200, the 1.6T twin-port for GB300, a 1.6T-class module of unpublished type
+// for Vera Rubin; both twin-ports are finned OSFPs with eight lanes each way, so one drawing serves both. NIC side
+// (the compute tray's cages): GB200's single-port 400G DR4 and GB300's single-port 800G DR4 are ONE DR4 engine of the
+// same drawing, the second engine's lane parts removed (module-engine.js): four lanes each way, one MPO. H100 and Rubin
+// carry one module at both ends. The captions, DSP marking and lid print follow the tier (evidence.js
+// 'module-follows-scenario').
+/** @param {{ quality: any, state: any, model?: any, side?: string }} options */
+export function build({ quality, state, model: scenario, side: sideOption }) {
   if (!cached) throw new Error('Blender module must finish preload() before build().');
-  const accel = scenario?.accel, tier = moduleTier(accel);
+  const accel = scenario?.accel, side = normSide(sideOption), tier = moduleTier(accel, side), single = tier.lanes === 4;
   const scene = setup(quality, 9), model = cloneAsset(cached.scene);
   const objects = new Map();
   model.traverse(object => {
@@ -93,6 +97,8 @@ export function build({ quality, state, model: scenario }) {
     throw new Error('Blender module requires version 1 IFX route metadata in glTF-root-rest metres.');
   }
   const routes = new Map(metadata.routes.map(route => [route.name, route]));
+  // a single-port NIC module is engine 1 alone: lanes 0-3 and the first MPO, the other engine's parts removed
+  if (single) keepEngine(model, metadata, 1);
   model.scale.setScalar(CM);
   for (const [name, offset] of Object.entries(EXPLODED)) object(name).position.set(...offset.map(v => v / CM));
   scene.add(model);
@@ -105,7 +111,7 @@ export function build({ quality, state, model: scenario }) {
     }
   });
   const matched = typeof location !== 'undefined' && new URLSearchParams(location.search).get('finish') === 'matched';
-  const { setLabelLpo, labelText, ...art } = matched ? {} : applyArtDirection({ scene, model, quality, accel });
+  const { setLabelLpo, labelText, ...art } = matched ? {} : applyArtDirection({ scene, model, quality, accel, side });
   const look = matched ? undefined : { ...art, grain: 0.008, vignette: 0.22 };
   let amount = 1, targetAmount = 1, startAmount = 1, assemblyTime = 0;
   const assemblyObjects = Object.entries(EXPLODED).map(([name, offset]) => [object(name), offset]);
@@ -171,10 +177,12 @@ export function build({ quality, state, model: scenario }) {
     return f;
   };
 
-  // All eight lanes per direction carry animated samples (four per DR4 engine), one instanced bus per class. Each
-  // pulse stays on its exported conductor. Processing inside opaque chips is not represented as a fictitious
-  // exposed wire between their input/output pins, so the host and engine copper stay separate buses.
-  const L8 = Array.from({ length: 8 }, (_, i) => i), num = i => String(i + 1).padStart(2, '0');
+  // All the lanes per direction carry animated samples (eight on the twin-port, four per DR4 engine; four on the NIC
+  // side's single engine), one instanced bus per class. Each pulse stays on its exported conductor, and no flow runs
+  // on a removed lane. Processing inside opaque chips is not represented as a fictitious exposed wire between their
+  // input/output pins, so the host and engine copper stay separate buses.
+  const L8 = Array.from({ length: tier.lanes }, (_, i) => i), num = i => String(i + 1).padStart(2, '0');
+  const LASERS = Array.from({ length: tier.lanes / 2 }, (_, i) => i);   // each laser feeds two modulators
   for (const rx of [false, true]) {
     const prefix = rx ? 'RX' : 'TX', from = rx ? 'tia' : 'dsp', to = rx ? 'dsp' : 'driver';
     addBus({ id: `${prefix}-host`, sources: L8.map(i => `${prefix} host copper ${i} -1`), kind: 'electrical',
@@ -188,7 +196,7 @@ export function build({ quality, state, model: scenario }) {
     ...L8.map(i => `TX glass fiber ${num(i)}`)], kind: 'tx', from: 'mzm', to: 'mpo' });
   addBus({ id: 'RX-waveguide', sources: L8.map(i => `RX ${num(i)} waveguide`), kind: 'rx', from: 'mpo', to: 'pd' });
   addBus({ id: 'RX-fiber', sources: L8.map(i => `RX glass fiber ${num(i)}`), kind: 'rx', from: 'mpo', to: 'pd', reverse: true });
-  addBus({ id: 'CW', sources: [0, 1, 2, 3].flatMap(k => [0, 1].map(j => `CW feed ${k} ${j}`)), kind: 'cw', from: 'lasers', to: 'mzm', count: 2 });
+  addBus({ id: 'CW', sources: LASERS.flatMap(k => [0, 1].map(j => `CW feed ${k} ${j}`)), kind: 'cw', from: 'lasers', to: 'mzm', count: 2 });
 
   // LPO is a different electrical routing layout, not merely an absent DSP. Both conductors of all eight pairs per
   // direction are drawn; one member of each pair carries the animated pulses, all the way to the edge-connector contact.
@@ -340,15 +348,15 @@ export function build({ quality, state, model: scenario }) {
     outline.position.set(dspLocal[0], 0.279, dspLocal[2]); ghost.add(outline);
   }
   // LRO: the same package marked as a transmit-only retimer (representative, evidence 'module-lro-drawing')
-  const lroMark = lroDieTop({ w: 1.0, d: 1.0, lanes: `8 × ${tier.lane}` }); lroMark.position.set(dspLocal[0], dspLocal[1] + 0.0015, dspLocal[2]);
+  const lroMark = lroDieTop({ w: 1.0, d: 1.0, lanes: `${tier.lanes} × ${tier.lane}` }); lroMark.position.set(dspLocal[0], dspLocal[1] + 0.0015, dspLocal[2]);
   boardOverlay.add(lroMark);
   // The asset's DSP carries a modeled 1.6T marking (DSP / 8 × 200G / 1.6T); an 800G scenario covers it with its own.
   let dspCapacity = objects.get(key('SHARED_DSP_CAPACITY'));
-  if (dspCapacity && tier.laneGbps !== 200) {
+  if (dspCapacity && (tier.laneGbps !== 200 || tier.lanes !== 8)) {
     dspCapacity.visible = false;
     // same place and size as the modeled marking: its box, in the board overlay's frame
     const box = new THREE.Box3().setFromObject(dspCapacity), at = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());
-    const top = dspMarkingTop({ w: size.x * 1.1, d: size.z * 1.1, lines: ['DSP', `8 × ${tier.lane}`, tier.rate] });
+    const top = dspMarkingTop({ w: size.x * 1.1, d: size.z * 1.1, lines: ['DSP', `${tier.lanes} × ${tier.lane}`, tier.rate] });
     top.position.set(at.x - EXPLODED['02_BOARD'][0], box.max.y - EXPLODED['02_BOARD'][1] + 0.0005, at.z - EXPLODED['02_BOARD'][2]);
     boardOverlay.add(top); dspCapacity = top;
   }
@@ -356,9 +364,11 @@ export function build({ quality, state, model: scenario }) {
     [dspAnchor[0], dspAnchor[1] + 0.6, dspAnchor[2]], LRO_COLOR, 0.15);
   const lpoTag = label(scene, 'LPO · direct host lanes to the linear driver and TIA',
     [dspAnchor[0], dspAnchor[1] + 0.6, dspAnchor[2]], '#8fd3ff', 0.15);
-  label(scene, `Pluggable module · ${tier.published ? `${tier.rate} twin-port OSFP, 2 × DR4` : `${tier.rate} OSFP, type unpublished`}`, [0.6, -0.35, 2.6], '#e8ecf2', 0.32);
+  // which end of the link the reader is on: the switch cage's module, the tray's NIC cage's, or (H100, Rubin) one module at both
+  const headLine = `${side === 'nic' && !tier.same ? `${tier.nicName} NIC-side module` : 'Pluggable module'} · ${moduleName(tier)}`;
+  label(scene, tier.same ? `${headLine} · ${side === 'nic' ? `${tier.nicName} NIC end` : 'switch end'}, same module at both ends` : headLine, [0.6, -0.35, 2.6], '#e8ecf2', 0.32);
   label(scene, `${OSFP_MM.len} × ${OSFP_MM.w} mm footprint · exploded spacing · representative internals`, [0.6, -0.72, 2.95], note, 0.17);
-  label(scene, `One DSP · ${tier.rate} · 8 TX + 8 RX at ${tier.lane} PAM4 · two ${tier.port} ports`, [0.6, -1.02, 3.25], unitCol, 0.17);
+  label(scene, `One DSP · ${tier.rate} · ${tier.lanes} TX + ${tier.lanes} RX at ${tier.lane} PAM4 · ${tier.ports === 1 ? `one ${tier.port} port` : `two ${tier.port} ports`}`, [0.6, -1.02, 3.25], unitCol, 0.17);
   // End-to-end TX/RX explanations live in the panel. Placing them at the host
   // connector would imply that light enters or leaves that electrical interface.
   const modeNote = label(scene, 'Power and heat arrows are schematic across the exploded assembly.',
@@ -465,7 +475,8 @@ export function build({ quality, state, model: scenario }) {
   ];
   setLpo(false);
   scene.userData.blenderModule = { version: metadata.version, units: 'cm', source: 'osfp-module-runtime.glb',
-    tier: tier.key, scope: `Representative single-DSP implementation: eight ${tier.lane} lanes per direction, split across two ${tier.port} optical ports. Exterior informed by public OSFP photographs. Exploded spacing; internals are illustrative.` };
+    tier: tier.key, side, lanes: tier.lanes, ports: tier.ports,
+    scope: `Representative single-DSP implementation: ${single ? `${tier.lanes} ${tier.lane} lanes per direction on one ${tier.port} DR4 optical port (one engine of the twin-port drawing)` : `eight ${tier.lane} lanes per direction, split across two ${tier.port} optical ports`}. Exterior informed by public OSFP photographs. Exploded spacing; internals are illustrative.` };
   const built = {
     scene, flows, dataFlows, heatFlows, look,
     powerDraw, powerDrawRef: P.dsp, powerDrawParent: boardOverlay, powerDrawActive: glowActive,
@@ -479,7 +490,7 @@ export function build({ quality, state, model: scenario }) {
     variant: {
       get lpo() { return lpo; }, setLpo, get kind() { return kind; }, set: setVariant,
       // what the lid prints now: the hall's switch label for this scenario, plus LPO in the LPO view
-      get lid() { return labelText?.() ?? moduleLabel(accel, lpo); }, tier,
+      get lid() { return labelText?.() ?? moduleLabel(accel, lpo, side); }, tier, side,
       intro(mode) {
         if (kind === 'lro') return lroIntro(mode);
         if (!lpo) return null;

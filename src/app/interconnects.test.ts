@@ -20,7 +20,7 @@ describe('interconnects', () => {
     const s = C.SCENES[8];
     expect([s.title, s.kicker, s.door, s.n]).toEqual(['Coherent optics', '800ZR · data center interconnect', 'coherent optics', '+']);
     expect([C.SCENES[6].tab, C.SCENES[6].door, C.SCENES[9].kicker]).toEqual(['Pluggable optics', 'pluggable optics', 'DAC / ACC / AEC']);
-    expect(C.SCENES[6].kicker).toMatch(/^(800G 2×DR4|1\.6T 2×DR4|1\.6T) · in the hall$/);
+    expect(C.SCENES[6].kicker).toMatch(/^(800G 2×DR4|1\.6T 2×DR4|1\.6T) · switch$/);
   });
   it('the line terminals at Scale across and the campus cutaway open it; the campus hut card does not (Reed, 10/01)', () => {
     const at = (sc: string, id: string) => C.PARTS_DATA[sc].find((p: any) => p.id === id)?.drill;

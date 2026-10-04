@@ -48,26 +48,50 @@ export function modulePorts(accel) {
 export function switchModulePorts(accel) {
   return /2x/i.test(switchLabel(accel)) ? 2 : 1;
 }
-/** Lid print of the module side level: the scenario's switch-side module, plus LPO in the LPO view (LRO keeps the plain print). */
-export function moduleLabel(accel, lpo = false) {
-  return switchLabel(accel) + (lpo ? ' LPO' : '');
+export const MODULE_SIDES = ['switch', 'nic'];
+export const normSide = side => (side === 'nic' ? 'nic' : 'switch');
+/** Lid print of the module side level: the module on screen (the scenario's switch-side module, or the NIC-cage module
+ *  when the level is on its NIC side), plus LPO in the LPO view (LRO keeps the plain print). */
+export function moduleLabel(accel, lpo = false, side = 'switch') {
+  return (normSide(side) === 'nic' ? nicLabel(accel) : switchLabel(accel)) + (lpo ? ' LPO' : '');
 }
 /** The module side level's lid print as three lines (matching the coherent pluggable's own three-line label,
  *  module-art-direction.js's drawLabel): OSFP, the tier's rate (plus LPO in that view), then the reach. Every
  *  module this level draws is a DR4-style twin-port (moduleTier), reported at 1310 nm up to 500 m: the OSFP MSA's
  *  own DR4 color-code row (rev 5.22 sec. 3.8, Table 3-3, "OSFP 1310nm solutions for up to 500m ... DR4") and
  *  NVIDIA's MMS4X00/MMS4A00 datasheets (module-lid-labels) agree. */
-export function moduleLabelLines(accel, lpo = false) {
-  const [, rate] = moduleLabel(accel, lpo).match(/^OSFP (.*)$/);
+export function moduleLabelLines(accel, lpo = false, side = 'switch') {
+  const [, rate] = moduleLabel(accel, lpo, side).match(/^OSFP (.*)$/);
   return ['OSFP', rate, '1310 nm · 500 m'];
 }
-/** The switch-side twin-port module the module side level opens for this scenario: H100 and GB200 use the 800G
- *  twin-port (NVIDIA MMS4X00, 2 × 400G DR4, 8 × 100G PAM4 each way), GB300 the 1.6T twin-port (MMS4A00, 2 × 800G DR4,
- *  8 × 200G PAM4), and Vera Rubin a 1.6T-class module whose exact type is unpublished (drawn as the 1.6T twin-port). */
-export function moduleTier(accel) {
-  const t = tierOf(accelOf(accel)) ?? 400, label = switchLabel(accel);
-  if (t === 400) return { key: '800g', label, rate: '800G', port: '400G', lane: '100G', laneGbps: 100, part: 'MMS4X00', published: true };
-  return { key: t === 800 ? '1.6t' : 'rubin', label, rate: '1.6T', port: '800G', lane: '200G', laneGbps: 200, part: t === 800 ? 'MMS4A00' : null, published: t === 800 };
+const NIC_NAME = { h100: 'H100', gb200: 'GB200', gb300: 'GB300', rubin: 'Rubin' };
+/** The module the module side level draws for this scenario and side.
+ *  switch side: the 800G twin-port for H100 and GB200 (NVIDIA MMS4X00, 2 x 400G DR4, 8 x 100G PAM4 each way), the 1.6T
+ *    twin-port for GB300 (MMS4A00, 2 x 800G DR4, 8 x 200G), and for Vera Rubin a 1.6T-class module of unpublished type
+ *    (drawn as the 1.6T twin-port).
+ *  nic side (the compute tray's own cages): GB200 a single-port 400G DR4 (MMS4X00-NS400, 4 x 100G), GB300 a single-port
+ *    800G DR4 (4 x 200G); H100 the same 800G twin-port as the switch, and Vera Rubin the same unpublished 1.6T class.
+ *  `lanes` is per direction, `ports` the optical ports, `same` whether both ends carry one module. */
+export function moduleTier(accel, side = 'switch') {
+  const a = accelOf(accel), t = tierOf(a) ?? 400, label = switchLabel(accel), nicName = NIC_NAME[a.id] || 'NIC';
+  const sw = t === 400
+    ? { key: '800g', label, rate: '800G', port: '400G', lane: '100G', laneGbps: 100, part: 'MMS4X00', published: true }
+    : { key: t === 800 ? '1.6t' : 'rubin', label, rate: '1.6T', port: '800G', lane: '200G', laneGbps: 200, part: t === 800 ? 'MMS4A00' : null, published: t === 800 };
+  const nic = normSide(side) === 'nic', same = a.id === 'h100' || a.id === 'rubin';
+  if (!nic || same) return { ...sw, side: nic ? 'nic' : 'switch', lanes: 8, ports: 2, engines: 2, same, nicName, endName: nic ? `${nicName} NIC` : 'switch' };
+  const g2 = a.id === 'gb200';
+  return { key: g2 ? 'nic-400' : 'nic-800', label: nicLabel(accel), rate: g2 ? '400G' : '800G', port: g2 ? '400G' : '800G',
+    lane: g2 ? '100G' : '200G', laneGbps: g2 ? 100 : 200, part: g2 ? 'MMS4X00-NS400' : null, published: true,
+    side: 'nic', lanes: 4, ports: 1, engines: 1, same: false, nicName, endName: `${nicName} NIC` };
+}
+/** What the module on screen is, in a phrase: "800G single-port OSFP, DR4", "1.6T twin-port OSFP, 2 × DR4". */
+export function moduleName(t) {
+  return t.ports === 1 ? `${t.rate} single-port OSFP, DR4` : t.published ? `${t.rate} twin-port OSFP, 2 × DR4` : `${t.rate} OSFP, type unpublished`;
+}
+/** Short names for the top bar's tab and the level's sub-title: "1.6T 2×DR4 · switch", "800G DR4 · GB300 NIC". */
+export function moduleTabName(t) {
+  const kind = t.ports === 1 ? 'DR4' : t.published ? '2×DR4' : '';
+  return `${t.rate}${kind ? ` ${kind}` : ''} · ${t.endName}`;
 }
 /** Two printed lines: the form factor, then the rate and optics. */
 export function labelLines(text) {

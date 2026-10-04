@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { ACCELERATORS, compute, DEFAULT_SCENARIO } from '../model/engine';
 import { content } from '../data.js';
-import { switchLabel } from './lid-labels.js';
+import { switchLabel, nicLabel, moduleTier } from './lid-labels.js';
 import { heat, layer, light, request, story, watt } from '../app/journeys.js';
 
 // The browser checks own rendering and performance. Here the real GLB parser, geometry, scene graph,
@@ -787,7 +787,7 @@ describe('module level cards follow the scenario', () => {
     // the doors into the level name the module they open
     for (const P of [C.PARTS_DATA.hall, C.PARTS.hall]) expect(P.find((p: any) => p.id === 'optics').doorName).toBe(label);
     expect(C.PARTS_DATA.hall.find((p: any) => p.id === 'optics').body).toContain(`Go inside to open this scenario’s switch module: ${label}`);
-    expect(C.PARTS_DATA.tray.find((p: any) => p.id === 'osfp').doorName).toBe(label);
+    expect(C.PARTS_DATA.tray.find((p: any) => p.id === 'osfp').doorName).toBe(nicLabel(accel));
   });
 });
 
@@ -890,5 +890,73 @@ describe('module board follows place-and-route rules', () => {
     expect(a.driver.position[0]).toBeLessThan(a.lasers.position[0]);
     expect(a.lasers.position[0]).toBeLessThan(a.mzm.position[0]);
     expect(a.dsp.position[0] - a.fingers.position[0]).toBeLessThan(.02);   // the DSP is the part next to the connector
+  });
+});
+
+// The NIC side (Reed, 10/03/2026): the module in the compute tray's cages. GB200's single-port 400G DR4 and GB300's
+// single-port 800G DR4 are one DR4 engine of the twin-port drawing (four lanes each way, one MPO); H100 and Rubin draw the
+// same module at both ends. Everything on screen follows the side: lid, captions, DSP marking, flows, cards, tab text.
+describe('module level NIC side', () => {
+  const want = { gb200: ['100G', '400G', 'OSFP 400G DR4'], gb300: ['200G', '800G', 'OSFP 800G DR4'] } as const;
+  const buildSide = (id: string, side: string) => {
+    const result = (module as any).build({ quality: { shadows: false }, state: { mode: 'data' }, model: { accel: (ACCELERATORS as any)[id] }, side });
+    builds.push(result); result.update(0); return result;
+  };
+  it.each(Object.keys(want))('%s: single-port lid, captions, DSP marking, four lanes of flow, one connector', id => {
+    const accel = (ACCELERATORS as any)[id], [lane, rate, label] = want[id as keyof typeof want];
+    const result = buildSide(id, 'nic');
+    expect(result.variant.lid).toBe(label); expect(nicLabel(accel)).toBe(label);
+    result.variant.set('lpo'); expect(result.variant.lid).toBe(`${label} LPO`);
+    result.variant.set('lro'); expect(result.variant.lid).toBe(label);
+    result.variant.set('dsp');
+    const captions: string[] = [];
+    result.scene.traverse((o: THREE.Object3D) => { if (o.userData.caption) captions.push(o.userData.caption.text); });
+    expect(captions).toContain(`One DSP · ${rate} · 4 TX + 4 RX at ${lane} PAM4 · one ${rate} port`);
+    expect(captions.some(t => t.startsWith(`${id.toUpperCase()} NIC-side module · ${rate} single-port OSFP, DR4`)), captions.join(' | ')).toBe(true);
+    const marks: string[] = [];
+    result.scene.traverse((o: THREE.Object3D) => { if (o.visible && o.userData.capacityMarking && /DSP/.test(o.userData.capacityMarking)) marks.push(o.userData.capacityMarking); });
+    expect(marks).toEqual([`DSP\n4 × ${lane}\n${rate}`]);
+    expect(result.scene.userData.blenderModule).toMatchObject({ side: 'nic', lanes: 4, ports: 1 });
+    // no flow on a removed lane: every data bus carries four lanes (the lasers two) and names no lane 4-7 route
+    for (const f of result.dataFlows) {
+      const lanes = f.route.lanes as number | undefined; if (!lanes) continue;
+      expect(lanes, f.route.id).toBe(f.route.id === 'CW' ? 4 : f.route.id === 'TX-optical' ? 12 : 4);
+    }
+    // every conductor a flow runs along belongs to engine 1: nothing animates on a removed lane
+    for (const f of [...result.dataFlows, ...result.flows, ...result.heatFlows]) for (const s of (f.route.sources || []).flat()) {
+      const r = (metadata as any).routes.find((x: any) => x.name === s);
+      expect(r?.engine, `${f.route.id}: ${s}`).toBe(1);
+    }
+  });
+  it('H100 and Rubin draw the same module at both ends; the switch side is unchanged', () => {
+    for (const id of ['h100', 'rubin']) {
+      const a = buildSide(id, 'switch'), b = buildSide(id, 'nic');
+      expect(b.variant.lid).toBe(a.variant.lid);
+      expect(b.dataFlows.map((f: any) => f.route.lanes)).toEqual(a.dataFlows.map((f: any) => f.route.lanes));
+      expect(b.variant.tier.lanes).toBe(8);
+    }
+    const sw = buildSide('gb300', 'switch');
+    expect(sw.variant.lid).toBe(switchLabel((ACCELERATORS as any).gb300)); expect(sw.variant.tier.lanes).toBe(8);
+  });
+  it.each(Object.keys(want))('%s: cards, tab text and doors follow the side', id => {
+    const accel = (ACCELERATORS as any)[id], [lane, rate, label] = want[id as keyof typeof want];
+    const M = compute({ ...DEFAULT_SCENARIO, accel: id } as any);
+    const sw = content(M) as any, C = content(M, { moduleSide: 'nic' }) as any;
+    const scene = C.SCENES.find((s: any) => s.id === 'module'), swScene = sw.SCENES.find((s: any) => s.id === 'module');
+    expect(scene.kicker).toBe(`${rate} DR4 · ${id.toUpperCase()} NIC`); expect(swScene.kicker).toMatch(/ · switch$/);
+    expect(scene.title).toBe('Inside the NIC module'); expect(swScene.title).toBe('Inside the switch module');
+    expect(scene.dataIntro).toContain(`This tray’s NIC module, ${label}`);
+    const spec = (parts: any[], pid: string, l: string | RegExp) => parts.find(p => p.id === pid)?.specs.find((r: any[]) => (l instanceof RegExp ? l.test(r[0]) : r[0] === l));
+    expect(spec(C.PARTS_DATA.module, 'fingers', 'Host lanes')[1]).toContain(`4 × ${lane}`);
+    expect(spec(C.PARTS_DATA.module, 'dsp', /^Optical lanes/)[1]).toContain(`4 × ${lane} PAM4 each way, one DR4 port`);
+    for (const pid of ['driver', 'tia', 'mzm']) expect(spec(C.PARTS_DATA.module, pid, /as drawn$/)[1], pid).toMatch(/^4 each way/);
+    expect(spec(C.PARTS_DATA.module, 'mpo', 'Fibers lit')[1]).toBe('8: 4 out and 4 in');
+    const power = spec(C.PARTS.module, 'fingers', /^Max power/);
+    if (id === 'gb200') expect(power.slice(1, 3)).toEqual(['9 W', 'spec']); else expect(power.slice(1, 3)).toEqual(['not published; between 9 and 17 W', 'assumed']);
+    expect(spec(C.PARTS_HEAT.module, 'shell', 'Lid print')[1].startsWith(label)).toBe(true);
+    // the doors name the module they open: the hall's the switch's, the tray's its own
+    expect(C.PARTS_DATA.hall.find((p: any) => p.id === 'optics').doorName).toBe(switchLabel(accel));
+    expect(C.PARTS_DATA.tray.find((p: any) => p.id === 'osfp').doorName).toBe(label);
+    expect(moduleTier(accel, 'nic')).toMatchObject({ lanes: 4, ports: 1, rate });
   });
 });

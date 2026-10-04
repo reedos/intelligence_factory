@@ -15,8 +15,8 @@ for (const accel of Object.keys(ACCELERATORS)) for (const power of Object.keys(P
   for (const meterMW of [10, 100, 1000, 5000]) scenarios.push({ meterMW, accel, power, cooling });
 for (const [id, s] of Object.entries(SITES)) scenarios.push({ ...s.scenario, site: id });
 const seen = new Map(); let claims = 0;
-for (const s of scenarios) {
-  const M = compute(s), C = content(M);
+for (const s of scenarios) for (const moduleSide of ['switch', 'nic']) {   // the module level has two sides (store.moduleSide): both are checked
+  const M = compute(s), C = content(M, { moduleSide });
   for (const c of allClaims(M, C)) {
     if (prefixes.length && !prefixes.some(p => c.key.startsWith(p))) continue;
     claims++;

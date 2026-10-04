@@ -73,8 +73,8 @@ function orangePeelNormal() {
 // Shares its plate colors, type sizes and drawLines() layout engine with the coherent pluggable's own lid label
 // (side-links-blender.js) so the two read as a matched pair (Reed, 10/02/2026): three main lines, the smaller
 // "design study" caption, no barcode or 2D code block on either. Not a vendor label.
-function drawLabel(g, w, h, accel, lpo) {
-  const [osfp, rate, reach] = moduleLabelLines(accel, lpo);
+function drawLabel(g, w, h, accel, lpo, side) {
+  const [osfp, rate, reach] = moduleLabelLines(accel, lpo, side);
   drawLines(g, w, h, [
     { text: osfp, size: .17, weight: 600, font: SANS },
     { text: rate, size: .36, weight: 800, font: SANS },
@@ -82,18 +82,18 @@ function drawLabel(g, w, h, accel, lpo) {
     { text: 'DESIGN STUDY · REPRESENTATIVE', size: .052, weight: 500, font: MONO },
   ], { ink: '#1c2228', align: 'left', pad: .07, plate: '#e6e9ec', gap: .05 });
 }
-function labelTexture(accel) {
+function labelTexture(accel, side) {
   if (typeof document === 'undefined') return null;
   const w = 1024, h = 840, c = document.createElement('canvas'); c.width = w; c.height = h;
   const g = c.getContext('2d');
-  drawLabel(g, w, h, accel, false);
+  drawLabel(g, w, h, accel, false, side);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
-  t.userData.text = moduleLabel(accel, false);
-  t.userData.setLpo = lpo => { t.userData.text = moduleLabel(accel, !!lpo); drawLabel(g, w, h, accel, !!lpo); t.needsUpdate = true; };
+  t.userData.text = moduleLabel(accel, false, side);
+  t.userData.setLpo = lpo => { t.userData.text = moduleLabel(accel, !!lpo, side); drawLabel(g, w, h, accel, !!lpo, side); t.needsUpdate = true; };
   return t;
 }
-function printLabel(mesh, accel) {
-  const tex = labelTexture(accel);
+function printLabel(mesh, accel, side) {
+  const tex = labelTexture(accel, side);
   if (!tex) return;
   const geometry = mesh.geometry, position = geometry.attributes.position;
   geometry.computeBoundingBox();
@@ -108,7 +108,7 @@ function printLabel(mesh, accel) {
 }
 
 /** Apply only to a build-owned clone, never the cached glTF source. */
-export function applyArtDirection({ scene, model, quality = {}, accel }) {
+export function applyArtDirection({ scene, model, quality = {}, accel, side = "switch" }) {
   const seen = new Set();
   model.traverse(object => {
     const materials = Array.isArray(object.material) ? object.material : [object.material];
@@ -127,7 +127,7 @@ export function applyArtDirection({ scene, model, quality = {}, accel }) {
   });
 
   const labels = [];
-  model.traverse(object => { if (object.isMesh && /Label stock/i.test(object.material?.name || '')) { const t = printLabel(object, accel); if (t) labels.push(t); } });
+  model.traverse(object => { if (object.isMesh && /Label stock/i.test(object.material?.name || '')) { const t = printLabel(object, accel, side); if (t) labels.push(t); } });
 
   // Preserve setup()'s one shadow map. The studio environment supplies broad
   // softbox reflections; these lights illuminate the board and expose bevels.

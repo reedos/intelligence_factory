@@ -148,3 +148,51 @@ describe('module lanes: every stage draws one cell per lane', () => {
     expect([...tiers].sort()).toEqual(expect.arrayContaining(['1.6t', '800g']));
   });
 });
+
+// The NIC side (Reed, 10/03/2026): GB200's single-port 400G DR4 and GB300's single-port 800G DR4 are ONE DR4 engine of
+// the same asset (scenes/module-engine.js): the second engine's cells, modulators, photodiodes, lasers, pads, fibers and
+// connector are gone, so every stage counts four per direction (two lasers) where the switch side counts eight (four).
+describe('module lanes, NIC side: one DR4 engine, four per direction', () => {
+  let nic: any;
+  const nicCounts: Record<string, number> = {};
+  beforeAll(async () => {
+    const b = readFileSync(new URL('../../public/models/osfp-module-runtime.glb', import.meta.url));
+    nic = await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), '');
+    const { keepEngine } = await import('./module-engine.js');
+    keepEngine(nic.scene, meta, 1);
+    const find = (name: string) => { let m: THREE.Mesh | undefined; nic.scene.traverse((o: any) => { if (o.isMesh && norm(o.name) === norm(name)) m = o; }); return m; };
+    for (const [stage, [name]] of Object.entries(STAGES)) { const m = find(name); nicCounts[stage] = m && m.visible ? pieces(m).length : 0; }
+  });
+  it('counts 4 per direction in every lane stage, 2 shared lasers, and one connector face of each class', () => {
+    for (const [stage, [name, expected]] of Object.entries(STAGES)) expect(nicCounts[stage], `${stage} (${name})`).toBe(expected / 2);
+    let faces = 0, receptacles = 0;
+    nic.scene.traverse((o: any) => { if (o.isMesh && o.visible && /^part mpo 13 /.test(norm(o.name))) faces += pieces(o).length; if (o.visible && /^mpo receptacle \d$/.test(norm(o.name))) receptacles++; });
+    expect(faces).toBe(4); expect(receptacles).toBe(1);
+  });
+  it('keeps only engine 1 in the pieces of the lane meshes: four distinct lane rows each', () => {
+    const rows = (name: string) => { let m: any; nic.scene.traverse((o: any) => { if (o.isMesh && norm(o.name) === norm(name)) m = o; }); return new Set(pieces(m).map(p => Math.round(p.z * 1e5))).size; };
+    expect(rows('DRIVER channel cells')).toBe(4); expect(rows('TIA channel cells')).toBe(4); expect(rows('MZM modulator bodies')).toBe(4);
+  });
+  it('lanes x lane rate = module rate on both sides of the link, per tier; the card says 4 or 8 each way', () => {
+    const n = lanes(true).filter(r => /glass fiber/.test(r.name) && (r as any).engine === 1).length;
+    expect(n).toBe(4);
+    for (const accel of Object.keys(ACCELERATORS)) for (const side of ['switch', 'nic']) {
+      const t = moduleTier(accel, side), C = data.content(engine.compute({ meterMW: 300, accel, power: 'dc800', cooling: 'liquid' }), { moduleSide: side });
+      const rows = Object.values(C).flatMap((layer: any) => layer?.module ?? []).flatMap((p: any) => p.specs ?? []);
+      const host = rows.find((r: any) => /^Host lanes/.test(r[0]))[1].match(/^(\d+) × (\d+)G/);
+      expect(+host[1], `${accel} ${side} lanes`).toBe(t.lanes);
+      expect(+host[1] * +host[2], `${accel} ${side} electrical`).toBe(gbps(t.rate));
+      expect(t.lanes * t.laneGbps, `${accel} ${side} lanes x rate`).toBe(gbps(t.rate));
+      expect(t.ports * (t.lanes / t.ports) * t.laneGbps, `${accel} ${side} ports`).toBe(gbps(t.rate));
+      expect(gbps(t.port) * t.ports, `${accel} ${side} port rate`).toBe(gbps(t.rate));
+      const optical = rows.find((r: any) => /^Optical lanes/.test(r[0]));
+      if (t.published) {
+        const m = optical[1].match(/^(\d+) × (\d+)G PAM4/);
+        expect(+m[1] * +m[2], `${accel} ${side} optical`).toBe(gbps(t.rate)); expect(+m[1]).toBe(t.lanes);
+      }
+    }
+    expect(moduleTier('gb200', 'nic')).toMatchObject({ lanes: 4, ports: 1, rate: '400G', port: '400G', lane: '100G' });
+    expect(moduleTier('gb300', 'nic')).toMatchObject({ lanes: 4, ports: 1, rate: '800G', port: '800G', lane: '200G' });
+    expect(moduleTier('h100', 'nic').lanes).toBe(8); expect(moduleTier('gb200', 'switch').lanes).toBe(8);
+  });
+});
