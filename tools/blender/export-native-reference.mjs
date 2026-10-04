@@ -96,6 +96,21 @@ if (process.argv.includes('--optics')) {
     for (const name of ['coherent', 'copper']) await exportReference({ name: `${name}-internals`, module: `/src/scenes/side-${name}.js`, options: { quality: { shadows: false }, state: { mode: 'data' }, authoredHardware: true }, unitMeters: .01, textureFree: true });
   } finally { await server.close(); }
 }
+if (process.argv.includes('--hall')) {
+  // The rack faces the data hall draws (build-hall-finish.py: NVL_FACE, H100_FACE), from the same records the rack level and
+  // hall.js build from: nvl72-layout.js (rows, pitch, cabinet size), dgx-h100-layout.js (DGX_RACK: chassis, bezel, handles,
+  // panel) and hall-rack-face.js (the face plane). Meters, rack frame, front +z. hall-rack-face.test.ts keeps this file and the
+  // GLB in step with them.
+  try {
+    const L = await server.ssrLoadModule('/src/scenes/nvl72-layout.js'), G = await server.ssrLoadModule('/src/scenes/dgx-h100-layout.js'),
+      F = await server.ssrLoadModule('/src/scenes/hall-rack-face.js');
+    await fs.writeFile(path.join(referenceDirectory, 'hall-layout.json'), JSON.stringify({ unit: 1,
+      rack: L.RACK, face: F.FACE,
+      nvl: { pitch: L.U, rows: F.nvlFaceRows(), pulledKinds: ['power', 'compute'] },
+      h100: { ...G.DGX_RACK, serverY: F.h100FaceServers().map(s => s.y), mgmtY: F.h100FaceMgmtY() } }, null, 1) + '\n');
+    console.log(JSON.stringify({ name: 'hall-layout', target: path.join(referenceDirectory, 'hall-layout.json') }));
+  } finally { await server.close(); }
+}
 if (process.argv.includes('--compute')) {
   try {
     const { compute, DEFAULT_SCENARIO } = await server.ssrLoadModule('/src/model/engine.ts');
