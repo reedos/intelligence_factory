@@ -112,6 +112,41 @@ for (const form of forms) {
     await p.close();
   }
 }
+// A phone's collapsed sheet must say what the level is (the audit's G1: #intro measured 0 px there, so a phone visitor read
+// nothing but "Read more"). At 390 x 844, sheet down, on all ten levels in each layer: #intro is taller than 20 px, has
+// words, is not hidden, and sits inside the pane's visible box rather than clipped under its edge.
+if (forms.includes('phone')) {
+  const p = await b.newPage(VP.phone);
+  const errors = []; p.on('pageerror', e => errors.push(e.message));
+  await p.goto(process.env.URL || 'http://127.0.0.1:47400/');
+  await p.waitForFunction(() => window.ifx && ifx.state.scene === 0, null, { timeout: 90000 });
+  await p.evaluate(() => ifx.setTransitions('instant'));
+  const peek = [];
+  for (let level = 0; level < 10; level++) for (const mode of ['power', 'data', 'heat']) {
+    const r = await p.evaluate(async ({ level, mode }) => {
+      document.body.classList.remove('sheet-open');
+      await ifx.go(level, null, { force: true }); ifx.setMode(mode);
+      document.querySelector('[data-pane="parts"]')?.click();
+      await new Promise(r => setTimeout(r, 350));
+      const i = document.getElementById('intro'), box = i.getBoundingClientRect(), pane = document.querySelector('.panel-scroll').getBoundingClientRect();
+      const cs = getComputedStyle(i), more = document.getElementById('intro-more');
+      let hidden = cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0;
+      for (let q = i; q; q = q.parentElement) if (q.hidden || getComputedStyle(q).display === 'none') hidden = true;
+      return { h: Math.round(box.height), text: i.innerText.trim(), hidden, clipped: box.top < pane.top - 1 || box.bottom > pane.bottom + 1 || box.bottom > innerHeight, sheet: document.body.classList.contains('sheet-open'), moreShown: !!more && !more.hidden, hasRest: !!i.querySelector('.intro-rest') };
+    }, { level, mode });
+    const tag = `phone peek, level ${level + 1} in ${mode}`, fails = [];
+    if (r.sheet) fails.push('sheet is not down');
+    if (!(r.h > 20)) fails.push(`#intro is ${r.h} px tall`);
+    if (r.text.length < 12) fails.push(`#intro text is "${r.text}"`);
+    if (r.hidden) fails.push('#intro is hidden');
+    if (r.clipped) fails.push('#intro is clipped by the pane edge');
+    if (r.hasRest && !r.moreShown) fails.push('no Read more although the intro continues');
+    peek.push(...fails.map(f => `${tag}: ${f}`));
+  }
+  bad += peek.length + errors.length;
+  console.log(`phone peek: 30 level x layer views of #intro${peek.length ? '\n  ' + peek.join('\n  ') : ' · ok'}${errors.length ? `\n  page errors ${errors.join(' | ')}` : ''}`);
+  await p.close();
+}
 await b.close();
 console.log(bad ? `${bad} problems` : 'no problems');
 process.exitCode = bad ? 1 : 0;

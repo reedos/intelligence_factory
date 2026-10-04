@@ -95,6 +95,89 @@ const check = () => {
   return { dist: +dist.toFixed(3), blocked: block ? `${block.object.type} ${col(block.object.material)} at ${Math.round(block.distance / dist * 100)}%` : null, covers };
 };
 
+// The overview pass. The stops below fly to one part and check its own pin, so a pin that only goes missing in the
+// level's opening view (7adb724: the rack's compute and NVLink tray pins fell off the bottom of the frame) never failed.
+// Here every part the level lists in each layer must have its numbered chip drawn, not `.off`, inside the canvas and
+// clear of the page's overlays (or sit in a phone group badge that names it); and the rack, with its pulled tray and the
+// busway above, must sit inside the canvas with a 24 px margin (the audit's G6).
+const overviewCheck = async ({ level, mode, rack }) => p.evaluate(async ({ level, mode, rack }) => {
+  ifx.exitStory?.(); ifx.closeClock?.();
+  await ifx.go(level, null, { force: true, keepCamera: false });
+  await new Promise(r => { const t = () => (ifx.built[level] && ifx.built[level].model === ifx.store.M && ifx.state.scene === level ? r() : requestAnimationFrame(t)); t(); });
+  ifx.setMode(mode);
+  // a level's arrival can start its own glide after go() returns: snap it each frame until the camera holds still for
+  // five frames (pin layout runs once a frame, so the pins are then laid out for this camera)
+  for (let k = 0, run = 0, prev = ''; run < 5 && k < 300; k++) {
+    ifx.settle(); await new Promise(r => requestAnimationFrame(r));
+    const c = ifx.camera, now = [c.position.x, c.position.y, c.position.z, c.aspect, c.fov].join(',');
+    run = now === prev ? run + 1 : 0; prev = now;
+  }
+  const C = ifx.store.C, id = C.SCENES[level].id, list = ({ power: C.PARTS, data: C.PARTS_DATA, heat: C.PARTS_HEAT })[mode][id] || [];
+  const view = document.getElementById('view').getBoundingClientRect();
+  const over = (a, c) => a.left < c.right && a.right > c.left && a.top < c.bottom && a.bottom > c.top;
+  const hud = [['title', '.hud.tl'], ['layer buttons', '.hud.tr .mode'], ['view buttons', '.hud-row'], ['legend', '.hud.br'], ['scale bar', '.hud.bl']].flatMap(([name, sel]) => {
+    const el = document.querySelector(sel); if (!el || el.hidden || getComputedStyle(el).display === 'none') return [];
+    const c = el.getBoundingClientRect(); return c.width ? [{ name, c }] : [];
+  });
+  const groups = [...document.querySelectorAll('.pin-group')].map(g => g.getAttribute('aria-label') || '');
+  const problems = [];
+  const hs = ({ power: ifx.built[level].hotspots, data: ifx.built[level].dataHotspots, heat: ifx.built[level].heatHotspots })[mode] || {};
+  list.forEach((pt, n) => {
+    if (!hs[pt.id]) return;                                                     // tools/parts.mjs reports a part the scene does not place
+    const el = document.querySelector(`.pin[data-id="${pt.id}"]`), num = el && el.querySelector('.num');
+    if (!el || !num) { problems.push(`${pt.id}: no pin element`); return; }
+    const r = num.getBoundingClientRect(), grouped = groups.some(a => new RegExp(`(?:: |, )${n + 1}(?:,|[.])`).test(a));
+    if (el.classList.contains('off') || !r.width || getComputedStyle(el).visibility === 'hidden' || getComputedStyle(el).display === 'none') { if (!grouped) problems.push(`${pt.id}: pin not drawn (off)`); return; }
+    if (r.left < view.left + 4 || r.right > view.right - 4 || r.top < view.top + 4 || r.bottom > view.bottom - 4) problems.push(`${pt.id}: pin outside the canvas`);
+    for (const h of hud) if (over(r, h.c)) problems.push(`${pt.id}: pin under the ${h.name}`);
+  });
+  let frame = null;
+  if (rack) {                                                                   // the rack, tray and busway inside the canvas, 24 px margin
+    const T = ifx.THREE, B = ifx.built[level], cam = ifx.camera; B.scene.updateMatrixWorld(true);
+    const ex = /flow|ribbon|sky|ground|halo|caption|^line$|^linesegments$|^points$|^sprite$|reflector|lettering|nameplate|hazard|stencil|marker|signs?$|studio surround|illustrative/i;
+    const boxes = [];
+    B.scene.traverse(o => {
+      if (!o.isMesh || o.isSprite || o.isInstancedMesh || ex.test(o.name)) return;
+      for (let q = o; q; q = q.parent) if (!q.visible || ex.test(q.name || '')) return;
+      o.geometry.computeBoundingBox(); const bb = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld), s = bb.getSize(new T.Vector3());
+      if (!isFinite(bb.min.x) || (s.x > 6 && s.z > 6)) return;                  // the studio floor is not hardware
+      boxes.push(bb);
+    });
+    cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+    // each part's own box corners, not one box round everything (its far corners are empty air)
+    const margins = set => {
+      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+      for (const bb of set) for (const x of [bb.min.x, bb.max.x]) for (const y of [bb.min.y, bb.max.y]) for (const z of [bb.min.z, bb.max.z]) {
+        const q = new T.Vector3(x, y, z).project(cam), sx = (q.x + 1) / 2 * view.width, sy = (1 - q.y) / 2 * view.height;
+        x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy);
+      }
+      return { left: Math.round(x0), top: Math.round(y0), right: Math.round(view.width - x1), bottom: Math.round(view.height - y1) };
+    };
+    // the cabinet and its pulled tray (inside +-0.6 m of the rack's axis, no taller than 2.5 m) on every canvas; the busway,
+    // feeds and risers beside and above it too where the canvas is wide enough to take them (a phone lets them run off its sides)
+    const cabinet = boxes.filter(bb => bb.min.x >= -0.6 && bb.max.x <= 0.6 && bb.max.y <= 2.5);
+    for (const [what, set] of [['rack and pulled tray', cabinet], ...(view.width / view.height >= 0.9 ? [['rack, tray and busway', boxes]] : [])]) {
+      frame = margins(set);
+      const m = Math.min(frame.left, frame.top, frame.right, frame.bottom);
+      if (m < 23) problems.push(`${what} leave ${m} px at the tightest side (left ${frame.left}, top ${frame.top}, right ${frame.right}, bottom ${frame.bottom}); need 24`);
+    }
+  }
+  return { listed: list.length, problems };
+}, { level, mode, rack });
+const overviewRows = [];
+for (const [label, s] of scenarios) {
+  await p.evaluate(s => { ifx.exitStory?.(); ifx.closeClock?.(); ifx.setScenario({ site: undefined, ...s }); }, s);
+  await p.waitForTimeout(500);
+  let n = 0;
+  for (const level of [3]) for (const mode of ['power', 'data', 'heat']) {   // the rack level; the other levels' overviews hide pins by design (pin-layout.js), a separate audit item (G2)
+    const r = await overviewCheck({ level, mode, rack: level === 3 });
+    n++;
+    for (const msg of r.problems) overviewRows.push(`${label} · overview of level ${level + 1} in ${mode}: ${msg}`);
+  }
+  console.log(`${label}: ${n} rack overviews checked (every listed part's pin drawn and clear; rack framed)`);
+}
+await p.evaluate(() => { ifx.exitStory?.(); ifx.closeClock?.(); });
+
 const rows = [];
 for (const [label, s] of scenarios) {
   await p.evaluate(s => { ifx.exitStory?.(); ifx.closeClock?.(); ifx.setScenario({ site: undefined, ...s }); }, s);
@@ -143,6 +226,7 @@ for (const [label, s] of scenarios) {
   console.log(`${label}: ${stops.length} stops checked, ${rows.filter(x => x.label === label).length} not clear`);
 }
 for (const r of rows) console.log(`  ${r.label} · ${r.tour} #${r.i + 1} ${r.link.scene}:${r.link.mode}:${r.link.part}${r.sim ? ` (clock ${r.sim})` : ''} → ${[r.err, r.blocked && `3D blocked by ${r.blocked}`, ...(r.covers || []).map(c => `covered by ${c}`)].filter(Boolean).join('; ')}`);
+for (const r of overviewRows) console.log(`  ${r}`);
 console.log(errors.length ? `errors: ${[...new Set(errors)].join(' | ')}` : 'no page errors');
 await b.close();
-if (rows.length || errors.length) process.exitCode = 1;
+if (rows.length || overviewRows.length || errors.length) process.exitCode = 1;

@@ -1022,6 +1022,17 @@ body.app .steps-side .step { padding: 3px 10px 10px; align-content: start; }
 
 /* ---------- the part list: a level's parts in view at once ---------- */
 body.app #intro:not(.open) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+/* the pane is a flex column below 1100 px, and an overflow:hidden item may shrink to nothing in it: that left the phone
+   sheet's peek with no intro at all (the audit's G1). Hold it to its own height. */
+@media (max-width: 1100px) { body.app #intro { flex: none; } }
+/* a phone with the sheet down shows the level's one-line hook (its first sentence, two lines at most, ellipsized) above
+   Read more; the rest of the intro waits for the sheet to open. A selected part's card sits above it and tells the
+   part's name and key figure. */
+@media (max-width: 760px) {
+  body.app:not(.sheet-open) #intro:not(.open) { -webkit-line-clamp: 2; line-clamp: 2; }
+  body.app:not(.sheet-open) #intro:not(.open) .intro-rest { display: none; }
+  body.app:not(.sheet-open) .link-scope { display: none; }   /* an interconnect level's scope note waits for the sheet too: the hook comes first */
+}
 .intro-more { all: unset; box-sizing: border-box; justify-self: start; margin-top: -8px; padding: 4px 0; cursor: pointer; font: 600 11px/1 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
 .intro-more[hidden] { display: none; }
 .intro-more:hover { color: var(--ink); }

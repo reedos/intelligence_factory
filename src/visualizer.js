@@ -44,7 +44,7 @@ function showPane(which) {
 tabs.forEach(b => b.addEventListener('click', () => { showPane(b.dataset.pane); if (b.dataset.pane === 'scenario') setSheet(true); }));
 // phones: the side pane is a sheet the reader can pull up (the view shrinks to a strip) or push back down
 const sheetBtn = document.getElementById('sheet-toggle');
-function setSheet(open) { document.body.style.removeProperty('--inspector-size'); document.body.classList.toggle('sheet-open', open); sheetBtn.setAttribute('aria-expanded', String(open)); sheetBtn.setAttribute('aria-label', open ? 'Shrink the panel' : 'Expand the panel'); }
+function setSheet(open) { document.body.style.removeProperty('--inspector-size'); document.body.classList.toggle('sheet-open', open); if (typeof fitIntro === 'function') fitIntro(); sheetBtn.setAttribute('aria-expanded', String(open)); sheetBtn.setAttribute('aria-label', open ? 'Shrink the panel' : 'Expand the panel'); }
 // the pane says when there is more below its fold; on a phone whose sheet is down, More pulls the sheet up first
 const phoneSheet = () => matchMedia('(max-width: 1100px)').matches;
 // on the parts tab it counts the parts still below the fold
@@ -61,16 +61,23 @@ document.getElementById('card-more').addEventListener('click', () => setSheet(tr
 // a part picked (a pin, a row, a link) shows on the parts tab: on a phone whose sheet is down, that is the peek, with
 // the part's name, its key figure and its door
 on('select', () => { if (sc.hidden) return; showPane('parts'); });
-// the level's intro keeps to three lines so the part list starts high in the pane; Read more opens the rest
+// the level's intro keeps to three lines so the part list starts high in the pane; Read more opens the rest. On a phone
+// with the sheet down it is only the level's hook (its first sentence, styles.css), and Read more pulls the sheet up
 const intro = document.getElementById('intro'), introMore = document.getElementById('intro-more');
+const peeking = () => matchMedia('(max-width: 760px)').matches && !document.body.classList.contains('sheet-open');
 function fitIntro() {
   intro.classList.remove('open'); introMore.textContent = 'Read more'; introMore.setAttribute('aria-expanded', 'false');
-  requestAnimationFrame(() => { if (intro.getClientRects().length) introMore.hidden = intro.scrollHeight <= intro.clientHeight + 2; });
+  requestAnimationFrame(() => {
+    if (!intro.getClientRects().length || intro.classList.contains('open')) return;
+    const folded = peeking() && !!intro.querySelector('.intro-rest')?.textContent.trim();   // the hook is shown, the rest is not
+    introMore.hidden = !folded && intro.scrollHeight <= intro.clientHeight + 2;
+  });
 }
 new MutationObserver(fitIntro).observe(intro, { childList: true, characterData: true, subtree: true });
 addEventListener('resize', () => { if (!intro.classList.contains('open')) fitIntro(); });
 introMore.addEventListener('click', () => {
   const open = !intro.classList.contains('open');
+  if (open && peeking()) setSheet(true);   // the peek has no room for the rest: raise the sheet, then read on
   intro.classList.toggle('open', open); introMore.textContent = open ? 'Less' : 'Read more'; introMore.setAttribute('aria-expanded', String(open));
 });
 tabs.forEach(b => b.addEventListener('click', () => { if (b.dataset.pane === 'parts') fitIntro(); }));
@@ -92,7 +99,7 @@ sheetBtn.addEventListener('pointermove', e => {
   sheetBtn.setAttribute('aria-expanded', String(open));
   sheetBtn.setAttribute('aria-label', open ? 'Shrink the panel' : 'Expand the panel');
 });
-sheetBtn.addEventListener('pointerup', () => { sheetDrag = null; });
+sheetBtn.addEventListener('pointerup', () => { sheetDrag = null; if (dragged) fitIntro(); });
 sheetBtn.addEventListener('pointercancel', () => { sheetDrag = null; dragged = false; });
 sheetBtn.addEventListener('click', () => { if (!dragged) setSheet(!document.body.classList.contains('sheet-open')); dragged = false; });
 {

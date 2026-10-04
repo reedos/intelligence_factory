@@ -36,6 +36,7 @@ import { occupancyBuilder } from './occupancy.js';
 import { buildTriGrid } from './tri-grid.js';
 import { fitHousing, fitComponent } from './housing-frame.js';
 import { overlapsRect, pinLabelBox, declutterPins } from './pin-layout.js';
+import { renderIntro } from './intro-hook.js';
 
 // six levels in a line, outermost first, then the side levels inside the links, each its own diagram: the module, the
 // CPO package, the coherent module, the copper cables. Each is entered from the part that holds it and left back to
@@ -1123,10 +1124,11 @@ const pinGroups = new Map();
 let groupCued = false;   // the first group badge of a visit pulses, once, to say it opens
 function buildPanel(i) {
   const s = SCENES()[i], parts = partsFor(i);
-  $('intro').textContent = built[i]?.variant?.intro?.(ui.mode) || { power: s.intro, data: s.dataIntro, heat: s.heatIntro }[ui.mode];
+  let intro = built[i]?.variant?.intro?.(ui.mode) || { power: s.intro, data: s.dataIntro, heat: s.heatIntro }[ui.mode];
   if (i === MODULE_LEVEL && moduleBuilder !== sideModule && ui.mode === 'data') {
-    $('intro').textContent = $('intro').textContent.replace('Transmit runs along the far side, receive along the near side, each its own chain.', 'Transmit and receive follow separate labeled paths. Internal component placement is representative.');
+    intro = (intro ?? '').replace('Transmit runs along the far side, receive along the near side, each its own chain.', 'Transmit and receive follow separate labeled paths. Internal component placement is representative.');
   }
+  renderIntro($('intro'), intro);
   $('hud-title').textContent = s.side ? s.title : `${s.n}. ${s.title}`;
   $('optics-variant').hidden = i !== MODULE_LEVEL;
   const sideToggle = $('module-side'); if (sideToggle) sideToggle.hidden = i !== MODULE_LEVEL;
