@@ -39,6 +39,14 @@ function renderControls() {
   seg($('sc-power'), Object.values(POWER).map(p => [p.id, p.short]), s.power, id => id === 'dc800' && !A.dc800, id => setScenario({ power: id }));
   seg($('sc-cooling'), Object.values(COOLING).map(c => [c.id, c.short, c.sub]), s.cooling, id => !A.coolingOptions.includes(id), id => setScenario({ cooling: id }));
   seg($('sc-site'), [['', 'None', 'generic'], ...Object.values(SITES).map(x => [x.id, x.name.replace(/^(Microsoft|Meta|SpaceXAI) /, ''), `${x.status.rank ? '★ ' : ''}${STATUS_WORD[x.status.state].toLowerCase()}`])], s.site || '', () => false, id => pickSite(id));
+  // once a real campus is picked the six-row grid folds into a select, so the pane stays short enough to see the result
+  const pick = $('sc-site-select'), picked = !!s.site;
+  if (pick) {
+    pick.innerHTML = [['', 'None (generic campus)'], ...Object.values(SITES).map(x => [x.id, x.name])].map(([id, label]) => `<option value="${id}">${label}</option>`).join('');
+    pick.value = s.site || '';
+    $('sc-site').hidden = picked; $('sc-site-pick').hidden = !picked;
+    $('sc-site').closest('.sc-sites').querySelector('.lab').textContent = picked ? 'Real campus' : 'Start from a real campus';
+  }
   renderSiteCard();
   const note = [];
   if (!A.dc800) note.push(`${A.short} servers take AC power supplies, so 800 V DC is off.`);
@@ -80,6 +88,7 @@ function stageBlock(x) {
     <div class="sc-seg" role="group" aria-label="Fleet stage">${x.fleet.map((f, k) => `<button type="button" data-stage="${k}" aria-pressed="${k === i}">${f.label}<small>${kShort(total(f))}</small></button>`).join('')}</div>
     <p class="note">${st ? `${st.note}. ` : ''}GPU counts from Elon Musk; the halls, CDUs, cables and tokens are this model, sized from them.</p></div>`;
 }
+$('sc-site-select')?.addEventListener('change', e => pickSite(e.target.value));
 $('sc-mw')?.addEventListener('input', e => { const t = mwLabel(mwFrom(+e.target.value)); $('sc-mw-v').textContent = t; syncRange(e.target, t); });
 // picking a size leaves a published fleet: that campus's size comes from its GPU counts, not the slider
 $('sc-mw')?.addEventListener('change', e => setScenario({ meterMW: mwFrom(+e.target.value), stage: undefined }));
@@ -128,6 +137,7 @@ function renderKpis() {
   $('sc-pin').textContent = P ? 'Unpin' : 'Pin to compare';
   $('sc-pin').setAttribute('aria-pressed', String(!!P));
   $('sc-pin').closest('.sc-compare')?.classList.toggle('pinned', !!P);
+  $('sc-top')?.classList.toggle('pinned', !!P);
   const heads = was ? now.filter(k => HEADLINE.includes(k[0])).map(([label, v, f, better]) => { const w = was.find(k => k[0] === label)[1], m = moved(v, w, better);
     return `<span class="kd ${m.cls}">${label} ${f(v)}${m.pct ? ` ${m.pct}` : ' ='}</span>`; }).join('') : '';
   $('sc-pinned').innerHTML = P ? `<span class="sc-a">A = ${mwLabel(P.meterMW)} · ${P.accel.short} · ${P.power.short} · ${P.cooling.short}</span><span class="sc-heads">${heads}</span>` : 'Pin this scenario, then change a setting to see what moves.';

@@ -65,7 +65,7 @@
           <div class="veil" id="veil">Building the region…</div>
         </div>
         <div class="hud-btns" id="hud-btns">
-          <div class="hud-row"><button type="button" class="btn story-btn" id="back-out" hidden>← Back outside</button></div>
+          <div class="hud-row"><button type="button" class="btn story-btn" id="back-out" hidden>↑ Zoom out</button></div>
         </div>
       </div>
       <aside class="panel" aria-label="Components">
@@ -74,9 +74,11 @@
     <section class="scenario pane-scenario" id="pane-scenario" aria-labelledby="sc-h" hidden>
       <!-- what the campus comes to first, and comparing two of them; then the real campuses; the four choices fold under Adjust -->
       <h2 id="sc-h" class="sc-h">This campus</h2>
-      <div class="kpis" id="kpis"></div>
-      <div class="sc-compare"><button type="button" class="btn" id="sc-pin" aria-pressed="false">Pin to compare</button><span id="sc-pinned"></span></div>
-      <div class="sc-sites"><span class="lab">Start from a real campus</span><div class="sc-seg" id="sc-site" role="group" aria-label="Real campuses"></div></div>
+      <div class="sc-top" id="sc-top">
+        <div class="kpis" id="kpis"></div>
+        <div class="sc-compare"><button type="button" class="btn" id="sc-pin" aria-pressed="false">Pin to compare</button><span id="sc-pinned"></span></div>
+      </div>
+      <div class="sc-sites"><span class="lab">Start from a real campus</span><div class="sc-seg" id="sc-site" role="group" aria-label="Real campuses"></div><label class="sc-site-pick" id="sc-site-pick" hidden><select id="sc-site-select" aria-label="Real campus"></select></label></div>
       <div class="site-card" id="site-card" hidden></div>
       <details class="sc-adjust" id="sc-adjust">
         <summary>Adjust <span>size, accelerator, power, cooling</span></summary>

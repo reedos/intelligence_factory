@@ -1136,8 +1136,8 @@ function buildPanel(i) {
   const back = $('back-out'); back.hidden = i <= 0;
   if (i > 0) {
     const t = SCENES()[isSide(i) ? backTarget() : i - 1].title;
-    back.innerHTML = `<span class="bo-action">← Back outside</span><span class="bo-destination">${t}</span>`;
-    back.setAttribute('aria-label', `Back outside to ${t}`);
+    back.innerHTML = `<span class="bo-action">↑ Zoom out</span><span class="bo-destination">${t}</span>`;
+    back.setAttribute('aria-label', `Zoom out to ${t}`);
   }
   $('hud-sub').textContent = `${s.kicker ? `${s.kicker} · ` : ''}${built[i]?.variant?.sub?.(ui.mode) || voltFor(s).name} · ${s.scale}`;
   const list = $('parts'); list.innerHTML = '';

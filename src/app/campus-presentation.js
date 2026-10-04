@@ -94,6 +94,9 @@ onTick(dt => partCycle.tick(dt));
 for (const event of ['scene', 'mode', 'scenario', 'module-variant', 'user-camera']) on(event, () => partCycle.stop());
 on('select', () => { if (!partCycle.selecting) partCycle.stop(); });
 addEventListener('keydown', event => { if (event.key === 'Escape' && partCycle.playing) partCycle.stop(); });
+// opening the Scenario tab ends a running Auto cycle: left running it keeps stepping through the parts and pulls the
+// camera into one (the tab itself selects nothing)
+document.querySelector('[data-pane="scenario"]')?.addEventListener('click', () => partCycle.stop());
 document.getElementById('render-quality').addEventListener('change', e => setQualityPreference(e.target.value));
 function sync() {
   document.getElementById('render-quality').value = qualityInfo().preference;

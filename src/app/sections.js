@@ -55,9 +55,19 @@ function highlightLedger(i) { document.querySelectorAll('.lg-row').forEach(r => 
 const col = (link, label, x, y, w, h, body) => link ? `<g class="golink" ${goAttr(link, label)}><rect class="hit" x="${x}" y="${y}" width="${w}" height="${h}" rx="4"/>${body}</g>` : body;
 
 // ---------- staircases ----------
+// words wrapped to a width in viewBox units (an average glyph is about .56 em in Manrope and .6 em in Plex Mono)
+function wrapUnits(text, width, size) {
+  const max = Math.max(6, Math.floor(width / (size * .58))), rows = [];
+  let row = '';
+  for (const w of String(text).split(' ')) {
+    if (row && (row + ' ' + w).length > max) { rows.push(row); row = w; } else row = row ? `${row} ${w}` : w;
+  }
+  if (row) rows.push(row);
+  return rows;
+}
 function renderStairs() {
   const STAIRCASE = store.C.STAIRCASE;
-  const svg = $('stairs'), W = 1000, H = 380, L = 70, R = 24, T = 52, B = 130;
+  const svg = $('stairs'), W = 1000, H = 410, L = 70, R = 24, T = 52, B = 160;
   const lo = Math.log10(0.5), hi = Math.log10(600000);
   const y = v => T + (hi - Math.log10(v)) / (hi - lo) * (H - T - B);
   const n = STAIRCASE.length, cw = (W - L - R) / n;
@@ -73,11 +83,17 @@ function renderStairs() {
     out += `<line x1="${x0 + 3}" x2="${x1 - 3}" y1="${yy}" y2="${yy}" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`;
     if (i < n - 1) { const ny = y(STAIRCASE[i + 1].v); out += `<line x1="${x1 - 3}" x2="${x1 + 3}" y1="${yy}" y2="${ny}" stroke="#6b747c" stroke-width="1.5" stroke-dasharray="3 3"/>`; }
     out += `<text x="${x0 + cw / 2}" y="${yy - 10}" text-anchor="middle" fill="${c}" font-family="IBM Plex Mono, monospace" font-weight="600" font-size="15">${s.label}</text>`;
-    out += `<text x="${x0 + cw / 2}" y="${H - B + 24}" text-anchor="middle" fill="#f0f0fa" font-family="Manrope, sans-serif" font-weight="600" font-size="12.5">${s.where}</text>`;
+    // the captions wrap to the column, so neighbors never print over each other; a running y keeps the stack in order
+    const cx = x0 + cw / 2, room = cw - 10;
+    let ty = H - B + 24;
+    const put = (text, size, attrs, gap) => wrapUnits(text, room, size).forEach(t => { out += `<text x="${cx}" y="${ty}" text-anchor="middle" ${attrs} font-size="${size}">${t}</text>`; ty += gap; });
+    put(s.where, 12.5, 'fill="#f0f0fa" font-family="Manrope, sans-serif" font-weight="600"', 15);
     const [c1, c2] = s.current.split(/ (?=per )/);
-    out += `<text x="${x0 + cw / 2}" y="${H - B + 46}" text-anchor="middle" fill="#e9fbff" font-family="IBM Plex Mono, monospace" font-weight="600" font-size="13">${c1}</text>`;
-    if (c2) out += `<text x="${x0 + cw / 2}" y="${H - B + 63}" text-anchor="middle" fill="#e9fbff" font-family="IBM Plex Mono, monospace" font-size="11.5">${c2}</text>`;
-    out += `<text x="${x0 + cw / 2}" y="${H - B + (c2 ? 84 : 66)}" text-anchor="middle" fill="#aab2b9" font-family="Manrope, sans-serif" font-size="11.5">${s.note}</text>`;
+    ty += 5;
+    put(c1, 13, 'fill="#e9fbff" font-family="IBM Plex Mono, monospace" font-weight="600"', 17);
+    if (c2) put(c2, 11.5, 'fill="#e9fbff" font-family="IBM Plex Mono, monospace"', 17);
+    ty += c2 ? 2 : 0;
+    put(s.note, 11.5, 'fill="#aab2b9" font-family="Manrope, sans-serif"', 14);
     out = out.slice(0, start) + col(s.link, `${s.label}, ${s.where}`, x0 + 1, yy - 30, cw - 2, H - yy + 30 - 30, out.slice(start));
   });
   out += `<text x="${L}" y="18" fill="#aab2b9" font-family="Manrope, sans-serif" font-size="12.5">Voltage, log scale. Current is for the conductor named under each step. All currents are estimates from P ÷ V.</text>`;
@@ -366,6 +382,23 @@ function renderAll() {
   if (!STORY) { emit('tokens'); return; }
   renderLedger(); renderStairs(); renderBandwidth(); renderLinks(); renderLinksMedia(); renderTemps(); renderParallel(); renderBom(); renderTokens();
 }
+
+// a chart wider than its column scrolls sideways; a fade on the edge with more to see says so
+function fadeScrollers() {
+  document.querySelectorAll('.chart-box').forEach(box => {
+    if (box.dataset.fade) return;
+    box.dataset.fade = '1';
+    const sync = () => {
+      const more = box.scrollWidth - box.clientWidth > 4;
+      box.classList.toggle('fade-r', more && box.scrollLeft < box.scrollWidth - box.clientWidth - 4);
+      box.classList.toggle('fade-l', more && box.scrollLeft > 4);
+    };
+    box.addEventListener('scroll', sync, { passive: true });
+    addEventListener('resize', sync);
+    sync();
+  });
+}
 on('scenario', renderAll);
 if (STORY) { on('pin', renderLedger); on('scene', highlightLedger); }
 renderAll();
+if (STORY) fadeScrollers();
