@@ -8,6 +8,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { compute, DEFAULT_SCENARIO } from '../model/engine';
 import { cameraPresetFor } from '../app/camera-presets.js';
 import { auditFlows } from '../../tools/flow-audit.mjs';
+import { GPU_PACKAGE } from './gpu-package.js';
 
 const kinds=['rack','tray','chip'], ids=['gb200','gb300','rubin','h100'];
 const assets=new Map<string,any>(); let native:any[],wrappers:any[];
@@ -115,7 +116,7 @@ describe('complete Blender compute hardware',()=>{
       for(const f of rails){
         // Outside the interposer the route is in the substrate (buried) or below it: the Blender stiffener's lower
         // face is y=1.185, and the moving core clears it at the renderer's maximum 1.6x size, not only its centre.
-        const pts=[f.path.curves[0].v1,...f.path.curves.map((c:any)=>c.v2)],IW=twin?6.2:6.0,ID=twin?5.9:4.0;
+        const pts=[f.path.curves[0].v1,...f.path.curves.map((c:any)=>c.v2)],IW=GPU_PACKAGE[id as 'h100'].interposer.w,ID=GPU_PACKAGE[id as 'h100'].interposer.d;   // the descriptor's interposer (gpu-package.js)
         const outside=pts.filter((p:THREE.Vector3)=>Math.abs(p.x)>IW/2||Math.abs(p.z)>ID/2);
         expect(outside.length).toBeGreaterThan(0);
         for(const p of outside) expect(p.y+f.size*1.6).toBeLessThan(1.185);

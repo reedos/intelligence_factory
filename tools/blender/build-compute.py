@@ -342,18 +342,19 @@ def rack_hardware(accel,m):
                 box('Folded service handle',(x,y,.485),(.009,.026,.013),m['bright'],u,.003)
             for k in range(17 if accel!='rubin' and 12<=i<=20 else 0):box('Vent grille relief',(-.186+k*.0075,y,.469),(.002,.019,.005),m['graphite'],u,0)
 
-def rounded_rect(half,r,n=6):
-    # Counter-clockwise outline of a square with radiused corners (half-size, radius in native units).
-    pts=[]
-    for cx,cz,a0 in [(half-r,half-r,0),(-(half-r),half-r,90),(-(half-r),-(half-r),180),(half-r,-(half-r),270)]:
+def rounded_rect(half,r,n=6,half_d=None):
+    # Counter-clockwise outline of a rectangle with radiused corners (half-width, radius in native units; half_d is the half-depth, the half-width again for a square).
+    pts=[];hd=half if half_d is None else half_d
+    for cx,cz,a0 in [(half-r,hd-r,0),(-(half-r),hd-r,90),(-(half-r),-(hd-r),180),(half-r,-(hd-r),270)]:
         for i in range(n+1):
             a=math.radians(a0+90*i/n);pts.append((cx+r*math.cos(a),cz+r*math.sin(a)))
     return pts
 
-def stiffener_ring(name,y,outer,band,thick,r_out,r_in,mat,u):
+def stiffener_ring(name,y,outer,band,thick,r_out,r_in,mat,u,outer_d=None):
     # One continuous ring: radiused outer and inner corners, flat top, bonded to
     # the substrate. Built as a single watertight mesh, not butt-jointed rails.
-    o_pts=rounded_rect(outer/2,r_out);i_pts=rounded_rect(outer/2-band,r_in)
+    od=outer if outer_d is None else outer_d
+    o_pts=rounded_rect(outer/2,r_out,half_d=od/2);i_pts=rounded_rect(outer/2-band,r_in,half_d=od/2-band)
     n=len(o_pts);verts=[]
     for yy in [y,y+thick]:
         for x,z in o_pts:verts.append(p3((x,yy,z),u))
@@ -378,11 +379,16 @@ def chip_hardware(accel,m):
     # One flat nickel-plated steel stiffener ring bonded to the substrate top,
     # the usual lidless large flip-chip arrangement; the laminate edge stays
     # exposed. Ring width, thickness and radii are representative.
+    # Ring and fiducial sizes come from the one GPU package descriptor (src/scenes/gpu-package.js, written to
+    # references/gpu-package.json by export-native-reference.mjs), the same numbers chip.js and tray.js build from.
+    pkg=json.loads((HERE/'references'/'gpu-package.json').read_text())[accel]
+    st=pkg['stiffener']
     ring=material('Nickel plated steel stiffener',(.62,.66,.70),.9,.34)
-    stiffener_ring('Package stiffener ring',1.235,8.2,.35,.07,.1,.2,ring,u)
+    stiffener_ring('Package stiffener ring',1.235,st['w'],st['band'],.07,.1,.2,ring,u,outer_d=st['d'])
     # Copper fiducials sit inside the ring opening, clear of the capacitor rows.
-    for x in [-3.52,3.52]:
-        for z in [-3.52,3.52]:
+    fx,fz=pkg['fiducial']
+    for x in [-fx,fx]:
+        for z in [-fz,fz]:
             cylinder('Substrate registration pad',(x,1.237,z),.065,.004,m['copper'],u)
             cylinder('Registration pad opening',(x,1.24,z),.035,.002,m['dark'],u)
     # The heat layer's heat spreader (or, on H100, heat sink base) is authored natively in chip.js.

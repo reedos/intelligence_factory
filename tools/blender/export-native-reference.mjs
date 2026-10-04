@@ -124,5 +124,9 @@ if (process.argv.includes('--compute')) {
         front: T.NVL_FRONT, rear: T.NVL_REAR },
       rubin: { plates: R.RUBIN_COLD_PLATES, front: R.RUBIN_FRONT, rear: R.RUBIN_REAR, nic: R.RUBIN_NIC, dpu: R.RUBIN_DPU },
       h100: { cageX: G.DGX.cageX, cageY: G.DGX.cageY, storageX: G.DGX.storageX, storageDY: G.DGX.storageDY, cardY: G.DGX.cardY, driveX: G.DGX.driveX, driveY: G.DGX.driveY } }, null, 1));
+    // The GPU package, once: the same descriptor chip.js, tray.js and tray-rubin.js build from, for build-compute.py
+    // (stiffener ring and fiducials). gpu-package.test.ts keeps this file in step with the module.
+    const GP = await server.ssrLoadModule('/src/scenes/gpu-package.js');
+    await fs.writeFile(path.join(referenceDirectory, 'gpu-package.json'), JSON.stringify(GP.gpuPackageJson(), null, 1));
   } finally { await server.close(); }
 }

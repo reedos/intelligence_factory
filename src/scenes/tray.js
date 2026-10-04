@@ -15,6 +15,7 @@ import { etch, GPU_NAME } from './package-marks.js';
 import { DGX } from './dgx-h100-layout.js';
 import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
 import { FABRICS } from '../model/engine.ts';
+import { trayPackage, packageLog } from './gpu-package.js';
 
 // Printed lid labels on the modules seated in the NIC cages: the scenario's NIC-side class (lid-labels.js).
 export function trayLidLabels(scene, accel, placements, size = [OSFP.label[0] * 10, OSFP.label[1] * 10]) {
@@ -51,8 +52,8 @@ export function dieTex() {
 
 // ---------- shared decoration helpers (product-shot detail; no logos, no invented numbers) ----------
 // stiffener frame around a package (the die and memory stay visible), with corner screws
-function ihsLid(S, N, x, y, z, w, d, heavy) {
-  for (const s of [-1, 1]) { S.box(w, 0.022, 0.035, MAT.nickel, x, y, z + s * (d / 2 - 0.0175)); S.box(0.035, 0.022, d - 0.07, MAT.nickel, x + s * (w / 2 - 0.0175), y, z); }
+function ihsLid(S, N, x, y, z, w, d, heavy, band = 0.035) {
+  for (const s of [-1, 1]) { S.box(w, 0.022, band, MAT.nickel, x, y, z + s * (d / 2 - band / 2)); S.box(band, 0.022, d - 2 * band, MAT.nickel, x + s * (w / 2 - band / 2), y, z); }
   if (heavy) for (const sx of [-1, 1]) for (const sz of [-1, 1]) N.cyl(0.014, 0.01, MAT.black, x + sx * (w / 2 - 0.03), y + 0.014, z + sz * (d / 2 - 0.03), 8);
 }
 // a ring of small decoupling capacitors around a package footprint
@@ -428,7 +429,7 @@ function buildHGX({ quality, model }) {
   for (const x of DGX.sigX) S.box(0.2, 0.12, 0.08, MAT.black, x, gy + 0.06, ZM - 0.115);
   DGX.ibcs.forEach(([x, z, w]) => { S.box(w, 0.12, 0.36, MAT.darkSteel, x, gy + 0.072, z); for (let f = 0; f < 5; f++) N.box(0.012, 0.08, 0.34, MAT.alu, x - w / 2 + 0.03 + f * (w - 0.06) / 4, gy + 0.172, z); });
   { const [hx, hz] = DGX.hgxPcie; S.box(0.3, 0.03, 0.3, MAT.pcbBlack, hx, gy + 0.015, hz); S.box(0.36, 0.04, 0.36, MAT.alu, hx, gy + 0.05, hz); for (let f = 0; f < 7; f++) N.box(0.014, 0.16, 0.34, MAT.alu, hx - 0.15 + f * 0.05, gy + 0.15, hz); }
-  const gpus = [];
+  const gpus = [], PKG = trayPackage('h100'), pkgLog = packageLog(0.1);
   gpuZ.forEach(z => gpuX.forEach(x => gpus.push([x, z])));
   const LIFT = 1.0;                                     // the front-right heat sink is lifted on its guide posts to show the package
   const dieM = texMat(dieTex(), { rough: 0.22, metal: 0.3 });
@@ -436,10 +437,13 @@ function buildHGX({ quality, model }) {
     const fy = gy - 0.03;                               // the former baseboard top; the module stack is unchanged above it
     S.box(0.9, 0.03, 1.4, MAT.pcbBlack, x, fy + 0.05, z);
     boardFinish(N, finish, x, fy + 0.06, z, 0.9, 1.4, 0.5);
-    S.box(0.5, 0.03, 0.52, MAT.pcbBlack, x, fy + 0.08, z);
-    const d = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.02, 0.32), [MAT.silicon, MAT.silicon, dieM, MAT.silicon, MAT.silicon, MAT.silicon]); d.position.set(x, fy + 0.105, z); scene.add(d);
-    for (const s of [-1, 1]) for (let k = 0; k < 3; k++) S.box(0.09, 0.03, 0.1, k === 2 && s > 0 ? MAT.silicon : MAT.hbm, x + s * 0.2, fy + 0.11, z - 0.12 + k * 0.12);
-    ihsLid(S, N, x, fy + 0.116, z, 0.56, 0.58, heavy);
+    // the package, from the descriptor the chip level draws too (gpu-package.js): substrate, dies, six HBM sites
+    const slab = (kind, w, h, d, mat, px, py, pz) => { pkgLog.note(i, kind, w, d, px - x, pz - z); S.box(w, h, d, mat, px, py, pz); };
+    slab('substrate', PKG.substrate.w, 0.024, PKG.substrate.d, MAT.pcbBlack, x, fy + 0.077, z);
+    slab('interposer', PKG.interposer.w, 0.006, PKG.interposer.d, MAT.silicon, x, fy + 0.092, z);   // CoWoS-S silicon under the die and stacks
+    for (const D of PKG.dies) { pkgLog.note(i, 'die', D.w, D.d, D.x, D.z); const d = new THREE.Mesh(new THREE.BoxGeometry(D.w, 0.02, D.d), [MAT.silicon, MAT.silicon, dieM, MAT.silicon, MAT.silicon, MAT.silicon]); d.position.set(x + D.x, fy + 0.105, z + D.z); scene.add(d); }
+    for (const h of PKG.hbm) slab(h.spare ? 'spacer' : 'hbm', h.w, 0.03, h.d, h.spare ? MAT.silicon : MAT.hbm, x + h.x, fy + 0.11, z + h.z);
+    ihsLid(S, N, x, fy + 0.116, z, PKG.frame.w - 0.01, PKG.frame.d - 0.01, heavy, 0.012);
     if (heavy) { capField(N, x, z, fy + 0.05, 0.32, 10); connectorPins(N, x - 0.42, x + 0.42, fy + 0.065, z - 0.68, 14); }
     for (const s of [-1, 1]) for (let k = 0; k < 9; k++) { const vx = x + s * 0.4, vz = z - 0.56 + k * 0.14; S.box(0.07, 0.06, 0.07, MAT.inductor, vx, fy + 0.1, vz); inductorTop(N, vx, fy + 0.131, vz, 0.07); }
     // heat sink: copper base, 20 fins front to back, heat pipes up through the stack
@@ -603,9 +607,10 @@ function buildHGX({ quality, model }) {
   DGX.driveX.forEach((x, k) => DGX.driveY.forEach((y, r) => PD.push({ id: `drive-${k}-${r}`, part: 'nvme', watts: otherEach, at: [x, y - 0.068, ZF - 0.62], size: [0.74, 1.0] })));
   finishCompute(scene, finish);
   scene.userData.dgxCables = cbl;
+  scene.userData.gpuPackageDrawn = pkgLog;
   scene.userData.computeGeneration = { id: 'h100', gpus: 8, cpus: 2, fans: 12, fanRotors: rotors.length, dimms: 32, drives: 8, psus: 6, dpuCount: 0, nicCount: 8, networkModules: 2, densiLinkCables: cbl.length, storageNicCount: 2, opticalPorts: 4, pcieSwitches: 3, midplane: true, trays: ['GPU tray (top)', 'motherboard tray', 'power supplies (bottom)'], representative: true };
   return {
-    printSpots: [etch('GPU package marking', GPU_NAME.h100, [.16, .036], gpus.map(([x, z]) => ({ from: [x, fy + .104, z + .188], dir: [0, -1, 0] })))],
+    printSpots: [etch('GPU package marking', GPU_NAME.h100, [.16, .036], gpus.map(([x, z]) => ({ from: [x, fy + .104, z + (PKG.interposer.d + PKG.substrate.d) / 4], dir: [0, -1, 0] })))],
     scene, flows, powerDraw: PD,
     look: { env: 'studio', envIntensity: 0.5, exposure: 0.95, bloom: 0.38, threshold: 2.0, ao: 0.14, dof: true },
     camera: { pos: [9.2, 6.4, 6.6], target: [0, 1.4, -0.2], near: 0.02, far: 400, min: 1, max: 30 },
@@ -742,7 +747,7 @@ function buildNVL({ quality, model }) {
   const bars12 = [-1, 1].map(s => [barX(s) - 0.04, floorY + 0.03, barZ0, barX(s) + 0.04, floorY + 0.05, barZ1]);
 
   // ---------- two superchip boards ----------
-  const gpus = [], cpus = [];
+  const gpus = [], cpus = [], PKG = trayPackage(model.accel.id), pkgLog = packageLog(0.1);
   const dieM = texMat(dieTex(), { rough: 0.22, metal: 0.3 }), cpuTex = texMat(pkgTex(cpuLabel), { rough: 0.5 });
   for (const bx of [-1.1, 1.1]) {
     S.box(2.0, 0.02, 5.8, MAT.pcb, bx, floorY + 0.01, -0.35);
@@ -761,12 +766,14 @@ function buildNVL({ quality, model }) {
     // two GPUs
     for (const gz of [0.2, -1.55]) {
       gpus.push([bx, gz]);
-      S.box(0.95, 0.04, 0.95, MAT.pcbBlack, bx, floorY + 0.04, gz);                 // substrate
-      S.box(0.7, 0.012, 0.66, MAT.silicon, bx, floorY + 0.066, gz);                  // interposer
-      for (const dx of [-0.16, 0.16]) { const d = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.02, 0.4), [MAT.silicon, MAT.silicon, dieM, MAT.silicon, MAT.silicon, MAT.silicon]); d.position.set(bx + dx, floorY + 0.082, gz); scene.add(d); }
-      for (const dx of [-0.24, -0.08, 0.08, 0.24]) for (const dz of [-0.27, 0.27]) S.box(0.13, 0.03, 0.1, MAT.hbm, bx + dx, floorY + 0.087, gz + dz);
+      // the package, from the descriptor the chip level draws too (gpu-package.js)
+      const gi = gpus.length - 1, slab = (kind, w, h, d, mat, px, py, pz) => { pkgLog.note(gi, kind, w, d, px - bx, pz - gz); S.box(w, h, d, mat, px, py, pz); };
+      slab('substrate', PKG.substrate.w, 0.04, PKG.substrate.d, MAT.pcbBlack, bx, floorY + 0.04, gz);
+      slab('interposer', PKG.interposer.w, 0.012, PKG.interposer.d, MAT.silicon, bx, floorY + 0.066, gz);
+      for (const D of PKG.dies) { pkgLog.note(gi, 'die', D.w, D.d, D.x, D.z); const d = new THREE.Mesh(new THREE.BoxGeometry(D.w, 0.02, D.d), [MAT.silicon, MAT.silicon, dieM, MAT.silicon, MAT.silicon, MAT.silicon]); d.position.set(bx + D.x, floorY + 0.082, gz + D.z); scene.add(d); }
+      for (const h of PKG.hbm) slab('hbm', h.w, 0.03, h.d, MAT.hbm, bx + h.x, floorY + 0.087, gz + h.z);
       // board-to-board connector along the substrate's rear edge, and a ring of decoupling caps
-      if (heavy) { connectorPins(N, bx - 0.4, bx + 0.4, floorY + 0.062, gz - 0.46, 16); capField(N, bx, gz, floorY + 0.03, 0.42, 8, 0.016); }
+      if (heavy) { connectorPins(N, bx - (PKG.substrate.w / 2 - 0.07), bx + (PKG.substrate.w / 2 - 0.07), floorY + 0.062, gz - (PKG.substrate.d / 2 - 0.015), 16); capField(N, bx, gz, floorY + 0.03, PKG.substrate.w / 2 - 0.04, 8, 0.016); }
       // VRM ring: inductors with power stages inside them, on three sides, bright metal caps on top. The rear row leaves
       // a channel on the package centerline for the NVLink escape (tray-pcb.js), the same on every GPU.
       const ring = [];
@@ -786,7 +793,7 @@ function buildNVL({ quality, model }) {
         flows.push(flow([[barX(s), floorY + 0.04, gz + 0.06], [bx - s * 0.72, floorY + 0.055, gz + 0.06]], 'bus12',
           { count: 6, speed: 0.9, size: 0.03, trailR: 0.01, audit: { within: bars12, why: 'out of the 12 V bar it is drawn from' } })); }
       // Core power runs from the ring into the substrate edge, below the die and HBM tops.
-      for (const side of [-1, 1]) for (const dz of [-0.3, 0, 0.3]) flows.push(flow([[bx + side * 0.64, floorY + 0.05, gz + dz], [bx + side * 0.42, floorY + 0.05, gz + dz * 0.8]], 'core', { count: 3, speed: 0.35, size: 0.018, trailR: 0.006, k: 2.6, trailK: 0.2 }));
+      for (const side of [-1, 1]) for (const dz of [-0.3, 0, 0.3]) flows.push(flow([[bx + side * 0.64, floorY + 0.05, gz + dz], [bx + side * (PKG.substrate.w / 2 - 0.055), floorY + 0.05, gz + dz * 0.8]], 'core', { count: 3, speed: 0.35, size: 0.018, trailR: 0.006, k: 2.6, trailK: 0.2 }));
     }
   }
   // clip to the converters, converters onto the 12 V runs. The rack busbar's current passes through the clip's
@@ -1001,7 +1008,7 @@ function buildNVL({ quality, model }) {
   const PD = [], A_ = model.accel, onBoard = floorY + 0.022;
   const lp = PART_W.superchip.lpddr, ringW = A_.gpuW * (1 / A_.vrmEff - 1);
   gpus.forEach(([x, z], i) => {
-    PD.push({ id: `gpu-${i}`, part: 'gpu', watts: A_.gpuW, volt: 'core', at: [x, onBoard, z], size: [0.95, 0.95] });
+    PD.push({ id: `gpu-${i}`, part: 'gpu', watts: A_.gpuW, volt: 'core', at: [x, onBoard, z], size: [PKG.substrate.w, PKG.substrate.d] });
     for (const s of [-1, 1]) PD.push({ id: `vrm-${i}-${s}`, part: 'vrm', watts: ringW * 8 / 22, at: [x + s * 0.67, onBoard, z], size: [0.22, 0.95] });
     PD.push({ id: `vrm-${i}-rear`, part: 'vrm', watts: ringW * 6 / 22, at: [x, onBoard, z - 0.57], size: [0.82, 0.2] });
   });
@@ -1022,10 +1029,11 @@ function buildNVL({ quality, model }) {
   // plates, looking down on the package (dies and HBM), as on H100 and Rubin.
   const gpuClose = { pos: [gpus[3][0], 0.2, gpus[3][1]], view: componentView([gpus[3][0], 0.07, gpus[3][1]], [0.25, 0.4, 1.3], [0.6, 0.2, 0.6]) };
   finishCompute(scene, finish);
+  scene.userData.gpuPackageDrawn = pkgLog;
   scene.userData.computeGeneration = { id: model.accel.id, gpus: 4, cpus: 2, fans: 6, dpuCount: dpuX.length, nicCount: 4, nic: ultra ? 'ConnectX-8' : 'ConnectX-7', memoryModules: 'soldered LPDDR5X', nicBoards: ultra ? 2 : 4, representative: true };
   return {
     // the GPU name etched on each package's front substrate margin, clear of its capacitor ring (package-marks.js)
-    printSpots: [etch('GPU package marking', GPU_NAME[model.accel.id], [.2, .055], gpus.map(([x, z]) => ({ from: [x - .15, floorY + .075, z + .40], dir: [0, -1, 0] }))),
+    printSpots: [etch('GPU package marking', GPU_NAME[model.accel.id], [.2, .055], gpus.map(([x, z]) => ({ from: [x - .15, floorY + .075, z + (PKG.interposer.d + PKG.substrate.d) / 4], dir: [0, -1, 0] }))),
       // GB300: Lenovo's LP2357 guide lists E1.S drives of 7.68 TB (and 3.84 TB); each sled's release paddle carries it
       ...(ultra ? [{ name: 'E1.S drive capacity', lines: [{ text: 'E1.S', size: .34, weight: 700 }, { text: '7.68 TB', size: .4, weight: 700 }],
         text: { px: 96, aspect: 1.6, ink: '#c9cfd6', align: 'center', pad: .04 }, size: [.11, .068],
