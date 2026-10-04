@@ -642,6 +642,26 @@ function buildPackage({ quality, state, model }) {
   // The pin rides just above the back of the package, where the answer tokens
   // leave the die, so in the overviews it marks a place rather than empty air.
   const tokensHS = { pos: [2.0, Y.dies + 1.5, -2.2], view: componentView([2.0, 5.7, -0.5], [6, 4.6, 11], [9.4, 5.2, 5.0]) };
+  // The pin's anchor: a short stream of token chips rising out of the back of the die to the pin, in the layers where the
+  // generated text is not on screen (the real stream shows only while Tokens is selected). It keeps the pin tied to the
+  // place tokens leave the package instead of marking air above it.
+  const stream = (() => {
+    const g = new THREE.Group(); g.name = 'Token stream anchor (schematic)';
+    const xs = dieX.reduce((a, x) => Math.abs(x - tokensHS.pos[0]) < Math.abs(a - tokensHS.pos[0]) ? x : a, dieX[0]);
+    const a = new THREE.Vector3(Math.max(xs - DIE_HALF.x + 0.3, Math.min(xs + DIE_HALF.x - 0.3, tokensHS.pos[0])), Y.dies + 0.12, -DIE_HALF.z + 0.25), b = new THREE.Vector3(...tokensHS.pos);
+    const col = '#8fe4ff';
+    const beam = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending }));
+    g.add(beam);
+    const c = document.createElement('canvas'); c.width = 64; c.height = 24; const cx = c.getContext('2d');
+    cx.fillStyle = col; cx.beginPath(); cx.roundRect(2, 2, 60, 20, 6); cx.fill(); cx.fillStyle = 'rgba(8,20,30,.55)'; cx.fillRect(14, 10, 36, 4);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    const chips = Array.from({ length: 5 }, () => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending, opacity: 0 })); sp.scale.set(0.3, 0.11, 1); g.add(sp); return sp; });
+    scene.add(g);
+    return { g, beam, chips, a, b, tex, update(t, on) {
+      g.visible = on; if (!on) return;
+      chips.forEach((sp, i) => { const u = (t * 0.45 + i / chips.length) % 1; sp.position.lerpVectors(a, b, u); sp.material.opacity = 0.9 * Math.sin(Math.PI * u); });
+    } };
+  })();
   // "Show the math" on the Tokens card: one decode step as a matrix-vector multiply, beside the readout (token-math.js)
   const tokenMath = installTokenMath({ scene, state, quality, hotspot: tokensHS, liveHbm: live, hbmTopY: hy, dieX, dieY: Y.dies,
     anchor: [-4.4, 6.95, 2.4], view: componentView([-1.8, 5.9, 0.9], [6, 4.6, 11], [7.8, 7.8, 3]),
@@ -680,7 +700,7 @@ function buildPackage({ quality, state, model }) {
       cpo: { pos: [-SW / 2, Y.sub + 0.3, SD / 2 - 0.4], view: { pos: [-8 * kS, 5, 9 * kS], target: [-2.5 * kS, 1.5, 2 * kS] } },
       tokens: tokensHS,
     },
-    dispose() { cache.forEach(({ tex }) => tex.dispose()); tokenMath.dispose(); waterfall.dispose(); activity.dispose(); },
+    dispose() { stream.tex.dispose(); cache.forEach(({ tex }) => tex.dispose()); tokenMath.dispose(); waterfall.dispose(); activity.dispose(); },
     setRenderTier(tier) { waterfall.setTier(tier); activity.setTier(tier); },
     update(t, dt) {
       const e = tick(genLen);
@@ -741,6 +761,7 @@ function buildPackage({ quality, state, model }) {
         hbmFill.setMatrixAt(i, o.matrix);
       });
       hbmFill.instanceMatrix.needsUpdate = true;
+      stream.update(t, state.mode !== 'heat' && state.selected !== 'tokens');
       hbmFill.visible = state.mode === 'data';          // the cache is a data-layer idea: hardware stays hardware in power and heat
       waterfall.update(t, state.mode === 'data');
       activity.update(t, state.mode === 'data');

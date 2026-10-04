@@ -53,3 +53,28 @@ describe('small-screen pin declutter', () => {
     }
   });
 });
+
+describe('pin labels beside, under or over their pin', () => {
+  it('tries under and over the pin before giving up', () => {
+    const rightWall = { left: 230, right: 330, top: 0, bottom: 110 }, leftWall = { left: 0, right: 120, top: 0, bottom: 110 };
+    const box = pinLabelBox(200, 100, 90, 400, 300, [rightWall, leftWall]);
+    expect(box).not.toBeNull(); expect(box!.top).toBeGreaterThan(100);
+  });
+  it('keeps clear of a neighbouring pin circle', () => {
+    const circle = { left: 207, right: 229, top: 89, bottom: 111 };
+    const box = pinLabelBox(200, 100, 90, 800, 300, [circle]);
+    expect(box).not.toBeNull(); expect(overlapsRect(box!, circle, 4)).toBe(false);
+  });
+});
+
+describe('phone pin fan-out', () => {
+  it('joins pins closer than a pin diameter plus 6 px', () => {
+    expect(declutterPins([{ id: 'a', x: 100, y: 100 }, { id: 'b', x: 127, y: 100 }]).placements.get('a')!.x).not.toBe(100);
+    expect(declutterPins([{ id: 'a', x: 100, y: 100 }, { id: 'b', x: 129, y: 100 }]).placements.get('a')).toEqual({ x: 100, y: 100, ax: 100, ay: 100 });
+  });
+  it('slides a pin clear of the selected one, which does not move', () => {
+    const a = declutterPins([{ id: 'a', x: 104, y: 100 }], { fixed: [{ x: 100, y: 100 }] }).placements.get('a')!;
+    expect(Math.hypot(a.x - 100, a.y - 100)).toBeGreaterThanOrEqual(26);
+    expect([a.ax, a.ay]).toEqual([104, 100]);
+  });
+});
