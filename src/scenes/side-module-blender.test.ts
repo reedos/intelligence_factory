@@ -350,8 +350,8 @@ describe('Blender optical module integration', () => {
     const { result } = build();
     const routes = new Map(metadata.routes.map(route => [route.name, route]));
     const bypasses = result.dataFlows.filter(flow => flow.route.variant === 'lpo');
-    expect(bypasses.filter(flow => flow.route.from === 'fingers')).toHaveLength(4);
-    expect(bypasses.filter(flow => flow.route.to === 'fingers')).toHaveLength(4);
+    expect(bypasses.filter(flow => flow.route.from === 'fingers'), 'all eight transmit lanes').toHaveLength(8);
+    expect(bypasses.filter(flow => flow.route.to === 'fingers'), 'all eight receive lanes').toHaveLength(8);
     for (const flow of bypasses) {
       const [, direction, lane] = /^(TX|RX)-(\d+)-/.exec(flow.route.id)!;
       const host = routes.get(`${direction} host copper ${lane} -1`)!.points[0];
@@ -737,7 +737,7 @@ describe('module level follows the scenario', () => {
     result.variant.set('dsp'); expect(result.variant.lid).toBe(switchLabel(accel));
     const captions: string[] = [];
     result.scene.traverse((o: THREE.Object3D) => { if (o.userData.caption) captions.push(o.userData.caption.text); });
-    expect(captions).toContain(`One DSP · ${rate} · 8 TX + 8 RX · two ${port} ports`);
+    expect(captions).toContain(`One DSP · ${rate} · 8 TX + 8 RX at ${lane} PAM4 · two ${port} ports`);
     expect(captions.some(t => t.startsWith(`Pluggable module · ${rate}`)), captions.join(' | ')).toBe(true);
     if (id === 'rubin') expect(captions.some(t => /type unpublished/.test(t))).toBe(true);
     // the DSP's printed capacity: the asset's modeled 1.6T text, or the 800G overlay in its place

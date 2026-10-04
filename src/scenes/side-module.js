@@ -139,7 +139,7 @@ export function build({ quality, state, model }) {
 
     // ======================= this engine's flows =======================
     const yT = Y.top + 0.01, yD = Y.top + 0.05, yC = Y.top + 0.07;
-    for (const i of [0, 2, 5, 7]) {
+    for (let i = 0; i < 8; i++) {
       const z = hostZ(i, false), lz = lineZ(i, false), zr = hostZ(i, true), lzr = lineZ(i, true);
       const a = flow([[MX0 - 0.9, yT, z], [mx(0.62), yT, z], [DSPX - 1.1, yT, z], [DSPX - 0.5, yT, z * 0.7], [DSPX + 0.5, yD, z * 0.7], [DRVX - 0.7, yT, lz], [DRVX - CW_ / 2, yT, lz], [DRVX + CW_ / 2, yC, lz], [cx(EMZ.padX), picTopY + 0.02, cz(EMZ.row(i) - 10)]], 'eth', FLOW.elec);
       const aL = flow([[MX0 - 0.9, yT, z], [mx(0.62), yT, z], [DRVX - 1.4, yT, z], [DRVX - 0.7, yT, lz], [DRVX - CW_ / 2, yT, lz], [DRVX + CW_ / 2, yC, lz], [cx(EMZ.padX), picTopY + 0.02, cz(EMZ.row(i) - 10)]], 'eth', FLOW.elec);

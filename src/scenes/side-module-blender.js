@@ -28,7 +28,7 @@ const PIN_OFFSET = {
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
 
-export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=relayout1`) {
+export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=lanes1`) {
   if (cached) return Promise.resolve(cached);
   if (!pending) pending = new GLTFLoader().loadAsync(url).then(gltf => {
     cached = gltf;
@@ -133,7 +133,10 @@ export function build({ quality, state, model: scenario }) {
       power: FLOW.power, heat: FLOW.heat, air: FLOW.heat })[kind];
     // Put the glow into moving signals while keeping Studio's subdued static
     // materials and high bloom threshold. Smaller cores preserve lane separation.
-    const finish = matched ? {} : { size: style.size * (kind === 'cw' ? 0.7 : 0.8), k: style.k * 1.35, trailR: 0.0045, trailK: 0.25 };
+    // All eight lanes per direction carry pulses now (it was four), so each pulse is dimmer and smaller to keep the
+    // bloom from merging neighbouring lanes at the driver and the TIA.
+    const lane = mode === 'data' && kind !== 'cw';
+    const finish = matched ? {} : { size: style.size * (kind === 'cw' ? 0.7 : lane ? 0.62 : 0.8), k: style.k * (lane ? 0.95 : 1.35), trailR: 0.0045, trailK: 0.25 };
     // Power rails read as dimly as the light paths once did: give them a lit trace and
     // more frequent pulses so the power layer carries the same visual weight. The pulse
     // gain is capped below bloom blow-out where the white sub-volt rails converge on the
@@ -150,10 +153,10 @@ export function build({ quality, state, model: scenario }) {
     return f;
   };
 
-  // Four of eight lanes carry animated samples, as in the original module. Each
+  // All eight lanes per direction carry animated samples (four per DR4 engine). Each
   // pulse stays on its exported conductor. Processing inside opaque chips is not
   // represented as a fictitious exposed wire between their input/output pins.
-  for (const i of [0, 2, 5, 7]) {
+  for (let i = 0; i < 8; i++) {
     const lane = String(i + 1).padStart(2, '0');
     for (const rx of [false, true]) {
       const prefix = rx ? 'RX' : 'TX', from = rx ? 'tia' : 'dsp', to = rx ? 'dsp' : 'driver';
@@ -183,7 +186,7 @@ export function build({ quality, state, model: scenario }) {
     const host = sourceRoute(`${prefix} host copper ${i} ${sign}`);
     const engine = sourceRoute(`${prefix} engine copper ${i} ${sign}`);
     const points = sourceRoute(`${prefix} LPO copper ${i} ${sign}`);
-    if (sign === -1 && [0, 2, 5, 7].includes(i)) {
+    if (sign === -1 && true) {
       addFlow({ id: `${prefix}-${i}-bypass`, points, kind: 'electrical', variant: 'lpo',
         from: rx ? 'tia' : 'fingers', to: rx ? 'fingers' : 'driver', reverse: rx });
     }
@@ -349,7 +352,7 @@ export function build({ quality, state, model: scenario }) {
     [dspAnchor[0], dspAnchor[1] + 0.6, dspAnchor[2]], '#8fd3ff', 0.15);
   label(scene, `Pluggable module · ${tier.published ? `${tier.rate} twin-port OSFP, 2 × DR4` : `${tier.rate} OSFP, type unpublished`}`, [0.6, -0.35, 2.6], '#e8ecf2', 0.32);
   label(scene, '107.8 × 22.58 mm footprint · exploded spacing · representative internals', [0.6, -0.72, 2.95], note, 0.17);
-  label(scene, `One DSP · ${tier.rate} · 8 TX + 8 RX · two ${tier.port} ports`, [0.6, -1.02, 3.25], unitCol, 0.17);
+  label(scene, `One DSP · ${tier.rate} · 8 TX + 8 RX at ${tier.lane} PAM4 · two ${tier.port} ports`, [0.6, -1.02, 3.25], unitCol, 0.17);
   // End-to-end TX/RX explanations live in the panel. Placing them at the host
   // connector would imply that light enters or leaves that electrical interface.
   const modeNote = label(scene, 'Power and heat arrows are schematic across the exploded assembly.',
