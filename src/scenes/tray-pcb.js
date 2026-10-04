@@ -12,6 +12,7 @@
 // regulator ring, and come up to the top layer through a via row where the channel is
 // clear; nothing runs through a hole, pad, package or a part tray.js models on the
 // board, nothing crosses on its own layer, and everything keeps a 3 px clearance.
+import { trayPackage } from './gpu-package.js';
 import * as THREE from 'three';
 import { Clearance, segsOf, pointSeg } from './pcb-check.js';
 
@@ -47,7 +48,7 @@ function smdFramePart(L, x, z, w, d, g, id) {
 const part = (L, id, x, z, w, d, more = {}) => L.parts.push({ id, kind: 'part', x, z, w, d, ...more });
 
 function nvlLayout(accel) {
-  const L = base();
+  const L = base(), PKG = trayPackage(accel);
   for (const bx of [-1.1, 1.1]) {
     const s = Math.sign(bx), X = u => bx + s * u, side = bx < 0 ? 'left' : 'right';
     L.boards.push({ x: bx, z: -0.35, w: 2.0, d: 5.8 });
@@ -65,7 +66,7 @@ function nvlLayout(accel) {
     }
     for (const [k, gz] of [0.2, -1.55].entries()) {
       const g = `GPU ${side} ${k ? 'rear' : 'front'}`;
-      L.pkgs.push({ x: bx, z: gz, w: 0.95, d: 0.95, ref: `U${3 + k + (bx > 0 ? 2 : 0)}`, fan: 1, m: 0.005 });
+      L.pkgs.push({ x: bx, z: gz, w: PKG.substrate.w, d: PKG.substrate.d, ref: `U${3 + k + (bx > 0 ? 2 : 0)}`, fan: 1, m: 0.005 });
       // VRM ring: inductors with their power stages (tray.js), the controller, a ring of caps and the decoupling rows
       const ring = [];
       for (let i = 0; i < 8; i++) for (const sx of [-1, 1]) ring.push([bx + sx * 0.72, gz - 0.42 + i * 0.12, -sx * 0.1, 0]);
@@ -241,7 +242,7 @@ function h100Layout() {
   return L;
 }
 function rubinLayout() {
-  const L = base();
+  const L = base(), PKG = trayPackage('rubin');
   const gp = [[-1.6, -2.7], [-0.62, -2.7], [0.62, -2.7], [1.6, -2.7]], cp = [[-1.1, -0.65], [1.1, -0.65]];
   for (const x of [-1.1, 1.1]) L.boards.push({ x, z: -1.52, w: 2.02, d: 4.9 });
   // regulator rows as tray-rubin.js builds them: inductors, power stages toward the package, a cap ring at its edge. Slots
@@ -251,7 +252,7 @@ function rubinLayout() {
   const vrmRow = (x0, z, n, inward, id, skip = []) => { for (let k = 0; k < n; k++) { if (skip.includes(k)) continue; L.vrms.push({ x: x0 + k * 0.12, z, w: 0.1, d: 0.09 }); part(L, `${id} power stage`, x0 + k * 0.12, z + inward * 0.085, 0.06, 0.05, { land: true }); } };
   const c2cSide = x => Math.sign((x < 0 ? -1.1 : 1.1) - x);
   gp.forEach(([x, z], i) => {
-    L.pkgs.push({ x, z, w: 0.83, d: 0.95, ref: `U${i + 1}`, fan: 1, m: 0.005 });
+    L.pkgs.push({ x, z, w: PKG.substrate.w, d: PKG.substrate.d, ref: `U${i + 1}`, fan: 1, m: 0.005 });
     vrmRow(x - 0.36, z - 0.66, 7, 1, `GPU ${i + 1}`, [3]); vrmRow(x - 0.36, z + 0.66, 7, -1, `GPU ${i + 1}`, [c2cSide(x) > 0 ? 5 : 1]);
     for (let k = 0; k < 8; k++) for (const s of [-1, 1]) {
       const u = -0.45 + (k + 0.5) * 0.1125;

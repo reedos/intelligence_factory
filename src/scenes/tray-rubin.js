@@ -7,6 +7,7 @@ import { computeMaterials, finishCompute, boardFinish } from './compute-finish.j
 import { etch } from './package-marks.js';
 import { tagHeat, balanceHeat, PART_W } from '../heat.js';
 import { FABRICS } from '../model/engine.ts';
+import { trayPackage, packageLog } from './gpu-package.js';
 // GPU, CPU, NIC-board and DPU centers (tray units, 10 cm, tray-local frame, front +z) and the cold-plate footprint
 // over each. Exported so the rack's pulled-tray LOD (rack.js) draws the same nine plates at the same spots instead
 // of a hand-picked stand-in, and the two views can never drift apart.
@@ -50,10 +51,18 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  // edge on the side facing its CPU; each CPU's C2C and PCIe leave through gaps 0.12 either side of its centerline.
  const c2cSide=x=>Math.sign((x<0?-1.1:1.1)-x);
  const gpuSkip=x=>({rear:[3],front:[c2cSide(x)>0?5:1]}),gpuCapOpen=x=>(u,s)=>(s<0&&Math.abs(u)<.1)||(s>0&&Math.abs(u-c2cSide(x)*.24)<.12);
- // Rubin GPU: two reticle-size compute dies side by side on the interposer,
- // four HBM4 stacks along each long edge (die size and spacing representative).
- gp.forEach(([x,z],i)=>{packageAt(`Rubin GPU ${i+1}`,x,z,.83,.95,null,false,true);
-  for(const dx of [-.105,.105]){const die=new THREE.Mesh(new THREE.BoxGeometry(.19,.02,.66),[MAT.silicon,MAT.silicon,top,MAT.silicon,MAT.silicon,MAT.silicon]);die.name=`Rubin GPU ${i+1} compute die`;die.position.set(x+dx,.2075,z);scene.add(die);}for(const dx of [-.29,.29])for(const dz of [-.32,-.11,.11,.32]){N.box(.13,.05,.13,MAT.hbm,x+dx,.21,z+dz);}
+ // Rubin GPU: two reticle-size compute dies side by side on the interposer, four HBM4 stacks along each long die edge:
+ // the same package the chip level draws, built from the one descriptor (gpu-package.js; arrangement carried over from
+ // Blackwell and stated as assumed, die size and spacing representative).
+ const PKG=trayPackage('rubin'),pkgLog=packageLog(0.1);
+ gp.forEach(([x,z],i)=>{
+  N.box(PKG.substrate.w*.92,.024,PKG.substrate.d*.92,MAT.black,x,.1,z);                          // ball field under the substrate
+  const slab=(b,kind,w,h,d,mat,px,py,pz)=>{pkgLog.note(i,kind,w,d,px-x,pz-z);b.box(w,h,d,mat,px,py,pz);};
+  slab(S,'substrate',PKG.substrate.w,.055,PKG.substrate.d,MAT.pcbBlack,x,.14,z);                  // substrate
+  pkgLog.note(i,'interposer',PKG.interposer.w,PKG.interposer.d,0,0);
+  const ip=new THREE.Mesh(new THREE.BoxGeometry(PKG.interposer.w,.025,PKG.interposer.d),MAT.silicon);ip.name=`Rubin GPU ${i+1}`;ip.position.set(x,.185,z);scene.add(ip);
+  for(const D of PKG.dies){pkgLog.note(i,'die',D.w,D.d,D.x,D.z);const die=new THREE.Mesh(new THREE.BoxGeometry(D.w,.02,D.d),[MAT.silicon,MAT.silicon,top,MAT.silicon,MAT.silicon,MAT.silicon]);die.name=`Rubin GPU ${i+1} compute die`;die.position.set(x+D.x,.2075,z+D.z);scene.add(die);}
+  for(const h of PKG.hbm)slab(N,'hbm',h.w,.05,h.d,MAT.hbm,x+h.x,.21,z+h.z);
   vrmRow(x-.36,z-.66,7,.12,1,gpuSkip(x).rear);vrmRow(x-.36,z+.66,7,.12,-1,gpuSkip(x).front);capRing(x,z,.9,1.08,gpuCapOpen(x));});
  cp.forEach(([x,z],i)=>{
   packageAt(`Vera CPU ${i+1}`,x,z,.75,.77,'VERA',true);
@@ -202,7 +211,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  // rows and LPDDR5X, the ConnectX-9s and the DPU (the tray's NIC power as the cold plates split it), the bus
  // converters' loss and each module's fabric allowance.
  const PD=[],lp=PART_W.superchip.lpddr,loss=w=>w*(1/A.vrmEff-1);
- gp.forEach(([x,z],i)=>{PD.push({id:`gpu-${i}`,part:'gpu',watts:A.gpuW,volt:'core',at:[x,.09,z],size:[.83,.95]});
+ gp.forEach(([x,z],i)=>{PD.push({id:`gpu-${i}`,part:'gpu',watts:A.gpuW,volt:'core',at:[x,.09,z],size:[PKG.substrate.w,PKG.substrate.d]});
   for(const s of [-1,1])PD.push({id:`vrm-${i}-${s}`,part:'vrm',watts:loss(A.gpuW)/2,at:[x,.09,z+s*.66],size:[.82,.18]});});
  cp.forEach(([x,z],i)=>{PD.push({id:`cpu-${i}`,part:'grace',watts:A.cpuW-8*lp,volt:'core',at:[x,.09,z],size:[.75,.77]});
   for(const s of [-1,1])PD.push({id:`cpu-vrm-${i}-${s}`,part:'vrm',watts:loss(A.cpuW)/2,at:[x,.09,z+s*.52],size:[.58,.18]});
@@ -212,9 +221,10 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  ibcX.forEach((x,i)=>PD.push({id:`ibc-${i}`,part:'ibc',watts:model.rack.ibcLossKW*1000/18/ibcX.length,at:[x,.114,-3.98],size:[.65,.42]}));
  for(const x of ports)for(const y of [.16,.34])PD.push({id:`osfp-${x}-${y}`,part:'osfp',watts:FABRICS[A.nicPortGbps].gpuModuleW,volt:'v33',at:[x,y-.063,4.21],size:[.29,.46]});
  finishCompute(scene,finish);
+ scene.userData.gpuPackageDrawn=pkgLog;
  scene.userData.computeGeneration={id:'rubin',gpus:4,cpus:2,fans:0,internalHoses:0,midplane:true,nicAssemblies:2,nicCount:8,dpuCount:1,opticalPorts:8,representative:true};
  // the GPU name etched on each package's front substrate margin, ahead of the interposer (package-marks.js)
- return {printSpots:[etch('GPU package marking','Rubin',[.3,.065],gp.map(([x,z])=>({from:[x,.4,z+.43],dir:[0,-1,0]})))],scene,flows,dataFlows,heatFlows,hotspots,powerDraw:PD,
+ return {printSpots:[etch('GPU package marking','Rubin',[.3,.065],gp.map(([x,z])=>({from:[x,.4,z+(PKG.interposer.d+PKG.substrate.d)/4],dir:[0,-1,0]})))],scene,flows,dataFlows,heatFlows,hotspots,powerDraw:PD,
   heatHotspots:{osfp:hotspots.osfp,coldplates:hotspots.coldplates,gpuheat:hotspots.gpu,manifold:hs([-2.02,.8,0]),qd:hs([2.02,.8,-4.48],[2,2,-3])},
   // tools/flows.mjs: NVLink and C2C stay over a board (the two compute boards and the power board)
   flowAudit:{floatR:.25,boardCls:['nvl','c2c'],boards:[[-2.11,-.09,-3.97,.93],[.09,2.11,-3.97,.93],[-2.05,2.05,-4.34,-3.76]]},

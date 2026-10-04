@@ -115,5 +115,9 @@ if (process.argv.includes('--compute')) {
     await fs.writeFile(path.join(referenceDirectory, 'rack-tray-layout.json'), JSON.stringify({ unit: 0.1,
       nvl: { boardX: T.NVL_BOARD_X, cpu: T.NVL_CPU, gpuZ: T.NVL_GPU_Z, gpuSize: T.NVL_GPU_SIZE, fanX: T.NVL_FAN_X, fanZ: T.NVL_FAN_Z, lpddr: T.NVL_LPDDR, plates: K.NVL_COLD_PLATES },
       rubin: { plates: R.RUBIN_COLD_PLATES } }, null, 1));
+    // The GPU package, once: the same descriptor chip.js, tray.js and tray-rubin.js build from, for build-compute.py
+    // (stiffener ring and fiducials). gpu-package.test.ts keeps this file in step with the module.
+    const G = await server.ssrLoadModule('/src/scenes/gpu-package.js');
+    await fs.writeFile(path.join(referenceDirectory, 'gpu-package.json'), JSON.stringify(G.gpuPackageJson(), null, 1));
   } finally { await server.close(); }
 }

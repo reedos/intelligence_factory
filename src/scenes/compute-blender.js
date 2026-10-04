@@ -17,7 +17,7 @@ const assetKey = (kind, model) => `compute-${kind}-${variant(kind, model)}`;
 
 async function load(key) {
   if (cache.has(key)) return;
-  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=rackfu2-tray-match`)
+  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=gpupkg1`)
     .then(gltf => { cache.set(key, gltf.scene); pending.delete(key); })
     .catch(error => { pending.delete(key); throw error; }));
   await pending.get(key);
@@ -94,7 +94,7 @@ function build(kind, native, options) {
     for (const target of rotors) {
       const rotor = shapeFor(target.userData.computeDynamic);
       target.geometry.dispose(); target.geometry = rotor.geometry.clone(); target.material = rotor.material.clone();
-      const radius = target.userData.computeDynamic === 'bga' ? .1 : target.userData.computeDynamic === 'c4' ? .045 : 1;
+      const radius = target.userData.computeDynamic === 'bga' ? (target.userData.ballRadius ?? .1) : target.userData.computeDynamic === 'c4' ? .045 : 1;
       target.geometry.scale(radius, radius, radius);
       target.geometry.userData.authoredIn = 'Blender';
       target.name = `Blender-authored ${target.userData.computeDynamic}`;

@@ -4,6 +4,7 @@
 // The page shows the basis beside the figure; the chip opens its evidence.
 import { BASIS } from './evidence.js';
 import { moduleTier } from './scenes/lid-labels.js';
+import { gpuBoardCm } from './scenes/gpu-package.js';
 import { tokenMathRows } from './model/token-math.js';
 export { BASIS };
 
@@ -201,7 +202,7 @@ export function content(M) {
       intro: 'This is one complete 8U DGX H100 server pulled from the rack, not an NVL72 compute tray, cut open along one side. As NVIDIA’s figures show it, the GPU tray fills the top, the motherboard tray with the CPUs, memory and network modules sits under it, and six power supplies run across the bottom of the rear; both trays plug into a midplane behind the twelve front fans. Depths, the midplane’s openings and the power copper under the motherboard tray are representative.',
     },
     {
-      id: 'chip', n: 6, title: 'GPU package & tokens', scale: '10 cm across', unit: 0.01, volt: 'core', dataVolt: 'hbm', heatVolt: 'hot', heatShort: 'die, hottest',
+      id: 'chip', n: 6, title: 'GPU package & tokens', scale: `${Math.floor(gpuBoardCm(A.id))} cm across`, unit: 0.01, volt: 'core', dataVolt: 'hbm', heatVolt: 'hot', heatShort: 'die, hottest',
       heatIntro: `Every watt that arrives turns into heat inside ${A.dies > 1 ? 'two dies' : 'one die'} smaller than a postcard. It climbs through a thin thermal interface ${A.id === 'h100' ? '' : 'and a heat spreader '}into ${nvl ? 'the cold plate' : 'the heat sink'}; the hard part is getting it out of the silicon fast enough.`,
       dataIntro: A.dies > 1
         ? `The fastest links are the shortest. HBM feeds the dies at ${hbmTB} over millimeters, the two dies talk at 10 TB/s across their seam, and ${A.nvlink.gen} leaves the package edge at ${nvlTB}.`
@@ -705,7 +706,7 @@ export function content(M) {
   PARTS.chip = [
     { id: 'balls', title: 'Solder balls & substrate', kicker: 'A thousand-plus amps comes up here',
       body: 'Thousands of solder balls carry power and signals from the board into a many-layer organic substrate. Most of the balls are power and ground: at 0.8 V it takes many parallel paths to carry a thousand amps.',
-      specs: [['Core voltage', '≈0.7–0.9 V', 'assumed', { assume: 'core-voltage' }], ['Core current, P ÷ V', `≈${n0(coreA)} A over several rails`, 'derived', { calc: 'core-current' }], ['Stiffener ring and capacitors, as drawn', 'representative', 'assumed', { assume: 'package-stiffener-drawing' }], ['Ball and bump pitch, as drawn', 'coarser than real', 'assumed', { assume: 'package-solder-drawing' }]] },
+      specs: [['Core voltage', '≈0.7–0.9 V', 'assumed', { assume: 'core-voltage' }], ['Core current, P ÷ V', `≈${n0(coreA)} A over several rails`, 'derived', { calc: 'core-current' }], ['Stiffener ring and capacitors, as drawn', 'representative', 'assumed', { assume: 'package-stiffener-drawing' }], ['Substrate size, as drawn', A.id === 'h100' ? '≈5.5 × 5.8 cm, an estimate' : '≈8.4 cm square, representative', A.id === 'h100' ? 'reported' : 'assumed', A.id === 'h100' ? { refs: [['locuza-sxm5-package-estimate', 'post text: "Package size would be 55 mm x 58 mm", scaled from a 150 x 80 mm SXM5 module that the post itself marks uncertain']] } : { assume: 'gpu-package-geometry' }], ['Ball and bump pitch, as drawn', 'coarser than real', 'assumed', { assume: 'package-solder-drawing' }]] },
     { id: 'interposer', title: 'Interposer', kicker: X.packaging.replace('TSMC ', ''),
       body: A.id === 'h100'
         ? 'A single silicon interposer wires the die and memory together with lines far finer than any circuit board can carry.'
@@ -719,7 +720,7 @@ export function content(M) {
         : 'One reticle-limit die, about as large as a chip can be made in one exposure. Nearly every watt that reaches it, whether it runs computation, on-chip memory, communication or leakage, ends as heat.',
       specs: [['Transistors', X.transistors, EV6.transistors.basis, EV6.transistors.ev],
         ...(A.dies > 1 ? [['Die-to-die link', '10 TB/s NV-HBI', EV6.dieRow.basis, EV6.dieRow.ev]] : [['Die area', '814 mm²', EV6.dieRow.basis, EV6.dieRow.ev]]),
-        ['Process', X.process, EV6.process.basis, EV6.process.ev], ['Floorplan shown', 'illustrative x-ray', 'assumed', { assume: 'die-floorplan-drawing' }]] },
+        ['Process', X.process, EV6.process.basis, EV6.process.ev], ['Die and stack sizes, as drawn', A.dies > 1 ? 'dies 26 × 33 mm, the reticle limit; stacks ≈11 × 10 mm' : 'die 26 × 31 mm (814 mm²); stacks ≈11 × 10 mm', 'assumed', { assume: 'gpu-package-geometry' }], ['Floorplan shown', 'illustrative x-ray', 'assumed', { assume: 'die-floorplan-drawing' }]] },
     { id: 'hbm', title: `${A.hbm.type} stacks`, kicker: `${stacksTxt}, ${A.hbm.gb} GB`,
       body: `Each stack, from suppliers such as SK hynix, Micron and Samsung, is ${A.hbm.layers} DRAM dies thinned and stacked with through-silicon vias. Moving model weights out of HBM for every token is a large share of inference energy.`,
       specs: [['Capacity', `${A.hbm.gb} GB${A.id === 'gb200' ? ' nominal; rack total implies ≈186 GB' : A.id === 'gb300' ? ' nominal; rounded rack total implies ≈278 GB' : ''}`, EV6.hbm.basis, EV6.hbm.ev], ['Bandwidth', hbmTB, EV6.hbm.basis, EV6.hbm.ev],

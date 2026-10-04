@@ -11,6 +11,7 @@ import { installTokenMath } from './token-math.js';
 import { tagHeat, balanceHeat } from '../heat.js';
 import { hbmWaterfall, waterfallProfile } from './hbm-waterfall.js';
 import { dieActivity } from './die-activity.js';
+import { GPU_PACKAGE, packageLog, gpuBoardCm } from './gpu-package.js';
 
 // The visible top of a flip-chip die is its polished silicon backside. A faint
 // roughness pattern (a grayscale map) lets the key light break across it.
@@ -96,13 +97,16 @@ function chunkTexture(words, lane, startParity) {
 // nearer corner (more for runs nearer the corner, so neighbours never cross) and ends on a via at 5.25 cm.
 // Points are world [x, z] in cm, package centre at the origin. Side 0 leaves toward +x, 1 toward -x, 2 toward
 // +z, 3 toward -z (the texture's pixel axes map to world x and z).
-export const BGA = { pitch: 0.3, n: 26, half: 3.75 }, BGA_RUNS = 24;
+export const BGA = { pitch: GPU_PACKAGE.gb200.bga.pitch, n: GPU_PACKAGE.gb200.bga.n, half: GPU_PACKAGE.gb200.bga.half, reach: 5.25 }, BGA_RUNS = 24;
+// the host board is cut square, a 1.2 cm margin around the package (gpu-package.js), and the escape runs end 0.15 cm inside its edge
+export const boardSize = gpuBoardCm;
+export const bgaFor = id => ({ ...GPU_PACKAGE[id].bga, reach: boardSize(id) / 2 - 0.15 });
 // the HBM print on a stack top, as fractions of the top: its length along the text, its height, and how far its centre
 // sits from the top's centre toward the stack's outer edge
 export const HBM_LABEL = { len: 0.6, h: 0.2, off: 0.24 };
-export function bgaRun(side, k) {
-  const along = -BGA.half + (k + 1) * BGA.pitch, t = (k - (BGA_RUNS - 1) / 2) / ((BGA_RUNS - 1) / 2), jog = t * Math.abs(t) * 0.85;
-  const r0 = BGA.half, r1 = 5.25;
+export function bgaRun(side, k, bga = BGA) {
+  const along = -bga.half + (k + 1) * bga.pitch, t = (k - (BGA_RUNS - 1) / 2) / ((BGA_RUNS - 1) / 2), jog = t * Math.abs(t) * 0.85;
+  const r0 = bga.half, r1 = bga.reach;
   const pt = (r, a) => side === 0 ? [r, a] : side === 1 ? [-r, -a] : side === 2 ? [-a, r] : [a, -r];
   return [pt(r0, along), pt(r0 + 0.35, along), pt(r0 + 0.35 + Math.abs(jog), along + jog), pt(r1, along + jog)];
 }
@@ -112,7 +116,7 @@ export function build(options) {
   frameCompute(result, 'chip', options.model.accel.id);
   if (options.quality?.mobile) {
     // Portrait phones are width-limited: a steeper view and a tighter fit on the
-    // 8.4 cm package (the board is context) let the stack fill more of the height.
+    // 8.4 cm package (H100: 5.5 cm; the board is context) let the stack fill more of the height.
     // {pos, target} only, not componentView's full result: carrying its `detailSize` into
     // built.camera makes stage.js's cameraPreset() treat the whole overview as a part/hotspot view
     // (see the comment in compute-framing.js) instead of landing on this pivot directly.
@@ -123,6 +127,7 @@ export function build(options) {
 }
 function buildPackage({ quality, state, model }) {
   const A = model.accel, twin = A.dies > 1, layers = A.hbm.layers;
+  const pkgLog = packageLog(1), P = GPU_PACKAGE[A.id], SW = P.substrate.w, SD = P.substrate.d, IW = P.interposer.w, ID = P.interposer.d, bga = bgaFor(A.id);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x090c12);
   scene.add(new THREE.HemisphereLight(0xb5c3e6, 0x111317, 0.8));
@@ -141,7 +146,6 @@ function buildPackage({ quality, state, model }) {
   const finish = computeMaterials();
   // layer heights (exploded)
   const Y = { balls: 0.068, sub: 1.1, bumps: 2.05, inter: 2.3, dies: 3.2, lid: 4.7 };   // lid: the lifted, translucent heat spreader
-  const SUB = 8.4;
   const dots = (pitch, r, bg, dot) => canvasTex(256, 256, (g, w, h) => {
     g.fillStyle = bg; g.fillRect(0, 0, w, h); g.fillStyle = dot;
     for (let y = pitch / 2; y < h; y += pitch) for (let x = pitch / 2; x < w; x += pitch) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
@@ -155,7 +159,7 @@ function buildPackage({ quality, state, model }) {
 
   // board beneath, cut square: 10.8 cm, a 1.2 cm margin around the package, so
   // the whole cut board still fits a portrait phone frame
-  const BOARD = 10.8;
+  const BOARD = boardSize(A.id);
   // Host board under the package: solder mask with the BGA land pattern (gold
   // pads on the ball grid), a via field and trace bundles fanning out, darkening
   // toward the cut edge. Representative host board.
@@ -170,7 +174,7 @@ function buildPackage({ quality, state, model }) {
     g.strokeStyle = 'rgba(80,150,124,0.78)'; g.lineWidth = w / 560;
     const runs = [], ends = [];
     for (let side = 0; side < 4; side++) for (let k = 0; k < BGA_RUNS; k++) {
-      const run = bgaRun(side, k).map(([x, z]) => [c + x * px, c + z * px]);
+      const run = bgaRun(side, k, bga).map(([x, z]) => [c + x * px, c + z * px]);
       g.beginPath(); run.forEach((q, i) => i ? g.lineTo(...q) : g.moveTo(...q)); g.stroke(); runs.push(run);
       const [vx, vy] = run.at(-1); ends.push([vx, vy]);
       g.fillStyle = 'rgba(150,196,164,0.9)'; g.beginPath(); g.arc(vx, vy, 0.05 * px, 0, Math.PI * 2); g.fill();
@@ -179,13 +183,13 @@ function buildPackage({ quality, state, model }) {
     g.fillStyle = 'rgba(110,140,120,0.5)';
     // stray vias in the open board, never on a run or its end via
     const clearOfRuns = (x, y, d) => runs.every(run => run.slice(1).every((q, i) => distToSeg([x, y], run[i], q) > d)) && ends.every(([ex, ey]) => Math.hypot(x - ex, y - ey) > d + 0.05 * px);
-    for (let k = 0; k < 500; k++) { const x = rnd() * w, y = rnd() * h; if (Math.max(Math.abs(x - c), Math.abs(y - c)) > 4.0 * px && clearOfRuns(x, y, 0.018 * px + w / 1120 + 3)) { g.beginPath(); g.arc(x, y, 0.018 * px, 0, Math.PI * 2); g.fill(); } }
-    for (let i = 0; i < 26; i++) for (let j = 0; j < 26; j++) {          // BGA land pattern, ENIG gold, with a via beside each pad
-      const x = c + (-3.75 + i * 0.3) * px, y = c + (-3.75 + j * 0.3) * px;
-      g.fillStyle = '#c9a54f'; g.beginPath(); g.arc(x, y, 0.075 * px, 0, Math.PI * 2); g.fill();
-      g.fillStyle = 'rgba(20,40,34,0.9)'; g.beginPath(); g.arc(x + 0.15 * px, y + 0.15 * px, 0.025 * px, 0, Math.PI * 2); g.fill();
+    for (let k = 0; k < 500; k++) { const x = rnd() * w, y = rnd() * h; if (Math.max(Math.abs(x - c), Math.abs(y - c)) > (bga.half + 0.25) * px && clearOfRuns(x, y, 0.018 * px + w / 1120 + 3)) { g.beginPath(); g.arc(x, y, 0.018 * px, 0, Math.PI * 2); g.fill(); } }
+    for (let i = 0; i < bga.n; i++) for (let j = 0; j < bga.n; j++) {          // BGA land pattern, ENIG gold, with a via beside each pad
+      const x = c + (-bga.half + i * bga.pitch) * px, y = c + (-bga.half + j * bga.pitch) * px, k = bga.pitch / 0.3;
+      g.fillStyle = '#c9a54f'; g.beginPath(); g.arc(x, y, 0.075 * k * px, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(20,40,34,0.9)'; g.beginPath(); g.arc(x + 0.15 * k * px, y + 0.15 * k * px, 0.025 * k * px, 0, Math.PI * 2); g.fill();
     }
-    const fade = g.createRadialGradient(c, c, 4.4 * px, c, c, 7.7 * px);
+    const fade = g.createRadialGradient(c, c, (bga.half + 0.65) * px, c, c, 7.7 * BOARD / 10.8 * px);
     fade.addColorStop(0, 'rgba(0,0,0,0)'); fade.addColorStop(1, 'rgba(4,8,10,0.92)');
     g.fillStyle = fade; g.fillRect(0, 0, w, h);
   });
@@ -194,14 +198,15 @@ function buildPackage({ quality, state, model }) {
   texBox(BOARD, 0.16, BOARD, boardMat, 0, -0.08, 0, BOARD);
   boardFinish(N, finish, 0, -0.01, 0, BOARD, BOARD, 3);
   // BGA balls
-  const ball = new THREE.SphereGeometry(0.1, 10, 8);
-  const pitch = 0.3, nB = 26, balls = new THREE.InstancedMesh(ball, MAT.nickel, nB * nB);
-  balls.userData.computeDynamic = 'bga';
+  const ball = new THREE.SphereGeometry(bga.r, 10, 8);
+  const pitch = bga.pitch, nB = bga.n, balls = new THREE.InstancedMesh(ball, MAT.nickel, nB * nB);
+  balls.userData.computeDynamic = 'bga'; balls.userData.ballRadius = bga.r;
   const o = new THREE.Object3D(); let bi = 0;
-  for (let i = 0; i < nB; i++) for (let j = 0; j < nB; j++) { o.position.set(-3.75 + i * pitch, Y.balls, -3.75 + j * pitch); o.updateMatrix(); balls.setMatrixAt(bi++, o.matrix); }
+  for (let i = 0; i < nB; i++) for (let j = 0; j < nB; j++) { o.position.set(-bga.half + i * pitch, Y.balls, -bga.half + j * pitch); o.updateMatrix(); balls.setMatrixAt(bi++, o.matrix); }
   balls.castShadow = true; scene.add(balls);
   // organic substrate with decoupling capacitors
-  S.box(SUB, 0.25, SUB, MAT.pcbBlack, 0, Y.sub, 0);
+  pkgLog.note(0, 'substrate', SW, SD, 0, 0);
+  S.box(SW, 0.25, SD, MAT.pcbBlack, 0, Y.sub, 0);
   // Solder-mask top: dark green-black with a faint via field and trace bundles, satin sheen.
   const maskTex = canvasTex(512, 512, (g, w, h) => {
     g.fillStyle = '#0f2420'; g.fillRect(0, 0, w, h);
@@ -214,7 +219,7 @@ function buildPackage({ quality, state, model }) {
     for (let k = 0; k < 900; k++) { const x = rnd() * w, y = rnd() * h; if (lanes.every(l => l.slice(1).every((q, i) => distToSeg([x, y], l[i], q) > 1.6 + 1.5 + 2))) { g.beginPath(); g.arc(x, y, 1.6, 0, Math.PI * 2); g.fill(); } }
   });
   const mask = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: maskTex, roughness: 0.45, metalness: 0.05, clearcoat: 0.3, clearcoatRoughness: 0.4 }); mask.name = 'Substrate solder mask';
-  texBox(SUB - 0.1, 0.01, SUB - 0.1, mask, 0, Y.sub + 0.13, 0, 2.8);
+  texBox(SW - 0.1, 0.01, SD - 0.1, mask, 0, Y.sub + 0.13, 0, 2.8);
   // Representative decoupling capacitors: clusters of two case sizes (drawn
   // oversize) in the ring opening next to the dies and HBM,
   // tan ceramic bodies with bright tin terminals (package-stiffener-drawing).
@@ -232,16 +237,15 @@ function buildPackage({ quality, state, model }) {
       cap(cx + (alongX ? du : dv), cz + (alongX ? dv : du), big, !alongX);
     }
   };
-  for (const zs of [-1, 1]) for (const cx of [-2.2, 0, 2.2]) cluster(cx, zs * 3.38, true);
-  for (const xs of [-1, 1]) for (const cz of [-1.8, 0, 1.8]) cluster(xs * 3.4, cz, false);
+  for (const { x, z, alongX } of P.capClusters) cluster(x, z, alongX);
   for (const side of [-1, 1]) for (const dy of [-0.08, 0, 0.08]) {
-    N.box(SUB - 0.08, 0.008, 0.008, finish.laminate, 0, Y.sub + dy, side * (SUB / 2 + 0.004));
-    N.box(0.008, 0.008, SUB - 0.08, finish.laminate, side * (SUB / 2 + 0.004), Y.sub + dy, 0);
+    N.box(SW - 0.08, 0.008, 0.008, finish.laminate, 0, Y.sub + dy, side * (SD / 2 + 0.004));
+    N.box(0.008, 0.008, SD - 0.08, finish.laminate, side * (SW / 2 + 0.004), Y.sub + dy, 0);
   }
   // The stiffener ring is authored in Blender (tools/blender/build-compute.py).
   // C4 bumps between substrate and interposer, only under the interposer they bond to (the H100 interposer is
   // shallower than the Blackwell one, so its field is too; IW and ID are set below with the interposer).
-  const cowosL0 = A.id !== 'h100', IW0 = twin ? 6.2 : 6.0, ID0 = twin ? 5.9 : 4.0;
+  const cowosL0 = A.id !== 'h100', IW0 = IW, ID0 = ID;
   const bump = new THREE.SphereGeometry(0.045, 8, 6), C4 = 0.18, nx = Math.floor((IW0 - 0.2) / C4) + 1, nz = Math.floor((ID0 - 0.2) / C4) + 1;
   const bumps = new THREE.InstancedMesh(bump, MAT.nickel, nx * nz); bi = 0;
   bumps.userData.computeDynamic = 'c4';
@@ -252,11 +256,12 @@ function buildPackage({ quality, state, model }) {
   // (CoWoS-L): an organic redistribution interposer with small silicon bridges
   // embedded under the die seam and the die-to-HBM edges. Bridge count, size
   // and placement are representative (cowos-bridge-drawing).
-  const cowosL = cowosL0, IW = IW0, ID = ID0;
+  const cowosL = cowosL0;
   const interMat = cowosL
     ? new THREE.MeshStandardMaterial({ color: 0x1c1a1a, roughness: 0.5, metalness: 0.1 })
     : new THREE.MeshStandardMaterial({ color: 0x8e96a2, map: dots(16, 2.2, '#b8bec8', '#8a8f98'), roughness: 0.15, metalness: 0.55 });
   interMat.name = cowosL ? 'CoWoS-L organic redistribution interposer' : 'CoWoS-S silicon interposer';
+  pkgLog.note(0, 'interposer', IW, ID, 0, 0);
   if (cowosL) S.box(IW, 0.1, ID, interMat, 0, Y.inter, 0); else texBox(IW, 0.1, ID, interMat, 0, Y.inter, 0, 0.5);
   if (cowosL) {
     // Bright polished silicon against the dark organic body, each span reaching
@@ -269,8 +274,8 @@ function buildPackage({ quality, state, model }) {
       S.box(w, 0.02, d, bridge, x, Y.inter + 0.045, z);
       const e = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w, 0.02, d)), rim); e.position.set(x, Y.inter + 0.045, z); bridges.add(e);
     };
-    inlay(0.46, 2.9, 0, 0);                                                                  // under the die-to-die seam
-    for (const x of [-2.02, -0.7, 0.7, 2.02]) for (const z of [-1.72, 1.72]) inlay(0.84, 0.62, x, z);   // die-to-HBM edges
+    inlay(0.46, P.dies[0].d - 0.4, 0, 0);                                                    // under the die-to-die seam
+    for (const [x, z] of P.hbm.sites) inlay(0.84, 0.62, x, Math.sign(z) * (P.dies[0].d / 2 + Math.abs(z) - P.hbm.d / 2) / 2);   // die-to-HBM edges
     scene.add(bridges);
   }
   // GPU dies: polished silicon backside with a dark sidewall; the floorplan is a
@@ -280,12 +285,13 @@ function buildPackage({ quality, state, model }) {
   dieMat.userData.ifxAnimatedSurface = 'gpu-die';
   const dieSide = new THREE.MeshStandardMaterial({ color: 0x1a1d24, roughness: 0.4, metalness: 0.3 }); dieSide.name = 'GPU die sidewall';
   const dies = [], xray = [];
-  const dieX = twin ? [-1.36, 1.36] : [0];
+  const dieX = P.dies.map(d => d.x), DIE = P.dies[0];
   const planTex = floorplanTexture(twin ? 'z' : 'x', twin);
   for (const dx of dieX) {
-    const d = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.08, 3.3), [dieSide, dieSide, dieMat, dieSide, dieSide, dieSide]);
+    pkgLog.note(0, 'die', DIE.w, DIE.d, dx, 0);
+    const d = new THREE.Mesh(new THREE.BoxGeometry(DIE.w, 0.08, DIE.d), [dieSide, dieSide, dieMat, dieSide, dieSide, dieSide]);
     d.position.set(dx, Y.dies, 0); if (dx > 0) d.rotation.y = Math.PI; d.castShadow = true; scene.add(d); dies.push(d);
-    const plan = new THREE.Mesh(new THREE.PlaneGeometry(2.56, 3.26), new THREE.MeshBasicMaterial({ map: planTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+    const plan = new THREE.Mesh(new THREE.PlaneGeometry(DIE.w - 0.04, DIE.d - 0.04), new THREE.MeshBasicMaterial({ map: planTex, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
     plan.rotation.x = -Math.PI / 2; if (dx > 0) plan.rotation.z = Math.PI; plan.position.set(dx, Y.dies + 0.046, 0);
     plan.name = 'Illustrative die floorplan (x-ray)'; plan.renderOrder = 3; scene.add(plan); xray.push(plan);
   }
@@ -322,14 +328,13 @@ function buildPackage({ quality, state, model }) {
   const dramMat = new THREE.MeshStandardMaterial({ color: 0x59616c, roughness: 0.3, metalness: 0.35 }); dramMat.name = 'HBM DRAM die edge';
   const baseDieMat = new THREE.MeshStandardMaterial({ color: 0x7a6a52, roughness: 0.34, metalness: 0.4 }); baseDieMat.name = 'HBM logic base die edge';
   const spacerMat = new THREE.MeshPhysicalMaterial({ color: 0x8a929c, roughness: 0.12, metalness: 0.0, clearcoat: 1.0, clearcoatRoughness: 0.08 }); spacerMat.name = 'Blank silicon spacer';
-  const hbmPos = [];
-  if (twin) { for (const x of [-2.02, -0.7, 0.7, 2.02]) for (const z of [-2.3, 2.3]) hbmPos.push([x, z]); }
-  else { for (const x of [-2.05, 2.05]) for (const z of [-1.12, 0, 1.12]) hbmPos.push([x, z]); }
-  const spare = twin ? -1 : 5;                           // H100: six sites, five working stacks and a spacer
-  const HW = 1.06, HD = 1.0, hb = Y.dies - 0.04;       // stack footprint and underside, level with the die underside
+  const hbmPos = P.hbm.sites;
+  const spare = P.hbm.spare;                             // H100: six sites, five working stacks and a spacer
+  const HW = P.hbm.w, HD = P.hbm.d, hb = Y.dies - 0.04;  // stack footprint and underside, level with the die underside
   const stackH = 0.24;
   const spacerOutlines = [];
   hbmPos.forEach(([x, z], i) => {
+    pkgLog.note(0, i === spare ? 'spacer' : 'hbm', HW, HD, x, z);
     if (i === spare) {
       // A blank polished silicon spacer keeps the sixth site level: no DRAM,
       // no TSVs. A dashed outline marks it as the unpopulated site.
@@ -365,7 +370,7 @@ function buildPackage({ quality, state, model }) {
   // interposer: what each exploded gap connects to (pitch representative).
   const underfill = new THREE.MeshPhysicalMaterial({ color: 0x8a6a3a, map: dots(12, 3.2, '#6b5230', '#d8c08a'), roughness: 0.45, metalness: 0.2, transparent: true, opacity: cowosL ? 0.62 : 0.8 });
   underfill.name = 'Underfill and microbumps';
-  for (const dx of dieX) texBox(2.6, 0.012, 3.3, underfill, dx, Y.inter + 0.072, 0, 1.2);
+  for (const dx of dieX) texBox(DIE.w, 0.012, DIE.d, underfill, dx, Y.inter + 0.072, 0, 1.2);
   for (const [x, z] of hbmPos) texBox(HW, 0.012, HD, underfill, x, Y.inter + 0.072, z, 1.2);
   const live = hbmPos.filter((_, i) => i !== spare);
   // Heat layer only: what sits above the silicon. A thin thermal interface
@@ -378,9 +383,9 @@ function buildPackage({ quality, state, model }) {
   const tim = cover(new THREE.MeshPhysicalMaterial({ color: 0x5b5f70, roughness: 0.7, metalness: 0.1, transparent: true, opacity: 0.45 })); tim.name = 'Thermal interface sheet';
   const lidMat = cover(new THREE.MeshPhysicalMaterial({ color: 0xc9d0d8, roughness: 0.45, metalness: 0.6, envMapIntensity: 0.25, transparent: true, opacity: 0.12, depthWrite: false }));
   lidMat.name = A.id === 'h100' ? 'Heat sink contact base (translucent)' : 'Nickel-plated heat spreader (translucent)';
-  for (const dx of dieX) S.box(2.6, 0.02, 3.3, tim, dx, Y.dies + 0.05, 0);
+  for (const dx of dieX) S.box(DIE.w, 0.02, DIE.d, tim, dx, Y.dies + 0.05, 0);
   hbmPos.forEach(([x, z], i) => { if (i !== spare) S.box(HW - 0.04, 0.02, HD - 0.04, tim, x, hb + stackH + 0.01, z); });
-  const PW = 7.2, PD = 7.0, PT = 0.14, skirt = A.id === 'h100' ? 0 : 0.36, wall = 0.12;
+  const PW = P.lid.w, PD = P.lid.d, PT = 0.14, skirt = P.lid.skirt, wall = 0.12;
   S.box(PW, PT, PD, lidMat, 0, Y.lid, 0);
   if (skirt) for (const side of [-1, 1]) {
     S.box(PW, skirt, wall, lidMat, 0, Y.lid - PT / 2 - skirt / 2, side * (PD / 2 - wall / 2));
@@ -403,7 +408,7 @@ function buildPackage({ quality, state, model }) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, opacity: k, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
     m.rotation.x = -Math.PI / 2; m.position.set(x, Y.lid + PT / 2 + 0.005, z); m.renderOrder = 4; m.name = 'Heat through the spreader (illustrative)'; lidOutline.add(m);
   };
-  for (const dx of dieX) lidGlow(3.2, 3.9, dx, 0, 0.4);
+  for (const dx of dieX) lidGlow(DIE.w + 0.6, DIE.d + 0.6, dx, 0, 0.4);
   for (const [x, z] of live) lidGlow(1.3, 1.2, x, z, 0.2);
   scene.add(lidOutline);
   scene.add(S.build()); scene.add(N.build({ cast: false }));
@@ -418,7 +423,7 @@ function buildPackage({ quality, state, model }) {
   // ---------- current climbing into the dies ----------
   let seed = 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   // Sample inside actual silicon, never in the visible seam between twin dies.
-  const dieSampleX = () => twin ? ((rnd() < 0.5 ? -1 : 1) * 1.36 + (rnd() - 0.5) * 2.4) : (rnd() - 0.5) * 2.4;
+  const dieSampleX = () => twin ? ((rnd() < 0.5 ? -1 : 1) * Math.abs(dieX[0]) + (rnd() - 0.5) * 2.4) : (rnd() - 0.5) * 2.4;
   // Current columns stay a few millimeters inside each die's edge: columns that
   // ended right at the exposed front corner stacked into one bloom hot spot there.
   for (let i = 0; i < 28; i++) {
@@ -436,7 +441,7 @@ function buildPackage({ quality, state, model }) {
   // microbumps, along the interposer (on CoWoS-L, across the silicon bridge drawn under that edge), and up into its
   // partner; NVLink continues down through the C4 bumps, out through the substrate to its ball and onto the host
   // board's escape runs. Lanes of one link run parallel and evenly spaced, straight across the edge they cross.
-  const DIE_HALF = { x: 1.3, z: 1.65 }, yUnder = Y.dies - 0.04, yRdl = Y.inter + 0.085, ySub = Y.sub;
+  const DIE_HALF = { x: DIE.w / 2, z: DIE.d / 2 }, yUnder = Y.dies - 0.04, yRdl = Y.inter + 0.085, ySub = Y.sub;
   const routes = { hbi: [], hbm: [], hbmDrawn: [], nvl: [] };
   if (twin) for (let i = 0; i < 7; i++) {
     // NV-HBI: straight across the seam over the long bridge under it, both directions (bridge spans |x| < 0.23)
@@ -478,7 +483,7 @@ function buildPackage({ quality, state, model }) {
   // Data layer only: in power the columns of current tell that story, and in heat the dies' own glow does.
   const layout = floorplanLayout(twin ? 'z' : 'x');
   const activity = dieActivity({
-    dies: dieX.map(dx => ({ x: dx, rot: dx > 0, tiles: layout.tiles, cw: layout.w, ch: layout.h })), face: [2.56, 3.26], y: Y.dies + 0.05,
+    dies: dieX.map(dx => ({ x: dx, rot: dx > 0, tiles: layout.tiles, cw: layout.w, ch: layout.h })), face: [DIE.w - 0.04, DIE.d - 0.04], y: Y.dies + 0.05,
     feeds: live.map(([x, z]) => twin
       ? { from: [x, Math.sign(z) * (DIE_HALF.z - 0.32)], die: x < 0 ? 0 : 1, axis: 'z' }
       : { from: [Math.sign(x) * (DIE_HALF.x - 0.32), z], die: 0, axis: 'x' }),
@@ -498,18 +503,18 @@ function buildPackage({ quality, state, model }) {
   // stiffener) and down through its own BGA ball onto the board. These boxes are the interposer slab, the C4 layer, the
   // substrate slab and the ball layer; the route meets no other solid.
   const nvlBuried = { within: [[-IW / 2, Y.inter - 0.06, -ID / 2, IW / 2, Y.inter + 0.06, ID / 2], [-IW / 2, Y.bumps - 0.06, -ID / 2, IW / 2, Y.bumps + 0.06, ID / 2],
-    [-SUB / 2, Y.sub - 0.14, -SUB / 2, SUB / 2, Y.sub + 0.15, SUB / 2], [-SUB / 2, -0.01, -SUB / 2, SUB / 2, 0.15, SUB / 2]],
+    [-SW / 2, Y.sub - 0.14, -SD / 2, SW / 2, Y.sub + 0.15, SD / 2], [-SW / 2, -0.01, -SD / 2, SW / 2, 0.15, SD / 2]],
     why: 'NVLink lane: interposer through-via, its C4 bump, buried substrate trace, then its own BGA ball' };
   for (const side of [-1, 1]) {
     const boardSide = twin ? (side > 0 ? 0 : 1) : (side > 0 ? 2 : 3);
-    if (twin) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 3.0), serdes); m.position.set(side * 2.6, Y.dies + 0.035, 0); scene.add(m); }
-    else { const m = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.02, 0.04), serdes); m.position.set(0, Y.dies + 0.035, side * 1.63); scene.add(m); }
+    if (twin) { const m = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 3.0), serdes); m.position.set(side * (Math.abs(dieX[0]) + DIE_HALF.x - 0.06), Y.dies + 0.035, 0); scene.add(m); }
+    else { const m = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.02, 0.04), serdes); m.position.set(0, Y.dies + 0.035, side * (DIE_HALF.z - 0.02)); scene.add(m); }
     for (let i = 0; i < n; i++) {
       const u = n > 1 ? -1 + 2 * i / (n - 1) : 0, along = (twin ? 1.3 : 1.1) * u;        // along the die edge
       // on sides where the run index counts against the die edge's direction, take the runs in reverse so the
       // substrate fan keeps the lanes in order (no crossings)
-      const flip = (twin ? bgaRun(boardSide, 1)[0][1] - bgaRun(boardSide, 0)[0][1] : bgaRun(boardSide, 1)[0][0] - bgaRun(boardSide, 0)[0][0]) < 0;
-      const run = bgaRun(boardSide, runK(flip ? n - 1 - i : i)).map(([x, z]) => [x, 0.004, z]);
+      const flip = (twin ? bgaRun(boardSide, 1, bga)[0][1] - bgaRun(boardSide, 0, bga)[0][1] : bgaRun(boardSide, 1, bga)[0][0] - bgaRun(boardSide, 0, bga)[0][0]) < 0;
+      const run = bgaRun(boardSide, runK(flip ? n - 1 - i : i), bga).map(([x, z]) => [x, 0.004, z]);
       const ball = run[0];
       // world point at distance r from the package centre toward this side, offset t along the edge
       const P = (r, y, t) => twin ? [side * r, y, t] : [t, y, side * r];
@@ -538,9 +543,10 @@ function buildPackage({ quality, state, model }) {
   // The power layer's glow (src/power-glow.js) on the same watts: each GPU die and each live HBM stack, a halo at its
   // underside so the part itself covers the inside and the glow hugs its outline; the spacer site draws nothing.
   const powerDraw = [
-    ...dieX.map((dx, i) => ({ id: `die-${i}`, part: 'dies', watts: siliconW / dieX.length, at: [dx, Y.dies - 0.035, 0], size: [2.6, 3.3] })),
+    ...dieX.map((dx, i) => ({ id: `die-${i}`, part: 'dies', watts: siliconW / dieX.length, at: [dx, Y.dies - 0.035, 0], size: [DIE.w, DIE.d] })),
     ...live.map(([x, z], i) => ({ id: `hbm-${i}`, part: 'hbm', watts: stackW, at: [x, hb + 0.005, z], size: [HW, HD] })),
   ];
+  scene.userData.gpuPackageDrawn = pkgLog;
   scene.userData.computePackage = { gpuDies: dieX.length, liveHbmStacks: live.length, hbmDramLayers: layers, spacerSites: spare < 0 ? 0 : 1, nvlinkLinks: A.nvlink.linksPerGpu, explodedRepresentative: true };
   heatFlows.forEach(f => scene.add(f.group));
 
@@ -640,10 +646,11 @@ function buildPackage({ quality, state, model }) {
   const tokenMath = installTokenMath({ scene, state, quality, hotspot: tokensHS, liveHbm: live, hbmTopY: hy, dieX, dieY: Y.dies,
     anchor: [-4.4, 6.95, 2.4], view: componentView([-1.8, 5.9, 0.9], [6, 4.6, 11], [7.8, 7.8, 3]),
     mobileAnchor: [1.1, 12.5, -0.6], mobileScale: 0.85, mobileView: componentView([1.0, 9.2, -0.4], [6, 4.6, 11], [5.4, 12.4, 2.5]) });
-  const nvphyHS = twin ? { pos: [2.62, Y.dies + 0.1, -1.2], view: { pos: [8, 5, 1], target: [3, 2.6, 0] } } : { pos: [0.9, Y.dies + 0.1, 1.62], view: { pos: [2, 5.5, 8], target: [0, 2.6, 2.2] } };
+  const kB = bga.half / 3.75, kI = IW / 6.2, kS = SW / 8.4;   // the Blackwell package's views, scaled to this package
+  const nvphyHS = twin ? { pos: [Math.abs(dieX[0]) + DIE_HALF.x - 0.04, Y.dies + 0.1, -1.2], view: { pos: [8, 5, 1], target: [3, 2.6, 0] } } : { pos: [0.9, Y.dies + 0.1, DIE_HALF.z - 0.04], view: { pos: [2, 5.5, 8], target: [0, 2.6, 2.2] } };
   return {
     // the GPU's name, laser-etched on the substrate margin between two capacitor clusters (package-marks.js)
-    printSpots: [etch('GPU package marking', GPU_NAME[A.id] || A.short, [1.3, .36], [{ from: [1.1, 12, 3.38], dir: [0, -1, 0] }])],
+    printSpots: [etch('GPU package marking', GPU_NAME[A.id] || A.short, [1.3, .36], [{ from: [P.etch[0], 12, P.etch[1]], dir: [0, -1, 0] }])],
     scene, flows, powerDraw,
     look: { env: 'studio', envIntensity: 0.45, exposure: 0.94, bloom: 0.32, threshold: 2.0, ao: 0.12, dof: true },
     camera: { pos: [9.5, 8.2, 11.5], target: [0, 2.3, 0], near: 0.05, far: 500, min: 2, max: 40 },
@@ -653,8 +660,8 @@ function buildPackage({ quality, state, model }) {
     hotspots: {
       // raised to about 13 degrees: the board's traces and via field read between
       // the ball rows and the fan-out past the field, still under the substrate edge
-      balls: { pos: [3.75, .20, 3.75], view: { pos: [7.2, 1.6, 7.2], target: [2.8, .15, 2.8] } },
-      interposer: { pos: [3.1, Y.inter, 0], view: { pos: [7.5, 4.2, 4.5], target: [1.5, 2.2, 0] } },
+      balls: { pos: [bga.half, .20, bga.half], view: { pos: [7.2 * kB, 1.6, 7.2 * kB], target: [2.8 * kB, .15, 2.8 * kB] } },
+      interposer: { pos: [IW / 2, Y.inter, 0], view: { pos: [7.5 * kI, 4.2, 4.5], target: [1.5 * kI, 2.2, 0] } },
       dies: { pos: diePin, view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
       hbm: hbmHS,
       tokens: tokensHS,
@@ -663,14 +670,14 @@ function buildPackage({ quality, state, model }) {
     heatHotspots: {
       junction: { pos: diePin, view: { pos: [d0 + 0.4, 8, 5], target: [d0 * 0.45, 3.1, 0] } },
       flux: { pos: [dieX[dieX.length - 1], Y.dies + 0.1, -0.8], view: { pos: [4, 6.5, 4], target: [1, 3.1, 0] } },
-      tim: { pos: [3.2, Y.lid + 0.1, 3.0], view: { pos: [9, 7.5, 9], target: [0, 4, 0] } },
+      tim: { pos: [PW / 2 - 0.4, Y.lid + 0.1, PD / 2 - 0.5], view: { pos: [9, 7.5, 9], target: [0, 4, 0] } },
       hbm: hbmHS,
     },
     dataHotspots: {
       hbm: hbmHS,
       ...(twin ? { hbi: { pos: [0, Y.dies + 0.12, 1.3], view: { pos: [.2, 7.5, 1.2], target: [0, 3.1, .8] } } } : {}),
       nvphy: nvphyHS,
-      cpo: { pos: [-4.2, Y.sub + 0.3, 3.8], view: { pos: [-8, 5, 9], target: [-2.5, 1.5, 2] } },
+      cpo: { pos: [-SW / 2, Y.sub + 0.3, SD / 2 - 0.4], view: { pos: [-8 * kS, 5, 9 * kS], target: [-2.5 * kS, 1.5, 2 * kS] } },
       tokens: tokensHS,
     },
     dispose() { cache.forEach(({ tex }) => tex.dispose()); tokenMath.dispose(); waterfall.dispose(); activity.dispose(); },
