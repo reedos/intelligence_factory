@@ -1,5 +1,6 @@
 // Coplanar-face detector: finds opaque, same-facing, axis-aligned faces that overlap on (nearly) the same plane.
 // Those z-fight on some GPUs no matter how good the depth range is.
+// ACCEL=gb200|gb300|rubin|h100 audits that accelerator; COPLANAR_TOL=<level units> replaces the depth tolerance (the rack view is 4.6 m away, 0.115 mm; the tray level uses 0.03 mm).
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -12,16 +13,17 @@ const p = await b.newPage({ viewport: { width: 1000, height: 700 } });
 p.on('pageerror', e => console.log('pageerror', e.message));
 await p.goto(process.env.URL || 'http://127.0.0.1:47400/');
 await p.waitForFunction(() => window.ifx && window.ifx.state.scene === 0, null, { timeout: 90000 });
+if (process.env.ACCEL) await p.evaluate(a => window.ifx.setScenario({ accel: a }), process.env.ACCEL);   // ACCEL=gb200|gb300|rubin|h100: the accelerator to audit
 const names = ['across', 'campus', 'hall', 'rack', 'tray', 'chip', 'module', 'cpo', 'coherent', 'copper'];
 for (let sc = 0; sc < 10; sc++) {   // six levels and the four side levels inside the links
   if (process.env.ONLY_SCENE && !process.env.ONLY_SCENE.split(',').includes(String(sc))) continue;
   await p.evaluate(i => window.ifx.go(i), sc); await p.waitForFunction(i => window.ifx.state.scene === i, sc);
   for (const variant of sc === 7 && await p.evaluate(() => !!window.ifx.setCpoVariant) ? ['ring', 'mzm'] : [null]) {
   if (variant) await p.evaluate(v => { window.ifx.setCpoVariant(v); window.ifx.built[7].update(0, 0); }, variant);
-  const res = await p.evaluate(() => {
+  const res = await p.evaluate(tolOverride => {
     const w = window.ifx, B = w.built[w.state.scene], cam = B.camera;
     const d = Math.hypot(cam.pos[0] - cam.target[0], cam.pos[1] - cam.target[1], cam.pos[2] - cam.target[2]);
-    const tol = 2.5e-5 * d;                               // below this separation, 24-bit depth cannot separate faces at the default view
+    const tol = tolOverride || 2.5e-5 * d;                               // below this separation, 24-bit depth cannot separate faces at the default view
     const faces = [];                                     // {axis, sign, c, u0,u1,v0,v1 tris, tag}
     const M = w.camera.matrixWorld.constructor, V = w.camera.position.constructor;
     const m = new M(), va = new V(), vb = new V(), vc = new V(), e1 = new V(), e2 = new V(), n = new V();
@@ -96,7 +98,7 @@ for (let sc = 0; sc < 10; sc++) {   // six levels and the four side levels insid
     }
     hits.sort((a, c) => c.area - a.area);
     return { d: +d.toFixed(2), tol: +tol.toExponential(1), faces: faces.length, hits: hits.slice(0, 25) };
-  });
+  }, +process.env.COPLANAR_TOL || 0);
   console.log(`\n== ${names[sc]}${variant ? ` (${variant} engines)` : ''}: view distance ${res.d}, tol ${res.tol}, ${res.faces} axis faces, ${res.hits.length} overlap groups`);
   for (const h of res.hits) console.log(`  ${h.axis} @ ${h.plane}  area ${h.area}  at ${h.at}  ${h.mats}  [${h.names.join(', ')}]`);
   }

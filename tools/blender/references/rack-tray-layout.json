@@ -72,7 +72,45 @@
   "pulled": 25,
   "switchPulled": 16,
   "base": 0.12000000000000001,
-  "pitch": 0.04445
+  "pitch": 0.04445,
+  "pulledTray": {
+   "h100": {
+    "x": 0,
+    "floor": 0.8792000000000002,
+    "z": 1.0150000000000001,
+    "width": 0.44,
+    "depth": 0.9,
+    "front": 0.535,
+    "accel": "h100"
+   },
+   "gb200": {
+    "x": 0,
+    "floor": 1.2312500000000002,
+    "z": 0.965,
+    "width": 0.44,
+    "depth": 0.9,
+    "front": 0.535,
+    "accel": "gb200"
+   },
+   "gb300": {
+    "x": 0,
+    "floor": 1.2312500000000002,
+    "z": 0.965,
+    "width": 0.44,
+    "depth": 0.9,
+    "front": 0.535,
+    "accel": "gb300"
+   },
+   "rubin": {
+    "x": 0,
+    "floor": 1.2312500000000002,
+    "z": 0.965,
+    "width": 0.44,
+    "depth": 0.9,
+    "front": 0.535,
+    "accel": "rubin"
+   }
+  }
  },
  "nvl": {
   "boardX": [
@@ -183,6 +221,8 @@
     "cageY": 0.244,
     "cageZ": 4.22,
     "mouthZ": 4.47,
+    "faceZ": 4.626,
+    "lidZ": 4.575,
     "cageBoards": [
      [
       0.95,
@@ -229,6 +269,8 @@
     "cageY": 0.244,
     "cageZ": 4.22,
     "mouthZ": 4.47,
+    "faceZ": 4.626,
+    "lidZ": 4.575,
     "cageBoards": [
      [
       0.45,
@@ -349,6 +391,8 @@
    ],
    "cageZ": 4.21,
    "mouthZ": 4.44,
+   "faceZ": 4.566,
+   "lidZ": 4.515,
    "drives": null,
    "serviceIo": {
     "x": [

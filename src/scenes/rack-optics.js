@@ -24,6 +24,8 @@ export function addRackOptics(built, accel) {
   jacket.name = 'Optical patch cable jacket';
   const connector = new THREE.MeshStandardMaterial({ color: 0x266c50, roughness: .42, metalness: .1 });
   connector.name = 'MPO APC connector boot';
+  const manager = MAT.darkSteel.clone(); manager.name = 'Cable manager steel';   // the riser's plates and comb fingers: the rack's, named so tools/tray-overlay.mjs can tell
+  const bootRib = MAT.black.clone(); bootRib.name = 'MPO APC connector boot grip';   // the boot's grip ribs: the lead's, not the tray's (named so tools/tray-overlay.mjs can tell)
   const shell = MAT.nickel.clone(); shell.name = 'Inserted flat top OSFP shell';
   shell.roughness=.48;shell.metalness=.6;shell.envMapIntensity=.35;
   const rows = h100 ? [0,1,2,3] : NVL_LAYOUT.map((k,i)=>k==='compute'?i:-1).filter(i=>i>=0);   // nvl72-layout.js
@@ -57,29 +59,34 @@ export function addRackOptics(built, accel) {
   rows.forEach((row,index) => {
     const pulled = row === (h100 ? 2 : NVL_PULLED);
     const floor = floorOf(row);
-    const z = h100 ? (pulled ? 1.045-.42 : .465-.84) : pulled ? .965+.45+.011 : .486;
     const direction = h100 ? -1 : 1;
+    // The pulled tray is the tray level's own hardware (compute-blender.js seats its GLB at scene.userData.pulledTray), cages,
+    // seated modules, MPO faces and service sockets included, so this file draws none of those on that row: it carries the patch
+    // leads from the tray's MPO faces (tray.js faceZ, dgx-h100-layout.js cageFaceZ) and the prints on the tray's modules.
+    // `z` is the plane the closed trays' cages sit in; on the pulled row it is set back from the face as theirs are (face 17 mm ahead).
+    const T = built.scene.userData.pulledTray, TIN = pulled ? T.z + (h100 ? DGX.cageFaceZ : front.faceZ) * TU : 0;
+    const z = pulled ? TIN - direction * .017 : h100 ? .465-.84 : .486;
     // Every cage the tray populates is populated here (tray.js seats a module in each of its four, tray-rubin.js in all eight).
     ports.forEach((q,port) => {
       const {x} = q, y = floor+q.yb;
       // Cage numbers read left to right from the aisle; stacked Vera Rubin cages number top then bottom per
       // column, the lower number printed under its cage. Order is representative.
-      if (!h100) {   // the DGX H100's rear cages sit under riding heat sinks and patch leads: no room for a number
+      if (!h100 && !pulled) {   // the DGX H100's rear cages sit under riding heat sinks and patch leads: no room for a number (the pulled tray's face has none: the tray level draws none)
         const order = [...ports].sort((a, b) => (a.x - b.x) * direction || b.yb - a.yb), n = order.indexOf(q) + 1;
         const below = rubin && q.yb === lowestCage, ny = y + (below ? -.0098 : .0098);
         if (!portNumbers.has(n)) portNumbers.set(n, []);
         portNumbers.get(n).push({ p: [x, ny, z - direction * .006], n: [0, 0, direction] });   // on the tray face, flush with the cage plane
       }
-      // Rolled metal mouth is a hollow frame, not a painted black rectangle.
-      cage(x, y, z, .012);
-      // Closed trays expose only the nose; the opened tray also exposes the
-      // full module envelope seated inside its cage. No extra transceiver count.
-      const length = pulled ? OSFP.len : .020;
-      hardware.box(OSFP.w,OSFP.h,length,shell,x,y,z-direction*(length/2-.017));
-      hardware.box(OSFP.w-.0026,OSFP.h-.003,.004,MAT.black,x,y,z+direction*.019);
-      // printed lid label on the nose ahead of the cage lip (lip to z+.006, nose to z+.017), read from the aisle
-      lidLabels.push({ p: [x, y + OSFP.h/2, z + direction * .0118], face: 'top', yaw: direction > 0 ? 0 : Math.PI });
-      if (h100) {
+      if (!pulled) {
+        // Rolled metal mouth is a hollow frame, not a painted black rectangle.
+        cage(x, y, z, .012);
+        // Closed trays expose only the nose (the pulled one is the tray's own, with its cages and modules).
+        hardware.box(OSFP.w,OSFP.h,.020,shell,x,y,z-direction*(.020/2-.017));
+        hardware.box(OSFP.w-.0026,OSFP.h-.003,.004,MAT.black,x,y,z+direction*.019);
+      }
+      // printed lid label on the nose ahead of the cage lip (lip to z+.006, nose to z+.017), read from the aisle; on the pulled tray, where the tray prints it
+      lidLabels.push({ p: [x, y + OSFP.h/2, pulled ? T.z + (h100 ? DGX.cageLidZ : front.lidZ) * TU : z + direction * .0118], face: 'top', yaw: direction > 0 ? 0 : Math.PI });
+      if (h100 && !pulled) {
         hardware.box(.025,.003,.075,shell,x,y+.009,z+.042);
         for(let fin=0;fin<8;fin++)hardware.box(.0012,.010,.073,shell,x-.0105+fin*.003,y+.015,z+.042);
       }
@@ -87,7 +94,7 @@ export function addRackOptics(built, accel) {
         const lead = leadList.find(l => l.port === port && l.lane === lane), slot = slotOf.get(lead), side = Math.sign(x);
         const cx=lead.x;
         hardware.box(connectorCount===2?.0075:.014,.007,.018,connector,cx,y,z+direction*.03);
-        for(let rib=0;rib<4;rib++)hardware.box(connectorCount===2?.0078:.0143,.0074,.0012,MAT.black,cx,y,z+direction*(.035+rib*.002));
+        for(let rib=0;rib<4;rib++)hardware.box(connectorCount===2?.0078:.0143,.0074,.0012,bootRib,cx,y,z+direction*(.035+rib*.002));
         const rail = side*(RAIL0 + slot*RAIL_PITCH);
         const tCol = COL0 + index*COL_PITCH, managerZ = direction*tCol;
         const start=[cx,y,z+direction*.044], end=[rail,2.32,managerZ];
@@ -120,8 +127,10 @@ export function addRackOptics(built, accel) {
         links.push(motion.rackOpticalLink);
       }
       // Extraction bail surrounds the connector; it does not cross the fiber.
-      for(const s of [-1,1])hardware.box(.0012,.002,.029,shell,x+s*.010,y-.008,z+direction*.027);
-      hardware.box(.020,.002,.0015,shell,x,y-.008,z+direction*.041);
+      if (!pulled) {
+        for(const s of [-1,1])hardware.box(.0012,.002,.029,shell,x+s*.010,y-.008,z+direction*.027);
+        hardware.box(.020,.002,.0015,shell,x,y-.008,z+direction*.041);
+      }
       modules.push({row,port,position:[x,y,z],pulled,connectors:connectorCount,capacityGbps:accel==='gb200'?400:800});
     });
     // Storage/in-band QSFP cages are narrower and separated vertically from the compute ports: the BlueField-3 DPUs' two
@@ -133,6 +142,10 @@ export function addRackOptics(built, accel) {
       : front.storageX.map(x => ({ x: x*TU, yb: front.storageY*TU }));
     for(const {x, yb} of storage) {
       const y=floor+yb;
+      if (pulled) {   // the tray's own QSFP cages / service sockets
+        storageCages.push({row,position:[x,y,z],form:rubin?'service socket':'QSFP',role:rubin?'service':'storage/in-band'});
+        continue;
+      }
       if (rubin) {
         const io = front.serviceIo;
         hardware.box(io.w*TU, io.h*TU, io.d*TU, MAT.darkSteel, x, y, z - direction*(.004 + io.d*TU/2));   // face 4 mm behind the cage mouths, as in the tray
@@ -159,13 +172,13 @@ export function addRackOptics(built, accel) {
   }
   for (const side of [-1,1]) {
     const center=side*.259,managerZ=h100?-.575:.575;
-    hardware.box(.042,.033,.008,MAT.darkSteel,center,2.327,(h100?-1:1)*(COL0-.0065));   // behind (NVL72) / in front of (H100) the column of lead ends
+    hardware.box(.042,.033,.008,manager,center,2.327,(h100?-1:1)*(COL0-.0065));   // behind (NVL72) / in front of (H100) the column of lead ends
     // Managers and fibers stay inside the 600 mm rack width; front/rear
     // service clearance remains outside the face, not outside the side posts.
-    hardware.box(.004,2.16,.06,MAT.darkSteel,side*.284,1.22,(h100?-1:1)*(COL0+colMax)/2);   // backs the whole bundle of columns
+    hardware.box(.004,2.16,.06,manager,side*.284,1.22,(h100?-1:1)*(COL0+colMax)/2);   // backs the whole bundle of columns
     for(let y=.22;y<2.31;y+=.18) {
       hardware.box(.043,.006,.004,shell,side*.264,y,h100?managerZ+.031:COL0-.004);   // comb teeth: clear of every column
-      hardware.box(.004,.016,.055,MAT.darkSteel,side*.238,y,managerZ+.008);
+      hardware.box(.004,.016,.055,manager,side*.238,y,managerZ+.008);
     }
     // Each patch strip's outgoing multifiber loom continues into the overhead
     // runway. This is a cable bundle, not an optical combiner or active switch.

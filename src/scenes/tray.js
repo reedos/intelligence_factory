@@ -261,7 +261,7 @@ function buildHGX({ quality, model }) {
       const fx = x + s * 0.255;
       N.cylZ(0.07, 0.07, MAT.fan, fx, y, ZF - 0.42, 12);                                       // motor hub on its struts
       for (const a of [0.5, 2.6, 4.7]) N.box(0.4, 0.016, 0.016, MAT.fan, fx + Math.cos(a) * 0.2, y + Math.sin(a) * 0.2, ZF - 0.44, 0, 0, a);
-      rotors.push({ p: [fx, y, ZF - 0.3], axis: 'z', r: 0.21 });
+      rotors.push({ p: [fx, y, DGX.fanRotorZ], axis: 'z', r: DGX.fanRotorR });
     }
   }
   const fanSpin = spinners(rotors, MAT.darkSteel, { speed: 9 }); fanSpin.mesh.userData.computeDynamic = 'rotor'; scene.add(fanSpin.mesh);
@@ -377,9 +377,9 @@ function buildHGX({ quality, model }) {
     N.box(OSFP_U.w, OSFP_U.h, 0.25, MAT.nickel, x, cageY, ZB - 0.025);                          // seated module nose, flat top
     // one MPO-12 face per optical port (lid-labels.js modulePorts: the DGX H100's modules are twin-port)
     const ports = modulePorts('h100');
-    for (let k = 0; k < ports; k++) N.box(ports > 1 ? 0.07 : 0.1, 0.045, 0.006, MAT.polymer, x + (k - (ports - 1) / 2) * 0.09, cageY, ZB - 0.153);
+    for (let k = 0; k < ports; k++) N.box(ports > 1 ? 0.07 : 0.1, 0.045, 0.006, MAT.polymer, x + (k - (ports - 1) / 2) * 0.09, cageY, DGX.cageFaceZ + 0.003);
     N.box(0.04, 0.008, 0.07, MAT.black, x, cageY - OSFP_U.h / 2 - 0.007, ZB - 0.175);
-    lidAt.push({ p: [x, cageY + OSFP_U.h / 2 + 0.001, ZB - 0.09], face: 'top', yaw: Math.PI });
+    lidAt.push({ p: [x, cageY + OSFP_U.h / 2 + 0.001, DGX.cageLidZ], face: 'top', yaw: Math.PI });
     statusLeds.push({ p: [x - 0.08, cageY + 0.1, ZB - 0.01], color: '#5cf29a', rate: 0 });
   });
   if (heavy) cageX.forEach(x => cageFins(N, x, cageY + 0.115, ZB + 0.3, 0.2, 0.4, 4));
@@ -444,7 +444,7 @@ function buildHGX({ quality, model }) {
     for (const D of PKG.dies) { pkgLog.note(i, 'die', D.w, D.d, D.x, D.z); const d = new THREE.Mesh(new THREE.BoxGeometry(D.w, 0.02, D.d), [MAT.silicon, MAT.silicon, dieM, MAT.silicon, MAT.silicon, MAT.silicon]); d.position.set(x + D.x, fy + 0.105, z + D.z); scene.add(d); }
     for (const h of PKG.hbm) slab(h.spare ? 'spacer' : 'hbm', h.w, 0.03, h.d, h.spare ? MAT.silicon : MAT.hbm, x + h.x, fy + 0.11, z + h.z);
     ihsLid(S, N, x, fy + 0.116, z, PKG.frame.w - 0.01, PKG.frame.d - 0.01, heavy, 0.012);
-    if (heavy) { capField(N, x, z, fy + 0.05, 0.32, 10); connectorPins(N, x - 0.42, x + 0.42, fy + 0.065, z - 0.68, 14); }
+    if (heavy) { capField(N, x, z, fy + 0.04, 0.32, 10); connectorPins(N, x - 0.42, x + 0.42, fy + 0.065, z - 0.68, 14); }
     for (const s of [-1, 1]) for (let k = 0; k < 9; k++) { const vx = x + s * 0.4, vz = z - 0.56 + k * 0.14; S.box(0.07, 0.06, 0.07, MAT.inductor, vx, fy + 0.1, vz); inductorTop(N, vx, fy + 0.131, vz, 0.07); }
     // heat sink: copper base, 20 fins front to back, heat pipes up through the stack
     const lifted = i === DGX.lifted, y0 = fy + 0.12 + (lifted ? LIFT : 0);
@@ -477,10 +477,10 @@ function buildHGX({ quality, model }) {
   const nearest = (xs, x) => xs.reduce((a, b) => Math.abs(b - x) < Math.abs(a - x) ? b : a);
   for (let i = 0; i < 6; i++) { const px = psuX(i), bx = nearest(DGX.busX, px); flows.push(flow([[px, 0.15, ZB + 2.42], [px, 0.1, ZB + 2.75], [bx, 0.1, ZB + 2.75]], 'dc', { count: 4, speed: 0.6, size: 0.03, trailR: 0.01 })); }
   DGX.busX.forEach((x, k) => {
-    const sx = DGX.pwrStileX[k], px = DGX.gpuPwrX[k];
-    flows.push(flow([[x, 0.15, ZB + 2.75], [x, 0.15, ZM - 0.1], [sx, 0.5, ZM - 0.1]], 'dc', { count: 14, speed: 1.0, size: 0.04, trailR: 0.014 }));
-    // up the stile's copper blade to the GPU tray's 54 V connector, along its strap through the two converters behind it
-    flows.push(flow([[sx, 0.5, ZM - 0.04], [sx, gy + 0.04, ZM - 0.04], [px, gy + 0.04, ZM - 0.12], [px, gy + 0.04, 2.15]], 'dc', { count: 10, speed: 0.9, size: 0.035, trailR: 0.012 }));
+    const sx = DGX.pwrStileX[k], [toStile, upStile] = dgxPowerRoute(k);
+    flows.push(flow(toStile, 'dc', { count: 14, speed: 1.0, size: 0.04, trailR: 0.014 }));
+    // up the stile's copper blade to the GPU tray's 54 V connector, along its strap through the two converters behind it (dgxPowerRoute)
+    flows.push(flow(upStile, 'dc', { count: 10, speed: 0.9, size: 0.035, trailR: 0.012 }));
     // outer stiles also feed the motherboard tray's power connectors, straight down the interposer's outer strip, across
     // behind the network modules and straight back to the CPU's regulator row (never through a signal channel)
     if (x) { const s = Math.sign(x), mp = s * DGX.mbPwrX[1], run = s * DGX.mbPwrRunX;
@@ -499,12 +499,10 @@ function buildHGX({ quality, model }) {
 
   // ---------- data: NVLink on the baseboard; PCIe from each GPU through the midplane to its ConnectX-7;
   // each ConnectX-7 to a CPU; DensiLink to the cages; drives and storage NICs through the PCIe switches ----------
-  const gapOf = x => x < -1 ? -1.08 : x < 0 ? -0.02 : x < 1 ? 0.02 : 1.08;
+  const gapOf = dgxGap;
   gpus.forEach(([x, z], i) => {
     const c = i % 4, sx = swX[c], front = z > 0, gap = gapOf(x);
-    dataFlows.push(flow(front
-      ? [[x - Math.sign(x) * 0.15, gy + 0.04, z - 0.72], [gap, gy + 0.04, z - 0.88], [gap, gy + 0.04, -1.55], [sx, gy + 0.04, swZ + 0.25]]
-      : [[x - Math.sign(x) * 0.15, gy + 0.04, z - 0.72], [x - Math.sign(x) * 0.15, gy + 0.04, -1.55], [sx, gy + 0.04, swZ + 0.25]], 'nvl', { count: 6, speed: 0.8, size: 0.03, k: 2.4, trailR: 0.01 }));
+    dataFlows.push(flow(dgxNvlRoute(i), 'nvl', { count: 6, speed: 0.8, size: 0.03, k: 2.4, trailR: 0.01 }));
     // PCIe: forward to the midplane connector, down the midplane, into the interposer, to this GPU's ConnectX-7
     const m = c < 2 ? 0 : 1, mx = modX[m], cxX = mx + (c % 2 ? 1 : -1) * DGX.cxD[0], cxZ = modZ + (front ? 1 : -1) * DGX.cxD[1], cn = connX[c];
     // straight forward along the column to the connector in front of it (the rear module's lanes under the front
@@ -528,23 +526,10 @@ function buildHGX({ quality, model }) {
     const nx = DGX.nvmeX[s < 0 ? 0 : 1];
     dataFlows.push(flow([[s * 0.87, 0.43, ZF - 1.0], [s * 0.87, 0.43, ZM + 0.12], [s * 0.87, 0.3, ZM - 0.04], [nx, 0.3, ZM - 0.04], [nx, my + 0.1, ZM - 0.04], [nx, my + 0.02, ZM - 0.2], [nx, my + 0.02, 0.2], [px, my + 0.02, pcieZ + 0.15]], 'pcie', { count: 6, speed: 0.6, size: 0.024, k: 2.0, trailR: 0.008 }));
   }
-  // Flow-path audit (tools/flow-audit.mjs): each route may share space only with the conductors it stands for. Boxes in
-  // tray units: the midplane (its connectors on both faces, the board's own lanes and 54 V blades), the PSU card edges
-  // into the distribution board, the 54 V straps running into their converters, the inner-layer lanes and 12 V plane
-  // under each SXM module, the network modules' mezzanine connectors, the CPU-to-interposer connectors, the storage
-  // risers and their cards, the drives' own connectors, and the seated OSFP modules the electrical lanes end in.
-  const box = (x, y, z, w, h, d) => [x - w / 2, y - h / 2, z - d / 2, x + w / 2, y + h / 2, z + d / 2];
-  const MID = [[-2.2, 0.03, ZM - 0.16, 2.2, 3.48, ZM + 0.11]];
-  const PDB = [[-2.2, 0.03, ZB + 2.38, 2.2, 0.2, ZB + 3.0]];
-  const STRAP = DGX.ibcs.map(([x, z, w]) => box(x, gy + 0.07, z, w + 0.02, 0.15, 0.38)).concat(DGX.gpuPwrX.map(x => box(x, gy + 0.04, 2.78, 0.32, 0.08, 0.8)));
-  const SXM = gpus.map(([x, z]) => box(x, gy + 0.02, z, 0.92, 0.08, 1.42));
-  const MEZZ = modX.map(mx => box(mx, (my + ny) / 2, modZ, 1.44, 0.1, 1.32)).concat(cpuX.map(x => box(x - Math.sign(x) * DGX.cpuPcieDX, my + 0.03, 0.16, 0.32, 0.08, 0.16)));
-  const RISER = [-1, 1].flatMap(s => [box(s * DGX.riserX, my + 0.37, DGX.cardZ + 0.35, 0.1, 0.78, 2.2), ...DGX.cardY.map(y => box(s * DGX.cardX, y, DGX.cardZ, 1.32, 0.05, 1.7))]);
-  const DRIVES = DGX.driveX.flatMap(x => DGX.driveY.map(y => box(x, y, ZF - 0.62, 0.76, 0.16, 1.02)));
-  const CAGE = cageX.map(x => box(x, cageY, ZB + 0.1, 0.24, 0.16, 0.8));
-  const why = 'inside the connector, board, copper or module it runs through: midplane, PSU card edge, 54 V strap into its converters, inner layers under an SXM module, mezzanine and CPU connectors, risers, drive connectors, seated OSFP module';
-  for (const f of flows) if (f.cls === 'dc' || f.cls === 'bus12') f.audit = { within: [...MID, ...PDB, ...STRAP, ...SXM, ...MEZZ], why };
-  for (const f of dataFlows) f.audit = { within: [...MID, ...SXM, ...MEZZ, ...RISER, ...DRIVES, ...CAGE], why };
+  // Flow-path audit (tools/flow-audit.mjs): each route may share space only with the conductors it stands for (dgxFlowAudit)
+  const AUDIT = dgxFlowAudit();
+  for (const f of flows) if (f.cls === 'dc' || f.cls === 'bus12') f.audit = AUDIT.power;
+  for (const f of dataFlows) f.audit = AUDIT.data;
   dataFlows.forEach(f => scene.add(f.group));
 
   // ---------- heat: every source tagged with its part and watts, drawn on the site's log rule (src/heat.js) ----------
@@ -650,6 +635,43 @@ function buildHGX({ quality, model }) {
   };
 }
 
+// Flow-path audit regions of the DGX H100 (tools/flow-audit.mjs): each route may share space only with the conductors it stands for.
+// Boxes [x0, y0, z0, x1, y1, z1] in tray units: the midplane (its connectors on both faces, the board's own lanes and 54 V blades), the PSU
+// card edges into the distribution board, the 54 V straps running into their converters, the inner-layer lanes and 12 V plane under each
+// SXM module, the network modules' mezzanine connectors, the CPU-to-interposer connectors, the storage risers and their cards, the drives'
+// own connectors, and the seated OSFP modules the electrical lanes end in. The rack's pulled server flows along the same routes
+// (dgxPowerRoute, dgxNvlRoute) and declares the same regions, mapped to its frame.
+export function dgxFlowAudit() {
+  const { ZF, ZB, ZM, my, gy, gpuX, gpuZ, modX, modZ, ny, cpuX, cageX, cageY } = DGX;
+  const gpus = gpuZ.flatMap(z => gpuX.map(x => [x, z]));
+  const box = (x, y, z, w, h, d) => [x - w / 2, y - h / 2, z - d / 2, x + w / 2, y + h / 2, z + d / 2];
+  const MID = [[-2.2, 0.03, ZM - 0.16, 2.2, 3.48, ZM + 0.11]];
+  const PDB = [[-2.2, 0.03, ZB + 2.38, 2.2, 0.2, ZB + 3.0]];
+  const STRAP = DGX.ibcs.map(([x, z, w]) => box(x, gy + 0.07, z, w + 0.02, 0.15, 0.38)).concat(DGX.gpuPwrX.map(x => box(x, gy + 0.04, 2.78, 0.32, 0.08, 0.8)));
+  const SXM = gpus.map(([x, z]) => box(x, gy + 0.02, z, 0.92, 0.08, 1.42));
+  const MEZZ = modX.map(mx => box(mx, (my + ny) / 2, modZ, 1.44, 0.1, 1.32)).concat(cpuX.map(x => box(x - Math.sign(x) * DGX.cpuPcieDX, my + 0.03, 0.16, 0.32, 0.08, 0.16)));
+  const RISER = [-1, 1].flatMap(s => [box(s * DGX.riserX, my + 0.37, DGX.cardZ + 0.35, 0.1, 0.78, 2.2), ...DGX.cardY.map(y => box(s * DGX.cardX, y, DGX.cardZ, 1.32, 0.05, 1.7))]);
+  const DRIVES = DGX.driveX.flatMap(x => DGX.driveY.map(y => box(x, y, ZF - 0.62, 0.76, 0.16, 1.02)));
+  const CAGE = cageX.map(x => box(x, cageY, ZB + 0.1, 0.24, 0.16, 0.8));
+  const why = 'inside the connector, board, copper or module it runs through: midplane, PSU card edge, 54 V strap into its converters, inner layers under an SXM module, mezzanine and CPU connectors, risers, drive connectors, seated OSFP module';
+  return { power: { within: [...MID, ...PDB, ...STRAP, ...SXM, ...MEZZ], why }, data: { within: [...MID, ...SXM, ...MEZZ, ...RISER, ...DRIVES, ...CAGE], why } };
+}
+
+// The DGX H100's 54 V route into the GPU tray and its NVLink routes from each GPU to the NVSwitch row (tray units, tray frame): the
+// server level flows along them and the rack's pulled server flows along the same paths, so neither can run through the other's parts.
+const dgxGap = x => x < -1 ? -1.08 : x < 0 ? -0.02 : x < 1 ? 0.02 : 1.08;
+export function dgxPowerRoute(k) {
+  const { ZB, ZM, gy, busX, pwrStileX, gpuPwrX } = DGX, x = busX[k], sx = pwrStileX[k], px = gpuPwrX[k];
+  // up from the floor copper to the stile; up the stile's copper blade to the GPU tray's 54 V connector, along its strap through the two converters behind it
+  return [[[x, 0.15, ZB + 2.75], [x, 0.15, ZM - 0.1], [sx, 0.5, ZM - 0.1]], [[sx, 0.5, ZM - 0.04], [sx, gy + 0.04, ZM - 0.04], [px, gy + 0.04, ZM - 0.12], [px, gy + 0.04, 2.15]]];
+}
+export function dgxNvlRoute(i) {   // GPU i in the order the server level lists them: rows of gpuZ, each across gpuX
+  const { gy, gpuX, gpuZ, swX, swZ } = DGX, c = i % 4, x = gpuX[c], z = gpuZ[Math.floor(i / 4)], sx = swX[c], gap = dgxGap(x);
+  return z > 0
+    ? [[x - Math.sign(x) * 0.15, gy + 0.04, z - 0.72], [gap, gy + 0.04, z - 0.88], [gap, gy + 0.04, -1.55], [sx, gy + 0.04, swZ + 0.25]]
+    : [[x - Math.sign(x) * 0.15, gy + 0.04, z - 0.72], [x - Math.sign(x) * 0.15, gy + 0.04, -1.55], [sx, gy + 0.04, swZ + 0.25]];
+}
+
 // ---------- NVL72 compute tray: two superchip boards, liquid-cooled ----------
 // Cold-plate and fan layout, GB200/GB300 (shared with the rack's pulled-tray LOD in rack.js so the two can never
 // drift apart): tray units (10 cm), tray-local frame, front +z. Two superchip boards at NVL_BOARD_X; on each,
@@ -660,6 +682,8 @@ export const NVL_CPU = { z: 1.75, size: 0.66 };
 export const NVL_GPU_Z = [0.2, -1.55], NVL_GPU_SIZE = 0.9;
 export const NVL_FAN_Z = 2.55;                         // ZF (4.5) - 1.95
 export const NVL_FAN_X = Array.from({ length: 6 }, (_, i) => -1.9 + i * 0.76 + 0.19);
+// The spinning rotor of each fan (the rack's pulled tray spins the same six at the same spots): height, z (ZF - 1.76), radius.
+export const NVL_FAN_ROTOR = { y: 0.2, z: NVL_FAN_Z + 0.19, r: 0.14 };
 
 // The tray's FRONT and REAR interfaces (GB200/GB300), exported for the same reason as the plates: the rack's seated trays
 // (rack.js trayTex, rack-optics.js) and the Blender hand-off (export-native-reference.mjs -> rack-tray-layout.json) read
@@ -677,7 +701,7 @@ function nvlFront(dpuX, cageBoards) {
   const bezelX = [-2.12, drives.x.at(-1) + drives.w / 2 + 0.06, ...groups.slice(1).map((g, i) => (groups[i][1] + g[0]) / 2),
     Math.min(...cageBoards.map(([cx, w]) => cx - w / 2)) - 0.03, 2.11];
   return { drives, dpuX, storageX, storageY: 0.29, storageZ: NVL_ZF - 0.03 - 0.15, cageX: [0.2, 0.7, 1.2, 1.7], cageY: 0.17 + OSFP_U.cageH / 2,
-    cageZ: NVL_ZF - 0.28, mouthZ: NVL_ZF - 0.03, cageBoards, bezelX };
+    cageZ: NVL_ZF - 0.28, mouthZ: NVL_ZF - 0.03, faceZ: NVL_ZF + 0.126, lidZ: NVL_ZF + 0.075, cageBoards, bezelX };   // faceZ: the seated module's MPO face; lidZ: its printed lid label
 }
 export const NVL_FRONT = { gb200: nvlFront([-0.8, -0.3], [[0.95, 1.96]]), gb300: nvlFront([-0.35], [[0.45, 0.92], [1.45, 0.92]]) };
 // Rear: four NVLink connectors (the two GPUs' lanes of each board), and each board's supply and return quick disconnects.
@@ -685,6 +709,15 @@ export const NVL_FRONT = { gb200: nvlFront([-0.8, -0.3], [[0.95, 1.96]]), gb300:
 export const NVL_REAR = { connectorX: [-1.9, -1.1, 1.1, 1.9],
   couplings: NVL_BOARD_X.map(bx => ({ supply: bx * 1.45, ret: bx * 1.45 + 0.15 })) };
 NVL_REAR.manifoldX = [NVL_REAR.couplings[0].supply, NVL_REAR.couplings.at(-1).ret];
+// A board's two coolant hoses, tray frame: from its rear quick disconnects forward past the cold plates (supply at x - 0.2,
+// outboard edge, return the inboard one), at the height the lifted plates' fittings stand. The rack's pulled tray runs
+// its coolant beads along the same paths.
+const NVL_FLOOR_Y = 0.03, NVL_PLATE_LIFT = 0.55;
+export function nvlHose(bx) {
+  const qd = NVL_REAR.couplings[NVL_BOARD_X.indexOf(bx)], y = NVL_FLOOR_Y + 0.28 + NVL_PLATE_LIFT, ZB = -4.5;
+  return { sup: [[qd.supply, 0.25, ZB - 0.05], [qd.supply, y, ZB + 0.3], [bx - 0.2, y, -1.55], [bx - 0.2, y, 0.2], [bx - 0.2, y, 1.75]],
+    ret: [[bx + 0.2, y, 1.75], [bx + 0.2, y, 0.2], [bx + 0.2, y, -1.55], [qd.ret, y, ZB + 0.3], [qd.ret, 0.25, ZB - 0.05]] };
+}
 
 function buildNVL({ quality, model }) {
   const cpuLabel = 'GRACE', ultra = model.accel.id === 'gb300';
@@ -695,7 +728,7 @@ function buildNVL({ quality, model }) {
   const S = new Builder(), N = new Builder();
   const finish = computeMaterials();
   const W = 4.4, D = 9, H = 0.42, ZF = D / 2, ZB = -D / 2;
-  const floorY = 0.03;
+  const floorY = NVL_FLOOR_Y;
   // EPDM hose jackets tinted by circuit (deep blue supply, deep red return), so
   // the coding still reads where the ID bands are too small, e.g. on a phone.
   const hoseMat = { sup: new THREE.MeshStandardMaterial({ color: 0x1b2c4e, roughness: 0.6, metalness: 0 }), ret: new THREE.MeshStandardMaterial({ color: 0x4a1d22, roughness: 0.6, metalness: 0 }) };
@@ -805,7 +838,7 @@ function buildNVL({ quality, model }) {
     { count: 18, speed: 1.1, size: 0.03, trailR: 0.01, audit: { within: [...bars12, [s * 0.47 - 0.31, floorY, ZB + 0.6, s * 0.47 + 0.31, floorY + 0.1, ZB + 1.1]], why: 'out of the converter into the 12 V bar, forward inside it' } }));
 
   // ---------- cold plates, lifted to show the chips ----------
-  const lift = 0.55;
+  const lift = NVL_PLATE_LIFT;
   const plateLoop = [];
   // heat per plate: a GPU package or a CPU with its memory; each board's loop carries its three plates
   const { gpuW, cpuW } = model.accel, boardW = 2 * gpuW + cpuW;
@@ -819,11 +852,9 @@ function buildNVL({ quality, model }) {
       for (const [dx, dz] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) heatFlows.push(tagHeat(flow([[x + dx * s, floorY + 0.09, z + dz * s], [x + dx * s, floorY + 0.1 + lift, z + dz * s]], 'hot', { count: 3, speed: 0.5, size: 0.028, k: 2.6, trail: false }), part, watts));
     });
     plateLoop.push(pts);
-    const y = floorY + 0.28 + lift;
-    const qd = NVL_REAR.couplings[NVL_BOARD_X.indexOf(bx)], qdX = qd.supply;
-    // supply: rear quick disconnect → CPU plate → GPU → GPU → back
-    const sup = [[qdX, 0.25, ZB - 0.05], [qdX, y, ZB + 0.3], [bx - 0.2, y, -1.55], [bx - 0.2, y, 0.2], [bx - 0.2, y, 1.75]];
-    const ret = [[bx + 0.2, y, 1.75], [bx + 0.2, y, 0.2], [bx + 0.2, y, -1.55], [qd.ret, y, ZB + 0.3], [qd.ret, 0.25, ZB - 0.05]];
+    const qd = NVL_REAR.couplings[NVL_BOARD_X.indexOf(bx)];
+    // supply: rear quick disconnect → CPU plate → GPU → GPU → back (nvlHose: the rack's pulled tray flows along the same paths)
+    const { sup, ret } = nvlHose(bx);
     // EPDM hose (circuit-tinted jacket) with a colored ID band either side of each turned fitting
     // (hex body, collars); the animated flows still carry supply/return color.
     for (const [pts, band, jacket] of [[sup, MAT.pipeBlue, hoseMat.sup], [ret, MAT.pipeRed, hoseMat.ret]]) {
@@ -879,7 +910,7 @@ function buildNVL({ quality, model }) {
   }
   for (const dx of FRONT.drives.x) { const dv = FRONT.drives; S.box(dv.w, dv.h, dv.d, MAT.darkSteel, dx, dv.y, dv.z); statusLeds.push({ p: [dx, 0.38, ZF - 0.06], color: '#5cf29a', rate: 0.3 }); }  // E1.S drives
   const trayFans = [];
-  NVL_FAN_X.forEach(fx => { S.box(0.38, 0.36, 0.3, MAT.fan, fx, 0.2, ZF - 1.95); N.cylZ(0.15, 0.02, MAT.darkSteel, fx, 0.2, ZF - 1.79, 16); trayFans.push({ p: [fx, 0.2, ZF - 1.76], axis: 'z', r: 0.14 }); });
+  NVL_FAN_X.forEach(fx => { S.box(0.38, 0.36, 0.3, MAT.fan, fx, 0.2, ZF - 1.95); N.cylZ(0.15, 0.02, MAT.darkSteel, fx, 0.2, ZF - 1.79, 16); trayFans.push({ p: [fx, NVL_FAN_ROTOR.y, NVL_FAN_ROTOR.z], axis: 'z', r: NVL_FAN_ROTOR.r }); });
   // Blackwell retains peripheral air cooling; Rubin has a separate fanless builder.
   const allLiquid = false;
   const nvlFans = spinners(trayFans, MAT.darkSteel, { speed: allLiquid ? 0 : 9 }); nvlFans.mesh.userData.computeDynamic = 'rotor'; scene.add(nvlFans.mesh);
@@ -922,10 +953,10 @@ function buildNVL({ quality, model }) {
   nicX.forEach(x => {
     S.box(OSFP_U.cageW, OSFP_U.cageH, 0.5, MAT.galv, x, cageY, FRONT.cageZ); if (heavy) cageFins(N, x, cageY + 0.09, FRONT.cageZ, 0.18, 0.42, 3);
     N.box(OSFP_U.w, OSFP_U.h, .15, MAT.nickel, x, cageY, ZF + .045);
-    for (let k = 0; k < nicPorts; k++) N.box(nicPorts > 1 ? .07 : .10, .05, .006, MAT.polymer, x + (k - (nicPorts - 1) / 2) * .09, cageY, ZF + .123);
+    for (let k = 0; k < nicPorts; k++) N.box(nicPorts > 1 ? .07 : .10, .05, .006, MAT.polymer, x + (k - (nicPorts - 1) / 2) * .09, cageY, FRONT.faceZ - .003);
     N.box(.04, .008, .07, MAT.black, x, cageY - OSFP_U.h / 2 - .007, ZF + .135);
     statusLeds.push({ p: [x + .06, cageY + .006, ZF + .1215], color: '#5cf29a', rate: 0 });
-    lidAt.push({ p: [x, cageY + OSFP_U.h / 2 + .001, ZF + .075], face: 'top', yaw: 0 });
+    lidAt.push({ p: [x, cageY + OSFP_U.h / 2 + .001, FRONT.lidZ], face: 'top', yaw: 0 });
   });
   // The DPUs' QSFP112 cages (two per BlueField-3), empty: the cabling is the data center's, not this tray's.
   FRONT.storageX.forEach(x => {

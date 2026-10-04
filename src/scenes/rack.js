@@ -15,8 +15,7 @@ import { DGX, DGX_RACK, dgxServerY } from './dgx-h100-layout.js';
 // The pulled compute tray's cold plates and fans come from the same layout tray.js and tray-rubin.js build the
 // tray level from, in tray units (10 cm) converted to the rack's meters below (TRAY_UNIT), so the rack's LOD
 // tray cannot silently drift from the authoritative one (tests/rack-tray-match.test.ts checks this stays wired).
-import { pcbLayout } from './tray-pcb.js';
-import { NVL_BOARD_X, NVL_CPU, NVL_GPU_Z, NVL_GPU_SIZE, NVL_FAN_X, NVL_FAN_Z, NVL_FRONT, NVL_REAR } from './tray.js';
+import { NVL_BOARD_X, NVL_CPU, NVL_GPU_Z, NVL_GPU_SIZE, NVL_FAN_X, NVL_FAN_ROTOR, NVL_FRONT, NVL_REAR, nvlHose, dgxPowerRoute, dgxNvlRoute, dgxFlowAudit } from './tray.js';
 import { RUBIN_COLD_PLATES, RUBIN_FRONT, RUBIN_REAR } from './tray-rubin.js';
 import { OSFP_U } from './osfp-size.js';
 const TRAY_UNIT = 0.1;
@@ -426,8 +425,6 @@ function serviceFace(B, y, z, heavy, kind) {
 }
 
 // ---------- four DGX H100 servers, air-cooled ----------
-// Pulled-tray boards get the PCB surface at rack distance (tray-pcb.js, rack LOD).
-const TRAY_PCB = Object.assign(new THREE.MeshStandardMaterial({ color: 0x10362a, roughness: 0.6, metalness: 0.05 }), { name: 'Rack tray solder mask' });
 function buildHGX({ quality, model, state }) {
   const scene = new THREE.Scene();
   const flows = [], dataFlows = [], heatFlows = [];
@@ -481,44 +478,18 @@ function buildHGX({ quality, model, state }) {
   // scaled to the 0.84 m chassis): twelve fan modules over eight drives at the front, the GPU tray on top with eight
   // heat sinks and four NVSwitch sinks, the motherboard tray under it (CPUs, 32 DIMMs, two network modules), six
   // supplies across the bottom of the rear and the midplane behind the fans.
-  const py = sy(PULLED), pz = ZF - 0.07 - sd / 2 + out, yb = py - SU / 2;
-  const kz = sd / DGX.D, tx = x => x * 0.1, ty = y => yb + y * 0.1, tz = z => pz + z * kz;
+  // The pulled server is the server level's own hardware: compute-blender.js seats the tray GLB (the file the server level
+  // shows, 0.9 m deep as DGX.D draws it - the closed chassis are 0.84) at scene.userData.pulledTray, so nothing of the server
+  // itself is drawn here. What stays is what belongs to the rack - the slide rails - and the fans' spinning rotors.
+  const psd = DGX.D * 0.1, kz = psd / DGX.D;
+  const py = sy(PULLED), pz = ZF - 0.07 - psd / 2 + out, yb = py - SU / 2;
+  scene.userData.pulledTray = { x: 0, floor: yb, z: pz, width: sw, depth: psd, front: ZF, accel: model.accel.id };   // the pulled server's frame in the rack (compute-blender.js, tools/tray-overlay.mjs)
+  const tx = x => x * 0.1, ty = y => yb + y * 0.1, tz = z => pz + z * kz;
   const pulled = new Builder();
-  pulled.box(sw, 0.004, sd, MAT.galv, 0, yb + 0.004, pz);
-  pulled.box(0.004, SU * 0.95, sd, MAT.galv, -sw / 2, py, pz);
-  // Right wall is a teaching cutaway, matching the dedicated server view.
-  pulled.box(0.004, .045, sd, MAT.galv, sw / 2, yb + .0225, pz);
-  const fanItems = [];
-  for (const y of DGX.fanY) for (const x of DGX.fanX) {
-    pulled.box(0.1, 0.095, 0.06, MAT.fan, tx(x), ty(y), tz(DGX.ZF - 0.36));
-    for (const s of [-1, 1]) fanItems.push({ p: [tx(x + s * 0.255), ty(y), tz(DGX.ZF) + 0.002], axis: 'z', r: 0.021 });
-  }
-  for (const x of DGX.driveX) for (const y of DGX.driveY) pulled.box(0.074, 0.014, 0.1, MAT.alu, tx(x), ty(y), tz(DGX.ZF - 0.6));
-  pulled.box(sw - 0.01, 0.34, 0.003, MAT.pcbBlack, 0, ty(1.75), tz(DGX.ZM));                                           // midplane
-  // GPU tray: pan, baseboard, eight sinks, four NVSwitch sinks
-  // both trays' pans end short of the midplane, where the 54 V blade rises between them
-  const panD = (3.1 - DGX.ZB) * kz, panZ = tz((3.1 + DGX.ZB) / 2);
-  pulled.box(sw - 0.01, 0.003, panD, MAT.galv, 0, ty(DGX.deck), panZ);
-  pulled.box(0.42, 0.003, 6.6 * kz, TRAY_PCB, 0, ty(DGX.gy - 0.015), tz(-0.05));
-  const sinks = [];
-  // fins get their own material, not the shared MAT.alu: at close range under the studio env, MAT.alu's high
-  // metalness+low roughness blows out to featureless white; the fins are the closest, densest metal in the shot
-  const FIN = new THREE.MeshStandardMaterial({ color: 0xb8bfc6, roughness: 0.6, metalness: 0.45, envMapIntensity: 0.5 });
-  for (const z of DGX.gpuZ) for (const x of DGX.gpuX) {
-    sinks.push([tx(x), tz(z)]);
-    pulled.box(0.094, 0.008, 1.7 * kz, MAT.copper, tx(x), ty(DGX.gy + 0.16), tz(z));
-    for (let f = 0; f < 20; f++) pulled.box(0.0014, 0.155, 1.66 * kz, FIN, tx(x - 0.456 + f * 0.048), ty(DGX.gy + 0.98), tz(z));
-  }
-  for (const x of DGX.swX) pulled.box(0.088, 0.09, 1.08 * kz, MAT.alu, tx(x), ty(DGX.gy + 0.5), tz(DGX.swZ));
-  // motherboard tray: pan, boards, CPU sinks, DIMMs, network modules
-  pulled.box(sw - 0.01, 0.003, panD, MAT.galv, 0, ty(0.495), panZ);
-  pulled.box(0.42, 0.003, 4.44 * kz, TRAY_PCB, 0, ty(DGX.my - 0.015), tz(-2.1));
-  pulled.box(0.42, 0.003, 3.02 * kz, TRAY_PCB, 0, ty(DGX.my - 0.015), tz(1.71));
-  for (const x of DGX.cpuX) pulled.box(0.07, 0.055, 0.92 * kz, MAT.alu, tx(x), ty(DGX.my + 0.32), tz(DGX.cpuZ));
-  for (const bx of DGX.bankX) for (let k = 0; k < 8; k++) pulled.box(0.0022, 0.03, DGX.dimmLen * kz, MAT.darkSteel, tx(bx + (k - 3.5) * DGX.dimmPitch), ty(DGX.my + 0.19), tz(DGX.cpuZ));
-  for (const mx of DGX.modX) { pulled.box(0.142, 0.0025, 1.3 * kz, TRAY_PCB, tx(mx), ty(DGX.ny - 0.0125), tz(DGX.modZ)); for (const dx of [-0.36, 0.36]) for (const dz of [-0.32, 0.32]) pulled.box(0.06, 0.03, 0.56 * kz, MAT.darkSteel, tx(mx + dx), ty(DGX.ny + 0.18), tz(DGX.modZ + dz)); }
-  for (let i = 0; i < 6; i++) pulled.box(0.068, 0.04, 2.4 * kz, MAT.darkSteel, tx(DGX.psuX(i)), ty(DGX.psuY), tz(DGX.ZB + 1.22));   // supplies
-  for (const x of [-0.26, 0.26]) pulled.box(0.012, 0.012, sd + out, MAT.galv, x, yb + 0.006, pz - out / 2);
+  const fanItems = [], sinks = [];
+  for (const y of DGX.fanY) for (const x of DGX.fanX) for (const s of [-1, 1]) fanItems.push({ p: [tx(x + s * 0.255), ty(y), tz(DGX.fanRotorZ)], axis: 'z', r: DGX.fanRotorR * 0.1 });
+  for (const z of DGX.gpuZ) for (const x of DGX.gpuX) sinks.push([tx(x), tz(z)]);      // each GPU's heat sink, where its airflow is drawn
+  for (const x of [-0.26, 0.26]) pulled.box(0.012, 0.012, psd + out, MAT.galv, x, yb + 0.006, pz - out / 2);   // slide rails
   scene.add(pulled.build());
   const fans = spinners(fanItems, MAT.darkSteel, { blades: 7, speed: 7 });
   fans.mesh.userData.computeDynamic = 'rotor';
@@ -562,10 +533,13 @@ function buildHGX({ quality, model, state }) {
   // ---------- flows ----------
   pduX.forEach(x => flows.push(flow([[x * 0.5, TAP.glandY, -0.25], [x * 0.5, H + 0.02, -0.25], [x, pTop + 0.085, pduZ], [x, pBot, pduZ]], 'lv', { count: 16, speed: 0.35, size: 0.012, trailR: 0.004, audit: { through: true, why: 'current inside the drawn feed cord: down from the busway tap, through its grommet in the top cap, into the strip head and down the strip' } })));
   cordEnds.forEach(({ from, to }) => flows.push(flow([from, [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2 - 0.04, (from[2] + to[2]) / 2], to], 'lv', { count: 3, speed: 0.2, size: 0.009, trail: false, audit: { through: true, why: 'current inside the drawn C19/C20 cord from the strip outlet to the supply inlet' } })));
-  // 54 V forward along the floor copper under the motherboard tray, up the midplane into the GPU tray
-  flows.push(flow([[tx(DGX.busX[1]), ty(0.1), tz(DGX.ZB + 2.75)], [tx(DGX.busX[1]), ty(0.1), tz(DGX.ZM - 0.04)], [tx(DGX.busX[1]), ty(DGX.gy + 0.04), tz(DGX.ZM - 0.04)], [tx(DGX.busX[1]), ty(DGX.gy + 0.04), tz(2.2)]], 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003 }));
-  // scale-up: NVLink only inside the pulled server, GPUs to the switch row
-  sinks.forEach(([x, z]) => dataFlows.push(flow([[x, ty(DGX.gy + 0.04), z], [x * 0.95, ty(DGX.gy + 0.04), tz(DGX.swZ + 0.3)]], 'nvl', { count: 3, speed: 0.12, size: 0.006, k: 2.4, trail: false })));
+  // 54 V forward along the floor copper under the motherboard tray, up the midplane into the GPU tray: the server level's own routes
+  // (tray.js dgxPowerRoute), in the rack's meters at the pulled server's frame
+  const atServer = ([x, y, z]) => [tx(x), ty(y), tz(z)], audit = dgxFlowAudit();
+  const inServer = a => ({ within: a.within.map(([x0, y0, z0, x1, y1, z1]) => [tx(x0), ty(y0), tz(z0), tx(x1), ty(y1), tz(z1)]), why: a.why });   // the server level's audit regions, in the rack's frame
+  for (const k of DGX.busX.keys()) for (const leg of dgxPowerRoute(k)) flows.push(flow(leg.map(atServer), 'dc', { count: 8, speed: 0.2, size: 0.008, trailR: 0.003, audit: inServer(audit.power) }));
+  // scale-up: NVLink only inside the pulled server, GPUs to the switch row, along the server level's routes (tray.js dgxNvlRoute)
+  sinks.forEach((_, i) => dataFlows.push(flow(dgxNvlRoute(i).map(atServer), 'nvl', { count: 4, speed: 0.12, size: 0.006, k: 2.4, trail: false, audit: inServer(audit.data) })));
   // heat: cold air in the front of every server, hot air out the back
   // each closed server's air carries all of that server's heat; in the pulled one, each GPU sink's air its GPU's
   const serverW = model.rack.kw * 1000 / (model.accel.gpusPerRack / 8);
@@ -573,7 +547,7 @@ function buildHGX({ quality, model, state }) {
     heatFlows.push(tagHeat(flow([[x, sy(k) + dy, ZF + 0.8], [x, sy(k) + dy, ZF]], 'cool', { count: 3, speed: 0.4, size: 0.02, k: 2.0, opacity: 0.8, trail: false }), `server-${k}-air`, serverW, 'carrier'));
     heatFlows.push(tagHeat(flow([[x, sy(k) + dy, ZB], [x * 1.3, sy(k) + dy + 0.1, ZB - 0.8]], 'air', { count: 3, speed: 0.45, size: 0.024, k: 2.4, opacity: 0.9, trail: false }), `server-${k}-air`, serverW, 'carrier'));
   } });
-  sinks.forEach(([x, z], i) => heatFlows.push(tagHeat(flow([[x, ty(2.4), pz + sd / 2 - 0.08], [x, ty(2.4), z], [x, ty(2.5), pz - sd / 2 - 0.2]], 'air', { count: 3, speed: 0.25, size: 0.012, k: 2.4, trail: false }), `gpu-${i}-sink-air`, model.accel.gpuW, 'carrier')));
+  sinks.forEach(([x, z], i) => heatFlows.push(tagHeat(flow([[x, ty(2.4), pz + psd / 2 - 0.08], [x, ty(2.4), z], [x, ty(2.5), pz - psd / 2 - 0.2]], 'air', { count: 3, speed: 0.25, size: 0.012, k: 2.4, trail: false }), `gpu-${i}-sink-air`, model.accel.gpuW, 'carrier')));
   balanceHeat(heatFlows);
   [flows, dataFlows, heatFlows].forEach(list => list.forEach(f => scene.add(f.group)));
 
@@ -593,7 +567,7 @@ function buildHGX({ quality, model, state }) {
   scene.add(links.mesh);
   scene.add(leds.mesh);
   const haze = plumes(
-    [...inRack.map(k => ({ p: [0, sy(k) + 0.02, ZB - 0.12], dir: [0, 1, 0] })), { p: [0, ty(2.4), pz - sd / 2 - 0.22], dir: [0, 1, 0] }],
+    [...inRack.map(k => ({ p: [0, sy(k) + 0.02, ZB - 0.12], dir: [0, 1, 0] })), { p: [0, ty(2.4), pz - psd / 2 - 0.22], dir: [0, 1, 0] }],
     { perEmitter: quality.mobile ? 5 : 14, size: 0.045, grow: 2.4, life: 2.6, rise: 0.3, drift: [0, 0.12, -0.4], spread: 0.05, color: AIR_HAZE, opacity: 0.14, additive: true },
   );
   scene.add(haze.points);
@@ -619,7 +593,7 @@ function buildHGX({ quality, model, state }) {
       // into the rack) and its plugged cords are in view, not its blank back.
       pdu: { pos: [pduX[1] - 0.03, sy(1) + 0.1, pduZ], view: componentView([pduX[1] - 0.03, sy(1) + 0.05, pduZ], [-0.62, 0.2, -0.72], [0.22, 0.62, 0.22]) },
       servers: srv,
-      psus: { pos: [tx(DGX.psuX(4)), ty(DGX.psuY + 0.2), pz - sd / 2 + 0.03], view: { pos: [0.9, 1.5, -0.9], target: [0, yb, pz - 0.4] } },
+      psus: { pos: [tx(DGX.psuX(4)), ty(DGX.psuY + 0.2), pz - psd / 2 + 0.03], view: { pos: [0.9, 1.5, -0.9], target: [0, yb, pz - 0.4] } },
       cabling: { pos: [pduX[0] * 0.7, sy(0), ZB + 0.15], view: { pos: [-0.8, 0.9, -1.5], target: [0, 0.6, ZB] } },
       mgmt: { pos: [0.22, topY + U / 2, ZF - 0.03], view: componentView([0.02, topY + U / 2, ZF - 0.02], [0.32, 0.16, 0.9], [0.5, 0.12, 0.2]) },
     },
@@ -702,35 +676,19 @@ function buildNVL({ quality, model, state }) {
     if (k === 'ps') for (let s = 0; s < 6; s++) rbox(N, 0.006, U * 0.52, 0.008, COLLAR, -0.22 + (8 + s * 168 + 150) / 1024 * 0.44, trayY(i), ZF - 0.07 + 0.004, { r: 0.4 });
   });
 
-  // pulled-out compute tray with its lid off
-  const py = trayY(PULLED), out = 0.95, pz = ZF - 0.07 - trayD / 2 + out;
-  const pulled = new Builder();
+  // pulled-out compute tray: the tray level's own hardware. compute-blender.js seats the tray GLB (the file the tray level shows)
+  // at scene.userData.pulledTray, so nothing of the tray itself is drawn here: no pan, boards, plates, hoses, midplane or face.
+  // What this file keeps is what belongs to the rack - the slide rails under the tray's walls - and the fans' spinning rotors,
+  // at the spots tray.js puts them (NVL_FAN_ROTOR).
   // Satin pre-galvanized pan: the polished finish mirrored the studio key into white blocks at the compute camera.
   const PAN = new THREE.MeshStandardMaterial({ color: 0x7a828a, roughness: 0.62, metalness: 0.5 }); PAN.name = 'Tray pan satin steel';
-  pulled.box(trayW, 0.004, trayD, PAN, 0, py - U / 2 + 0.004, pz);
-  pulled.box(0.004, U * 0.9, trayD, PAN, -trayW / 2, py, pz); pulled.box(0.004, U * 0.9, trayD, PAN, trayW / 2, py, pz);
-  // Every board from the tray level's own plan (tray-pcb.js pcbLayout, the layout its solder mask is painted from):
-  // the two superchip boards, and the NIC mezzanines and front cage boards (GB) or NIC and DPU boards (Rubin).
-  const TU = TRAY_UNIT, by = py - U / 2 + 0.008;
-  const lift = b => rubin ? (b.z > 2 ? 0.003 : 0) : b.z > 4 ? 0.012 : b.z > 3 ? 0.019 : 0;   // NIC/cage boards stand above the superchip boards, as at tray level
-  for (const b of pcbLayout(model.accel.id).boards) if (!b.module) pulled.box(b.w * TU, 0.003, b.d * TU, TRAY_PCB, b.x * TU, by + lift(b), pz + b.z * TU);
-  const plates = (rubin ? RUBIN_COLD_PLATES : NVL_COLD_PLATES).map(p => ({ x: p.x * TRAY_UNIT, z: p.z * TRAY_UNIT, w: p.w * TRAY_UNIT, d: p.d * TRAY_UNIT, kind: p.kind }));
-  // Brushed lids, not mirror nickel: upward-facing polished slabs bloomed to white under the studio softbox.
-  const LID = new THREE.MeshStandardMaterial({ color: 0x6b7178, roughness: 0.72, metalness: 0.3 }); LID.name = 'Brushed cold plate lid';
-  plates.forEach(({ x, z, w, d }) => { pulled.box(w, 0.018, d, MAT.copper, x, py - U / 2 + 0.02, pz + z); pulled.box(w * 0.74, 0.006, d * 0.74, LID, x, py - U / 2 + 0.032, pz + z); });
-  if (!rubin) for (const x of NVL_BOARD_X.map(bx => bx * TRAY_UNIT)) { pulled.strut([x - 0.02, py - U / 2 + 0.03, pz + NVL_CPU.z * TRAY_UNIT], [x - 0.02, py - U / 2 + 0.03, pz + NVL_GPU_Z[1] * TRAY_UNIT], 0.005, MAT.pipeBlue, 6); pulled.strut([x + 0.02, py - U / 2 + 0.03, pz + NVL_CPU.z * TRAY_UNIT], [x + 0.02, py - U / 2 + 0.03, pz + NVL_GPU_Z[1] * TRAY_UNIT], 0.005, MAT.pipeRed, 6); }
+  const py = trayY(PULLED), out = 0.95, pz = ZF - 0.07 - trayD / 2 + out;
+  scene.userData.pulledTray = { x: 0, floor: py - U / 2, z: pz, width: trayW, depth: trayD, front: ZF, accel: model.accel.id };   // the pulled tray's frame in the rack (compute-blender.js, tools/tray-overlay.mjs)
+  const pulled = new Builder();
+  const TU = TRAY_UNIT;
+  const plates = (rubin ? RUBIN_COLD_PLATES : NVL_COLD_PLATES).map(p => ({ x: p.x * TU, z: p.z * TU, w: p.w * TU, d: p.d * TU, kind: p.kind }));
   const fanItems = [];
-  if (!rubin) NVL_FAN_X.forEach(fx0 => { const x = fx0 * TRAY_UNIT, z = pz + NVL_FAN_Z * TRAY_UNIT; pulled.box(0.05, 0.03, 0.04, MAT.fan, x, py - U / 2 + 0.02, z); fanItems.push({ p: [x, py - U / 2 + 0.02, z + 0.022], axis: 'z', r: 0.018 }); });
-  // Rubin's midplane (tray-rubin.js, z 1.1): the blind-mate wall between the superchip boards and the NIC/DPU bay.
-  if (rubin) pulled.box(.41, .024, .004, MAT.pcbBlack, 0, py - U / 2 + 0.02, pz + 0.112);
-  const pFront = new THREE.Mesh(new THREE.BoxGeometry(trayW, U * 0.94, 0.02), [MAT.rackFace, MAT.rackFace, MAT.rackFace, MAT.rackFace, new THREE.MeshStandardMaterial({ map: TEX.compute, roughness: 0.5, metalness: 0.35 }), MAT.rackFace]);
-  pFront.position.set(0, py, pz + trayD / 2); scene.add(pFront);
-  // Thin service-face returns leave both rows of optical cages accessible.
-  // The old full-width 10 mm trim crossed the upper storage ports.
-  for (const side of [-1,1]) {
-    N.box(trayW,.002,.005,MAT.nickel,0,py+side*U*.46,pz+trayD/2+.012);
-    N.box(.008,U*.9,.012,MAT.nickel,side*(trayW/2+.007),py,pz+trayD/2+.014);
-  }
+  if (!rubin) NVL_FAN_X.forEach(fx0 => { fanItems.push({ p: [fx0 * TU, py - U / 2 + NVL_FAN_ROTOR.y * TU, pz + NVL_FAN_ROTOR.z * TU], axis: 'z', r: NVL_FAN_ROTOR.r * TU }); });
   for (const x of [-0.26, 0.26]) pulled.box(0.012, 0.012, trayD + out, MAT.galv, x, py - U / 2 + 0.006, pz - out / 2); // slide rails
   scene.add(pulled.build());
   const fans = spinners(fanItems, MAT.darkSteel, { blades: 7, speed: 8 });
@@ -967,11 +925,12 @@ function buildNVL({ quality, model, state }) {
   const airShare = model.accel.liquidShare < 0.99;
   if (airShare) for (const i of airRow) for (const x of [-0.15, 0.05, 0.2]) heatFlows.push(airPath(flow([[x, trayY(i), 0.2], [x, trayY(i) + 0.02, ZB], [x * 1.2, trayY(i) + 0.12, ZB - 0.7]], 'air', { count: 4, speed: 0.35, size: 0.024, k: 2.4, opacity: 0.9, trail: false })));
   balanceHeat(heatFlows);
-  // coolant along the drawn hoses (supply and return struts above), Grace's plate to the rear GPU's; Rubin draws no hoses
-  const hoseFront = pz + NVL_CPU.z * TRAY_UNIT, hoseRear = pz + NVL_GPU_Z[1] * TRAY_UNIT;
-  if (!rubin) for (const x of NVL_BOARD_X.map(bx => bx * TRAY_UNIT)) {
-    flows.push(flow([[x - 0.02, py - U / 2 + 0.035, hoseRear], [x - 0.02, py - U / 2 + 0.035, hoseFront]], 'cool', { count: 6, speed: 0.15, size: 0.006, trail: false }));
-    flows.push(flow([[x + 0.02, py - U / 2 + 0.035, hoseFront], [x + 0.02, py - U / 2 + 0.035, hoseRear]], 'warm', { count: 6, speed: 0.15, size: 0.006, trail: false }));
+  // coolant along the tray's own hoses (tray.js nvlHose, the paths its hose geometry is swept along): in from the rear quick
+  // disconnect, past the plates and back; Rubin draws no hoses
+  if (!rubin) for (const bx of NVL_BOARD_X) {
+    const { sup, ret } = nvlHose(bx), at = ([x, y, z]) => [x * TRAY_UNIT, py - U / 2 + y * TRAY_UNIT, pz + z * TRAY_UNIT];
+    flows.push(flow(sup.map(at), 'cool', { count: 12, speed: 0.15, size: 0.006, trail: false }));
+    flows.push(flow(ret.map(at), 'warm', { count: 12, speed: 0.15, size: 0.006, trail: false }));
   }
   flows.forEach(f => scene.add(f.group));
   dataFlows.forEach(f => scene.add(f.group));

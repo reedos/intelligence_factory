@@ -3,6 +3,8 @@
 // layout constants tray.js and tray-rubin.js build the tray level from (NVL_BOARD_X/NVL_CPU/NVL_GPU_Z/NVL_GPU_SIZE,
 // RUBIN_COLD_PLATES), so the two views cannot drift apart without this test catching it: it imports those
 // constants directly (not through rack.js) and checks the rack's built pulled-tray plates land on them.
+// NOTE (10/04/2026): this file checks the constants the two levels share (plates, front, rear, Blender hand-off). That proved a proxy:
+// the rack's pulled tray looked different while it passed. rack-tray-parts.test.ts compares every part the two levels actually draw.
 import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
 import { compute, DEFAULT_SCENARIO } from '../model/engine';
 
@@ -244,12 +246,20 @@ describe('the Blender hand-off carries the tray front, rear and OSFP envelope', 
     expect(j.modulePorts).toEqual({ h100: 2, gb200: 1, gb300: 1, rubin: 1 });
     expect(j.h100.cageX).toEqual(dgxMod.DGX.cageX); expect(j.h100.storageX).toEqual(dgxMod.DGX.storageX);
   });
+  it('rack-tray-layout.json carries the pulled tray frame rack.js builds, for the slide rails of the rack script', async () => {
+    // @ts-ignore vite ?raw import
+    const j = JSON.parse((await import('../../tools/blender/references/rack-tray-layout.json?raw')).default);
+    for (const accel of ['gb200', 'gb300', 'rubin', 'h100']) expect(j.rack.pulledTray[accel]).toEqual(plain(rack.build(opts({ accel })).scene.userData.pulledTray));
+  });
   it('the Blender scripts read those keys instead of re-typing the front', async () => {
     // @ts-ignore vite ?raw imports
     const [build, hero, insp] = await Promise.all([import('../../tools/blender/build-compute.py?raw'), import('../../tools/blender/compute-hero-detail.py?raw'), import('../../tools/blender/rack-inspection-detail.py?raw')]);
     expect(build.default).toMatch(/\['bezelX'\]/); expect(build.default).toMatch(/\['rubin'\]\['front'\]/); expect(build.default).toMatch(/\['h100'\]\['cageX'\]/);
     expect(hero.default).toMatch(/\['drives'\]/); expect(hero.default).toMatch(/\['cageX'\]/); expect(hero.default).toMatch(/\['dpuX'\]/);
-    expect(insp.default).toMatch(/\['cageX'\]/); expect(insp.default).toMatch(/\['dpuX'\]/);
+    // the pulled tray is no longer authored here at all (compute-blender.js seats the tray level's own GLB): the rack script keeps only
+    // the slide rails, at the frame rack.js reports, with no retyped tray position or tray part left
+    expect(insp.default).toMatch(/\['pulledTray'\]/); expect(insp.default).not.toMatch(/pz\s*=\s*[0-9.]/);
+    expect(insp.default).not.toMatch(/cold plate perimeter seal|milled cold plate crown|network package|support memory package|'VRM inductor'|fan cassette rim/);
     for (const src of [build.default, hero.default, insp.default]) { expect(src).not.toMatch(/\[\.2,\.7,1\.2,1\.7\]/); expect(src).not.toMatch(/-1\.66,-1\.04,1\.04,1\.66/); }
   });
 });

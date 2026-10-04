@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { build as rack } from './rack.js';
 import { build as tray } from './tray.js';
 import { build as chip } from './chip.js';
-import { applyPcb, pcbLayout } from './tray-pcb.js';
+import { applyPcb, PCB_MATERIAL } from './tray-pcb.js';
 import { rackMarks } from './electrical-marks.js';
 import { rackManifoldMarks } from './cooling-marks.js';
 import { surfaceHit, realizeSpots } from './print-kit.js';
@@ -17,13 +17,14 @@ const assetKey = (kind, model) => `compute-${kind}-${variant(kind, model)}`;
 
 async function load(key) {
   if (cache.has(key)) return;
-  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=rackgpu1`)
+  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=pulledtray1`)
     .then(gltf => { cache.set(key, gltf.scene); pending.delete(key); })
     .catch(error => { pending.delete(key); throw error; }));
   await pending.get(key);
 }
 export async function preloadCompute(kind, model) {
-  await Promise.all([load(assetKey(kind, model)), load(kind === 'chip' ? 'compute-solder' : 'compute-rotor')]);
+  // the rack's pulled tray is the tray level's own hardware: the same file, seated in the rack (build, below)
+  await Promise.all([load(assetKey(kind, model)), kind === 'rack' && load(assetKey('tray', model)), load(kind === 'chip' ? 'compute-solder' : 'compute-rotor')]);
 }
 
 function ownedClone(source) {
@@ -67,7 +68,7 @@ function build(kind, native, options) {
   const materialSources = new Map([...nativeMaterials.keys()].filter(m => m.userData.ifxAnimatedSurface).map(m => [m.userData.ifxAnimatedSurface, m])), pulses = [], covers = [];
   hardware.scale.setScalar(kind === 'rack' ? 1 : kind === 'tray' ? 10 : 100);
   hardware.name = `Blender complete ${kind} hardware`;
-  hardware.traverse(o => {
+  const dress = root => root.traverse(o => {
     if (!o.isMesh) return;
     o.geometry.userData.authoredIn = 'Blender';
     const materials = Array.isArray(o.material) ? o.material : [o.material];
@@ -83,6 +84,7 @@ function build(kind, native, options) {
       if (sourceMaterial) pulses.push([material, sourceMaterial]);
     }
   });
+  dress(hardware);
   for (const o of obsolete) { o.removeFromParent(); o.geometry.dispose(); }
   if (rotors.length) {
     // compute-solder carries a reflowed BGA ball and a lighter C4 bump mesh.
@@ -103,8 +105,20 @@ function build(kind, native, options) {
   // Board surfaces: the painted PCB atlas, projected by position (tray-pcb.js).
   const accel = options.model.accel.id, mobile = !!options.quality.mobile;
   if (kind === 'tray') applyPcb(hardware, accel, { mobile });
-  if (kind === 'rack') applyPcb(hardware, accel, { lod: 'rack', rects: rackBoards(accel) });
   built.scene.add(hardware);
+  if (kind === 'rack') {
+    // The pulled tray is the tray level's own hardware, the same GLB, seated where rack.js pulled it out (scene.userData.pulledTray):
+    // every part, size, orientation and material the tray level draws, nothing rebuilt beside it. Only its boards' painted surface is
+    // the rack's lighter one (tray-pcb.js 'rack' level of detail), painted while the file is still in tray units, as the tray level does.
+    const frame = built.scene.userData.pulledTray, seated = ownedClone(cache.get(assetKey('tray', options.model)));
+    seated.name = 'Blender complete tray hardware, pulled (the tray level\'s own)';
+    seated.traverse(o => { delete o.userData.ifxCompute; });   // the tray file's generation stamp names the tray; this hardware is the rack's
+    dress(seated);
+    seated.scale.setScalar(10); seated.position.set(0, 0, 0); seated.updateMatrixWorld(true);
+    applyPcb(seated, accel, { lod: 'rack', named: PCB_MATERIAL });
+    seated.scale.setScalar(1); seated.position.set(frame.x, frame.floor, frame.z);
+    hardware.add(seated);   // the rack hardware is at scale 1 (metres), the file's own unit
+  }
   // Package markings and other prints requested by the native builder, on the authored surfaces.
   realizeSpots(hardware, built.scene, built.printSpots);
   if (kind === 'rack' && built.printMarks) {
@@ -133,24 +147,6 @@ function build(kind, native, options) {
   built.scene.userData.blenderCompute = { asset: `${key}.glb`, completeStaticHardware: true, replacedNativeMeshes: obsolete.length,
     representative: true, runtimeExceptions: ['flow and heat overlays', 'token sprites and cache effects', 'status light effects', 'lights', 'camera', 'hotspots', 'Blender rotor and solder instancing', 'native overlays (rack management leads)', 'printed labels'] };
   return built;
-}
-// Pulled-tray boards in rack metres -> the matching tray boards in tray units
-// ([x0, x1, z0, z1]); positions follow rack.js.
-function rackBoards(accel) {
-  // DGX H100: the pulled server's GPU-tray baseboard maps to the atlas's GPU deck; its motherboard, interposer and
-  // network-module boards to the motherboard deck, 4.4 units right (tray-pcb.js h100Layout). Network modules first:
-  // they sit within the height tolerance of the boards under them.
-  if (accel === 'h100') return [
-    { from: [0.034, 0.176, 1.171, 1.2923], to: [5.45 - 0.71, 5.45 + 0.71, 1.35, 2.65], y: 0.9407 },
-    { from: [-0.176, -0.034, 1.171, 1.2923], to: [3.35 - 0.71, 3.35 + 0.71, 1.35, 2.65], y: 0.9407 },
-    { from: [-0.21, 0.21, 0.7323, 1.3483], to: [-2.1, 2.1, -3.35, 3.25], y: 1.0237 },
-    { from: [-0.21, 0.21, 0.6418, 1.0562], to: [2.3, 6.5, -4.32, 0.12], y: 0.9322 },
-    { from: [-0.21, 0.21, 1.0637, 1.3455], to: [2.3, 6.5, 0.2, 3.22], y: 0.9322 },
-  ];
-  // Superchip boards: the extents the tray level builds (tray-pcb.js pcbLayout), at the pulled tray's z.
-  const B = pcbLayout(accel).boards[0], PZ = 0.965, z0 = B.z - B.d / 2, z1 = B.z + B.d / 2;
-  const f0 = PZ + z0 * 0.1, f1 = PZ + z1 * 0.1;
-  return [{ from: [-0.209, -0.007, f0, f1], to: [-2.1, -0.1, z0, z1] }, { from: [0.007, 0.209, f0, f1], to: [0.1, 2.1, z0, z1] }];
 }
 export const rackBuilder = { preload: ({ model }) => preloadCompute('rack', model), build: options => build('rack', rack, options) };
 export const trayBuilder = { preload: ({ model }) => preloadCompute('tray', model), build: options => build('tray', tray, options) };

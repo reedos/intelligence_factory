@@ -34,6 +34,11 @@ export const DGX = {
   driveX: [-1.68, -0.88, 0.87, 1.67], driveY: [0.35, 0.185],
 };
 
+// The seated rear OSFP modules' MPO face and printed lid label (tray.js draws them, the rack's pulled server leads its patch cords from them)
+DGX.cageFaceZ = DGX.ZB - 0.156; DGX.cageLidZ = DGX.ZB - 0.09;
+// The front fans' spinning rotors (tray.js; the rack's pulled server spins the same twenty-four at the same spots): z and radius.
+DGX.fanRotorZ = DGX.ZF - 0.3; DGX.fanRotorR = 0.21;
+
 // The DGX H100 rack's front, in meters in rack.js's frame (front +z, floor at y 0): four 8U chassis, each closed by a
 // removable metal-foam bezel (NVIDIA: "decorative metal foam") with two carry handles and a small control panel, one
 // 1U management switch above them. rack.js builds its closed servers from this and the hall's rack faces (hall-rack-face.js,

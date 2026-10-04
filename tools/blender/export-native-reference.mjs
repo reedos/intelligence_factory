@@ -116,8 +116,10 @@ if (process.argv.includes('--compute')) {
     const { compute, DEFAULT_SCENARIO } = await server.ssrLoadModule('/src/model/engine.ts');
     // IFX_ONLY=tray-gb200,tray-rubin limits the export to those references (other agents may own the rest)
     const only = process.env.IFX_ONLY?.split(',');
+    const pulledTray = {};   // where rack.js pulls each generation's tray out, for the Blender rack script (its slide rails) and the tray-overlay gate
     for (const accel of ['h100', 'gb200', 'gb300', 'rubin']) {
       const model = compute({ ...DEFAULT_SCENARIO, accel });
+      pulledTray[accel] = (await server.ssrLoadModule('/src/scenes/rack.js')).build({ quality: { shadows: false, reflections: false, mobile: false }, state: { mode: 'data' }, model }).scene.userData.pulledTray;
       const scenes = (process.env.IFX_COMPUTE_SCENES || 'rack,tray,chip').split(',');
       for (const [scene, unitMeters] of [['rack', 1], ['tray', .1], ['chip', .01]].filter(([scene]) => scenes.includes(scene))) {
         if (only && !only.includes(`${scene}-${accel}`)) continue;
@@ -134,7 +136,7 @@ if (process.argv.includes('--compute')) {
     await fs.writeFile(path.join(referenceDirectory, 'rack-tray-layout.json'), JSON.stringify({ unit: 0.1,
       osfp: O.OSFP_U, qsfp: O.QSFP_U,
       modulePorts: Object.fromEntries(['h100', 'gb200', 'gb300', 'rubin'].map(a => [a, LL.modulePorts(a)])),
-      rack: { layout: L.LAYOUT, pulled: L.PULLED, switchPulled: L.SWITCH_PULLED, base: L.BASE + 0.02, pitch: L.U },
+      rack: { layout: L.LAYOUT, pulled: L.PULLED, switchPulled: L.SWITCH_PULLED, base: L.BASE + 0.02, pitch: L.U, pulledTray },
       nvl: { boardX: T.NVL_BOARD_X, cpu: T.NVL_CPU, gpuZ: T.NVL_GPU_Z, gpuSize: T.NVL_GPU_SIZE, fanX: T.NVL_FAN_X, fanZ: T.NVL_FAN_Z, lpddr: T.NVL_LPDDR, plates: K.NVL_COLD_PLATES,
         front: T.NVL_FRONT, rear: T.NVL_REAR },
       rubin: { plates: R.RUBIN_COLD_PLATES, front: R.RUBIN_FRONT, rear: R.RUBIN_REAR, nic: R.RUBIN_NIC, dpu: R.RUBIN_DPU },

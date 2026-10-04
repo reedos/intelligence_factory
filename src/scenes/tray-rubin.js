@@ -21,7 +21,7 @@ export const RUBIN_COLD_PLATES=[...RUBIN_GPU.map(([x,z])=>({x,z,w:.88,d:1.0,kind
 // them): eight OSFP cages in two rows of four columns, a row of small service sockets between them, and NO drive bay
 // (the tray draws no E1.S, so the rack paints none). Rear: one NVLink connector behind each GPU, and the corner
 // manifolds' blind-mate fittings on the outer rails. Tray units (10 cm), tray-local frame, front +z, y above the floor.
-export const RUBIN_FRONT={cageX:[-1.66,-1.04,1.04,1.66],cageY:[.16,.34],cageZ:4.21,mouthZ:4.44,drives:null,
+export const RUBIN_FRONT={cageX:[-1.66,-1.04,1.04,1.66],cageY:[.16,.34],cageZ:4.21,mouthZ:4.44,faceZ:4.566,lidZ:4.515,drives:null,
  serviceIo:{x:[-.28,-.10,.10,.28],y:.16,z:4.35,w:.12,h:.08,d:.10}};
 export const RUBIN_REAR={connectorX:RUBIN_GPU.map(([x])=>x),manifoldX:[-2.02,2.02]};
 
@@ -157,8 +157,8 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  for(const x of ports)for(const y of RUBIN_FRONT.cageY){
   S.box(OSFP_U.cageW,OSFP_U.cageH,.46,MAT.galv,x,y,RUBIN_FRONT.cageZ);N.box(OSFP_U.innerW,OSFP_U.innerH,.015,MAT.black,x,y,4.455);
   N.box(OSFP_U.w,OSFP_U.h,.12,MAT.nickel,x,y,4.50);
-  for(let k=0;k<nicPorts;k++)N.box(nicPorts>1?.07:.14,.045,.006,MAT.polymer,x+(k-(nicPorts-1)/2)*.09,y,4.563);
-  lidAt.push({p:[x,y+OSFP_U.h/2+.001,4.515],face:'top',yaw:0});
+  for(let k=0;k<nicPorts;k++)N.box(nicPorts>1?.07:.14,.045,.006,MAT.polymer,x+(k-(nicPorts-1)/2)*.09,y,RUBIN_FRONT.faceZ-.003);
+  lidAt.push({p:[x,y+OSFP_U.h/2+.001,RUBIN_FRONT.lidZ],face:'top',yaw:0});
  }
  // Small service IO remains visibly distinct from optical ports.
  const io=RUBIN_FRONT.serviceIo;

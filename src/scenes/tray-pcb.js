@@ -562,8 +562,9 @@ float ifxWeave(vec2 q) {
 // Project the atlas onto every board mesh of the loaded hardware by position.
 // Tray: scene units are tray units. Rack: each pulled-tray board maps into the
 // matching tray board through `rects` ([rack box] -> [tray box]).
-export function applyPcb(root, accel, { mobile = false, lod = 'tray', rects = null } = {}) {
-  const want = lod === 'rack' ? RACK_PCB_MATERIAL : PCB_MATERIAL;
+export function applyPcb(root, accel, { mobile = false, lod = 'tray', rects = null, named = null } = {}) {
+  // `named`: the material the boards carry in the file (the tray GLB's, when its boards are painted at the rack's level of detail)
+  const want = named || (lod === 'rack' ? RACK_PCB_MATERIAL : PCB_MATERIAL);
   const targets = [];
   root.updateMatrixWorld(true);
   root.traverse(o => { if (o.isMesh && !Array.isArray(o.material) && o.material.name.replace(/\.\d+$/, '') === want) targets.push(o); });

@@ -175,7 +175,7 @@ def h100_chassis_detail(m,u):
     for y in [.2,3.3]:
         for i in range(17):box('Rack rail fastener hole',(xi+.0015,y,-4.0+i*.5),(.004,.045,.07),m['dark'],u,0)
     box('Service label field',(xi+.0025,1.82,2.9),(.004,.42,.95),m['etch'],u,.004)
-    for k in range(4):box('Service label rule',(xi+.0035,1.72+k*.07,2.9),(.003,.012,.8),m['graphite'],u,0)
+    for k in range(4):box('Service label rule',(xi+.002,1.72+k*.07,2.9),(.008,.012,.8),m['graphite'],u,0)   # proud of the label field by 0.15 mm and sunk 0.25 mm behind it into the wall: clear of the depth buffer at the rack's distance
     # Six rear power supplies across the bottom (6 x 3.3 kW, NVIDIA DGX H100 user
     # guide rear figure): perforated exhaust beside the C20 inlet, a pull handle
     # along the bottom edge and a release latch at the right.
@@ -262,7 +262,7 @@ def rubin_hardware(m):
         for sz in [-1,1]:
             cylinder('Rubin plate coolant boss',(x,.743,z+sz*d*.3),.042,.028,m['shell'],u)
             cylinder('Rubin boss O-ring groove',(x,.7305,z+sz*d*.3),.05,.003,m['dark'],u)
-        for i in range(5):box('Rubin plate service etch',(x-.12+i*.055,.7295,z+.12),(.018,.001,.075),m['etch'],u,.0002)
+        for i in range(5):box('Rubin plate service etch',(x-.12+i*.055,.7305,z+.12),(.018,.003,.075),m['etch'],u,.0002)   # stands 0.3 mm off the cap (.729), clear of the depth buffer at the rack's distance
 
 def tray_specular_finish():
     # Tray cameras sit 10-30 cm from broad flat metal (chassis walls, runners,
