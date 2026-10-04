@@ -24,16 +24,16 @@ const overviewPos = (focus, offset) => focus.map((v, i) => v + offset[i]);
 export function frameCompute(built, kind, accel) {
   const h100 = accel === 'h100';
   if (kind === 'rack') {
-    // The same viewing direction as before (2.8, 1.2, 3.42 off the pivot), pulled back until the whole rack, its pulled
-    // tray and the busway above it sit inside the canvas with a 24 px margin: 1100 x 669 (desktop, fov 35) and 390 x 539
-    // (phone, fov 48; the busway runs off the frame's sides there). Solved against the built scene's measured extents
-    // (x -2.2..1, y 0..3.85, z -0.55..1.53 for the NVL72 racks, ±1.6 in z for the H100 rack), not eyeballed. The pivot
-    // sits 0.21 m off the old one, inside tools/orbit-center.mjs's 3% tolerance, which lets the whole rack and its tray
-    // sit centred. `fit` rescales for other canvas shapes (cameraPresetFor): below aspect 0.9 the portrait view takes over.
-    const dir = [2.8, 1.2, 3.42], target = [0.1, 1.776, 0.1];
+    // The same viewing direction as before (2.8, 1.2, 3.42 off the pivot), pulled back until the cabinet, its pulled tray and
+    // the busway's drop into the rack (the feed pin) sit inside the canvas with a 24 px margin, 1100 x 669 on desktop (fov 35)
+    // and 390 x 539 on a phone (fov 48). That fills about 72% of the canvas height and centres the rack in it; the overhead
+    // busway itself runs off the top and sides. Solved against the built scene's extents (cabinet x +-0.31, y 0..2.4,
+    // tray out to z 1.53, feed to y 3.1), not eyeballed. The pivot sits 0.19 m off the old one, inside tools/orbit-center.mjs's
+    // 3% tolerance. `fit` rescales for other canvas shapes (cameraPresetFor); below aspect 0.9 the portrait view takes over.
+    const dir = [2.8, 1.2, 3.42], target = [-0.05, 1.826, 0.15];
     const at = d => { const n = Math.hypot(...dir); return dir.map((v, i) => target[i] + v / n * d * 1.003); };
-    built.camera = { ...built.camera, pos: at(h100 ? 8.611 : 8.503), target, fit: { aspect: .9, fov: 35, minScale: 1 },
-      portrait: { pos: at(h100 ? 5.889 : 5.751), target, fit: { aspect: .72, fov: 48, minScale: 1 } } };
+    built.camera = { ...built.camera, pos: at(h100 ? 7.91 : 7.946), target, fit: { aspect: .9, fov: 35, minScale: 1 },
+      portrait: { pos: at(h100 ? 5.917 : 5.948), target, fit: { aspect: .72, fov: 48, minScale: 1 } } };
   } else if (kind === 'tray') {
     // H100's 8U air-cooled chassis and the liquid-cooled NVL72 tray are different hardware (this is the
     // one place the two measure far enough apart - about 1.7 units on a ~10-unit tray - to need separate

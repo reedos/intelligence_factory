@@ -98,8 +98,8 @@ const check = () => {
 // The overview pass. The stops below fly to one part and check its own pin, so a pin that only goes missing in the
 // level's opening view (7adb724: the rack's compute and NVLink tray pins fell off the bottom of the frame) never failed.
 // Here every part the level lists in each layer must have its numbered chip drawn, not `.off`, inside the canvas and
-// clear of the page's overlays (or sit in a phone group badge that names it); and the rack, with its pulled tray and the
-// busway above, must sit inside the canvas with a 24 px margin (the audit's G6).
+// clear of the page's overlays and the key hint (or sit in a phone group badge that names it); and the rack cabinet with its
+// pulled tray must sit inside the canvas with a 24 px margin and fill most of its height (the audit's G6).
 const overviewCheck = async ({ level, mode, rack }) => p.evaluate(async ({ level, mode, rack }) => {
   ifx.exitStory?.(); ifx.closeClock?.();
   await ifx.go(level, null, { force: true, keepCamera: false });
@@ -115,7 +115,7 @@ const overviewCheck = async ({ level, mode, rack }) => p.evaluate(async ({ level
   const C = ifx.store.C, id = C.SCENES[level].id, list = ({ power: C.PARTS, data: C.PARTS_DATA, heat: C.PARTS_HEAT })[mode][id] || [];
   const view = document.getElementById('view').getBoundingClientRect();
   const over = (a, c) => a.left < c.right && a.right > c.left && a.top < c.bottom && a.bottom > c.top;
-  const hud = [['title', '.hud.tl'], ['layer buttons', '.hud.tr .mode'], ['view buttons', '.hud-row'], ['legend', '.hud.br'], ['scale bar', '.hud.bl']].flatMap(([name, sel]) => {
+  const hud = [['title', '.hud.tl'], ['layer buttons', '.hud.tr .mode'], ['view buttons', '.hud-row'], ['legend', '.hud.br'], ['scale bar', '.hud.bl'], ['key hint', '#view .hint']].flatMap(([name, sel]) => {
     const el = document.querySelector(sel); if (!el || el.hidden || getComputedStyle(el).display === 'none') return [];
     const c = el.getBoundingClientRect(); return c.width ? [{ name, c }] : [];
   });
@@ -153,14 +153,13 @@ const overviewCheck = async ({ level, mode, rack }) => p.evaluate(async ({ level
       }
       return { left: Math.round(x0), top: Math.round(y0), right: Math.round(view.width - x1), bottom: Math.round(view.height - y1) };
     };
-    // the cabinet and its pulled tray (inside +-0.6 m of the rack's axis, no taller than 2.5 m) on every canvas; the busway,
-    // feeds and risers beside and above it too where the canvas is wide enough to take them (a phone lets them run off its sides)
+    // the cabinet and its pulled tray (inside +-0.6 m of the rack's axis, no taller than 2.5 m): 24 px on every canvas. The
+    // overhead busway and feeds may run off the frame; the feed pin, checked above, keeps the busway's drop in view.
     const cabinet = boxes.filter(bb => bb.min.x >= -0.6 && bb.max.x <= 0.6 && bb.max.y <= 2.5);
-    for (const [what, set] of [['rack and pulled tray', cabinet], ...(view.width / view.height >= 0.9 ? [['rack, tray and busway', boxes]] : [])]) {
-      frame = margins(set);
-      const m = Math.min(frame.left, frame.top, frame.right, frame.bottom);
-      if (m < 23) problems.push(`${what} leave ${m} px at the tightest side (left ${frame.left}, top ${frame.top}, right ${frame.right}, bottom ${frame.bottom}); need 24`);
-    }
+    frame = margins(cabinet);
+    const m = Math.min(frame.left, frame.top, frame.right, frame.bottom), fill = (view.height - frame.top - frame.bottom) / view.height;
+    if (m < 23) problems.push(`rack and pulled tray leave ${m} px at the tightest side (left ${frame.left}, top ${frame.top}, right ${frame.right}, bottom ${frame.bottom}); need 24`);
+    if (fill < 0.5) problems.push(`rack and pulled tray fill only ${Math.round(fill * 100)}% of the canvas height (cabinet and tray alone; the feed above them is in the fit too)`);
   }
   return { listed: list.length, problems };
 }, { level, mode, rack });
