@@ -15,6 +15,8 @@
 // along the cable the split happens, cable routing and the drawn cable thickness (about twice the published
 // 3 mm so it reads at hall scale, like the yellow jumpers beside it).
 import { THREE, textSprite } from '../kit.js';
+import { OSFP } from './osfp-size.js';
+import { switchModulePorts } from './lid-labels.js';
 import { SiteBuilder as Builder } from './site-blender-construction.js';
 const _I = new THREE.Matrix4();
 import { managedRoute, HALL_RUNWAY } from './fiber-routing.js';
@@ -66,8 +68,9 @@ export function buildBreakout({ model, scene, layer, leafX, rowZs, ports, racks,
     const [x, y, z] = port.point, f = port.f;
     B.box(.0046, .0036, .032, M.tan, x, y - .0045, z - f * .002);
     B.box(.0058, .0026, .006, M.tan, x, y - .0058, z + f * .016);               // the tab's finger loop
-    return [-1, 1].map(s => {
-      const cx = x + s * .005;                                                     // two MPO-12 receptacles, 10 mm apart
+    const n = switchModulePorts(model.accel);                                       // lid-labels.js: the twin-port's two receptacles
+    return Array.from({ length: n }, (_, k) => {
+      const cx = x + (k - (n - 1) / 2) * .010;                                     // MPO-12 receptacles, 10 mm apart
       B.box(.0074, .0052, .014, M.green, cx, y + .0012, z - f * .003);
       B.box(.0056, .0042, .012, M.boot, cx, y + .0012, z + f * .0095);
       return [cx, y + .0012, z + f * .0155];
@@ -77,7 +80,7 @@ export function buildBreakout({ model, scene, layer, leafX, rowZs, ports, racks,
   // rack's drawn scale-out module, with its green MPO shell and boot
   const adapterEnd = k => {
     const f = k.f, x = k.x + .2, y = 1.333375 - 2 * .0445, z = k.z + f * .62;
-    B.box(.0226, .013, .035, M.metal, x, y, z);
+    B.box(OSFP.w, OSFP.h, .035, M.metal, x, y, z);
     B.box(.005, .0034, .03, M.tan, x, y - .0047, z + f * .016);
     B.box(.0074, .0052, .012, M.green, x, y + .0012, z + f * .0235);
     B.box(.0056, .0042, .012, M.boot, x, y + .0012, z + f * .0355);

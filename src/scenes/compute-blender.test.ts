@@ -394,13 +394,13 @@ it('rack optics seat on compute units, retain generation port counts and termina
   const b=wrappers[0].build(options(id)),info=b.scene.userData.rackOptics;
   const count=id==='h100'?4:18;
   expect(info.cagesPerTray).toBe(id==='rubin'?8:4);
-  expect(info.modules).toHaveLength(count*2);
-  expect(info.storageCages).toHaveLength(count*(id==='gb200'||id==='h100'?4:2));
-  expect(info.modules.filter((m:any)=>m.pulled)).toHaveLength(2);
+  expect(info.modules).toHaveLength(count*info.cagesPerTray);   // every cage the tray level populates is populated
+  expect(info.storageCages).toHaveLength(count*(id==='gb200'||id==='h100'||id==='rubin'?4:2));   // Rubin: the tray's four service sockets
+  expect(info.modules.filter((m:any)=>m.pulled)).toHaveLength(info.cagesPerTray);   // the pulled tray shows every module full length
   for(const m of info.modules){
    if(id!=='h100')expect(m.row<12||m.row>20).toBe(true); // no optics on NVLink switch trays
    expect(m.capacityGbps).toBe(id==='gb200'?400:800);
-   expect(m.connectors).toBe(id==='h100'||id==='gb300'?2:1);
+   expect(m.connectors).toBe(id==='h100'?2:1);   // only the DGX H100's modules are twin-port; GB300's is single-port 800G DR4 (lid-labels.js)
   }
   const trunks=b.dataFlows.filter((f:any)=>f.rackOpticalTrunk);
   expect(trunks).toHaveLength(8);
@@ -424,7 +424,7 @@ it('rack optics seat on compute units, retain generation port counts and termina
    }
   }
   const links=b.dataFlows.filter((f:any)=>f.rackOpticalLink);
-  expect(links).toHaveLength(count*(id==='h100'||id==='gb300'?4:2));
+  expect(links).toHaveLength(count*info.cagesPerTray*(id==='h100'?2:1));   // one lead per connector on every populated cage
   const hardware=b.scene.getObjectByName('Blender complete rack hardware');hardware.updateMatrixWorld(true);
   // Limit intersections to the connector boots. Testing every screw, chassis
   // face and cable triangle for every lead needlessly scales with rack detail.

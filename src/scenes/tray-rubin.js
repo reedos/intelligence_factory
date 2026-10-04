@@ -7,6 +7,8 @@ import { computeMaterials, finishCompute, boardFinish } from './compute-finish.j
 import { etch } from './package-marks.js';
 import { tagHeat, balanceHeat, PART_W } from '../heat.js';
 import { FABRICS } from '../model/engine.ts';
+import { OSFP_U } from './osfp-size.js';
+import { modulePorts } from './lid-labels.js';
 // GPU, CPU, NIC-board and DPU centers (tray units, 10 cm, tray-local frame, front +z) and the cold-plate footprint
 // over each. Exported so the rack's pulled-tray LOD (rack.js) draws the same nine plates at the same spots instead
 // of a hand-picked stand-in, and the two views can never drift apart.
@@ -14,6 +16,13 @@ export const RUBIN_GPU=[[-1.60,-2.7],[-.62,-2.7],[.62,-2.7],[1.60,-2.7]],RUBIN_C
 export const RUBIN_NIC=[[-1.35,2.85],[1.35,2.85]],RUBIN_DPU=[0,2.85];
 export const RUBIN_COLD_PLATES=[...RUBIN_GPU.map(([x,z])=>({x,z,w:.88,d:1.0,kind:'gpu'})),...RUBIN_CPU.map(([x,z])=>({x,z,w:.80,d:.85,kind:'cpu'})),
  ...RUBIN_NIC.map(([x,z])=>({x,z,w:1.08,d:1.65,kind:'nic'})),{x:RUBIN_DPU[0],z:RUBIN_DPU[1],w:.76,d:1.65,kind:'dpu'}];
+// The tray's FRONT and REAR interfaces, exported like the plates (the rack's seated trays and the Blender hand-off read
+// them): eight OSFP cages in two rows of four columns, a row of small service sockets between them, and NO drive bay
+// (the tray draws no E1.S, so the rack paints none). Rear: one NVLink connector behind each GPU, and the corner
+// manifolds' blind-mate fittings on the outer rails. Tray units (10 cm), tray-local frame, front +z, y above the floor.
+export const RUBIN_FRONT={cageX:[-1.66,-1.04,1.04,1.66],cageY:[.16,.34],cageZ:4.21,mouthZ:4.44,drives:null,
+ serviceIo:{x:[-.28,-.10,.10,.28],y:.16,z:4.35,w:.12,h:.08,d:.10}};
+export const RUBIN_REAR={connectorX:RUBIN_GPU.map(([x])=>x),manifoldX:[-2.02,2.02]};
 
 export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,trayLidLabels}) {
  const scene=new THREE.Scene();lights(scene,quality);
@@ -98,7 +107,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
    N.cyl(.031,.014,MAT.nickel,px,.772,pz,12);N.box(.036,.002,.006,MAT.black,px,.7805,pz);}
   heatFlows.push(tagHeat(flow([[x,.22,z],[x,.77,z]],'hot',{count:4,speed:.4,size:.028,trail:false}),...plateW[ci]));
  }
- for(const [side,x] of [[-1,-2.02],[1,2.02]]){
+ for(const [side,x] of [[-1,RUBIN_REAR.manifoldX[0]],[1,RUBIN_REAR.manifoldX[1]]]){
   S.cylZ(.062,8.55,MAT.nickel,x,.662,-.05,24);S.box(.05,.09,8.4,MAT.nickel,x,.585,-.05);
   for(const z of [-3.9,-2.3,-.3,1.6,3.3])S.box(.16,.05,.1,MAT.darkSteel,x+side*.08,.56,z);
   const path=[[x,.825,-4.55],[x,.825,4.20]];if(side===1)path.reverse();
@@ -111,10 +120,10 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  const rigid=(a,b)=>{S.strut([a[0],.69,a[1]],[b[0],.69,b[1]],.028,MAT.nickel,12);for(const p of [a,b])S.box(.07,.07,.07,MAT.nickel,p[0],.69,p[1]);};
  for(const [z,zSupply,zReturn] of [[-2.7,-3.45,-1.95],[-.65,-1.32,.05],[2.85,1.75,3.95]]) {
   const devices=cooled.filter(p=>p[1]===z),lo=Math.min(...devices.map(p=>p[0])),hi=Math.max(...devices.map(p=>p[0]));
-  rigid([-2.02,zSupply],[hi,zSupply]);rigid([lo,zReturn],[2.02,zReturn]);
+  rigid([RUBIN_REAR.manifoldX[0],zSupply],[hi,zSupply]);rigid([lo,zReturn],[RUBIN_REAR.manifoldX[1],zReturn]);
   const rowW=devices.reduce((a,c)=>a+deviceW.get(c),0);
-  heatFlows.push(tagHeat(flow([[-2.02,.825,zSupply],[hi,.825,zSupply]],'cool',{count:8,speed:.65,size:.022,trail:false}),`row-${z}`,rowW,'carrier'));
-  heatFlows.push(tagHeat(flow([[lo,.825,zReturn],[2.02,.825,zReturn]],'warm',{count:8,speed:.65,size:.022,trail:false}),`row-${z}`,rowW,'carrier'));
+  heatFlows.push(tagHeat(flow([[RUBIN_REAR.manifoldX[0],.825,zSupply],[hi,.825,zSupply]],'cool',{count:8,speed:.65,size:.022,trail:false}),`row-${z}`,rowW,'carrier'));
+  heatFlows.push(tagHeat(flow([[lo,.825,zReturn],[RUBIN_REAR.manifoldX[1],.825,zReturn]],'warm',{count:8,speed:.65,size:.022,trail:false}),`row-${z}`,rowW,'carrier'));
   for(const c of devices){const [x,,w,d]=c;
    rigid([x,zSupply],[x,z-d*.48]);rigid([x,z+d*.48],[x,zReturn]);
    heatFlows.push(tagHeat(flow([[x,.825,zSupply],[x,.825,z-d*.48]],'cool',{count:3,speed:.5,size:.022,trail:false}),`branch-${x}-${z}`,deviceW.get(c),'carrier'));
@@ -131,18 +140,20 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
    const p0=b.clone().addScaledVector(d1.normalize(),-rr),p1=b.clone().addScaledVector(d2.normalize(),rr);
    for(let k=0;k<=6;k++){const t=k/6;out.push(p0.clone().multiplyScalar((1-t)**2).addScaledVector(b,2*t*(1-t)).addScaledVector(p1,t*t).toArray());}}
   out.push(pts[pts.length-1]);return out;};
- const nvX=gp.map(([x])=>x),ports=[-1.66,-1.04,1.04,1.66];
+ const nvX=RUBIN_REAR.connectorX,ports=RUBIN_FRONT.cageX,nicPorts=modulePorts(model.accel);
  for(const x of nvX)nvConnector(S,N,x,.18,-4.35,.5,.22,.26);
  // A module seated in every cage: its nose stands 10 mm proud of the mouth, inside the extraction bail,
  // with its MPO receptacle on the face and the lid label on the exposed top (lid-labels.js).
  const lidAt=[];
- for(const x of ports)for(const y of [.16,.34]){
-  S.box(.29,.13,.46,MAT.galv,x,y,4.21);N.box(.25,.085,.015,MAT.black,x,y,4.455);
-  N.box(.19,.08,.12,MAT.nickel,x,y,4.50);N.box(.14,.045,.006,MAT.polymer,x,y,4.563);
-  lidAt.push({p:[x,y+.04,4.515],face:'top',yaw:0});
+ for(const x of ports)for(const y of RUBIN_FRONT.cageY){
+  S.box(OSFP_U.cageW,OSFP_U.cageH,.46,MAT.galv,x,y,RUBIN_FRONT.cageZ);N.box(OSFP_U.innerW,OSFP_U.innerH,.015,MAT.black,x,y,4.455);
+  N.box(OSFP_U.w,OSFP_U.h,.12,MAT.nickel,x,y,4.50);
+  for(let k=0;k<nicPorts;k++)N.box(nicPorts>1?.07:.14,.045,.006,MAT.polymer,x+(k-(nicPorts-1)/2)*.09,y,4.563);
+  lidAt.push({p:[x,y+OSFP_U.h/2+.001,4.515],face:'top',yaw:0});
  }
  // Small service IO remains visibly distinct from optical ports.
- for(const x of [-.28,-.10,.10,.28]){S.box(.12,.08,.10,MAT.darkSteel,x,.16,4.35);N.box(.09,.05,.018,MAT.black,x,.16,4.41);}
+ const io=RUBIN_FRONT.serviceIo;
+ for(const x of io.x){S.box(io.w,io.h,io.d,MAT.darkSteel,x,io.y,io.z);N.box(.09,.05,.018,MAT.black,x,io.y,io.z+.06);}
  gp.forEach(([x,z],i)=>{
  // 12 V ends at the rear VRM row (not on the package); core power runs from
  // both VRM rows into the substrate edge, below the die and HBM tops.
@@ -175,7 +186,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
   // on the NIC board, beside its packages (not 17 mm above them)
   const yN=.137;
   dataFlows.push(flow([[lane,.15,2.14],[lane,yN,1.85],[flank,yN,1.85],[flank,yN,3.06],[lane,.15,3.08]],'pcie',{count:5,speed:.9,size:.02,trail:false}));
-  for(const [j,y]of [.16,.34].entries()){
+  for(const [j,y]of RUBIN_FRONT.cageY.entries()){
    const start=j===0?2.64:3.58;
    const path=j===0?[[lane,.15,start-.02],[flank,yN,start+.04],[flank,yN,3.78],[lane,y,3.95],[lane,y,4.50]]:[[lane,.2,start],[lane,y,3.95],[lane,y,4.50]];
    const f=flow(path,'serdes',{count:5,speed:.75,size:.02,trail:false,audit:{within:[[lane-.15,y-.07,3.97,lane+.15,y+.07,4.57]],why:'into the cage and the module it holds'}});f.rubinNicOutput={gpu:i,nic:j,startZ:start};dataFlows.push(f);
@@ -195,7 +206,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  for(const x of [-1.1,1.1])flows.push(flow([[Math.sign(x)*1.11,.2,-3.98],[x,.102,-3.9],[x,.102,-1.17]],'bus12',
   {count:14,speed:.7,size:.025,trail:false,audit:{within:[[x-.055,.088,-3.95,x+.055,.116,.55],[x-.34,.13,-4.2,x+.34,.27,-3.76]],why:'out of the converter, down into the 12 V copper bar under it, forward inside it'}}));
  for(const [x,z] of [...nic,dpu])flows.push(flow([[x,.18,1.45],[x,.18,z]],'bus12',{count:8,speed:.8,size:.022,trail:false}));
- scene.add(S.build(),N.build({cast:false}));trayLidLabels(scene,model.accel,lidAt,[.165,.07]);for(const list of [flows,dataFlows,heatFlows])for(const f of list)scene.add(f.group);
+ scene.add(S.build(),N.build({cast:false}));trayLidLabels(scene,model.accel,lidAt);for(const list of [flows,dataFlows,heatFlows])for(const f of list)scene.add(f.group);
  const hs=(p,off=[2.2,2.8,3.5])=>({pos:p,view:{pos:p.map((v,i)=>v+off[i]),target:p}});
  const hotspots={osfp:hs([-1.35,.5,4.25]),clip:hs([0,.45,-4.5],[2.4,2,-3]),ibc:hs([-1.11,.45,-3.98]),vrm:hs([1.6,.2,-2.04],[-.5,1.9,2.4]),gpu:{pos:[1.6,.3,-2.7],view:componentView([1.6,.16,-2.7],[-.25,.4,1.3],[.6,.2,.6])},grace:hs([-1.1,.32,-.65]),lpddr:hs([1.74,.3,-.65],[0,2.1,.5]),coldplates:hs([-1.1,.82,-.65]),nic:hs([1.35,.8,2.85]),nvconn:hs([1.6,.4,-4.35],[2,2,-3])};
  // The power layer's glow (src/power-glow.js), on the heat layer's watts: GPUs and their regulator rows, Vera with its
@@ -210,7 +221,7 @@ export function buildRubin({quality,model}, {lights,pkgTex,dieTex,nvConnector,tr
  nic.forEach(([x,z],i)=>{for(const dx of [-.3,.3])for(const dz of [-.47,.47])PD.push({id:`cx9-${i}-${dx}-${dz}`,part:'nic',watts:nicW/4,at:[x+dx,.124,z+dz],size:[.4,.52]});});
  PD.push({id:'dpu',part:'nic',watts:dpuW,at:[0,.124,2.85],size:[.66,.75]});
  ibcX.forEach((x,i)=>PD.push({id:`ibc-${i}`,part:'ibc',watts:model.rack.ibcLossKW*1000/18/ibcX.length,at:[x,.114,-3.98],size:[.65,.42]}));
- for(const x of ports)for(const y of [.16,.34])PD.push({id:`osfp-${x}-${y}`,part:'osfp',watts:FABRICS[A.nicPortGbps].gpuModuleW,volt:'v33',at:[x,y-.063,4.21],size:[.29,.46]});
+ for(const x of ports)for(const y of RUBIN_FRONT.cageY)PD.push({id:`osfp-${x}-${y}`,part:'osfp',watts:FABRICS[A.nicPortGbps].gpuModuleW,volt:'v33',at:[x,y-.063,4.21],size:[.29,.46]});
  finishCompute(scene,finish);
  scene.userData.computeGeneration={id:'rubin',gpus:4,cpus:2,fans:0,internalHoses:0,midplane:true,nicAssemblies:2,nicCount:8,dpuCount:1,opticalPorts:8,representative:true};
  // the GPU name etched on each package's front substrate margin, ahead of the interposer (package-marks.js)

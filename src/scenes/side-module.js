@@ -11,6 +11,7 @@ import { MODULE_VARIANTS, LRO_COLOR, inVariant, lroDieTop, lroIntro, lroPartCopy
 import { moduleTier } from './lid-labels.js';
 import { tagHeat, balanceHeat, PART_W } from '../heat.js';
 import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, bondWire, label, lidBox, outline, FLOW, COL, note, unitCol, finTex, glowMat, canvasTex } from './side-kit.js';
+import { OSFP_MM } from './osfp-size.js';
 
 // A representative shared PIC: eight TX lanes, eight RX lanes; four CW sources feed TX only.
 const EMZ = { w: 640, h: 680, row: i => 26 + i * 40, laserY: k => 46 + k * 80, split: 60, mzIn: 250, mzOut: 440, arm: 7, padX: 232, rxRow: i => 360 + i * 40, pdX: 68, rxPadX: 25 };
@@ -196,7 +197,7 @@ export function build({ quality, state, model }) {
 
   // ======================= what the reader should know at a glance =======================
   label(scene, `Pluggable module · ${tier.published ? `${tier.rate} twin-port OSFP, 2 × DR4` : `${tier.rate} OSFP, type unpublished`}`, [0, -0.35, 2.6], '#e8ecf2', 0.34);
-  label(scene, '107.8 × 22.58 mm · layers pulled apart · parts representative', [0, -0.75, 2.6], note, 0.18);
+  label(scene, `${OSFP_MM.len} × ${OSFP_MM.w} mm · layers pulled apart · parts representative`, [0, -0.75, 2.6], note, 0.18);
   label(scene, `One DSP · ${tier.rate} · 8 TX + 8 RX · two ${tier.port} ports`, [0, -1.05, 2.6], unitCol, 0.18);
   label(scene, 'Electrical · copper traces', [DSPX - 1.2, 1.9, -1.45], COL.elec, 0.14);
   label(scene, 'Bond wires', [(DRVX + PICX0) / 2, 1.9, -1.45], '#e6c46b', 0.14);

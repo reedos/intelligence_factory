@@ -10,6 +10,10 @@ from mathutils import Vector
 
 HERE=Path(__file__).resolve().parent
 ROOT=HERE.parents[1]
+# The tray's front/rear interface, the OSFP cage envelope and the rack's tray rows, written by export-native-reference.mjs
+# from the constants tray.js / tray-rubin.js / osfp-size.js / nvl72-layout.js build the scenes from (tray units, 10 cm).
+LAY=json.loads((HERE/'references'/'rack-tray-layout.json').read_text())
+OS=LAY['osfp']
 OUT=ROOT/'public'/'models'; OUT.mkdir(parents=True,exist_ok=True)
 
 def material(name,color,metal=.7,rough=.38):
@@ -135,7 +139,7 @@ def tray_hardware(accel,m):
         # Skeleton front bezel leaves original four optical cages and four drives
         # physically exposed. No fictional port texture or additional I/O count.
         for y in [.035,H-.025]:box('Bezel folded cross member',(0,y,4.5),(4.4,.055,.075),m['graphite'],u,.02)
-        for x in [-2.12,-.94,-.62,-.06,2.11]:box('Bezel structural separator',(x,H/2,4.5),(.055,H-.08,.075),m['graphite'],u,.017)
+        for x in LAY['nvl']['front'][accel]['bezelX']:box('Bezel structural separator',(x,H/2,4.5),(.055,H-.08,.075),m['graphite'],u,.017)
         for x in [-2.27,2.27]:
             box('Machined mounting ear',(x,H/2,4.53),(.18,H*.86,.10),m['shell'],u,.025)
             cylinder('Captive front fastener',(x,H/2,4.59),.048,.017,m['bright'],u,'z')
@@ -159,7 +163,7 @@ def tray_hardware(accel,m):
         h100_chassis_detail(m,u)
     # Actual manufactured heat-sink fins over existing NIC footprints (not new NICs).
     if accel!='h100':
-        for x in [.2,.7,1.2,1.7]:
+        for x in LAY['nvl']['front'][accel]['cageX']:
             for j in range(7):box('NIC precision fin',(x-.126+j*.042,.40,3.3),(.015,.11,.47),m['shell'],u,.004)
 
 def h100_chassis_detail(m,u):
@@ -186,10 +190,10 @@ def h100_chassis_detail(m,u):
         box('PSU pull handle',(px,.07,ZB-.085),(.54,.035,.035),m['graphite'],u,.014)
         box('PSU release latch',(px+.315,.24,ZB-.02),(.04,.12,.03),m['bright'],u,.008)
     # Folded mouths on the four OSFP cages in the motherboard tray; apertures stay open.
-    cy=.94
-    for x in [-.375,-.125,.125,.375]:
-        for sy in [-1,1]:box('OSFP cage folded mouth',(x,cy+sy*.079,ZB-.005),(.25,.014,.03),m['bright'],u,.005)
-        for sx in [-1,1]:box('OSFP cage folded mouth',(x+sx*.118,cy,ZB-.005),(.014,.144,.03),m['bright'],u,.005)
+    cy=LAY['h100']['cageY']
+    for x in LAY['h100']['cageX']:
+        for sy in [-1,1]:box('OSFP cage folded mouth',(x,cy+sy*(OS['cageH']/2+.007),ZB-.005),(.25,.014,.03),m['bright'],u,.005)
+        for sx in [-1,1]:box('OSFP cage folded mouth',(x+sx*(OS['cageW']/2+.0065),cy,ZB-.005),(.013,OS['cageH'],.03),m['bright'],u,.005)
     # Rear service hardware: the GPU tray's two captive thumbscrews (center, low)
     # and the motherboard tray's ejection levers on both sides, which engage the
     # midplane connectors (service manual). Shapes are representative.
@@ -231,10 +235,11 @@ def rubin_hardware(m):
     for x,w in [(-1.35,1.35),(0,.85),(1.35,1.35)]:
         for sx in [-1,1]:box('Independent IO cartridge rail',(x+sx*w*.5,.20,2.85),(.03,.12,2.12),m['shell'],u,.008)
         box('IO cartridge latch',(x,.26,1.82),(.26,.08,.15),m['graphite'],u,.02)
-    for x in [-1.66,-1.04,1.04,1.66]:
-        for y in [.16,.34]:
-            for sx in [-1,1]:box('Rubin optical cage cheek',(x+sx*.147,y,4.235),(.018,.13,.44),m['bright'],u,.005)
-            for sy in [-1,1]:box('Rubin optical cage lip',(x,y+sy*.064,4.46),(.29,.018,.028),m['bright'],u,.005)
+    RF=LAY['rubin']['front']
+    for x in RF['cageX']:
+        for y in RF['cageY']:
+            for sx in [-1,1]:box('Rubin optical cage cheek',(x+sx*(OS['cageW']/2+.009),y,4.235),(.018,OS['cageH']-.018,.44),m['bright'],u,.005)
+            for sy in [-1,1]:box('Rubin optical cage lip',(x,y+sy*(OS['cageH']/2-.005),4.46),(OS['cageW'],.018,.028),m['bright'],u,.005)
     # Split front handles and broad unvented service fascia, matching the fanless bay.
     box('Rubin front fascia',(0,.07,4.50),(4.36,.09,.065),m['shell'],u,.018)
     box('Rubin upper bezel',(0,.455,4.50),(4.36,.065,.065),m['shell'],u,.018)
@@ -242,13 +247,14 @@ def rubin_hardware(m):
         for sx in [-1,1]:box('Rubin handle standoff',(x+sx*.43,.07,4.63),(.08,.09,.20),m['shell'],u,.024)
         box('Rubin broad service pull',(x,.07,4.75),(.88,.09,.075),m['graphite'],u,.035)
     # Folded cage mouths and extraction bails on the eight native optical cages.
-    for x in [-1.66,-1.04,1.04,1.66]:
-        for y in [.16,.34]:
-            for sy in [-1,1]:box('Rubin cage folded mouth',(x,y+sy*.071,4.452),(.31,.014,.024),m['bright'],u,.006)
-            for sx in [-1,1]:box('Rubin cage folded mouth',(x+sx*.151,y,4.452),(.014,.128,.024),m['bright'],u,.006)
+    for x in RF['cageX']:
+        for y in RF['cageY']:
+            for sy in [-1,1]:box('Rubin cage folded mouth',(x,y+sy*(OS['cageH']/2+.007),4.452),(OS['cageW']+.02,.014,.024),m['bright'],u,.006)
+            for sx in [-1,1]:box('Rubin cage folded mouth',(x+sx*(OS['cageW']/2+.006),y,4.452),(.014,OS['innerH'],.024),m['bright'],u,.006)
             # The bail clears the seated module's nose (native, to z=4.566).
-            for sx in [-1,1]:box('Rubin module bail arm',(x+sx*.105,y-.035,4.515),(.012,.012,.12),m['graphite'],u,.004)
-            box('Rubin module bail',(x,y-.035,4.578),(.222,.014,.012),m['graphite'],u,.005)
+            arm=OS['w']/2+.0105
+            for sx in [-1,1]:box('Rubin module bail arm',(x+sx*arm,y-.035,4.515),(.012,.012,.12),m['graphite'],u,.004)
+            box('Rubin module bail',(x,y-.035,4.578),(2*arm+.012,.014,.012),m['graphite'],u,.005)
     # Machined bosses on the nine native cold-plate caps (cap top y=.729): a
     # raised inlet/outlet pair with an O-ring groove, plus a service etch.
     plates=[(x,-2.7,.88,1.0) for x in [-1.6,-.62,.62,1.6]]+[(x,-.65,.80,.85) for x in [-1.1,1.1]]+[(x,2.85,1.08,1.65) for x in [-1.35,1.35]]+[(0,2.85,.76,1.65)]
@@ -324,10 +330,14 @@ def rack_hardware(accel,m):
     box('Cast cabinet base',(0,.042,0),(.62,.055,1.09),m['graphite'],u,.014)
     box('Black powder-coat top cap',(0,2.258,0),(.598,.022,1.06),m['graphite'],u,.007)
     if accel!='h100':
-        # rows follow src/scenes/nvl72-layout.js: ps 0-3, compute 4-11, switch 12-20, compute 21-30, ps 31-34, mgmt 35-36
+        # rows follow src/scenes/nvl72-layout.js (references/rack-tray-layout.json): ps 0-3, compute 4-11, switch 12-20, compute 21-30, ps 31-34, mgmt 35-36
+        RK=LAY['rack']
         for i in range(35):
-            if i in [16,25]:continue  # pulled trays; the management switches (35, 36) have no tray handles
-            y=.12+i*.04445+.022225
+            if i in [RK['switchPulled'],RK['pulled']]:continue  # pulled trays; the management switches (35, 36) have no tray handles
+            # the switch trays already have their gold bent pull handles (rack.js serviceFace), at nearly the same x: a second
+            # folded handle on top of one shared its -x face with it (the coplanar gate's long-standing REFERENCE_rack-gb200_0037)
+            if RK['layout'][i]=='switch':continue
+            y=RK['base']+i*RK['pitch']+RK['pitch']/2
             for x in [-.205,.185]:
                 box('Folded service handle',(x,y,.485),(.009,.026,.013),m['bright'],u,.003)
             for k in range(17 if accel!='rubin' and 12<=i<=20 else 0):box('Vent grille relief',(-.186+k*.0075,y,.469),(.002,.019,.005),m['graphite'],u,0)

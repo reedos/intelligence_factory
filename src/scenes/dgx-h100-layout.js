@@ -25,6 +25,9 @@ export const DGX = {
   pcieX: [-0.35, 0.35], pcieZ: -0.15, hgxPcie: [-1.08, 2.5],
   cageX: [-0.375, -0.125, 0.125, 0.375], cageY: 0.94,
   riserX: 0.66, cardX: 1.42, cardY: [0.93, 1.17], cardZ: -3.62,
+  // The storage ConnectX-7 cards' QSFP112 cages at the rear bracket (left card: slots 1 and 3, right: 2): x across the tray,
+  // dy above the card; the rack draws the same four on its server rears (rack-optics.js).
+  storageX: [-1.67, -1.37, 1.17, 1.47], storageDY: 0.055,
   psuX: i => -1.825 + i * 0.73, psuY: 0.24,
   fanX: [-1.62, -0.54, 0.54, 1.62], fanY: [0.965, 1.975, 2.985],
   driveX: [-1.68, -0.88, 0.87, 1.67], driveY: [0.35, 0.185],

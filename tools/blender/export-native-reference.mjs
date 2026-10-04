@@ -112,8 +112,17 @@ if (process.argv.includes('--compute')) {
     // The pulled tray's layout, from the same constants tray.js / tray-rubin.js build the tray level from, for
     // rack-inspection-detail.py (Blender cannot import them): tray units, tray-local frame; unit = 0.1 m.
     const T = await server.ssrLoadModule('/src/scenes/tray.js'), R = await server.ssrLoadModule('/src/scenes/tray-rubin.js'), K = await server.ssrLoadModule('/src/scenes/rack.js');
+    // The tray's front and rear interfaces, the OSFP/QSFP envelopes, the rack's tray rows and the module port counts come from the
+    // same constants the scenes build from (tray.js, tray-rubin.js, osfp-size.js, nvl72-layout.js, dgx-h100-layout.js, lid-labels.js).
+    const O = await server.ssrLoadModule('/src/scenes/osfp-size.js'), L = await server.ssrLoadModule('/src/scenes/nvl72-layout.js'),
+      G = await server.ssrLoadModule('/src/scenes/dgx-h100-layout.js'), LL = await server.ssrLoadModule('/src/scenes/lid-labels.js');
     await fs.writeFile(path.join(referenceDirectory, 'rack-tray-layout.json'), JSON.stringify({ unit: 0.1,
-      nvl: { boardX: T.NVL_BOARD_X, cpu: T.NVL_CPU, gpuZ: T.NVL_GPU_Z, gpuSize: T.NVL_GPU_SIZE, fanX: T.NVL_FAN_X, fanZ: T.NVL_FAN_Z, lpddr: T.NVL_LPDDR, plates: K.NVL_COLD_PLATES },
-      rubin: { plates: R.RUBIN_COLD_PLATES } }, null, 1));
+      osfp: O.OSFP_U, qsfp: O.QSFP_U,
+      modulePorts: Object.fromEntries(['h100', 'gb200', 'gb300', 'rubin'].map(a => [a, LL.modulePorts(a)])),
+      rack: { layout: L.LAYOUT, pulled: L.PULLED, switchPulled: L.SWITCH_PULLED, base: L.BASE + 0.02, pitch: L.U },
+      nvl: { boardX: T.NVL_BOARD_X, cpu: T.NVL_CPU, gpuZ: T.NVL_GPU_Z, gpuSize: T.NVL_GPU_SIZE, fanX: T.NVL_FAN_X, fanZ: T.NVL_FAN_Z, lpddr: T.NVL_LPDDR, plates: K.NVL_COLD_PLATES,
+        front: T.NVL_FRONT, rear: T.NVL_REAR },
+      rubin: { plates: R.RUBIN_COLD_PLATES, front: R.RUBIN_FRONT, rear: R.RUBIN_REAR, nic: R.RUBIN_NIC, dpu: R.RUBIN_DPU },
+      h100: { cageX: G.DGX.cageX, cageY: G.DGX.cageY, storageX: G.DGX.storageX, storageDY: G.DGX.storageDY, cardY: G.DGX.cardY, driveX: G.DGX.driveX, driveY: G.DGX.driveY } }, null, 1));
   } finally { await server.close(); }
 }
