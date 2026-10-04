@@ -28,7 +28,7 @@ bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete(use_global=Fal
 bpy.ops.import_scene.gltf(filepath=str(TARGET))
 root = bpy.data.objects['IFX_OSFP']
 mats = {m.name.split(' | ')[0]: m for m in bpy.data.materials if ' | ' in m.name}
-NAMES = ['DRIVER channel cells', 'TIA channel cells', 'MZM modulator bodies']
+NAMES = ['DRIVER channel cells', 'TIA channel cells', 'MZM modulator bodies', 'DRIVER channel pads', 'TIA channel pads', 'MZM modulator pads']
 for o in list(bpy.data.objects):
     if any(o.name.startswith(n) for n in NAMES): bpy.data.objects.remove(o, do_unlink=True)
 
@@ -51,16 +51,24 @@ def emit(name, parent, mat, vs, fs):
 mm = .001
 tx = lambda i: .00665 - i * .00079
 rx = lambda i: -.001 - i * .00079
-# driver / TIA die top is y = 3.55 mm; cells are 1.9 mm x 0.52 mm x 30 um, clear of the die marking (x 9.6 to 11.2 mm)
+# Each cell reads as its own part at the part cameras: a 0.10 mm block in the light machined-metal material (the
+# dies and the chip are dark), 0.46 mm wide on the 0.79 mm lane pitch so a 0.33 mm gap shows between neighbours,
+# with a gold bond pad on its output edge where the lane's bond wire or RF feed lands.
 dv, df, tv, tf, mv, mf = [], [], [], [], [], []
+dp, dpf, tp, tpf = [], [], [], []
 for i in range(8):
-    box(dv, df, 11.40 * mm, 13.30 * mm, 3.550 * mm, 3.580 * mm, tx(i) - .26 * mm, tx(i) + .26 * mm)
-    box(tv, tf, 11.40 * mm, 13.30 * mm, 3.550 * mm, 3.580 * mm, rx(i) - .26 * mm, rx(i) + .26 * mm)
-    # cladding slab under the arm pair (arms +/-0.18 mm, electrodes +/-0.28 mm, body +/-0.33 mm inside the 0.79 mm lane pitch): 40 um proud of the chip face
-    box(mv, mf, 17.20 * mm, 23.40 * mm, 3.600 * mm, 3.616 * mm, tx(i) - .33 * mm, tx(i) + .33 * mm)
-emit('DRIVER channel cells', 'PART_DRIVER', '07', dv, df)
-emit('TIA channel cells', 'PART_TIA', '07', tv, tf)
-emit('MZM modulator bodies', 'PART_PIC', '03', mv, mf)
+    box(dv, df, 11.40 * mm, 13.10 * mm, 3.550 * mm, 3.650 * mm, tx(i) - .23 * mm, tx(i) + .23 * mm)
+    box(dp, dpf, 13.10 * mm, 13.34 * mm, 3.550 * mm, 3.665 * mm, tx(i) - .20 * mm, tx(i) + .20 * mm)
+    box(tv, tf, 11.40 * mm, 13.10 * mm, 3.550 * mm, 3.650 * mm, rx(i) - .23 * mm, rx(i) + .23 * mm)
+    box(tp, tpf, 13.10 * mm, 13.34 * mm, 3.550 * mm, 3.665 * mm, rx(i) - .20 * mm, rx(i) + .20 * mm)
+    # modulator body under the arm pair (arms +/-0.18 mm, electrodes +/-0.28 mm): a light 0.66 mm cladding strip 18 um
+    # proud of the chip face, so the arms and electrodes stay in view on top and 0.13 mm of dark chip shows between lanes
+    box(mv, mf, 17.20 * mm, 23.40 * mm, 3.600 * mm, 3.618 * mm, tx(i) - .33 * mm, tx(i) + .33 * mm)
+emit('DRIVER channel cells', 'PART_DRIVER', '02', dv, df)
+emit('DRIVER channel pads', 'PART_DRIVER', '05', dp, dpf)
+emit('TIA channel cells', 'PART_TIA', '02', tv, tf)
+emit('TIA channel pads', 'PART_TIA', '05', tp, tpf)
+emit('MZM modulator bodies', 'PART_PIC', '02', mv, mf)
 
 meta['laneCells'] = {'perDirection': 8, 'perEngine': 4, 'driverCells': 8, 'tiaCells': 8, 'modulators': 8, 'photodiodes': 8, 'lasers': 4,
                      'lasersShared': 'four CW lasers, each feeding two modulators (one per lane pair)'}

@@ -55,6 +55,8 @@ export const STAGES = {
   rxTiaCells: ['TIA channel cells', 8],
   txModulators: ['MZM modulator bodies', 8],
   txDriverPadsElectrodes: ['PART_PIC transmit electrodes', 24],   // 8 driver pads + 16 electrodes (two per modulator)
+  txDriverPads: ['DRIVER channel pads', 8],
+  rxTiaPads: ['TIA channel pads', 8],
   rxPhotodiodePads: ['PART_PIC__05', 8],
   rxPhotodiodePackages: ['PART_PIC__07', 8],
   cwLasers: ['PART_LASERS__07', 4],                                // shared: each laser feeds two modulators

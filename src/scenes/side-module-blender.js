@@ -2,7 +2,7 @@
 // The asset is a representative layout, not a recovered production design. Exported
 // routes describe visible conductors; chip-internal paths are omitted; contact breakout uses representative PCB layers.
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { THREE, flow, setup, label, FLOW, COL, note, unitCol } from './side-kit.js';
+import { THREE, flow, laneFlow, setup, label, FLOW, COL, note, unitCol } from './side-kit.js';
 import { applyArtDirection } from './module-art-direction.js';
 import { MODULE_VARIANTS, LRO_COLOR, inVariant, splitByZ, lroDieTop, lroIntro, lroPartCopy, dspMarkingTop } from './module-lro.js';
 import { moduleLabel, moduleTier } from './lid-labels.js';
@@ -28,7 +28,7 @@ const PIN_OFFSET = {
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
 
-export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=lanes1`) {
+export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=lanes2`) {
   if (cached) return Promise.resolve(cached);
   if (!pending) pending = new GLTFLoader().loadAsync(url).then(gltf => {
     cached = gltf;
@@ -133,10 +133,7 @@ export function build({ quality, state, model: scenario }) {
       power: FLOW.power, heat: FLOW.heat, air: FLOW.heat })[kind];
     // Put the glow into moving signals while keeping Studio's subdued static
     // materials and high bloom threshold. Smaller cores preserve lane separation.
-    // All eight lanes per direction carry pulses now (it was four), so each pulse is dimmer and smaller to keep the
-    // bloom from merging neighbouring lanes at the driver and the TIA.
-    const lane = mode === 'data' && kind !== 'cw';
-    const finish = matched ? {} : { size: style.size * (kind === 'cw' ? 0.7 : lane ? 0.62 : 0.8), k: style.k * (lane ? 0.95 : 1.35), trailR: 0.0045, trailK: 0.25 };
+    const finish = matched ? {} : { size: style.size * (kind === 'cw' ? 0.7 : 0.8), k: style.k * 1.35, trailR: 0.0045, trailK: 0.25 };
     // Power rails read as dimly as the light paths once did: give them a lit trace and
     // more frequent pulses so the power layer carries the same visual weight. The pulse
     // gain is capped below bloom blow-out where the white sub-volt rails converge on the
@@ -153,43 +150,51 @@ export function build({ quality, state, model: scenario }) {
     return f;
   };
 
-  // All eight lanes per direction carry animated samples (four per DR4 engine). Each
-  // pulse stays on its exported conductor. Processing inside opaque chips is not
-  // represented as a fictitious exposed wire between their input/output pins.
-  for (let i = 0; i < 8; i++) {
-    const lane = String(i + 1).padStart(2, '0');
-    for (const rx of [false, true]) {
-      const prefix = rx ? 'RX' : 'TX', from = rx ? 'tia' : 'dsp', to = rx ? 'dsp' : 'driver';
-      addFlow({ id: `${prefix}-${i}-host`, source: `${prefix} host copper ${i} -1`, kind: 'electrical',
-        variant: 'dsp', from: rx ? 'dsp' : 'fingers', to: rx ? 'fingers' : 'dsp', reverse: rx });
-      addFlow({ id: `${prefix}-${i}-engine`, source: `${prefix} engine copper ${i} -1`, kind: 'electrical',
-        variant: 'dsp', from, to, reverse: rx });
-    }
-    addFlow({ id: `TX-${i}-bond`, source: `Driver bond ${i + 1}`, kind: 'electrical', from: 'driver', to: 'mzm' });
-    addFlow({ id: `TX-${i}-rf-feed`, source: `TX RF feed ${i + 1}`, kind: 'electrical', from: 'driver', to: 'mzm' });
-    addFlow({ id: `RX-${i}-bond`, source: `TIA bond ${i + 1}`, kind: 'electrical', from: 'pd', to: 'tia', reverse: true });
-    addFlow({ id: `TX-${i}-waveguide`, source: `TX ${lane} MZM arm -1`, kind: 'tx', from: 'mzm', to: 'mpo' });
-    addFlow({ id: `TX-${i}-waveguide-second-arm`, source: `TX ${lane} MZM arm 1`, kind: 'tx', from: 'mzm', to: 'mpo' });
-    addFlow({ id: `RX-${i}-waveguide`, source: `RX ${lane} waveguide`, kind: 'rx', from: 'mpo', to: 'pd' });
-    addFlow({ id: `TX-${i}-fiber`, source: `TX glass fiber ${lane}`, kind: 'tx', from: 'mzm', to: 'mpo' });
-    addFlow({ id: `RX-${i}-fiber`, source: `RX glass fiber ${lane}`, kind: 'rx', from: 'mpo', to: 'pd', reverse: true });
-  }
-  for (let k = 0; k < 4; k++) for (let j = 0; j < 2; j++) {
-    addFlow({ id: `CW-${k}-${j}`, source: `CW feed ${k} ${j}`, kind: 'cw', from: 'lasers', to: 'mzm' });
-  }
+  // A bus: all of a stage's lanes as ONE instanced LaneFlow (one draw call however many lanes), each lane's pulses
+  // confined to its own conductor. `sources` name exported routes, one per lane; the data layer carries one bus per
+  // class (TX electrical, RX electrical, TX optical, RX optical, laser light, LPO bypass) instead of a flow per lane.
+  const addBus = ({ id, sources, kind, variant = 'common', from, to, reverse = false, assembly = '02_BOARD', count }) => {
+    const lanes = sources.map(group => (Array.isArray(group) ? group : [group]).flatMap(name => sourceRoute(name)));
+    const paths = lanes.map(points => { const path = points.map(p => [...p]); if (reverse) path.reverse(); return path; });
+    const cls = ({ electrical: 'eth' })[kind] || kind;
+    const style = ({ electrical: FLOW.elec, tx: FLOW.light, rx: FLOW.light, cw: FLOW.cw })[kind];
+    const f = laneFlow(paths, cls, { ...style, count: count ?? (kind === 'electrical' ? 2 : 3), size: style.size * (kind === 'cw' ? 0.7 : 0.8),
+      k: style.k * 1.1 });
+    f.ribbonIntensity = 0.6;
+    f.route = { id, sources, assembly, mode: 'data', kind, variant, from, to, lanes: paths.length,
+      direction: reverse ? 'reverse' : 'forward', points: paths[0] };
+    dataFlows.push(f);
+    if (variant === 'dsp') dspOnly.add(f);
+    if (variant === 'lpo') lpoOnly.add(f);
+    boardOverlay.add(f.group);
+    return f;
+  };
 
-  // LPO is a different electrical routing layout, not merely an absent DSP.
-  // Draw both conductors of all eight pairs per direction and animate one member
-  // of representative pairs, all the way to their assigned edge-connector contacts.
-  for (let i = 0; i < 8; i++) for (const rx of [false, true]) for (const sign of [-1, 1]) {
+  // All eight lanes per direction carry animated samples (four per DR4 engine), one instanced bus per class. Each
+  // pulse stays on its exported conductor. Processing inside opaque chips is not represented as a fictitious
+  // exposed wire between their input/output pins, so the host and engine copper stay separate buses.
+  const L8 = Array.from({ length: 8 }, (_, i) => i), num = i => String(i + 1).padStart(2, '0');
+  for (const rx of [false, true]) {
+    const prefix = rx ? 'RX' : 'TX', from = rx ? 'tia' : 'dsp', to = rx ? 'dsp' : 'driver';
+    addBus({ id: `${prefix}-host`, sources: L8.map(i => `${prefix} host copper ${i} -1`), kind: 'electrical',
+      variant: 'dsp', from: rx ? 'dsp' : 'fingers', to: rx ? 'fingers' : 'dsp', reverse: rx });
+    addBus({ id: `${prefix}-engine`, sources: L8.map(i => `${prefix} engine copper ${i} -1`), kind: 'electrical',
+      variant: 'dsp', from, to, reverse: rx });
+  }
+  addBus({ id: 'TX-bond', sources: L8.map(i => [`Driver bond ${i + 1}`, `TX RF feed ${i + 1}`]), kind: 'electrical', from: 'driver', to: 'mzm' });
+  addBus({ id: 'RX-bond', sources: L8.map(i => `TIA bond ${i + 1}`), kind: 'electrical', from: 'pd', to: 'tia', reverse: true });
+  addBus({ id: 'TX-optical', sources: [...L8.map(i => `TX ${num(i)} MZM arm -1`), ...L8.map(i => `TX ${num(i)} MZM arm 1`),
+    ...L8.map(i => `TX glass fiber ${num(i)}`)], kind: 'tx', from: 'mzm', to: 'mpo' });
+  addBus({ id: 'RX-waveguide', sources: L8.map(i => `RX ${num(i)} waveguide`), kind: 'rx', from: 'mpo', to: 'pd' });
+  addBus({ id: 'RX-fiber', sources: L8.map(i => `RX glass fiber ${num(i)}`), kind: 'rx', from: 'mpo', to: 'pd', reverse: true });
+  addBus({ id: 'CW', sources: [0, 1, 2, 3].flatMap(k => [0, 1].map(j => `CW feed ${k} ${j}`)), kind: 'cw', from: 'lasers', to: 'mzm', count: 2 });
+
+  // LPO is a different electrical routing layout, not merely an absent DSP. Both conductors of all eight pairs per
+  // direction are drawn; one member of each pair carries the animated pulses, all the way to the edge-connector contact.
+  for (const rx of [false, true]) {
     const prefix = rx ? 'RX' : 'TX';
-    const host = sourceRoute(`${prefix} host copper ${i} ${sign}`);
-    const engine = sourceRoute(`${prefix} engine copper ${i} ${sign}`);
-    const points = sourceRoute(`${prefix} LPO copper ${i} ${sign}`);
-    if (sign === -1 && true) {
-      addFlow({ id: `${prefix}-${i}-bypass`, points, kind: 'electrical', variant: 'lpo',
-        from: rx ? 'tia' : 'fingers', to: rx ? 'fingers' : 'driver', reverse: rx });
-    }
+    addBus({ id: `${prefix}-bypass`, sources: L8.map(i => `${prefix} LPO copper ${i} -1`), kind: 'electrical', variant: 'lpo',
+      from: rx ? 'tia' : 'fingers', to: rx ? 'fingers' : 'driver', reverse: rx });
   }
   const bypassMesh = new THREE.Group(), authoredBypass = object('LPO_BYPASS');
   bypassMesh.name = 'LPO bypass copper';
