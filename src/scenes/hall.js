@@ -11,6 +11,7 @@ export const preload=()=>Promise.all([preloadCampusCatalog(),preloadSiteConstruc
 import { rbox, bundle, blinkers, lamps, plumes, movers, floorMirror } from '../fx.js';
 import { printDecals, textTexture, printTexture, SANS } from './print-kit.js';
 import { switchLabel, labelLines } from './lid-labels.js';
+import { OSFP } from './osfp-size.js';
 import { hallMarks } from './electrical-marks.js';
 import { hallPipeMarks } from './cooling-marks.js';
 import { hallIds, cduPlates } from './site-signs.js';
@@ -197,9 +198,9 @@ export function build({ quality, model }) {
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const bank = form === 'q3400' ? (r < 2 ? -1 : 1) * .012 : 0;
       const x = cx + (c - (cols - 1) / 2) * pitchX, y = yc + (r - (rows - 1) / 2) * pitchY + bank;
-      N.box(.0226, .013, .02, moduleMetal, x, y, faceZ + fs * .02);                           // OSFP module, ~18 mm proud
+      N.box(OSFP.w, OSFP.h, .02, moduleMetal, x, y, faceZ + fs * .02);                           // OSFP module, ~18 mm proud
       const mm = tanTabs.has(`${cx}:${cz}:${ports.length}`);
-      (mm ? mmLidLabels : lidLabels).push({ p: [x, y + .0065, faceZ + fs * .02], face: 'top', yaw: fs > 0 ? 0 : Math.PI });
+      (mm ? mmLidLabels : lidLabels).push({ p: [x, y + OSFP.h / 2, faceZ + fs * .02], face: 'top', yaw: fs > 0 ? 0 : Math.PI });
       if (!mm) N.box(.004, .0035, .03, pullTabMat, x, y - .0045, faceZ + fs * .027);   // pull tab (multimode modules carry a tan one)
       ports.push({ point: [x, y, faceZ + fs * .03], f: fs, cx, i: ports.length, under: yb - .012 });
       portLedItems.push({ p: [x + .008, y + .0047, faceZ + fs * .0305], color: (r + c) % 3 ? '#5cf29a' : '#ffb347', rate: 0.35 + ((r * cols + c) * 0.37) % 1.2 });

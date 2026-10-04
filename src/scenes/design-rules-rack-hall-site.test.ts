@@ -198,7 +198,7 @@ describe('rack follow-up: shelves, feeds, NVLink stubs, corner clearances, runwa
         if (p[1] < R.roofY - .05) {
           expect(p[2], `feed point ${p.map((v: number) => v.toFixed(3))} behind the trays`).toBeLessThanOrEqual(R.trayRearZ + 1e-9);
           expect(Math.abs(p[0])).toBeGreaterThan(.04 + .012);          // clear of the bus bar and its cover
-          expect(Math.abs(p[0])).toBeLessThan(.09 - .012);             // clear of the inner cartridges
+          for (const cx of R.cartridgeX) expect(Math.abs(p[0] - cx)).toBeGreaterThan(.03 + .012);   // clear of every cartridge (half-width .03)
         }
       }
     });

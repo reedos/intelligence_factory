@@ -10,6 +10,7 @@ import { attachFlowRibbons } from '../flow-ribbons.js';
 import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
 import { hardwareBounds, componentView } from '../app/housing-frame.js';
 import { footprint } from '../power-glow.js';
+import { OSFP_MM } from './osfp-size.js';
 
 let cached, pending;
 const CM = 100;
@@ -348,7 +349,7 @@ export function build({ quality, state, model: scenario }) {
   const lpoTag = label(scene, 'LPO · direct host lanes to the linear driver and TIA',
     [dspAnchor[0], dspAnchor[1] + 0.6, dspAnchor[2]], '#8fd3ff', 0.15);
   label(scene, `Pluggable module · ${tier.published ? `${tier.rate} twin-port OSFP, 2 × DR4` : `${tier.rate} OSFP, type unpublished`}`, [0.6, -0.35, 2.6], '#e8ecf2', 0.32);
-  label(scene, '107.8 × 22.58 mm footprint · exploded spacing · representative internals', [0.6, -0.72, 2.95], note, 0.17);
+  label(scene, `${OSFP_MM.len} × ${OSFP_MM.w} mm footprint · exploded spacing · representative internals`, [0.6, -0.72, 2.95], note, 0.17);
   label(scene, `One DSP · ${tier.rate} · 8 TX + 8 RX · two ${tier.port} ports`, [0.6, -1.02, 3.25], unitCol, 0.17);
   // End-to-end TX/RX explanations live in the panel. Placing them at the host
   // connector would imply that light enters or leaves that electrical interface.

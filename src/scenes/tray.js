@@ -9,14 +9,15 @@ import { computeMaterials, finishCompute, coldPlateDetail, boardFinish } from '.
 import { frameCompute } from './compute-framing.js';
 import { componentView } from '../app/housing-frame.js';
 import { printDecals, textTexture } from './print-kit.js';
-import { nicLabel, labelLines } from './lid-labels.js';
+import { nicLabel, labelLines, modulePorts } from './lid-labels.js';
+import { OSFP_U, QSFP_U, OSFP } from './osfp-size.js';
 import { etch, GPU_NAME } from './package-marks.js';
 import { DGX } from './dgx-h100-layout.js';
 import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
 import { FABRICS } from '../model/engine.ts';
 
 // Printed lid labels on the modules seated in the NIC cages: the scenario's NIC-side class (lid-labels.js).
-export function trayLidLabels(scene, accel, placements, size) {
+export function trayLidLabels(scene, accel, placements, size = [OSFP.label[0] * 10, OSFP.label[1] * 10]) {
   return printDecals(scene, { texture: textTexture(labelLines(nicLabel(accel)), { px: 96, aspect: 2, ink: '#474d55', pad: .05 }),
     size, placements, lift: .0006, name: 'NIC module lid labels', material: { roughness: .7, metalness: .25 } });
 }
@@ -369,12 +370,15 @@ function buildHGX({ quality, model }) {
   for (const sx of [-1, 1]) for (const z of [ZB + 0.08, ZB + 0.58]) N.cyl(0.012, cageBoardTop - my, MAT.nickel, sx * 0.53, (cageBoardTop + my) / 2, z, 8);
   const lidAt = [];
   cageX.forEach(x => {
-    for (const dy of [-0.072, 0.072]) S.box(0.22, 0.014, 0.5, MAT.galv, x, cageY + dy, ZB + 0.25);
-    for (const dx of [-0.103, 0.103]) S.box(0.014, 0.13, 0.5, MAT.galv, x + dx, cageY, ZB + 0.25);
-    N.box(0.18, 0.11, 0.25, MAT.nickel, x, cageY, ZB - 0.025);                                  // seated module nose, flat top
-    for (const dx of [-0.045, 0.045]) N.box(0.07, 0.045, 0.006, MAT.polymer, x + dx, cageY, ZB - 0.153);
-    N.box(0.04, 0.008, 0.07, MAT.black, x, cageY - 0.062, ZB - 0.175);
-    lidAt.push({ p: [x, cageY + 0.056, ZB - 0.09], face: 'top', yaw: Math.PI });
+    // the OSFP cage (osfp-size.js): a sheet-metal frame around the 23.0 x 13.2 mm opening the 22.58 x 13.0 mm module slides into
+    for (const dy of [-1, 1]) S.box(OSFP_U.cageW, OSFP_U.wall, 0.5, MAT.galv, x, cageY + dy * (OSFP_U.innerH + OSFP_U.wall) / 2, ZB + 0.25);
+    for (const dx of [-1, 1]) S.box(OSFP_U.wall, OSFP_U.innerH, 0.5, MAT.galv, x + dx * (OSFP_U.innerW + OSFP_U.wall) / 2, cageY, ZB + 0.25);
+    N.box(OSFP_U.w, OSFP_U.h, 0.25, MAT.nickel, x, cageY, ZB - 0.025);                          // seated module nose, flat top
+    // one MPO-12 face per optical port (lid-labels.js modulePorts: the DGX H100's modules are twin-port)
+    const ports = modulePorts('h100');
+    for (let k = 0; k < ports; k++) N.box(ports > 1 ? 0.07 : 0.1, 0.045, 0.006, MAT.polymer, x + (k - (ports - 1) / 2) * 0.09, cageY, ZB - 0.153);
+    N.box(0.04, 0.008, 0.07, MAT.black, x, cageY - OSFP_U.h / 2 - 0.007, ZB - 0.175);
+    lidAt.push({ p: [x, cageY + OSFP_U.h / 2 + 0.001, ZB - 0.09], face: 'top', yaw: Math.PI });
     statusLeds.push({ p: [x - 0.08, cageY + 0.1, ZB - 0.01], color: '#5cf29a', rate: 0 });
   });
   if (heavy) cageX.forEach(x => cageFins(N, x, cageY + 0.115, ZB + 0.3, 0.2, 0.4, 4));
@@ -400,7 +404,7 @@ function buildHGX({ quality, model }) {
         S.box(0.24, 0.02, 0.24, MAT.silicon, x + s * 0.15, y + 0.02, DGX.cardZ + 0.35);
         S.box(0.34, 0.025, 0.34, finish.graphite, x + s * 0.15, y + 0.043, DGX.cardZ + 0.35);
         for (let f = 0; f < 6; f++) S.box(0.014, 0.08, 0.32, finish.graphite, x + s * 0.15 - 0.15 + f * 0.06, y + 0.095, DGX.cardZ + 0.35);
-        for (const dx of [-0.25, 0.05]) S.box(0.2, 0.09, 0.42, MAT.galv, x + dx, y + 0.055, ZB + 0.25);     // QSFP112 cages at the bracket
+        for (const sx of DGX.storageX.filter(v => Math.sign(v) === s)) S.box(QSFP_U.cageW, QSFP_U.cageH, 0.42, MAT.galv, sx, y + DGX.storageDY, ZB + 0.25);     // QSFP112 cages at the bracket (dgx-h100-layout.js)
       }
       cards.push({ x, y, slot });
     });
@@ -462,7 +466,7 @@ function buildHGX({ quality, model }) {
   pcieX.forEach((x, k) => smdFrame(N, my, x, pcieZ, 0.3, 0.3, 0.03, 0.03, k + 70));
 
   scene.add(S.build()); scene.add(N.build({ cast: false }));
-  trayLidLabels(scene, 'h100', lidAt, [.16, .08]);
+  trayLidLabels(scene, 'h100', lidAt);
 
   // ---------- power: AC in, 54 V along the floor copper, up the midplane into both trays, 12 V to the GPU modules ----------
   for (let i = 0; i < 6; i++) flows.push(flow([[psuX(i) - 0.15, psuY + 0.03, ZB - 0.8], [psuX(i) - 0.15, psuY + 0.03, ZB + 0.05]], 'lv', { count: 4, speed: 0.6, size: 0.03, trailR: 0.01 }));
@@ -652,6 +656,31 @@ export const NVL_GPU_Z = [0.2, -1.55], NVL_GPU_SIZE = 0.9;
 export const NVL_FAN_Z = 2.55;                         // ZF (4.5) - 1.95
 export const NVL_FAN_X = Array.from({ length: 6 }, (_, i) => -1.9 + i * 0.76 + 0.19);
 
+// The tray's FRONT and REAR interfaces (GB200/GB300), exported for the same reason as the plates: the rack's seated trays
+// (rack.js trayTex, rack-optics.js) and the Blender hand-off (export-native-reference.mjs -> rack-tray-layout.json) read
+// these instead of typing them again. Tray units (10 cm), tray-local frame, front +z; y is above the tray floor.
+//   drives     four E1.S sleds at the left edge (DGX GB hardware guide: "4x 3.84TB E1.S NVMe per compute tray")
+//   cageX/Y    the four single-port OSFP cages of the ConnectX NICs, on the right half (one per GPU)
+//   storageX/Y the QSFP112 cages of the BlueField-3 DPUs, two per DPU ("2x NVIDIA BlueField-3 DPU, dual port", DGX GB
+//              hardware guide; GB300 has one DPU, 18 across 18 trays), on the DPU's own x, ahead of its board
+//   bezelX     the front bezel's posts (Blender), between the drive bay, each DPU's pair of cages and the NIC cage board
+const NVL_ZF = 4.5;
+function nvlFront(dpuX, cageBoards) {
+  const drives = { x: [-1.95, -1.69, -1.43, -1.17], w: 0.22, h: 0.34, d: 1.1, y: 0.2, z: NVL_ZF - 0.6 };
+  const storageX = dpuX.flatMap(x => [x - 0.11, x + 0.11]);
+  const groups = dpuX.map(x => [x - 0.11 - QSFP_U.cageW / 2, x + 0.11 + QSFP_U.cageW / 2]);
+  const bezelX = [-2.12, drives.x.at(-1) + drives.w / 2 + 0.06, ...groups.slice(1).map((g, i) => (groups[i][1] + g[0]) / 2),
+    Math.min(...cageBoards.map(([cx, w]) => cx - w / 2)) - 0.03, 2.11];
+  return { drives, dpuX, storageX, storageY: 0.29, storageZ: NVL_ZF - 0.03 - 0.15, cageX: [0.2, 0.7, 1.2, 1.7], cageY: 0.17 + OSFP_U.cageH / 2,
+    cageZ: NVL_ZF - 0.28, mouthZ: NVL_ZF - 0.03, cageBoards, bezelX };
+}
+export const NVL_FRONT = { gb200: nvlFront([-0.8, -0.3], [[0.95, 1.96]]), gb300: nvlFront([-0.35], [[0.45, 0.92], [1.45, 0.92]]) };
+// Rear: four NVLink connectors (the two GPUs' lanes of each board), and each board's supply and return quick disconnects.
+// The rack's two corner manifolds mate with the outer pair: the left board's supply and the right board's return.
+export const NVL_REAR = { connectorX: [-1.9, -1.1, 1.1, 1.9],
+  couplings: NVL_BOARD_X.map(bx => ({ supply: bx * 1.45, ret: bx * 1.45 + 0.15 })) };
+NVL_REAR.manifoldX = [NVL_REAR.couplings[0].supply, NVL_REAR.couplings.at(-1).ret];
+
 function buildNVL({ quality, model }) {
   const cpuLabel = 'GRACE', ultra = model.accel.id === 'gb300';
   const scene = new THREE.Scene();
@@ -680,7 +709,7 @@ function buildNVL({ quality, model }) {
   const bezel = canvasTex(1024, 96, (g, w, h) => {
     g.fillStyle = '#1b1e23'; g.fillRect(0, 0, w, h);
     g.fillStyle = '#101216'; for (let x = 20; x < 380; x += 12) for (let y = 14; y < h - 14; y += 12) g.fillRect(x + (y % 24 ? 6 : 0), y, 7, 7);
-    for (let i = 0; i < 4; i++) { g.fillStyle = '#2d323a'; g.fillRect(410 + i * 60, 16, 50, h - 32); g.fillStyle = '#5cf29a'; g.fillRect(418 + i * 60, 22, 6, 6); }
+    for (const dx of NVL_FRONT.gb200.drives.x) { const px = (dx + 2.2) / 4.4 * w; g.fillStyle = '#2d323a'; g.fillRect(px - 25, 16, 50, h - 32); g.fillStyle = '#5cf29a'; g.fillRect(px - 17, 22, 6, 6); }
     for (let i = 0; i < 6; i++) { g.fillStyle = '#0b0c0e'; g.fillRect(670 + i * 52, 22, 42, h - 44); g.fillStyle = '#3a3f47'; g.fillRect(674 + i * 52, 26, 34, h - 52); }
   });
   const bz = new THREE.Mesh(new THREE.BoxGeometry(W, H, 0.05), [MAT.rackFace, MAT.rackFace, MAT.rackFace, MAT.rackFace, texMat(bezel, { rough: 0.5, metal: 0.35 }), MAT.rackFace]);
@@ -784,10 +813,10 @@ function buildNVL({ quality, model }) {
     });
     plateLoop.push(pts);
     const y = floorY + 0.28 + lift;
-    const qdX = bx * 1.45;
+    const qd = NVL_REAR.couplings[NVL_BOARD_X.indexOf(bx)], qdX = qd.supply;
     // supply: rear quick disconnect → CPU plate → GPU → GPU → back
     const sup = [[qdX, 0.25, ZB - 0.05], [qdX, y, ZB + 0.3], [bx - 0.2, y, -1.55], [bx - 0.2, y, 0.2], [bx - 0.2, y, 1.75]];
-    const ret = [[bx + 0.2, y, 1.75], [bx + 0.2, y, 0.2], [bx + 0.2, y, -1.55], [qdX + 0.15, y, ZB + 0.3], [qdX + 0.15, 0.25, ZB - 0.05]];
+    const ret = [[bx + 0.2, y, 1.75], [bx + 0.2, y, 0.2], [bx + 0.2, y, -1.55], [qd.ret, y, ZB + 0.3], [qd.ret, 0.25, ZB - 0.05]];
     // EPDM hose (circuit-tinted jacket) with a colored ID band either side of each turned fitting
     // (hex body, collars); the animated flows still carry supply/return color.
     for (const [pts, band, jacket] of [[sup, MAT.pipeBlue, hoseMat.sup], [ret, MAT.pipeRed, hoseMat.ret]]) {
@@ -807,13 +836,13 @@ function buildNVL({ quality, model }) {
     flows.push(flow(ret, 'warm', { count: 14, speed: 0.8, size: 0.022, k: 1.5, trail: false }));
     heatFlows.push(tagHeat(flow(sup, 'cool', { count: 20, speed: 0.8, size: 0.045, k: 2.4, trailR: 0.034, trailK: 0.45 }), `water-${bx}`, boardW, 'carrier'));
     heatFlows.push(tagHeat(flow(ret, 'warm', { count: 20, speed: 0.8, size: 0.045, k: 2.4, trailR: 0.034, trailK: 0.45 }), `water-${bx}`, boardW, 'carrier'));
-    S.cylZ(0.07, 0.2, MAT.nickel, qdX, 0.25, ZB - 0.1, 12); S.cylZ(0.07, 0.2, MAT.nickel, qdX + 0.15, 0.25, ZB - 0.1, 12);
+    S.cylZ(0.07, 0.2, MAT.nickel, qd.supply, 0.25, ZB - 0.1, 12); S.cylZ(0.07, 0.2, MAT.nickel, qd.ret, 0.25, ZB - 0.1, 12);
   }
 
   // ---------- rear connectors, front NICs, DPU, drives, fans ----------
   // NVLink connectors: dark housing in a metal shroud, a recessed contact field
   // on the mating (rear) face and guide pins at both ends; no gold slab on top.
-  for (const x of [-1.9, -1.1, 1.1, 1.9]) nvConnector(S, N, x, 0.15, ZB + 0.2);
+  for (const x of NVL_REAR.connectorX) nvConnector(S, N, x, 0.15, ZB + 0.2);
   const nicCardX = [];
   for (let i = 0; i < 4; i++) {
     const x = -1.7 + i * 0.5, ncx = x + 1.9;
@@ -836,12 +865,12 @@ function buildNVL({ quality, model }) {
     S.box(0.8, 0.012, 0.5, finish.graphite, cx, 0.466, ZF - 1.2);
     for (let k = 0; k < 7; k++) N.box(0.72, 0.008, 0.02, finish.recess, cx, 0.4725, ZF - 1.2 - 0.195 + k * 0.065);
   }
-  const dpuX = ultra ? [-.35] : [-.8,-.3];
+  const FRONT = NVL_FRONT[model.accel.id], dpuX = FRONT.dpuX;
   for (const x of dpuX) {
     S.box(.40,.02,1.2,MAT.pcbBlack,x,floorY+.2,3.65);S.box(.30,.14,.65,MAT.alu,x,floorY+.29,3.65);
     statusLeds.push({p:[x,floorY+.37,3.38],color:'#e8b23d',rate:2.4});
   }
-  for (let i = 0; i < 4; i++) { const dx = -1.95 + i * 0.26; S.box(0.22, 0.34, 1.1, MAT.darkSteel, dx, 0.2, ZF - 0.6); statusLeds.push({ p: [dx, 0.38, ZF - 0.06], color: '#5cf29a', rate: 0.3 }); }  // E1.S drives
+  for (const dx of FRONT.drives.x) { const dv = FRONT.drives; S.box(dv.w, dv.h, dv.d, MAT.darkSteel, dx, dv.y, dv.z); statusLeds.push({ p: [dx, 0.38, ZF - 0.06], color: '#5cf29a', rate: 0.3 }); }  // E1.S drives
   const trayFans = [];
   NVL_FAN_X.forEach(fx => { S.box(0.38, 0.36, 0.3, MAT.fan, fx, 0.2, ZF - 1.95); N.cylZ(0.15, 0.02, MAT.darkSteel, fx, 0.2, ZF - 1.79, 16); trayFans.push({ p: [fx, 0.2, ZF - 1.76], axis: 'z', r: 0.14 }); });
   // Blackwell retains peripheral air cooling; Rubin has a separate fanless builder.
@@ -850,10 +879,10 @@ function buildNVL({ quality, model }) {
 
   // optical module cages behind the bezel, each with its own small heat sink; built here, before
   // S/N.build() below, so the cages, pull tabs and fins are part of the merged geometry
-  const nicX = [0.2, 0.7, 1.2, 1.7];
+  const nicX = FRONT.cageX, cageY = FRONT.cageY;
   // The cages stand on their own front boards. GB300 (Lenovo LP2357): two OSFP
   // boards with two ports each. GB200: one front cage board (representative).
-  const cageBoards = ultra ? [[0.45, 0.92], [1.45, 0.92]] : [[0.95, 1.96]];
+  const cageBoards = FRONT.cageBoards;
   for (const [cx, w] of cageBoards) {
     S.box(w, 0.016, 0.61, MAT.pcb, cx, 0.162, ZF - 0.335);
     for (const sx of [-1, 1]) for (const z of [ZF - 0.58, ZF - 0.09]) N.cyl(0.012, 0.124, MAT.nickel, cx + sx * (w / 2 - 0.04), 0.092, z, 8);
@@ -880,20 +909,28 @@ function buildNVL({ quality, model }) {
     smdRow(N, floorY + 0.21, [x + 0.19, ZF - 1.4], [x + 0.19, ZF - 1.0], 7, false, x * 37);
   }
   // A module seated in each cage: its nose stands 15 mm proud of the cage mouth with the MPO receptacle on its
-  // face, a pull tab below and the lid label on the exposed top (single-port OSFP at the NIC).
-  const lidAt = [];
+  // face, a pull tab below and the lid label on the exposed top (single-port OSFP at the NIC). The module is the OSFP
+  // MSA's 22.58 x 13.0 mm and the cage the 24.6 x 14.8 mm frame around it (osfp-size.js), as the rack and hall draw them.
+  const lidAt = [], nicPorts = modulePorts(model.accel);
   nicX.forEach(x => {
-    S.box(0.2, 0.14, 0.5, MAT.galv, x, 0.24, ZF - 0.28); if (heavy) cageFins(N, x, 0.33, ZF - 0.28, 0.18, 0.42, 3);
-    N.box(.15, .088, .15, MAT.nickel, x, .23, ZF + .045);
-    N.box(.10, .05, .006, MAT.polymer, x, .23, ZF + .123);
-    N.box(.04, .008, .07, MAT.black, x, .182, ZF + .135);
-    statusLeds.push({ p: [x + .06, .25, ZF + .1215], color: '#5cf29a', rate: 0 });
-    lidAt.push({ p: [x, .274, ZF + .075], face: 'top', yaw: 0 });
+    S.box(OSFP_U.cageW, OSFP_U.cageH, 0.5, MAT.galv, x, cageY, FRONT.cageZ); if (heavy) cageFins(N, x, cageY + 0.09, FRONT.cageZ, 0.18, 0.42, 3);
+    N.box(OSFP_U.w, OSFP_U.h, .15, MAT.nickel, x, cageY, ZF + .045);
+    for (let k = 0; k < nicPorts; k++) N.box(nicPorts > 1 ? .07 : .10, .05, .006, MAT.polymer, x + (k - (nicPorts - 1) / 2) * .09, cageY, ZF + .123);
+    N.box(.04, .008, .07, MAT.black, x, cageY - OSFP_U.h / 2 - .007, ZF + .135);
+    statusLeds.push({ p: [x + .06, cageY + .006, ZF + .1215], color: '#5cf29a', rate: 0 });
+    lidAt.push({ p: [x, cageY + OSFP_U.h / 2 + .001, ZF + .075], face: 'top', yaw: 0 });
+  });
+  // The DPUs' QSFP112 cages (two per BlueField-3), empty: the cabling is the data center's, not this tray's.
+  FRONT.storageX.forEach(x => {
+    const qy = FRONT.storageY, o = QSFP_U;
+    for (const dy of [-1, 1]) S.box(o.cageW, o.wall, 0.3, MAT.galv, x, qy + dy * (o.innerH + o.wall) / 2, FRONT.storageZ);
+    for (const dx of [-1, 1]) S.box(o.wall, o.innerH, 0.3, MAT.galv, x + dx * (o.innerW + o.wall) / 2, qy, FRONT.storageZ);
+    N.box(o.innerW - 0.01, o.innerH - 0.01, 0.01, MAT.black, x, qy, FRONT.storageZ - 0.12);
   });
 
   scene.add(S.build()); scene.add(N.build({ cast: false }));
   flows.forEach(f => scene.add(f.group));
-  trayLidLabels(scene, model.accel, lidAt, [.13, .065]);
+  trayLidLabels(scene, model.accel, lidAt);
 
   // ---------- data: NVLink out the back, C2C to the CPU, NIC and optics out the front ----------
   // Every route follows its board bus (tray-pcb.js nvlLayout), each interface in its own channel: NVLink leaves every GPU
@@ -992,7 +1029,7 @@ function buildNVL({ quality, model }) {
       // GB300: Lenovo's LP2357 guide lists E1.S drives of 7.68 TB (and 3.84 TB); each sled's release paddle carries it
       ...(ultra ? [{ name: 'E1.S drive capacity', lines: [{ text: 'E1.S', size: .34, weight: 700 }, { text: '7.68 TB', size: .4, weight: 700 }],
         text: { px: 96, aspect: 1.6, ink: '#c9cfd6', align: 'center', pad: .04 }, size: [.11, .068],
-        spots: [0, 1, 2, 3].map(i => ({ from: [-1.95 + i * 0.26, .29, ZF + .7], dir: [0, 0, -1] })), material: { roughness: .5 } }] : [])],
+        spots: NVL_FRONT.gb300.drives.x.map(x => ({ from: [x, .29, ZF + .7], dir: [0, 0, -1] })), material: { roughness: .5 } }] : [])],
     scene, flows, powerDraw: PD,
     look: { env: 'studio', envIntensity: 0.5, exposure: 0.98, bloom: 0.36, threshold: 2.0, ao: 0.12, dof: true },
     camera: { pos: [5.9, 6.4, 8.3], target: [0, 0.1, -0.5], near: 0.02, far: 400, min: 1, max: 30 },

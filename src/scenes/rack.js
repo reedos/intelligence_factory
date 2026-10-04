@@ -16,8 +16,9 @@ import { DGX } from './dgx-h100-layout.js';
 // tray level from, in tray units (10 cm) converted to the rack's meters below (TRAY_UNIT), so the rack's LOD
 // tray cannot silently drift from the authoritative one (tests/rack-tray-match.test.ts checks this stays wired).
 import { pcbLayout } from './tray-pcb.js';
-import { NVL_BOARD_X, NVL_CPU, NVL_GPU_Z, NVL_GPU_SIZE, NVL_FAN_X, NVL_FAN_Z } from './tray.js';
-import { RUBIN_COLD_PLATES } from './tray-rubin.js';
+import { NVL_BOARD_X, NVL_CPU, NVL_GPU_Z, NVL_GPU_SIZE, NVL_FAN_X, NVL_FAN_Z, NVL_FRONT, NVL_REAR } from './tray.js';
+import { RUBIN_COLD_PLATES, RUBIN_FRONT, RUBIN_REAR } from './tray-rubin.js';
+import { OSFP_U } from './osfp-size.js';
 const TRAY_UNIT = 0.1;
 export const NVL_COLD_PLATES = NVL_BOARD_X.flatMap(bx => [
   { x: bx, z: NVL_CPU.z, w: NVL_CPU.size, d: NVL_CPU.size, kind: 'cpu' },
@@ -63,11 +64,11 @@ function mgmtFace(g, w, h) {
 }
 
 // 1U tray faces at 0.43 mm per texel (1024 x 96 over 0.44 m). Sourced content
-// only: four E1.S sleds per compute tray (NVIDIA DGX GB hardware guide), six
-// supplies per power shelf (Flex/LITEON shelf pages). The network cages are
-// real geometry drawn by rack-optics.js, so none are painted here. Vent
-// perforation, labels, latches and light pipes are representative
-// (ASSUMPTIONS 'nvl72-tray-faces'); Rubin uses the same graphite finish.
+// only: four E1.S sleds per compute tray (NVIDIA DGX GB hardware guide) where the tray level draws them (tray.js
+// NVL_FRONT.drives, at the tray's own x; Vera Rubin's tray has none, so none are painted), six supplies per power shelf
+// (Flex/LITEON shelf pages). The network cages are real geometry drawn by rack-optics.js, so none are painted here.
+// Vent perforation, labels, latches and light pipes are representative (ASSUMPTIONS 'nvl72-tray-faces'); Rubin uses the
+// same graphite finish.
 function perforate(g, x0, y0, x1, y1, step, rad, color = '#0a0c0f') {
   g.fillStyle = color;
   for (let y = y0, row = 0; y < y1; y += step * 0.87, row++) for (let x = x0 + (row % 2) * step / 2; x < x1; x += step) { g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill(); }
@@ -83,21 +84,25 @@ function trayTex(kind, generation) {
     g.fillStyle = '#0d0e10'; g.fillRect(0, 0, w, 4); g.fillRect(0, h - 4, w, 4);
     g.fillStyle = '#4a525b'; g.fillRect(0, 4, w, 2);                                  // folded top edge catches light
     if (kind === 'compute') {
-      const rubin = generation === 'rubin';
-      // vent fields either side of the drive bay, clear of the cage mouths
-      perforate(g, 16, 16, rubin ? 300 : 330, 84, 9, 3);
-      perforate(g, rubin ? 724 : 694, 16, 1008, 84, 9, 3);
-      // four E1.S sleds: carrier, latch, light pipe, pull tab
-      const x0 = rubin ? 360 : 352;
-      for (let k = 0; k < 4; k++) {
-        const x = x0 + k * 80;
-        g.fillStyle = '#545c64'; g.fillRect(x, 10, 72, 76);
-        g.fillStyle = '#1a1f24'; g.fillRect(x + 6, 16, 16, 64);
-        perforate(g, x + 30, 18, x + 68, 70, 6, 1.8, '#20262c');
-        g.fillStyle = '#7d858d'; g.fillRect(x + 28, 74, 38, 8);
-        g.fillStyle = '#5cf29a'; g.fillRect(x + 10, 20, 8, 5);
+      const rubin = generation === 'rubin', F = rubin ? RUBIN_FRONT : NVL_FRONT[generation] || NVL_FRONT.gb200;
+      const px = u => (u + 2.2) / 4.4 * w;                                   // tray units across the 4.4-unit face -> texels
+      const cageHalf = OSFP_U.cageW / 2;
+      // vent fields in the stretches of face between the cages, the DPUs' storage cages and the drive bay (all real geometry)
+      const vents = rubin
+        ? [[16, px(F.cageX[0] - cageHalf) - 8], [px(F.cageX[0] + cageHalf) + 8, px(F.serviceIo.x[0] - F.serviceIo.w) - 8],
+           [px(F.serviceIo.x[3] + F.serviceIo.w) + 8, px(F.cageX[2] - cageHalf) - 8], [px(F.cageX[3] + cageHalf) + 8, 1008]]
+        : [[px(Math.max(...F.storageX) + 0.1) + 6, px(F.cageX[0] - cageHalf) - 6], [px(F.cageX[3] + cageHalf) + 8, 940]];
+      for (const [x0, x1] of vents) if (x1 - x0 > 14) perforate(g, x0, 16, x1, 84, 9, 3);
+      // four E1.S sleds at the tray level's drive positions: carrier, latch, light pipe, pull tab
+      if (F.drives) for (const dx of F.drives.x) {
+        const sw = Math.round(F.drives.w / 4.4 * w), x = Math.round(px(dx)) - sw / 2, sc = sw / 72;
+        g.fillStyle = '#545c64'; g.fillRect(x, 10, sw, 76);
+        g.fillStyle = '#1a1f24'; g.fillRect(x + 5 * sc, 16, 14 * sc, 64);
+        perforate(g, x + 25 * sc, 18, x + sw - 3, 70, 5, 1.6, '#20262c');
+        g.fillStyle = '#7d858d'; g.fillRect(x + 23 * sc, 74, 32 * sc, 8);
+        g.fillStyle = '#5cf29a'; g.fillRect(x + 8 * sc, 20, 7 * sc, 5);
       }
-      labelStrip(g, rubin ? 660 : 682, 66, 60, 18, 3);
+      labelStrip(g, rubin ? 620 : 944, 66, 60, 18, 3);
       g.fillStyle = '#47cfff'; g.fillRect(w - 26, h / 2 - 4, 8, 8);
     } else if (kind === 'switch') {
       perforate(g, 380, 16, 900, 84, 9, 3);
@@ -656,12 +661,19 @@ function buildNVL({ quality, model, state }) {
   const TEX = { compute: trayTex('compute', model.accel.id), switch: trayTex('switch', model.accel.id), ps: trayTex('ps'), mgmt: trayTex('mgmt'), blank: trayTex('blank') };
   const PULLED = NVL_PULLED, SWITCH_PULLED = NVL_SWITCH_PULLED, TOP_SHELF = NVL_ROWS.topShelf;   // trays pulled out for view
   const trayY = nvlTrayY;
+  // The rear interface comes from the tray level (tray.js NVL_REAR / tray-rubin.js RUBIN_REAR, tray units x TRAY_UNIT): the four NVLink
+  // cartridges sit behind the tray's four connectors, and the corner manifolds' nozzles on the tray's blind-mate fittings.
+  const REAR = rubin ? RUBIN_REAR : NVL_REAR;
+  const cartX = REAR.connectorX.map(x => x * TRAY_UNIT), nozzleX = REAR.manifoldX.map(x => x * TRAY_UNIT);
   // A and B feed cords (2N): the busway each taps (z over the rack), its tap x, its x in the rear cable space and the
-  // shelves it feeds. The rear cable space is between the bus bar (x ±0.04) and the cartridges (x ±0.09), behind the
-  // trays (z < -0.435) and in front of the rear door.
+  // shelves it feeds. The rear cable space is between the bus bar (x ±0.04) and the inner cartridges (GB: ±0.11, edge ±0.0785),
+  // behind the trays (z < -0.435) and in front of the rear door. Vera Rubin's inner cartridges (±0.062) leave none there, so its
+  // cords drop in the gap between the inner and outer cartridges instead.
+  const CART_HALF = 0.0315, innerCart = Math.min(...cartX.map(Math.abs)), outerCart = Math.max(...cartX.map(Math.abs));
+  const feedX = innerCart - CART_HALF - 0.04 >= 0.03 ? 0.065 : (innerCart + CART_HALF + outerCart - CART_HALF) / 2;
   const FEED = { z: ZB + 0.055, inletZ: ZF - 0.07 - 0.9 - 0.006,
-    A: { bz: -0.25, tapX: -0.12, x: -0.065, shelves: [0, 1, NVL_ROWS.topShelfFirst, NVL_ROWS.topShelfFirst + 1] },
-    B: { bz: 0.25, tapX: 0.12, x: 0.065, shelves: [2, 3, NVL_ROWS.topShelf - 1, NVL_ROWS.topShelf] } };
+    A: { bz: -0.25, tapX: -0.12, x: -feedX, shelves: [0, 1, NVL_ROWS.topShelfFirst, NVL_ROWS.topShelfFirst + 1] },
+    B: { bz: 0.25, tapX: 0.12, x: feedX, shelves: [2, 3, NVL_ROWS.topShelf - 1, NVL_ROWS.topShelf] } };
   const feedPath = f => [[f.tapX, TAP.glandY, f.bz], [f.tapX, H + 0.03, f.bz], [f.tapX, H + 0.03, FEED.z], [f.x, H + 0.03, FEED.z], [f.x, trayY(Math.min(...f.shelves)), FEED.z]];
   scene.userData.rackFeeds = [FEED.A, FEED.B].map(f => ({ path: feedPath(f), whips: f.shelves.map(r => [[f.x, trayY(r), FEED.z], [f.x, trayY(r), FEED.inletZ]]) }));
   const kinds = {};
@@ -742,7 +754,7 @@ function buildNVL({ quality, model, state }) {
     const yb=sy-U/2+.0135;
     // ...out through the tray's rear connector, back through its own empty slot (the tray is pulled for inspection)
     // and into the cable cartridge behind it: GB ASICs to the inner cartridges, Rubin's front pair to the outer ones
-    const cart=Math.sign(x)*(rubin&&z>0?.2:.12),face=ZB+.08-.067;
+    const cart=Math.sign(x)*(rubin&&z>0?outerCart:innerCart),face=ZB+.08-.067;
     dataFlows.push(flow([[x,sy+.002,sz+z],[x,yb,sz+z-.05],[x,yb,sz-.33],[cart,yb,sz-.40],[cart,yb,face]],'nvl',
       {count:8,speed:.55,size:.006,trailR:.002,audit:{within:[[x-.04,yb-.02,sz-.37,x+.04,yb+.02,sz-.29],[cart-.04,sy-.03,face-.013,cart+.04,sy+.03,ZB+.125]],why:'through the tray rear NVLink connector, then its own slot connector and cartridge'}}));
   });
@@ -771,7 +783,7 @@ function buildNVL({ quality, model, state }) {
   // folded sheet-steel cassette; its side windows, the twinax bundle behind
   // them and the connector housings are representative (ASSUMPTIONS
   // 'nvl72-spine-mechanics'). cartZ keeps the audited flow plane (cartZ - 0.067).
-  const cartX = [-0.2, -0.12, 0.12, 0.2], cartZ = ZB + 0.08;
+  const cartZ = ZB + 0.08;
   const spanLo = trayY(4) - U / 2, spanHi = trayY(30) + U / 2, spanMid = (spanLo + spanHi) / 2, spanH = spanHi - spanLo;
   const cartD = 0.05, cartC = ZB + 0.055;                                   // rear face stays at ZB + 0.03
   const CART = new THREE.MeshStandardMaterial({ color: 0x20262d, roughness: 0.46, metalness: 0.62 }); CART.name = 'NVLink cartridge sheet steel';
@@ -847,9 +859,9 @@ function buildNVL({ quality, model, state }) {
       N.cylZ(0.0105, 0.012, KNURL, x, y, mZ + 0.046, 12);              // knurled sleeve
       N.cylZ(0.0112, 0.003, COLLAR, x, y, mZ + 0.054, 12);             // latch ring
       N.cylZ(0.0118, 0.009, band, x, y, mZ + 0.033, 12);               // anodized color band
-      // rigid stub to the tray's blind-mate nozzle at its rear corner
-      N.strut([x, y, mZ + 0.057], [x * 0.82, y, mZ + 0.057], 0.0045, STAINLESS, 8);
-      N.box(0.012, 0.012, 0.016, MAT.darkSteel, x * 0.8, y, ZB + 0.103);
+      // rigid stub to the tray's blind-mate nozzle: the tray's own rear coupling (tray.js NVL_REAR.manifoldX, tray-rubin.js RUBIN_REAR)
+      N.strut([x, y, mZ + 0.057], [nozzleX[side], y, mZ + 0.057], 0.0045, STAINLESS, 8);
+      N.box(0.012, 0.012, 0.016, MAT.darkSteel, nozzleX[side], y, ZB + 0.103);
     });
   });
   // Top-fed, as drawn, to match the hall's overhead rack loop (hall.js HALL_PLAN): the hall is a slab with no floor
@@ -869,12 +881,12 @@ function buildNVL({ quality, model, state }) {
     N.cyl(0.0255, 0.012, band, hx, H + 0.07, mZ, 12);
   });
   // the layout the design-rule tests check (design-rules-rack-hall-site.test.ts): spine, busbar and manifolds at the rear, mirrored
-  scene.userData.rackPlan = { frontZ: ZF, rearZ: ZB, depth: D, cartridgeX: cartX, cartridgeZ: cartC, busbarZ: bbZ, manifoldX: mX, manifoldZ: mZ,
+  scene.userData.rackPlan = { frontZ: ZF, rearZ: ZB, depth: D, cartridgeX: cartX, cartridgeZ: cartC, busbarZ: bbZ, manifoldX: mX, manifoldZ: mZ, nozzleX,
     coolantFeed: 'top', hoses: mX.map(x => ({ x: hoseX(x), top: H + 0.03 })), roofY: H, trayRearZ: ZF - 0.07 - trayD, representative: true,
     shelves: layout.filter(k => k === 'ps').length, trayHalfWidth: trayW / 2,
     // boxes as [x0, z0, x1, z1] in plan, for the collision rule: the right-hand rear corner post, rear rail and manifold
     rearCorner: { post: [X - 0.02 - 0.0175, ZB + 0.03 - 0.0175, X - 0.02 + 0.0175, ZB + 0.03 + 0.0175], rail: [0.227 - 0.004, ZB + 0.1 - 0.006, 0.227 + 0.004, ZB + 0.1 + 0.006],
-      manifold: [mX[1] - 0.0225, mZ - 0.024, mX[1] + 0.0225, mZ + 0.024], cartridge: [0.2 - 0.0315, cartC - cartD / 2, 0.2 + 0.0315, cartC + cartD / 2] } };
+      manifold: [mX[1] - 0.0225, mZ - 0.024, mX[1] + 0.0225, mZ + 0.024], cartridge: [outerCart - CART_HALF, cartC - cartD / 2, outerCart + CART_HALF, cartC + cartD / 2] } };
 
 
   // ---------- feed from the busway above ----------
@@ -946,8 +958,8 @@ function buildNVL({ quality, model, state }) {
   heatFlows.push(water(flow([[hoseX(mX[0]), H + 0.1, mZ], [hoseX(mX[0]), mTop + 0.16, mZ], [mIn[0], bbTop + 0.05, mFz], [mIn[0], bbBot - 0.1, mFz]], 'cool', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 })));
   heatFlows.push(water(flow([[mIn[1], bbBot - 0.1, mFz], [mIn[1], bbTop + 0.05, mFz], [hoseX(mX[1]), mTop + 0.16, mZ], [hoseX(mX[1]), H + 0.1, mZ]], 'warm', { count: 34, speed: 0.3, size: 0.011, k: 2.4, trailR: 0.005, trailK: 0.45 })));
   [5, 10, 15, 19, 23, 28].forEach(i => {
-    heatFlows.push(water(flow([[mX[0], trayY(i), mZ + 0.06], [-0.16, trayY(i), ZB + 0.18], [-0.1, trayY(i), 0]], 'cool', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false })));
-    heatFlows.push(water(flow([[0.1, trayY(i), 0], [0.16, trayY(i), ZB + 0.18], [mX[1], trayY(i), mZ + 0.06]], 'warm', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false })));
+    heatFlows.push(water(flow([[mX[0], trayY(i), mZ + 0.06], [nozzleX[0], trayY(i), ZB + 0.18], [-0.1, trayY(i), 0]], 'cool', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false })));
+    heatFlows.push(water(flow([[0.1, trayY(i), 0], [nozzleX[1], trayY(i), ZB + 0.18], [mX[1], trayY(i), mZ + 0.06]], 'warm', { count: 3, speed: 0.25, size: 0.016, k: 2.6, trail: false })));
   });
   // the air share: power shelves, switches, optics exhaust out the back
   const airRow = [1, 7, 13, 17, 21, 26, 33];

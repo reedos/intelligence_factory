@@ -11,7 +11,7 @@ LAY=json.loads((Path(__file__).resolve().parent/'references'/'rack-tray-layout.j
 def enhance(accel,m,box,cylinder,material):
     U=.04445
     h100=accel=='h100';rubin=accel=='rubin'
-    py=.16+2*(8*U+.004)+4*U if h100 else .12+25*U+U/2   # NVL72: the pulled compute tray, row 25 (nvl72-layout.js)
+    py=.16+2*(8*U+.004)+4*U if h100 else LAY['rack']['base']+LAY['rack']['pulled']*U+U/2   # NVL72: the pulled compute tray, row 25 (nvl72-layout.js)
     yb=py-(4*U if h100 else U/2)
     pz=1.045 if h100 else .965
     depth=.84 if h100 else .9
@@ -111,9 +111,9 @@ def enhance(accel,m,box,cylinder,material):
         # boards themselves come from tray-pcb.js pcbLayout in rack.js.
         TU=LAY['unit']
         if rubin:
-            nic_sites=[(nx*TU+dx*TU,nz*TU+dz*TU) for nx,nz in [(-1.35,2.85),(1.35,2.85)] for dx in [-.3,.3] for dz in [-.47,.47]]
+            nic_sites=[(nx*TU+dx*TU,nz*TU+dz*TU) for nx,nz in LAY['rubin']['nic'] for dx in [-.3,.3] for dz in [-.47,.47]]
         else:
-            nic_sites=[(x*TU,3.3*TU) for x in [.2,.7,1.2,1.7]]
+            nic_sites=[(x*TU,3.3*TU) for x in LAY['nvl']['front'][accel]['cageX']]
         nl=.003 if rubin else .019   # the NIC boards' height above the superchip boards (rack.js)
         for x,dz in nic_sites:
             b('network package',(x,yb+.017+nl,pz+dz),(.024,.005,.024),m['graphite'])
@@ -121,7 +121,7 @@ def enhance(accel,m,box,cylinder,material):
             if not rubin:
                 for k in range(9):b('network heatsink fin',(x-.0112+k*.0028,yb+.026+nl,pz+dz),(.0009,.008,.027),m['shell'],.0002)
         if not rubin:
-            for x in ([-.08,-.03] if accel=='gb200' else [-.035]):
+            for x in [d*TU for d in LAY['nvl']['front'][accel]['dpuX']]:
                 control_board('storage control board',x,yb+.032,pz+.365,.040,.120)
                 b('DPU thermal assembly',(x,yb+.040,pz+.365),(.030,.014,.065),m['shell'])
                 for k in range(8):b('DPU cooling fin',(x-.012+k*.0034,yb+.050,pz+.365),(.001,.008,.062),m['shell'],.0002)
@@ -177,7 +177,7 @@ def enhance(accel,m,box,cylinder,material):
     # Existing switch inspection tray: socket retainers, passives and board
     # alignment markings add detail without changing the two/four ASIC census.
     if not h100:
-        sy=.12+16*U+U/2;sz=.615   # NVL72 opened switch tray, row 16 (nvl72-layout.js)
+        sy=LAY['rack']['base']+LAY['rack']['switchPulled']*U+U/2;sz=.615   # NVL72 opened switch tray, row 16 (nvl72-layout.js)
         sites=[(-.10,-.12),(.10,-.12),(-.10,.06),(.10,.06)] if rubin else [(-.11,-.08),(.11,-.08)]
         for x,dz in sites:
             frame('switch socket outline',x,sy-.009,sz+dz,.112,.112)

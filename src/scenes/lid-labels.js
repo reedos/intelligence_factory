@@ -37,6 +37,17 @@ export function nicLabel(accel) {
   const a = accelOf(accel);
   return NIC[a.id] || NIC_TIER[tierOf(a)] || NIC.gb200;
 }
+/** Optical connectors (MPO-12 receptacles) on the face of one module seated in a compute tray's NIC cages: two on a twin-port
+ *  ("2xDR4", the DGX H100's), one on a single-port (GB200 400G DR4, GB300 800G DR4, Rubin 1.6T). Read from the label above so
+ *  the count a module is printed with and the count it is drawn with cannot differ; the rack, the tray and the hall's
+ *  breakout all take it from here. */
+export function modulePorts(accel) {
+  return /2x/i.test(nicLabel(accel)) ? 2 : 1;
+}
+/** The hall's switch-side modules: every one is a twin-port (switchLabel, "2xDR4"), so two MPO-12 receptacles. */
+export function switchModulePorts(accel) {
+  return /2x/i.test(switchLabel(accel)) ? 2 : 1;
+}
 /** Lid print of the module side level: the scenario's switch-side module, plus LPO in the LPO view (LRO keeps the plain print). */
 export function moduleLabel(accel, lpo = false) {
   return switchLabel(accel) + (lpo ? ' LPO' : '');
