@@ -65,8 +65,30 @@ right part instead of starting a tour. The page keeps its address bar current, a
   assumptions; `src/claims.js` — every labeled figure, with the key its chip carries
 - `src/app/` — `stage` (3D and panels), `sections` (charts), `scenario` (the settings bar), `links`
   (chart ↔ 3D), `story` and `journeys` (tours), `clock-ui`, `sources-ui` (popovers), `share`
-- `src/scenes/` — one procedural Three.js scene per scale, with variants per scenario
+- `src/scenes/` — scene assembly, motion and overlays around Blender-authored GLB geometry;
+  `src/app/stage.js` selects the authored builders by default and loads assets as levels are entered.
+  `?module=native` or `?module=original` retains the comparison implementation.
+- `tools/blender/` — reproducible geometry builders and technical-layout exporters;
+  `public/models/` — the committed runtime GLBs
 - `tools/claims.mjs` — every labeled figure across all scenarios that is not backed the way its label says
 - `tools/` — browser checks: `cycle.mjs` (every scenario, scene, layer and clock), `views.mjs` (every tour stop
   and part is framed clear of overlays with nothing solid in front), `perf.mjs` (real-GPU cost), `links.mjs` (every
   chart link lands), `coplanar.mjs` (flush surfaces that flicker), `shot.mjs` and `look.mjs` (screenshots)
+
+## Rebuilding 3D assets
+
+The authored models retain the scenario engine’s dimensions and component positions.
+Three.js assembles the scenes and animates their signals and mechanisms; Blender owns
+the shipped static geometry. Geometry remains schematic, not vendor CAD.
+
+Start with the corresponding script in `tools/blender/`; prerequisites differ by asset.
+For compute hardware, `export-native-reference.mjs --compute` writes the technical-layout
+references used by `build-compute.py`. The exporter needs `@napi-rs/canvas`; set
+`IFX_CANVAS_PACKAGE` to its installed package path instead of relying on the author’s
+machine-specific default. Run the builder with Blender in background mode after its
+reference export. Other builders document their inputs in their file headers.
+
+Commit the resulting `public/models/` assets with their source changes and increment
+the affected loader’s `?v=N` cache key. Run typecheck, unit tests, the claims audit and
+the relevant browser framing, flight and performance checks before publishing an asset
+change. Ordinary README edits do not rebuild the models.
