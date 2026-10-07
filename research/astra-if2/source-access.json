@@ -1,0 +1,1933 @@
+[
+  {
+    "id": "nvidia-rubin-superpod-topology",
+    "url": "https://docs.nvidia.com/dgx-superpod-reference-architecture-with-dgx-vera-rubin-nvl72.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-nvl72-reference-arch",
+    "url": "https://docs.nvidia.com/enterprise-reference-architectures/nvl72-ai-factory/latest/components.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-dgx-gb200-hardware",
+    "url": "https://docs.nvidia.com/dgx/dgxgb200-user-guide/hardware.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-superpod-gb200-network-fabrics",
+    "url": "https://docs.nvidia.com/dgx-superpod/reference-architecture-scalable-infrastructure-gb200/latest/network-fabrics.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-superpod-gb200-components",
+    "url": "https://docs.nvidia.com/dgx-superpod/reference-architecture-scalable-infrastructure-gb200/latest/dgx-superpod-components.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-superpod-b300-management-servers",
+    "url": "https://docs.nvidia.com/dgx-superpod/reference-architecture/scalable-infrastructure-b300/latest/management-servers.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-missioncontrol-northsouth",
+    "url": "https://docs.nvidia.com/mission-control/docs/north-south-network-deployment-guide/2.0.0/nsnetcfg-network-planning-design.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-mms4a00-datasheet",
+    "url": "https://docs.nvidia.com/networking/display/nvidia-mms4a00-1600gbps-2xdr4-twin-port-osfp-2xmpo-1310nm-single-mode-transceiver-up-to-500m.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-mma4z00-ns400-datasheet",
+    "url": "https://docs.nvidia.com/mma4z00-ns400-400gb-s-single-port-osfp-400gb-s-multimode-sr4-50m-transceiver.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-mfp7e20-splitter",
+    "url": "https://docs.nvidia.com/nvidia-mfp7e20-nxxx-optical-multimode-splitter-fiber-cable-product-specifications-04-05-2024.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-mfp7e40-splitter",
+    "url": "https://docs.nvidia.com/networking/display/mfp7e40-nxxx-single-mode-1-2-fiber-splitter-cable-product-specifications.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-800g-dr8-datasheet",
+    "url": "https://docs.nvidia.com/nvidia-mms4x00-nm-800gbps-twin-port-osfp-2x400gb-s-single-mode-dr8-500m-12-07-2023.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-copper-dac-lacc-overview",
+    "url": "https://docs.nvidia.com/networking/display/400g100gpam4ovdev/copper-dac-and-lacc-cables-overview",
+    "status": "HTTP 301"
+  },
+  {
+    "id": "nvidia-dgx-gb200-user-guide",
+    "url": "https://docs.nvidia.com/dgx/dgxgb200-user-guide/hardware.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-dsx-data-center-architecture",
+    "url": "https://docs.nvidia.com/dsx/ncp/software-reference-guide/data-center-architecture",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-dgxh100-user-guide-intro",
+    "url": "https://docs.nvidia.com/dgx/dgxh100-user-guide/introduction-to-dgxh100.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-dgxh100-service-manual-fans",
+    "url": "https://docs.nvidia.com/dgx/dgxh100-service-manual/front-fan-replacement.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-dgxh100-user-guide",
+    "url": "https://docs.nvidia.com/dgx/dgxh100-user-guide/introduction-to-dgxh100.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-dgxh100-service-manual-mbtray-common",
+    "url": "https://docs.nvidia.com/dgx/dgxh100-service-manual/motherboard-tray-common.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-dgxh100-service-manual-mbtray",
+    "url": "https://docs.nvidia.com/dgx/dgxh100-service-manual/motherboard-tray-removal-install.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-dgxh100-safety",
+    "url": "https://docs.nvidia.com/dgx/dgxh100-user-guide/safety.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-dgx-gb300",
+    "url": "https://www.nvidia.com/en-us/data-center/dgx-gb300/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-vera-rubin-current-specs",
+    "url": "https://www.nvidia.com/en-us/data-center/vera-rubin-nvl72/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-nvlink-current-specs",
+    "url": "https://www.nvidia.com/en-us/data-center/nvlink/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-dpu-supernic",
+    "url": "https://www.nvidia.com/en-us/networking/products/data-processing-unit/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-gb200-nvl72",
+    "url": "https://www.nvidia.com/en-us/data-center/gb200-nvl72/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-gb300-nvl72",
+    "url": "https://www.nvidia.com/en-us/data-center/gb300-nvl72/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-dgx-h100",
+    "url": "https://www.nvidia.com/en-eu/data-center/dgx-h100/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-linkx-interconnect",
+    "url": "https://www.nvidia.com/en-us/networking/interconnect/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-silicon-photonics-page",
+    "url": "https://www.nvidia.com/en-us/networking/products/silicon-photonics/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-dgxh100-datasheet",
+    "url": "https://www.nvidia.com/content/dam/en-zz/Solutions/Data-Center/nvidia-dgx-h100-datasheet.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-connectx7-ib-datasheet",
+    "url": "https://www.nvidia.com/content/dam/en-zz/Solutions/networking/infiniband-adapters/infiniband-connectx7-data-sheet.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-ethernet-supernic",
+    "url": "https://www.nvidia.com/en-us/networking/products/ethernet/supernic/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-h100-product-page",
+    "url": "https://www.nvidia.com/en-us/data-center/h100/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-grace-cpu-page",
+    "url": "https://www.nvidia.com/en-us/data-center/grace-cpu/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-hopper-architecture-page",
+    "url": "https://www.nvidia.com/en-us/data-center/technologies/hopper-architecture/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-blackwell-architecture-page",
+    "url": "https://www.nvidia.com/en-us/data-center/technologies/blackwell-architecture/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-grace-hopper-superchip",
+    "url": "https://www.nvidia.com/en-us/data-center/grace-hopper-superchip/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-vera-rubin-system-blog",
+    "url": "https://developer.nvidia.com/blog/?p=111036",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-vera-rubin-pod-blog",
+    "url": "https://developer.nvidia.com/blog/?p=113993",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-bess-blog",
+    "url": "https://developer.nvidia.com/blog/designing-production-ready-battery-energy-storage-systems-for-ai-factories",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-gb200-ocp",
+    "url": "https://developer.nvidia.com/blog/nvidia-contributes-nvidia-gb200-nvl72-designs-to-open-compute-project/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-gb300-power",
+    "url": "https://developer.nvidia.com/blog/how-new-gb300-nvl72-features-provide-steady-power-for-ai/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-800v-hvdc",
+    "url": "https://developer.nvidia.com/blog/nvidia-800-v-hvdc-architecture-will-power-the-next-generation-of-ai-factories/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-blackwell-ultra-blog",
+    "url": "https://developer.nvidia.com/blog/inside-nvidia-blackwell-ultra-the-chip-powering-the-ai-factory-era",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-gb200-dynamo-moe",
+    "url": "https://developer.nvidia.com/blog/how-nvidia-gb200-nvl72-and-nvidia-dynamo-boost-inference-performance-for-moe-models",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-cpo-scaling-blog",
+    "url": "https://developer.nvidia.com/blog/scaling-ai-factories-with-co-packaged-optics-for-better-power-efficiency/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-cpo-industry-collaboration-blog",
+    "url": "https://developer.nvidia.com/blog/how-industry-collaboration-fosters-nvidia-co-packaged-optics/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-gb200-nvl72-llm-blog",
+    "url": "https://developer.nvidia.com/blog/nvidia-gb200-nvl72-delivers-trillion-parameter-llm-training-and-real-time-inference/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-hopper-architecture-indepth",
+    "url": "https://developer.nvidia.com/blog/nvidia-hopper-architecture-in-depth/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-photonics-switching-blog",
+    "url": "https://developer.nvidia.com/blog/a-new-era-in-data-center-networking-with-nvidia-silicon-photonics-based-network-switching/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-rubin-gpu-architecture-blog",
+    "url": "https://developer.nvidia.com/blog/inside-nvidia-rubin-gpu-architecture-powering-the-era-of-agentic-ai/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-gb200-nvl72-blog",
+    "url": "https://developer.nvidia.com/blog/nvidia-gb200-nvl72-delivers-trillion-parameter-llm-training-and-real-time-inference/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-td-losses",
+    "url": "https://www.eia.gov/tools/faqs/faq.php?id=105&t=5",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-co2-per-kwh",
+    "url": "https://www.eia.gov/tools/faqs/faq.php?id=74&t=11",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-state-indiana",
+    "url": "https://www.eia.gov/electricity/state/indiana/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-state-texas",
+    "url": "https://www.eia.gov/electricity/state/texas/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-state-tennessee",
+    "url": "https://www.eia.gov/electricity/state/tennessee/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-state-georgia",
+    "url": "https://www.eia.gov/electricity/state/georgia/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-state-wisconsin",
+    "url": "https://www.eia.gov/electricity/state/wisconsin/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-state-louisiana",
+    "url": "https://www.eia.gov/electricity/state/louisiana/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-state-virginia",
+    "url": "https://www.eia.gov/electricity/state/virginia/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-state-oregon",
+    "url": "https://www.eia.gov/electricity/state/oregon/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-state-washington",
+    "url": "https://www.eia.gov/electricity/state/washington/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-state-arizona",
+    "url": "https://www.eia.gov/electricity/state/arizona/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-state-ohio",
+    "url": "https://www.eia.gov/electricity/state/ohio/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-state-iowa",
+    "url": "https://www.eia.gov/electricity/state/iowa/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eia-state-newyork",
+    "url": "https://www.eia.gov/electricity/state/newyork/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "epoch-stargate-abilene",
+    "url": "https://epoch.ai/publications/openai-stargate-where-the-us-sites-stand",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "epoch-dc-abilene",
+    "url": "https://epoch.ai/data/ai-data-centers/directory/openai-stargate-abilene",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "epoch-dc-colossus2",
+    "url": "https://epoch.ai/data/ai-data-centers/directory/colossus-2",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "epoch-dc-fairwater-atl",
+    "url": "https://epoch.ai/data/ai-data-centers/directory/microsoft-fairwater-atlanta",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "epoch-dc-fairwater-wi",
+    "url": "https://epoch.ai/data/ai-data-centers/directory/microsoft-fairwater-wisconsin",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "epoch-dc-hyperion",
+    "url": "https://epoch.ai/data/ai-data-centers/directory/meta-hyperion",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "epoch-largest-dc",
+    "url": "https://epoch.ai/graphs/largest-ai-data-centers-by-power-capacity",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "epoch-dc-new-carlisle",
+    "url": "https://epoch.ai/data/ai-data-centers/directory/anthropic-amazon-new-carlisle",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "epoch-dc-prometheus",
+    "url": "https://epoch.ai/data/ai-data-centers/directory/meta-prometheus",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "epoch-satellite-prometheus",
+    "url": "https://epoch.ai/data/data-centers/satellite-explorer/MetaPrometheusNewAlbanyOhio",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "epoch-chatgpt-energy",
+    "url": "https://epoch.ai/gradient-updates/how-much-energy-does-chatgpt-use",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "elonmusk-x-colossus-2026-09-25",
+    "url": "https://x.com/elonmusk/status/2103329761690865846",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "elonmusk-x-110k-switch",
+    "url": "https://x.com/elonmusk/status/2103352821135376584",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "locuza-sxm5-package-estimate",
+    "url": "https://x.com/Locuza_/status/1522260942049918981",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "tomshardware-spacexai-660k",
+    "url": "https://www.tomshardware.com/tech-industry/data-centers/elon-musks-spacexai-to-add-another-660-000-ai-gpus-this-year-nearing-a-total-of-1-44-million-in-operation-firm-is-building-1-2-gigawatt-power-plant-to-bring-systems-fully-online",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "tomshardware-colossus",
+    "url": "https://www.tomshardware.com/tech-industry/artificial-intelligence/musks-colossus-is-fully-operational-with-200-000-gpus-backed-by-tesla-batteries-phase-2-to-consume-300-mw-enough-to-power-300-000-homes",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "tomshardware-hynix-hbm3-h100",
+    "url": "https://www.tomshardware.com/news/sk-hynix-kicks-off-hbm-3-mass-production-ships-to-nvidia",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "tomshardware-cowos-l-blackwell",
+    "url": "https://www.tomshardware.com/tech-industry/nvidia-shifts-to-cowos-l-packaging-for-blackwell-gpu-production-ramp-up",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "measuredai-new-carlisle",
+    "url": "https://measuredai.substack.com/p/aws-new-carlisle-data-center-campus",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "measuredai-prometheus-primer",
+    "url": "https://measuredai.substack.com/p/meta-prometheus-google-ohio",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "measuredai-fairwater-atlanta-data-center",
+    "url": "https://measuredai.substack.com/p/microsoft-fairwater-atlanta-data-center",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "compute-atlas-rainier",
+    "url": "https://www.compute-atlas.com/facilities/amazon-project-rainier-new-carlisle-in",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "compute-atlas-colossus",
+    "url": "https://www.compute-atlas.com/facilities/xai-colossus-memphis-tn",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "blackridge-rainier",
+    "url": "https://www.blackridgeresearch.com/project-profiles/aws-project-rainier-new-carlisle-indiana-usa-data-center-supercluster-cost-contractors-timeline-latest-updates",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "mlq-meta-gas-tents",
+    "url": "https://mlq.ai/news/meta-deploys-tent-based-data-centers-in-ohio-and-tennessee-backed-by-400mw-of-off-grid-gas-power/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "techcrunch-meta-tents",
+    "url": "https://techcrunch.com/2026/06/04/meta-steals-a-tactic-from-tesla-and-builds-data-centers-in-tents/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-sn5000-datasheet",
+    "url": "https://nvdam.widen.net/s/mmvbnpk8qk/networking-ethernet-switches-sn5000-datasheet-us",
+    "status": "HTTP 404"
+  },
+  {
+    "id": "nvidia-quantum-x800-switches",
+    "url": "https://networking-docs.nvidia.com/xdrswitcheshw/introduction",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-xdr-switch-specs",
+    "url": "https://networking-docs.nvidia.com/xdrswitcheshw/specifications",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-sn5000-specs",
+    "url": "https://networking-docs.nvidia.com/sn5000hw/specifications",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-mms4a00-specs",
+    "url": "https://networking-docs.nvidia.com/9iahx00xmosfptcvr1600/specifications",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-mms4x00-nm16",
+    "url": "https://networking-docs.nvidia.com/mms4x00nm16",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-mms4a00",
+    "url": "https://networking-docs.nvidia.com/9iahx00xmosfptcvr1600/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-mma4z00-ns",
+    "url": "https://networking-docs.nvidia.com/800gmma4z00ns/overview",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-mma4z00-ns-specs",
+    "url": "https://networking-docs.nvidia.com/800gmma4z00ns/specifications",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-mms4x00-ns-specs",
+    "url": "https://networking-docs.nvidia.com/800gmms4x00ns/specifications",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-mms4x00-ns",
+    "url": "https://networking-docs.nvidia.com/800gmms4x00ns/overview",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-mms4x00-ns400",
+    "url": "https://networking-docs.nvidia.com/mms4x00ns400/specifications",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-quantum-x800-clusters",
+    "url": "https://networking-docs.nvidia.com/nvidia-quantum-x800-xdr-clusters",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-mca4j80n-datasheet",
+    "url": "https://networking-docs.nvidia.com/mca4j80nxxx800pub",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-quantum2-qm9700-specs",
+    "url": "https://networking-docs.nvidia.com/qm97x0hw/specifications",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-connectx7-specs",
+    "url": "https://networking-docs.nvidia.com/connectx7hw/Specifications",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-sn2201-specs",
+    "url": "https://networking-docs.nvidia.com/sn2201hw/specifications",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-bf3-specifications",
+    "url": "https://networking-docs.nvidia.com/bf3dpu/specifications",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-bf3-networking-docs",
+    "url": "https://networking-docs.nvidia.com/bf3dpu/introduction",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-connectx8-specs-page",
+    "url": "https://networking-docs.nvidia.com/connectx8hw/specifications",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-mms4x50-nm",
+    "url": "https://networking-docs.nvidia.com/mms4x50nm800g2kmpub/specifications",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-rubin-platform",
+    "url": "https://nvidianews.nvidia.com/news/rubin-platform-ai-supercomputer",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-spectrum-x-cpo",
+    "url": "https://nvidianews.nvidia.com/news/nvidia-spectrum-x-co-packaged-optics-networking-switches-ai-factories",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-spectrum-xgs",
+    "url": "https://nvidianews.nvidia.com/news/nvidia-introduces-spectrum-xgs-ethernet-to-connect-distributed-data-centers-into-giga-scale-ai-super-factories",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-blackwell-platform-arrives",
+    "url": "https://nvidianews.nvidia.com/news/nvidia-blackwell-platform-arrives-to-power-a-new-era-of-computing",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidianews-blackwell-platform-arrival",
+    "url": "https://nvidianews.nvidia.com/news/nvidia-blackwell-platform-arrives-to-power-a-new-era-of-computing",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-bluefield-datasheet",
+    "url": "https://resources.nvidia.com/en-us-accelerated-networking-resource-library/datasheet-nvidia-bluefield",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-bluefield4-datasheet",
+    "url": "https://resources.nvidia.com/en-us-accelerated-networking-resource-library/bluefield-4-dpu-datasheet",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-h100-datasheet",
+    "url": "https://resources.nvidia.com/en-us-gpu-resources/h100-datasheet-24306",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-connectx8-datasheet",
+    "url": "https://resources.nvidia.com/en-us-accelerated-networking-resource-library/connectx-datasheet-c",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "cummins-qsk78",
+    "url": "https://www.cummins.com/en-na/generators/products/qsk78",
+    "status": "HTTP 403"
+  },
+  {
+    "id": "cummins-nfpa110-ate",
+    "url": "https://www.cummins.com/sites/default/files/2021-04/AtE-NFPA110_EXT_3.25.21.pdf",
+    "status": "not attempted: host access denied in this session"
+  },
+  {
+    "id": "cat-c175-16",
+    "url": "https://www.cat.com/en_US/products/new/power-systems/electric-power/diesel-generator-sets/1000028916.html",
+    "status": "HTTP 403"
+  },
+  {
+    "id": "delta-ocp-800vdc",
+    "url": "https://www.deltapowersolutions.com/en/mcis/news-2025-delta-demonstrate-hvdc-power-cooling-networking-to-drive-ai-data-center-evolution-at-ocp-global-summit.php",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "infineon-solaredge-sst",
+    "url": "https://www.powerelectronicsnews.com/infineon-and-solaredge-partner-to-advance-high-efficiency-power-infrastructure-for-next-gen-ai-data-centers/",
+    "status": "TimeoutError"
+  },
+  {
+    "id": "liteon-gtc-2026",
+    "url": "https://www.liteon.com/en/news/press-center/content/liteon-nvidia-gtc-2026",
+    "status": "URLError",
+    "secondApproach": "web reader also failed"
+  },
+  {
+    "id": "liteon-gb200-power-system",
+    "url": "https://www.liteon.com/en/news/press-center/content/nvidia-gb200-blackwell-power-system",
+    "status": "URLError"
+  },
+  {
+    "id": "skhynix-hbm4",
+    "url": "https://news.skhynix.com/en/sk-hynix-completes-worlds-first-hbm4-development-and-readies-mass-production/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "micron-hbm4",
+    "url": "https://www.micron.com/products/memory/hbm/hbm4",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "samsung-hbm4",
+    "url": "https://semiconductor.samsung.com/news-events/news/samsung-ships-industry-first-commercial-hbm4-with-ultimate-performance-for-ai-computing/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "innolight-1p6t",
+    "url": "https://www.innolight.com/data-center-networking/1.6t-osfp224",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "coherent-1p6t-dr8",
+    "url": "https://www.coherent.com/networking/transceivers/datacom/FTCF2519E3PCA",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "coherent-analog-ics-2025",
+    "url": "https://www.coherent.com/news/press-releases/coherent-unveils-a-family-of-ics-for-next-generation-optical-transceivers",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "coherent-tia-products",
+    "url": "https://www.coherent.com/networking/optoelectronic-devices/integrated-circuits/transimpedance-amplifiers",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "evapco-apex",
+    "url": "https://www.evapco.com/apex",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "bac-data-centers",
+    "url": "https://baltimoreaircoil.com/data-centers",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "schneider-uniflair",
+    "url": "https://www.se.com/us/en/work/products/master-ranges/uniflair/",
+    "status": "HTTP 403"
+  },
+  {
+    "id": "schneider-ecostruxure-dcim",
+    "url": "https://www.se.com/us/en/work/software/data-center-infrastructure-management-dcim/",
+    "status": "not attempted: host access denied in this session"
+  },
+  {
+    "id": "marvell-alaska-a-aec",
+    "url": "https://www.prnewswire.com/news-releases/marvell-extends-connectivity-leadership-with-industrys-first-1-6t-pam4-dsp-for-active-electrical-cables-302184240.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "marvell-colorz-800",
+    "url": "https://www.prnewswire.com/news-releases/marvell-launches-industrys-first-800g-zrzr-modules-for-data-center-interconnects-301907609.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "marvell-teralynx10",
+    "url": "https://www.prnewswire.com/news-releases/marvell-teralynx-10-51-2t-ethernet-switch-enters-volume-production-for-global-ai-cloud-deployments-302206399.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "marvell-aec-prnewswire",
+    "url": "https://www.prnewswire.com/news-releases/marvell-expands-interconnect-portfolio-with-industrys-1st-cloud-optimized-400g800g-pam4-dsps-for-active-electrical-cables-301493718.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "marvell-ara-1-6t-prnewswire",
+    "url": "https://www.prnewswire.com/news-releases/marvell-unveils-industrys-first-3nm-1-6-tbps-pam4-interconnect-platform-to-scale-accelerated-infrastructure-302320829.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "neophotonics-cosa-2018",
+    "url": "https://www.prnewswire.com/news-releases/neophotonics-to-demonstrate-at-ofc-a-64-gbaud-coherent-optical-sub-assembly-cosa-for-coherent-400g-12t-applications-300611963.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "liteon-gtc-2026-prnewswire",
+    "url": "https://www.prnewswire.com/news-releases/liteon-showcases-next-generation-800-vdc-and-nvidia-vera-rubin-platform-solutions-at-nvidia-gtc-2026-302715737.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "credo-hiwire-800g-aec",
+    "url": "https://www.opencompute.org/products/522/credos-hiwire-800g-aec-cables-straight",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ocp-hgx-baseboard-spec",
+    "url": "https://www.opencompute.org/documents/open-compute-specification-hgx-baseboard-contribution-r1-v0-1-pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "astera-taurus-scm",
+    "url": "https://www.asteralabs.com/products/taurus-ethernet-smart-cable-modules/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "marvell-ara-product-brief",
+    "url": "https://www.marvell.com/content/dam/marvell/en/public-collateral/dsp/marvell-ara-pam4-dsp-product-brief.pdf",
+    "status": "HTTP 403"
+  },
+  {
+    "id": "marvell-acc-aec-architecture",
+    "url": "https://www.marvell.com/blogs/active-copper-cables-ai-rack-interconnects.html",
+    "status": "not attempted: host access denied in this session"
+  },
+  {
+    "id": "marvell-cpo-tray-blog",
+    "url": "https://www.marvell.com/blogs/co-packaged-optics-for-next-wave-ai-data-centers.html",
+    "status": "not attempted: host access denied in this session"
+  },
+  {
+    "id": "marvell-light-engine-2021",
+    "url": "https://www.marvell.com/blogs/highly-integrated-silicon-photonics-light-engines-in-high-speed-data-transport.html",
+    "status": "not attempted: host access denied in this session"
+  },
+  {
+    "id": "marvell-3d-sipho-2024",
+    "url": "https://www.marvell.com/company/newsroom/marvell-demonstrates-industrys-first-200g-3d-silicon-photonics-engine-to-scale-accelerated-infrastructure.html",
+    "status": "not attempted: host access denied in this session"
+  },
+  {
+    "id": "marvell-cpo-xpu-2025",
+    "url": "https://www.marvell.com/company/newsroom/marvell-co-packaged-optics-architecture-custom-ai-accelerators.html",
+    "status": "not attempted: host access denied in this session"
+  },
+  {
+    "id": "marvell-ara-1p6t-portfolio",
+    "url": "https://investor.marvell.com/news-events/press-releases/detail/1013/marvell-ushers-in-the-1-6t-era-with-expanded-optical-dsp-platform-portfolio-redefining-ai-data-center-end-to-end-connectivity",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "credo-bluebird-dsp",
+    "url": "https://credosemi.com/products/optical-dsp/bluebird/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "credo-optical-dsp",
+    "url": "https://credosemi.com/products/optical-dsp/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "credo-zeroflap-aec",
+    "url": "https://credosemi.com/products/zeroflapaec/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "credo-lro-dove850-press",
+    "url": "https://credosemi.com/news/credo-introduces-worlds-first-800g-dsp-for-linear-receive-optics-targeting-hyperscale-and-ai-data-centers/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ciena-wavelogic6-nano",
+    "url": "https://www.ciena.com/insights/infobriefs/wavelogic-6-nano-1-6t-coherent-lite-pluggable-transceiver",
+    "status": "HTTP 403"
+  },
+  {
+    "id": "ciena-wavelogic6",
+    "url": "https://www.ciena.com/about/newsroom/press-releases/ciena-unveils-wavelogic-6",
+    "status": "not attempted: host access denied in this session"
+  },
+  {
+    "id": "broadcom-tomahawk6",
+    "url": "https://www.broadcom.com/company/news/product-releases/64031",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "broadcom-davisson-cpo",
+    "url": "https://www.broadcom.com/company/news/product-releases/63626",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "oci-msa-founding-2026",
+    "url": "https://www.broadcom.com/company/news/product-releases/optical-scale-up-consortium-established-to-create-an-open-specification-for-ai-infrastructure",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ieee-spectrum-hyperion",
+    "url": "https://spectrum.ieee.org/5gw-data-center",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ieee-spectrum-cpo-nvidia",
+    "url": "https://spectrum.ieee.org/co-packaged-optics",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "dcd-xai-colossus-memphis",
+    "url": "https://www.datacenterdynamics.com/en/news/xai-colossus-memphis-power-tva/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "dcd-fairwater-atlanta",
+    "url": "https://www.datacenterdynamics.com/en/news/microsoft-launches-atlanta-fairwater-data-center-two-stories-no-ups-or-gen-sets/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "dcd-fairwater-wisconsin",
+    "url": "https://www.datacenterdynamics.com/en/news/microsoft-increases-wisconsin-data-center-investment-to-73bn-says-fairwater-site-will-be-worlds-most-powerful-data-center/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "spacexai-mid-south",
+    "url": "https://www.spacex.com/Mid-South",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "bi-spacexai-rebrand",
+    "url": "https://finance.yahoo.com/technology/ai/articles/xai-makes-rebrand-spacexai-complete-215010760.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semianalysis-xai-colossus2",
+    "url": "https://newsletter.semianalysis.com/p/xais-colossus-2-first-gigawatt-datacenter",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semianalysis-gb200-hw",
+    "url": "https://newsletter.semianalysis.com/p/gb200-hardware-architecture-and-component",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semianalysis-nvl72-optics",
+    "url": "https://newsletter.semianalysis.com/p/nvidias-optical-boogeyman-nvl72-infiniband",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semianalysis-blackwell-power-delivery",
+    "url": "https://newsletter.semianalysis.com/p/energizing-ai-power-delivery-competition",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semianalysis-inferencemax",
+    "url": "https://newsletter.semianalysis.com/p/inferencemax-open-source-inference",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semianalysis-cpo-newsletter",
+    "url": "https://newsletter.semianalysis.com/p/co-packaged-optics-cpo-book-scaling",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semianalysis-isscc-2026",
+    "url": "https://newsletter.semianalysis.com/p/isscc-2026-nvidia-and-broadcom-cpo",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semianalysis-google-apollo-ocs",
+    "url": "https://newsletter.semianalysis.com/p/google-apollo-the-3-billion-game",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semianalysis-tpuv7-ironwood",
+    "url": "https://newsletter.semianalysis.com/p/tpuv7-google-takes-a-swing-at-the",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "pa-transformer-345kv",
+    "url": "https://www.patransformer.com/power-transformer-projects/power-transformer-345-kv/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "transformer-lead-times",
+    "url": "https://www.gridreadiness.com/blog/power-transformer-lead-times-ai-data-center-2026.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "doe-transformer-efficiency",
+    "url": "https://www1.eere.energy.gov/buildings/appliance_standards/pdfs/dt_final_rule.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "mv-distribution-atk",
+    "url": "https://atkenergygroup.com/blog/medium-voltage-distribution-data-center-campuses/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "atk-substation-construction",
+    "url": "https://atkenergygroup.com/blog/data-center-substation-construction/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "cummins-dqkan-genset",
+    "url": "https://www.globalpwr.com/wp-content/uploads/cut-sheets/gps-cummins-2500-kw-dqkan-data-sheet.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "lv-distribution-busway",
+    "url": "https://aidatacenterguide.com/part-4-electrical-and-energy-infrastructure/4-6-lv-distribution-busway-pdus-rpps-and-rack-power",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "zayo-route-diversity",
+    "url": "https://www.zayo.com/info/zayos-unique-long-haul-routes-setting-the-standard-for-network-resilience/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ashrae-liquid-cooling-classes",
+    "url": "https://www.upsite.com/blog/what-you-need-to-know-about-ashraes-fifth-edition-of-thermal-guidelines/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "introl-wue",
+    "url": "https://introl.com/blog/water-usage-efficiency-wue-ai-data-center-cooling-guide-2025",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nrel-water-electricity",
+    "url": "https://docs.nrel.gov/docs/fy11osti/50900.pdf",
+    "status": "URLError",
+    "secondApproach": "web reader also failed"
+  },
+  {
+    "id": "vertiv-coolchip-cdu",
+    "url": "https://www.vertiv.com/en-us/products-catalog/thermal-management/high-density-solutions/vertiv-coolchip-cdu/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "vertiv-epms",
+    "url": "https://www.vertiv.com/en-us/about/news-and-events/articles/blog-posts/power-management-solutions-for-data-centers-enhancing-control-and-efficiency/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ashrae-tc99-liquid-cooling-wp",
+    "url": "https://www.vertiv.com/49db1c/globalassets/documents/white-papers/ashrae_tc0909_emergence_and_expansion_of_liquid_cooling_in_mainstream_data_centers_5_may_2021_332771_0.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "motivair-cdu-brochure",
+    "url": "https://www.motivaircorp.com/uploads/files/brochures/CDU%202025%20Motivair%20by%20SE_Updated_9_26_25.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "fortum-finland-heat",
+    "url": "https://www.fortum.com/en/media/2026/05/fortum-has-started-heat-production-two-large-data-centre-sites-finland",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "munters-odense",
+    "url": "https://www.munters.com/en-us/knowledge-bank/case-studies/casestudy-13666/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "stockholm-data-parks",
+    "url": "https://stockholmdataparks.com/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "microsoft-zero-water",
+    "url": "https://www.microsoft.com/en-us/microsoft-cloud/blog/2024/12/09/sustainable-by-design-next-generation-datacenters-consume-zero-water-for-cooling/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "alliance-chemical-gpu-thermal",
+    "url": "https://alliancechemical.com/blogs/articles/gpu-thermal-density-b200-gb200-coolant-flow-specs",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eaton-9395xr-ups",
+    "url": "https://www.eaton.com/us/en-us/catalog/backup-power-ups-surge-it-power-distribution/eaton-9395xr-ups.html",
+    "status": "TimeoutError",
+    "secondApproach": "web reader retrieved full primary product table"
+  },
+  {
+    "id": "google-pue",
+    "url": "https://datacenters.google/efficiency/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "hpe-gb200-quickspecs",
+    "url": "https://www.hpe.com/us/en/collaterals/collateral.a50009224enw.html",
+    "status": "TimeoutError",
+    "secondApproach": "web reader retrieved QuickSpecs"
+  },
+  {
+    "id": "navitas-800vdc",
+    "url": "https://navitassemi.com/navitas-supports-800-vdc-power-architecture-for-nvidias-next-generation-ai-factory-computing-platforms/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "navitas-10kw-dcdc-985",
+    "url": "https://navitassemi.com/navitas-unveils-breakthrough-10-kw-dc-dc-platform-delivering-98-5-efficiency-for-800-vdc-next-gen-ai-data-centers/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "servethehome-dgx-gb200",
+    "url": "https://www.servethehome.com/this-is-the-nvidia-dgx-gb200-nvl72/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "broadcom-davisson-servethehome",
+    "url": "https://www.servethehome.com/broadcom-tomahawk-6-davisson-102-4t-switch-with-co-packaged-optics-shipping/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "naddod-gb200-interconnect",
+    "url": "https://www.naddod.com/blog/nvidia-gb200-interconnect-architecture-analysis-nvlink-infiniband-and-future-trends",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "naddod-aoc-dac-acc-aec",
+    "url": "https://www.naddod.com/blog/a-complete-overview-of-aoc-dac-acc-and-aec-cables",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "amphenol-paladin-hd",
+    "url": "https://www.amphenol-cs.com/product-series/paladin-hd.html",
+    "status": "HTTP 403"
+  },
+  {
+    "id": "lenovo-gb300-guide",
+    "url": "https://lenovopress.lenovo.com/lp2357.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semianalysis-gb200-nvl72-specs",
+    "url": "https://inferencex.semianalysis.com/chips/gb200-nvl72",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semianalysis-gb300-nvl72-specs",
+    "url": "https://inferencex.semianalysis.com/chips/gb300-nvl72",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semianalysis-inferencex-inferencemax",
+    "url": "https://inferencex.semianalysis.com/blog/inferencemax-open-source-inference-benchmarking",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "fs-com-dgx-h100",
+    "url": "https://www.fs.com/blog/introduction-to-nvidia-dgx-h100-3856.html",
+    "status": "HTTP 202"
+  },
+  {
+    "id": "fs-64ch-cband-mux",
+    "url": "https://www.fs.com/products/166004.html",
+    "status": "HTTP 202"
+  },
+  {
+    "id": "wikipedia-meet-me-room",
+    "url": "https://en.wikipedia.org/wiki/Meet-me_room",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "wikipedia-colossus",
+    "url": "https://en.wikipedia.org/wiki/Colossus_(data_center)",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ieee-25gbe-wiki",
+    "url": "https://en.wikipedia.org/wiki/25_Gigabit_Ethernet",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ieee-100gbe-wiki",
+    "url": "https://en.wikipedia.org/wiki/100_Gigabit_Ethernet",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "wikipedia-hyperion-dc",
+    "url": "https://en.wikipedia.org/wiki/Hyperion_(data_center)",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "wikipedia-pcie",
+    "url": "https://en.wikipedia.org/wiki/PCI_Express",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "wikipedia-roadm",
+    "url": "https://en.wikipedia.org/wiki/Reconfigurable_optical_add-drop_multiplexer",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "xtralis-vesda",
+    "url": "https://xtralis.com/page/1072/vesda-aspirating-smoke-detection",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nfpa75-csemag",
+    "url": "https://www.csemag.com/applying-nfpa-75-in-data-centers/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "google-datacenter-security-blog",
+    "url": "https://blog.google/inside-google/infrastructure/how-data-center-security-works/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "google-ironwood-tpu",
+    "url": "https://blog.google/products/google-cloud/ironwood-google-tpu-things-to-know/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "microsoft-azure-physical-security",
+    "url": "https://learn.microsoft.com/en-us/azure/security/fundamentals/physical-security",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "cdc-legionella-cooling-towers",
+    "url": "https://www.cdc.gov/control-legionella/php/toolkit/cooling-towers-module.html",
+    "status": "HTTP 403"
+  },
+  {
+    "id": "oif-hb-cdm-ia",
+    "url": "https://www.oiforum.com/wp-content/uploads/2019/01/OIF-HB-CDM-01.0.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "oif-micro-icr-ia",
+    "url": "https://www.oiforum.com/wp-content/uploads/2019/01/OIF-DPC-MRX-02.0.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "oif-rtlr-press-2025",
+    "url": "https://www.oiforum.com/oif-publishes-implementation-agreement-for-112-gb-s-retimed-transmitter-linear-receiver-rtlr-electrical-and-optical-interface-advancing-energy-efficiency/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "oif-400zr-ia",
+    "url": "https://www.oiforum.com/wp-content/uploads/OIF-400ZR-02.0.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "oif-dpc-rx-architecture",
+    "url": "https://www.oiforum.com/wp-content/uploads/2019/01/OIF_DPC_RX-01.2.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "oif-ic-trosa-ia",
+    "url": "https://www.oiforum.com/wp-content/uploads/OIF-IC-TROSA-01.0.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "oif-800zr-release",
+    "url": "https://www.oiforum.com/oif-releases-800zr-coherent-interface-implementation-agreement-ia-and-key-400zr-ia-updates-addressing-market-demands-for-scalable-interoperable-high-capacity-solutions/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "acacia-coherent-edge-access-2021",
+    "url": "https://acacia-inc.com/wp-content/uploads/2021/03/Coherent-for-Service-Provider-Edge-and-Access-Network-Applications-WP0321.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "sumitomo-coherent-ics-2025",
+    "url": "https://sumitomoelectric.com/sites/default/files/2025-10/download_documents/E101-06.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nokia-cstar-800",
+    "url": "https://www.nokia.com/optical-networks/cstar-silicon-photonics/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "lumentum-hb-cdm",
+    "url": "https://www.lumentum.com/en/products/high-bandwidth-coherent-driver-modulator",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "diligencestack-tsmc-coupe",
+    "url": "https://www.thediligencestack.com/p/tsmc-coupe-why-the-cowos-pattern",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "projectmaterials-asme-a13-1",
+    "url": "https://blog.projectmaterials.com/pipes/asme-a13-1-pipe-color-coding/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "stordis-s-osfpc-16tdr4l",
+    "url": "https://stordis.com/product/switch2open-s-osfpc-16tdr4l",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eoptolink-800g-lpo-osfp",
+    "url": "https://eoptolink.com/product-solutions/800g/800g-lpo-osfp",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "microsoft-ai-wan",
+    "url": "https://news.microsoft.com/source/features/ai/from-wisconsin-to-atlanta-microsoft-connects-datacenters-to-build-its-first-ai-superfactory/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "microsoft-wisconsin-construction-complete",
+    "url": "https://news.microsoft.com/source/2026/06/23/microsoft-completes-construction-on-first-datacenter-facility-in-mount-pleasant-wisconsin/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "datacenterfrontier-fairwater",
+    "url": "https://www.datacenterfrontier.com/machine-learning/article/55330039/microsofts-fairwater-atlanta-and-the-rise-of-the-distributed-ai-supercomputer",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "google-cloud-networking-ai",
+    "url": "https://cloud.google.com/blog/products/networking/data-center-and-global-networks-built-for-ai-era",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "google-inference-impact",
+    "url": "https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "google-jupiter-ocs",
+    "url": "https://cloud.google.com/blog/topics/systems/the-evolution-of-googles-jupiter-data-center-network",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "google-ironwood-codesign",
+    "url": "https://cloud.google.com/blog/products/compute/inside-the-ironwood-tpu-codesigned-ai-stack",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "deepmind-decoupled-diloco",
+    "url": "https://deepmind.google/blog/decoupled-diloco/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "corning-edge8",
+    "url": "https://ecatalog.corning.com/optical-communications/US/en/Fiber-Optic-Hardware/Housings/EDGE8%C2%AE-Housings/p/EDGE8-01U-SP",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "coherent-full-cband-pols",
+    "url": "https://convergedigest.com/coherent-full-c-band-pols-25-6tbps-ai-dci/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "convergedigest-telstra-ciena-1100km",
+    "url": "https://convergedigest.com/telstra-ciena-1-6tbps-1100km-wavelogic-6/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "cisco-8800-routers",
+    "url": "https://www.cisco.com/c/en/us/products/collateral/routers/8000-series-routers/8800-series-modular-routers-ds.html",
+    "status": "HTTP 403"
+  },
+  {
+    "id": "cisco-400g-qsfpdd-datasheet",
+    "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/datasheet-c78-743172.html",
+    "status": "not attempted: host access denied in this session"
+  },
+  {
+    "id": "cisco-800g-zr-datasheet",
+    "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/qsfp-dd-osfp-800g-zr-zr-plus-coherent-optics.html",
+    "status": "not attempted: host access denied in this session"
+  },
+  {
+    "id": "cisco-osfp-800g-datasheet",
+    "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/osfp-800g-transceiver-modules-ds.html",
+    "status": "not attempted: host access denied in this session"
+  },
+  {
+    "id": "microsoft-hollow-core-fiber",
+    "url": "https://fiberbroadband.org/2026/04/02/microsoft-scales-up-hollow-core-fiber-production/",
+    "status": "HTTP 403"
+  },
+  {
+    "id": "prysmian-flexribbon",
+    "url": "https://www.prysmian.com/sites/default/files/business_markets/markets/downloads/datasheets/FlexRibbon-Whitepaper.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "arxiv-gpu-power-visibility",
+    "url": "https://arxiv.org/html/2412.12426v1",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "samsi-words-to-watts",
+    "url": "https://arxiv.org/pdf/2310.03003",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "google-inference-impact-paper",
+    "url": "https://arxiv.org/abs/2508.15734",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "meta-llama3-herd-parallelism",
+    "url": "https://arxiv.org/pdf/2407.21783",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "deepseek-v3-technical-report",
+    "url": "https://arxiv.org/pdf/2412.19437",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "arxiv-2601-14342",
+    "url": "https://arxiv.org/abs/2601.14342",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "arxiv-power-stabilization-2508",
+    "url": "https://arxiv.org/abs/2508.14318",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "dynamollm-azure-diurnal",
+    "url": "https://arxiv.org/abs/2408.00741",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ai-dc-water-arxiv",
+    "url": "https://arxiv.org/pdf/2608.09882",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "google-tpuv4-ocs-paper",
+    "url": "https://arxiv.org/pdf/2304.01433",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "wccftech-nv-hbi",
+    "url": "https://wccftech.com/nvidia-blackwell-ai-deep-dive-nv-hbi-fuse-two-ai-gpus-together-5th-gen-tensor-cores-5th-gen-nvlink-spectrum-x/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "wccftech-gb300-blackwell-ultra",
+    "url": "https://wccftech.com/nvidia-blackwell-ultra-gb300-gpu-fastest-ai-chip-dual-reticle-gpu-over-20k-cores-288-gb-hbm3e/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "wccftech-nvidia-rubin-gpu-architecture",
+    "url": "https://wccftech.com/nvidia-rubin-gpu-architecture/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "wccftech-rubin-gpu-architecture",
+    "url": "https://wccftech.com/nvidia-rubin-gpu-architecture/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "tes-h100-sxm5-module",
+    "url": "https://www.tes-itsolutions.com/product-page/nvidia-h100-80gb-sxm5-hbm3-hopper-tensor-core-gpu-699-2g520-0200-400",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "techinsights-b200-packaging",
+    "url": "https://www.techinsights.com/blog/nvidia-blackwell-b200-high-performance-interconnect-and-packaging-analysis",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "techinsights-h100-cowos-s",
+    "url": "https://www.techinsights.com/blog/nvidia-h100-hopper-tsmc-cowos-s-flip-chip-ball-grid-array",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "micron-hbm3e-brief",
+    "url": "https://assets.micron.com/adobe/assets/urn:aaid:aem:b710d8f2-7f66-44c1-a234-456e2b986347/original/as/hbm3e-product-brief.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "meta-llama-3-1-model-card",
+    "url": "https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/MODEL_CARD.md",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "meta-llama31-model-card",
+    "url": "https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/MODEL_CARD.md",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-llama-3-1-70b-fp8",
+    "url": "https://huggingface.co/nvidia/Llama-3.1-70B-Instruct-FP8",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-hgx-h100-pcf",
+    "url": "https://images.nvidia.com/aem-dam/Solutions/documents/HGX-H100-PCF-Summary.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "microsoft-infinite-scale",
+    "url": "https://blogs.microsoft.com/blog/2025/11/12/infinite-scale-the-architecture-behind-the-azure-ai-superfactory/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "microsoft-made-in-wisconsin",
+    "url": "https://blogs.microsoft.com/on-the-issues/2025/09/18/made-in-wisconsin-the-worlds-most-powerful-ai-datacenter/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "techtimes-fairwater-wisconsin",
+    "url": "https://www.techtimes.com/articles/319205/20260627/microsoft-opens-fairwater-wisconsin-ai-campus-runs-one-supercomputer-via-800g-ethernet.htm",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "meta-richland-parish",
+    "url": "https://datacenters.atmeta.com/richland-parish-data-center/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "cnbc-meta-louisiana",
+    "url": "https://www.cnbc.com/2026/07/13/meta-louisiana-data-center-investment-reaches-50-billion-amid-ai-push.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "led-meta-louisiana",
+    "url": "https://www.opportunitylouisiana.gov/news/meta-commits-more-than-50-billion-for-north-louisiana-project-becoming-one-of-the-largest-data-centers-in-history",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ieee-8023dj-electrical-adhoc",
+    "url": "https://www.ieee802.org/3/dj/public/adhoc/electrical/23_0420/ran_3dj_elec_02_230420.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ieee-802-3cu-lr4-baseline",
+    "url": "https://www.ieee802.org/3/cu/public/May19/lewis_3cu_02a_0519.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ethernet-alliance-400g-lane",
+    "url": "https://ethernetalliance.org/blog/2026/06/16/defining-the-path-to-400-gbps-per-lane-ethernet-signaling/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "photonics-explained-copper-wall",
+    "url": "https://tacticzhazel.substack.com/p/photonics-explained-copper-vs-photonics",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "link-pp-8023dj-glossary",
+    "url": "https://www.link-pp.com/glossary/ieee-802-3dj.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "photoncap-copper-wall",
+    "url": "https://photoncap.net/p/copper-wall-age-of-light-dissecting",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "wingvc-marvell-copper-wall",
+    "url": "https://www.wing.vc/content/light-radio-and-the-race-to-replace-copper-interconnects-in-the-ai-era",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semiengineering-copper-grip-slipping",
+    "url": "https://semiengineering.com/coppers-grip-on-ai-scaling-is-starting-to-slip/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "viksnewsletter-acc-power",
+    "url": "https://www.viksnewsletter.com/p/how-rack-power-density-is-opening-acc-market",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "infraeo-9m-aec-release",
+    "url": "https://www.prweb.com/releases/infraeo-launches-9m-800g-osfp-aec-for-next-gen-ai-infrastructure-302582943.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "lpo-msa-lightwave",
+    "url": "https://www.lightwaveonline.com/home/article/55278631/lpo-msa-releases-linear-pluggable-optical-modules-specification",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "lightwaveonline-wavelogic6",
+    "url": "https://www.lightwaveonline.com/optical-tech/transmission/article/14290118/ciena-introduces-single-carrier-16-tbps-wavelogic-6-coherent-optical-engines",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semtech-200g-lpo-power-blog",
+    "url": "https://blog.semtech.com/200g-lpo-power-reach-and-loss-real-numbers",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semtech-lpo-ai-basics-blog",
+    "url": "https://blog.semtech.com/ai-data-center-basics-what-is-linear-pluggable-optics-lpo",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "lpo-msa-faqs",
+    "url": "https://www.lpo-msa.org/home/faqs.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ascentoptics-800g-lpo-guide",
+    "url": "https://ascentoptics.com/blog/800g-lpo/",
+    "status": "HTTP 500",
+    "secondApproach": "web reader also failed"
+  },
+  {
+    "id": "ascentoptics-copper-cables",
+    "url": "https://ascentoptics.com/blog/understanding-high-speed-copper-cables-dac-acc-and-aec/",
+    "status": "HTTP 500"
+  },
+  {
+    "id": "ascentoptics-osfp-form-factor",
+    "url": "https://ascentoptics.com/blog/osfp-form-factor-guide/",
+    "status": "HTTP 500"
+  },
+  {
+    "id": "ascentoptics-coherent-power-consumption",
+    "url": "https://ascentoptics.com/blog/coherent-optical-module-power-consumption/",
+    "status": "HTTP 500"
+  },
+  {
+    "id": "ascentoptics-coherent-power",
+    "url": "https://ascentoptics.com/blog/coherent-optical-module-power-consumption/",
+    "status": "HTTP 500"
+  },
+  {
+    "id": "broadcom-sian3-200g-lane-dsp",
+    "url": "https://www.globenewswire.com/news-release/2025/03/25/3048831/19933/en/broadcom-extends-200g-lane-dsp-phy-leadership-for-next-generation-ai-infrastructure.html",
+    "status": "TimeoutError"
+  },
+  {
+    "id": "navitas-10kw-dcdc-800v50v",
+    "url": "https://www.globenewswire.com/news-release/2026/02/09/3234542/0/en/Navitas-Unveils-Breakthrough-10-kW-DC-DC-Platform-Delivering-98-5-Efficiency-for-800-VDC-Next-Gen-AI-Data-Centers.html",
+    "status": "TimeoutError"
+  },
+  {
+    "id": "nextplatform-broadcom-cpo",
+    "url": "https://www.nextplatform.com/2025/10/17/the-third-time-will-be-the-charm-for-broadcom-switch-co-packaged-optics/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "micasnetworks-51-2t-release",
+    "url": "https://micasnetworks.com/company/news/30202",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "storagereview-nvidia-cpo-production",
+    "url": "https://www.storagereview.com/news/nvidia-spectrum-x-ethernet-photonics-enters-full-production-with-4x-fewer-lasers-and-a-five-vendor-cpo-supply-chain",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "lcom-lr4-10km",
+    "url": "https://www.l-p.com/blog/use-cases-solutions/lr4-optics-solutions-10km-long-haul-data-center-links.htm",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "edgeoptic-400g-coherent-guide",
+    "url": "https://edgeoptic.com/kb_article/deep-dive-400g-coherent-optics-guide",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "tspa-400g-lane-ofc",
+    "url": "https://tspasemiconductor.substack.com/p/ofc-preview-the-race-to-400g-per-lane",
+    "status": "HTTP 404"
+  },
+  {
+    "id": "osfp-msa",
+    "url": "https://www.osfpmsa.org/assets/pdf/OSFP_Module_Specification_Rev5_22.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "jlt-nano-itla-2023",
+    "url": "https://opg.optica.org/jlt/abstract.cfm?uri=jlt-41-16-5405",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "flexoptix-dac-acc-aec",
+    "url": "https://www.flexoptix.net/en/blog/blog/dac-acc-or-aec",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "flexoptix-lpo-intro",
+    "url": "https://www.flexoptix.net/en/blog/blog/introducing-linear-pluggable-optics",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "furukawa-ic-trosa-2023",
+    "url": "https://www.furukawaelectric.com/en/rd/review/fr054/fr54_03.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "mapyourtech-800zr",
+    "url": "https://mapyourtech.com/800zr-and-800zr-the-coherent-pluggable-wave/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "fibermall-800g-zr",
+    "url": "https://www.fibermall.com/blog/800g-zr-zr-coherent-guide.htm",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "fibermall-coherent-guide",
+    "url": "https://www.fibermall.com/blog/coherent-optical-module-guide.htm",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ldpd-nano-itla-c17",
+    "url": "https://www.ld-pd.com/?a=cp3&id=862",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "effect-nitla17",
+    "url": "https://effectphotonics.com/products/nitla17/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "opticalconnections-nano-itla",
+    "url": "https://opticalconnectionsnews.com/2019/03/ofc-neophotonics-nano-itla-extends-ultra-narrow-linewidth-performance-to-enable-400g-and-beyond-coherent-osfp-and-dd-qsfp-modules/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "cignal-coherent-dsp-2026",
+    "url": "https://cignal.ai/2026/04/tracking-the-coherent-dsp-supply-chain-2026/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "juniper-1p6t-transceiver",
+    "url": "https://www.juniper.net/documentation/us/en/hardware/1.6t-optics-cables-guide/optics-1.6t/topics/concept/1.6t-know-your-transceiver.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "lambda-q3450-unboxing",
+    "url": "https://lambda.ai/blog/unbox-one-of-nvidias-first-co-packaged-optics-samples-with-lambda",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "trendforce-coupe-semicon-2025",
+    "url": "https://www.trendforce.com/news/2025/09/09/news-silicon-photonics-in-the-spotlight-tsmc-lifts-the-curtain-on-coupe-at-semicon-taiwan/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "trendforce-cpo-ramp-2026",
+    "url": "https://www.trendforce.com/presscenter/news/20260727-13151.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ic-online-nvidia-coupe",
+    "url": "https://www.ic-online.com/blog/post/nvidia-unveils-silicon-photonics-network-switches-with-tsmc-coupe-packaging-technology",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "tsmc-coupe-stack-2024",
+    "url": "https://pr.tsmc.com/system/files/newspdf/attachment/507ec4d12fab34dd5137213a5132cece4f6a7ed7/2024%20Tech%20Symposium%20%28E%29_final_wmn.pdf",
+    "status": "HTTP 403"
+  },
+  {
+    "id": "nvidia-cpo-hotchips-2025",
+    "url": "https://hc2025.hotchips.org/assets/program/conference/day2/HC25_NVIDIA_Shainer_v4.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "daudlin-eic-pic-2021",
+    "url": "https://bpb-us-e1.wpmucdn.com/sites.dartmouth.edu/dist/c/2572/files/2025/01/3D-Integrated_Multichip_Module_Transceiver_for_Terabit-Scale_DWDM_Interconnects.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-vera-rubin-production-2026",
+    "url": "https://investor.nvidia.com/news/press-release-details/2026/NVIDIA-Vera-Rubin-Ramps-Into-Full-Production-to-Power-Agentic-AI-Factories-Worldwide/default.aspx",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "broadcom-th6-davisson-release",
+    "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-announces-tomahawkr-6-davisson-industrys-first-1024",
+    "status": "TimeoutError",
+    "secondApproach": "web reader retrieved primary release"
+  },
+  {
+    "id": "broadcom-cpo-reliability-meta",
+    "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-showcases-industry-leading-quality-and-reliability-co",
+    "status": "TimeoutError"
+  },
+  {
+    "id": "broadcom-bailly-release-2024",
+    "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-delivers-industrys-first-512-tbps-co-packaged-optics",
+    "status": "TimeoutError"
+  },
+  {
+    "id": "ayar-guc-cpo-2025",
+    "url": "https://ayarlabs.com/news/guc-and-ayar-labs-partner-to-advance-co-packaged-optics-for-hyperscalers/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ayar-gf-monolithic-2020",
+    "url": "https://www.hpcwire.com/off-the-wire/ayar-labs-demonstrates-optical-interconnect-on-globalfoundries-photonics-manufacturing-process/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "lightmatter-l200-2025",
+    "url": "https://lightmatter.co/press-release/lightmatter-announces-passage-l200-the-fastest-co-packaged-optics-for-ai/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "marvell-celestial-close-2026",
+    "url": "https://www.sec.gov/Archives/edgar/data/1835632/000119312526032861/d45933dex991.htm",
+    "status": "not attempted: host access denied in this session"
+  },
+  {
+    "id": "tencent-broadcom-isscc-2026",
+    "url": "https://cloud.tencent.cn/developer/article/2633143",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ranovus-odin-jabil-2025",
+    "url": "https://ranovus.com/ranovus-collaborates-with-jabil/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "gazettabyte-ayar-teraphy-2026",
+    "url": "https://gazettabyte.com/ayar-labs-prepares-to-fulfil-its-optical-input-output-i-o-vision/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-coreweave-gb200-400g",
+    "url": "https://blogs.nvidia.com/blog/blackwell-coreweave-gb200-nvl72-instances-cloud/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-warm-water-blog",
+    "url": "https://blogs.nvidia.com/blog/liquid-cooling-ai-factories/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nvidia-bluefield4-blog",
+    "url": "https://blogs.nvidia.com/blog/bluefield-4-ai-factory/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "lmsys-sglang-gb200-part2",
+    "url": "https://www.lmsys.org/blog/2025-09-25-gb200-part-2/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "green-grid-wue-wp35",
+    "url": "https://www.thegreengrid.org/system/files/store/WUE_v1.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "epa-egrid2022-summary-tables",
+    "url": "https://www.epa.gov/system/files/documents/2024-01/egrid2022_summary_tables.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "epa-egrid2022-summary",
+    "url": "https://www.epa.gov/system/files/documents/2024-01/egrid2022_summary_tables.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "networkworld-hollow-core-fiber",
+    "url": "https://www.networkworld.com/article/4049666/microsofts-hollow-core-fiber-delivers-the-lowest-signal-loss-ever.html",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "yesenergy-hyperscale-dc-anatomy",
+    "url": "https://www.yesenergy.com/blog/what-does-a-hyperscale-data-center-really-look-like",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "yesenergy-abilene-hyperscale",
+    "url": "https://www.yesenergy.com/blog/what-does-a-hyperscale-data-center-really-look-like",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "groundnews-colossus2-550k",
+    "url": "https://ground.news/article/elon-musk-plans-660k-gb300-gpus-for-colossus-2-by-year-end",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "smartoptics-400zr-dci",
+    "url": "https://smartoptics.com/knowledgebank-post/what-400zr-means-for-next-gen-dci-and-metro-networks/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "trg-diverse-fiber-routes",
+    "url": "https://www.trgdatacenters.com/resource/diverse-fiber-routes-data-center/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "industrialsage-transformer-leadtimes",
+    "url": "https://www.industrialsage.com/power-transformer-lead-times-us-grid-shortage/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "cfr-10-431-196",
+    "url": "https://www.law.cornell.edu/cfr/text/10/431.196",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "eurelectric-stockholm-data-parks",
+    "url": "https://www.eurelectric.org/stories/stockholm-exergi-data-parks-shows-the-potential-for-scaling-the-reuse-of-waste-heat-when-it-becomes-a-tradable-product/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "interestingengineering-xai-megapack",
+    "url": "https://interestingengineering.com/energy/xai-to-use-tesla-megapack-batteries-to-power-worlds-largest-ai-supercomputer",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "hvactoolskit-chiller-cop",
+    "url": "https://hvactoolskit.com/cooling/chiller-cop-calculator",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "nixonpower-nfpa110",
+    "url": "https://www.nixonpower.com/blogs/news/nfpa-110-generator-requirements-for-data-centers-and-hospitals",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "sunbirddcim-gb200-nvl72",
+    "url": "https://www.sunbirddcim.com/blog/your-data-center-ready-nvidia-gb200-nvl72",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "datacentrereview-ups-sizing",
+    "url": "https://datacentrereview.com/2024/08/how-to-size-a-ups-for-a-modern-data-centre/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ashrae-tc99-reference-card",
+    "url": "https://xp20.ashrae.org/datacom1_4th/ReferenceCard.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ceie-eaton-9395xr",
+    "url": "https://snmiss.com/?a=index&aid=16&c=View&m=home",
+    "status": "RemoteDisconnected"
+  },
+  {
+    "id": "doe-transformer-standards-2024",
+    "url": "https://www.energy.gov/articles/doe-finalizes-energy-efficiency-standards-distribution-transformers-protect-domestic",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "semiconductor-today-navitas-sst",
+    "url": "https://www.semiconductor-today.com/news_items/2026/mar/navitas-020326.shtml",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "intel-xeon-8480c",
+    "url": "https://www.intel.com/content/www/us/en/products/sku/231730/intel-xeon-platinum-8480c-processor-105m-cache-2-00-ghz/specifications.html",
+    "status": "HTTP 403"
+  },
+  {
+    "id": "ashrae-thermal-guidelines-refcard",
+    "url": "https://www.ashrae.org/file%20library/technical%20resources/bookstore/supplemental%20files/therm-gdlns-5th-r-e-refcard.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "google-jupiter-evolving-paper",
+    "url": "https://web.stanford.edu/class/cs244/papers/poutievski-sigcomm22.pdf",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "flex-gb200-power-shelf",
+    "url": "https://flex.com/resources/power-shelves",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "theregister-dgx-gb200-nvl72",
+    "url": "https://www.theregister.com/2024/03/21/nvidia_dgx_gb200_nvk72/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "canarymedia-xai-battery",
+    "url": "https://www.canarymedia.com/articles/batteries/xai-massive-battery-memphis-data-center",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "tiafotc-400gbase-fr4",
+    "url": "https://www.tiafotc.org/ieee-802-3-ethernet-standards-update/singlemode-standards-update/400gbase-fr4/",
+    "status": "HTTP 200"
+  },
+  {
+    "id": "ciena-6500-rls-datasheet",
+    "url": "https://telecomcauliffe.com/wp-content/uploads/2023/10/Ciena_6500_Reconfigurable_Line_System_DS.pdf",
+    "status": "HTTP 200"
+  }
+]

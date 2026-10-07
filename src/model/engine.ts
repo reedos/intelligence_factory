@@ -88,7 +88,7 @@ export const ACCELERATORS: Record<AccelId, Accel> = {
     scaleupKW: 14, nicKW: 7.5, otherKW: 2.6, busbarKW: 0.4,
     hbmShare: 0.16, vrmEff: 0.915, ibcEff: 0.983, psuEff: 0.975, liquidShare: 1,
     hbm: { type: 'HBM4', gb: 288, tbs: 19.2, stacks: 8, layers: 12 }, dies: 2,   // stack count not yet published
-    nvlink: { gen: 'NVLink 6', tbs: 3, domain: 72, switchChipsPerRack: 36, linksPerGpu: 36 }, nicGbps: 1600, nicPortGbps: 800, nicsPerGpu: 2, dpusPerTray: 1, gpuPortsPerModule: 1, fp8PF: null, fp4PF: 35,   // sources give 25–50
+    nvlink: { gen: 'NVLink 6', tbs: 3, domain: 72, switchChipsPerRack: 36, linksPerGpu: 36 }, nicGbps: 1600, nicPortGbps: 800, nicsPerGpu: 2, dpusPerTray: 1, gpuPortsPerModule: 1, fp8PF: 17.5, fp4PF: 35,   // dense peaks, NVIDIA current specifications checked 10/07/2026
     publishedRackKW: [170, 230], coolingOptions: ['liquid', 'warm'], dc800: true, basis: 'est',
   },
 };
@@ -386,7 +386,7 @@ export function compute(s: Scenario) {
   const layout = {
     halls: Math.max(1, Math.ceil(IT_MW / 45)),
     mvaUnit,
-    transformers: Math.ceil(meterMW / mvaUnit) + 1,         // N+1
+    transformers: Math.ceil(meterMW / (mvaUnit * 0.95)) + 1, // N+1, real MW at the assumed power factor
     feeders: Math.max(2, Math.ceil(meterMW / 10)),
     gensets: batteryBackup ? 0 : Math.ceil(meterMW / 3 * 1.2),         // 3 MW class, N+20%
     fuelML: batteryBackup ? 0 : meterMW * 48 * 0.26 / 1000,            // 48 h at 0.26 L/kWh, million liters

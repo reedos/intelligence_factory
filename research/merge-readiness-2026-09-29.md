@@ -2,7 +2,7 @@
 
 **Outcome:** ready for Opus’s integration review. Required gate runs are complete; two hidden-contact geometry warnings have documented dispositions. Final visual acceptance remains with Reed.
 
-Private review: http://100.120.155.127:47411/design-review.html (Tailscale). Tested source/asset content ID: `e85df3bf7009e363`.
+Private review: http://<private-ip>:47411/design-review.html (Tailscale). Tested source/asset content ID: `e85df3bf7009e363`.
 
 ## Local integration
 

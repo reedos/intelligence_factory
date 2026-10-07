@@ -221,7 +221,7 @@ export function content(M, opts = {}) {
       dataIntro: A.dies > 1
         ? `The fastest links are the shortest. HBM feeds the dies at ${hbmTB} over millimeters, the two dies talk at 10 TB/s across their seam, and ${A.nvlink.gen} leaves the package edge at ${nvlTB}.`
         : `The fastest links are the shortest. HBM feeds the die at ${hbmTB} over millimeters, and 18 ${A.nvlink.gen} links leave the package edge at ${nvlTB}.`,
-      intro: `The last millimeter: over a thousand amps climb through solder balls and the substrate into ${A.dies > 1 ? 'two silicon dies' : 'one silicon die'} and ${A.id === 'h100' ? 'five working HBM stacks' : `${A.hbm.stacks} HBM stacks`}. What leaves is heat, and tokens.`,
+      intro: `The last millimeter: about ${n0(coreA)} amps reach ${A.dies > 1 ? 'two silicon dies' : 'one silicon die'} through solder balls and the substrate. The package also holds ${A.id === 'h100' ? 'five working HBM stacks' : `${A.hbm.stacks} HBM stacks`}. What leaves is heat, and tokens.`,
     },
     // the side levels inside the links, each its own diagram, each entered from the part that holds it (not part of the
     // line of six): a module from a tray's cages or the hall's pluggables, the CPO package from the hall's CPO switch,
@@ -627,7 +627,7 @@ export function content(M, opts = {}) {
       body: A.id === 'rubin' ? 'Vera uses LPDDR5X SOCAMM memory modules. These are serviceable modules, not a ring of individual DRAM packages soldered around the CPU.' : `Low-power LPDDR5X is the ${X.cpu} CPU’s system memory. The illustrated placement is representative; it is separate from the GPU’s HBM.`,
       specs: [A.id === 'rubin'
         ? ['Capacity', X.cpuMem, 'spec', { refs: [ref('nvidia-vera-rubin-current-specs', 'Superchip column: up to 1.5 TB LPDDR5X for its one Vera CPU.'), ref('nvidia-vera-rubin-system-blog', 'Vera CPU and superchip sections identify SOCAMM LPDDR5X modules.')] }]
-        : ['Capacity', X.cpuMem, 'derived', { calc: 'hbm-per-gpu', refs: [ref(A.id === 'gb300' ? 'nvidia-gb300-nvl72' : 'nvidia-gb200-nvl72', A.id === 'gb300' ? '"17 TB LPDDR5X" CPU memory ÷ 36 CPUs' : '"17 TB LPDDR5X" total ÷ 36 Grace CPUs')] }],
+        : ['Capacity', '≈470 GB per CPU (rounded 17 TB ÷ 36)', 'derived', { calc: 'cpu-memory-per-cpu', refs: [ref(A.id === 'gb300' ? 'nvidia-gb300-nvl72' : 'nvidia-gb200-nvl72', A.id === 'gb300' ? '"17 TB LPDDR5X" CPU memory ÷ 36 CPUs' : '"17 TB LPDDR5X" total ÷ 36 Grace CPUs')] }],
         ...(A.id === 'rubin' ? [['Module screws and package layout', 'representative', 'assumed', { assume: 'tray-mechanical-detail' }]] : [])] },
     { id: 'coldplates', title: 'Cold plates', kicker: 'Water on every hot chip',
       body: 'Copper plates with fine internal fins sit on each GPU and CPU. Coolant enters cool, picks up over a kilowatt per GPU, and leaves warm.',
@@ -742,7 +742,7 @@ export function content(M, opts = {}) {
     { id: 'hbm', title: `${A.hbm.type} stacks`, kicker: `${stacksTxt}, ${A.hbm.gb} GB`,
       body: `Each stack, from suppliers such as SK hynix, Micron and Samsung, is ${A.hbm.layers} DRAM dies thinned and stacked with through-silicon vias. Moving model weights out of HBM for every token is a large share of inference energy.`,
       specs: [['Capacity', `${A.hbm.gb} GB${A.id === 'gb200' ? ' nominal; rack total implies ≈186 GB' : A.id === 'gb300' ? ' nominal; rounded rack total implies ≈278 GB' : ''}`, EV6.hbm.basis, EV6.hbm.ev], ['Bandwidth', hbmTB, EV6.hbm.basis, EV6.hbm.ev],
-        ['Layers per stack', `${A.hbm.layers}`, EV6.layers.basis, EV6.layers.ev], ['Share of GPU power', '≈8–15%', 'assumed', { assume: 'hbm-power-share' }], ['Stack height, as drawn', 'about 3× real', 'assumed', { assume: 'hbm-stack-drawing' }]] },
+        ['Layers per stack', `${A.hbm.layers}`, EV6.layers.basis, EV6.layers.ev], ['Share of GPU power', `≈${+(A.hbmShare * 100).toFixed(1)}%`, 'assumed', { assume: 'hbm-share-of-gpu-power' }], ['Stack height, as drawn', 'about 3× real', 'assumed', { assume: 'hbm-stack-drawing' }]] },
     { id: 'tokens', title: 'Tokens', kicker: 'What leaves', math: tokenMathRows(M),
       body: 'Every token a model writes is a pass through billions of weights. Run the numbers below to see how many a kilowatt-hour buys.',
       specs: [
@@ -769,7 +769,7 @@ export function content(M, opts = {}) {
         ['Diesel generators', 'none mentioned by SpaceXAI', 'spec', Lk(1, 'bess'), { refs: [['spacexai-mid-south', 'all five tabs (Colossus I, Colossus II, Water, Power, Air), checked 09/27/2026: no diesel generators are mentioned']] }],
       ] : [
         ['Diesel generators, 3 MW', `≈${n0(L.gensets)}`, 'derived', Lk(1, 'gensets'), { calc: 'bom-facility-count', refs: [['cummins-dqkan-genset', 'DQKAN generator-set data sheet: 2500 kW (2.5 MW) standby rating for one commercial unit in this class -- this site’s own model rounds to an illustrative 3 MW genset unit for its count, not this specific product’s rating']] }],
-        ['Diesel on site, 48 h', `≈${L.fuelML >= 10 ? n0(L.fuelML) : L.fuelML.toFixed(1)} million L`, 'derived', Lk(1, 'fuel'), { calc: 'fuel-tankers', assume: 'fuel-truckload' }],
+        ['Diesel on site, 48 h', `≈${L.fuelML >= 10 ? n0(L.fuelML) : L.fuelML.toFixed(1)} million L`, 'derived', Lk(1, 'fuel'), { calc: 'campus-fuel-volume' }],
         ['Battery storage', `≈${n0(L.bessMW)} MW / ${n0(L.bessMWh)} MWh`, 'derived', Lk(1, 'bess'), bomFacility],
       ]),
       ...(warm ? [['Rooftop dry coolers', `≈${n0(L.dryCoolers)}`, 'derived', Lk(1, 'drycoolers'), bomFacility]] : [['Chillers, 4 MW', `≈${n0(L.chillers)}`, 'derived', Lk(1, 'chillers'), bomFacility]]),
