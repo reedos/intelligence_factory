@@ -1159,3 +1159,9 @@ body.story .pane-note { display: none; }
 .pane-tabs .part-nav .pn-t { display: none; }
 .pane-tabs:has(.part-nav) .pane-sum { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 480px) { .pane-tabs:has(.part-nav) .pane-sum { display: none; } }
+
+.chapter-scene { margin: 24px 0 40px; min-width: 0; border: 1px solid var(--line); background: var(--ground); }
+.chapter-scene > a { display: block; }
+.chapter-scene img { display: block; width: 100%; height: auto; max-height: 560px; object-fit: cover; }
+.chapter-scene figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 14px 18px; color: var(--muted); font-size: 14px; }
+.chapter-scene figcaption a { color: var(--accent); white-space: nowrap; }

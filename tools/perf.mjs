@@ -38,7 +38,7 @@ const measure = () => new Promise(res => {
 const rows = [];
 for (const [label, s] of scenarios) {
   await p.evaluate(s => ifx.setScenario(s), s);
-  for (let sc = 0; sc < 10; sc++) {   // six levels and the four side levels inside the links
+  for (const sc of process.env.HALL_ONLY === '1' ? [2] : NAMES.map((_, i) => i)) {   // six levels and the four side levels inside the links
     await p.evaluate(i => ifx.go(i), sc);
     await p.waitForFunction(i => ifx.state.scene === i && ifx.built[i], sc, { timeout: 90000 });
     for (const mode of ['power', 'data', 'heat']) {
@@ -55,3 +55,7 @@ const worst = [...rows].sort((a, c) => c.p95 - a.p95).slice(0, 5);
 console.log(`\nslowest p95: ${worst.map(r => `${r.label}/${r.scene}/${r.mode} ${r.p95.toFixed(1)} ms`).join('; ')}`);
 console.log(errors.length ? `errors: ${[...new Set(errors)].join(' | ')}` : 'no page errors');
 await b.close();
+const hallBudget = Number(process.env.HALL_MIN_FPS || 0);
+if (errors.length || (hallBudget > 0 && rows.some(r => r.scene === 'hall' && 1000 / r.med < hallBudget))) {
+  console.error(`FAIL: page errors or hall median below ${hallBudget} fps`); process.exitCode = 1;
+}

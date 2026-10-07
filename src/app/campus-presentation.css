@@ -75,3 +75,9 @@ body.app:not(.story) .sheet-toggle { display: grid; touch-action: none; user-sel
 .link-scope summary { margin-top: 8px; color: var(--ink); cursor: pointer; }
 .link-scope details[open] p { margin-top: 10px; }
 .link-scope summary:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+
+.present-launch { position: absolute; z-index: 7; right: 300px; top: 22px; min-height: 36px; padding: 7px 12px; border: 1px solid var(--line-2); background: var(--ground); color: var(--accent); font: 600 11px var(--sans); cursor: pointer; }
+.present-launch:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 760px) { .present-launch { top: 10px; right: 10px; min-height: 44px; } }
+
+.asset-progress { position: absolute; top: calc(50% + 72px); left: 12px; right: 12px; text-align: center; font: 12px var(--mono); color: var(--muted); }

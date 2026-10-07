@@ -605,7 +605,7 @@ function safeBox() {
   const toY = px => 1 - 2 * (px - vr.top) / vr.height;
   // a level whose overview carries captions under its hardware (the module) also keeps them off the bottom HUD
   const bottom = built[ui.scene]?.presentation?.clearBottomHud ? ['.hud.bl .hint', '.hud.bl .scalebar', '#legend'] : [];
-  for (const sel of ['.hud.tl', '.hud.tr', '#hud-btns', ...bottom]) {        // the clock and the phone buttons sit below the view
+  for (const sel of ['.hud.tl', '.hud.tr', '.present-launch', '#hud-btns', ...bottom]) {        // the clock and the phone buttons sit below the view
     const el = document.querySelector(sel); if (!el || el.hidden || getComputedStyle(el).display === 'none') continue;
     const r = el.getBoundingClientRect(); if (!r.width) continue;
     if (r.top - vr.top < vr.height / 2) box.y1 = Math.min(box.y1, toY(r.bottom + 14));   // overlay along the top
@@ -1301,6 +1301,16 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------- scene switching ----------
 let busy = false, queued = null, goingTo = -1, levelMin = 0;
+let idlePreload = 0, loadingAssets = false;
+const priorProgress = THREE.DefaultLoadingManager.onProgress;
+THREE.DefaultLoadingManager.onProgress = (url, loaded, total) => {
+  priorProgress?.(url, loaded, total);
+  if (!loadingAssets) return;
+  let count = veilEl.querySelector('.asset-progress');
+  if (!count) { count = document.createElement('small'); count.className = 'asset-progress'; veilEl.append(count); }
+  count.textContent = `Assets ready: ${loaded} / ${total}`;
+};
+
 export async function go(i, fromId, { force = false, keepCamera = false, fromShow = false, side } = {}) {
   if (!force && !fromShow) showSeq++;                      // the reader moved: drop any jump still waiting for its scene
   if (busy) { queued = [i, fromId, { force, keepCamera, side }]; return; }   // the latest request runs when this switch lands
@@ -1313,6 +1323,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
     if (side ?? door) setModuleSide(side ?? door);
   }
   busy = true; goingTo = i;
+  clearTimeout(idlePreload);
   const veil = $('veil');
   const same = i === ui.scene;
   // a door entry records the way back (level, part, layer); any other way in, a share link or a jump, clears it so
@@ -1356,7 +1367,9 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
     let requestedModel;
     do {
       requestedModel = store.M;
-      await assetLoaders.get(i)?.({ model: requestedModel, quality });
+      loadingAssets = true;
+      try { await assetLoaders.get(i)?.({ model: requestedModel, quality }); }
+      finally { loadingAssets = false; veil.querySelector('.asset-progress')?.remove(); }
     } while (requestedModel !== store.M);
   } catch (error) {
     busy = false; goingTo = -1;
@@ -1435,6 +1448,11 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   } else veil.classList.add('off');
   busy = false;
   emit('scene', i);
+  idlePreload = setTimeout(() => {
+    const connection = navigator.connection;
+    if (busy || ui.scene !== i || document.hidden || connection?.saveData || /(^|-)2g$/.test(connection?.effectiveType || '') || i >= 5) return;
+    assetLoaders.get(i + 1)?.({ model: store.M, quality })?.catch(() => { /* Foreground visits retry and show errors. */ });
+  }, 2500);
   if (queued) { const q = queued; queued = null; go(...q); }
   else if (built[ui.scene]?.model !== store.M) go(ui.scene, null, { force: true, keepCamera: true });   // the scenario changed mid-switch
 }
@@ -1551,7 +1569,7 @@ view.addEventListener('pointerdown', e => { if (expandedPins && !e.target.closes
 function updatePins() {
   const w = view.clientWidth, h = view.clientHeight, placed = [], shown = [];
   const vr = view.getBoundingClientRect(), reserved = [];
-  for (const el of document.querySelectorAll('#view .hud, #hud-btns, #view .hint')) {
+  for (const el of document.querySelectorAll('#view .hud, #hud-btns, #view .hint, #view .present-launch')) {
     if (el.hidden || getComputedStyle(el).display === 'none' || getComputedStyle(el).visibility === 'hidden') continue;
     const r = el.getBoundingClientRect();
     if (!r.width || !r.height || r.bottom <= vr.top || r.top >= vr.bottom) continue;
