@@ -13,7 +13,7 @@
     "artifact": "vite build && node tools/artifact.mjs"
   },
   "dependencies": {
-    "three": "^0.183.2",
+    "three": "^0.186.1",
     "topojson-client": "^3.1.0",
     "us-atlas": "^3.0.1"
   },
@@ -21,7 +21,7 @@
     "@types/three": "^0.186.0",
     "playwright": "^1.63.0",
     "typescript": "^7.0.2",
-    "vite": "^8.3.1",
-    "vitest": "^5.0.2"
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
   }
 }
