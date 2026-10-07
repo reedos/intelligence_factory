@@ -92,3 +92,8 @@ Commit the resulting `public/models/` assets with their source changes and incre
 the affected loader’s `?v=N` cache key. Run typecheck, unit tests, the claims audit and
 the relevant browser framing, flight and performance checks before publishing an asset
 change. Ordinary README edits do not rebuild the models.
+
+## Automatic validation
+
+The `checks` workflow runs typecheck, unit tests and the production build on pushes
+and pull requests. Production publication remains a separate manual workflow.
