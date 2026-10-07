@@ -1,6 +1,7 @@
 import { on, store } from './store.js';
 import { setCampusView, setCampusFocus, campusFocusInfo, built, qualityInfo, setQualityPreference, partsFor, select, show, onTick, isCameraMoving, controls } from './stage.js';
 import { createPartCycle } from './part-cycle.js';
+import { createIdleAttract } from './idle-attract.js';
 import './campus-presentation.css';
 
 const panel = document.createElement('section');
@@ -48,22 +49,17 @@ const launch = document.createElement('button');
 launch.type = 'button'; launch.className = 'present-launch';
 launch.textContent = 'Present'; launch.setAttribute('aria-pressed', 'false');
 document.getElementById('view').append(launch);
-let attract = false, idle = 0, interacted = false;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-const stopAttract = () => {
-  interacted = true; idle = 0;
-  if (!attract) return;
-  attract = false; controls.autoRotate = false; setPresentation(false);
-};
+const idleAttract = createIdleAttract({
+  enter: () => { setPresentation(true); controls.autoRotateSpeed = 0.3; controls.autoRotate = true; },
+  leave: () => { controls.autoRotate = false; setPresentation(false); },
+});
+const stopAttract = idleAttract.reset;
 for (const event of ['pointerdown', 'pointermove', 'wheel', 'keydown']) addEventListener(event, stopAttract, { capture: true, passive: true });
 reducedMotion.addEventListener('change', stopAttract);
 document.addEventListener('visibilitychange', stopAttract);
 onTick(dt => {
-  if (interacted || reducedMotion.matches || document.hidden || store.ui.scene !== 0 || isCameraMoving()) return;
-  idle += Math.min(Math.max(dt, 0), 0.1);
-  if (idle >= 20 && !attract) {
-    attract = true; setPresentation(true); controls.autoRotateSpeed = 0.3; controls.autoRotate = true;
-  }
+  idleAttract.tick(dt, !reducedMotion.matches && !document.hidden && store.ui.scene === 0 && !isCameraMoving());
 });
 on('scene', () => { if (store.ui.scene !== 0) stopAttract(); });
 let previousCollapsed = false;
