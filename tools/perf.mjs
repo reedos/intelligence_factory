@@ -10,6 +10,8 @@ const vp = form === 'phone' ? { width: 390, height: 844, deviceScaleFactor: 3, i
 const b = await chromium.launch({ headless: true, args: ['--use-angle=d3d11', '--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--disable-gpu-vsync', '--disable-frame-rate-limit'] });
 const p = await b.newPage({ viewport: { width: vp.width, height: vp.height }, deviceScaleFactor: vp.deviceScaleFactor, isMobile: vp.isMobile, hasTouch: vp.hasTouch });
 const errors = []; p.on('pageerror', e => errors.push(e.message));
+const cpuRate = Number(process.env.CPU_RATE || (form === 'phone' ? 4 : 1));
+const maxP95 = Number(process.env.MAX_P95_MS || (form === 'phone' ? 33.3 : 16.7));
 await p.goto(process.env.URL || 'http://127.0.0.1:47400/');
 await p.waitForFunction(() => window.ifx && ifx.state.scene === 0, null, { timeout: 90000 });
 const gpu = await p.evaluate(() => { const gl = ifx.renderer().getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'unknown'; });
@@ -35,6 +37,7 @@ const measure = () => new Promise(res => {
   };
   requestAnimationFrame(tick);
 });
+if (process.env.INJECT_ERROR === '1') await p.evaluate(() => { setTimeout(() => { throw new Error('injected page error'); }, 0); });
 const rows = [];
 for (const [label, s] of scenarios) {
   await p.evaluate(s => ifx.setScenario(s), s);
@@ -55,7 +58,10 @@ const worst = [...rows].sort((a, c) => c.p95 - a.p95).slice(0, 5);
 console.log(`\nslowest p95: ${worst.map(r => `${r.label}/${r.scene}/${r.mode} ${r.p95.toFixed(1)} ms`).join('; ')}`);
 console.log(errors.length ? `errors: ${[...new Set(errors)].join(' | ')}` : 'no page errors');
 await b.close();
+if (process.env.JSON_OUT) (await import('fs')).writeFileSync(process.env.JSON_OUT, JSON.stringify({ form, gpu, cpuRate, rows }, null, 1));
 const hallBudget = Number(process.env.HALL_MIN_FPS || 0);
-if (errors.length || (hallBudget > 0 && rows.some(r => r.scene === 'hall' && 1000 / r.med < hallBudget))) {
-  console.error(`FAIL: page errors or hall median below ${hallBudget} fps`); process.exitCode = 1;
-}
+const slow = rows.filter(r => r.p95 > maxP95);
+if (slow.length) console.error(['FAIL: ' + slow.length + ' case(s) with p95 above ' + maxP95 + ' ms:', ...slow.map(r => '  ' + r.label + '/' + r.scene + '/' + r.mode + ' p95 ' + r.p95.toFixed(1) + ' ms')].join('\n'));
+if (errors.length) console.error(`FAIL: ${errors.length} page error(s)`);
+if (hallBudget > 0 && rows.some(r => r.scene === 'hall' && 1000 / r.med < hallBudget)) console.error(`FAIL: hall median below ${hallBudget} fps`);
+if (errors.length || slow.length || (hallBudget > 0 && rows.some(r => r.scene === 'hall' && 1000 / r.med < hallBudget))) process.exitCode = 1;
