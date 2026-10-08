@@ -15,7 +15,9 @@ const maxP95 = Number(process.env.MAX_P95_MS || (form === 'phone' ? 33.3 : 16.7)
 await p.goto(process.env.URL || 'http://127.0.0.1:47400/');
 await p.waitForFunction(() => window.ifx && ifx.state.scene === 0, null, { timeout: 90000 });
 const gpu = await p.evaluate(() => { const gl = ifx.renderer().getContext(), e = gl.getExtension('WEBGL_debug_renderer_info'); return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : 'unknown'; });
-console.log(`${form}: ${gpu}\n`);
+const cdp = cpuRate > 1 ? await p.context().newCDPSession(p) : null;
+if (cdp) await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpuRate });
+console.log(`${form}: ${gpu}, CPU throttle ${cpuRate}x, p95 limit ${maxP95} ms\n`);
 if (/swiftshader|software/i.test(gpu)) { console.log('Not on the GPU; stopping.'); process.exit(1); }
 // the loop pauses while the view is off screen, so bring it in; count every pass of a frame, not just the last
 await p.evaluate(() => { document.querySelector('.view').scrollIntoView({ block: 'center' }); ifx.renderer().info.autoReset = false; });
