@@ -1,0 +1,32 @@
+done phone L1 power: 12 states
+done phone L1 data: 6 states
+done phone L1 heat: 3 states
+done phone L2 power: 15 states
+done phone L2 data: 9 states
+done phone L2 heat: 5 states
+done phone L3 power: 14 states
+done phone L3 data: 14 states
+done phone L3 heat: 8 states
+done phone L4 power: 8 states
+done phone L4 data: 8 states
+done phone L4 heat: 4 states
+done phone L5 power: 11 states
+done phone L5 data: 7 states
+done phone L5 heat: 6 states
+done phone L6 power: 6 states
+done phone L6 data: 6 states
+done phone L6 heat: 5 states
+done phone L7 power: 6 states
+done phone L7 data: 9 states
+done phone L7 heat: 3 states
+done phone L8 power: 6 states
+done phone L8 data: 10 states
+done phone L8 heat: 3 states
+done phone L9 power: 7 states
+done phone L9 data: 9 states
+done phone L9 heat: 7 states
+done phone L10 power: 4 states
+done phone L10 data: 4 states
+done phone L10 heat: 3 states
+
+phone: 218 states (10 levels x 3 layers x overview + each part) checked, 0 failures
