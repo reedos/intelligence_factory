@@ -68,14 +68,15 @@ The first pass was blocked on source access and left 6,264 of 7,646 inventory en
 | | Before (ce2e270) | After |
 |---|---|---|
 | Inventory variants | 7,646 | 7,754 (fixed text creates new variants) |
-| confirmed | 687 | 1,332 |
+| confirmed | 687 | 1,271 |
 | footnoted | 551 | 584 |
 | fixed | 144 | 288 |
-| needs Reed | 6,264 | 5,550 |
+| needs Reed | 6,264 | 5,562 |
+| no claim (labels and headings, not counted as confirmed) | 0 | 49 |
 
-Default-scenario entries (flag `default` in the inventory): 1,885 entries, 1,883 distinct (key, value) claims. 956 of them (51%) now carry a reviewed verdict. By group: card rows 701 of 727, scene text 40 of 42, links 12 of 12, bandwidth 5 of 5, staircase 7 of 7, static page text 116 of 127, story tour 40 of 89, narratives 34 of 115; BOM, ledger, site, prose, assumption, calculation and Method rows 0. Default-scenario status after: 635 confirmed, 408 footnoted, 56 fixed, 786 needs Reed (66 reviewed and unresolved, 719 not yet reviewed).
+Default-scenario entries (flag `default` in the inventory): 1,885 entries, 1,883 distinct (key, value) claims. 956 of them (51%) now carry a reviewed verdict (49 of those are "no claim" labels). By group: card rows 701 of 727, scene text 40 of 42, links 12 of 12, bandwidth 5 of 5, staircase 7 of 7, static page text 116 of 127, story tour 40 of 89, narratives 34 of 115; BOM, ledger, site, prose, assumption, calculation and Method rows 0. Default-scenario status after: 574 confirmed, 408 footnoted, 56 fixed, 49 no claim, 798 needs Reed (78 reviewed and unresolved, 719 not yet reviewed).
 
-Source access: the 45 sources that failed are refetched in `astra-if2/recert/source-refetch.json`. 19 are now fully readable, so 359 of 385 sources are readable (was 340). Still unreadable or unparsed (26): nvidia-copper-dac-lacc-overview (search excerpt only), nvidia-sn5000-datasheet, cummins-qsk78, cummins-nfpa110-ate (PDF not parsed), cat-c175-16, liteon-gtc-2026, liteon-gb200-power-system, marvell-ara-product-brief, marvell-acc-aec-architecture, marvell-cpo-tray-blog, marvell-light-engine-2021, marvell-3d-sipho-2024, marvell-cpo-xpu-2025, ciena-wavelogic6-nano, ciena-wavelogic6, nrel-water-electricity, eaton-9395xr-ups, hpe-gb200-quickspecs, amphenol-paladin-hd, fs-com-dgx-h100, fs-64ch-cband-mux, tspa-400g-lane-ofc, tsmc-coupe-stack-2024 (PDF not parsed), broadcom-th6-davisson-release, broadcom-cpo-reliability-meta, broadcom-bailly-release-2024. Epoch's Prometheus and New Carlisle pages were read again on 10/08/2026.
+Source access: the 45 sources that failed are refetched in `astra-if2/recert/source-refetch.json`. 19 are now fully readable, so 359 of 385 sources are readable (was 340). Still unreadable or unparsed (26): nvidia-copper-dac-lacc-overview (search excerpt only), nvidia-sn5000-datasheet, cummins-qsk78, cummins-nfpa110-ate (PDF not parsed), cat-c175-16, liteon-gtc-2026, liteon-gb200-power-system, marvell-ara-product-brief, marvell-acc-aec-architecture, marvell-cpo-tray-blog, marvell-light-engine-2021, marvell-3d-sipho-2024, marvell-cpo-xpu-2025, ciena-wavelogic6-nano, ciena-wavelogic6, nrel-water-electricity, eaton-9395xr-ups, hpe-gb200-quickspecs, amphenol-paladin-hd, fs-com-dgx-h100, fs-64ch-cband-mux, tspa-400g-lane-ofc, tsmc-coupe-stack-2024 (PDF not parsed), broadcom-th6-davisson-release, broadcom-cpo-reliability-meta, broadcom-bailly-release-2024. Epoch's Prometheus and New Carlisle pages were read again on 10/08/2026 (the Prometheus page now reads "updated 10/05/2026"; `sources.js` records that and accessed 10/08/2026).
 
 ### How the status script uses this
 
@@ -108,7 +109,7 @@ Source access: the 45 sources that failed are refetched in `astra-if2/recert/sou
 | CPO card | "not fewer fibers" | dropped | in none of the sources |
 | DAC reach | 1–2 m | 0.5–2 m (1–2 m typical) | NVIDIA guide |
 | Rack liquid-split calc text | "published liquid share" | the share this site assumes | the 87% source (HPE QuickSpecs) never loaded |
-| Story page static text | Hyperion "runs on" gas plants; "leased fiber"; dry coolers alone at 45 °C; Llama 405B row; Samsi on A100; 13k tok/s from SemiAnalysis; NVIDIA 8–10x; PUE 1.2 / 132 kW racks; "written in TypeScript"; "every figure"; "1,380 tests across 40 files"; 800G / 144-port scale-out caption | "is to be powered by three new gas plants"; "long-haul fiber"; "with spray assist"; all three sizes; V100; LMSYS/SGLang; SemiAnalysis ≈8x; PUE 1.16 / 131 kW GB200 NVL72; JavaScript with a TypeScript engine; narrowed; counts removed; 400G / three tiers of 64-port switches | source text or default-scenario values |
+| Story page static text | Hyperion "runs on" gas plants; "leased fiber"; dry coolers alone at 45 °C; Llama 405B row; Samsi on A100; 13k tok/s from SemiAnalysis; NVIDIA 8–10x; PUE 1.2 / 132 kW racks; "written in TypeScript"; "every figure"; "1,380 tests across 40 files"; 800G / 144-port scale-out caption | "is to be powered by new gas-fired plants Entergy is building" (no count: IEEE Spectrum says three, 2.26 GW, but Meta agreed 03/27/2026 to fund seven more); "long-haul fiber"; "with spray assist"; all three sizes; V100; LMSYS/SGLang; SemiAnalysis ≈8x; PUE 1.16 / 131 kW GB200 NVL72; JavaScript with a TypeScript engine; narrowed; counts removed; 400G / three tiers of 64-port switches | source text or default-scenario values |
 | Story narrative | UPS loss "more than any other step before the rack" | "any other power-conversion step" | cooling (6.9 MW) is a larger row |
 | Links lede (`sections.js`) | leased fiber | long-haul fiber | no source |
 
@@ -117,6 +118,9 @@ Unsourced phrases dropped or softened without a replacement source: "over 1,200 
 Tests: `src/model/claim-audit-recert.test.ts` (9 tests) recomputes cross-hall strands from GPU count and fibers per link, derives the HBM label range from the accelerator table, checks the chip scale from the package geometry, the Prometheus figures, the voltage range, the static caption and bottom-line text in `index.html` against the default model, and that removed phrases stay removed.
 
 ### Needs Reed
+
+Search-excerpt-only rows (12 distinct claims, 21 recert rows, relabeled from confirmed on 10/08/2026 because the source page did not load): Ciena WaveLogic 6 1.6 Tb/s (across DCI, campus DCI, story page line 97); Cat C175-16 "2.5-3 MW class" gensets; Broadcom TH6-Davisson "16 x 6.4T engines, announced 10/08/2025" (power and data CPO today:2); Marvell CPO tray "each with four 6.4T light engines" (power and data CPO next:0; the phrase is not in the excerpt); NVIDIA DAC "0.1 W per end" (power and data copper); JLT nano-ITLA 25.0 x 15.6 x 6.5 mm, under 3 W (power and data coherent ITLA:1). Re-read the primary pages, or footnote them as search-excerpt only.
+
 
 Framing and scale: across "2,000 km across" (the map spans about 4,700 km; campuses are about 1,560 km apart); campus "1.6 km across" (scene extent 1.54 km, drawn parts about 1 km); hall "70 m across" and tray "44 cm wide" (no derivation; measure or relabel); copper headline wording (passive versus active copper for the NVLink spine; "ACC with one redriver" versus NVIDIA's LACC with a chip in each end); the Fairwater-WI "Opened" date (06/23/2026 is construction complete; Epoch says 04/16/2026 operational); Project Rainier building count (card says about 16 of 30; the 10/08 Epoch read says buildings 1–16 operational with 17–18 roofed; an earlier pass read 18 of 32; unchanged); Prometheus meter power of 585 MW was sized from 496 MW IT, so the preset needs a decision now that IT is 471 MW (and Epoch lists only B300, so GB300 may fit better than the GB200 preset).
 

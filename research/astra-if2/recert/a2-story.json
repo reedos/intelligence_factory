@@ -1429,7 +1429,7 @@
   {
     "key": "page:index.html:97",
     "value": "Ciena WaveLogic 6, 1.6 Tb/s per wavelength",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "source",
     "sources": [
       {
@@ -1441,7 +1441,7 @@
       }
     ],
     "derivation": null,
-    "note": "Source page returns 403 to automated fetches; an excerpt from Ciena's investor site (other worker) states up to 1.6 Tb/s single-carrier wavelengths. Excerpt only, not the full page.",
+    "note": "Source page did not load; supported only by a search excerpt. Source page returns 403 to automated fetches; an excerpt from Ciena's investor site (other worker) states up to 1.6 Tb/s single-carrier wavelengths. Excerpt only, not the full page.",
     "checked": "10/08/2026"
   },
   {

@@ -20,7 +20,7 @@
   {
     "key": "card:data:across:dci:0",
     "value": "up to 1.6 Tb/s",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "source",
     "sources": [
       {
@@ -32,13 +32,13 @@
       }
     ],
     "derivation": null,
-    "note": "ciena.com returned 403 twice; the Ciena investor-site copy of the release (found by search, excerpt only) says WaveLogic 6 supports up to 1.6 Tb/s single-carrier wavelengths.",
+    "note": "Source page did not load; supported only by a search excerpt. ciena.com returned 403 twice; the Ciena investor-site copy of the release (found by search, excerpt only) says WaveLogic 6 supports up to 1.6 Tb/s single-carrier wavelengths.",
     "checked": "10/08/2026"
   },
   {
     "key": "card:power:campus:gensets:0",
     "value": "2.5–3 MW class",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "source",
     "sources": [
       {
@@ -50,7 +50,7 @@
       }
     ],
     "derivation": null,
-    "note": "Cat listing is titled 2500-3100 kW; standby ratings run 3000-3365 ekW at 60 Hz (search excerpt, page timed out twice). \"2.5-3 MW class\" is fair.",
+    "note": "Source page did not load; supported only by a search excerpt. Cat listing is titled 2500-3100 kW; standby ratings run 3000-3365 ekW at 60 Hz (search excerpt, page timed out twice). \"2.5-3 MW class\" is fair.",
     "checked": "10/08/2026"
   },
   {
@@ -92,7 +92,7 @@
   {
     "key": "card:data:campus:dci:0",
     "value": "up to 1.6 Tb/s",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "source",
     "sources": [
       {
@@ -104,7 +104,7 @@
       }
     ],
     "derivation": null,
-    "note": "ciena.com returned 403 twice; the Ciena investor-site copy of the release (found by search, excerpt only) says WaveLogic 6 supports up to 1.6 Tb/s single-carrier wavelengths.",
+    "note": "Source page did not load; supported only by a search excerpt. ciena.com returned 403 twice; the Ciena investor-site copy of the release (found by search, excerpt only) says WaveLogic 6 supports up to 1.6 Tb/s single-carrier wavelengths.",
     "checked": "10/08/2026"
   },
   {
@@ -452,7 +452,7 @@
   {
     "key": "card:power:cpo:today:2",
     "value": "102.4 Tb/s, 16 × 6.4T engines; announced 10/08/2025 as shipping, sampled to early-access customers",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "both",
     "sources": [
       {
@@ -464,7 +464,7 @@
       }
     ],
     "derivation": "16 x 6.4 Tb/s = 102.4 Tb/s",
-    "note": "Broadcom page timed out twice. A trade-press article quoting the release confirms 16 engines, 102.4 Tb/s and sampling to early-access customers; search excerpt gives release date 10/08/2025. The exact \"now shipping\" sentence was not read on Broadcom's own page.",
+    "note": "Source page did not load; supported only by a search excerpt. Broadcom page timed out twice. A trade-press article quoting the release confirms 16 engines, 102.4 Tb/s and sampling to early-access customers; search excerpt gives release date 10/08/2025. The exact \"now shipping\" sentence was not read on Broadcom's own page.",
     "checked": "10/08/2026"
   },
   {
@@ -488,7 +488,7 @@
   {
     "key": "card:power:cpo:next:0",
     "value": "4 XPUs, each with four 6.4T light engines: 102.4 Tb/s on 1,024 fibers, in 1U",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "both",
     "sources": [
       {
@@ -500,7 +500,7 @@
       }
     ],
     "derivation": "4 XPUs x 4 engines x 6.4 Tb/s = 102.4 Tb/s",
-    "note": "Marvell page returned 403, but a search excerpt of the same URL gives four XPUs, up to 102.4 Tbps, 1024 fibers, 1U. \"Each with four 6.4T light engines\" is not in the excerpt, but the arithmetic closes.",
+    "note": "Source page did not load; supported only by a search excerpt. Marvell page returned 403, but a search excerpt of the same URL gives four XPUs, up to 102.4 Tbps, 1024 fibers, 1U. \"Each with four 6.4T light engines\" is not in the excerpt, but the arithmetic closes.",
     "checked": "10/08/2026"
   },
   {
@@ -693,7 +693,7 @@
   {
     "key": "card:data:cpo:today:2",
     "value": "102.4 Tb/s, 16 × 6.4T engines; announced 10/08/2025 as shipping, sampled to early-access customers",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "both",
     "sources": [
       {
@@ -705,7 +705,7 @@
       }
     ],
     "derivation": "16 x 6.4 Tb/s = 102.4 Tb/s",
-    "note": "Broadcom page timed out twice. A trade-press article quoting the release confirms 16 engines, 102.4 Tb/s and sampling to early-access customers; search excerpt gives release date 10/08/2025. The exact \"now shipping\" sentence was not read on Broadcom's own page.",
+    "note": "Source page did not load; supported only by a search excerpt. Broadcom page timed out twice. A trade-press article quoting the release confirms 16 engines, 102.4 Tb/s and sampling to early-access customers; search excerpt gives release date 10/08/2025. The exact \"now shipping\" sentence was not read on Broadcom's own page.",
     "checked": "10/08/2026"
   },
   {
@@ -729,7 +729,7 @@
   {
     "key": "card:data:cpo:next:0",
     "value": "4 XPUs, each with four 6.4T light engines: 102.4 Tb/s on 1,024 fibers, in 1U",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "both",
     "sources": [
       {
@@ -741,7 +741,7 @@
       }
     ],
     "derivation": "4 XPUs x 4 engines x 6.4 Tb/s = 102.4 Tb/s",
-    "note": "Marvell page returned 403, but a search excerpt of the same URL gives four XPUs, up to 102.4 Tbps, 1024 fibers, 1U. \"Each with four 6.4T light engines\" is not in the excerpt, but the arithmetic closes.",
+    "note": "Source page did not load; supported only by a search excerpt. Marvell page returned 403, but a search excerpt of the same URL gives four XPUs, up to 102.4 Tbps, 1024 fibers, 1U. \"Each with four 6.4T light engines\" is not in the excerpt, but the arithmetic closes.",
     "checked": "10/08/2026"
   },
   {
@@ -909,7 +909,7 @@
   {
     "key": "card:power:copper:dac:0",
     "value": "≈0.1 W per end",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "source",
     "sources": [
       {
@@ -921,7 +921,7 @@
       }
     ],
     "derivation": null,
-    "note": "NVIDIA guide: \"Power consumption is 0.1 Watts per end.\" The fetch tool hit a redirect loop twice; text read from a search excerpt of the same guide.",
+    "note": "Source page did not load; supported only by a search excerpt. NVIDIA guide: \"Power consumption is 0.1 Watts per end.\" The fetch tool hit a redirect loop twice; text read from a search excerpt of the same guide.",
     "checked": "10/08/2026"
   },
   {
@@ -995,7 +995,7 @@
   {
     "key": "card:data:copper:dac:1",
     "value": "≈0.1 W per end",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "source",
     "sources": [
       {
@@ -1007,7 +1007,7 @@
       }
     ],
     "derivation": null,
-    "note": "NVIDIA guide: \"Power consumption is 0.1 Watts per end.\" The fetch tool hit a redirect loop twice; text read from a search excerpt of the same guide.",
+    "note": "Source page did not load; supported only by a search excerpt. NVIDIA guide: \"Power consumption is 0.1 Watts per end.\" The fetch tool hit a redirect loop twice; text read from a search excerpt of the same guide.",
     "checked": "10/08/2026"
   },
   {

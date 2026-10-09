@@ -1545,7 +1545,7 @@
   {
     "key": "card:data:across:dci:0",
     "value": "up to 1.6 Tb/s",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "source",
     "sources": [
       {
@@ -1557,7 +1557,7 @@
       }
     ],
     "derivation": null,
-    "note": "ciena.com returned 403 twice; the Ciena investor-site copy of the release (found by search, excerpt only) says WaveLogic 6 supports up to 1.6 Tb/s single-carrier wavelengths.",
+    "note": "Source page did not load; supported only by a search excerpt. ciena.com returned 403 twice; the Ciena investor-site copy of the release (found by search, excerpt only) says WaveLogic 6 supports up to 1.6 Tb/s single-carrier wavelengths.",
     "checked": "10/08/2026"
   },
   {
@@ -1927,7 +1927,7 @@
   {
     "key": "card:power:campus:gensets:0",
     "value": "2.5–3 MW class",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "source",
     "sources": [
       {
@@ -1939,7 +1939,7 @@
       }
     ],
     "derivation": null,
-    "note": "Cat listing is titled 2500-3100 kW; standby ratings run 3000-3365 ekW at 60 Hz (search excerpt, page timed out twice). \"2.5-3 MW class\" is fair.",
+    "note": "Source page did not load; supported only by a search excerpt. Cat listing is titled 2500-3100 kW; standby ratings run 3000-3365 ekW at 60 Hz (search excerpt, page timed out twice). \"2.5-3 MW class\" is fair.",
     "checked": "10/08/2026"
   },
   {
@@ -2238,7 +2238,7 @@
   {
     "key": "card:data:campus:dci:0",
     "value": "up to 1.6 Tb/s",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "source",
     "sources": [
       {
@@ -2250,7 +2250,7 @@
       }
     ],
     "derivation": null,
-    "note": "ciena.com returned 403 twice; the Ciena investor-site copy of the release (found by search, excerpt only) says WaveLogic 6 supports up to 1.6 Tb/s single-carrier wavelengths.",
+    "note": "Source page did not load; supported only by a search excerpt. ciena.com returned 403 twice; the Ciena investor-site copy of the release (found by search, excerpt only) says WaveLogic 6 supports up to 1.6 Tb/s single-carrier wavelengths.",
     "checked": "10/08/2026"
   },
   {

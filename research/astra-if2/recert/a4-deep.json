@@ -2153,7 +2153,7 @@
   {
     "key": "card:power:cpo:today:2",
     "value": "102.4 Tb/s, 16 × 6.4T engines; announced 10/08/2025 as shipping, sampled to early-access customers",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "both",
     "sources": [
       {
@@ -2165,7 +2165,7 @@
       }
     ],
     "derivation": "16 x 6.4 Tb/s = 102.4 Tb/s",
-    "note": "Reused from a1-claims.json. Broadcom page timed out twice. A trade-press article quoting the release confirms 16 engines, 102.4 Tb/s and sampling to early-access customers; search excerpt gives release date 10/08/2025. The exact \"now shipping\" sentence was not read on Broadcom's own page.",
+    "note": "Source page did not load; supported only by a search excerpt. Reused from a1-claims.json. Broadcom page timed out twice. A trade-press article quoting the release confirms 16 engines, 102.4 Tb/s and sampling to early-access customers; search excerpt gives release date 10/08/2025. The exact \"now shipping\" sentence was not read on Broadcom's own page.",
     "checked": "10/08/2026"
   },
   {
@@ -2207,7 +2207,7 @@
   {
     "key": "card:power:cpo:next:0",
     "value": "4 XPUs, each with four 6.4T light engines: 102.4 Tb/s on 1,024 fibers, in 1U",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "both",
     "sources": [
       {
@@ -2219,7 +2219,7 @@
       }
     ],
     "derivation": "4 XPUs x 4 engines x 6.4 Tb/s = 102.4 Tb/s",
-    "note": "Reused from a1-claims.json. Marvell page returned 403, but a search excerpt of the same URL gives four XPUs, up to 102.4 Tbps, 1024 fibers, 1U. \"Each with four 6.4T light engines\" is not in the excerpt, but the arithmetic closes.",
+    "note": "Source page did not load; supported only by a search excerpt. Reused from a1-claims.json. Marvell page returned 403, but a search excerpt of the same URL gives four XPUs, up to 102.4 Tbps, 1024 fibers, 1U. \"Each with four 6.4T light engines\" is not in the excerpt, but the arithmetic closes.",
     "checked": "10/08/2026"
   },
   {
@@ -3337,7 +3337,7 @@
   {
     "key": "card:data:cpo:today:2",
     "value": "102.4 Tb/s, 16 × 6.4T engines; announced 10/08/2025 as shipping, sampled to early-access customers",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "both",
     "sources": [
       {
@@ -3349,7 +3349,7 @@
       }
     ],
     "derivation": "16 x 6.4 Tb/s = 102.4 Tb/s",
-    "note": "Reused from a1-claims.json. Broadcom page timed out twice. A trade-press article quoting the release confirms 16 engines, 102.4 Tb/s and sampling to early-access customers; search excerpt gives release date 10/08/2025. The exact \"now shipping\" sentence was not read on Broadcom's own page.",
+    "note": "Source page did not load; supported only by a search excerpt. Reused from a1-claims.json. Broadcom page timed out twice. A trade-press article quoting the release confirms 16 engines, 102.4 Tb/s and sampling to early-access customers; search excerpt gives release date 10/08/2025. The exact \"now shipping\" sentence was not read on Broadcom's own page.",
     "checked": "10/08/2026"
   },
   {
@@ -3391,7 +3391,7 @@
   {
     "key": "card:data:cpo:next:0",
     "value": "4 XPUs, each with four 6.4T light engines: 102.4 Tb/s on 1,024 fibers, in 1U",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "both",
     "sources": [
       {
@@ -3403,7 +3403,7 @@
       }
     ],
     "derivation": "4 XPUs x 4 engines x 6.4 Tb/s = 102.4 Tb/s",
-    "note": "Reused from a1-claims.json. Marvell page returned 403, but a search excerpt of the same URL gives four XPUs, up to 102.4 Tbps, 1024 fibers, 1U. \"Each with four 6.4T light engines\" is not in the excerpt, but the arithmetic closes.",
+    "note": "Source page did not load; supported only by a search excerpt. Reused from a1-claims.json. Marvell page returned 403, but a search excerpt of the same URL gives four XPUs, up to 102.4 Tbps, 1024 fibers, 1U. \"Each with four 6.4T light engines\" is not in the excerpt, but the arithmetic closes.",
     "checked": "10/08/2026"
   },
   {
@@ -3753,7 +3753,7 @@
   {
     "key": "card:power:coherent:itla:1",
     "value": "25.0 × 15.6 × 6.5 mm, under 3 W",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "source",
     "sources": [
       {
@@ -3765,7 +3765,7 @@
       }
     ],
     "derivation": null,
-    "note": "Optica page blocked node fetch (captcha); the abstract text (25.0 x 15.6 x 6.5 mm, under 3 W) was read from a search result for the same paper.",
+    "note": "Source page did not load; supported only by a search excerpt. Optica page blocked node fetch (captcha); the abstract text (25.0 x 15.6 x 6.5 mm, under 3 W) was read from a search result for the same paper.",
     "checked": "10/08/2026"
   },
   {
@@ -4224,7 +4224,7 @@
   {
     "key": "card:data:coherent:itla:1",
     "value": "25.0 × 15.6 × 6.5 mm, under 3 W",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "source",
     "sources": [
       {
@@ -4236,7 +4236,7 @@
       }
     ],
     "derivation": null,
-    "note": "Optica page blocked node fetch (captcha); the abstract text (25.0 x 15.6 x 6.5 mm, under 3 W) was read from a search result for the same paper.",
+    "note": "Source page did not load; supported only by a search excerpt. Optica page blocked node fetch (captcha); the abstract text (25.0 x 15.6 x 6.5 mm, under 3 W) was read from a search result for the same paper.",
     "checked": "10/08/2026"
   },
   {
@@ -4906,7 +4906,7 @@
   {
     "key": "card:power:copper:dac:0",
     "value": "≈0.1 W per end",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "source",
     "sources": [
       {
@@ -4918,7 +4918,7 @@
       }
     ],
     "derivation": null,
-    "note": "Reused from a1-claims.json. NVIDIA guide: \"Power consumption is 0.1 Watts per end.\" The fetch tool hit a redirect loop twice; text read from a search excerpt of the same guide.",
+    "note": "Source page did not load; supported only by a search excerpt. Reused from a1-claims.json. NVIDIA guide: \"Power consumption is 0.1 Watts per end.\" The fetch tool hit a redirect loop twice; text read from a search excerpt of the same guide.",
     "checked": "10/08/2026"
   },
   {
@@ -5094,7 +5094,7 @@
   {
     "key": "card:data:copper:dac:1",
     "value": "≈0.1 W per end",
-    "verdict": "confirmed",
+    "verdict": "needs Reed",
     "check": "source",
     "sources": [
       {
@@ -5106,7 +5106,7 @@
       }
     ],
     "derivation": null,
-    "note": "Reused from a1-claims.json. NVIDIA guide: \"Power consumption is 0.1 Watts per end.\" The fetch tool hit a redirect loop twice; text read from a search excerpt of the same guide.",
+    "note": "Source page did not load; supported only by a search excerpt. Reused from a1-claims.json. NVIDIA guide: \"Power consumption is 0.1 Watts per end.\" The fetch tool hit a redirect loop twice; text read from a search excerpt of the same guide.",
     "checked": "10/08/2026"
   },
   {
