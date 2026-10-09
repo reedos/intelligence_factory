@@ -4,7 +4,8 @@
 // Determinism: requestAnimationFrame and performance.now run on a virtual clock this script advances, Math.random is
 // seeded, the camera is the level's overview pose (ifx.go then ifx.settle), and every capture is taken after the same
 // number of virtual frames. Two captures of the same build must match exactly (run `shoot` twice to see the noise floor).
-// Pass condition (compare): at most 0.5% of pixels differ by more than 8/255 in any channel, per image.
+// Pass condition (compare): in every image, zero pixels differ by more than 8/255 in any channel (8/255 is the
+// per-channel tolerance for GPU noise). A fraction limit was too loose: a 20% particle cut passed 4 of 6 images.
 import { createRequire } from 'module';
 import fs from 'fs'; import path from 'path';
 const require = createRequire(import.meta.url);
@@ -13,7 +14,7 @@ const [cmd, a1, a2, a3] = process.argv.slice(2);
 const SIZES = { desktop: { width: 1440, height: 900, deviceScaleFactor: 1 }, phone: { width: 360, height: 800, deviceScaleFactor: 2, isMobile: true, hasTouch: true } };
 const NAMES = ['across', 'campus', 'hall', 'rack', 'tray', 'chip', 'module', 'cpo', 'coherent', 'copper'];
 const SCENARIO = { meterMW: 100, accel: 'gb200', power: 'ac415', cooling: 'warm' };
-const TOL = 8, MAX_FRACTION = 0.005;
+const TOL = 8;
 
 if (cmd === 'shoot') {
   const out = a1, url = a2, forms = (a3 || 'both') === 'both' ? ['desktop', 'phone'] : [a3];
@@ -50,8 +51,10 @@ if (cmd === 'shoot') {
         await p.evaluate(() => { const b = ifx.built[ifx.state.scene]; ['flows', 'dataFlows', 'heatFlows'].forEach(k => (b[k] || []).forEach((f, i) => { f.phase = (i * 0.6180339) % 1; f.acc = i * 0.37; f.lastT = undefined; })); });
         await p.evaluate(() => window.__advance(90)); await p.waitForTimeout(250); await p.evaluate(() => { ifx.settle(); window.__advance(30); });
         await p.waitForTimeout(150);
+        // self-test of the pass condition: NUDGE_DEG=1 turns the camera 1 degree about its target before the capture
+        if (process.env.NUDGE_DEG) await p.evaluate(d => { const c = ifx.camera, t = ifx.controls.target, a = d * Math.PI / 180, dx = c.position.x - t.x, dz = c.position.z - t.z; c.position.x = t.x + dx * Math.cos(a) + dz * Math.sin(a); c.position.z = t.z - dx * Math.sin(a) + dz * Math.cos(a); c.lookAt(t); window.__advance(2); }, Number(process.env.NUDGE_DEG));
         console.log(new Date().toISOString().slice(11,19), form, sc, mode);
-        await p.screenshot({ path: path.join(out, `${form}-${sc}-${NAMES[sc]}-${mode}.png`) });
+        await p.screenshot({ path: path.join(out, `${form}-${sc}-${NAMES[sc]}-${mode}.png`), animations: 'disabled' });   // CSS animations (the pin pulse) run on the real clock, not the virtual one
       }
       console.log(form, NAMES[sc], 'done');
     }
@@ -83,10 +86,10 @@ if (cmd === 'shoot') {
     total++;
     if (r.size) { console.log(f, 'SIZE DIFFERS'); failed++; continue; }
     const frac = r.over / r.px; worst = Math.max(worst, frac);
-    const bad = frac > MAX_FRACTION; if (bad) failed++;
+    const bad = r.over > 0; if (bad) failed++;
     console.log(`${bad ? 'FAIL' : 'ok  '} ${f.padEnd(34)} differing>${TOL}: ${r.over} (${(frac * 100).toFixed(4)}%)  any: ${r.any}  max channel delta: ${r.maxd}`);
     if (D && r.diff) fs.writeFileSync(path.join(D, f), Buffer.from(r.diff, 'base64'));
   }
-  console.log(`\n${total} images, worst ${(worst * 100).toFixed(4)}% of pixels over ${TOL}/255 (limit ${MAX_FRACTION * 100}%), ${failed} failing`);
+  console.log(`\n${total} images, worst ${(worst * 100).toFixed(4)}% of pixels over ${TOL}/255 (limit: none), ${failed} failing`);
   await b.close(); process.exitCode = failed ? 1 : 0;
 } else { console.log('usage: shoot <outDir> <url> [desktop|phone|both] | compare <dirA> <dirB> [diffDir]'); process.exitCode = 2; }
