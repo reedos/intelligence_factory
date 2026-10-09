@@ -1,0 +1,3155 @@
+[
+  {
+    "key": "page:index.html:0",
+    "value": "Power · Data · Heat · Six scales",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "content(): 10 scenes = 6 scales (grid, campus, power room/hall, rack, tray, GPU package) + 4 interconnect levels.",
+    "note": "The six scales match the first six levels of the visualizer.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:1",
+    "value": "The Intelligence Factory",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:2",
+    "value": "Electricity in. Intelligence out.",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:3",
+    "value": "Follow the power from the plants on a 2,000 km grid into one AI campus: 345,000 volts at the fence, down through the substation, the halls, a rack and a tray, to 0.8 V at a GPU die, and out as tokens. Switch to the data layer to follow the links back out, or to heat to follow every watt to the sky. The figures on each part and chart carry a label for what backs them: a published spec, a vendor claim, a third party's report, or this page's own math or assumption.",
+    "verdict": "footnoted",
+    "check": "both",
+    "sources": [],
+    "derivation": "Scene list: scale of level 0 is the invented regional map \"2,000 km across\"; 345 kV is ASSUMPTIONS campus-interconnect-voltage; 0.8 V is ASSUMPTIONS core-voltage.",
+    "note": "Three assumed or schematic figures (2,000 km grid, 345,000 V, 0.8 V) are each labeled as assumptions in the UI and the Method page, and the footer says the regional map is invented. The closing sentence about labels is true for parts and charts.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:4",
+    "value": "Personal educational project based on cited public sources. Not an official publication of my employer or the companies discussed. Models are schematic; estimates and assumptions are identified.",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "Author disclosure; no factual claim beyond the project's own description.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:5",
+    "value": "Illustration, drawn by an image model from this site's campus layout",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "Process statement by the author; no figure.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:6",
+    "value": "01 Visualizer",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:7",
+    "value": "Fly through one campus at six scales, from a regional grid to a GPU die, and four interconnects beside them: a pluggable optical module, co-packaged optics, the coherent module of a data center interconnect, and copper cables. Every pin is a part with its own numbers in power, data and heat, each labeled by what backs it.",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "content().SCENES lists 10 levels; titles 7-10 are the module, CPO package, coherent optics and copper cables.",
+    "note": "Six scales plus four interconnects matches the level list. \"Every pin ... labeled\" is enforced by tools/claims.mjs (0 metadata problems).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:8",
+    "value": "1.1 · Scenario",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:9",
+    "value": "Your campus",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:10",
+    "value": "100 MW · GB200 · 415 V AC · Warm water Change it in the visualizer’s Scenario pane →",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "DEFAULT_SCENARIO = {meterMW:100, accel:gb200, power:ac415, cooling:warm}.",
+    "note": "Matches the default scenario exactly.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:11",
+    "value": "These are this model’s estimates for this scenario, not figures for a real building, even when a real campus is picked. Every chart on this page follows it.",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "Disclaimer; accurate (the model sizes any campus from the meter).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:12",
+    "value": "02 Power",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:13",
+    "value": "From the meter to the die: where every megawatt goes and why the voltage steps down.",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:14",
+    "value": "The regional map names real campuses by their own power source — Meta's Hyperion runs on new gas-fired plants ( see it on the map ) — and this campus has its own perimeter security and operations center watching it.",
+    "verdict": "unsupported",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ieee-spectrum-hyperion",
+        "url": "https://spectrum.ieee.org/5gw-data-center",
+        "fetched": true,
+        "result": "read",
+        "quote": "Meta negotiated with Entergy \"for construction of three new gas-turbine power plants\" that \"will generate a combined 2.26 GW\" (future tense)."
+      }
+    ],
+    "derivation": null,
+    "note": "The source says Entergy will build three new gas plants (future tense); nothing read says Hyperion already runs on them. Change \"runs on new gas-fired plants\" to \"is to be powered by three new gas plants Entergy is building\". The perimeter-security and operations-center parts exist (data.js ids security, ops).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:15",
+    "value": "2.1 · The ledger",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:16",
+    "value": "Where 100 MW goes",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:17",
+    "value": "Start with 100 MW at the campus meter. Each row takes off what one stage turns into heat, spends on cooling, or hands to silicon other than the GPU. The highlighted rows belong to the scale you are looking at. The grid already lost about 5% before the meter.",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "eia-td-losses",
+        "url": "https://www.eia.gov/tools/faqs/faq.php?id=105&t=5",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"annual electricity transmission and distribution (T&D) losses averaged about 5% ... in the United States in 2018 through 2022.\""
+      }
+    ],
+    "derivation": null,
+    "note": "About 5% T&D losses is the EIA figure for 2018-2022. The rest describes the ledger rows.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:18",
+    "value": "Every row is this model’s estimate for your scenario. Click a row’s label to see its calculation and the published figures it starts from.",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:19",
+    "value": "2.2 · Voltage",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:20",
+    "value": "Volts down, amps up",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:21",
+    "value": "Power is volts times amps. Each step down in voltage raises the current a conductor has to carry, which is why the last step happens millimeters from the chip.",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "P = V x I. Staircase: 100 MW at 345 kV gives 88 A per phase per circuit; at 0.8 V the GPU core carries 1,302 A (1,200 W x 0.868 / 0.8).",
+    "note": "Current rises as voltage falls, as stated. The last step is next to the chip (the VRM card says \"right beside the chip\").",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:22",
+    "value": "03 Data",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:23",
+    "value": "Copper inside the rack, light across the hall, fiber between campuses: how fast each link is, what carries it, and how a model is split to fit.",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "semianalysis-nvl72-optics",
+        "url": "https://newsletter.semianalysis.com/p/nvidias-optical-boogeyman-nvl72-infiniband",
+        "fetched": true,
+        "result": "read",
+        "quote": "NVL72 uses copper NVLink cables inside the rack; the back-end scale-out network still needs 72 optical ports per rack."
+      },
+      {
+        "id": "nvidia-superpod-gb200-network-fabrics",
+        "url": "https://docs.nvidia.com/dgx-superpod/reference-architecture-scalable-infrastructure-gb200/latest/network-fabrics.html",
+        "fetched": true,
+        "result": "read",
+        "quote": "Storage and in-band fabric use SN5600/SN2201 switches; the compute fabric is a separate InfiniBand design."
+      },
+      {
+        "id": "microsoft-ai-wan",
+        "url": "https://news.microsoft.com/source/features/ai/from-wisconsin-to-atlanta-microsoft-connects-datacenters-to-build-its-first-ai-superfactory/",
+        "fetched": true,
+        "result": "read",
+        "quote": "Microsoft states 120,000 miles of dedicated fiber for its AI WAN connecting Fairwater sites; data travels \"congestion-free, at nearly the speed of light\"."
+      }
+    ],
+    "derivation": null,
+    "note": "Copper NVLink in the rack, optical fabric across the hall, long fiber between campuses are all supported.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:24",
+    "value": "Shared storage and the meet-me room where outside networks cross-connect each ride a network of their own, apart from the GPU fabric.",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-superpod-gb200-network-fabrics",
+        "url": "https://docs.nvidia.com/dgx-superpod/reference-architecture-scalable-infrastructure-gb200/latest/network-fabrics.html",
+        "fetched": true,
+        "result": "read",
+        "quote": "Storage and in-band fabric use SN5600/SN2201 switches; the compute fabric is a separate InfiniBand design."
+      },
+      {
+        "id": "nvidia-missioncontrol-northsouth",
+        "url": "https://docs.nvidia.com/mission-control/docs/north-south-network-deployment-guide/2.0.0/nsnetcfg-network-planning-design.html",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"eBGP between Border TOR and Customer Edge\": border leaf switches peer with outside networks, apart from the compute fabric."
+      },
+      {
+        "id": "wikipedia-meet-me-room",
+        "url": "https://en.wikipedia.org/wiki/Meet-me_room",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"A place within a colocation center (or carrier hotel) where telecommunications companies can physically connect to one another and exchange data\""
+      }
+    ],
+    "derivation": null,
+    "note": "Storage and the outside-facing edge network are separate from the GPU compute fabric in NVIDIA's reference design; a meet-me room is where carriers cross-connect.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:25",
+    "value": "3.1 · Bandwidth",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:26",
+    "value": "Bandwidth down, latency up",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:27",
+    "value": "The data path has its own staircase. The closer two pieces of silicon sit, the faster they can talk. That is why a model is split the way it is: the chattiest work stays inside a rack on NVLink, less of it crosses the hall, and as little as possible crosses the country.",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "meta-llama3-herd-parallelism",
+        "url": "https://arxiv.org/pdf/2407.21783",
+        "fetched": true,
+        "result": "read (PDF text extracted locally)",
+        "quote": "\"The innermost parallelism requires the highest network bandwidth and lowest latency, and hence is usually constrained to within the same server.\""
+      },
+      {
+        "id": "deepmind-decoupled-diloco",
+        "url": "https://deepmind.google/blog/decoupled-diloco/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"We successfully trained a 12 billion parameter model across four separate U.S. regions using 2-5 Gbps of wide-area networking\""
+      }
+    ],
+    "derivation": null,
+    "note": "Llama 3 places the highest-bandwidth parallelism innermost (within a server) and the most latency-tolerant outermost; DiLoCo is the as-little-as-possible-across-sites case.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:28",
+    "value": "3.2 · Links",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:29",
+    "value": "The links, drawn and counted",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:30",
+    "value": "Three networks, three physical media. Copper ties 72 GPUs into one machine inside a rack; single-mode fiber and pluggable optics tie racks into a campus fabric; coherent optics on leased fiber tie campuses together. Counts are for this 100 MW campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials.",
+    "verdict": "unsupported",
+    "check": "source",
+    "sources": [
+      {
+        "id": "microsoft-ai-wan",
+        "url": "https://news.microsoft.com/source/features/ai/from-wisconsin-to-atlanta-microsoft-connects-datacenters-to-build-its-first-ai-superfactory/",
+        "fetched": true,
+        "result": "read",
+        "quote": "Microsoft states 120,000 miles of dedicated fiber for its AI WAN connecting Fairwater sites; data travels \"congestion-free, at nearly the speed of light\"."
+      }
+    ],
+    "derivation": null,
+    "note": "No source says campuses connect over leased fiber (Microsoft describes its own dedicated fiber). Replace \"on leased fiber\" with \"on long-haul fiber\" in src/app/sections.js (links-lede) and in index.html.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:31",
+    "value": "Copper and optics",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:32",
+    "value": "The media ladder",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:33",
+    "value": "Every link in this campus is one of a few physical media, and each medium trades reach for power. Passive copper costs nothing to add but runs out of room fast; every step past it puts a chip in the path to buy distance back. See the copper cables in 3D",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [],
+    "derivation": "Other worker's refetch of nvidia-copper-dac-lacc-overview: passive DAC 0.5-2 m at 0.1 W per end; LACC adds an IC in each end for 3-5 m.",
+    "note": "Reach limits and the added-chip ladder are supported. \"Costs nothing\" is about added chips and power; NVIDIA lists about 0.1 W per DAC end, so \"almost nothing\" is more exact.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:34",
+    "value": "Inside the module",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:35",
+    "value": "What LPO and CPO change",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:36",
+    "value": "An 800G optical module is a small assembly line: a connector, a chip that cleans up the signal, a laser that turns it into light, and a receiver that turns light back into a signal. LPO saves power by removing that signal-processing chip outright, so the host's own SerDes drives and reads the line directly. CPO saves power a different way, by shortening the electrical run between the switch chip and the optics and cutting out the pluggable module and its connector — not necessarily by deleting the signal-processing chip too. See the pluggable module and co-packaged optics in 3D.",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "semtech-lpo-ai-basics-blog",
+        "url": "https://blog.semtech.com/ai-data-center-basics-what-is-linear-pluggable-optics-lpo",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"LPO removes the DSP retimer from the module entirely\"; the host switch SerDes \"takes on primary signal conditioning\"."
+      },
+      {
+        "id": "nvidia-cpo-scaling-blog",
+        "url": "https://developer.nvidia.com/blog/scaling-ai-factories-with-co-packaged-optics-for-better-power-efficiency/",
+        "fetched": true,
+        "result": "read",
+        "quote": "CPO \"integrate[s] the electro-optical conversion directly onto the switch package\", cutting electrical loss to ~4 dB and removing pluggable transceivers."
+      },
+      {
+        "id": "nvidia-cpo-industry-collaboration-blog",
+        "url": "https://developer.nvidia.com/blog/how-industry-collaboration-fosters-nvidia-co-packaged-optics/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"Each ELS contains eight high-quality lasers that have been precisely coupled via fiber to the optical engines.\" (external laser source)"
+      }
+    ],
+    "derivation": null,
+    "note": "LPO drops the DSP and lets host SerDes drive the line; CPO shortens the electrical path and removes the pluggable; NVIDIA does not say the DSP is gone from CPO, matching the \"not necessarily\" wording.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:37",
+    "value": "3.3 · Parallelism",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:38",
+    "value": "How a model is split",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:39",
+    "value": "The bandwidth staircase decides the layout. The chattiest kind of splitting goes where the links are fastest, and each step outward carries less, less often. Switch the 3D view to Data and open the hall to see one layout drawn on the rack tops.",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "meta-llama3-herd-parallelism",
+        "url": "https://arxiv.org/pdf/2407.21783",
+        "fetched": true,
+        "result": "read (PDF text extracted locally)",
+        "quote": "\"The innermost parallelism requires the highest network bandwidth and lowest latency, and hence is usually constrained to within the same server.\""
+      }
+    ],
+    "derivation": null,
+    "note": "Same parallelism-ordering source; the second sentence is a UI instruction.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:40",
+    "value": "04 Heat",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:41",
+    "value": "Every watt ends as heat. The path from a GPU die to the outside air, and what it costs in power and water.",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Energy conservation: all IT and facility electricity is dissipated as heat; the ledger sums to 100 MW.",
+    "note": "Physically correct to the precision of a headline sentence.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:42",
+    "value": "Air-sampling fire detection watches the hall continuously, so it can find smoke before a fire grows.",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "xtralis-vesda",
+        "url": "https://xtralis.com/page/1072/vesda-aspirating-smoke-detection",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"VESDA aspirating smoke detection solutions with continuous air sampling provide the earliest possible warning of an impending fire hazard.\""
+      }
+    ],
+    "derivation": null,
+    "note": "Aspirating detectors sample air continuously for the earliest possible warning.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:43",
+    "value": "4.1 · Temperature",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:44",
+    "value": "Hot to cold",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:45",
+    "value": "Every watt ends as heat, and heat only flows downhill. Each hop from die to outdoor air costs a few degrees, which is why warmer water is the trick: NVIDIA's newest spec feeds racks at 45 °C, so even a 35 °C afternoon can take the heat through dry coolers, without chillers.",
+    "verdict": "wrong",
+    "check": "both",
+    "sources": [
+      {
+        "id": "nvidia-warm-water-blog",
+        "url": "https://blogs.nvidia.com/blog/liquid-cooling-ai-factories/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"NVIDIA's newest AI servers can run their cooling liquid even hotter - up to 45 degrees Celsius\"; chiller-less operation with dry coolers \"in favorable climates\"."
+      }
+    ],
+    "derivation": "WATER.warmAdiabaticC = 35: src/model/clock.ts keeps the loop dry only below 35 C and switches adiabatic sprays on at or above 35 C.",
+    "note": "NVIDIA does say 45 C coolant allows chiller-less operation with dry coolers in favorable climates. But the model itself says dry coolers alone do not hold the loop at 35 C. Change to \"so even a 35 °C afternoon can take the heat through dry coolers with spray assist, without chillers\".",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:46",
+    "value": "05 Tokens",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:47",
+    "value": "What the whole machine makes, and what each token costs in energy, carbon and water, with the parts list it takes.",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:48",
+    "value": "Open the Tokens card in the visualizer and click Show the math to see one decode step worked out as a single matrix-vector multiply.",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "tokenMathRows(M) feeds the Tokens part \"math\" rows (card:power:...:tokens:math:*).",
+    "note": "The Show the math view exists and works as described.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:49",
+    "value": "5.1 · Cost",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:50",
+    "value": "What a kilowatt-hour buys",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:51",
+    "value": "Energy per token depends on more than the chip. Idle capacity, the building, the grid's carbon, the water on site and the training run behind the model all land on the bill. The campus comes from your scenario; set the rest here.",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "tokenFigures(): j = meterW/(GPUs x tps x util) + train share; water uses WUE; carbon uses grid g/kWh.",
+    "note": "Idle capacity (utilization), building (meter basis, PUE), grid carbon, on-site water and training all enter the figures.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:52",
+    "value": "The number above is an illustrative serving assumption, scaled by memory bandwidth for the accelerator chosen above — not a measurement. The DeepSeek preset is a published decode (answer-writing) rate for GB200 specifically, so it’s off on other hardware.",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "lmsys-sglang-gb200-part2",
+        "url": "https://www.lmsys.org/blog/2025-09-25-gb200-part-2/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"13,386 output tokens per second per NVIDIA Blackwell GPU\" for decode (2,000-token input, FP8 attention with NVFP4 MoE); published 09/25/2025."
+      }
+    ],
+    "derivation": "tokPerGpuRef = round(2000 x hbm.tbs/8 /50)*50 = 2000 for 8 TB/s; the 13,000 preset sets data-accel=\"gb200\".",
+    "note": "Scaled by HBM bandwidth as stated; the preset is a published GB200 decode rate (13,386 tok/s per GPU) and is disabled elsewhere.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:53",
+    "value": "Share of GPU time spent producing tokens. Fleets keep idle capacity for peaks and failover; nobody publishes a fleet figure, so this is a scenario.",
+    "verdict": "footnoted",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "Labeled as a scenario in the sentence itself (\"nobody publishes a fleet figure, so this is a scenario\").",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:54",
+    "value": "On-site water comes from the cooling choice above. It excludes water at the power plant, ≈1.8 L/kWh for typical thermal generation (NREL).",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nrel-water-electricity",
+        "url": "https://docs.nrel.gov/docs/fy11osti/50900.pdf",
+        "fetched": false,
+        "result": "not read: docs.nrel.gov and www.nrel.gov did not resolve (ENOTFOUND), osti.gov returned 404 and then 429; the other worker's refetch failed the same way",
+        "quote": ""
+      }
+    ],
+    "derivation": "0.47 gal/kWh x 3.785 L/gal = 1.78 L/kWh, which rounds to the displayed 1.8.",
+    "note": "I could not read the NREL report (host would not resolve, mirrors 404/429), so the 0.47 gal/kWh figure is unverified here; the conversion is right. Reed or a later pass with a working route should read NREL/TP-6A20-50900.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:55",
+    "value": "A scenario, not a measurement: nobody publishes both numbers for one model. Training matters most for models that are trained big and used little.",
+    "verdict": "footnoted",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "Labeled as a scenario in the sentence itself.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:56",
+    "value": "Google, median Gemini text prompt (2025). Includes idle capacity, host CPU and DRAM, and PUE overhead; excludes training. Google's own write-up doesn't mention embodied hardware, so this page doesn't count that as included 0.24 Wh · 0.03 g · 0.26 mL Reported",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "google-inference-impact",
+        "url": "https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference/",
+        "fetched": true,
+        "result": "read",
+        "quote": "Median Gemini Apps text prompt: 0.24 Wh, 0.03 gCO2e, 0.26 mL; includes idle machines, host CPU and RAM, and PUE overhead; training and embodied emissions not addressed."
+      }
+    ],
+    "derivation": null,
+    "note": "0.24 Wh, 0.03 g, 0.26 mL and the included boundary (idle, host CPU and DRAM, PUE) match; training is not in scope and embodied hardware is not mentioned.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:57",
+    "value": "Llama 3.1 405B pretraining (Meta model card), location-based 39.3M H100 GPU-hours · 11,390 t CO₂e Spec",
+    "verdict": "wrong",
+    "check": "source",
+    "sources": [
+      {
+        "id": "meta-llama-3-1-model-card",
+        "url": "https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/MODEL_CARD.md",
+        "fetched": true,
+        "result": "read",
+        "quote": "405B: 30.84M GPU hours, 8,930 t CO2eq (location-based). Total of 8B+70B+405B: 39.3M GPU hours, 11,390 t."
+      }
+    ],
+    "derivation": null,
+    "note": "The model card gives 39.3M GPU-hours and 11,390 t for all three sizes together; the 405B model alone is 30.84M GPU-hours and 8,930 t CO2e. Change the label to \"Llama 3.1 pretraining, all three sizes (8B, 70B, 405B), location-based\" or the values to \"30.84M H100 GPU-hours · 8,930 t CO₂e\".",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:58",
+    "value": "GPT-4 training electricity (Epoch AI reconstruction) ≈52–62 GWh Reported",
+    "verdict": "unsupported",
+    "check": "source",
+    "sources": [
+      {
+        "id": "epoch-chatgpt-energy",
+        "url": "https://epoch.ai/gradient-updates/how-much-energy-does-chatgpt-use",
+        "fetched": true,
+        "result": "read",
+        "quote": "Gives ~0.3 Wh per GPT-4o query and \"20-25 megawatts of power\" for ~3-month training runs; no GPT-4 52-62 GWh figure."
+      }
+    ],
+    "derivation": null,
+    "note": "The cited Epoch page gives no GPT-4 training energy; it gives \"20-25 megawatts ... around three months\" for current models. 52-62 GWh (51,773-62,319 MWh) circulates in secondary sources tied to a 25,000 A100 estimate, not shown to be Epoch's. Remove the row or re-source it to a page that states the number.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:59",
+    "value": "Embodied carbon, HGX H100 board of 8 GPUs (NVIDIA) 1,312 kg CO₂e Spec",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-hgx-h100-pcf",
+        "url": "https://images.nvidia.com/aem-dam/Solutions/documents/HGX-H100-PCF-Summary.pdf",
+        "fetched": true,
+        "result": "read (PDF text extracted locally)",
+        "quote": "\"the carbon footprint from cradle-to-gate for one HGX H100 GPU baseboard is 1,312 kg CO2e.\""
+      }
+    ],
+    "derivation": null,
+    "note": "1,312 kg CO2e is NVIDIA's cradle-to-gate figure for one HGX H100 baseboard.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:60",
+    "value": "LLaMA-65B on A100, GPU only (Samsi et al., 2023) 3–4 J/token Reported",
+    "verdict": "wrong",
+    "check": "source",
+    "sources": [
+      {
+        "id": "samsi-words-to-watts",
+        "url": "https://arxiv.org/pdf/2310.03003",
+        "fetched": true,
+        "result": "read (PDF text extracted locally)",
+        "quote": "\"with length 512, we see that it takes about 3-4 Joules for a output token\" (Fig. 5, 8/16/32 shards); \"we mainly use V100 GPUs for larger-scale distributed experiments (8, 16, 32 shards)\"."
+      }
+    ],
+    "derivation": null,
+    "note": "The 3-4 J/token comes from the 8/16/32-shard runs, which the paper ran mainly on V100 GPUs (65B needs 8 V100 but 4 A100). data.js already says V100. Change \"on A100\" to \"on V100\".",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:61",
+    "value": "DeepSeek-R1 decode on GB200, per GPU (SemiAnalysis) ≈13k tok/s Reported",
+    "verdict": "wrong",
+    "check": "source",
+    "sources": [
+      {
+        "id": "lmsys-sglang-gb200-part2",
+        "url": "https://www.lmsys.org/blog/2025-09-25-gb200-part-2/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"13,386 output tokens per second per NVIDIA Blackwell GPU\" for decode (2,000-token input, FP8 attention with NVFP4 MoE); published 09/25/2025."
+      },
+      {
+        "id": "semianalysis-gb200-nvl72-specs",
+        "url": "https://inferencex.semianalysis.com/chips/gb200-nvl72",
+        "fetched": true,
+        "result": "read",
+        "quote": "Page headline is a GB200 NVL72 vs B200 comparison on DeepSeek R1 at 125 tok/s/user; it states neither ~13k tok/s per GPU nor an 8-10x tokens-per-MW figure."
+      }
+    ],
+    "derivation": null,
+    "note": "The 13,386 output tokens/s per GPU is the LMSYS/SGLang GB200 benchmark (09/25/2025), not a SemiAnalysis figure (sources.js notes the same). Change \"(SemiAnalysis)\" to \"(LMSYS/SGLang)\". The value ≈13k is right.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:62",
+    "value": "NVIDIA: GB200 NVL72 vs H200, tokens per MW ≈8–10× Vendor",
+    "verdict": "wrong",
+    "check": "source",
+    "sources": [
+      {
+        "id": "semianalysis-inferencex-inferencemax",
+        "url": "https://inferencex.semianalysis.com/blog/inferencemax-open-source-inference-benchmarking",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"the GB200 NVL72 delivers an ~8x improvement in token/s processed per all-in provisioned MW\" (single-node H200 FP8 vs GB200 NVL72 FP4); no 10x figure."
+      },
+      {
+        "id": "nvidia-gb200-dynamo-moe",
+        "url": "https://developer.nvidia.com/blog/how-nvidia-gb200-nvl72-and-nvidia-dynamo-boost-inference-performance-for-moe-models",
+        "fetched": true,
+        "result": "read",
+        "quote": "No GB200-vs-H200 tokens-per-MW multiple; reports 6x (DeepSeek R1) and 3x (Llama 70B) gains from disaggregated serving."
+      },
+      {
+        "id": "nvidia-gb200-nvl72",
+        "url": "https://www.nvidia.com/en-us/data-center/gb200-nvl72/",
+        "fetched": true,
+        "result": "read",
+        "quote": "Per Grace Blackwell Superchip (2 GPUs): \"372 GB HBM3E\", memory bandwidth \"16 TB/s\"; rack \"13.4 TB HBM3E\", \"576 TB/s\"."
+      }
+    ],
+    "derivation": null,
+    "note": "No NVIDIA statement of 8-10x tokens per MW was found. SemiAnalysis InferenceMAX reports ~8x per all-in provisioned MW (H200 FP8 single node vs GB200 NVL72 FP4, DeepSeek R1), which is what data.js carries. Change to \"SemiAnalysis InferenceMAX: GB200 NVL72 vs H200, tokens per MW | ≈8× | Reported\".",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:63",
+    "value": "5.2 · Inventory",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:64",
+    "value": "What it takes: a 100 MW campus, counted",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:65",
+    "value": "Sized from the same assumptions as the ledger: 100 MW at the meter, PUE 1.2, 132 kW racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale.",
+    "verdict": "wrong",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): PUE = 1.158 (1.16); rack = 131.18 kW (131). The live page rewrites this line from the model.",
+    "note": "The static fallback says \"PUE 1.2, 132 kW racks\"; the default scenario gives PUE 1.16 and 131 kW GB200 NVL72 racks, which is what the script renders. Change the static text to \"100 MW at the meter, PUE 1.16, 131 kW GB200 NVL72 racks\".",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:66",
+    "value": "How this site is built",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:67",
+    "value": "How it was made",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:68",
+    "value": "The page is written in TypeScript, drawn with Three.js (version 0.183.2) — which describes itself as a “JavaScript 3D Library” — and bundled with Vite (version 8.3.1), which calls itself “a build tool that aims to provide a faster and leaner development experience for modern web projects.” The build is static: the source lives on GitHub, and the site is served from Cloudflare’s network at reedos.dev.",
+    "verdict": "wrong",
+    "check": "both",
+    "sources": [
+      {
+        "id": "threejs",
+        "url": "https://threejs.org",
+        "fetched": true,
+        "result": "read",
+        "quote": "Page title: \"three.js - JavaScript 3D Library\""
+      },
+      {
+        "id": "vite",
+        "url": "https://vite.dev/guide/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"Vite ... is a build tool that aims to provide a faster and leaner development experience for modern web projects.\""
+      }
+    ],
+    "derivation": "Line count of src/*.js excluding tests: 26,908; src/*.ts excluding tests: 1,005 (only the model files). Three.js 0.183.2 and Vite 8.3.1 match package-lock.json; response header Server: cloudflare at reedos.dev.",
+    "note": "Versions, both quotes and Cloudflare hosting check out, but the page is mostly JavaScript, not TypeScript. Change to \"The page is written in JavaScript, with the scenario engine in TypeScript,\".",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:69",
+    "value": "Most of the hardware you see was built in Blender — “Free and Open Source software, forever,” in its own words — by this project’s own Python build scripts rather than modeled by hand, and exported as glTF/GLB, the Khronos Group ’s “royalty-free specification for the efficient transmission and loading of 3D scenes and models by engines and applications.” Twenty-five of those files, built from this project’s own Blender sources by its own scripts, cover the racks, trays, compute chips, campus buildings and vehicles, and the optical and co-packaged-optics modules; everything else in the scene is procedural, built by code from the model’s numbers, so it recounts and resizes itself when you change the scenario.",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "blender",
+        "url": "https://www.blender.org",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"Blender is Free and Open Source software, forever.\""
+      },
+      {
+        "id": "khronos-gltf",
+        "url": "https://www.khronos.org/gltf/",
+        "fetched": true,
+        "result": "read",
+        "quote": "glTF is \"a royalty-free specification for the efficient transmission and loading of 3D scenes and models by engines and applications.\""
+      }
+    ],
+    "derivation": "public/models contains 25 .glb files; tools/blender holds the Python build scripts.",
+    "note": "The Blender and Khronos quotes are exact; 25 GLB files counted.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:70",
+    "value": "Every figure on the page is labeled by what backs it: Spec, Vendor, Reported, Calc. or Assumed, with its sources one click away. The Evidence page lists every figure that way, and the Method page lists every calculation and assumption behind them. Underneath, a scenario engine turns four choices — campus size, accelerator, power path and cooling — into every number, chart and sentence on the page.",
+    "verdict": "unsupported",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Many page figures carry no chip: the lede numbers, KPI strip, token outputs, the NREL 1.8 L/kWh note and the story beats' prose.",
+    "note": "\"Every figure on the page\" is broader than the labeling. Chips are on parts, ledger rows, tour rows and charts. Change to \"Every figure on a part, chart, ledger row or tour stop is labeled ...\" and \"turns four choices ... into every number in the charts and tours\".",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:71",
+    "value": "Automated checks run before anything ships: Vitest unit tests (1,380 tests across 40 files, as of this writing) cover the engine, the content and the links; Playwright drives a real browser through checks named for what they look for — cycle (every scenario, scene and layer, watching for errors), views (every part framed clear of overlays), coplanar (flush surfaces that would flicker), parts (every numbered part has a pin), flights (every camera move between parts stays clear of walls and roofs) and ui (the page’s controls stay out of each other’s way, on phone and desktop alike). A quality governor adapts the 3D rendering to the device it’s running on, with Max quality, Auto quality and Battery saver settings for when you want to choose yourself.",
+    "verdict": "wrong",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "npx vitest run today: 64 test files, 1745 tests passed. The six named Playwright checks exist as tools/cycle.mjs, views.mjs, coplanar.mjs, parts.mjs, flights.mjs, ui.mjs; the quality options Max, Auto and Battery saver exist in campus-presentation.js.",
+    "note": "The counts are stale: change \"1,380 tests across 40 files\" to \"1,745 tests across 64 files\" or drop the numbers so they cannot go stale again.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:72",
+    "value": "The code, 3D models and automated checks were written with AI coding assistants, mainly Anthropic’s Claude and OpenAI’s Codex. I decided what to show, set the rule that every figure comes from a cited public source or a labeled assumption, and reviewed the work, sending back what was wrong or unsupported. The Evidence page and the automated checks let anyone verify the result.",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "Author statement about process. Git trailers show Claude on 570 commits; Codex leaves no trailer.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:73",
+    "value": "Key sources:",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:74",
+    "value": "EIA, T&amp;D losses averaged about 5%, 2018–2022",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "eia-td-losses",
+        "url": "https://www.eia.gov/tools/faqs/faq.php?id=105&t=5",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"annual electricity transmission and distribution (T&D) losses averaged about 5% ... in the United States in 2018 through 2022.\""
+      }
+    ],
+    "derivation": null,
+    "note": "Label matches the EIA statement.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:75",
+    "value": "NVIDIA, GB200 NVL72",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-gb200-nvl72",
+        "url": "https://www.nvidia.com/en-us/data-center/gb200-nvl72/",
+        "fetched": true,
+        "result": "read",
+        "quote": "Per Grace Blackwell Superchip (2 GPUs): \"372 GB HBM3E\", memory bandwidth \"16 TB/s\"; rack \"13.4 TB HBM3E\", \"576 TB/s\"."
+      }
+    ],
+    "derivation": null,
+    "note": "GB200 NVL72 spec page.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:76",
+    "value": "NVIDIA, GB200 NVL72 designs contributed to OCP",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-gb200-ocp",
+        "url": "https://developer.nvidia.com/blog/nvidia-contributes-nvidia-gb200-nvl72-designs-to-open-compute-project/",
+        "fetched": true,
+        "result": "read",
+        "quote": "NVIDIA shared \"the NVIDIA GB200 NVL72 rack and compute and switch tray liquid cooled designs\" with OCP."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the OCP contribution post.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:77",
+    "value": "NVIDIA, GB300 NVL72 power smoothing",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-gb300-power",
+        "url": "https://developer.nvidia.com/blog/how-new-gb300-nvl72-features-provide-steady-power-for-ai/",
+        "fetched": true,
+        "result": "read",
+        "quote": "Titled \"How New GB300 NVL72 Features Provide Steady Power for AI\"; reports 30% lower peak grid demand when training."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the GB300 power-smoothing post.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:78",
+    "value": "NVIDIA, 800 V HVDC architecture",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-800v-hvdc",
+        "url": "https://developer.nvidia.com/blog/nvidia-800-v-hvdc-architecture-will-power-the-next-generation-of-ai-factories/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"NVIDIA 800 VDC Architecture Will Power the Next Generation of AI Factories\"; up to 5% end-to-end efficiency gain, 45% less copper."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the 800 V HVDC post.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:79",
+    "value": "HPE QuickSpecs, GB200 NVL72 liquid and air split",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "hpe-gb200-quickspecs",
+        "url": "https://www.hpe.com/us/en/collaterals/collateral.a50009224enw.html",
+        "fetched": false,
+        "result": "timed out twice (other worker's refetch)",
+        "quote": ""
+      }
+    ],
+    "derivation": null,
+    "note": "The link timed out twice (other worker), so I could not check that it shows the GB200 liquid/air split. Reed to decide whether to keep an unchecked link.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:80",
+    "value": "Eaton 9395XR UPS",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "eaton-9395xr-ups",
+        "url": "https://www.eaton.com/us/en-us/catalog/backup-power-ups-surge-it-power-distribution/eaton-9395xr-ups.html",
+        "fetched": false,
+        "result": "timed out twice (other worker's refetch)",
+        "quote": ""
+      },
+      {
+        "id": "ceie-eaton-9395xr",
+        "url": "https://snmiss.com/?a=index&aid=16&c=View&m=home",
+        "fetched": true,
+        "result": "read by the other worker (recert/source-refetch.json)",
+        "quote": "Distributor article: dual-conversion online efficiency \"as high as 97.5%\", AC-direct mode \"can be improved to 99%\". Eaton's own page timed out twice."
+      }
+    ],
+    "derivation": null,
+    "note": "Eaton's own page timed out twice; the figures the site uses are read from a distributor copy. Reed to decide whether to link the distributor copy or keep this.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:81",
+    "value": "Cummins DQKAN 2.5 MW generator data sheet",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "cummins-dqkan-genset",
+        "url": "https://www.globalpwr.com/wp-content/uploads/cut-sheets/gps-cummins-2500-kw-dqkan-data-sheet.pdf",
+        "fetched": true,
+        "result": "read (PDF text extracted locally)",
+        "quote": "Cummins generator set data sheet, Model: DQKAN, 60 Hz diesel, \"kW Rating: 2500 Standby, 2250 Prime\"."
+      }
+    ],
+    "derivation": null,
+    "note": "The data sheet is the DQKAN 2,500 kW standby set. (The model sizes a 3 MW class unit, separate from this label.)",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:82",
+    "value": "Google data center efficiency (PUE)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "google-pue",
+        "url": "https://datacenters.google/efficiency/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"In 2025, the average annual power usage effectiveness for our global fleet of data centers was 1.09.\""
+      }
+    ],
+    "derivation": null,
+    "note": "Google's efficiency page (fleet PUE 1.09 for 2025).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:83",
+    "value": "Google, measuring the environmental impact of AI inference",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "google-inference-impact",
+        "url": "https://cloud.google.com/blog/products/infrastructure/measuring-the-environmental-impact-of-ai-inference/",
+        "fetched": true,
+        "result": "read",
+        "quote": "Median Gemini Apps text prompt: 0.24 Wh, 0.03 gCO2e, 0.26 mL; includes idle machines, host CPU and RAM, and PUE overhead; training and embodied emissions not addressed."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the Google post.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:84",
+    "value": "Samsi et al., From Words to Watts (2023)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "samsi-words-to-watts",
+        "url": "https://arxiv.org/pdf/2310.03003",
+        "fetched": true,
+        "result": "read (PDF text extracted locally)",
+        "quote": "\"with length 512, we see that it takes about 3-4 Joules for a output token\" (Fig. 5, 8/16/32 shards); \"we mainly use V100 GPUs for larger-scale distributed experiments (8, 16, 32 shards)\"."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the paper.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:85",
+    "value": "SemiAnalysis InferenceX, GB200 NVL72",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "semianalysis-gb200-nvl72-specs",
+        "url": "https://inferencex.semianalysis.com/chips/gb200-nvl72",
+        "fetched": true,
+        "result": "read",
+        "quote": "Page headline is a GB200 NVL72 vs B200 comparison on DeepSeek R1 at 125 tok/s/user; it states neither ~13k tok/s per GPU nor an 8-10x tokens-per-MW figure."
+      }
+    ],
+    "derivation": null,
+    "note": "The page exists and is the GB200 NVL72 InferenceX page; see rows 61-62 for what it does not say.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:86",
+    "value": "Epoch AI, Stargate sites",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "epoch-stargate-abilene",
+        "url": "https://epoch.ai/publications/openai-stargate-where-the-us-sites-stand",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"OpenAI Stargate: where the US sites stand\"; Abilene about 0.3 GW now, 1.2 GW final."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the Epoch Stargate article.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:87",
+    "value": "ASHRAE liquid cooling classes (via Upsite)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ashrae-liquid-cooling-classes",
+        "url": "https://www.upsite.com/blog/what-you-need-to-know-about-ashraes-fifth-edition-of-thermal-guidelines/",
+        "fetched": true,
+        "result": "read",
+        "quote": "Liquid cooling classes \"W17, W27, W32, NEW class W40, W45, and the now named W+\"."
+      }
+    ],
+    "derivation": null,
+    "note": "Lists the liquid cooling classes.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:88",
+    "value": "NVIDIA NVL72 reference architecture (18 links, 18 NVLink Switch chips)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-nvl72-reference-arch",
+        "url": "https://docs.nvidia.com/enterprise-reference-architectures/nvl72-ai-factory/latest/components.html",
+        "fetched": true,
+        "result": "read (page text is for GB300 NVL72, same rack layout)",
+        "quote": "\"Each GB300 NVL72 rack includes 9 NVLink Fifth-Generation switch trays, with 2 NVSwitch ASICs per tray.\" (18 chips)"
+      },
+      {
+        "id": "nvidia-dgx-gb200-hardware",
+        "url": "https://docs.nvidia.com/dgx/dgxgb200-user-guide/hardware.html",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"18x 1RU compute trays, each with 2 Grace CPUs and 4 Blackwell GPUs\"; \"Each switch tray has 2x NVLink switches, and each switch has 72 NVLink ports\"; 2x TOR management switches."
+      },
+      {
+        "id": "nvidia-nvlink",
+        "url": "https://www.nvidia.com/en-us/data-center/nvlink/",
+        "fetched": true,
+        "result": "read (not cited on the page)",
+        "quote": "Fifth-generation NVLink: 1,800 GB/s per GPU, maximum 18 links per GPU (about 100 GB/s per link)."
+      }
+    ],
+    "derivation": null,
+    "note": "18 NVLink switch chips (9 trays x 2) read on the page; 18 links per GPU from NVIDIA's NVLink 5 page (1,800 GB/s, 18 links).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:89",
+    "value": "NVIDIA GB300 NVL72 (800 Gb/s per GPU)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-gb300-nvl72",
+        "url": "https://www.nvidia.com/en-us/data-center/gb300-nvl72/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"800 gigabits per second (Gb/s) of network connectivity for each GPU\""
+      }
+    ],
+    "derivation": null,
+    "note": "800 Gb/s per GPU stated.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:90",
+    "value": "NVIDIA Quantum-X800 switch specifications",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-xdr-switch-specs",
+        "url": "https://networking-docs.nvidia.com/xdrswitcheshw/specifications",
+        "fetched": true,
+        "result": "read",
+        "quote": "Specifications for Q32xx/Q34xx XDR 800 Gb/s InfiniBand switch systems (Quantum-3 chips; the Quantum-X800 family)."
+      }
+    ],
+    "derivation": null,
+    "note": "Page covers the XDR 800G switch systems (Q3200/Q3400).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:91",
+    "value": "NVIDIA co-packaged optics switches",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-spectrum-x-cpo",
+        "url": "https://nvidianews.nvidia.com/news/nvidia-spectrum-x-co-packaged-optics-networking-switches-ai-factories",
+        "fetched": true,
+        "result": "read",
+        "quote": "Spectrum-X Photonics CPO switches: \"3.5x more power efficiency\", \"4x fewer lasers\"."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the NVIDIA CPO announcement.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:92",
+    "value": "NVIDIA Spectrum-XGS, scale-across",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-spectrum-xgs",
+        "url": "https://nvidianews.nvidia.com/news/nvidia-introduces-spectrum-xgs-ethernet-to-connect-distributed-data-centers-into-giga-scale-ai-super-factories",
+        "fetched": true,
+        "result": "read",
+        "quote": "Spectrum-XGS adds \"scale-across to scale-up and scale-out\" to link data centers across cities, nations and continents."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the Spectrum-XGS release.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:93",
+    "value": "SemiAnalysis, NVL72 copper and optics",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "semianalysis-nvl72-optics",
+        "url": "https://newsletter.semianalysis.com/p/nvidias-optical-boogeyman-nvl72-infiniband",
+        "fetched": true,
+        "result": "read",
+        "quote": "NVL72 uses copper NVLink cables inside the rack; the back-end scale-out network still needs 72 optical ports per rack."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the article.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:94",
+    "value": "Google Ironwood TPU pods",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "google-ironwood-tpu",
+        "url": "https://blog.google/products/google-cloud/ironwood-google-tpu-things-to-know/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"3 things to know about Ironwood, our latest TPU\": scales to 9,216 chips in a superpod."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the Google post.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:95",
+    "value": "Microsoft AI WAN between Fairwater sites",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "microsoft-ai-wan",
+        "url": "https://news.microsoft.com/source/features/ai/from-wisconsin-to-atlanta-microsoft-connects-datacenters-to-build-its-first-ai-superfactory/",
+        "fetched": true,
+        "result": "read",
+        "quote": "Microsoft states 120,000 miles of dedicated fiber for its AI WAN connecting Fairwater sites; data travels \"congestion-free, at nearly the speed of light\"."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the Microsoft article.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:96",
+    "value": "Google DeepMind, Decoupled DiLoCo",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "deepmind-decoupled-diloco",
+        "url": "https://deepmind.google/blog/decoupled-diloco/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"We successfully trained a 12 billion parameter model across four separate U.S. regions using 2-5 Gbps of wide-area networking\""
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the DeepMind post.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:97",
+    "value": "Ciena WaveLogic 6, 1.6 Tb/s per wavelength",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ciena-wavelogic6",
+        "url": "https://www.ciena.com/about/newsroom/press-releases/ciena-unveils-wavelogic-6",
+        "fetched": false,
+        "result": "HTTP 403 for the other worker; excerpt only via Ciena investor-site search result: \"WaveLogic 6 supports up to 1.6 Tb/s single-carrier wavelengths\"",
+        "quote": ""
+      }
+    ],
+    "derivation": null,
+    "note": "Source page returns 403 to automated fetches; an excerpt from Ciena's investor site (other worker) states up to 1.6 Tb/s single-carrier wavelengths. Excerpt only, not the full page.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:98",
+    "value": "Google, measuring the environmental impact of delivering AI (method and boundary)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "google-inference-impact-paper",
+        "url": "https://arxiv.org/abs/2508.15734",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"Measuring the environmental impact of delivering AI at Google Scale\": full-stack boundary incl. active accelerator, host, idle capacity and data center overhead; 0.24 Wh, 0.26 mL."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the Google paper.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:99",
+    "value": "EIA, CO₂ per kWh of US generation",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "eia-co2-per-kwh",
+        "url": "https://www.eia.gov/tools/faqs/faq.php?id=74&t=11",
+        "fetched": true,
+        "result": "read",
+        "quote": "2023 U.S. electricity generation: \"about 0.81 pounds of CO2 emissions per kWh\" (about 367 g/kWh)."
+      }
+    ],
+    "derivation": null,
+    "note": "EIA page for CO2 per kWh.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:100",
+    "value": "NREL, water use of electricity generation",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nrel-water-electricity",
+        "url": "https://docs.nrel.gov/docs/fy11osti/50900.pdf",
+        "fetched": false,
+        "result": "not read: docs.nrel.gov and www.nrel.gov did not resolve (ENOTFOUND), osti.gov returned 404 and then 429; the other worker's refetch failed the same way",
+        "quote": ""
+      }
+    ],
+    "derivation": null,
+    "note": "Could not read the report (host did not resolve; mirrors 404/429).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:101",
+    "value": "Meta, Llama 3.1 model card",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "meta-llama-3-1-model-card",
+        "url": "https://github.com/meta-llama/llama-models/blob/main/models/llama3_1/MODEL_CARD.md",
+        "fetched": true,
+        "result": "read",
+        "quote": "405B: 30.84M GPU hours, 8,930 t CO2eq (location-based). Total of 8B+70B+405B: 39.3M GPU hours, 11,390 t."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the model card.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:102",
+    "value": "Meta, The Llama 3 Herd of Models (parallelism layout)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "meta-llama3-herd-parallelism",
+        "url": "https://arxiv.org/pdf/2407.21783",
+        "fetched": true,
+        "result": "read (PDF text extracted locally)",
+        "quote": "\"The innermost parallelism requires the highest network bandwidth and lowest latency, and hence is usually constrained to within the same server.\""
+      }
+    ],
+    "derivation": null,
+    "note": "Parallelism layout section read.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:103",
+    "value": "DeepSeek-V3 technical report",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "deepseek-v3-technical-report",
+        "url": "https://arxiv.org/pdf/2412.19437",
+        "fetched": true,
+        "result": "read (PDF text extracted locally)",
+        "quote": "DeepSeek-V3 technical report; cross-node all-to-all kernels to use InfiniBand and NVLink bandwidth."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the report.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:104",
+    "value": "NVIDIA, GB200 NVL72 and Dynamo for mixture-of-experts",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-gb200-dynamo-moe",
+        "url": "https://developer.nvidia.com/blog/how-nvidia-gb200-nvl72-and-nvidia-dynamo-boost-inference-performance-for-moe-models",
+        "fetched": true,
+        "result": "read",
+        "quote": "No GB200-vs-H200 tokens-per-MW multiple; reports 6x (DeepSeek R1) and 3x (Llama 70B) gains from disaggregated serving."
+      }
+    ],
+    "derivation": null,
+    "note": "Page exists with that title; it has no GB200-vs-H200 tokens-per-MW claim.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:105",
+    "value": "Epoch AI, energy estimates",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "epoch-chatgpt-energy",
+        "url": "https://epoch.ai/gradient-updates/how-much-energy-does-chatgpt-use",
+        "fetched": true,
+        "result": "read",
+        "quote": "Gives ~0.3 Wh per GPT-4o query and \"20-25 megawatts of power\" for ~3-month training runs; no GPT-4 52-62 GWh figure."
+      }
+    ],
+    "derivation": null,
+    "note": "Epoch energy estimates page (per-query energy).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:106",
+    "value": "NVIDIA DGX GB200 user guide, hardware (DPUs, management switches)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-dgx-gb200-hardware",
+        "url": "https://docs.nvidia.com/dgx/dgxgb200-user-guide/hardware.html",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"18x 1RU compute trays, each with 2 Grace CPUs and 4 Blackwell GPUs\"; \"Each switch tray has 2x NVLink switches, and each switch has 72 NVLink ports\"; 2x TOR management switches."
+      }
+    ],
+    "derivation": null,
+    "note": "Page lists BlueField-3 DPUs and management switches.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:107",
+    "value": "Corning EDGE8 patch housings",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "corning-edge8",
+        "url": "https://ecatalog.corning.com/optical-communications/US/en/Fiber-Optic-Hardware/Housings/EDGE8%C2%AE-Housings/p/EDGE8-01U-SP",
+        "fetched": true,
+        "result": "read",
+        "quote": "EDGE8 Housings 1U: 144 total fibers, up to 18 EDGE8 modules or adapter panels."
+      }
+    ],
+    "derivation": null,
+    "note": "Product page for the EDGE8 1U housing.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:108",
+    "value": "Coherent, 25.6 Tb/s per fiber pair across the C-band",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "coherent-full-cband-pols",
+        "url": "https://convergedigest.com/coherent-full-c-band-pols-25-6tbps-ai-dci/",
+        "fetched": true,
+        "result": "read",
+        "quote": "Coherent POLS: \"an aggregate capacity of 25.6 Tbps\"; \"Up to 32 wavelengths across the full C-band\" at 800G."
+      }
+    ],
+    "derivation": null,
+    "note": "25.6 Tb/s as 32 wavelengths x 800G across the C-band.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:109",
+    "value": "Cisco 8800 routers, 36 × 800G per line card",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "cisco-8800-routers",
+        "url": "https://www.cisco.com/c/en/us/products/collateral/routers/8000-series-routers/8800-series-modular-routers-ds.html",
+        "fetched": true,
+        "result": "read (HTTP 403 on first fetch; 36 x 800G line cards listed on retry)",
+        "quote": "Cisco 8000 36x 800G line cards (88-LC2-36EF-M OSFP-DD800; 88-LC1-36EH QSFP-DD800); \"36 ports of 800G per slot\"."
+      }
+    ],
+    "derivation": null,
+    "note": "36 x 800G line cards listed.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:110",
+    "value": "Microsoft hollow-core fiber",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "microsoft-hollow-core-fiber",
+        "url": "https://fiberbroadband.org/2026/04/02/microsoft-scales-up-hollow-core-fiber-production/",
+        "fetched": true,
+        "result": "read by the other worker",
+        "quote": "Hollow-core fiber \"increasing transmission speeds by 47% and cutting latency by 33%\"."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the article (hollow-core fiber).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:111",
+    "value": "NVIDIA, HGX H100 product carbon footprint",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-hgx-h100-pcf",
+        "url": "https://images.nvidia.com/aem-dam/Solutions/documents/HGX-H100-PCF-Summary.pdf",
+        "fetched": true,
+        "result": "read (PDF text extracted locally)",
+        "quote": "\"the carbon footprint from cradle-to-gate for one HGX H100 GPU baseboard is 1,312 kg CO2e.\""
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the NVIDIA summary.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:112",
+    "value": "Microsoft, zero-water cooling design",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "microsoft-zero-water",
+        "url": "https://www.microsoft.com/en-us/microsoft-cloud/blog/2024/12/09/sustainable-by-design-next-generation-datacenters-consume-zero-water-for-cooling/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"Sustainable by design: Next-generation datacenters consume zero water for cooling\"; closed-loop chip-level cooling."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the Microsoft post.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:113",
+    "value": "Fortum, data center heat in Finland",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "fortum-finland-heat",
+        "url": "https://www.fortum.com/en/media/2026/05/fortum-has-started-heat-production-two-large-data-centre-sites-finland",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"Fortum has started heat production at two large data centre sites in Finland\"; heat pumps up to 180 MW of district heating."
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the Fortum release.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:114",
+    "value": "Personal educational project based on cited public sources. Not an official publication of my employer or the companies discussed. Models are schematic; estimates and assumptions are identified.",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "Same disclosure as the hero note.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:115",
+    "value": "Geometry is schematic and not to any vendor's drawing, and the regional map is invented. Board-level converter and regulator efficiencies, NVLink latency and network power per GPU are not published for this hardware, so those figures are estimates.",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "ASSUMPTIONS vrm-efficiency says NVIDIA publishes no board VRM efficiency; the NVLink bandwidth row reads \"sub-us, unpublished\"; ledger network rows are derived from per-module watts.",
+    "note": "The listed items are carried as estimates in the model. The regional map and geometry are schematic by design.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:0:title",
+    "value": "100 MW, one grid customer",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "Names the scenario meter; no other claim.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:0:text",
+    "value": "This campus draws 100 MW at its meter, about as much as 83,000 American homes. The grid lost about 5% delivering it. Every number below follows from that one choice and the three others in the scenario bar.",
+    "verdict": "footnoted",
+    "check": "both",
+    "sources": [
+      {
+        "id": "eia-td-losses",
+        "url": "https://www.eia.gov/tools/faqs/faq.php?id=105&t=5",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"annual electricity transmission and distribution (T&D) losses averaged about 5% ... in the United States in 2018 through 2022.\""
+      },
+      {
+        "id": "eia-residential-use",
+        "url": "https://www.eia.gov/tools/faqs/faq.php?id=97&t=3",
+        "fetched": true,
+        "result": "read (not cited on the page; used for the homes figure)",
+        "quote": "In 2022 the average U.S. residential customer used 10,791 kWh a year, about 899 kWh a month."
+      }
+    ],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): 100 MW / 1.2 kW = 83,333, shown to two figures as 83,000. EIA 2022: 10,791 kWh a year = 1.232 kW, which would give 81,200 (about 81,000).",
+    "note": "\"About 83,000 homes\" rests on a round 1.2 kW home, disclosed in calc homes-equivalent; EIA's 10,791 kWh would give about 81,000. The 5% grid-loss claim matches EIA 2018-2022.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:1:title",
+    "value": "Even light takes time",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:1:text",
+    "value": "Campuses hundreds of kilometers apart can train one model together. In glass, light travels at about two thirds of its speed in a vacuum, so crossing 1,000 km still takes ≈5 ms each way. That makes synchronizing often expensive, and some methods, such as DiLoCo, synchronize much less often. In this model the long links carry the least traffic per GPU, and the fast ones are further in.",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "deepmind-decoupled-diloco",
+        "url": "https://deepmind.google/blog/decoupled-diloco/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"We successfully trained a 12 billion parameter model across four separate U.S. regions using 2-5 Gbps of wide-area networking\""
+      },
+      {
+        "id": "microsoft-ai-wan",
+        "url": "https://news.microsoft.com/source/features/ai/from-wisconsin-to-atlanta-microsoft-connects-datacenters-to-build-its-first-ai-superfactory/",
+        "fetched": true,
+        "result": "read",
+        "quote": "Microsoft states 120,000 miles of dedicated fiber for its AI WAN connecting Fairwater sites; data travels \"congestion-free, at nearly the speed of light\"."
+      }
+    ],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): 1,000 km x 4.9 us/km = 4.9 ms (refractive index 1.468; v/c = 0.681, about two thirds). DWDM slice: 2 routes x 9 lit pairs x 25.6 Tb/s /8 /44,640 GPUs = 1.29 GB/s per GPU, the lowest of the five bandwidth bars (10,000, 8,000, 900, 50, 1.29 GB/s).",
+    "note": "Light speed, the 5 ms figure, the multi-region training claim and the DiLoCo less-frequent-sync claim all hold; the long links do carry the least per GPU in this model.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:2:title",
+    "value": "345,000 volts",
+    "verdict": "footnoted",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "345 kV is the model's assumed interconnect voltage (assumption campus-interconnect-voltage), labeled as such on the first tour row.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:2:text",
+    "value": "The power arrives at 345 kV so the current stays small: ≈90 A per phase on each of the line’s two circuits. At 415 V, the voltage a rack takes, the same power would need about 146,000 amps.",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): I = 100e6/(sqrt3 x 345e3 x 0.95) = 176.2 A, /2 circuits = 88.1 A, shown as 90 A; at 415 V, 100e6/(sqrt3 x 415 x 0.95) = 146,443 A, shown as 146,000.",
+    "note": "Arithmetic matches. The 0.95 power factor, 345 kV and two circuits are assumptions disclosed in the calc text. The 146,000 A is per phase.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:3:title",
+    "value": "The first step down",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:3:text",
+    "value": "The campus has 3 main transformers to take it down to 34.5 kV. They are 99.6% efficient, and still turn 0.4 MW into heat.",
+    "verdict": "footnoted",
+    "check": "both",
+    "sources": [
+      {
+        "id": "pa-transformer-345kv",
+        "url": "https://www.patransformer.com/power-transformer-projects/power-transformer-345-kv/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"High efficiency: exceeding 99.6 % at all loading levels\" (product is a 345 kV, 90/120/150 MVA unit)"
+      }
+    ],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): transformers = ceil(100/(75 x 0.95)) + 1 = 3; loss = 100 x (1 - 0.996) = 0.4 MW.",
+    "note": "Count and loss recompute. The source says \"exceeding 99.6%\" for a 90-150 MVA 345 kV unit, while the model uses 75 MVA units and a 34.5 kV secondary, both model choices.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:4:title",
+    "value": "Standing by",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:4:text",
+    "value": "40 diesel generators and 40 MWh of batteries wait for the grid to fail. The batteries also soak up training load swings, which can move a campus by tens of megawatts within seconds.",
+    "verdict": "footnoted",
+    "check": "both",
+    "sources": [
+      {
+        "id": "arxiv-power-stabilization-2508",
+        "url": "https://arxiv.org/pdf/2508.14318",
+        "fetched": true,
+        "result": "read (PDF text extracted locally)",
+        "quote": "\"At scale, these swings can amount to tens or hundreds of megawatts\"; GPU power drops recur \"once per second or less, to once every tens of seconds\"."
+      }
+    ],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): gensets = ceil(100/3 x 1.2) = 40; BESS = 0.4 x 100 = 40 MWh.",
+    "note": "Sizing is the model's own rule (3 MW class, N+20%, 0.4 MWh per MW), disclosed in calcs. Swings of tens to hundreds of MW on second timescales are in the arXiv paper.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:5:title",
+    "value": "All of it comes back out",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:5:text",
+    "value": "Every one of those 100 MW leaves again as heat. Warm water climbs to dry coolers on the roofs; cooling alone takes 6.9 MW. With the conversion losses, this design runs at PUE 1.16 and uses about 332 m³ of water a day (WUE is measured per kWh of IT energy, not meter energy).",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640. Cooling = 0.08 x 86.35 = 6.91 MW; water = 86.35 MW x 0.16 L/kWh x 24 h = 331.6 m3 a day.",
+    "note": "Recomputes (6.9 MW, PUE 1.16, 332 m3). Cooling fraction and WUE 0.16 are assumptions labeled as such. The WUE-per-IT-kWh note is correct.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:6:title",
+    "value": "Clean power, at a price",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:6:text",
+    "value": "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 3.1 MW, more than any other step before the rack.",
+    "verdict": "wrong",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640. UPS loss = (86.35/0.9845 x 0.99) x 0.035 = 3.15 MW. Other pre-rack ledger rows: cooling 6.91, switches 2.62, optics 2.30, lighting 1.47, unit substations 0.99.",
+    "note": "3.1 MW is right, but cooling (6.9 MW) is a larger row before the rack. Change \"more than any other step before the rack\" to \"more than any other power-conversion step before the rack\".",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:7:title",
+    "value": "620 racks in 2 halls",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640. halls = ceil(86.35/45) = 2.",
+    "note": "620 racks recomputes; \"2 halls\" uses the assumed 45 MW per hall (assumption hall-it-capacity).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:7:text",
+    "value": "Of the 86 MW of IT load, 81 MW runs 620 GB200 NVL72 racks of about 131 kW each, in 2 halls: 44,640 GPUs. The network switches, and the optical modules at both ends of each scale-out link, take 4.9 MW, and 0.1 MW is spare capacity, short of one more rack.",
+    "verdict": "footnoted",
+    "check": "both",
+    "sources": [
+      {
+        "id": "nvidia-dgx-gb200-hardware",
+        "url": "https://docs.nvidia.com/dgx/dgxgb200-user-guide/hardware.html",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"18x 1RU compute trays, each with 2 Grace CPUs and 4 Blackwell GPUs\"; \"Each switch tray has 2x NVLink switches, and each switch has 72 NVLink ports\"; 2x TOR management switches."
+      }
+    ],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640. Racks 620 x 131.18 = 81.33 MW; network 2.616 + 2.299 = 4.915 MW; IT 86.35 - 81.33 - 4.92 = 0.10 MW spare, below one rack (0.139 MW).",
+    "note": "All figures recompute. Rack power is built bottom-up from labeled assumptions and sits in NVIDIA's 120-132 kW range.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:8:title",
+    "value": "3,488 switches across the campus",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): 3-tier at 400G radix 64: leaf 1,395 + spine 1,395 + core 698 = 3,488 (two tiers would cap at 2,048 GPUs).",
+    "note": "Switch count recomputes.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:8:text",
+    "value": "Every GPU gets scale-out optical connections into a 3-tier fabric. The switches, and the optical modules at both ends of each link, including the ones plugged into the trays, draw 4.9 MW, and there are about 1.1 million strands of fiber.",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "nvidia-mms4x00-ns400",
+        "url": "https://networking-docs.nvidia.com/mms4x00ns400/specifications",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"400Gb/s Single-port OSFP Single-mode DR4\" transceiver; peak power draw 9 W."
+      },
+      {
+        "id": "nvidia-800g-dr8-datasheet",
+        "url": "https://docs.nvidia.com/nvidia-mms4x00-nm-800gbps-twin-port-osfp-2x400gb-s-single-mode-dr8-500m-12-07-2023.pdf",
+        "fetched": true,
+        "result": "read (PDF text extracted locally)",
+        "quote": "Twin-port OSFP 2x400G DR8: Maximum Power Dissipation, PD, 17 W."
+      },
+      {
+        "id": "nvidia-quantum2-qm9700-specs",
+        "url": "https://networking-docs.nvidia.com/qm97x0hw/specifications",
+        "fetched": true,
+        "result": "read (cited in data.js, not on the page)",
+        "quote": "\"Typical power with passive cables (ATIS): 747W\"; \"Max power with active cables: 1,720W\"."
+      }
+    ],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): switches 3,488 x 0.75 kW = 2.616 MW; modules (44,640 x 9 W + 44,640 x 5 x 8.5 W) = 2.299 MW; total 4.915 MW; fibers 44,640 x 3 links x 8 = 1,071,360.",
+    "note": "Module watts match NVIDIA datasheets (9 W per 400G DR4; 17 W per 2x400G DR8) and the switch figure is the QM9700 typical 747 W. 4.9 MW and about 1.1 million strands recompute.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:9:title",
+    "value": "AC becomes DC",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:9:text",
+    "value": "Power shelves make about 50 V for a copper busbar down the back of the rack, carrying ≈2,600 A. That is why it is a bar, not a cable.",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640. Rack DC bus = 127.90 kW; /50 V = 2,558 A, shown as 2,600.",
+    "note": "Recomputes; the 50 V busbar is the model's ORv3-based assumption.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:10:title",
+    "value": "72 GPUs, one machine",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:10:text",
+    "value": "NVLink 5 ties all 72 GPUs together through switch trays in the middle of the rack: 1.8 TB/s per GPU, both directions combined, in copper. The chattiest work, splitting each layer, stays here.",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-gb200-nvl72-llm-blog",
+        "url": "https://developer.nvidia.com/blog/nvidia-gb200-nvl72-delivers-trillion-parameter-llm-training-and-real-time-inference/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"The revolutionary 1.8 TB/s of bidirectional throughput per GPU is over 14x the bandwidth of PCIe Gen5\""
+      },
+      {
+        "id": "semianalysis-nvl72-optics",
+        "url": "https://newsletter.semianalysis.com/p/nvidias-optical-boogeyman-nvl72-infiniband",
+        "fetched": true,
+        "result": "read",
+        "quote": "NVL72 uses copper NVLink cables inside the rack; the back-end scale-out network still needs 72 optical ports per rack."
+      },
+      {
+        "id": "meta-llama3-herd-parallelism",
+        "url": "https://arxiv.org/pdf/2407.21783",
+        "fetched": true,
+        "result": "read (PDF text extracted locally)",
+        "quote": "\"The innermost parallelism requires the highest network bandwidth and lowest latency, and hence is usually constrained to within the same server.\""
+      }
+    ],
+    "derivation": null,
+    "note": "1.8 TB/s bidirectional per GPU, copper inside the rack, and tensor parallelism innermost are all supported.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:11:title",
+    "value": "Out as light",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:11:text",
+    "value": "Every GPU’s traffic to other racks leaves the tray through pluggable optical modules at its edge. Step inside one.",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-mms4x00-ns400",
+        "url": "https://networking-docs.nvidia.com/mms4x00ns400/specifications",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"400Gb/s Single-port OSFP Single-mode DR4\" transceiver; peak power draw 9 W."
+      }
+    ],
+    "derivation": null,
+    "note": "Scale-out traffic leaves the tray through pluggable OSFP optics.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:12:title",
+    "value": "Where electrons become light",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:12:text",
+    "value": "On the transmit side, modulators put each electrical lane onto laser light, and waveguides carry it to its fiber. The receive side runs the other way, through photodiodes. Then back out to the tray.",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [
+      {
+        "id": "semtech-lpo-ai-basics-blog",
+        "url": "https://blog.semtech.com/ai-data-center-basics-what-is-linear-pluggable-optics-lpo",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"LPO removes the DSP retimer from the module entirely\"; the host switch SerDes \"takes on primary signal conditioning\"."
+      }
+    ],
+    "derivation": null,
+    "note": "General description of a transmit/receive silicon-photonics module; no figure.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:13:title",
+    "value": "The last volt",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:13:text",
+    "value": "Voltage regulators ring each GPU and make the final step to about 0.8 V: ≈1,300 A into one chip. They lose 5.3 MW across the campus doing it.",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640. Core current = 1,200 W x (1 - 0.132) / 0.8 V = 1,302 A; VRM loss per rack = 86.4/0.91 - 86.4 = 8.545 kW x 620 = 5.30 MW.",
+    "note": "Recomputes (1,300 A, 5.3 MW). The 0.8 V and 91% efficiency are assumptions with their own labels.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:14:title",
+    "value": "46% reaches the GPU dies",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640. GPU silicon = 74.995 kW x 620 = 46.50 MW = 46.5% of 100 MW.",
+    "note": "Recomputes to 46%.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:14:text",
+    "value": "Of 100 MW at the meter, 46 MW reaches the GPU dies themselves, where it runs the computation, on-chip memory, communication, control and leakage. Almost all the rest became heat on the way, in conversion, cooling, memory, CPUs and the network; a sliver was never drawn at all, spare capacity from rounding down to a whole rack.",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640. Ledger plus silicon sums to 100 MW with a 0.10 MW remainder.",
+    "note": "The rest-became-heat description and the whole-rack remainder match the ledger.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:15:title",
+    "value": "Memory paces the decode",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "no factual claim",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:15:text",
+    "value": "HBM3e feeds each GPU at 8 TB/s. When a reply is written one token at a time for a small batch, every token reads the model’s weights again, so that step is usually limited by memory bandwidth more than by raw math. Prefill, and large batches, lean more on compute.",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "nvidia-gb200-nvl72",
+        "url": "https://www.nvidia.com/en-us/data-center/gb200-nvl72/",
+        "fetched": true,
+        "result": "read",
+        "quote": "Per Grace Blackwell Superchip (2 GPUs): \"372 GB HBM3E\", memory bandwidth \"16 TB/s\"; rack \"13.4 TB HBM3E\", \"576 TB/s\"."
+      }
+    ],
+    "derivation": "Llama 70B FP8: 70 GB / 8 TB/s = 8.75 ms of reading vs 140 GFLOP / 5 PFLOPS = 0.028 ms of math, so a one-stream decode step is memory-bound by a wide margin.",
+    "note": "8 TB/s per GPU is half of the 16 TB/s per Superchip; the memory-bound claim holds for small batches.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:16:title",
+    "value": "53.6 million tokens a second",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "rate = 44,640 x 2,000 x 0.60 = 53,568,000 tokens/s.",
+    "note": "Recomputes; tokens per second per GPU (2,000) and utilization (60%) are labeled assumptions.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "narrative:story:16:text",
+    "value": "At the utilization set below, the campus writes about 53.6 million tokens a second, 1.8 million per kilowatt-hour at the meter, including its share of training. Change the scenario and the tour retells itself.",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "J/token = 100e6/53.568e6 + 50 GWh x 3.6e12 / 1e15 = 1.8667 + 0.18 = 2.0467 J; 3.6e6 / 2.0467 = 1.759 M tokens per kWh.",
+    "note": "Recomputes (53.6 M, 1.8 M). Depends on assumed per-GPU rate, utilization, training energy and lifetime tokens.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:0:0",
+    "value": "100 MW",
+    "verdict": "footnoted",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "The meter is the reader's choice (assumption scenario-meter-choice).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:0:1",
+    "value": "≈83,000",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): 100 MW / 1.2 kW = 83,333, shown to two figures as 83,000. EIA 2022: 10,791 kWh a year = 1.232 kW, which would give 81,200 (about 81,000).",
+    "note": "Labeled derived with a round 1.2 kW home; EIA 10,791 kWh would give about 81,000.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:0:2",
+    "value": "≈5% (EIA)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "eia-td-losses",
+        "url": "https://www.eia.gov/tools/faqs/faq.php?id=105&t=5",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"annual electricity transmission and distribution (T&D) losses averaged about 5% ... in the United States in 2018 through 2022.\""
+      }
+    ],
+    "derivation": null,
+    "note": "Matches EIA for 2018-2022.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:1:0",
+    "value": "≈5 ms one way, ≈10 ms round trip",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): 1,000 km x 4.9 us/km = 4.9 ms one way, 9.8 ms round trip.",
+    "note": "Rounds to 5 and 10 ms.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:1:1",
+    "value": "4 US regions over 2–5 Gb/s",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "deepmind-decoupled-diloco",
+        "url": "https://deepmind.google/blog/decoupled-diloco/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"We successfully trained a 12 billion parameter model across four separate U.S. regions using 2-5 Gbps of wide-area networking\""
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the DeepMind sentence.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:2:0",
+    "value": "345 kV line-to-line",
+    "verdict": "footnoted",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "Labeled assumed (campus-interconnect-voltage).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:2:1",
+    "value": "≈90 A per phase, on each circuit",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): 100e6/(sqrt3 x 345e3 x 0.95) / 2 = 88.1 A, shown as 90 A.",
+    "note": "Recomputes; power factor and two circuits are disclosed in the calc.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:2:2",
+    "value": "≈146,000 A",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): 100e6/(sqrt3 x 415 x 0.95) = 146,443 A, rounded to 146,000.",
+    "note": "Recomputes (per phase).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:3:0",
+    "value": "3 × 75 MVA, N+1",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): ceil(100/(75 x 0.95)) + 1 = 3.",
+    "note": "Count recomputes; 75 MVA unit class and N+1 are model choices disclosed in the calc.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:3:1",
+    "value": ">99.6% at all loading levels",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "pa-transformer-345kv",
+        "url": "https://www.patransformer.com/power-transformer-projects/power-transformer-345-kv/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"High efficiency: exceeding 99.6 % at all loading levels\" (product is a 345 kV, 90/120/150 MVA unit)"
+      }
+    ],
+    "derivation": null,
+    "note": "\"exceeding 99.6% at all loading levels\" for a 345 kV class transformer.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:3:2",
+    "value": "≈0.4 MW",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): 100 MW x 0.004 = 0.4 MW.",
+    "note": "Recomputes.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:4:0",
+    "value": "≈40, N+20%",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): ceil(100/3 x 1.2) = 40.",
+    "note": "Model sizing rule (3 MW class, N+20%), disclosed in the calc.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:4:1",
+    "value": "≈20 MW / 40 MWh",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): 0.2 x 100 = 20 MW; 0.4 x 100 = 40 MWh.",
+    "note": "Round sizing the calc says is a scale choice, not a design.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:4:2",
+    "value": "tens to hundreds of MW, seconds",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "arxiv-power-stabilization-2508",
+        "url": "https://arxiv.org/pdf/2508.14318",
+        "fetched": true,
+        "result": "read (PDF text extracted locally)",
+        "quote": "\"At scale, these swings can amount to tens or hundreds of megawatts\"; GPU power drops recur \"once per second or less, to once every tens of seconds\"."
+      }
+    ],
+    "derivation": null,
+    "note": "Section I sentence confirmed in the PDF; time scale is once per second to tens of seconds.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:5:0",
+    "value": "6.9 MW",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640. 0.08 x 86.35 = 6.91 MW.",
+    "note": "Recomputes; the 0.08 fraction is a calibration assumption stated in the calc.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:5:1",
+    "value": "1.16",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640.",
+    "note": "PUE 1.158 displays as 1.16.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:5:2",
+    "value": "≈332 m³",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "86.35 MW x 0.16 L/kWh x 24 h = 331.6 m3.",
+    "note": "Recomputes; WUE 0.16 is an illustrative assumption (wue-by-cooling).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:6:0",
+    "value": "up to 97.5% online, 99% eco",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ceie-eaton-9395xr",
+        "url": "https://snmiss.com/?a=index&aid=16&c=View&m=home",
+        "fetched": true,
+        "result": "read by the other worker (recert/source-refetch.json)",
+        "quote": "Distributor article: dual-conversion online efficiency \"as high as 97.5%\", AC-direct mode \"can be improved to 99%\". Eaton's own page timed out twice."
+      }
+    ],
+    "derivation": null,
+    "note": "Both figures come from a distributor copy of Eaton's test results; Eaton's own page could not be opened.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:6:1",
+    "value": "≈3.1 MW",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640. (86.35/0.9845)x0.99x0.035 = 3.15 MW at the assumed 96.5%.",
+    "note": "Recomputes; 96.5% is a labeled assumption below the 97.5% tested figure.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:7:0",
+    "value": "86 MW",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640.",
+    "note": "86.35 MW displays as 86 MW.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:7:1",
+    "value": "620 × ≈131 kW = 81 MW",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640. 620 x 131.18 = 81.33 MW.",
+    "note": "Recomputes.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:7:2",
+    "value": "4.9 MW",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "2.616 MW + 2.299 MW = 4.915 MW.",
+    "note": "Recomputes; module and switch watts match NVIDIA datasheets.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:7:3",
+    "value": "44,640",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "620 x 72 = 44,640.",
+    "note": "Recomputes.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:8:0",
+    "value": "2.6 MW",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "nvidia-quantum2-qm9700-specs",
+        "url": "https://networking-docs.nvidia.com/qm97x0hw/specifications",
+        "fetched": true,
+        "result": "read (cited in data.js, not on the page)",
+        "quote": "\"Typical power with passive cables (ATIS): 747W\"; \"Max power with active cables: 1,720W\"."
+      }
+    ],
+    "derivation": "3,488 switches x 0.75 kW = 2.616 MW.",
+    "note": "Matches QM9700 typical power (747 W).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:8:1",
+    "value": "2.3 MW",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "nvidia-mms4x00-ns400",
+        "url": "https://networking-docs.nvidia.com/mms4x00ns400/specifications",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"400Gb/s Single-port OSFP Single-mode DR4\" transceiver; peak power draw 9 W."
+      },
+      {
+        "id": "nvidia-800g-dr8-datasheet",
+        "url": "https://docs.nvidia.com/nvidia-mms4x00-nm-800gbps-twin-port-osfp-2x400gb-s-single-mode-dr8-500m-12-07-2023.pdf",
+        "fetched": true,
+        "result": "read (PDF text extracted locally)",
+        "quote": "Twin-port OSFP 2x400G DR8: Maximum Power Dissipation, PD, 17 W."
+      }
+    ],
+    "derivation": "(44,640 x 9 W + 44,640 x 5 x 8.5 W)/1e6 = 2.299 MW.",
+    "note": "Matches the per-module datasheet watts (9 W; 17 W for two ports).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:8:2",
+    "value": "≈1.1 million",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "44,640 x 3 links x 8 fibers = 1,071,360.",
+    "note": "Rounds to 1.1 million.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:9:0",
+    "value": "≈97.5% peak, half load",
+    "verdict": "unsupported",
+    "check": "source",
+    "sources": [
+      {
+        "id": "flex-gb200-power-shelf",
+        "url": "https://flex.com/resources/power-shelves",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"High efficiency up to 97.5% (peak)\"; the page gives no load point for the peak."
+      }
+    ],
+    "derivation": null,
+    "note": "The Flex page says \"up to 97.5% (peak)\" with no load point. Remove \", half load\" from the value (data.js line 570), leaving \"≈97.5% peak\".",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:9:1",
+    "value": "≈2,600 A",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640. 127.90 kW / 50 V = 2,558 A.",
+    "note": "Rounds to 2,600; 50 V is the model's busbar assumption.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:10:0",
+    "value": "NVLink 5, 1.8 TB/s",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-gb200-nvl72-llm-blog",
+        "url": "https://developer.nvidia.com/blog/nvidia-gb200-nvl72-delivers-trillion-parameter-llm-training-and-real-time-inference/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"The revolutionary 1.8 TB/s of bidirectional throughput per GPU is over 14x the bandwidth of PCIe Gen5\""
+      },
+      {
+        "id": "nvidia-nvlink",
+        "url": "https://www.nvidia.com/en-us/data-center/nvlink/",
+        "fetched": true,
+        "result": "read (not cited on the page)",
+        "quote": "Fifth-generation NVLink: 1,800 GB/s per GPU, maximum 18 links per GPU (about 100 GB/s per link)."
+      }
+    ],
+    "derivation": null,
+    "note": "1.8 TB/s bidirectional per GPU, NVLink 5.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:10:1",
+    "value": "9, 2 switch chips each (18)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-dgx-gb200-hardware",
+        "url": "https://docs.nvidia.com/dgx/dgxgb200-user-guide/hardware.html",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"18x 1RU compute trays, each with 2 Grace CPUs and 4 Blackwell GPUs\"; \"Each switch tray has 2x NVLink switches, and each switch has 72 NVLink ports\"; 2x TOR management switches."
+      },
+      {
+        "id": "nvidia-nvl72-reference-arch",
+        "url": "https://docs.nvidia.com/enterprise-reference-architectures/nvl72-ai-factory/latest/components.html",
+        "fetched": true,
+        "result": "read (page text is for GB300 NVL72, same rack layout)",
+        "quote": "\"Each GB300 NVL72 rack includes 9 NVLink Fifth-Generation switch trays, with 2 NVSwitch ASICs per tray.\" (18 chips)"
+      }
+    ],
+    "derivation": null,
+    "note": "9 trays x 2 NVSwitch chips = 18.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:11:0",
+    "value": "NVIDIA single-port 400G OSFP, DR4",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-mms4x00-ns400",
+        "url": "https://networking-docs.nvidia.com/mms4x00ns400/specifications",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"400Gb/s Single-port OSFP Single-mode DR4\" transceiver; peak power draw 9 W."
+      }
+    ],
+    "derivation": null,
+    "note": "Single-port 400G OSFP DR4.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:12:0",
+    "value": "Mach-Zehnder, a common silicon-photonics modulator design",
+    "verdict": "unsupported",
+    "check": "source",
+    "sources": [
+      {
+        "id": "tspa-400g-lane-ofc",
+        "url": "https://tspasemiconductor.substack.com/p/ofc-preview-the-race-to-400g-per-lane",
+        "fetched": false,
+        "result": "HTTP 404 (also 404 in the other worker's refetch); no alternate URL found",
+        "quote": ""
+      }
+    ],
+    "derivation": null,
+    "note": "The cited page returns 404 and no readable copy was found. Mach-Zehnder modulators are widely used in silicon photonics, but re-source this to a page that says so (a module datasheet or NVIDIA/Cisco photonics note).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:13:0",
+    "value": "≈1,300 A",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "1,200 W x 0.868 / 0.8 V = 1,302 A.",
+    "note": "Recomputes; 0.8 V core voltage is an assumption (core-voltage).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:13:1",
+    "value": "≈91%",
+    "verdict": "footnoted",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "Labeled assumed; NVIDIA publishes no board VRM efficiency.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:13:2",
+    "value": "≈5.3 MW",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "(86.4/0.91 - 86.4) x 620 = 5.30 MW.",
+    "note": "Recomputes at the assumed 91%.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:14:0",
+    "value": "46 MW",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "74.995 kW x 620 = 46.50 MW; displays as 46 MW.",
+    "note": "Recomputes.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:14:1",
+    "value": "46%",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "46.50 / 100 = 46.5%; displays as 46%.",
+    "note": "Recomputes.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:15:0",
+    "value": "8 TB/s",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-gb200-nvl72",
+        "url": "https://www.nvidia.com/en-us/data-center/gb200-nvl72/",
+        "fetched": true,
+        "result": "read",
+        "quote": "Per Grace Blackwell Superchip (2 GPUs): \"372 GB HBM3E\", memory bandwidth \"16 TB/s\"; rack \"13.4 TB HBM3E\", \"576 TB/s\"."
+      }
+    ],
+    "derivation": null,
+    "note": "16 TB/s per Superchip of two GPUs is 8 TB/s per GPU.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:16:0",
+    "value": "53.6 million",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "44,640 x 2,000 x 0.6 = 53.568 M.",
+    "note": "Recomputes; per-GPU rate and utilization are assumptions.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:16:1",
+    "value": "1.8 million",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "3.6e6 / 2.0467 = 1.759 M.",
+    "note": "Recomputes; includes the assumed training share.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:1",
+    "value": "KPI strip: IT load 86.4 MW",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640.",
+    "note": "86.35 MW to one decimal.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:2",
+    "value": "KPI strip: PUE 1.16",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640.",
+    "note": "1.158 to two decimals.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:3",
+    "value": "KPI strip: Racks 620",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640.",
+    "note": "Recomputes.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:4",
+    "value": "KPI strip: GPUs 44.6k",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "620 x 72 = 44,640.",
+    "note": "Recomputes.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:5",
+    "value": "KPI strip: Per rack 131 kW",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Independent recomputation (scratch script, raw inputs only): meter/IT = (1/(0.99*0.965*0.995) + (0.08+0.017)/0.99)/(0.996*0.997) = 1.1581, so IT = 86.35 MW, PUE 1.158; one GB200 rack = 86.4 kW packages + 8.55 kW VRM loss + 13.10 CPU + 17.32 other, /0.9828 IBC, +0.34 busbar, /0.975 PSU = 131.18 kW; racks = floor(86351/(131.18+72*0.11009)) = 620; GPUs = 44,640.",
+    "note": "131.18 kW.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:6",
+    "value": "KPI strip: Network, outside racks 4.9 MW",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "2.616 + 2.299 = 4.915 MW.",
+    "note": "Recomputes.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:7",
+    "value": "KPI strip: Reaches GPU silicon 46.5%",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "46.497 MW / 100 MW.",
+    "note": "Recomputes.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:8",
+    "value": "KPI strip: Tokens per second 53.6 M",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "44,640 x 2,000 x 0.6 = 53.568 M.",
+    "note": "Rests on the assumed per-GPU rate and utilization.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:9",
+    "value": "KPI strip: Tokens per kWh 1.76 M",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "3.6e6 / 2.0468 J = 1.759 M.",
+    "note": "Includes the assumed training share.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:10",
+    "value": "KPI strip: Water per day 332 m³",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "86.35 x 0.16 x 24 = 331.6 m3.",
+    "note": "WUE 0.16 is an assumption.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:11",
+    "value": "Token calculator outputs, default: 2.05 joules per token, all in",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "1.8667 + 0.18 = 2.0467 J.",
+    "note": "Assumption-driven (per-GPU rate, utilization, training).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:12",
+    "value": "Token calculator outputs, default: 1.76 M tokens per kWh",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "3.6e6 / 2.0467.",
+    "note": "As above.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:13",
+    "value": "Token calculator outputs, default: 8.8% of that energy is training",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "0.18 / 2.0467 = 8.79%.",
+    "note": "Training 50 GWh over 1e15 tokens is a labeled scenario.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:14",
+    "value": "Token calculator outputs, default: 0.284 Wh per 500-token reply",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "2.0467 J x 500 / 3600 = 0.2843 Wh.",
+    "note": "The 500-token reply length is the model's fixed assumption.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:15",
+    "value": "Token calculator outputs, default: 0.105 g CO₂ per reply",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "0.2843 Wh /1000 x 370 g/kWh = 0.1052 g.",
+    "note": "370 g/kWh matches the EIA 2023 average (367 g).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:16",
+    "value": "Token calculator outputs, default: 0.0393 mL water per reply, on site",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "0.2843 Wh / 1.158 x 0.16 L/kWh = 0.0393 mL.",
+    "note": "WUE 0.16 is an assumption; boundary is IT energy, stated on the page.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:17",
+    "value": "Preset buttons: Large dense model 300 tok/s; Mixed serving 2,000 tok/s",
+    "verdict": "footnoted",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "The tooltips call them illustrative assumptions, not benchmarks.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:18",
+    "value": "Preset button: GB200 decode, DeepSeek R1 13,000 tok/s (tooltip: 13,386 output tokens/s per GPU, 2,000-token input, September 2025)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "lmsys-sglang-gb200-part2",
+        "url": "https://www.lmsys.org/blog/2025-09-25-gb200-part-2/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"13,386 output tokens per second per NVIDIA Blackwell GPU\" for decode (2,000-token input, FP8 attention with NVFP4 MoE); published 09/25/2025."
+      }
+    ],
+    "derivation": "13,000 / 13,386 = 0.971.",
+    "note": "The tooltip numbers, input length and date match LMSYS; the button rounds down 3%, and the tooltip says \"rounded here\".",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:19",
+    "value": "Grid carbon preset: US average 370 g/kWh (EIA / EPA)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "eia-co2-per-kwh",
+        "url": "https://www.eia.gov/tools/faqs/faq.php?id=74&t=11",
+        "fetched": true,
+        "result": "read",
+        "quote": "2023 U.S. electricity generation: \"about 0.81 pounds of CO2 emissions per kWh\" (about 367 g/kWh)."
+      }
+    ],
+    "derivation": "0.81 lb/kWh x 453.6 g/lb = 367 g.",
+    "note": "Matches EIA 2023 to two figures.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:20",
+    "value": "Grid carbon presets: Hydro or nuclear (est.) 30 g; Coal heavy (est.) 800 g",
+    "verdict": "footnoted",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "Both are labeled \"(est.)\".",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:21",
+    "value": "Default slider values: utilization 60%, training run 50 GWh, 1,000 T tokens served over life",
+    "verdict": "footnoted",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "Labeled scenarios (\"nobody publishes both numbers for one model\").",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:22",
+    "value": "Hero image alt text: two long data halls with dry coolers on their roofs, a generator yard, a lit substation fed by a line from the left",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "Default model: halls = 2, cooling = warm (dry coolers), backup = diesel (40 gensets).",
+    "note": "Matches the default campus.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:23",
+    "value": "Meta description: \"Zoom from a 2,000 km grid into one AI campus and down to a GPU die at 0.8 V: power, data and heat at six scales\"",
+    "verdict": "footnoted",
+    "check": "both",
+    "sources": [],
+    "derivation": "Same figures as the lede (2,000 km schematic, 0.8 V assumed).",
+    "note": "See page:index.html:3.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:24",
+    "value": "Caption (cap-scaleup): every GPU connects to all 18 NVLink switch chips, one link each; one GPU's 18 links highlighted",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-dgx-gb200-hardware",
+        "url": "https://docs.nvidia.com/dgx/dgxgb200-user-guide/hardware.html",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"18x 1RU compute trays, each with 2 Grace CPUs and 4 Blackwell GPUs\"; \"Each switch tray has 2x NVLink switches, and each switch has 72 NVLink ports\"; 2x TOR management switches."
+      },
+      {
+        "id": "nvidia-nvlink",
+        "url": "https://www.nvidia.com/en-us/data-center/nvlink/",
+        "fetched": true,
+        "result": "read (not cited on the page)",
+        "quote": "Fifth-generation NVLink: 1,800 GB/s per GPU, maximum 18 links per GPU (about 100 GB/s per link)."
+      },
+      {
+        "id": "nvidia-nvl72-reference-arch",
+        "url": "https://docs.nvidia.com/enterprise-reference-architectures/nvl72-ai-factory/latest/components.html",
+        "fetched": true,
+        "result": "read (page text is for GB300 NVL72, same rack layout)",
+        "quote": "\"Each GB300 NVL72 rack includes 9 NVLink Fifth-Generation switch trays, with 2 NVSwitch ASICs per tray.\" (18 chips)"
+      }
+    ],
+    "derivation": "72 GPUs x 18 links = 1,296 links = 18 chips x 72 ports.",
+    "note": "The numbers close: 18 links per GPU, 18 chips with 72 ports each.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:25",
+    "value": "Caption (cap-scaleout, static fallback): \"One 800G optical port per GPU climbs through up to three tiers of 144-port switches ... two more optical modules per link\"",
+    "verdict": "wrong",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "GB200 default: nicGbps 400, FABRICS[400].radix 64; src/app/sections.js writes \"One 400G optical port per GPU ... three tiers of 64-port switches\" at load.",
+    "note": "The static fallback describes the 800G GB300-class fabric and differs from what the script renders for the default GB200 scenario. Change the static text to \"One 400G optical port per GPU climbs through three tiers of 64-port switches.\"",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:26",
+    "value": "Caption (static): amplifier huts boost the light \"every 80 km or so\"",
+    "verdict": "unsupported",
+    "check": "source",
+    "sources": [],
+    "derivation": "Model value dci.spanKm = 80, huts = ceil(1100/80) - 1 = 13.",
+    "note": "No source in the repo or in this pass states an 80 km span for these routes (Cisco's 800ZR figure is 120 km amplified). Add a source or label the span an assumption.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:27",
+    "value": "Caption (cap-copperwall): a passive cable reaches further at a slow lane rate than a fast one; the \"copper wall\"",
+    "verdict": "footnoted",
+    "check": "framing",
+    "sources": [],
+    "derivation": null,
+    "note": "The figure carries a Calc. chip (copper-wall-chart) that discloses it is derived; I did not re-derive the curve.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:28",
+    "value": "Caption (cap-optics-cutaway): DSP pluggable regenerates the signal at both ends; LPO skips that chip; CPO builds optics into the switch package, lasers outside",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "semtech-lpo-ai-basics-blog",
+        "url": "https://blog.semtech.com/ai-data-center-basics-what-is-linear-pluggable-optics-lpo",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"LPO removes the DSP retimer from the module entirely\"; the host switch SerDes \"takes on primary signal conditioning\"."
+      },
+      {
+        "id": "nvidia-cpo-scaling-blog",
+        "url": "https://developer.nvidia.com/blog/scaling-ai-factories-with-co-packaged-optics-for-better-power-efficiency/",
+        "fetched": true,
+        "result": "read",
+        "quote": "CPO \"integrate[s] the electro-optical conversion directly onto the switch package\", cutting electrical loss to ~4 dB and removing pluggable transceivers."
+      },
+      {
+        "id": "nvidia-cpo-industry-collaboration-blog",
+        "url": "https://developer.nvidia.com/blog/how-industry-collaboration-fosters-nvidia-co-packaged-optics/",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"Each ELS contains eight high-quality lasers that have been precisely coupled via fiber to the optical engines.\" (external laser source)"
+      }
+    ],
+    "derivation": null,
+    "note": "All three descriptions match the sources.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:29",
+    "value": "DCI figure: \"1,100 km of fiber · 13 amplifier huts, one every ≈80 km\"; \"≈5.4 ms one way\"",
+    "verdict": "footnoted",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "ceil(1100/80) - 1 = 13; 1,100 km x 4.9 us/km = 5.39 ms.",
+    "note": "Recomputes. The route length and 80 km span are model values; the rest of the page uses 1,000 km / 5 ms for the illustrative route.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:30",
+    "value": "DCI figure: \"32 × 800G = 25.6 Tb/s\" per fiber pair; \"9 lit pairs of a 432-strand cable\"; \"2 routes · ≈461 Tb/s\"; 576 coherent modules each end",
+    "verdict": "footnoted",
+    "check": "both",
+    "sources": [
+      {
+        "id": "coherent-full-cband-pols",
+        "url": "https://convergedigest.com/coherent-full-c-band-pols-25-6tbps-ai-dci/",
+        "fetched": true,
+        "result": "read",
+        "quote": "Coherent POLS: \"an aggregate capacity of 25.6 Tbps\"; \"Up to 32 wavelengths across the full C-band\" at 800G."
+      }
+    ],
+    "derivation": "litPairs = round(44,640 x 10 Gb/s /2 /25.6 Tb/s) = round(8.72) = 9; 9 x 25.6 = 230.4 Tb/s per route; 2 routes = 460.8; modules = 2 x 9 x 32 = 576.",
+    "note": "32 x 800G = 25.6 Tb/s matches Coherent's POLS. The 10 Gb/s per GPU to other sites is the model's assumption.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:31",
+    "value": "Census, campus fabric: 3,488 fabric switches; 3 tiers; 134k optical links; 156k modules, 3.5 per GPU; fiber strands ≈1.1 M",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "switches 3,488; links 44,640 x 3 = 133,920; modules 44,640 + 44,640 x 5/2 = 156,240 (3.5 per GPU); strands 1,071,360.",
+    "note": "All recompute.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:32",
+    "value": "Census, GB200 NVL72 rack: 1,296 NVLink links; 5,184 copper connections (4 pairs each); 4 cable cartridges; 18 switch chips; 72 scale-out ports; 2 management switches",
+    "verdict": "unsupported",
+    "check": "both",
+    "sources": [
+      {
+        "id": "nvidia-nvlink",
+        "url": "https://www.nvidia.com/en-us/data-center/nvlink/",
+        "fetched": true,
+        "result": "read (not cited on the page)",
+        "quote": "Fifth-generation NVLink: 1,800 GB/s per GPU, maximum 18 links per GPU (about 100 GB/s per link)."
+      },
+      {
+        "id": "nvidia-dgx-gb200-hardware",
+        "url": "https://docs.nvidia.com/dgx/dgxgb200-user-guide/hardware.html",
+        "fetched": true,
+        "result": "read",
+        "quote": "\"18x 1RU compute trays, each with 2 Grace CPUs and 4 Blackwell GPUs\"; \"Each switch tray has 2x NVLink switches, and each switch has 72 NVLink ports\"; 2x TOR management switches."
+      }
+    ],
+    "derivation": "72 x 18 = 1,296; x 4 = 5,184.",
+    "note": "1,296 links, 18 chips and 2 management switches check out. The 4 pairs per link, 5,184 total and 4 cartridges rest on trade reports (engine.ts calls the wire count a legacy estimate). Cite a primary source or label them estimates.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "page:index.html:extra:33",
+    "value": "Stairs chart note: \"All currents are estimates from P ÷ V.\"",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [],
+    "derivation": "staircase currents use kA(): W/(sqrt3 V 0.95) or W/V.",
+    "note": "Accurate description of the method.",
+    "checked": "10/08/2026"
+  }
+]

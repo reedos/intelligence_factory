@@ -1,0 +1,1685 @@
+[
+  {
+    "key": "card:data:across:route:2",
+    "value": "≈33% lower latency; over 1,200 km carrying live traffic",
+    "verdict": "unsupported",
+    "check": "source",
+    "sources": [
+      {
+        "id": "microsoft-hollow-core-fiber",
+        "url": "https://fiberbroadband.org/2026/04/02/microsoft-scales-up-hollow-core-fiber-production/",
+        "fetched": true,
+        "result": "ok (fiberbroadband.org article now readable)",
+        "quote": "body text: hollow-core fiber \"cutting latency by 33%\" versus solid-glass fiber"
+      }
+    ],
+    "derivation": null,
+    "note": "Page says hollow-core fiber cuts latency 33%, but no \"over 1,200 km carrying live traffic\" appears; it states 15,000 km planned over two years. Drop \"over 1,200 km\" or cite a source that says it.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:across:dci:0",
+    "value": "up to 1.6 Tb/s",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ciena-wavelogic6",
+        "url": "https://www.ciena.com/about/newsroom/press-releases/ciena-unveils-wavelogic-6",
+        "fetched": true,
+        "result": "HTTP 403",
+        "quote": "product announcement: WaveLogic 6 family, up to 1.6 Tb/s per wavelength"
+      }
+    ],
+    "derivation": null,
+    "note": "ciena.com returned 403 twice; the Ciena investor-site copy of the release (found by search, excerpt only) says WaveLogic 6 supports up to 1.6 Tb/s single-carrier wavelengths.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:campus:gensets:0",
+    "value": "2.5–3 MW class",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "cat-c175-16",
+        "url": "https://www.cat.com/en_US/products/new/power-systems/electric-power/diesel-generator-sets/1000028916.html",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "product page: C175-16 rated 2500–3100 kW standby"
+      }
+    ],
+    "derivation": null,
+    "note": "Cat listing is titled 2500-3100 kW; standby ratings run 3000-3365 ekW at 60 Hz (search excerpt, page timed out twice). \"2.5-3 MW class\" is fair.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:campus:gensets:3",
+    "value": "≈10 s",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "cummins-nfpa110-ate",
+        "url": "https://www.cummins.com/sites/default/files/2021-04/AtE-NFPA110_EXT_3.25.21.pdf",
+        "fetched": false,
+        "result": "ok (71-page slide PDF, 5.7 MB; WebFetch could not parse it, text extracted locally)",
+        "quote": "reprint of NFPA 110-2016 Table 4.1(b), \"Types of EPSSs\": Type 10 = \"10 sec\""
+      }
+    ],
+    "derivation": null,
+    "note": "Cummins deck text names \"The 10-second start: NFPA 110 Type 10 starting requirements\"; the Table 4.1(b) slide is an image and could not be read. 10 s for Type 10 is the NFPA 110 definition.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:campus:ops:1",
+    "value": "assets, environment, security",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "schneider-ecostruxure-dcim",
+        "url": "https://www.se.com/us/en/work/software/data-center-infrastructure-management-dcim/",
+        "fetched": true,
+        "result": "ok",
+        "quote": "\"Oversee and control assets, environmental conditions, and security\""
+      }
+    ],
+    "derivation": null,
+    "note": "Exact sentence on the page: \"Oversee and control assets, environmental conditions, and security, while integrating with the IT layer...\"",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:campus:dci:0",
+    "value": "up to 1.6 Tb/s",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ciena-wavelogic6",
+        "url": "https://www.ciena.com/about/newsroom/press-releases/ciena-unveils-wavelogic-6",
+        "fetched": true,
+        "result": "HTTP 403",
+        "quote": "press release: \"transmission at rates of up to 1.6 Tbps via a single carrier\""
+      }
+    ],
+    "derivation": null,
+    "note": "ciena.com returned 403 twice; the Ciena investor-site copy of the release (found by search, excerpt only) says WaveLogic 6 supports up to 1.6 Tb/s single-carrier wavelengths.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:campus:dci:2",
+    "value": "≈18–20 W / ≈23–25 W",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ascentoptics-coherent-power-consumption",
+        "url": "https://ascentoptics.com/blog/coherent-optical-module-power-consumption/",
+        "fetched": true,
+        "result": "ok",
+        "quote": "guide: 400ZR modules \"typically consume 18 to 20 W\"; \"one 800G link delivers the same capacity at 23 to 25 watts\""
+      }
+    ],
+    "derivation": null,
+    "note": "Page: 400ZR \"18 to 20 W\", one 800G link \"23 to 25 watts\". Ascent is a vendor blog (secondary).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:campus:lineterm:0",
+    "value": "one wavelength each, straight from a router port",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "cisco-800g-zr-datasheet",
+        "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/qsfp-dd-osfp-800g-zr-zr-plus-coherent-optics.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "overview: \"Cisco 800G-capable coherent optics can transmit a single wavelength of 800G traffic directly from a router or switch port up to 120 km for 800ZR in a Data Center Interconnect (DCI) applicat"
+      }
+    ],
+    "derivation": null,
+    "note": "Cisco overview sentence matches: single 800G wavelength from a router or switch port up to 120 km for 800ZR.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:campus:lineterm:2",
+    "value": "191.3625–196.0875 THz, ≈1,529–1,567 nm",
+    "verdict": "confirmed",
+    "check": "derivation",
+    "sources": [
+      {
+        "id": "fs-64ch-cband-mux",
+        "url": "https://www.fs.com/products/166004.html",
+        "fetched": false,
+        "result": "ok but page body empty (HTTP 202 placeholder)",
+        "quote": "product title: \"64 Channels DWDM Mux Demux, Super C-band 75GHz 191.3625-196.0875THz\"; wavelength = speed of light ÷ frequency"
+      }
+    ],
+    "derivation": "c/f: 299792.458/191.3625 THz = 1566.72 nm; 299792.458/196.0875 THz = 1528.77 nm; displayed 1,529-1,567 nm matches.",
+    "note": "FS page body was empty, so the THz range was not read from the page; the wavelength conversion is correct and agrees with Cisco C-band 1528.58-1567.34 nm.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:heat:campus:towers:1",
+    "value": "anti-scale, anti-corrosion and disinfectant dosing, plus blowdown",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "cdc-legionella-cooling-towers",
+        "url": "https://www.cdc.gov/control-legionella/php/toolkit/cooling-towers-module.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "\"Automate anti-corrosion, anti-scale, and disinfectant addition and monitoring.\""
+      }
+    ],
+    "derivation": null,
+    "note": "CDC: \"Automate anti-corrosion, anti-scale, and disinfectant addition and monitoring.\" The word \"blowdown\" is not in that sentence; minor.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:heat:campus:towers:3",
+    "value": "≈1.8 L/kWh (NREL)",
+    "verdict": "needs Reed",
+    "check": "derivation",
+    "sources": [
+      {
+        "id": "nrel-water-electricity",
+        "url": "https://docs.nrel.gov/docs/fy11osti/50900.pdf",
+        "fetched": false,
+        "result": "getaddrinfo ENOTFOUND docs.nrel.gov; www.nrel.gov also ENOTFOUND",
+        "quote": "review’s synthesis figure: 0.47 gal (1.8 L) evaporated per kWh of end-use electricity for typical thermoelectric generation"
+      }
+    ],
+    "derivation": "0.47 gal x 3.78541 L/gal = 1.779 L, rounds to 1.8 L/kWh.",
+    "note": "NREL PDF unreachable on docs.nrel.gov and www.nrel.gov (DNS failure from this machine). Unit conversion is right; the 0.47 gal/kWh figure was not read. Check from a browser.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:hall:ups:2",
+    "value": "up to 97.5% online, 99% eco",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ceie-eaton-9395xr",
+        "url": "https://snmiss.com/?a=index&aid=16&c=View&m=home",
+        "fetched": true,
+        "result": "ok",
+        "quote": "\"tested efficiency of Eaton 9395XR UPS dual conversion in online mode is as high as 97.5%\"; eco/AC-direct mode \"can be improved to 99%\" (Eaton’s own product page could not be opened this pass -- see i"
+      }
+    ],
+    "derivation": null,
+    "note": "Distributor page says online dual conversion \"as high as 97.5%\" and AC direct mode \"can be improved to 99%\". It is a secondary copy; Eaton page timed out, so this stays a distributor claim about a best case.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:hall:optics:8",
+    "value": "e.g. Marvell Ara, Broadcom Sian, Credo Bluebird",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-sian3-200g-lane-dsp",
+        "url": "https://www.globenewswire.com/news-release/2025/03/25/3048831/19933/en/broadcom-extends-200g-lane-dsp-phy-leadership-for-next-generation-ai-infrastructure.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "Broadcom’s own Sian3 200G-lane DSP announcement"
+      }
+    ],
+    "derivation": null,
+    "note": "Broadcom Sian3 is confirmed (3 nm 200G/lane DSP PHY). Marvell Ara and Credo Bluebird are cited to other sources outside this slice.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:tray:cpu:1",
+    "value": "350 W each",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "intel-xeon-8480c",
+        "url": "https://www.intel.com/content/www/us/en/products/sku/231730/intel-xeon-platinum-8480c-processor-105m-cache-2-00-ghz/specifications.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "specifications: TDP \"350 W\""
+      }
+    ],
+    "derivation": null,
+    "note": "Intel ARK lists TDP \"350 W\" for Xeon Platinum 8480C.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:tray:dimm:1",
+    "value": "8",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "intel-xeon-8480c",
+        "url": "https://www.intel.com/content/www/us/en/products/sku/231730/intel-xeon-platinum-8480c-processor-105m-cache-2-00-ghz/specifications.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "specifications: \"Max # of Memory Channels\" 8; Memory Types \"Up to DDR5 4800 MT/s 1DPC Up to DDR5 4400 MT/s 2DPC\""
+      }
+    ],
+    "derivation": null,
+    "note": "ARK: Max # of Memory Channels 8; DDR5 4800 MT/s 1DPC, 4400 MT/s 2DPC.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:heat:tray:cpuheat:0",
+    "value": "2 × 350 W",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "intel-xeon-8480c",
+        "url": "https://www.intel.com/content/www/us/en/products/sku/231730/intel-xeon-platinum-8480c-processor-105m-cache-2-00-ghz/specifications.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "specifications: TDP \"350 W\""
+      }
+    ],
+    "derivation": "2 x 350 W = 700 W",
+    "note": "Intel ARK lists TDP \"350 W\" per Xeon Platinum 8480C.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:heat:tray:osfp:1",
+    "value": "107.8 × 22.58 × 13.0 mm",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ascentoptics-osfp-form-factor",
+        "url": "https://ascentoptics.com/blog/osfp-form-factor-guide/",
+        "fetched": true,
+        "result": "ok",
+        "quote": "form factor dimensions: the integrated-heat-sink body as 22.58 mm wide × 107.8 mm long × 13.0 mm tall, restating the OSFP MSA"
+      }
+    ],
+    "derivation": null,
+    "note": "Ascent: 22.58 mm wide, 107.8 mm deep, 13.0 mm high with integrated heat sink. Cisco OSFP datasheet agrees on 22.58 x 13 mm (116 mm max with pull tab). Vendor blog restating the OSFP MSA.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:module:fingers:4",
+    "value": "107.8 × 22.58 × 13.0 mm",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ascentoptics-osfp-form-factor",
+        "url": "https://ascentoptics.com/blog/osfp-form-factor-guide/",
+        "fetched": true,
+        "result": "ok",
+        "quote": "form factor dimensions: the integrated-heat-sink body as 22.58 mm wide × 107.8 mm long × 13.0 mm tall, restating the OSFP MSA"
+      }
+    ],
+    "derivation": null,
+    "note": "Ascent: 22.58 mm wide, 107.8 mm deep, 13.0 mm high with integrated heat sink. Cisco OSFP datasheet agrees on 22.58 x 13 mm (116 mm max with pull tab). Vendor blog restating the OSFP MSA.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:module:mzm:1",
+    "value": "Mach-Zehnder, a common silicon-photonics modulator design",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "tspa-400g-lane-ofc",
+        "url": "https://tspasemiconductor.substack.com/p/ofc-preview-the-race-to-400g-per-lane",
+        "fetched": false,
+        "result": "HTTP 404",
+        "quote": "modulator section: Mach-Zehnder interferometer modulators, mature and high-bandwidth, the current commercial mainstream in silicon photonics"
+      }
+    ],
+    "derivation": null,
+    "note": "Substack post returned HTTP 404 (no alternate found). The claim is mainstream (Mach-Zehnder modulators dominate silicon photonics) but the cited page is gone. Replace the citation or accept as common knowledge.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:heat:module:shell:0",
+    "value": "107.8 × 22.58 × 13.0 mm",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ascentoptics-osfp-form-factor",
+        "url": "https://ascentoptics.com/blog/osfp-form-factor-guide/",
+        "fetched": true,
+        "result": "ok",
+        "quote": "form factor dimensions: the integrated-heat-sink body as 22.58 mm wide × 107.8 mm long × 13.0 mm tall, restating the OSFP MSA"
+      }
+    ],
+    "derivation": null,
+    "note": "Ascent: 22.58 mm wide, 107.8 mm deep, 13.0 mm high with integrated heat sink. Cisco OSFP datasheet agrees on 22.58 x 13 mm (116 mm max with pull tab). Vendor blog restating the OSFP MSA.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:cpo:engine:0",
+    "value": "electronic die above photonic die, TSMC SoIC-X",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "tsmc-coupe-stack-2024",
+        "url": "https://pr.tsmc.com/system/files/newspdf/attachment/507ec4d12fab34dd5137213a5132cece4f6a7ed7/2024%20Tech%20Symposium%20%28E%29_final_wmn.pdf",
+        "fetched": false,
+        "result": "ok at HTTP level but returned a 151 KB PDF the tool could not parse (not confirmed to be t",
+        "quote": "PDF page 2, Silicon Photonics Integration: COUPE uses SoIC-X to stack an electrical die on top of a photonic die; no process-node sizes asserted here."
+      }
+    ],
+    "derivation": null,
+    "note": "TSMC deck fetch returned an unparseable 151 KB PDF, not confirmed to be the symposium deck; no COUPE or SoIC-X text was read. Needs a manual read of PDF page 2.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:cpo:mzm-asic:0",
+    "value": "Tomahawk 5 switch chip and eight 6.4 Tb/s optical engines: 51.2 Tb/s",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "broadcom-bailly-release-2024",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-delivers-industrys-first-512-tbps-co-packaged-optics",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "opening: \"The product integrates eight silicon photonics based 6.4-Tbps optical engines with Broadcom’s best-in-class StrataXGS® Tomahawk®5 switch chip.\""
+      }
+    ],
+    "derivation": "8 x 6.4 Tb/s = 51.2 Tb/s",
+    "note": "Matches the press release text, read on the globenewswire copy (original investors.broadcom.com timed out twice).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:cpo:mzm-asic:1",
+    "value": "70% lower than pluggable transceivers",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-bailly-release-2024",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-delivers-industrys-first-512-tbps-co-packaged-optics",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "opening: \"Bailly enables the optical interconnect to operate at 70% lower power consumption and delivers an 8x improvement in silicon area efficiency as compared to pluggable transceiver solutions.\""
+      }
+    ],
+    "derivation": null,
+    "note": "Release: \"70% lower power consumption\" than pluggable transceivers. Matches the press release text, read on the globenewswire copy (original investors.broadcom.com timed out twice).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:cpo:mzm-engine:0",
+    "value": "6.4T-FR4 engines with a Broadcom Fiber Connector (BFC)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-bailly-release-2024",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-delivers-industrys-first-512-tbps-co-packaged-optics",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "product highlights: \"Broadcom 6.4T-FR4 Bailly SCIP optical engines with Broadcom Fiber Connector (BFC) for CPO systems\""
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the press release text, read on the globenewswire copy (original investors.broadcom.com timed out twice).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:cpo:mzm-laser:0",
+    "value": "remote laser modules, field-replaceable",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-bailly-release-2024",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-delivers-industrys-first-512-tbps-co-packaged-optics",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "product highlights: \"System design compatible to support multiple remote laser modules (RLM) for field replaceability\""
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the press release text, read on the globenewswire copy (original investors.broadcom.com timed out twice).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:cpo:today:2",
+    "value": "102.4 Tb/s, 16 × 6.4T engines; announced 10/08/2025 as shipping, sampled to early-access customers",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "broadcom-th6-davisson-release",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-announces-tomahawkr-6-davisson-industrys-first-1024",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "opening: \"now shipping Tomahawk® 6 Davisson (TH6-Davisson), the company's third-generation Co-Packaged Optics (CPO) Ethernet switch\"; product highlights: \"16 x 6.4 Tbps Davisson DR Optical Engines\"; a"
+      }
+    ],
+    "derivation": "16 x 6.4 Tb/s = 102.4 Tb/s",
+    "note": "Broadcom page timed out twice. A trade-press article quoting the release confirms 16 engines, 102.4 Tb/s and sampling to early-access customers; search excerpt gives release date 10/08/2025. The exact \"now shipping\" sentence was not read on Broadcom's own page.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:cpo:today:4",
+    "value": "one million flap-free 400G port-hours",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-cpo-reliability-meta",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-showcases-industry-leading-quality-and-reliability-co",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "opening: \"one million cumulative 400G equivalent port device hours of flap-free CPO operation at Meta\"; \"The absence of link flaps in Meta’s high-temperature lab characterization environment\"; footnot"
+      }
+    ],
+    "derivation": null,
+    "note": "Broadcom page and nasdaq mirror both timed out. Search excerpts of the release repeat \"one million cumulative 400G equivalent port device hours of flap-free CPO operation at Meta\" (10/01/2025); the ECOC 09/30/2025 footnote was not read. Likely fine, full text unread.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:cpo:next:0",
+    "value": "4 XPUs, each with four 6.4T light engines: 102.4 Tb/s on 1,024 fibers, in 1U",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "marvell-cpo-tray-blog",
+        "url": "https://www.marvell.com/blogs/co-packaged-optics-for-next-wave-ai-data-centers.html",
+        "fetched": true,
+        "result": "HTTP 403 (fetch); first section confirmed via search excerpt",
+        "quote": "The CPO Server Tray: \"a conceptualized AI compute tray with CPO developed with products from SENKO Advanced Components and Marvell. The design contains room for four XPUs and up to 102.4 Tbps of bandw"
+      }
+    ],
+    "derivation": "4 XPUs x 4 engines x 6.4 Tb/s = 102.4 Tb/s",
+    "note": "Marvell page returned 403, but a search excerpt of the same URL gives four XPUs, up to 102.4 Tbps, 1024 fibers, 1U. \"Each with four 6.4T light engines\" is not in the excerpt, but the arithmetic closes.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:cpo:next:1",
+    "value": "switch chip + 16 light engines; 16 laser modules at the faceplate; 1OU with a cold plate",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "marvell-cpo-tray-blog",
+        "url": "https://www.marvell.com/blogs/co-packaged-optics-for-next-wave-ai-data-centers.html",
+        "fetched": true,
+        "result": "HTTP 403 (fetch); first section confirmed via search excerpt",
+        "quote": "Heat and Space: \"Marvell, SENKO, Jabil, and Mikros Technologies also recently unveiled a reference design of a data center CPO switch.\"; \"surrounded by 16 light engine tiles and 1,152 fibers (128 lase"
+      }
+    ],
+    "derivation": null,
+    "note": "Marvell blog blocked (403); the Heat and Space section (16 light engine tiles, 1,152 fibers, 1OU, cold plate) was not read.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:cpo:next:5",
+    "value": "bought by Marvell, 02/02/2026, for optical scale-up",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "marvell-celestial-close-2026",
+        "url": "https://www.sec.gov/Archives/edgar/data/1835632/000119312526032861/d45933dex991.htm",
+        "fetched": true,
+        "result": "ok",
+        "quote": "opening: \"completed its previously announced acquisition of Celestial AI, a pioneer in optical interconnect technology for scale-up connectivity\"; outlook: initial revenue \"in the second half of fisca"
+      }
+    ],
+    "derivation": null,
+    "note": "SEC exhibit: acquisition completed 02/02/2026; \"scale-up connectivity\"; initial revenue in the second half of fiscal 2028.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:cpo:eic:0",
+    "value": "electronic die above photonic die, TSMC SoIC-X",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "tsmc-coupe-stack-2024",
+        "url": "https://pr.tsmc.com/system/files/newspdf/attachment/507ec4d12fab34dd5137213a5132cece4f6a7ed7/2024%20Tech%20Symposium%20%28E%29_final_wmn.pdf",
+        "fetched": false,
+        "result": "ok at HTTP level but returned a 151 KB PDF the tool could not parse (not confirmed to be t",
+        "quote": "PDF page 2, Silicon Photonics Integration: COUPE uses SoIC-X to stack an electrical die on top of a photonic die; no process-node sizes asserted here."
+      }
+    ],
+    "derivation": null,
+    "note": "TSMC deck fetch returned an unparseable 151 KB PDF, not confirmed to be the symposium deck; no COUPE or SoIC-X text was read. Needs a manual read of PDF page 2.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:cpo:eic:4",
+    "value": "32 × 200G; modulators, drivers and TIAs in one 3D-packaged device",
+    "verdict": "needs Reed",
+    "check": "derivation",
+    "sources": [
+      {
+        "id": "marvell-3d-sipho-2024",
+        "url": "https://www.marvell.com/company/newsroom/marvell-demonstrates-industrys-first-200g-3d-silicon-photonics-engine-to-scale-accelerated-infrastructure.html",
+        "fetched": false,
+        "result": "HTTP 403",
+        "quote": "opening: \"the industry’s first highly integrated SiPho engine featuring 32 channels of 200G electrical and optical interfaces\"; body: \"The Marvell 3D SiPho engine combines hundreds of components such "
+      },
+      {
+        "id": "marvell-cpo-xpu-2025",
+        "url": "https://www.marvell.com/company/newsroom/marvell-co-packaged-optics-architecture-custom-ai-accelerators.html",
+        "fetched": false,
+        "result": "HTTP 403",
+        "quote": "body: \"The Marvell 6.4T 3D SiPho Engine is a highly integrated optical engine with 32 channels of 200G electrical and optical interfaces\""
+      }
+    ],
+    "derivation": "32 x 200G = 6.4 T",
+    "note": "Both Marvell newsroom pages returned 403 so the engine description was not read; the 32 x 200G arithmetic matches 6.4T. 2 inventory rows share this key.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:cpo:mzm-asic:0",
+    "value": "Tomahawk 5 switch chip and eight 6.4 Tb/s optical engines: 51.2 Tb/s",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "broadcom-bailly-release-2024",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-delivers-industrys-first-512-tbps-co-packaged-optics",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "opening: \"The product integrates eight silicon photonics based 6.4-Tbps optical engines with Broadcom’s best-in-class StrataXGS® Tomahawk®5 switch chip.\""
+      }
+    ],
+    "derivation": "8 x 6.4 Tb/s = 51.2 Tb/s",
+    "note": "Matches the press release text, read on the globenewswire copy (original investors.broadcom.com timed out twice).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:cpo:mzm-serdes:0",
+    "value": "less needed with the engines on the switch chip’s substrate",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-bailly-release-2024",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-delivers-industrys-first-512-tbps-co-packaged-optics",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "body: \"The high degree of integration enables the placement of the optical engines on a common substrate with complex logic ASICs minimizing the need for signal conditioning circuitry.\""
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the press release text, read on the globenewswire copy (original investors.broadcom.com timed out twice).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:cpo:mzm-laser:0",
+    "value": "remote laser modules, field-replaceable",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-bailly-release-2024",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-delivers-industrys-first-512-tbps-co-packaged-optics",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "product highlights: \"System design compatible to support multiple remote laser modules (RLM) for field replaceability\""
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the press release text, read on the globenewswire copy (original investors.broadcom.com timed out twice).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:cpo:mzm-fiberout:0",
+    "value": "6.4T-FR4 engines with a Broadcom Fiber Connector (BFC)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-bailly-release-2024",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-delivers-industrys-first-512-tbps-co-packaged-optics",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "product highlights: \"Broadcom 6.4T-FR4 Bailly SCIP optical engines with Broadcom Fiber Connector (BFC) for CPO systems\""
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the press release text, read on the globenewswire copy (original investors.broadcom.com timed out twice).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:cpo:mzm-fiberout:1",
+    "value": "edge-coupled, high-density, automated",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-bailly-release-2024",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-delivers-industrys-first-512-tbps-co-packaged-optics",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "body: \"Broadcom’s innovative manufacturing approach that utilizes proven CMOS foundry processes, advanced packaging technologies and a highly automated high-density, edge-coupled fiber attach capabili"
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the press release text, read on the globenewswire copy (original investors.broadcom.com timed out twice).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:cpo:mzm-fiberout:2",
+    "value": "128 × 400G FR4 ports on 128 duplex LC connectors",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "broadcom-bailly-release-2024",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-delivers-industrys-first-512-tbps-co-packaged-optics",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "product highlights: \"4RU system design with high-efficiency air cooling to deliver 128 ports of 400G FR4 connectivity externally fiber-coupled with 128 duplex LC optical connectors\""
+      }
+    ],
+    "derivation": "128 x 400G = 51.2 Tb/s",
+    "note": "Matches the press release text, read on the globenewswire copy (original investors.broadcom.com timed out twice). Port count matches the 51.2 Tb/s switch.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:cpo:today:2",
+    "value": "102.4 Tb/s, 16 × 6.4T engines; announced 10/08/2025 as shipping, sampled to early-access customers",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "broadcom-th6-davisson-release",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-announces-tomahawkr-6-davisson-industrys-first-1024",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "opening: \"now shipping Tomahawk® 6 Davisson (TH6-Davisson), the company's third-generation Co-Packaged Optics (CPO) Ethernet switch\"; product highlights: \"16 x 6.4 Tbps Davisson DR Optical Engines\"; a"
+      }
+    ],
+    "derivation": "16 x 6.4 Tb/s = 102.4 Tb/s",
+    "note": "Broadcom page timed out twice. A trade-press article quoting the release confirms 16 engines, 102.4 Tb/s and sampling to early-access customers; search excerpt gives release date 10/08/2025. The exact \"now shipping\" sentence was not read on Broadcom's own page.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:cpo:today:4",
+    "value": "one million flap-free 400G port-hours",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-cpo-reliability-meta",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-showcases-industry-leading-quality-and-reliability-co",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "opening: \"one million cumulative 400G equivalent port device hours of flap-free CPO operation at Meta\"; \"The absence of link flaps in Meta’s high-temperature lab characterization environment\"; footnot"
+      }
+    ],
+    "derivation": null,
+    "note": "Broadcom page and nasdaq mirror both timed out. Search excerpts of the release repeat \"one million cumulative 400G equivalent port device hours of flap-free CPO operation at Meta\" (10/01/2025); the ECOC 09/30/2025 footnote was not read. Likely fine, full text unread.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:cpo:next:0",
+    "value": "4 XPUs, each with four 6.4T light engines: 102.4 Tb/s on 1,024 fibers, in 1U",
+    "verdict": "confirmed",
+    "check": "both",
+    "sources": [
+      {
+        "id": "marvell-cpo-tray-blog",
+        "url": "https://www.marvell.com/blogs/co-packaged-optics-for-next-wave-ai-data-centers.html",
+        "fetched": true,
+        "result": "HTTP 403 (fetch); first section confirmed via search excerpt",
+        "quote": "The CPO Server Tray: \"a conceptualized AI compute tray with CPO developed with products from SENKO Advanced Components and Marvell. The design contains room for four XPUs and up to 102.4 Tbps of bandw"
+      }
+    ],
+    "derivation": "4 XPUs x 4 engines x 6.4 Tb/s = 102.4 Tb/s",
+    "note": "Marvell page returned 403, but a search excerpt of the same URL gives four XPUs, up to 102.4 Tbps, 1024 fibers, 1U. \"Each with four 6.4T light engines\" is not in the excerpt, but the arithmetic closes.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:cpo:next:1",
+    "value": "switch chip + 16 light engines; 16 laser modules at the faceplate; 1OU with a cold plate",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "marvell-cpo-tray-blog",
+        "url": "https://www.marvell.com/blogs/co-packaged-optics-for-next-wave-ai-data-centers.html",
+        "fetched": true,
+        "result": "HTTP 403 (fetch); first section confirmed via search excerpt",
+        "quote": "Heat and Space: \"Marvell, SENKO, Jabil, and Mikros Technologies also recently unveiled a reference design of a data center CPO switch.\"; \"surrounded by 16 light engine tiles and 1,152 fibers (128 lase"
+      }
+    ],
+    "derivation": null,
+    "note": "Marvell blog blocked (403); the Heat and Space section (16 light engine tiles, 1,152 fibers, 1OU, cold plate) was not read.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:cpo:next:5",
+    "value": "bought by Marvell, 02/02/2026, for optical scale-up",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "marvell-celestial-close-2026",
+        "url": "https://www.sec.gov/Archives/edgar/data/1835632/000119312526032861/d45933dex991.htm",
+        "fetched": true,
+        "result": "ok",
+        "quote": "opening: \"completed its previously announced acquisition of Celestial AI, a pioneer in optical interconnect technology for scale-up connectivity\"; outlook: initial revenue \"in the second half of fisca"
+      }
+    ],
+    "derivation": null,
+    "note": "SEC exhibit: acquisition completed 02/02/2026; \"scale-up connectivity\"; initial revenue in the second half of fiscal 2028.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:heat:cpo:mzm-asic:0",
+    "value": "4RU, high-efficiency air cooling",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-bailly-release-2024",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-delivers-industrys-first-512-tbps-co-packaged-optics",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "product highlights: \"4RU system design with high-efficiency air cooling to deliver 128 ports of 400G FR4 connectivity\""
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the press release text, read on the globenewswire copy (original investors.broadcom.com timed out twice).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:heat:cpo:mzm-sink:0",
+    "value": "4RU, high-efficiency air cooling",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-bailly-release-2024",
+        "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-delivers-industrys-first-512-tbps-co-packaged-optics",
+        "fetched": true,
+        "result": "timeout (twice)",
+        "quote": "product highlights: \"4RU system design with high-efficiency air cooling to deliver 128 ports of 400G FR4 connectivity\""
+      }
+    ],
+    "derivation": null,
+    "note": "Matches the press release text, read on the globenewswire copy (original investors.broadcom.com timed out twice).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:coherent:itla:4",
+    "value": "C-band, 1528.58–1567.34 nm",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "cisco-800g-zr-datasheet",
+        "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/qsfp-dd-osfp-800g-zr-zr-plus-coherent-optics.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "optical specifications table: C-band tuning range 1528.58–1567.34 nm"
+      }
+    ],
+    "derivation": null,
+    "note": "Cisco: C-band 1528.58 nm to 1567.34 nm.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:coherent:lc:0",
+    "value": "LC duplex",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "cisco-800g-zr-datasheet",
+        "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/qsfp-dd-osfp-800g-zr-zr-plus-coherent-optics.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "specifications: \"Connector: LC duplex\""
+      }
+    ],
+    "derivation": null,
+    "note": "Cisco: connector LC.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:coherent:lc:2",
+    "value": "120 km amplified (800ZR) · over 1,000 km amplified (ZR+) · 75–80 km unamplified",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "cisco-800g-zr-datasheet",
+        "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/qsfp-dd-osfp-800g-zr-zr-plus-coherent-optics.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "tables 1 and 2: \"Up to 120 km amplified DWDM\" (800ZR), \"Over 1000 km amplified DWDM\" (ZR+), and \"Up to 75 km with 800ZR and 80 km with 800G ZR+\" unamplified"
+      }
+    ],
+    "derivation": null,
+    "note": "Cisco: 800ZR amplified up to 120 km, ZR+ over 1000 km, unamplified 75 km (800ZR) and 80 km (ZR+).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:coherent:pluggable:0",
+    "value": "QSFP-DD and OSFP",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "cisco-800g-zr-datasheet",
+        "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/qsfp-dd-osfp-800g-zr-zr-plus-coherent-optics.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "ordering table and compliance: QSFP-DD and OSFP versions; \"the Cisco 800G OSFP optical modules are mechanically compliant with the OSFP MSA\""
+      }
+    ],
+    "derivation": null,
+    "note": "Cisco: QSFP-DD and OSFP versions; OSFP mechanically compliant with the OSFP MSA.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:coherent:pluggable:3",
+    "value": "116 mm max",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "cisco-osfp-800g-datasheet",
+        "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/osfp-800g-transceiver-modules-ds.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "Table 6, \"Module dimension with pull tab\": \"(H x W x D) 13 x 22.58 x 116 mm (0.51 x 0.89 x 4.57 in.) max\""
+      }
+    ],
+    "derivation": null,
+    "note": "Cisco Table 6: 13 x 22.58 x 116 mm max (H x W x D).",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:copper:dac:0",
+    "value": "≈0.1 W per end",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-copper-dac-lacc-overview",
+        "url": "https://docs.nvidia.com/networking/display/400g100gpam4ovdev/copper-dac-and-lacc-cables-overview",
+        "fetched": true,
+        "result": "Too many redirects (exceeded 10), twice",
+        "quote": "DAC section: \"Power consumption is 0.1 Watts per end\""
+      }
+    ],
+    "derivation": null,
+    "note": "NVIDIA guide: \"Power consumption is 0.1 Watts per end.\" The fetch tool hit a redirect loop twice; text read from a search excerpt of the same guide.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:copper:acc:1",
+    "value": "a redriver on the receive direction; NVIDIA’s LACC has one in each end",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "marvell-acc-aec-architecture",
+        "url": "https://www.marvell.com/blogs/active-copper-cables-ai-rack-interconnects.html",
+        "fetched": false,
+        "result": "HTTP 403",
+        "quote": "Inside the Cable: ACC equalizers amplify signals received from the opposite cable end; the equalizer is analog"
+      },
+      {
+        "id": "nvidia-copper-dac-lacc-overview",
+        "url": "https://docs.nvidia.com/networking/display/400g100gpam4ovdev/copper-dac-and-lacc-cables-overview",
+        "fetched": true,
+        "result": "Too many redirects (exceeded 10), twice",
+        "quote": "\"LACCs are essentially DAC cables with an additional IC in each end to boost the signal power and noise reduction\""
+      }
+    ],
+    "derivation": null,
+    "note": "NVIDIA half confirmed (LACC is a DAC \"with an additional IC in each end\"; pre-emphasis circuit). The \"redriver on the receive direction\" half rests on the Marvell blog, blocked (403). 2 inventory rows share this key.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:copper:aec:0",
+    "value": "≈20 W per end at 200G/lane; 2.5–3.5 W in one guide, lane rate unstated",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ascentoptics-copper-cables",
+        "url": "https://ascentoptics.com/blog/understanding-high-speed-copper-cables-dac-acc-and-aec/",
+        "fetched": true,
+        "result": "ok",
+        "quote": "AEC section: \"higher power consumption (2.5–3.5W)\", no lane rate given"
+      }
+    ],
+    "derivation": null,
+    "note": "Ascent confirms only \"2.5-3.5W\" with no lane rate. The \"about 20 W per end at 200G/lane\" half is not in this source; it looks high next to 2.5-3.5 W and should be re-checked against its own source.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:copper:aec:1",
+    "value": "a DSP retimer in each end: CTLE, DFE, CDR, FIR",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "marvell-acc-aec-architecture",
+        "url": "https://www.marvell.com/blogs/active-copper-cables-ai-rack-interconnects.html",
+        "fetched": false,
+        "result": "HTTP 403",
+        "quote": "Inside the Cable: AEC DSPs at each cable end maintain signal integrity during both transmission and reception"
+      },
+      {
+        "id": "ascentoptics-copper-cables",
+        "url": "https://ascentoptics.com/blog/understanding-high-speed-copper-cables-dac-acc-and-aec/",
+        "fetched": true,
+        "result": "ok",
+        "quote": "AEC section: \"The Retimer chip in AEC is more advanced than the Redriver used in ACC. It integrates CTLE (Continuous-Time Linear Equalizer), DFE (Decision Feedback Equalization), CDR (Clock Data Recov"
+      }
+    ],
+    "derivation": null,
+    "note": "Ascent AEC section: retimer \"integrates CTLE, DFE, CDR, and FIR drivers\". Marvell page blocked but not needed. \"DSP retimer\" is the site's wording. 2 inventory rows share this key.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:copper:dac:1",
+    "value": "≈0.1 W per end",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-copper-dac-lacc-overview",
+        "url": "https://docs.nvidia.com/networking/display/400g100gpam4ovdev/copper-dac-and-lacc-cables-overview",
+        "fetched": true,
+        "result": "Too many redirects (exceeded 10), twice",
+        "quote": "DAC section: \"Power consumption is 0.1 Watts per end\""
+      }
+    ],
+    "derivation": null,
+    "note": "NVIDIA guide: \"Power consumption is 0.1 Watts per end.\" The fetch tool hit a redirect loop twice; text read from a search excerpt of the same guide.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:copper:dac:2",
+    "value": "1–2 m",
+    "verdict": "unsupported",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-copper-dac-lacc-overview",
+        "url": "https://docs.nvidia.com/networking/display/400g100gpam4ovdev/copper-dac-and-lacc-cables-overview",
+        "fetched": true,
+        "result": "Too many redirects (exceeded 10), twice",
+        "quote": "\"0.5m to 2-meters for straight cables\""
+      }
+    ],
+    "derivation": null,
+    "note": "Guide says \"0.5m to 2-meters for straight cables\" (up to 3 m for splitters), not 1-2 m. Change to 0.5-2 m or label 1-2 m as typical. Read via search excerpt.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:copper:acc:0",
+    "value": "a redriver on the receive direction; NVIDIA’s LACC has one in each end",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "marvell-acc-aec-architecture",
+        "url": "https://www.marvell.com/blogs/active-copper-cables-ai-rack-interconnects.html",
+        "fetched": false,
+        "result": "HTTP 403",
+        "quote": "Inside the Cable: ACC equalizers amplify signals received from the opposite cable end; the equalizer is analog"
+      },
+      {
+        "id": "nvidia-copper-dac-lacc-overview",
+        "url": "https://docs.nvidia.com/networking/display/400g100gpam4ovdev/copper-dac-and-lacc-cables-overview",
+        "fetched": true,
+        "result": "Too many redirects (exceeded 10), twice",
+        "quote": "\"LACCs are essentially DAC cables with an additional IC in each end to boost the signal power and noise reduction\""
+      }
+    ],
+    "derivation": null,
+    "note": "NVIDIA half confirmed (LACC is a DAC \"with an additional IC in each end\"; pre-emphasis circuit). The \"redriver on the receive direction\" half rests on the Marvell blog, blocked (403). 2 inventory rows share this key.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:copper:aec:0",
+    "value": "a DSP retimer in each end: CTLE, DFE, CDR, FIR",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "marvell-acc-aec-architecture",
+        "url": "https://www.marvell.com/blogs/active-copper-cables-ai-rack-interconnects.html",
+        "fetched": false,
+        "result": "HTTP 403",
+        "quote": "Inside the Cable: AEC DSPs at each cable end maintain signal integrity during both transmission and reception"
+      },
+      {
+        "id": "ascentoptics-copper-cables",
+        "url": "https://ascentoptics.com/blog/understanding-high-speed-copper-cables-dac-acc-and-aec/",
+        "fetched": true,
+        "result": "ok",
+        "quote": "AEC section: \"The Retimer chip in AEC is more advanced than the Redriver used in ACC. It integrates CTLE (Continuous-Time Linear Equalizer), DFE (Decision Feedback Equalization), CDR (Clock Data Recov"
+      }
+    ],
+    "derivation": null,
+    "note": "Ascent AEC section: retimer \"integrates CTLE, DFE, CDR, and FIR drivers\". Marvell page blocked but not needed. \"DSP retimer\" is the site's wording. 2 inventory rows share this key.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:copper:aec:1",
+    "value": "≈20 W per end at 200G/lane; 2.5–3.5 W in one guide, lane rate unstated",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ascentoptics-copper-cables",
+        "url": "https://ascentoptics.com/blog/understanding-high-speed-copper-cables-dac-acc-and-aec/",
+        "fetched": true,
+        "result": "ok",
+        "quote": "AEC section: \"higher power consumption (2.5–3.5W)\", no lane rate given"
+      }
+    ],
+    "derivation": null,
+    "note": "Ascent confirms only \"2.5-3.5W\" with no lane rate. The \"about 20 W per end at 200G/lane\" half is not in this source; it looks high next to 2.5-3.5 W and should be re-checked against its own source.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:heat:copper:acc:1",
+    "value": "a redriver on the receive direction; NVIDIA’s LACC has one in each end",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "marvell-acc-aec-architecture",
+        "url": "https://www.marvell.com/blogs/active-copper-cables-ai-rack-interconnects.html",
+        "fetched": false,
+        "result": "HTTP 403",
+        "quote": "Inside the Cable: ACC equalizers amplify signals received from the opposite cable end; the equalizer is analog"
+      },
+      {
+        "id": "nvidia-copper-dac-lacc-overview",
+        "url": "https://docs.nvidia.com/networking/display/400g100gpam4ovdev/copper-dac-and-lacc-cables-overview",
+        "fetched": true,
+        "result": "Too many redirects (exceeded 10), twice",
+        "quote": "\"LACCs are essentially DAC cables with an additional IC in each end to boost the signal power and noise reduction\""
+      }
+    ],
+    "derivation": null,
+    "note": "NVIDIA half confirmed (LACC is a DAC \"with an additional IC in each end\"; pre-emphasis circuit). The \"redriver on the receive direction\" half rests on the Marvell blog, blocked (403). 2 inventory rows share this key.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:heat:copper:aec:0",
+    "value": "≈20 W per end at 200G/lane; 2.5–3.5 W in one guide, lane rate unstated",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ascentoptics-copper-cables",
+        "url": "https://ascentoptics.com/blog/understanding-high-speed-copper-cables-dac-acc-and-aec/",
+        "fetched": true,
+        "result": "ok",
+        "quote": "AEC section: \"higher power consumption (2.5–3.5W)\", no lane rate given"
+      }
+    ],
+    "derivation": null,
+    "note": "Ascent confirms only \"2.5-3.5W\" with no lane rate. The \"about 20 W per end at 200G/lane\" half is not in this source; it looks high next to 2.5-3.5 W and should be re-checked against its own source.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:heat:copper:aec:1",
+    "value": "a DSP retimer in each end: CTLE, DFE, CDR, FIR",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "marvell-acc-aec-architecture",
+        "url": "https://www.marvell.com/blogs/active-copper-cables-ai-rack-interconnects.html",
+        "fetched": false,
+        "result": "HTTP 403",
+        "quote": "Inside the Cable: AEC DSPs at each cable end maintain signal integrity during both transmission and reception"
+      },
+      {
+        "id": "ascentoptics-copper-cables",
+        "url": "https://ascentoptics.com/blog/understanding-high-speed-copper-cables-dac-acc-and-aec/",
+        "fetched": true,
+        "result": "ok",
+        "quote": "AEC section: \"The Retimer chip in AEC is more advanced than the Redriver used in ACC. It integrates CTLE (Continuous-Time Linear Equalizer), DFE (Decision Feedback Equalization), CDR (Clock Data Recov"
+      }
+    ],
+    "derivation": null,
+    "note": "Ascent AEC section: retimer \"integrates CTLE, DFE, CDR, and FIR drivers\". Marvell page blocked but not needed. \"DSP retimer\" is the site's wording. 2 inventory rows share this key.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "ledger:3",
+    "value": "0.2 MW",
+    "verdict": "footnoted",
+    "check": "both",
+    "sources": [
+      {
+        "id": "ceie-eaton-9395xr",
+        "url": "https://snmiss.com/?a=index&aid=16&c=View&m=home",
+        "fetched": true,
+        "result": "ok",
+        "quote": "distributor summary of Eaton's tested figures: \"dual conversion in online mode is as high as 97.5%\", eco/AC-direct mode \"can be improved to 99%\""
+      }
+    ],
+    "derivation": null,
+    "note": "Source (distributor): UPS efficiency \"as high as 97.5%\" online. The ledger uses assumption ups-eff-96.5, a lower labeled value, so the displayed MW loss is assumption-driven; recomputation belongs to the derived-figure worker. 19 scenario variants share this source and method.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "ledger:3",
+    "value": "2.4 MW",
+    "verdict": "footnoted",
+    "check": "both",
+    "sources": [
+      {
+        "id": "ceie-eaton-9395xr",
+        "url": "https://snmiss.com/?a=index&aid=16&c=View&m=home",
+        "fetched": true,
+        "result": "ok",
+        "quote": "distributor summary of Eaton's tested figures: \"dual conversion in online mode is as high as 97.5%\", eco/AC-direct mode \"can be improved to 99%\""
+      }
+    ],
+    "derivation": null,
+    "note": "Source (distributor): UPS efficiency \"as high as 97.5%\" online. The ledger uses assumption ups-eff-96.5, a lower labeled value, so the displayed MW loss is assumption-driven; recomputation belongs to the derived-figure worker. 19 scenario variants share this source and method.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "ledger:3",
+    "value": "24.2 MW",
+    "verdict": "footnoted",
+    "check": "both",
+    "sources": [
+      {
+        "id": "ceie-eaton-9395xr",
+        "url": "https://snmiss.com/?a=index&aid=16&c=View&m=home",
+        "fetched": true,
+        "result": "ok",
+        "quote": "distributor summary of Eaton's tested figures: \"dual conversion in online mode is as high as 97.5%\", eco/AC-direct mode \"can be improved to 99%\""
+      }
+    ],
+    "derivation": null,
+    "note": "Source (distributor): UPS efficiency \"as high as 97.5%\" online. The ledger uses assumption ups-eff-96.5, a lower labeled value, so the displayed MW loss is assumption-driven; recomputation belongs to the derived-figure worker. 19 scenario variants share this source and method.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "links:acc",
+    "value": "reach ≈3 m at 200 Gb/s per lane, commonly reaching one adjacent rack; 3–5 m at 100 Gb/s per lane (NVIDIA LACC); power ≈2–3 W per end at 200 Gb/s per lane; 1.5 W max per end at 100 Gb/s per lane (NVIDIA LACC, 800G port)",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "nvidia-copper-dac-lacc-overview",
+        "url": "https://docs.nvidia.com/networking/display/400g100gpam4ovdev/copper-dac-and-lacc-cables-overview",
+        "fetched": true,
+        "result": "Too many redirects (exceeded 10), twice",
+        "quote": "\"LACCs are essentially DAC cables with an additional IC in each end to boost the signal power and noise reduction. This cable uses a pre-emphasis type of circuit...\" (an amplifying IC, not a DSP); the"
+      }
+    ],
+    "derivation": null,
+    "note": "NVIDIA guide supports LACC as a DAC plus an IC per end, 3-5 m. The 200G/lane about 3 m, 2-3 W and 1.5 W max figures come from the MCA4J80 datasheet and a newsletter, outside this slice.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "links:dsp",
+    "value": "reach 500 m (DR8) to 2 km (FR4/FR8); power 12 W max (400G QSFP-DD, today’s 100 Gb/s/lane generation); ≈15 W (800G 2×FR4, same generation); on the newest 3 nm, 200 Gb/s/lane DSPs: sub-13 W (800G) and sub-23 W (1.6T) — a different chip generation, not a lower price for the same part",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "cisco-400g-qsfpdd-datasheet",
+        "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/datasheet-c78-743172.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "datasheet: 400G QSFP-DD (DR4/FR4), 12 W max"
+      },
+      {
+        "id": "broadcom-sian3-200g-lane-dsp",
+        "url": "https://www.globenewswire.com/news-release/2025/03/25/3048831/19933/en/broadcom-extends-200g-lane-dsp-phy-leadership-for-next-generation-ai-infrastructure.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "Broadcom’s own DSP spec: \"sub-13 W\" (800G modules) / \"sub-23 W\" (1.6T modules) on its newest 200 Gb/s-per-lane DSP"
+      }
+    ],
+    "derivation": null,
+    "note": "Cisco: DR4 500 m, FR4 2 km, 12 W max; Broadcom: sub-13 W 800G, sub-23 W 1.6T. DR8/FR8 reach and the about 15 W figure come from other sources (Cisco OSFP sheet lists 14.5 W max for 2x400G-FR4, consistent). Only this slice's sources judged. 2 inventory rows share this key.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "links:lr4",
+    "value": "reach 10 km, single-mode — sized to absorb a campus’s routing and conduit slack, no optical amplification needed; power Same DSP-pluggable class as the backbone above (roughly 12–15 W in today’s generation) — a longer-reach optic, not a separate power class",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "cisco-400g-qsfpdd-datasheet",
+        "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/datasheet-c78-743172.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "the same datasheet’s LR4 variant sits alongside DR4/FR4 in the DSP-pluggable family cited for the rung above"
+      }
+    ],
+    "derivation": null,
+    "note": "Cisco QDD-400G-LR4-S: 10 km duplex SMF, 12 W max, so \"roughly 12-15 W\" is consistent.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "links:coherent",
+    "value": "reach ≈40 km unamplified at 400ZR’s standard 11 dB loss budget, extending toward ≈75 km in longer-reach variants (both per OIF); 80–120 km per amplified span for longer routes — repeating amplifiers every ≈80 km extends reach, but noise accumulates with every span, so it is not unlimited; power ≈15–20 W at 400ZR; ≈23–25 W at 800ZR (≈26–30 W in longer-reach 800ZR+ variants)",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ascentoptics-coherent-power",
+        "url": "https://ascentoptics.com/blog/coherent-optical-module-power-consumption/",
+        "fetched": true,
+        "result": "ok (same URL as ascentoptics-coherent-power-consumption)",
+        "quote": "\"400ZR (Standard)... Typical Power 18 to 20 W... Maximum Power 22 W\"; 800ZR \"typically... 23 to 25 watts\"; 800ZR+ \"approximately 20–30W\" with real modules rated to 30 W max"
+      }
+    ],
+    "derivation": null,
+    "note": "Ascent supports 400ZR 18-20 W (the 15 W low end is not in the quote) and 800ZR 23-25 W. For 800ZR+ the fetch summary read 20-25 W typical, 28 W max, versus the site's 26-30 W; verify on the page by hand. Reach figures come from other sources.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "links:cutaway-dsp",
+    "value": "",
+    "verdict": "confirmed",
+    "check": "framing",
+    "sources": [
+      {
+        "id": "cisco-400g-qsfpdd-datasheet",
+        "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/datasheet-c78-743172.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "a full DSP retimer regenerates the signal at each end of a QSFP-DD/OSFP module, alongside a laser and photodetectors"
+      },
+      {
+        "id": "broadcom-sian3-200g-lane-dsp",
+        "url": "https://www.globenewswire.com/news-release/2025/03/25/3048831/19933/en/broadcom-extends-200g-lane-dsp-phy-leadership-for-next-generation-ai-infrastructure.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "Broadcom’s own description of its Sian3 DSP’s place inside a retimed pluggable module"
+      }
+    ],
+    "derivation": null,
+    "note": "Illustrative cutaway; the Cisco datasheet and the Sian3 release both describe retimed DSP pluggables. 2 inventory rows share this key.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "clock:outage:0",
+    "value": "",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "cummins-nfpa110-ate",
+        "url": "https://www.cummins.com/sites/default/files/2021-04/AtE-NFPA110_EXT_3.25.21.pdf",
+        "fetched": false,
+        "result": "ok (71-page slide PDF, 5.7 MB; WebFetch could not parse it, text extracted locally)",
+        "quote": "Cummins \"Ask the Experts\" sheet on NFPA 110 Type/Level classes"
+      }
+    ],
+    "derivation": null,
+    "note": "Cummins deck covers Type 10 (\"The 10-second start\"); NFPA 110 Type 10 = 10 s. The table slide is an image, unread; Nixon Power is the other cited source. Variant 2 of this key (SpaceXAI) cites a different source.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:6:0",
+    "value": "up to 97.5% online, 99% eco",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ceie-eaton-9395xr",
+        "url": "https://snmiss.com/?a=index&aid=16&c=View&m=home",
+        "fetched": true,
+        "result": "ok",
+        "quote": "\"tested efficiency of Eaton 9395XR UPS dual conversion in online mode is as high as 97.5%\"; eco/AC-direct mode \"can be improved to 99%\" (Eaton’s own product page could not be opened this pass -- see i"
+      }
+    ],
+    "derivation": null,
+    "note": "Distributor page says online dual conversion \"as high as 97.5%\" and AC direct mode \"can be improved to 99%\". It is a secondary copy; Eaton page timed out, so this stays a distributor claim about a best case.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:11:0",
+    "value": "Mach-Zehnder, a common silicon-photonics modulator design",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "tspa-400g-lane-ofc",
+        "url": "https://tspasemiconductor.substack.com/p/ofc-preview-the-race-to-400g-per-lane",
+        "fetched": false,
+        "result": "HTTP 404",
+        "quote": "modulator section: Mach-Zehnder interferometer modulators, mature and high-bandwidth, the current commercial mainstream in silicon photonics"
+      }
+    ],
+    "derivation": null,
+    "note": "Substack post returned HTTP 404 (no alternate found). The claim is mainstream (Mach-Zehnder modulators dominate silicon photonics) but the cited page is gone. Replace the citation or accept as common knowledge.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:hall:optics:9",
+    "value": "e.g. Marvell Ara, Broadcom Sian, Credo Bluebird",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-sian3-200g-lane-dsp",
+        "url": "https://www.globenewswire.com/news-release/2025/03/25/3048831/19933/en/broadcom-extends-200g-lane-dsp-phy-leadership-for-next-generation-ai-infrastructure.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "Broadcom’s own Sian3 200G-lane DSP announcement"
+      }
+    ],
+    "derivation": null,
+    "note": "Broadcom Sian3 is confirmed (3 nm 200G/lane DSP PHY). Marvell Ara and Credo Bluebird are cited to other sources outside this slice.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "tour:story:12:0",
+    "value": "Mach-Zehnder, a common silicon-photonics modulator design",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "tspa-400g-lane-ofc",
+        "url": "https://tspasemiconductor.substack.com/p/ofc-preview-the-race-to-400g-per-lane",
+        "fetched": false,
+        "result": "HTTP 404",
+        "quote": "modulator section: Mach-Zehnder interferometer modulators, mature and high-bandwidth, the current commercial mainstream in silicon photonics"
+      }
+    ],
+    "derivation": null,
+    "note": "Substack post returned HTTP 404 (no alternate found). The claim is mainstream (Mach-Zehnder modulators dominate silicon photonics) but the cited page is gone. Replace the citation or accept as common knowledge.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "ledger:9",
+    "value": "0.1 MW",
+    "verdict": "footnoted",
+    "check": "both",
+    "sources": [
+      {
+        "id": "navitas-10kw-dcdc-800v50v",
+        "url": "https://www.globenewswire.com/news-release/2026/02/09/3234542/0/en/Navitas-Unveils-Breakthrough-10-kW-DC-DC-Platform-Delivering-98-5-Efficiency-for-800-VDC-Next-Gen-AI-Data-Centers.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "\"deliver 98.5% peak efficiency and 98.1% full load efficiency\" for its \"800 V-to-50 V\" DC-DC platform (the site's earlier navitas-800vdc citation for this figure states no efficiency percentage)"
+      }
+    ],
+    "derivation": null,
+    "note": "Navitas release confirms 98.5% peak and 98.1% full-load efficiency for its 800 V-to-50 V stage; other variants rely on H100/GB200 PSU sources. Displayed MW is derived from scenario power times loss fraction; recomputation is outside this slice. 14 scenario variants share this source and method.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "ledger:9",
+    "value": "1.2 MW",
+    "verdict": "footnoted",
+    "check": "both",
+    "sources": [
+      {
+        "id": "navitas-10kw-dcdc-800v50v",
+        "url": "https://www.globenewswire.com/news-release/2026/02/09/3234542/0/en/Navitas-Unveils-Breakthrough-10-kW-DC-DC-Platform-Delivering-98-5-Efficiency-for-800-VDC-Next-Gen-AI-Data-Centers.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "\"deliver 98.5% peak efficiency and 98.1% full load efficiency\" for its \"800 V-to-50 V\" DC-DC platform (the site's earlier navitas-800vdc citation for this figure states no efficiency percentage)"
+      }
+    ],
+    "derivation": null,
+    "note": "Navitas release confirms 98.5% peak and 98.1% full-load efficiency for its 800 V-to-50 V stage; other variants rely on H100/GB200 PSU sources. Displayed MW is derived from scenario power times loss fraction; recomputation is outside this slice. 14 scenario variants share this source and method.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "ledger:9",
+    "value": "12.5 MW",
+    "verdict": "footnoted",
+    "check": "both",
+    "sources": [
+      {
+        "id": "navitas-10kw-dcdc-800v50v",
+        "url": "https://www.globenewswire.com/news-release/2026/02/09/3234542/0/en/Navitas-Unveils-Breakthrough-10-kW-DC-DC-Platform-Delivering-98-5-Efficiency-for-800-VDC-Next-Gen-AI-Data-Centers.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "\"deliver 98.5% peak efficiency and 98.1% full load efficiency\" for its \"800 V-to-50 V\" DC-DC platform (the site's earlier navitas-800vdc citation for this figure states no efficiency percentage)"
+      }
+    ],
+    "derivation": null,
+    "note": "Navitas release confirms 98.5% peak and 98.1% full-load efficiency for its 800 V-to-50 V stage; other variants rely on H100/GB200 PSU sources. Displayed MW is derived from scenario power times loss fraction; recomputation is outside this slice. 14 scenario variants share this source and method.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:hall:optics:2",
+    "value": "e.g. Marvell Ara, Broadcom Sian, Credo Bluebird",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-sian3-200g-lane-dsp",
+        "url": "https://www.globenewswire.com/news-release/2025/03/25/3048831/19933/en/broadcom-extends-200g-lane-dsp-phy-leadership-for-next-generation-ai-infrastructure.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "Broadcom’s own Sian3 200G-lane DSP announcement"
+      }
+    ],
+    "derivation": null,
+    "note": "Broadcom Sian3 is confirmed (3 nm 200G/lane DSP PHY). Marvell Ara and Credo Bluebird are cited to other sources outside this slice.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:tray:osfp:0",
+    "value": "under 23 W",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-sian3-200g-lane-dsp",
+        "url": "https://www.globenewswire.com/news-release/2025/03/25/3048831/19933/en/broadcom-extends-200g-lane-dsp-phy-leadership-for-next-generation-ai-infrastructure.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "solution highlights: \"Low power 3nm 200G/lane DSP for sub-13W 800G and sub-23W 1.6T transceivers\""
+      }
+    ],
+    "derivation": null,
+    "note": "Broadcom: \"sub-13W 800G and sub-23W 1.6T transceivers\". \"Under 23 W\" is the 1.6T case.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:heat:tray:osfp:0",
+    "value": "under 23 W",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-sian3-200g-lane-dsp",
+        "url": "https://www.globenewswire.com/news-release/2025/03/25/3048831/19933/en/broadcom-extends-200g-lane-dsp-phy-leadership-for-next-generation-ai-infrastructure.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "solution highlights: \"Low power 3nm 200G/lane DSP for sub-13W 800G and sub-23W 1.6T transceivers\""
+      }
+    ],
+    "derivation": null,
+    "note": "Broadcom: \"sub-13W 800G and sub-23W 1.6T transceivers\". \"Under 23 W\" is the 1.6T case.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:heat:tray:osfp:2",
+    "value": "107.8 × 22.58 × 13.0 mm",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ascentoptics-osfp-form-factor",
+        "url": "https://ascentoptics.com/blog/osfp-form-factor-guide/",
+        "fetched": true,
+        "result": "ok",
+        "quote": "form factor dimensions: the integrated-heat-sink body as 22.58 mm wide × 107.8 mm long × 13.0 mm tall, restating the OSFP MSA"
+      }
+    ],
+    "derivation": null,
+    "note": "Ascent: 22.58 mm wide, 107.8 mm deep, 13.0 mm high with integrated heat sink. Cisco OSFP datasheet agrees on 22.58 x 13 mm (116 mm max with pull tab). Vendor blog restating the OSFP MSA.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:module:dsp:0",
+    "value": "one DSP, 8 × 200G in each direction",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "marvell-ara-product-brief",
+        "url": "https://www.marvell.com/content/dam/marvell/en/public-collateral/dsp/marvell-ara-pam4-dsp-product-brief.pdf",
+        "fetched": false,
+        "result": "HTTP 403",
+        "quote": "Overview and feature list: a 1.6T (8 × 200Gbps) DSP with eight host interfaces and an octal line interface; block diagram supports 2xDR4. Separate analog chips and placement here remain representative"
+      }
+    ],
+    "derivation": null,
+    "note": "Marvell Ara product brief returned 403. \"One DSP, 8 x 200G\" was not read; 8 x 200G = 1.6T is consistent with the Ara 1.6T name.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:module:dsp:3",
+    "value": "under 23 W",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-sian3-200g-lane-dsp",
+        "url": "https://www.globenewswire.com/news-release/2025/03/25/3048831/19933/en/broadcom-extends-200g-lane-dsp-phy-leadership-for-next-generation-ai-infrastructure.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "solution highlights: \"Low power 3nm 200G/lane DSP for sub-13W 800G and sub-23W 1.6T transceivers\""
+      }
+    ],
+    "derivation": null,
+    "note": "Broadcom: \"sub-13W 800G and sub-23W 1.6T transceivers\". \"Under 23 W\" is the 1.6T case.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:module:dsp:2",
+    "value": "one DSP, 8 × 200G in each direction",
+    "verdict": "needs Reed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "marvell-ara-product-brief",
+        "url": "https://www.marvell.com/content/dam/marvell/en/public-collateral/dsp/marvell-ara-pam4-dsp-product-brief.pdf",
+        "fetched": false,
+        "result": "HTTP 403",
+        "quote": "Overview and feature list: a 1.6T (8 × 200Gbps) DSP with eight host interfaces and an octal line interface; block diagram supports 2xDR4. Separate analog chips and placement here remain representative"
+      }
+    ],
+    "derivation": null,
+    "note": "Marvell Ara product brief returned 403. \"One DSP, 8 x 200G\" was not read; 8 x 200G = 1.6T is consistent with the Ara 1.6T name.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:module:dsp:5",
+    "value": "Marvell Ara (1.6T), Broadcom Sian3 (800G / 1.6T)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-sian3-200g-lane-dsp",
+        "url": "https://www.globenewswire.com/news-release/2025/03/25/3048831/19933/en/broadcom-extends-200g-lane-dsp-phy-leadership-for-next-generation-ai-infrastructure.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "body text: Sian3, a 3 nm 200G-per-lane DSP PHY for 800G and 1.6T modules"
+      }
+    ],
+    "derivation": null,
+    "note": "Broadcom Sian3 (800G gearbox and 1.6T retimer PHYs) confirmed. Marvell Ara 1.6T is cited elsewhere; the Ara brief is blocked.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:heat:module:dsp:0",
+    "value": "under 23 W",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-sian3-200g-lane-dsp",
+        "url": "https://www.globenewswire.com/news-release/2025/03/25/3048831/19933/en/broadcom-extends-200g-lane-dsp-phy-leadership-for-next-generation-ai-infrastructure.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "solution highlights: \"Low power 3nm 200G/lane DSP for sub-13W 800G and sub-23W 1.6T transceivers\""
+      }
+    ],
+    "derivation": null,
+    "note": "Broadcom: \"sub-13W 800G and sub-23W 1.6T transceivers\". \"Under 23 W\" is the 1.6T case.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:hall:optics:3",
+    "value": "e.g. Marvell Ara, Broadcom Sian, Credo Bluebird",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-sian3-200g-lane-dsp",
+        "url": "https://www.globenewswire.com/news-release/2025/03/25/3048831/19933/en/broadcom-extends-200g-lane-dsp-phy-leadership-for-next-generation-ai-infrastructure.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "Broadcom’s own Sian3 200G-lane DSP announcement"
+      }
+    ],
+    "derivation": null,
+    "note": "Broadcom Sian3 is confirmed (3 nm 200G/lane DSP PHY). Marvell Ara and Credo Bluebird are cited to other sources outside this slice.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:power:module:fingers:3",
+    "value": "107.8 × 22.58 × 13.0 mm",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "ascentoptics-osfp-form-factor",
+        "url": "https://ascentoptics.com/blog/osfp-form-factor-guide/",
+        "fetched": true,
+        "result": "ok",
+        "quote": "form factor dimensions: the integrated-heat-sink body as 22.58 mm wide × 107.8 mm long × 13.0 mm tall, restating the OSFP MSA"
+      }
+    ],
+    "derivation": null,
+    "note": "Ascent: 22.58 mm wide, 107.8 mm deep, 13.0 mm high with integrated heat sink. Cisco OSFP datasheet agrees on 22.58 x 13 mm (116 mm max with pull tab). Vendor blog restating the OSFP MSA.",
+    "checked": "10/08/2026"
+  },
+  {
+    "key": "card:data:module:dsp:4",
+    "value": "Marvell Ara (1.6T), Broadcom Sian3 (800G / 1.6T)",
+    "verdict": "confirmed",
+    "check": "source",
+    "sources": [
+      {
+        "id": "broadcom-sian3-200g-lane-dsp",
+        "url": "https://www.globenewswire.com/news-release/2025/03/25/3048831/19933/en/broadcom-extends-200g-lane-dsp-phy-leadership-for-next-generation-ai-infrastructure.html",
+        "fetched": true,
+        "result": "ok",
+        "quote": "body text: Sian3, a 3 nm 200G-per-lane DSP PHY for 800G and 1.6T modules"
+      }
+    ],
+    "derivation": null,
+    "note": "Broadcom Sian3 (800G gearbox and 1.6T retimer PHYs) confirmed. Marvell Ara 1.6T is cited elsewhere; the Ara brief is blocked.",
+    "checked": "10/08/2026"
+  }
+]

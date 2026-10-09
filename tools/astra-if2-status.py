@@ -1,4 +1,4 @@
-import json,re
+import json,re,glob
 from pathlib import Path
 p=Path('research/astra-if2/claim-inventory.json');rows=json.loads(p.read_text(encoding='utf-8'))
 access={r['id']:r['status'] for r in json.loads(Path('research/astra-if2/source-access.json').read_text(encoding='utf-8'))}
@@ -14,6 +14,28 @@ for r in rows:
   issues=[f'{sid}: {access.get(sid,"unregistered")}' for sid,_ in ev.get('refs',[]) if access.get(sid)!='HTTP 200']
   if issues:r['reason']='Primary recertification unavailable: '+'; '.join(issues)
   else:r['reason']='Not individually recertified in the blocked audit. Source retrieval and metadata validity alone do not establish this claim; independent calculation coverage is not yet exhaustive.'
+rank={'confirmed':0,'footnoted':1,'needs Reed':2,'wrong':2,'unsupported':2}
+rec={}   # (key, value) -> (verdict, note) from the 10/08/2026 recertification (research/astra-if2/recert/a*.json); the worst verdict wins
+for f in sorted(glob.glob('research/astra-if2/recert/a*.json')):
+ for x in json.loads(Path(f).read_text(encoding='utf-8')):
+  k=(x['key'],x['value']);v=x['verdict']
+  if k not in rec or rank[v]>rank[rec[k][0]]:rec[k]=(v,x.get('note') or '')
+fixfile=Path('research/astra-if2/recert/fixes.json')
+fixed_after={}   # (key, new value) -> source or derivation
+if fixfile.exists():
+ for x in json.loads(fixfile.read_text(encoding='utf-8')):
+  for n in x['new']:fixed_after[(x['key'],n)]=x['source']
+for r in rows:
+ prior=r.get('status');k=(r['key'],r['value'])
+ if prior=='fixed':continue
+ if k in fixed_after:r.update(status='fixed',reason='Recertification fix 10/08/2026: '+fixed_after[k])
+ elif k in rec:
+  v,n=rec[k]
+  if v=='confirmed':r.update(status='confirmed',reason='Recertified 10/08/2026 against its cited source or an independent derivation. '+n)
+  elif v=='footnoted':r.update(status='footnoted',reason='Recertified 10/08/2026: supported with a disclosed assumption or limit. '+n)
+  else:r.update(status='needs Reed',reason='Recertified 10/08/2026, not resolved: '+n)
 p.write_text(json.dumps(rows,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 from collections import Counter
 print(Counter(r['status'] for r in rows))
+covered={(r['key'],r['value']) for r in rows if (r['key'],r['value']) in rec or (r['key'],r['value']) in fixed_after}
+print('recertified distinct claims:',len(covered),'of',len({(r['key'],r['value']) for r in rows}),'distinct;',sum((r['key'],r['value']) in covered for r in rows),'of',len(rows),'variants')
