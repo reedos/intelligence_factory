@@ -1165,3 +1165,14 @@ body.story .pane-note { display: none; }
 .chapter-scene img { display: block; width: 100%; height: auto; max-height: 560px; object-fit: cover; }
 .chapter-scene figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 14px 18px; color: var(--muted); font-size: 14px; }
 .chapter-scene figcaption a { color: var(--accent); white-space: nowrap; }
+
+/* Phone tap targets: a 24 px floor (WCAG 2.2 AA 2.5.8), grown with min-height or padding so the look holds. Desktop is untouched. */
+@media (max-width: 760px) {
+  .brand { min-height: 24px; min-width: 24px; }
+  button.chip { height: auto; min-height: 24px; }
+  .nest-go { display: inline-flex; align-items: center; min-height: 24px; }
+  .sc-edit { display: inline-block; padding-block: 4px; }
+  .chapter-scene figcaption a, .basis-key a { display: inline-flex; align-items: center; min-height: 24px; }
+  #with-train { width: 24px; height: 24px; }
+  .pin { min-width: 25px; min-height: 25px; justify-content: center; transform: translate(-12.5px, -12.5px); }
+}
