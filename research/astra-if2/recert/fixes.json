@@ -1,0 +1,516 @@
+[
+ {
+  "key": "card:data:across:route:2",
+  "old": [
+   "≈33% lower latency; over 1,200 km carrying live traffic"
+  ],
+  "new": [
+   "≈33% lower latency"
+  ],
+  "source": "Microsoft hollow-core page states the 33% latency cut and 15,000 km planned; no \"1,200 km live traffic\" text. Phrase dropped (unsourced)."
+ },
+ {
+  "key": "card:data:copper:dac:2",
+  "old": [
+   "1–2 m"
+  ],
+  "new": [
+   "0.5–2 m (1–2 m typical)"
+  ],
+  "source": "NVIDIA copper guide: \"0.5m to 2-meters for straight cables\"; Flexoptix 1-2 m at 800G-class. Both shown."
+ },
+ {
+  "key": "page:index.html:14",
+  "old": [
+   "The regional map names real campuses by their own power source — Meta's Hyperion runs on new gas-fired plants ( see it on the map ) — and this campus has its own perimeter security and operations center watching it."
+  ],
+  "new": [
+   "The regional map names real campuses by their own power source — Meta's Hyperion is to be powered by new gas-fired plants Entergy is building ( see it on the map ) — and this campus has its own perimeter security and operations center watching it."
+  ],
+  "source": "Source: IEEE Spectrum: Meta negotiated with Entergy for construction of new gas-turbine plants (three, 2.26 GW, in the article); a 03/27/2026 agreement adds seven more (press reports), so no count is stated."
+ },
+ {
+  "key": "page:index.html:30",
+  "old": [
+   "Three networks, three physical media. Copper ties 72 GPUs into one machine inside a rack; single-mode fiber and pluggable optics tie racks into a campus fabric; coherent optics on leased fiber tie campuses together. Counts are for this 100 MW campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials."
+  ],
+  "new": [
+   "Three networks, three physical media. Copper ties 72 GPUs into one machine inside a rack; single-mode fiber and pluggable optics tie racks into a campus fabric; coherent optics on long-haul fiber tie campuses together. Counts are for this 100 MW campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials."
+  ],
+  "source": "No source for leased fiber; \"long-haul fiber\" is neutral."
+ },
+ {
+  "key": "page:index.html:45",
+  "old": [
+   "Every watt ends as heat, and heat only flows downhill. Each hop from die to outdoor air costs a few degrees, which is why warmer water is the trick: NVIDIA's newest spec feeds racks at 45 °C, so even a 35 °C afternoon can take the heat through dry coolers, without chillers."
+  ],
+  "new": [
+   "Every watt ends as heat, and heat only flows downhill. Each hop from die to outdoor air costs a few degrees, which is why warmer water is the trick: NVIDIA's newest spec feeds racks at 45 °C, so even a 35 °C afternoon can take the heat through dry coolers with spray assist, without chillers."
+  ],
+  "source": "Model: dry coolers alone do not hold the 35 C loop; spray assist stated. NVIDIA 45 C chiller-less claim kept."
+ },
+ {
+  "key": "page:index.html:57",
+  "old": [
+   "Llama 3.1 405B pretraining (Meta model card), location-based 39.3M H100 GPU-hours · 11,390 t CO₂e Spec"
+  ],
+  "new": [
+   "Llama 3.1 pretraining, all three sizes (8B, 70B, 405B; Meta model card), location-based 39.3M H100 GPU-hours · 11,390 t CO₂e Spec"
+  ],
+  "source": "Meta Llama 3.1 model card: 39.3M GPU-hours and 11,390 t CO2e are totals for all three sizes (405B alone 30.84M h, 8,930 t)."
+ },
+ {
+  "key": "page:index.html:60",
+  "old": [
+   "LLaMA-65B on A100, GPU only (Samsi et al., 2023) 3–4 J/token Reported"
+  ],
+  "new": [
+   "LLaMA-65B on V100, GPU only (Samsi et al., 2023) 3–4 J/token Reported"
+  ],
+  "source": "Samsi et al. 2023: 65B runs on V100 (data.js already says V100)."
+ },
+ {
+  "key": "page:index.html:61",
+  "old": [
+   "DeepSeek-R1 decode on GB200, per GPU (SemiAnalysis) ≈13k tok/s Reported"
+  ],
+  "new": [
+   "DeepSeek-R1 decode on GB200, per GPU (LMSYS/SGLang) ≈13k tok/s Reported"
+  ],
+  "source": "13,386 output tok/s per GPU is the LMSYS/SGLang GB200 benchmark, as src/sources.js notes."
+ },
+ {
+  "key": "page:index.html:62",
+  "old": [
+   "NVIDIA: GB200 NVL72 vs H200, tokens per MW ≈8–10× Vendor"
+  ],
+  "new": [
+   "SemiAnalysis InferenceMAX: GB200 NVL72 vs H200, tokens per MW ≈8× Reported"
+  ],
+  "source": "SemiAnalysis InferenceMAX ~8x token/s per MW, as data.js carries; no NVIDIA 8-10x statement found."
+ },
+ {
+  "key": "page:index.html:65",
+  "old": [
+   "Sized from the same assumptions as the ledger: 100 MW at the meter, PUE 1.2, 132 kW racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale."
+  ],
+  "new": [
+   "Sized from the same assumptions as the ledger: 100 MW at the meter, PUE 1.16, 131 kW GB200 NVL72 racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale."
+  ],
+  "source": "Recomputed: default scenario PUE 1.16 and 131 kW GB200 NVL72 racks (test)."
+ },
+ {
+  "key": "page:index.html:68",
+  "old": [
+   "The page is written in TypeScript, drawn with Three.js (version 0.183.2) — which describes itself as a “JavaScript 3D Library” — and bundled with Vite (version 8.3.1), which calls itself “a build tool that aims to provide a faster and leaner development experience for modern web projects.” The build is static: the source lives on GitHub, and the site is served from Cloudflare’s network at reedos.dev."
+  ],
+  "new": [
+   "The page is written in JavaScript, with the scenario engine in TypeScript, drawn with Three.js (version 0.183.2) — which describes itself as a “JavaScript 3D Library” — and bundled with Vite (version 8.3.1), which calls itself “a build tool that aims to provide a faster and leaner development experience for modern web projects.” The build is static: the source lives on GitHub, and the site is served from Cloudflare’s network at reedos.dev."
+  ],
+  "source": "Repo is mostly JavaScript with the scenario engine in TypeScript."
+ },
+ {
+  "key": "page:index.html:70",
+  "old": [
+   "Every figure on the page is labeled by what backs it: Spec, Vendor, Reported, Calc. or Assumed, with its sources one click away. The Evidence page lists every figure that way, and the Method page lists every calculation and assumption behind them. Underneath, a scenario engine turns four choices — campus size, accelerator, power path and cooling — into every number, chart and sentence on the page."
+  ],
+  "new": [
+   "Every figure on a part, chart, ledger row or tour stop is labeled by what backs it: Spec, Vendor, Reported, Calc. or Assumed, with its sources one click away. The Evidence page lists every figure that way, and the Method page lists every calculation and assumption behind them. Underneath, a scenario engine turns four choices — campus size, accelerator, power path and cooling — into every number in the charts and tours."
+  ],
+  "source": "Chips label parts, ledger rows, tour rows and charts, not every figure; wording narrowed."
+ },
+ {
+  "key": "page:index.html:71",
+  "old": [
+   "Automated checks run before anything ships: Vitest unit tests (1,380 tests across 40 files, as of this writing) cover the engine, the content and the links; Playwright drives a real browser through checks named for what they look for — cycle (every scenario, scene and layer, watching for errors), views (every part framed clear of overlays), coplanar (flush surfaces that would flicker), parts (every numbered part has a pin), flights (every camera move between parts stays clear of walls and roofs) and ui (the page’s controls stay out of each other’s way, on phone and desktop alike). A quality governor adapts the 3D rendering to the device it’s running on, with Max quality, Auto quality and Battery saver settings for when you want to choose yourself."
+  ],
+  "new": [
+   "Automated checks run before anything ships: Vitest unit tests cover the engine, the content and the links; Playwright drives a real browser through checks named for what they look for — cycle (every scenario, scene and layer, watching for errors), views (every part framed clear of overlays), coplanar (flush surfaces that would flicker), parts (every numbered part has a pin), flights (every camera move between parts stays clear of walls and roofs) and ui (the page’s controls stay out of each other’s way, on phone and desktop alike). A quality governor adapts the 3D rendering to the device it’s running on, with Max quality, Auto quality and Battery saver settings for when you want to choose yourself."
+  ],
+  "source": "Test counts went stale (1,745 tests / 64 files at last audit); numbers removed so they cannot go stale."
+ },
+ {
+  "key": "page:index.html:extra:25",
+  "old": [
+   "Caption (cap-scaleout, static fallback): \"One 800G optical port per GPU climbs through up to three tiers of 144-port switches ... two more optical modules per link\""
+  ],
+  "new": [
+   "One 400G optical port per GPU climbs through three tiers of 64-port switches. (static caption in index.html)"
+  ],
+  "source": "Default (GB200) scenario renders 400G ports and three tiers of 64-port switches; static fallback now matches (test checks tiers/radix). Row is outside the generated inventory."
+ },
+ {
+  "key": "narrative:story:6:text",
+  "old": [
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 3.1 MW, more than any other step before the rack."
+  ],
+  "new": [
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 0.2 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 0.3 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 121 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 14 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 15 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 151 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 157 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 18 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 2.4 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 23 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 24 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 25 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 3.0 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 3.1 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 30 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 31 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 44 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 47 MW, more than any other power-conversion step before the rack.",
+   "UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs 7.3 MW, more than any other power-conversion step before the rack."
+  ],
+  "source": "Ledger: cooling (about 6.9 MW) is a larger row before the rack than the 3.1 MW UPS loss; claim narrowed to power-conversion steps."
+ },
+ {
+  "key": "tour:story:9:0",
+  "old": [
+   "≈97.5% peak, half load"
+  ],
+  "new": [
+   "≈97.5% peak"
+  ],
+  "source": "Flex page: \"up to 97.5% (peak)\", no load point; \"half load\" dropped."
+ },
+ {
+  "key": "card:power:rack:shelves:2",
+  "old": [
+   "≈97.5% peak, half load"
+  ],
+  "new": [
+   "≈97.5% peak"
+  ],
+  "source": "Flex page: \"up to 97.5% (peak)\", no load point; \"half load\" dropped."
+ },
+ {
+  "key": "scene:across:intro",
+  "old": [
+   "Start at the grid. Power plants feed 345–500 kV lines into campuses hundreds of kilometers apart, and each campus is its own grid customer, which is why gigawatt clusters get split across sites. Go into the lit campus to follow its power in."
+  ],
+  "new": [
+   "Start at the grid. Power plants feed 345–500 kV lines into campuses hundreds of kilometers apart, and each campus is its own grid customer, so very large clusters are often split across sites. Go into the lit campus to follow its power in."
+  ],
+  "source": "Voltage range aligned with assumption campus-interconnection-voltage-range (345 kV up to 500 kV); causal clause softened to \"often\"."
+ },
+ {
+  "key": "scene:across:heatIntro",
+  "old": [
+   "Heat stays local, so climate and water pick sites as much as power does. Cool, dry places reject heat to air most of the year without spending water."
+  ],
+  "new": [
+   "Heat stays local, so climate and water pick sites along with power. Cool, dry places reject heat to air most of the year without spending water."
+  ],
+  "source": "Comparative \"as much as power\" replaced by \"along with power\"."
+ },
+ {
+  "key": "scene:campus:dataIntro",
+  "old": [
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while thousands of strands in duct banks tie the two halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site."
+  ],
+  "new": [
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 1.0 million strands in duct banks tie all 11 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 1.1 million strands in duct banks tie all 15 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 1.5 million strands in duct banks tie all 19 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 1.5 million strands in duct banks tie all 20 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 1.6 million strands in duct banks tie all 20 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 1.7 million strands in duct banks tie all 19 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 1.8 million strands in duct banks tie all 19 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 1.8 million strands in duct banks tie all 20 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 10.2 million strands in duct banks tie all 74 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 11.0 million strands in duct banks tie all 92 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 11.3 million strands in duct banks tie all 94 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 11.4 million strands in duct banks tie all 96 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 11.8 million strands in duct banks tie all 99 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 146k strands in duct banks tie the two halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 151k strands in duct banks tie the two halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 153k strands in duct banks tie the two halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 158k strands in duct banks tie the two halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 171k strands in duct banks tie the two halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 177k strands in duct banks tie the two halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 179k strands in duct banks tie the two halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 185k strands in duct banks tie the two halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 2.0 million strands in duct banks tie all 15 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 2.1 million strands in duct banks tie all 16 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 2.2 million strands in duct banks tie all 19 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 2.2 million strands in duct banks tie all 27 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 2.3 million strands in duct banks tie all 19 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 2.3 million strands in duct banks tie all 20 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 2.4 million strands in duct banks tie all 20 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 2.7 million strands in duct banks tie all 29 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 204k strands in duct banks tie the two halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 219k strands in duct banks tie the two halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 226k strands in duct banks tie the two halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 229k strands in duct banks tie the two halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 236k strands in duct banks tie the two halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 611k strands in duct banks tie all 5 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 7.3 million strands in duct banks tie all 92 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 7.5 million strands in duct banks tie all 94 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 7.6 million strands in duct banks tie all 96 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 7.9 million strands in duct banks tie all 99 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 8.6 million strands in duct banks tie all 92 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 8.8 million strands in duct banks tie all 94 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 8.9 million strands in duct banks tie all 96 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 804k strands in duct banks tie all 9 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 856k strands in duct banks tie all 10 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site.",
+   "Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about 9.2 million strands in duct banks tie all 99 halls into one fabric. Buildings, landscaping and distribution routes are a conceptual design, not a surveyed layout of a named site."
+  ],
+  "source": "Derived: 44,640 GPUs / 2 x 8 fibers = 178,560 cross-hall strands (about 179k), now computed from the model."
+ },
+ {
+  "key": "scene:rack:intro",
+  "old": [
+   "A GB200 NVL72 rack takes 415 V AC in at the top and turns it into about 50 V DC in its power shelves. A copper busbar down the back feeds 18 compute trays and 9 NVLink switch trays, all cooled by water. It draws about 131 kW."
+  ],
+  "new": [
+   "A GB200 NVL72 rack takes 415 V AC in at the top and turns it into about 50 V DC in its power shelves. A copper busbar down the back feeds 18 compute trays and 9 NVLink switch trays, cooled mostly by water. It draws about 131 kW.",
+   "A GB300 NVL72 rack takes 415 V AC in at the top and turns it into about 50 V DC in its power shelves. A copper busbar down the back feeds 18 compute trays and 9 NVLink switch trays, cooled mostly by water. It draws about 148 kW.",
+   "A Vera Rubin NVL72 rack takes 415 V AC in at the top and turns it into about 50 V DC in its power shelves. A copper busbar down the back feeds 18 compute trays and 9 NVLink switch trays, cooled mostly by water. It draws about 188 kW."
+  ],
+  "source": "NVIDIA guide: power-shelf supplies are air-cooled; about 87% of heat goes to liquid in the model. \"mostly\" replaces \"all\"."
+ },
+ {
+  "key": "scene:rack:scale",
+  "old": [
+   "2.3 m tall"
+  ],
+  "new": [
+   "2.2 m tall"
+  ],
+  "source": "Sunbird: 2,236 mm tall = 2.2 m."
+ },
+ {
+  "key": "scene:tray:dataIntro",
+  "old": [
+   "This GB200 tray contains four Blackwell GPUs and two Grace CPUs. Each GPU has three ways out: NVLink to the rack spine at the back, NVLink-C2C to its CPU, and ConnectX-7 SuperNIC networking to the optical modules. Mechanical placement is representative."
+  ],
+  "new": [
+   "This GB200 tray contains four Blackwell GPUs and two Grace CPUs. Each GPU has three ways out: NVLink to the rack spine at the back, NVLink-C2C to its CPU, and ConnectX-7 networking to the optical modules. Mechanical placement is representative."
+  ],
+  "source": "NVIDIA hardware guide names the part \"ConnectX-7 NIC\", not SuperNIC."
+ },
+ {
+  "key": "scene:tray:heatIntro",
+  "old": [
+   "Coolant enters at the back, runs through a copper plate on each CPU and GPU, and leaves warmer. Fans at the front still push air over the parts water does not touch: NICs, optics, drives."
+  ],
+  "new": [
+   "Coolant enters at the back, runs through a cold plate on each CPU and GPU, and leaves warmer. Fans at the front still push air over the parts water does not touch: NICs, optics, drives."
+  ],
+  "source": "NVIDIA guide says cold plates; \"copper\" dropped (no source for the material)."
+ },
+ {
+  "key": "scene:chip:scale",
+  "old": [
+   "10 cm across"
+  ],
+  "new": [
+   "11 cm across"
+  ],
+  "source": "src/scenes/gpu-package.js: board = 8.4 cm substrate + 2 x 1.2 cm = 10.8 cm, shown rounded to 11 cm (was floored to 10)."
+ },
+ {
+  "key": "card:power:across:grid:0",
+  "old": [
+   "230–500 kV"
+  ],
+  "new": [
+   "345–500 kV"
+  ],
+  "source": "Assumption range is 345 kV up to 500 kV; 230 kV had no support."
+ },
+ {
+  "key": "card:power:across:site-prometheus:0",
+  "old": [
+   "Partly live · ≈496 MW IT"
+  ],
+  "new": [
+   "Partly live · ≈471 MW IT"
+  ],
+  "source": "Epoch directory (fetched 10/08/2026): 471 MW IT as of 08/31/2026."
+ },
+ {
+  "key": "card:power:across:site-prometheus:1",
+  "old": [
+   "≈496 MW"
+  ],
+  "new": [
+   "≈471 MW"
+  ],
+  "source": "Epoch directory (fetched 10/08/2026): 471 MW IT as of 08/31/2026."
+ },
+ {
+  "key": "card:power:across:site-prometheus:2",
+  "old": [
+   "≈600k H100-eq compute; ≈237k Nvidia B200 chips now, B300 to follow"
+  ],
+  "new": [
+   "≈536k H100-eq compute; ≈166k Nvidia B300 chips"
+  ],
+  "source": "Epoch directory (fetched 10/08/2026): 536k H100-eq, 166k B300 chips."
+ },
+ {
+  "key": "card:data:across:dci:3",
+  "old": [
+   "about 2× capacity per fiber"
+  ],
+  "new": [
+   "up to 2× capacity per fiber"
+  ],
+  "source": "Telstra/Ciena report says \"up to twice the capacity per fiber\"."
+ },
+ {
+  "key": "card:power:campus:unitsubs:1",
+  "old": [
+   "≈99.5%"
+  ],
+  "new": [
+   "≈99.55%"
+  ],
+  "source": "10 CFR 431.196 Table 6: 99.55% required at 50% load."
+ },
+ {
+  "key": "card:power:campus:drycoolers:3",
+  "old": [
+   "≈0.15–0.17 L/kWh"
+  ],
+  "new": [
+   "≈0.15–0.17 L/kWh total, with wind/solar power"
+  ],
+  "source": "arXiv Table 5: 0.15-0.17 L/kWh is the total with wind/solar electricity; label says so."
+ },
+ {
+  "key": "card:data:campus:interhall:0",
+  "old": [
+   "tens of thousands per hall pair"
+  ],
+  "new": [
+   "about 1.0 million strands crossing between halls",
+   "about 1.1 million strands crossing between halls",
+   "about 1.5 million strands crossing between halls",
+   "about 1.6 million strands crossing between halls",
+   "about 1.7 million strands crossing between halls",
+   "about 1.8 million strands crossing between halls",
+   "about 10.2 million strands crossing between halls",
+   "about 11.0 million strands crossing between halls",
+   "about 11.3 million strands crossing between halls",
+   "about 11.4 million strands crossing between halls",
+   "about 11.8 million strands crossing between halls",
+   "about 146k strands crossing between halls",
+   "about 151k strands crossing between halls",
+   "about 153k strands crossing between halls",
+   "about 158k strands crossing between halls",
+   "about 171k strands crossing between halls",
+   "about 177k strands crossing between halls",
+   "about 179k strands crossing between halls",
+   "about 185k strands crossing between halls",
+   "about 2.0 million strands crossing between halls",
+   "about 2.1 million strands crossing between halls",
+   "about 2.2 million strands crossing between halls",
+   "about 2.3 million strands crossing between halls",
+   "about 2.4 million strands crossing between halls",
+   "about 2.7 million strands crossing between halls",
+   "about 204k strands crossing between halls",
+   "about 219k strands crossing between halls",
+   "about 226k strands crossing between halls",
+   "about 229k strands crossing between halls",
+   "about 236k strands crossing between halls",
+   "about 611k strands crossing between halls",
+   "about 7.3 million strands crossing between halls",
+   "about 7.5 million strands crossing between halls",
+   "about 7.6 million strands crossing between halls",
+   "about 7.9 million strands crossing between halls",
+   "about 8.6 million strands crossing between halls",
+   "about 8.8 million strands crossing between halls",
+   "about 8.9 million strands crossing between halls",
+   "about 804k strands crossing between halls",
+   "about 856k strands crossing between halls",
+   "about 9.2 million strands crossing between halls"
+  ],
+  "source": "Derived: 44,640 GPUs / 2 x 8 fibers = 178,560 strands; text now computed from the model."
+ },
+ {
+  "key": "card:data:campus:interhall:4",
+  "old": [
+   "10 km, four wavelengths on one fiber pair"
+  ],
+  "new": [
+   "10 km, four wavelengths"
+  ],
+  "source": "IEEE LR4 baseline slide: four wavelengths, at least 10 km; \"one fiber pair\" not in the source, dropped."
+ },
+ {
+  "key": "card:data:hall:dp:0",
+  "old": [
+   "large all-reduce, once per step"
+  ],
+  "new": [
+   "large gradient sync, once per step"
+  ],
+  "source": "Llama 3 paper: DP replicas \"synchronize after each training step\"; the word all-reduce is not used for it."
+ },
+ {
+  "key": "card:data:hall:cpo:0",
+  "old": [
+   "5× power efficiency, 4× fewer lasers, not fewer fibers (Aug. 2026 reporting; NVIDIA’s own March 2025 launch claimed 3.5×)"
+  ],
+  "new": [
+   "5× power efficiency, 4× fewer lasers (Aug. 2026 reporting; NVIDIA’s own March 2025 launch claimed 3.5×)"
+  ],
+  "source": "\"not fewer fibers\" appears in none of the cited sources; dropped."
+ },
+ {
+  "key": "card:power:rack:busbar:1",
+  "old": [
+   "1,400 A per section"
+  ],
+  "new": [
+   "1,400 A"
+  ],
+  "source": "NVIDIA OCP blog: \"1,400 amp current flow\", not per section."
+ },
+ {
+  "key": "card:power:rack:busbar:2",
+  "old": [
+   "800 V DC, 45% less copper"
+  ],
+  "new": [
+   "800 V DC, 45% less copper"
+  ],
+  "source": "nvidia-800v-hvdc: the 45% copper cut is against traditional 415 V AC distribution; comparison baseline corrected (value unchanged)."
+ },
+ {
+  "key": "card:power:rack:manifold:0",
+  "old": [
+   "GPUs, CPUs, switch chips"
+  ],
+  "new": [
+   "GPUs and CPUs"
+  ],
+  "source": "NVIDIA DGX guide: cold plates on CPUs and GPUs only; switch chips dropped."
+ },
+ {
+  "key": "card:data:tray:cx:0",
+  "old": [
+   "ConnectX-7 SuperNIC"
+  ],
+  "new": [
+   "ConnectX-7"
+  ],
+  "source": "NVIDIA hardware guide: \"ConnectX-7 NIC\" (SuperNIC is the ConnectX-8/9 name)."
+ },
+ {
+  "key": "card:heat:chip:hbm:0",
+  "old": [
+   "≈8–15%"
+  ],
+  "new": [
+   "≈10–16%"
+  ],
+  "source": "Assumption hbm-power-share and model: 10% (H100) to 16% (Rubin); evidence text aligned."
+ }
+]

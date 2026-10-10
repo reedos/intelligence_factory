@@ -1,0 +1,407 @@
+[
+  {
+    "id": "nvidia-copper-dac-lacc-overview",
+    "url": "https://docs.nvidia.com/networking/display/400g100gpam4ovdev/copper-dac-and-lacc-cables-overview",
+    "prior_status": "HTTP 301",
+    "fetch_result": "Too many redirects (exceeded 10), twice",
+    "fetched_on": "10/08/2026",
+    "alt_url": "https://docs.nvidia.com/networking/display/400g100gpam4ovpub/copper-dac-and-lacc-cables-overview (same guide, found by search; page text seen only as a search excerpt)",
+    "supports": "DAC: 0.5 m to 2 m straight cables, 0.1 W per end; LACC is a DAC with an added IC in each end, 3 to 5 m."
+  },
+  {
+    "id": "nvidia-sn5000-datasheet",
+    "url": "https://nvdam.widen.net/s/mmvbnpk8qk/networking-ethernet-switches-sn5000-datasheet-us",
+    "prior_status": "HTTP 404",
+    "fetch_result": "HTTP 404",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved; no claim key in the inventory cites it."
+  },
+  {
+    "id": "cummins-qsk78",
+    "url": "https://www.cummins.com/en-na/generators/products/qsk78",
+    "prior_status": "HTTP 403",
+    "fetch_result": "HTTP 403 (twice)",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved; no claim key cites it."
+  },
+  {
+    "id": "cummins-nfpa110-ate",
+    "url": "https://www.cummins.com/sites/default/files/2021-04/AtE-NFPA110_EXT_3.25.21.pdf",
+    "prior_status": "not attempted: host access denied in this session",
+    "fetch_result": "ok (71-page slide PDF, 5.7 MB; WebFetch could not parse it, text extracted locally)",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Text mentions \"The 10-second start: NFPA 110 Type 10 starting requirements\"; the Table 4.1(b) itself is an image and could not be read as text."
+  },
+  {
+    "id": "cat-c175-16",
+    "url": "https://www.cat.com/en_US/products/new/power-systems/electric-power/diesel-generator-sets/1000028916.html",
+    "prior_status": "HTTP 403",
+    "fetch_result": "timeout (twice)",
+    "fetched_on": "10/08/2026",
+    "alt_url": "https://www.cat.com/en_US/products/new/power-systems/electric-power/diesel-generator-sets/1000028916.html listing found by search: title \"C175-16 (60 HZ) | 2500-3100 kW Diesel Generator\"",
+    "supports": "Search excerpt of the same page: standby ratings 3000-3365 ekW, prime 2725-3115 ekW, 2500 ekW minimum of the range."
+  },
+  {
+    "id": "infineon-solaredge-sst",
+    "url": "https://www.powerelectronicsnews.com/infineon-and-solaredge-partner-to-advance-high-efficiency-power-infrastructure-for-next-gen-ai-data-centers/",
+    "prior_status": "TimeoutError",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Modular 2-5 MW solid-state transformer block, medium voltage 13.8-34.5 kV to 800-1500 V DC, efficiency above 99% targeted."
+  },
+  {
+    "id": "liteon-gtc-2026",
+    "url": "https://www.liteon.com/en/news/press-center/content/liteon-nvidia-gtc-2026",
+    "prior_status": "URLError",
+    "fetch_result": "unable to verify the first certificate (TLS)",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved; no claim key cites it."
+  },
+  {
+    "id": "liteon-gb200-power-system",
+    "url": "https://www.liteon.com/en/news/press-center/content/nvidia-gb200-blackwell-power-system",
+    "prior_status": "URLError",
+    "fetch_result": "unable to verify the first certificate (TLS)",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved; no claim key cites it."
+  },
+  {
+    "id": "schneider-uniflair",
+    "url": "https://www.se.com/us/en/work/products/master-ranges/uniflair/",
+    "prior_status": "HTTP 403",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Uniflair range: chillers, room cooling (5-20 kW units), InRow chilled-water and DX cooling."
+  },
+  {
+    "id": "schneider-ecostruxure-dcim",
+    "url": "https://www.se.com/us/en/work/software/data-center-infrastructure-management-dcim/",
+    "prior_status": "not attempted: host access denied in this session",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "\"Oversee and control assets, environmental conditions, and security, while integrating with the IT layer to enable unified infrastructure oversight.\""
+  },
+  {
+    "id": "marvell-ara-product-brief",
+    "url": "https://www.marvell.com/content/dam/marvell/en/public-collateral/dsp/marvell-ara-pam4-dsp-product-brief.pdf",
+    "prior_status": "HTTP 403",
+    "fetch_result": "HTTP 403",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved."
+  },
+  {
+    "id": "marvell-acc-aec-architecture",
+    "url": "https://www.marvell.com/blogs/active-copper-cables-ai-rack-interconnects.html",
+    "prior_status": "not attempted: host access denied in this session",
+    "fetch_result": "HTTP 403",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved."
+  },
+  {
+    "id": "marvell-cpo-tray-blog",
+    "url": "https://www.marvell.com/blogs/co-packaged-optics-for-next-wave-ai-data-centers.html",
+    "prior_status": "not attempted: host access denied in this session",
+    "fetch_result": "HTTP 403 (fetch); first section confirmed via search excerpt",
+    "fetched_on": "10/08/2026",
+    "alt_url": "https://www.marvell.com/blogs/co-packaged-optics-for-next-wave-ai-data-centers.html (same URL; excerpt returned by search)",
+    "supports": "CPO Server Tray: four XPUs, up to 102.4 Tbps over 1024 fibers in a 1U tray (excerpt only)."
+  },
+  {
+    "id": "marvell-light-engine-2021",
+    "url": "https://www.marvell.com/blogs/highly-integrated-silicon-photonics-light-engines-in-high-speed-data-transport.html",
+    "prior_status": "not attempted: host access denied in this session",
+    "fetch_result": "HTTP 403",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved; no claim key cites it."
+  },
+  {
+    "id": "marvell-3d-sipho-2024",
+    "url": "https://www.marvell.com/company/newsroom/marvell-demonstrates-industrys-first-200g-3d-silicon-photonics-engine-to-scale-accelerated-infrastructure.html",
+    "prior_status": "not attempted: host access denied in this session",
+    "fetch_result": "HTTP 403",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved."
+  },
+  {
+    "id": "marvell-cpo-xpu-2025",
+    "url": "https://www.marvell.com/company/newsroom/marvell-co-packaged-optics-architecture-custom-ai-accelerators.html",
+    "prior_status": "not attempted: host access denied in this session",
+    "fetch_result": "HTTP 403",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved."
+  },
+  {
+    "id": "ciena-wavelogic6-nano",
+    "url": "https://www.ciena.com/insights/infobriefs/wavelogic-6-nano-1-6t-coherent-lite-pluggable-transceiver",
+    "prior_status": "HTTP 403",
+    "fetch_result": "HTTP 403",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved; no claim key cites it."
+  },
+  {
+    "id": "ciena-wavelogic6",
+    "url": "https://www.ciena.com/about/newsroom/press-releases/ciena-unveils-wavelogic-6",
+    "prior_status": "not attempted: host access denied in this session",
+    "fetch_result": "HTTP 403",
+    "fetched_on": "10/08/2026",
+    "alt_url": "https://investor.ciena.com/news-releases/news-release-details/ciena-unveils-wavelogic-6-industrys-first-16tbs-coherent-optic/ (Ciena investor site, found by search; excerpt only)",
+    "supports": "WaveLogic 6 supports up to 1.6 Tb/s single-carrier wavelengths; announced 02/21/2023."
+  },
+  {
+    "id": "nrel-water-electricity",
+    "url": "https://docs.nrel.gov/docs/fy11osti/50900.pdf",
+    "prior_status": "URLError",
+    "fetch_result": "getaddrinfo ENOTFOUND docs.nrel.gov; www.nrel.gov also ENOTFOUND",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved."
+  },
+  {
+    "id": "eaton-9395xr-ups",
+    "url": "https://www.eaton.com/us/en-us/catalog/backup-power-ups-surge-it-power-distribution/eaton-9395xr-ups.html",
+    "prior_status": "TimeoutError",
+    "fetch_result": "timeout (twice)",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved; no claim key cites it directly (claims cite the distributor copy)."
+  },
+  {
+    "id": "hpe-gb200-quickspecs",
+    "url": "https://www.hpe.com/us/en/collaterals/collateral.a50009224enw.html",
+    "prior_status": "TimeoutError",
+    "fetch_result": "timeout (twice)",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved; no claim key cites it."
+  },
+  {
+    "id": "amphenol-paladin-hd",
+    "url": "https://www.amphenol-cs.com/product-series/paladin-hd.html",
+    "prior_status": "HTTP 403",
+    "fetch_result": "HTTP 403",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved; no claim key cites it."
+  },
+  {
+    "id": "fs-com-dgx-h100",
+    "url": "https://www.fs.com/blog/introduction-to-nvidia-dgx-h100-3856.html",
+    "prior_status": "HTTP 202",
+    "fetch_result": "ok but page body empty (HTTP 202 placeholder)",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "No text returned."
+  },
+  {
+    "id": "fs-64ch-cband-mux",
+    "url": "https://www.fs.com/products/166004.html",
+    "prior_status": "HTTP 202",
+    "fetch_result": "ok but page body empty (HTTP 202 placeholder)",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "No text returned; the 191.3625-196.0875 THz range could not be read from the page."
+  },
+  {
+    "id": "cdc-legionella-cooling-towers",
+    "url": "https://www.cdc.gov/control-legionella/php/toolkit/cooling-towers-module.html",
+    "prior_status": "HTTP 403",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "\"Use automation: Automate anti-corrosion, anti-scale, and disinfectant addition and monitoring.\""
+  },
+  {
+    "id": "cisco-8800-routers",
+    "url": "https://www.cisco.com/c/en/us/products/collateral/routers/8000-series-routers/8800-series-modular-routers-ds.html",
+    "prior_status": "HTTP 403",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Up to 28.8 Tb/s per slot; 36 ports of 800G on P200 line cards; 8804 115.2 Tb/s, 8818 518.4 Tb/s."
+  },
+  {
+    "id": "cisco-400g-qsfpdd-datasheet",
+    "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/datasheet-c78-743172.html",
+    "prior_status": "not attempted: host access denied in this session",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "QDD-400G-DR4-S 500 m, FR4-S 2 km, LR4-S 10 km, each 12 W max."
+  },
+  {
+    "id": "cisco-800g-zr-datasheet",
+    "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/qsfp-dd-osfp-800g-zr-zr-plus-coherent-optics.html",
+    "prior_status": "not attempted: host access denied in this session",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Single 800G wavelength from router port up to 120 km (800ZR); C-band 1528.58-1567.34 nm; LC; 800ZR amplified up to 120 km, ZR+ over 1000 km, unamplified 75 km (800ZR) and 80 km (ZR+); QSFP-DD and OSFP versions."
+  },
+  {
+    "id": "cisco-osfp-800g-datasheet",
+    "url": "https://www.cisco.com/c/en/us/products/collateral/interfaces-modules/transceiver-modules/osfp-800g-transceiver-modules-ds.html",
+    "prior_status": "not attempted: host access denied in this session",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Table 6: 13 x 22.58 x 116 mm max (H x W x D); typical 12.9-14.2 W, max 14.5-17 W by model."
+  },
+  {
+    "id": "microsoft-hollow-core-fiber",
+    "url": "https://fiberbroadband.org/2026/04/02/microsoft-scales-up-hollow-core-fiber-production/",
+    "prior_status": "HTTP 403",
+    "fetch_result": "ok (fiberbroadband.org article now readable)",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Hollow core \"increasing transmission speeds by 47% and cutting latency by 33%\"; 15,000 km planned over two years. No 1,200 km live-traffic figure on the page."
+  },
+  {
+    "id": "ascentoptics-800g-lpo-guide",
+    "url": "https://ascentoptics.com/blog/800g-lpo/",
+    "prior_status": "HTTP 500",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "800G LPO about 8 W or below vs mid-teens W for DSP modules; short reach."
+  },
+  {
+    "id": "ascentoptics-copper-cables",
+    "url": "https://ascentoptics.com/blog/understanding-high-speed-copper-cables-dac-acc-and-aec/",
+    "prior_status": "HTTP 500",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "AEC \"higher power consumption (2.5-3.5W)\"; retimer integrates CTLE, DFE, CDR and FIR drivers."
+  },
+  {
+    "id": "ascentoptics-osfp-form-factor",
+    "url": "https://ascentoptics.com/blog/osfp-form-factor-guide/",
+    "prior_status": "HTTP 500",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "OSFP with integrated heat sink: 22.58 mm wide, 107.8 mm deep, 13.0 mm high."
+  },
+  {
+    "id": "ascentoptics-coherent-power-consumption",
+    "url": "https://ascentoptics.com/blog/coherent-optical-module-power-consumption/",
+    "prior_status": "HTTP 500",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "400ZR 18 to 20 W typical, 22 W max; 800ZR 23 to 25 W typical; one 800G link at 23-25 W vs 36-40 W for two 400G. 800ZR+ read as 20-25 W typical, 28 W max (fetch tool summary)."
+  },
+  {
+    "id": "ascentoptics-coherent-power",
+    "url": "https://ascentoptics.com/blog/coherent-optical-module-power-consumption/",
+    "prior_status": "HTTP 500",
+    "fetch_result": "ok (same URL as ascentoptics-coherent-power-consumption)",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Same page; duplicate registry id."
+  },
+  {
+    "id": "broadcom-sian3-200g-lane-dsp",
+    "url": "https://www.globenewswire.com/news-release/2025/03/25/3048831/19933/en/broadcom-extends-200g-lane-dsp-phy-leadership-for-next-generation-ai-infrastructure.html",
+    "prior_status": "TimeoutError",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Sian3: \"Low power 3nm 200G/lane DSP for sub-13W 800G and sub-23W 1.6T transceivers\"; 1.6T retimer PHY BCM83628, 800G gearbox PHY BCM83820."
+  },
+  {
+    "id": "navitas-10kw-dcdc-800v50v",
+    "url": "https://www.globenewswire.com/news-release/2026/02/09/3234542/0/en/Navitas-Unveils-Breakthrough-10-kW-DC-DC-Platform-Delivering-98-5-Efficiency-for-800-VDC-Next-Gen-AI-Data-Centers.html",
+    "prior_status": "TimeoutError",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "\"98.5% peak efficiency and 98.1% full load efficiency\"; 800 V-to-50 V and +/-400 V-to-50 V at 10 kW; 61 x 116 x 11 mm."
+  },
+  {
+    "id": "tspa-400g-lane-ofc",
+    "url": "https://tspasemiconductor.substack.com/p/ofc-preview-the-race-to-400g-per-lane",
+    "prior_status": "HTTP 404",
+    "fetch_result": "HTTP 404",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Not retrieved."
+  },
+  {
+    "id": "tsmc-coupe-stack-2024",
+    "url": "https://pr.tsmc.com/system/files/newspdf/attachment/507ec4d12fab34dd5137213a5132cece4f6a7ed7/2024%20Tech%20Symposium%20%28E%29_final_wmn.pdf",
+    "prior_status": "HTTP 403",
+    "fetch_result": "ok at HTTP level but returned a 151 KB PDF the tool could not parse (not confirmed to be the symposium deck)",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "No COUPE or SoIC-X text could be read."
+  },
+  {
+    "id": "broadcom-th6-davisson-release",
+    "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-announces-tomahawkr-6-davisson-industrys-first-1024",
+    "prior_status": "TimeoutError",
+    "fetch_result": "timeout (twice)",
+    "fetched_on": "10/08/2026",
+    "alt_url": "https://www.storagereview.com/news/broadcom-ships-tomahawk-6-davisson-cpo-ethernet-switch-doubling-bandwidth-to-102-4-tb-s-for-ai-fabrics (trade-press article quoting the release)",
+    "supports": "Sixteen 6.4 Tb/s optical engines, 102.4 Tb/s; \"currently sampling the TH6-Davisson BCM78919 to early access customers and partners\"; release dated 10/08/2025 (search excerpt)."
+  },
+  {
+    "id": "broadcom-cpo-reliability-meta",
+    "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-showcases-industry-leading-quality-and-reliability-co",
+    "prior_status": "TimeoutError",
+    "fetch_result": "timeout (twice)",
+    "fetched_on": "10/08/2026",
+    "alt_url": "https://www.nasdaq.com/press-release/broadcom-showcases-industry-leading-quality-and-reliability-co-packaged-optics-2025 (also timed out); text seen only as a search excerpt",
+    "supports": "One million cumulative 400G-equivalent port device hours of flap-free CPO operation at Meta, release 10/01/2025 (search excerpt)."
+  },
+  {
+    "id": "broadcom-bailly-release-2024",
+    "url": "https://investors.broadcom.com/news-releases/news-release-details/broadcom-delivers-industrys-first-512-tbps-co-packaged-optics",
+    "prior_status": "TimeoutError",
+    "fetch_result": "timeout (twice)",
+    "fetched_on": "10/08/2026",
+    "alt_url": "https://www.globenewswire.com/news-release/2024/03/14/2846314/19933/en/Broadcom-Delivers-Industry-s-First-51-2-Tbps-Co-Packaged-Optics-Ethernet-Switch-Platform-for-Scalable-AI-Systems.html (same release, ok)",
+    "supports": "Bailly: eight 6.4 Tb/s engines with Tomahawk 5, 6.4T-FR4 engines with BFC, 4RU air cooled, 128 x 400G FR4 on 128 duplex LC, remote laser modules, 70% lower power, edge-coupled fiber attach."
+  },
+  {
+    "id": "marvell-celestial-close-2026",
+    "url": "https://www.sec.gov/Archives/edgar/data/1835632/000119312526032861/d45933dex991.htm",
+    "prior_status": "not attempted: host access denied in this session",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Marvell completed the Celestial AI acquisition, 02/02/2026; initial revenue expected in the second half of fiscal 2028."
+  },
+  {
+    "id": "ceie-eaton-9395xr",
+    "url": "https://snmiss.com/?a=index&aid=16&c=View&m=home",
+    "prior_status": "RemoteDisconnected",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "Distributor article: online dual-conversion efficiency \"as high as 97.5%\", AC direct supply mode \"can be improved to 99%\"."
+  },
+  {
+    "id": "intel-xeon-8480c",
+    "url": "https://www.intel.com/content/www/us/en/products/sku/231730/intel-xeon-platinum-8480c-processor-105m-cache-2-00-ghz/specifications.html",
+    "prior_status": "HTTP 403",
+    "fetch_result": "ok",
+    "fetched_on": "10/08/2026",
+    "alt_url": null,
+    "supports": "TDP 350 W; 8 memory channels; DDR5 4800 MT/s 1DPC, 4400 MT/s 2DPC."
+  }
+]

@@ -4,7 +4,7 @@
 
 The active Blender preview is the working integration copy. Main, optics/dive and remote main were checked at `9d6ce44867112d1ebc4de631f57a1a878d10995d`. The Blender worktree's Git HEAD remains `e5301e108c56016fa8a7e863a50f5a0ed3a98653`; its uncommitted source and assets contain the buildout. No commit, push or public deployment is part of this reconciliation.
 
-- Current private review: http://100.120.155.127:47411/design-review.html (Tailscale).
+- Current private review: http://<private-ip>:47411/design-review.html (Tailscale).
 - Development preview: http://127.0.0.1:47410/design-review.html.
 - The production preview emits `build-info.json`: build time, actual content fingerprint, Git HEAD, and the main revision whose changes were reviewed. It does not pretend the detached HEAD contains those commits.
 - The 47407 and 47408 servers serve older generated output; they are not aliases of this review build. Historical worktrees and generated previews have not been overwritten.

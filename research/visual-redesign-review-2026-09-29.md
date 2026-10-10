@@ -36,7 +36,7 @@ The physical assets are authored in Blender and exported as GLBs. The interactiv
 
 1,282 tests across 29 files and TypeScript pass after the final source revisions. Production build and artifact packaging are verified separately in the handoff inventory. Technical checks support route and component correctness; visual polish remains available for the user's judgment in the private dashboard.
 
-Review dashboard: http://100.120.155.127:47411/design-review.html (Tailscale).
+Review dashboard: http://<private-ip>:47411/design-review.html (Tailscale).
 
 Final build: aff52411e0f71e46. Artifact export verified all 74 runtime files; packaging regression passes. Refreshed SHA-256 handoff inventory contains 246 source/asset/tool files. Copper Data desktop sample: 172.31 FPS, p95 6.3 ms, median CPU 0.9 ms at 1440×1000 on RTX 5090. No new console errors during the final checks.
 

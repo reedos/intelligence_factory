@@ -4,7 +4,7 @@
 
 The Blender preview is an integration candidate. The identified technical and presentation blockers in this review were corrected, independently rechecked, and exercised in the rendered application. This is a bounded educational-model review, not vendor CAD certification or a promise about every arbitrary camera position.
 
-Private review dashboard: http://100.120.155.127:47411/design-review.html (Tailscale).
+Private review dashboard: http://<private-ip>:47411/design-review.html (Tailscale).
 
 Worktree: `C:\Users\reedo\.codex\worktrees\blender-module-test\intelligence_factory`. Main/origin main were checked at `9d6ce44867112d1ebc4de631f57a1a878d10995d`. Their 14 changed paths since the preview base were reconciled; details are in `version-sync-2026-09-29.md`. Main, historical previews and the public deployment have not been overwritten. No commit or push was made.
 

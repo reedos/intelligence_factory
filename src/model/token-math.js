@@ -6,16 +6,16 @@
 
 export const TOKEN_MATH_MODEL = { name: 'Llama 3.1 70B', params: 70e9, paramsText: '70B', precision: 'FP8', bytesPerParam: 1 };
 
-// the GPU's dense math at the precision it publishes a figure for, FP8 first (the model's own precision)
-function gpuMath(A) {
-  if (A.fp8PF) return { pf: A.fp8PF, precision: 'FP8' };
-  if (A.fp4PF) return { pf: A.fp4PF, precision: 'FP4' };
+// A peak at another precision cannot time this model's arithmetic.
+function gpuMath(A, modelPrecision) {
+  if (modelPrecision === 'FP8' && A.fp8PF) return { pf: A.fp8PF, precision: 'FP8' };
+  if (modelPrecision === 'FP4' && A.fp4PF) return { pf: A.fp4PF, precision: 'FP4' };
   return { pf: null, precision: null };
 }
 
 export function tokenMath(M, model = TOKEN_MATH_MODEL) {
   const A = M.accel, flops = 2 * model.params, bytes = model.params * model.bytesPerParam;
-  const { pf, precision } = gpuMath(A), hbmBps = A.hbm.tbs * 1e12, flopsPerS = pf ? pf * 1e15 : null;
+  const { pf, precision } = gpuMath(A, model.precision), hbmBps = A.hbm.tbs * 1e12, flopsPerS = pf ? pf * 1e15 : null;
   return {
     model, flops, bytes,
     intensity: flops / bytes,                            // FLOPs per byte read, one stream
@@ -41,6 +41,6 @@ export function tokenMathRows(M) {
     ['Read from HBM per token', `≈${sig(t.bytes / 1e9)} GB (${m.paramsText} × ${m.bytesPerParam} byte)`, 'derived', { calc: 'token-math-bytes' }],
   ];
   if (t.balance) rows.push(['Arithmetic per byte read', `≈${sig(t.intensity)} FLOP; ${A.id === 'rubin' ? 'Rubin' : (A.short ?? A.id)} can do ≈${sig(t.balance)} (${t.mathPrecision})`, 'derived', { calc: 'token-math-intensity' }]);
-  rows.push(['One stream on one GPU', `≈${ms(t.readS)} ms reading weights${t.mathS ? ` vs ≈${ms(t.mathS)} ms of math` : ''}`, 'derived', { calc: 'token-math-step-time' }]);
+  rows.push(['One stream on one GPU', `≈${ms(t.readS)} ms reading weights${t.mathS ? ` vs ≈${ms(t.mathS)} ms of math` : `; ${m.precision} compute peak unavailable`}`, 'derived', { calc: 'token-math-step-time' }]);
   return rows;
 }

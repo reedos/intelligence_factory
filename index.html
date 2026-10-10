@@ -73,7 +73,7 @@
   <header class="chapter" id="power" style="--c: var(--mv)">
     <p class="ch-k"><span>02</span>Power</p>
     <p class="ch-s">From the meter to the die: where every megawatt goes and why the voltage steps down.</p>
-    <p class="note">The regional map names real campuses by their own power source — Meta's Hyperion runs on new gas-fired plants (<a href="visualizer.html?view=0.power.site-hyperion">see it on the map</a>) — and this campus has its own perimeter <a href="visualizer.html?view=1.power.security">security</a> and <a href="visualizer.html?view=1.power.ops">operations center</a> watching it.</p>
+    <p class="note">The regional map names real campuses by their own power source — Meta's Hyperion is to be powered by new gas-fired plants Entergy is building (<a href="visualizer.html?view=0.power.site-hyperion">see it on the map</a>) — and this campus has its own perimeter <a href="visualizer.html?view=1.power.security">security</a> and <a href="visualizer.html?view=1.power.ops">operations center</a> watching it.</p>
   </header>
   <figure class="chapter-scene">
     <a href="visualizer.html?view=1.power" aria-label="Follow power into the campus. Open 3D">
@@ -130,10 +130,10 @@
     <div class="sec-head">
       <p class="eyebrow">3.2 · Links</p>
       <h2 id="links-h">The links, drawn and counted</h2>
-      <p id="links-lede">Three networks, three physical media. Copper ties 72 GPUs into one machine inside a rack; single-mode fiber and pluggable optics tie racks into a campus fabric; coherent optics on leased fiber tie campuses together. Counts are for this 100 MW campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials.</p>
+      <p id="links-lede">Three networks, three physical media. Copper ties 72 GPUs into one machine inside a rack; single-mode fiber and pluggable optics tie racks into a campus fabric; coherent optics on long-haul fiber tie campuses together. Counts are for this 100 MW campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials.</p>
     </div>
     <figure class="fig"><div class="chart-box" id="fig-scaleup"></div><figcaption id="cap-scaleup"><b style="color:var(--nvl)">Scale-up.</b> Inside one NVL72 rack every GPU connects straight to all 18 NVLink switch chips, so any GPU reaches any other through exactly one switch. One GPU's 18 links are highlighted.</figcaption></figure>
-    <figure class="fig"><div class="chart-box" id="fig-scaleout"></div><figcaption id="cap-scaleout"><b style="color:var(--eth)">Scale-out.</b> One 800G optical port per GPU climbs through up to three tiers of 144-port switches. Non-blocking means the same number of links at every tier, so each tier adds about one more link per GPU and two more optical modules per link.</figcaption></figure>
+    <figure class="fig"><div class="chart-box" id="fig-scaleout"></div><figcaption id="cap-scaleout"><b style="color:var(--eth)">Scale-out.</b> One 400G optical port per GPU climbs through three tiers of 64-port switches. Non-blocking means the same number of links at every tier, so each tier adds about one more link per NIC.</figcaption></figure>
     <figure class="fig"><div class="chart-box" id="fig-across"></div><figcaption><b style="color:var(--dci)">Scale across.</b> Traffic for another campus leaves the fabric through routers with coherent optics, which put many colors of light on each fiber pair. Amplifier huts boost the light every 80 km or so without turning it back into electricity. <a href="visualizer.html?view=8.data">See the data center interconnect in 3D</a></figcaption></figure>
 
     <div class="subsec sec-head">
@@ -185,7 +185,7 @@
     <div class="sec-head">
       <p class="eyebrow">4.1 · Temperature</p>
       <h2 id="temps-h">Hot to cold</h2>
-      <p>Every watt ends as heat, and heat only flows downhill. Each hop from die to outdoor air costs a few degrees, which is why warmer water is the trick: NVIDIA's newest spec feeds racks at 45 °C, so even a 35 °C afternoon can take the heat through dry coolers, without chillers.</p>
+      <p>Every watt ends as heat, and heat only flows downhill. Each hop from die to outdoor air costs a few degrees, which is why warmer water is the trick: NVIDIA's newest spec feeds racks at 45 °C, so even a 35 °C afternoon can take the heat through dry coolers with spray assist, without chillers.</p>
     </div>
     <figure class="fig">
       <div class="chart-box"><svg id="temps" viewBox="0 0 1000 340" role="img" aria-label="Temperature at each hop from GPU die to outdoor air"></svg></div>
@@ -266,12 +266,12 @@
         </div>
         <ul class="refs">
           <li><span>Google, median Gemini text prompt (2025). Includes idle capacity, host CPU and DRAM, and PUE overhead; excludes training. Google's own write-up doesn't mention embodied hardware, so this page doesn't count that as included</span><span><b>0.24 Wh · 0.03 g · 0.26 mL</b> <span class="chip reported">Reported</span></span></li>
-          <li><span>Llama 3.1 405B pretraining (Meta model card), location-based</span><span><b>39.3M H100 GPU-hours · 11,390 t CO₂e</b> <span class="chip spec">Spec</span></span></li>
+          <li><span>Llama 3.1 pretraining, all three sizes (8B, 70B, 405B; Meta model card), location-based</span><span><b>39.3M H100 GPU-hours · 11,390 t CO₂e</b> <span class="chip spec">Spec</span></span></li>
           <li><span>GPT-4 training electricity (Epoch AI reconstruction)</span><span><b>≈52–62 GWh</b> <span class="chip reported">Reported</span></span></li>
           <li><span>Embodied carbon, HGX H100 board of 8 GPUs (NVIDIA)</span><span><b>1,312 kg CO₂e</b> <span class="chip spec">Spec</span></span></li>
-          <li><span>LLaMA-65B on A100, GPU only (Samsi et al., 2023)</span><span><b>3–4 J/token</b> <span class="chip reported">Reported</span></span></li>
-          <li><span>DeepSeek-R1 decode on GB200, per GPU (SemiAnalysis)</span><span><b>≈13k tok/s</b> <span class="chip reported">Reported</span></span></li>
-          <li><span>NVIDIA: GB200 NVL72 vs H200, tokens per MW</span><span><b>≈8–10×</b> <span class="chip vendor">Vendor</span></span></li>
+          <li><span>LLaMA-65B on V100, GPU only (Samsi et al., 2023)</span><span><b>3–4 J/token</b> <span class="chip reported">Reported</span></span></li>
+          <li><span>DeepSeek-R1 decode on GB200, per GPU (LMSYS/SGLang)</span><span><b>≈13k tok/s</b> <span class="chip reported">Reported</span></span></li>
+          <li><span>SemiAnalysis InferenceMAX: GB200 NVL72 vs H200, tokens per MW</span><span><b>≈8×</b> <span class="chip reported">Reported</span></span></li>
         </ul>
       </div>
     </div>
@@ -281,7 +281,7 @@
     <div class="sec-head">
       <p class="eyebrow">5.2 · Inventory</p>
       <h2 id="bom-h">What it takes: a 100 MW campus, counted</h2>
-      <p id="bom-lede">Sized from the same assumptions as the ledger: 100 MW at the meter, PUE 1.2, 132 kW racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale.</p>
+      <p id="bom-lede">Sized from the same assumptions as the ledger: 100 MW at the meter, PUE 1.16, 131 kW GB200 NVL72 racks. Real campuses differ in redundancy and layout; the counts are here to give a sense of scale.</p>
     </div>
     <div class="bom-grid" id="bom"></div>
   </section>
@@ -292,7 +292,7 @@
       <h2 id="made-h">How it was made</h2>
     </div>
     <div class="made-body">
-      <p>The page is written in TypeScript, drawn with <a href="https://threejs.org">Three.js</a> (version 0.183.2)
+      <p>The page is written in JavaScript, with the scenario engine in TypeScript, drawn with <a href="https://threejs.org">Three.js</a> (version 0.183.2)
       — which describes itself as a “JavaScript 3D Library” — and bundled with <a href="https://vite.dev">Vite</a>
       (version 8.3.1), which calls itself “a build tool that aims to provide a faster and leaner development
       experience for modern web projects.” The build is static: the source lives on GitHub, and the site is served from Cloudflare’s network at reedos.dev.</p>
@@ -305,13 +305,12 @@
       campus buildings and vehicles, and the optical and co-packaged-optics modules; everything else in the scene
       is procedural, built by code from the model’s numbers, so it recounts and resizes itself when you change the
       scenario.</p>
-      <p>Every figure on the page is labeled by what backs it: Spec, Vendor, Reported, Calc. or Assumed, with its
+      <p>Every figure on a part, chart, ledger row or tour stop is labeled by what backs it: Spec, Vendor, Reported, Calc. or Assumed, with its
       sources one click away. The <a href="evidence.html">Evidence</a> page lists every figure that way, and the
       <a href="method.html">Method</a> page lists every calculation and assumption behind them. Underneath, a
-      scenario engine turns four choices — campus size, accelerator, power path and cooling — into every number,
-      chart and sentence on the page.</p>
-      <p>Automated checks run before anything ships: Vitest unit tests (1,380 tests across 40 files, as of this
-      writing) cover the engine, the content and the links; <a href="https://playwright.dev">Playwright</a> drives
+      scenario engine turns four choices — campus size, accelerator, power path and cooling — into every number
+      in the charts and tours.</p>
+      <p>Automated checks run before anything ships: Vitest unit tests cover the engine, the content and the links; <a href="https://playwright.dev">Playwright</a> drives
       a real browser through checks named for what they look for — <code>cycle</code> (every scenario, scene and layer, watching for errors),
       <code>views</code> (every part framed clear of overlays), <code>coplanar</code> (flush surfaces that would
       flicker), <code>parts</code> (every numbered part has a pin), <code>flights</code> (every camera move between parts stays clear of walls and roofs) and <code>ui</code> (the page’s controls stay

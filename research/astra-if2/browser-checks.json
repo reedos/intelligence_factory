@@ -1,0 +1,74 @@
+[
+  {
+    "route": "index.html",
+    "width": 360,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "method.html",
+    "width": 360,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "evidence.html",
+    "width": 360,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "parts.html",
+    "width": 360,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "glossary.html",
+    "width": 360,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "visualizer.html?view=5.power.tokens",
+    "width": 360,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "index.html",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "method.html",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "evidence.html",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "parts.html",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "glossary.html",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  },
+  {
+    "route": "visualizer.html?view=5.power.tokens",
+    "width": 1440,
+    "overflow": false,
+    "errors": []
+  }
+]

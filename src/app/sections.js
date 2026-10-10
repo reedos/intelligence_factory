@@ -131,7 +131,7 @@ function renderLinkText() {
   const M = store.M, A = M.accel, nvl = A.gpusPerRack === 72, F = M.NET.fabric;
   const size = M.meterMW >= 1000 ? `${+(M.meterMW / 1000).toFixed(2)} GW` : `${Math.round(M.meterMW)} MW`;
   const speed = A.nicGbps >= 1000 ? `${A.nicGbps / 1000}T` : `${A.nicGbps}G`;
-  $('links-lede').textContent = `Three networks, three physical media. Copper ties ${nvl ? '72 GPUs into one machine inside a rack' : '8 GPUs into one machine inside each server'}; single-mode fiber and pluggable optics tie ${nvl ? 'racks' : 'servers'} into a campus fabric; coherent optics on leased fiber tie campuses together. Counts are for this ${size} campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials.`;
+  $('links-lede').textContent = `Three networks, three physical media. Copper ties ${nvl ? '72 GPUs into one machine inside a rack' : '8 GPUs into one machine inside each server'}; single-mode fiber and pluggable optics tie ${nvl ? 'racks' : 'servers'} into a campus fabric; coherent optics on long-haul fiber tie campuses together. Counts are for this ${size} campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials.`;
   $('cap-scaleup').innerHTML = `<b style="color:var(--nvl)">Scale-up.</b> ` + (A.id==='rubin'
     ? 'Vera Rubin NVL72 uses nine switch trays with four NVLink 6 chips each: 36 switch chips for a 72-GPU fabric. Lines sample GPU-to-fabric relationships; they do not specify physical ASIC ports or lane wiring.'
     : nvl
