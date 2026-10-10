@@ -1,0 +1,33 @@
+IF-3 gate and look-diff summary (10/08/2026). Bulky per-case logs removed from the tree; re-run the tools to regenerate.
+
+Phone gate, tools/perf.mjs phone (HEAD, RTX 5090, 4x CPU throttle, limit 33.3 ms p95), re-measure in fresh browsers:
+run 1 exit 0
+re-measured 10 case(s) over 33.3 ms on the first attempt (fail = over on every attempt):
+  GB200 100 MW warm/hall/power p95 attempts [43.0, 16.6] ms -> pass
+  GB200 100 MW warm/hall/data p95 attempts [47.2, 21.7] ms -> pass
+  GB200 100 MW warm/hall/heat p95 attempts [34.8, 16.4] ms -> pass
+  GB300 5 GW DC/campus/power p95 attempts [44.1, 21.6] ms -> pass
+  GB300 5 GW DC/campus/data p95 attempts [44.9, 30.8] ms -> pass
+  GB300 5 GW DC/hall/power p95 attempts [46.2, 32.2] ms -> pass
+  GB300 5 GW DC/hall/data p95 attempts [47.1, 33.0] ms -> pass
+  GB300 5 GW DC/hall/heat p95 attempts [40.2, 16.3] ms -> pass
+  H100 1 GW air/hall/power p95 attempts [42.3, 19.9] ms -> pass
+  H100 1 GW air/hall/data p95 attempts [47.2, 42.0, 47.1, 20.4] ms -> pass
+rows 90 max first-attempt p95 47.2 max best-attempt p95 33.0
+run 2 exit 0
+rows 90 max first-attempt p95 30.6 max best-attempt p95 30.6
+run 3 crashed (browser closed mid-run); rerun:
+run 3b exit 1
+re-measured 6 case(s) over 33.3 ms on the first attempt (fail = over on every attempt):
+  GB200 100 MW warm/hall/data p95 attempts [43.2, 44.8, 39.0, 39.7] ms -> FAIL
+  GB300 5 GW DC/hall/power p95 attempts [40.8, 20.5] ms -> pass
+  GB300 5 GW DC/hall/data p95 attempts [46.9, 18.9] ms -> pass
+  GB300 5 GW DC/hall/heat p95 attempts [37.2, 15.3] ms -> pass
+  H100 1 GW air/hall/power p95 attempts [45.2, 17.7] ms -> pass
+  H100 1 GW air/hall/data p95 attempts [44.7, 38.3, 41.6, 33.1] ms -> pass
+
+look-diff cf92075 vs HEAD, shoot both forms, 60 images, animations disabled:
+60 images, worst 0.0000% of pixels over 8/255 (limit: none), 0 failing
+self-test, NUDGE_DEG=1 (camera turned 1 degree) on levels 2,3: 12 images, worst 19.9866% of pixels over 8/255 (limit: none), 60 failing; 12 of 12 compared images fail
+
+update-cost logs (tools/update-cost.mjs) are the CPU-per-frame evidence; no frame-time gain was demonstrated.

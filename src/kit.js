@@ -5,6 +5,7 @@ import { particleBudget } from './app/render-quality.js';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { VOLT } from './data.js';
+import { PathSampler } from './path-sampler.js';
 
 export { THREE };
 const std = (color, roughness = 0.7, metalness = 0, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness, metalness, ...extra });
@@ -257,6 +258,7 @@ export class PulseMaterial extends THREE.MeshBasicMaterial {
   }
   customProgramCacheKey() { return 'ifx-pulse-droplet-v1'; }
 }
+const _ta = new THREE.Vector3(), _tb = new THREE.Vector3();   // tangent scratch for PathSampler
 export const PULSE_MAX_PX = 7;   // pulse radius ceiling in CSS pixels
 export class Flow {
   constructor(points, css, { count = 24, speed = 1, size = 1, k = 2.2, opacity = 1, trail = true, trailK = 0.35, trailR, role } = {}) {
@@ -264,6 +266,7 @@ export class Flow {
     this.path = new THREE.CurvePath();
     const pts = points.map(p => new THREE.Vector3(...p));
     for (let i = 0; i < pts.length - 1; i++) this.path.add(new THREE.LineCurve3(pts[i], pts[i + 1]));
+    this.sampler = new PathSampler(this.path);
     this.len = this.path.getLength(); this.count = count; this.speed = speed; this.size = size;
     this.phase = Math.random();
     this.color = new THREE.Color(css).multiplyScalar(k);
@@ -311,7 +314,7 @@ export class Flow {
     const activeCount = this.mesh.count;
     for (let i = 0; i < activeCount; i++) {
       const u = ((i / activeCount + step + this.phase) % 1 + 1) % 1;
-      this.path.getPointAt(u, this.v);
+      this.sampler.pointAt(u, this.v);
       const style = this.motionStyle;
       let radius = this.size * (style?.radius || 1);
       if (projection) {
@@ -328,7 +331,7 @@ export class Flow {
       const stretch = style ? Math.max(1, Math.min(style.stretch, this.len / this.count / (radius * 3))) : 1;
       _o.position.copy(this.v);
       if (stretch > 1) {
-        this.path.getTangentAt(u, this.tangent);
+        this.sampler.tangentAt(u, this.tangent, _ta, _tb);
         _o.quaternion.setFromUnitVectors(this.pulseAxis, this.tangent);
       } else _o.rotation.set(0, 0, 0);
       _o.scale.set(s, s, s * stretch); _o.updateMatrix();
@@ -374,6 +377,7 @@ export class LaneFlow {
       for (let i = 0; i < pts.length - 1; i++) path.add(new THREE.LineCurve3(pts[i], pts[i + 1]));
       return path;
     });
+    this.laneSamplers = this.lanePaths.map(p => new PathSampler(p));
     this.laneLens = this.lanePaths.map(p => p.getLength());
     this.laneOf = []; this.phaseOf = [];
     lanes.forEach((_, L) => { for (let p = 0; p < count; p++) { this.laneOf.push(L); this.phaseOf.push((p + 0.08 * ((L * 7 + p * 3) % 5)) / count); } });
@@ -417,9 +421,9 @@ export class LaneFlow {
     this.lastT = t; this.acc += this.speed * this.gain * dt;
     const activeCount = this.mesh.count;
     for (let i = 0; i < activeCount; i++) {
-      const L = this.laneOf[i], len = this.laneLens[L], path = this.lanePaths[L];
+      const L = this.laneOf[i], len = this.laneLens[L], path = this.laneSamplers[L];
       const u = (((this.acc / len) + this.phaseOf[i]) % 1 + 1) % 1;
-      path.getPointAt(u, this.v);
+      path.pointAt(u, this.v);
       const style = this.motionStyle;
       let radius = this.size * (style?.radius || 1);
       if (projection) {
@@ -431,7 +435,7 @@ export class LaneFlow {
       const s = radius * (style ? 0.85 + 0.15 * Math.sin(u * 40) : 0.75 + 0.25 * Math.sin(u * 40));
       const stretch = style ? Math.max(1, Math.min(style.stretch, len / this.perLane / (radius * 3))) : 1;
       _o.position.copy(this.v);
-      if (stretch > 1) { path.getTangentAt(u, this.tangent); _o.quaternion.setFromUnitVectors(this.pulseAxis, this.tangent); }
+      if (stretch > 1) { path.tangentAt(u, this.tangent, _ta, _tb); _o.quaternion.setFromUnitVectors(this.pulseAxis, this.tangent); }
       else _o.rotation.set(0, 0, 0);
       _o.scale.set(s, s, s * stretch); _o.updateMatrix();
       this.mesh.setMatrixAt(i, _o.matrix);
