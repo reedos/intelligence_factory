@@ -52,7 +52,7 @@ const measure = () => {
     sprites.push({ text: o.userData.caption.text.slice(0, 40), px: +(spriteH * 44 / 72).toFixed(1) });
   });
   const furniture = {}, chipEl = document.getElementById('pin-chip'), chip = chipEl && shown(chipEl) && chipEl.getBoundingClientRect().width ? box(chipEl.getBoundingClientRect()) : null;
-  for (const sel of ['.hud.tl', '.hud.tr', '#back-out']) {
+  for (const sel of ['.hud.tl', '.hud.tr', '#back-out', '.present-launch']) {
     const el = document.querySelector(sel);
     if (el && shown(el)) { const r = el.getBoundingClientRect(); if (r.width && r.height) furniture[sel] = box(r); }
   }

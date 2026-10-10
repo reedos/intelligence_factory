@@ -244,7 +244,7 @@ export function build({ quality, model, state = {} }) {
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0x060a12, 3200, 9200);
   scene.add(sky('#040810', '#0c1526', '#1c2436', 12000));
-  scene.add(new THREE.HemisphereLight(0x6a84b8, 0x0a0d12, 0.85));
+  scene.add(new THREE.HemisphereLight(0x6a84b8, 0x0a0d12, 1.05));
   const key = new THREE.DirectionalLight(0xc9d8ff, 0.45); key.position.set(-800, 1200, 600); scene.add(key);
   scene.add(cityLights(quality));                                      // metro glow: always on, whatever the layer
 
@@ -732,7 +732,7 @@ export function build({ quality, model, state = {} }) {
 
   const viewport = new THREE.Vector2();
   // the page's overlays inside the view: numbered pins (circle and label), the title block, layer switch, buttons, hint
-  const OVERLAYS = '#pins .pin .num, #pins .pin .lbl, #pins .pin-group, #view .hud.tl, #view .hud.tr, #hud-btns .btn, #view .hint';
+  const OVERLAYS = '#pins .pin .num, #pins .pin .lbl, #pins .pin-group, #view .hud.tl, #view .hud.tr, #view .present-launch, #hud-btns .btn, #view .hint';
   const reservedBoxes = canvas => {
     if (typeof document === 'undefined' || !document.querySelectorAll || !canvas?.getBoundingClientRect) return [];
     const c = canvas.getBoundingClientRect(), out = [];
@@ -753,8 +753,8 @@ export function build({ quality, model, state = {} }) {
   const siteSpots = Object.fromEntries(others.map(p => { const [x, z] = world(p.site.lon, p.site.lat); return [placeKey(p), { pos: [x, 12, z], view: view(x - 15, z, 300) }]; }));
   const built = {
     scene, flows, dataFlows, heatFlows, layers: { power, data }, powerDraw,
-    look: { exposure: 1.0, bloom: 0.85, threshold: 0.92, ao: 0, env: 'night', envIntensity: 0.5 },
-    camera: { pos: [hx - 220, 1380, hz + 1560], target: [hx - 60, 0, hz + 200], near: 1, far: 30000, min: 60, max: 6000 },
+    look: { exposure: 1.45, bloom: 0.85, threshold: 0.92, ao: 0, env: 'night', envIntensity: 0.5 },
+    camera: { pos: [hx - 220, 1250, hz + 1560], target: [hx - 60, 0, hz + 200], near: 1, far: 30000, min: 60, max: 6000 },
     hotspots: {
       grid: { pos: [(plants[1][0] + hx) / 2, 12, (plants[1][1] + hz) / 2], view: view((plants[1][0] + hx) / 2, (plants[1][1] + hz) / 2, 700) },
       plants: { pos: [plants[0][0] + 5 * Math.cos(GAS_RY) - 7 * Math.sin(GAS_RY), 24, plants[0][1] - 5 * Math.sin(GAS_RY) - 7 * Math.cos(GAS_RY)], view: view(plants[0][0] + 2, plants[0][1] - 4, 95) },

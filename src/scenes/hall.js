@@ -1084,7 +1084,7 @@ export function build({ quality, model }) {
   tiles.rotation.x = -Math.PI / 2; tiles.position.set((X0 + X1) / 2, 0.17, 0); scene.add(tiles);
 
   // polished-concrete floor reflection, a hair above the slab, desktop only
-  if (quality.reflections) scene.add(floorMirror(X1 - X0 - 1, Z1 - Z0 - 1, { x: (X0 + X1) / 2, y: 0.155, z: 0, res: 0.85, strength: 0.16, blur: 0.56, tint: '#9aaaba' }));
+  if (quality.reflections) scene.add(floorMirror(X1 - X0 - 1, Z1 - Z0 - 1, { x: (X0 + X1) / 2, y: 0.155, z: 0, res: 0.4, strength: 0.16, blur: 0.56, tint: '#9aaaba' }));
 
   // light fixtures over the aisles: standing figures for scale
   // Standing scale figures use the same muted technician as the walkers (campus WALKER asset), so the

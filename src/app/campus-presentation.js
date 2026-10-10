@@ -1,6 +1,7 @@
 import { on, store } from './store.js';
-import { setCampusView, setCampusFocus, campusFocusInfo, built, qualityInfo, setQualityPreference, partsFor, select, show, onTick, isCameraMoving } from './stage.js';
+import { setCampusView, setCampusFocus, campusFocusInfo, built, qualityInfo, setQualityPreference, partsFor, select, show, onTick, isCameraMoving, controls } from './stage.js';
 import { createPartCycle } from './part-cycle.js';
+import { createIdleAttract } from './idle-attract.js';
 import './campus-presentation.css';
 
 const panel = document.createElement('section');
@@ -44,6 +45,23 @@ document.getElementById('intro').before(scope);
 document.querySelector('.panel').id = 'inspector';
 const details = document.getElementById('inspector-toggle');
 const present = document.getElementById('presentation-view');
+const launch = document.createElement('button');
+launch.type = 'button'; launch.className = 'present-launch';
+launch.textContent = 'Present'; launch.setAttribute('aria-pressed', 'false');
+document.getElementById('view').append(launch);
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const idleAttract = createIdleAttract({
+  enter: () => { setPresentation(true); controls.autoRotateSpeed = 0.3; controls.autoRotate = true; },
+  leave: () => { controls.autoRotate = false; setPresentation(false); },
+});
+const stopAttract = idleAttract.reset;
+for (const event of ['pointerdown', 'pointermove', 'wheel', 'keydown']) addEventListener(event, stopAttract, { capture: true, passive: true });
+reducedMotion.addEventListener('change', stopAttract);
+document.addEventListener('visibilitychange', stopAttract);
+onTick(dt => {
+  idleAttract.tick(dt, !reducedMotion.matches && !document.hidden && store.ui.scene === 0 && !isCameraMoving());
+});
+on('scene', () => { if (store.ui.scene !== 0) stopAttract(); });
 let previousCollapsed = false;
 function collapseInspector(collapsed) {
   document.body.classList.toggle('inspector-collapsed', collapsed);
@@ -55,8 +73,10 @@ function setPresentation(enabled) {
   document.body.classList.toggle('presentation-view', enabled);
   present.setAttribute('aria-pressed', String(enabled));
   present.textContent = enabled ? 'Exit presentation' : 'Present';
+  launch.textContent = present.textContent; launch.setAttribute('aria-pressed', String(enabled));
   collapseInspector(enabled || previousCollapsed);
 }
+launch.addEventListener('click', () => setPresentation(!document.body.classList.contains('presentation-view')));
 present.addEventListener('click', () => setPresentation(!document.body.classList.contains('presentation-view')));
 details.addEventListener('click', () => collapseInspector(!document.body.classList.contains('inspector-collapsed')));
 addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('presentation-view')) setPresentation(false); });

@@ -1,0 +1,14 @@
+1440 story images, no overflow, scenario and Present: PASS
+360 story images, no overflow, scenario and Present: PASS
+20-second idle camera loop and keyboard cancellation: PASS
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+page.waitForFunction: Timeout 12990ms exceeded.
+    at C:\Users\reedo\projects\intelligence_factory-prefix-tmp\tools\audit-ux.mjs:56:10 {
+  log: [],
+  name: 'TimeoutError'
+}
+
+Node.js v24.19.0
