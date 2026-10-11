@@ -1664,8 +1664,8 @@ function updatePins() {
   });
   // Pins that pile up are fanned out (declutterPins) instead of overlapping or being dropped; on small screens a big
   // pile folds into a group badge. The selected pin never joins a cluster. Wide screens leave the interconnects'
-  // compact pins to their own rule below.
-  const small = w < 640;
+  // compact pins to their own rule below. A short view (a phone held sideways) counts as small too.
+  const small = w < 640 || h < 300;
   let clutter = null;
   if ((small || !compact) && !presentation?.hidePins) {
     const cands = [];
@@ -1709,7 +1709,10 @@ function updatePins() {
   // already placed; a label with no such place is not drawn, and shows on hover or focus instead (.hide-lbl). The
   // selected pin goes first, then pins in list order.
   const circles = shown.map(({ x, y }) => ({ left: x - PIN_R, right: x + PIN_R, top: y - PIN_R, bottom: y + PIN_R }));
-  const taken = [...reserved], namesInChip = chipQuery.matches;
+  // the group badges count as taken too: labels and the side levels' captions keep off them (round-6 review: at 320 px
+  // the module's caption sat over its badge; held sideways, pin labels ran under the badges)
+  const badges = [...pinGroups.values()].map(el => { const r = el.getBoundingClientRect(); return { left: r.left - vr.left, right: r.right - vr.left, top: r.top - vr.top, bottom: r.bottom - vr.top }; });
+  const taken = [...reserved, ...badges], namesInChip = chipQuery.matches;
   for (const { p, x, y } of shown) {
     const lbl = p.el.querySelector('.lbl'), labelWidth = (p.lw ||= lbl.offsetWidth) || 120;
     const sel = p.id === ui.selected;

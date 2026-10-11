@@ -15,6 +15,7 @@ export function placeCaption(cx, cy, w, h, obstacles, cw, ch, steps = [0, 14, -1
   return null;
 }
 
+const FAR = [0, 14, -14, 28, -28, 42, -42, 56, -56, 70, -70, 84, -84, 98, -98, 112, -112];
 export function createSceneCaptions(container) {
   let owner = null, entries = [], frame = 0, lastW = 0;
   const v = { project: null };
@@ -50,7 +51,9 @@ export function createSceneCaptions(container) {
       for (const { e, x, y, ok } of live) {
         if (!ok) continue;
         if (!e.w || wide) { e.el.style.display = 'block'; e.el.style.transform = 'translate(-9999px,0)'; const r = e.el.getBoundingClientRect(); e.w = r.width; e.h = r.height; }
-        const box = placeCaption(x, y, e.w, e.h, [...obstacles, ...placed], cw, ch);
+        // a headline may step further (it names the whole model, not one part): at 320 px the module's would otherwise
+        // give way to a pin group badge
+        const box = placeCaption(x, y, e.w, e.h, [...obstacles, ...placed], cw, ch, e.height >= 0.3 ? FAR : undefined);
         if (!box) continue;
         placed.push(box); show.add(e);
         e.el.style.display = 'block'; e.el.style.transform = `translate(${box.left.toFixed(1)}px, ${box.top.toFixed(1)}px)`;

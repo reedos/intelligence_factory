@@ -99,6 +99,61 @@ def decimate(o,tris,target):
         bpy.ops.object.modifier_apply(modifier=mod.name)
     o.data.calc_loop_triangles();print('DECIMATED',o.name,tris,'->',len(o.data.loop_triangles))
 
+HERO_BEVEL={'tray':.0006,'chip':.0002}
+
+def split_hero_parts(kind,accel):
+    # The parts the close-up cameras fill (d4-gpu at 77 px/cm, d5-dies at 117 px/cm): the GPU package (substrate, interposer,
+    # dies, HBM stacks, stiffener and lid), and at the tray the Grace/Vera package and the GPU and CPU cold plates over them.
+    # Each such disconnected part moves to an object of its own, tagged ifxHero, so refine_reference gives it a radius that
+    # catches light at that range. Same faces, materials and positions; the export joins them back by material.
+    pkg=json.loads((HERE/'references'/'gpu-package.json').read_text()).get(accel)
+    if not pkg:return
+    cm=.01;feet=[(pkg['substrate']['w'],pkg['substrate']['d']),(pkg['interposer']['w'],pkg['interposer']['d']),
+        (pkg['dies'][0]['w'],pkg['dies'][0]['d']),(pkg['hbm']['w'],pkg['hbm']['d']),(pkg['stiffener']['w'],pkg['stiffener']['d']),(pkg['lid']['w'],pkg['lid']['d'])]
+    def near(a,b,t=.0006):return abs(a-b)<t
+    def foot(sx,sy,w,d):return (near(sx,w*cm) and near(sy,d*cm)) or (near(sx,d*cm) and near(sy,w*cm))
+    # Cold plates (tray units, references/rack-tray-layout.json): the GPU and CPU plates and every package part under one
+    # that is at least half the plate's footprint (the Grace package and its lid ring, the plate base, recess and cap).
+    plates=[]
+    if kind=='tray':
+        src=LAY['rubin']['plates'] if accel=='rubin' else LAY['nvl']['plates'] if accel!='h100' else []
+        plates=[(p['x']*.1,-p['z']*.1,p['w']*.1,p['d']*.1) for p in src if p['kind'] in ['gpu','cpu']]
+    def opaque(m):
+        q=m and m.use_nodes and m.node_tree.nodes.get('Principled BSDF')
+        return not q or (not q.inputs['Alpha'].is_linked and q.inputs['Alpha'].default_value>=1)
+    def hero(lo,hi,mats):
+        sx,sy,sz=(hi[i]-lo[i] for i in range(3))
+        if not(.0005<=sz<.009) or not all(opaque(m) for m in mats):return False
+        if sz<.006 and any(foot(sx,sy,w,d) for w,d in feet):return True
+        cx,cy=(lo[0]+hi[0])/2,(lo[1]+hi[1])/2
+        return any(abs(cx-x)<w/2 and abs(cy-y)<d/2 and w*.5<=sx<=w*1.02 and d*.5<=sy<=d*1.02 for x,y,w,d in plates)
+    split=0
+    for o in [o for o in bpy.context.scene.objects if o.type=='MESH']:
+        bm=bmesh.new();bm.from_mesh(o.data);bmesh.ops.remove_doubles(bm,verts=list(bm.verts),dist=1e-7);mw=o.matrix_world
+        seen=set();keep=set()
+        for s in bm.verts:
+            if s in seen:continue
+            g={s};st=[s]
+            while st:
+                v=st.pop()
+                for e in v.link_edges:
+                    w=e.other_vert(v)
+                    if w not in g:g.add(w);st.append(w)
+            seen|=g;ps=[mw@v.co for v in g]
+            faces={f for v in g for f in v.link_faces}
+            mats=[o.data.materials[f.material_index] for f in faces if f.material_index<len(o.data.materials)]
+            if faces and hero([min(q[i] for q in ps) for i in range(3)],[max(q[i] for q in ps) for i in range(3)],mats):keep|=faces;split+=1
+        if not keep:bm.free();continue
+        if len(keep)==len(bm.faces):bm.to_mesh(o.data);bm.free();o['ifxHero']=1;continue
+        bm.faces.index_update();rest=[f for f in bm.faces if f not in keep]
+        part=bm.copy();part.faces.ensure_lookup_table();bm.faces.ensure_lookup_table()
+        bmesh.ops.delete(part,geom=[part.faces[f.index] for f in rest],context='FACES')
+        bmesh.ops.delete(bm,geom=list(keep),context='FACES')
+        me=o.data.copy();part.to_mesh(me);part.free();bm.to_mesh(o.data);bm.free()
+        h=o.copy();h.data=me;h['ifxHero']=1
+        for c in o.users_collection:c.objects.link(h)
+    print('HERO_PARTS',kind,accel,split)
+
 def refine_reference(kind,accel):
     for o in list(bpy.context.scene.objects):
         if o.type!='MESH':continue
@@ -126,12 +181,25 @@ def refine_reference(kind,accel):
             bm.to_mesh(o.data);bm.free()
         if kind=='tray' and accel in ['gb200','gb300']:remove_tray_mechanics(o)
         if len(o.data.vertices)==0:bpy.data.objects.remove(o,do_unlink=True);continue
+    if kind in ['tray','chip']:split_hero_parts(kind,accel)
+    for o in list(bpy.context.scene.objects):
+        if o.type!='MESH':continue
         # Weld reference face splits, then add genuine manufacturing edge radii.
         # Curved cables and spheres keep their existing shape; bevel only sharp edges.
         bm=bmesh.new();bm.from_mesh(o.data)
         # Racks weld at 10 um so coplanar seams of the native boxes join (cleaner cabinet shading, fewer vertices).
         bmesh.ops.remove_doubles(bm,verts=list(bm.verts),dist=1e-5 if kind=='rack' else 1e-7)
         tris=sum(len(f.verts)-2 for f in bm.faces)
+        if o.get('ifxHero'):
+            # Hero parts: a 0.6 mm (tray) or 0.2 mm (chip) two-segment radius, 4-5 px of edge highlight at the close-up
+            # cameras, over smooth shading; the weighted normals keep the broad faces flat.
+            for e in bm.edges:e.smooth=True
+            for f in bm.faces:f.smooth=True
+            bm.to_mesh(o.data);bm.free()
+            mod=o.modifiers.new('Blender manufactured edge finish','BEVEL');mod.width=HERO_BEVEL[kind]
+            mod.segments=2;mod.limit_method='ANGLE';mod.angle_limit=.65;mod.use_clamp_overlap=True
+            o.modifiers.new('Precision surface normals','WEIGHTED_NORMAL').keep_sharp=True
+            continue
         if kind=='rack' or (kind=='tray' and tris>=3000):
             # Smooth by angle for the unbeveled meshes: box edges stay crisp, cable and hose sections shade round.
             for e in bm.edges:e.smooth=not(len(e.link_faces)==2 and e.calc_face_angle(0)>math.radians(30))
@@ -159,7 +227,7 @@ def refine_reference(kind,accel):
             o.modifiers.new('Precision surface normals','WEIGHTED_NORMAL');continue
         mod=o.modifiers.new('Blender manufactured edge finish','BEVEL')
         mod.width={'rack':.00035,'tray':.00022,'chip':.000025}[kind]
-        # 0.22 mm (tray) and 25 um (chip) radii are under a pixel at their closest cameras: one chamfer segment.
+        # Everything but the hero parts (split_hero_parts): 0.22 mm (tray) and 25 um (chip), one chamfer segment.
         mod.segments=1;mod.limit_method='ANGLE';mod.angle_limit=.65;mod.use_clamp_overlap=True
         o.modifiers.new('Precision surface normals','WEIGHTED_NORMAL')
 
@@ -425,7 +493,10 @@ def tray_package_finish(accel):
     p.inputs['Emission Color'].default_value=(.159,.686,1,1);p.inputs['Emission Strength'].default_value=.08   # level 6's resting power glow
     finish={'die_top':top,'die_side':material('GPU die sidewall',(.0103,.0123,.0176),.3,.4),
             'interposer':material('CoWoS-L organic redistribution interposer',(.0116,.0103,.0103),.1,.5),
-            'hbm_top':material('HBM molded top',(.035,.038,.045),.05,.5),'hbm_side':material('HBM DRAM die edge',(.0999,.1195,.15),.35,.3)}
+            'hbm_top':material('HBM molded top',(.035,.038,.045),.05,.5),'hbm_side':material('HBM DRAM die edge',(.0999,.1195,.15),.35,.3),
+            # The substrate's top is the chip level's solder mask (chip.js 'Substrate solder mask', #0f2420 under its via and
+            # trace canvas, which compute-blender.js paints on at runtime); its laminate sides keep the board black.
+            'substrate_top':material('GPU package substrate solder mask',(.0048,.0176,.0144),.05,.45)}
     def near(a,b,t=.0006):return abs(a-b)<t
     def foot(sx,sy,w,d):return (near(sx,w*cm) and near(sy,d*cm)) or (near(sx,d*cm) and near(sy,w*cm))
     def dark(o,f):
@@ -450,10 +521,12 @@ def tray_package_finish(accel):
             if foot(sx,sy,die['w'],die['d']) and sz<.0025:kind='die'   # the die body and its printed top skin
             elif pkg['id']!='h100' and foot(sx,sy,ip['w'],ip['d']) and sz<.003:kind='interposer'
             elif foot(sx,sy,hb['w'],hb['d']) and .002<sz<.006 and all(dark(o,f) for f in faces):kind='hbm'   # not the H100's blank silicon spacer
+            elif foot(sx,sy,pkg['substrate']['w'],pkg['substrate']['d']) and .002<sz<.006:kind='substrate'
             else:continue
             count[kind]=count.get(kind,0)+1
             for f in faces:
                 up=(rot@f.normal).normalized().z>.9
+                if kind=='substrate' and not up:continue
                 assign.append((f.index,finish[kind if kind=='interposer' else kind+('_top' if up else '_side')]))
         bm.free()
         for i,m in assign:
