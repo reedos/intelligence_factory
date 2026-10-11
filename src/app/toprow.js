@@ -19,7 +19,6 @@ for (const p of pops) {
   p.btn.addEventListener('click', () => (p.menu.hidden ? open(p) : close(p)));
   // a choice made: a button pressed or a select changed (the rendering select keeps the menu open for a second look)
   p.menu.addEventListener('click', e => { const b = e.target.closest('button'); if (b && !b.closest('label')) close(p); });
-  p.menu.addEventListener('change', e => { if (e.target.id === 'link-view') close(p); });
 }
 addEventListener('keydown', e => { if (e.key !== 'Escape') return; const p = pops.find(q => !q.menu.hidden); if (p) { e.stopPropagation(); close(p, { focus: true }); } }, true);
 document.addEventListener('pointerdown', e => { for (const p of pops) if (!p.menu.hidden && !p.menu.contains(e.target) && !p.btn.contains(e.target)) close(p); }, true);
