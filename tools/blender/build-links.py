@@ -308,37 +308,6 @@ def internals(kind):
                 # when no moving pulse happens to illuminate that route.
                 p.inputs['Base Color'].default_value=(.68,.31,.13,c[3])
                 p.inputs['Metallic'].default_value=.7;p.inputs['Roughness'].default_value=.38
-    # The reference import clones one material per native mesh face group ("Physical 0", "Physical 0.001" ...): 25 of the
-    # coherent module's 65 materials were copies. Share one per look; diagram slots and other ifx tags stay distinct.
-    # Glass becomes plain alpha: one KHR_materials_transmission material (a 3 mm lens) made three.js render the whole
-    # scene a second time for refraction nobody could see at that size.
-    def look(m):
-        p=m.node_tree.nodes.get('Principled BSDF') if m.use_nodes else None
-        if not p or any(i.is_linked for i in p.inputs):return ('own',m.name)
-        vals=tuple(tuple(round(x,4) for x in i.default_value) if hasattr(i.default_value,'__len__') else round(i.default_value,4)
-                   for i in p.inputs if i.type in ('RGBA','VALUE','VECTOR') and hasattr(i,'default_value'))
-        return (vals,m.blend_method,m.use_backface_culling,tuple(sorted((k,str(m[k])) for k in m.keys() if k!='ifxSourceMaterial')))
-    canon={}
-    for o in imported:
-        if o.type!='MESH':continue
-        for slot in o.material_slots:
-            m=slot.material
-            if not m or not m.use_nodes:continue
-            p=m.node_tree.nodes.get('Principled BSDF')
-            if p and p.inputs['Transmission Weight'].default_value>0:
-                # 0.55 alpha at 80% transmission read as a pale clear block; 0.4 alpha keeps that look without the pass.
-                p.inputs['Transmission Weight'].default_value=0;p.inputs['Alpha'].default_value=.4
-            k=look(m);canon.setdefault(k,m)
-            if canon[k] is not m:slot.material=canon[k]
-        # then fold the now-identical slots, so a box's five plain faces export as one primitive, not five draw calls
-        mats=list(o.data.materials);first={}
-        for i,m in enumerate(mats):first.setdefault(m,i)
-        if len(first)<len(mats):
-            order=list(first);remap=[order.index(m) for m in mats]
-            index=[remap[p.material_index] for p in o.data.polygons]
-            o.data.materials.clear()   # resets every face to slot 0: reassign after
-            for m in order:o.data.materials.append(m)
-            for p,i in zip(o.data.polygons,index):p.material_index=i
     count=sum(1 for o in imported if o.type=='MESH')
     for o in imported:
         if o.type=='EMPTY' and not o.children:bpy.data.objects.remove(o,do_unlink=True)

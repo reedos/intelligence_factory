@@ -29,6 +29,8 @@ const mb = n => (n / 1e6).toFixed(2);
 let before = 0, after = 0;
 for (const file of files) {
   const size = statSync(file).size;
+  // the module's lane-flow glow follows its authored vertex order, which compression reorders: it ships as authored
+  if (/osfp-module-runtime\.glb$/.test(file)) { console.log(`keep  ${file} (shipped uncompressed: its lane glow needs the authored vertex order)`); continue; }
   if (extensionsUsed(file).includes('EXT_meshopt_compression')) { console.log(`skip  ${file} (already meshopt, ${mb(size)} MB)`); continue; }
   const doc = await io.read(file);
   await doc.transform(

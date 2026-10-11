@@ -771,6 +771,9 @@ export function build({ quality, model, state = {} }) {
     // desktop canvas (aspect 1.25), so all eleven campuses stay in frame; wider canvases keep the authored distance
     camera: { pos: [cx - 160 * fitK, 1250 * fitK, cz + 1360 * fitK], target: [cx, 0, cz], near: 1, far: 30000, min: 60, max: Math.max(6000, 4500 * fitK),
       fit: { aspect: 1.25, fov: 35, minScale: 1 } },
+    // the data layer is about this campus's routes to its two nearest neighbours, so it keeps the closer authored
+    // framing: pulled back to fit all eleven campuses, the routes shrank to a few pixels under the pins
+    cameraByMode: { data: { pos: [hx - 220, 1250, hz + 1560], target: [hx - 60, 0, hz + 200] } },
     hotspots: {
       grid: { pos: [(plants[1][0] + hx) / 2, 12, (plants[1][1] + hz) / 2], view: view((plants[1][0] + hx) / 2, (plants[1][1] + hz) / 2, 700) },
       plants: { pos: [plants[0][0] + 5 * Math.cos(GAS_RY) - 7 * Math.sin(GAS_RY), 24, plants[0][1] - 5 * Math.sin(GAS_RY) - 7 * Math.cos(GAS_RY)], view: view(plants[0][0] + 2, plants[0][1] - 4, 95) },

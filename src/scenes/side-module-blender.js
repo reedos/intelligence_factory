@@ -29,7 +29,7 @@ const PIN_OFFSET = {
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
 
-export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=r2blender`) {
+export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=orig1`) {
   if (cached) return Promise.resolve(cached);
   if (!pending) pending = gltfLoader().loadAsync(url).then(gltf => {
     cached = gltf;
@@ -479,7 +479,7 @@ export function build({ quality, state, model: scenario, side: sideOption }) {
     housingBounds: hardwareBounds(model).union(captionBounds),
     camera: { pos: quality.mobile ? [1.6, 13.5, 20.5] : [1.6, 12, 17.5], target: [0.5, 2.1, 0], near: 0.05, far: 300, min: 1.2, max: 40,
       portrait: { pos: [4.2, 9.5, 12], target: [0.9, 2.1, 0.2] } },
-    hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers },
+    hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: hs.dsp, driver: hs.driver, tia: hs.tia, lasers: hs.lasers },
     dataHotspots: { fingers: hs.fingers, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers, mzm: hs.mzm, mpo: hs.mpo, pd: hs.pd, tia: hs.tia },
     heatHotspots: { dsp: dspHeat, shell: hs.shell },
     variant: {

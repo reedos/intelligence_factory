@@ -70,49 +70,6 @@ emit('TIA channel cells', 'PART_TIA', '02', tv, tf)
 emit('TIA channel pads', 'PART_TIA', '05', tp, tpf)
 emit('MZM modulator bodies', 'PART_PIC', '02', mv, mf)
 
-# Triangle budget (review 10/11/2026), idempotent like the cells above. Printed marks ('09 | Silkscreen': the inductor
-# '1R0' marks, the DSP capacity text, board borders) are 2 um extrusions: keep their top faces, drop the walls and
-# undersides no camera can see (about three quarters of their triangles). Small parts carrying a three-segment 35 um
-# edge round (188 triangles a box: solder terminations, gold fingers, molded packages, capacitors) collapse to about a
-# third; the round is under a pixel at the closest part camera. A rerun finds nothing left to trim.
-import bmesh, math
-def islands(bm):
-    seen = set()
-    for s in bm.verts:
-        if s in seen: continue
-        g = {s}; st = [s]
-        while st:
-            v = st.pop()
-            for e in v.link_edges:
-                w = e.other_vert(v)
-                if w not in g: g.add(w); st.append(w)
-        seen |= g; yield g
-trimmed = {}
-for o in [o for o in bpy.data.objects if o.type == 'MESH' and o.data.materials]:
-    names = [m.name for m in o.data.materials if m]
-    bm = bmesh.new(); bm.from_mesh(o.data); bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-8)
-    mw = o.matrix_world; rot = mw.to_3x3(); before = len(bm.faces); parts = list(islands(bm))
-    if names and all(n.startswith('09 |') for n in names):
-        drop = set()
-        for g in parts:
-            zs = [(mw @ v.co).z for v in g]
-            if max(zs) - min(zs) < 1e-5: drop |= {f for v in g for f in v.link_faces if (rot @ f.normal).normalized().z < .99}
-        if drop: bmesh.ops.delete(bm, geom=list(drop), context='FACES_ONLY'); bm.to_mesh(o.data); trimmed[o.name] = (before, len(bm.faces))
-        bm.free(); continue
-    sizes = [len({f for v in g for f in v.link_faces}) for g in parts]
-    big = max((max((mw @ v.co)[i] for v in g) - min((mw @ v.co)[i] for v in g) for g in parts for i in range(3)), default=1)
-    if len(parts) >= 8 and sum(n == 188 for n in sizes) >= .8 * len(parts) and big < .008:   # rounded boxes only, not bond wire arcs
-        bm.to_mesh(o.data); bm.free()
-        mod = o.modifiers.new('Viewing distance collapse', 'DECIMATE'); mod.decimate_type = 'COLLAPSE'; mod.ratio = .35
-        bpy.ops.object.select_all(action='DESELECT'); o.select_set(True); bpy.context.view_layer.objects.active = o
-        bpy.ops.object.modifier_apply(modifier=mod.name)
-        o.data.set_sharp_from_angle(angle=math.radians(35))
-        for f in o.data.polygons: f.use_smooth = True
-        trimmed[o.name] = (before, len(o.data.polygons))
-        continue
-    bm.free()
-print('TRIMMED', trimmed)
-
 meta['laneCells'] = {'perDirection': 8, 'perEngine': 4, 'driverCells': 8, 'tiaCells': 8, 'modulators': 8, 'photodiodes': 8, 'lasers': 4,
                      'lasersShared': 'four CW lasers, each feeding two modulators (one per lane pair)'}
 root['ifx'] = json.dumps(meta, separators=(',', ':'))

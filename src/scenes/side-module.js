@@ -221,7 +221,7 @@ export function build({ quality, state, model }) {
   return {
     scene, flows, dataFlows, heatFlows,
     camera: { pos: [1.2, 8.6, 10.5], target: [0, 1.3, 0], near: 0.05, far: 300, min: 1.2, max: 40, portrait: { pos: [0.6, 12.5, 16.5], target: [0, 0.9, 0.4] } },
-    hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: e1.hs.dsp, driver: e1.hs.driver, lasers: e1.hs.lasers },
+    hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: e1.hs.dsp, driver: e1.hs.driver, tia: e1.hs.tia, lasers: e1.hs.lasers },
     dataHotspots: { fingers: hs.fingers, dsp: e1.hs.dsp, driver: e1.hs.driver, lasers: e1.hs.lasers, mzm: e1.hs.mzm, mpo: hs.mpo, pd: e1.hs.pd, tia: e1.hs.tia },
     heatHotspots: { dsp: e1.hs.dsp, shell: hs.shell },
     variant: { get lpo() { return lpo.on; }, setLpo, get kind() { return lpo.kind; }, set: setVariant,

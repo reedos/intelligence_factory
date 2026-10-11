@@ -14,7 +14,7 @@ let pending;
 export function preloadLinks() {
   if (cached.size === 2) return Promise.resolve();
   if (!pending) pending = Promise.all(['coherent', 'copper'].map(async name => {
-    const gltf = await gltfLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 21 : 19}`);
+    const gltf = await gltfLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 21 : 20}`);
     cached.set(name, gltf.scene);
   })).catch(error => { pending = null; throw error; });
   return pending;

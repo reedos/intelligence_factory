@@ -627,6 +627,7 @@ export const PART_SOURCES = {
   'power:module:dcdc': [],
   'power:module:dsp': ['credo-optical-dsp', 'marvell-ara-product-brief', 'nvidia-mms4a00-specs', 'broadcom-sian3-200g-lane-dsp', 'marvell-ara-1-6t-prnewswire', 'semtech-200g-lpo-power-blog', 'credo-lro-dove850-press', 'marvell-ara-1p6t-portfolio'],
   'power:module:driver': ['flexoptix-lpo-intro'],
+  'power:module:tia': ['juniper-1p6t-transceiver', 'flexoptix-lpo-intro'],
   'power:module:lasers': ['nvidia-mms4x00-nm16', 'juniper-1p6t-transceiver'],
   'data:module:fingers': ['osfp-msa', 'juniper-1p6t-transceiver'],
   'data:module:dsp': ['credo-optical-dsp', 'marvell-ara-product-brief', 'nvidia-mms4a00-specs', 'juniper-1p6t-transceiver', 'marvell-ara-1-6t-prnewswire', 'broadcom-sian3-200g-lane-dsp', 'oif-rtlr-press-2025', 'lpo-msa-faqs', 'marvell-ara-1p6t-portfolio'],
