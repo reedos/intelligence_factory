@@ -48,8 +48,8 @@ keep their own terms, and the hero images' rights status is unresolved: see
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 Links: `?mw=&accel=&power=&cooling=&site=` sets the scenario and `?view=scene.layer.part` opens a view. The
-visualizer's guided tours and clock strip are built but not wired into the live page (`src/visualizer.js` loads
-the exploration UI only); old tour links such as `#story`, `#watt`, `#request` and `#heat` still work, but
+visualizer's guided-tour player and clock strip are parked at the git tag `parked/tours-clock` (the tour content in
+`src/app/journeys.js` and the clocks in `src/model/clock.ts` stay, for the Evidence and Method pages); old tour links such as `#story`, `#watt`, `#request` and `#heat` still work, but
 `index.html` now forwards them, along with any `?view=` or `?clock=` link, straight into the visualizer at the
 right part instead of starting a tour. The page keeps its address bar current, and Share copies it.
 
@@ -64,7 +64,7 @@ right part instead of starting a tour. The page keeps its address bar current, a
 - `src/evidence.js` — the five labels, what each figure's evidence looks like, and the registers of calculations and
   assumptions; `src/claims.js` — every labeled figure, with the key its chip carries
 - `src/app/` — `stage` (3D and panels), `sections` (charts), `scenario` (the settings bar), `links`
-  (chart ↔ 3D), `story` and `journeys` (tours), `clock-ui`, `sources-ui` (popovers), `share`
+  (chart ↔ 3D), `journeys` (tour content), `sources-ui` (popovers), `share`
 - `src/scenes/` — scene assembly, motion and overlays around Blender-authored GLB geometry;
   `src/app/stage.js` selects the authored builders by default and loads assets as levels are entered.
   `?module=native` or `?module=original` retains the comparison implementation.

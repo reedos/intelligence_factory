@@ -1,12 +1,10 @@
 node_modules/
-dist/
-dist-artifact/
+dist*/
 *.log
 shots/
 .claude/
 .vite/
 design/hero/incoming/
-dist-gates/
 .local/
 cf-stage/
 

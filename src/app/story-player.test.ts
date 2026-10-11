@@ -1,6 +1,6 @@
-// Tests for the tour-player fixes (tour audit findings 9, 10, 14, 16) that don't need a DOM: story.js queries the
-// page at import time (the panel, the stage, #view...), so it is driven by the Playwright probes instead
-// (tools/tours.mjs, tools/ui.mjs). What's tested here are the pure pieces those fixes are built on: the beats
+// Tests for the tour-player fixes (tour audit findings 9, 10, 14, 16) that don't need a DOM. The player itself
+// (story.js) and its Playwright probe (tools/tours.mjs) are parked at the git tag parked/tours-clock. What's tested
+// here are the pure pieces those fixes are built on: the beats
 // layer() generates, the claim keys they carry, and the CHAIN a chaining tab's disclosure text reads from. The
 // small helpers below that mirror story.js's private hereDir()/dwell()/tourLen() are commented as such, on
 // purpose kept in one place so a change to the real ones is easy to notice here too.

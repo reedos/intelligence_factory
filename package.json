@@ -8,7 +8,7 @@
     "dev": "vite --host 127.0.0.1 --port 47400",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 47401",
-    "test": "vitest run",
+    "test": "vitest run && node --test tools/artifact.test.mjs",
     "typecheck": "tsc --noEmit",
     "artifact": "vite build && node tools/artifact.mjs"
   },

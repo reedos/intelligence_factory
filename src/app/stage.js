@@ -69,7 +69,7 @@ if (!['native', 'original'].includes(new URLSearchParams(location.search).get('m
   coherentBuilder = links.coherentBuilder; copperBuilder = links.copperBuilder;
 }
 const BUILDERS = [across, campus, hall, rackBuilder, trayBuilder, chipBuilder, moduleBuilder, cpoBuilder, coherentBuilder, copperBuilder];
-export const MAIN_LEVELS = 6, MODULE_LEVEL = 6, CPO_LEVEL = 7;
+const MAIN_LEVELS = 6, MODULE_LEVEL = 6, CPO_LEVEL = 7;
 export const isSide = i => i >= MAIN_LEVELS;
 // how the reader entered the side levels: the level, the door part and the layer, restored by Back out. A link opened
 // straight into a side level has none, and Back out goes to the level that holds that diagram instead.
@@ -78,7 +78,7 @@ const SIDE_PARENT = { 6: 4, 7: 2, 8: 0, 9: 3 };           // module: the tray (N
 const sideParent = i => (i === 6 ? (store.moduleSide === 'nic' ? 4 : 2) : SIDE_PARENT[i]);
 // where a part's go-button leads: a number, or 'out' for the side level's way back
 const backTarget = () => sideEntered ? sideFrom : sideParent(ui.scene) ?? 4;
-export const drillOf = p => p?.drill === 'out' ? backTarget() : p?.drill;
+const drillOf = p => p?.drill === 'out' ? backTarget() : p?.drill;
 // the pluggable module inside the optics: full DSP, half-retimed (LRO: DSP on transmit only) or no DSP (LPO); a view of
 // the module only, since the fabric this scenario counts still uses DSP modules
 let moduleVariant = 'dsp';
@@ -86,11 +86,6 @@ let moduleVariant = 'dsp';
 // Bailly-class package); kept in the address as ?cpo=mzm so a link opens the same package (scenes/cpo-variants.js)
 let cpoVariant = new URLSearchParams(location.search).get('cpo') === 'mzm' ? 'mzm' : 'ring';
 // tours always narrate the DSP module and the ring engines, so entering one puts both views back
-export function resetVariant() {
-  if (moduleVariant !== 'dsp') { moduleVariant = 'dsp'; applyVariant(); }
-  if (cpoVariant !== 'ring') { cpoVariant = 'ring'; applyCpoVariant(); }
-  if (store.moduleSide !== 'switch') setModuleSide('switch');
-}
 function applyCpoVariant() {
   built[CPO_LEVEL]?.variant?.set?.(cpoVariant);
   try {
@@ -151,7 +146,7 @@ on('module-side', async () => {
 document.querySelectorAll('[data-module-side]').forEach(b => b.addEventListener('click', () => setModuleSide(b.dataset.moduleSide)));
 // whether moving from one level to another goes in: a side level counts as inside whatever it was entered from, and
 // moving between two side levels (a tour crossing from the module to the CPO package) goes across, drawn as in
-export const isInward = (from, to) => isSide(to) ? true : isSide(from) ? false : to > from;
+const isInward = (from, to) => isSide(to) ? true : isSide(from) ? false : to > from;
 
 // per scene defaults: bloom, ambient occlusion radius (world units, 0 = off), exposure. A scene can override any of
 // these, and pick its lighting environment and depth of field, by returning `look` from build():
@@ -229,8 +224,6 @@ const hotspotsFor = (i, mode = ui.mode) => (built[i] && { power: built[i].hotspo
 // The number on a part's pin: its place among the parts its level draws in that layer. Tours number their steps with
 // it too, so the number beside a step is always the one on the part in the view. (tools/parts.mjs checks every listed
 // part has a pin, so a level not built yet numbers the same as it will once it is.)
-export const pinNumber = (scene, id, mode = ui.mode) => { const k = partsFor(scene, mode).findIndex(p => p.id === id); return k < 0 ? null : k + 1; };
-export const partCount = (scene, mode = ui.mode) => partsFor(scene, mode).length;
 const voltFor = s => ui.mode === 'heat' ? { ...VOLT[s.heatVolt], short: s.heatShort, name: VOLT[s.heatVolt].name } : VOLT[ui.mode === 'data' ? s.dataVolt : s.volt];
 const flowsFor = b => (ui.mode === 'data' ? b.dataFlows : ui.mode === 'heat' ? b.heatFlows : b.flows) || [];
 export const mobile = matchMedia('(max-width: 760px), (pointer: coarse)').matches;
@@ -239,7 +232,7 @@ export const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 // shortcuts anywhere on the page only fire while this has focus or the pointer, so they never hijack a key
 // meant for something else on the page - a form, a screen reader command, dictation (WCAG 2.1.4)
 const stageRegion = document.querySelector('.stage');
-export const stageActive = () => !!stageRegion && (stageRegion.contains(document.activeElement) || stageRegion.matches(':hover'));
+const stageActive = () => !!stageRegion && (stageRegion.contains(document.activeElement) || stageRegion.matches(':hover'));
 // what a scene may spend: shadows, the floor mirror (renders the scene twice) and depth of field are desktop only
 const quality = { shadows: !mobile, mobile, reflections: !mobile, dof: !mobile };
 const lookOf = i => ({ envIntensity: 0.35, env: 'room', dof: true, ...LOOK[i], ...(built[i]?.look || {}) });
@@ -705,15 +698,6 @@ export function setCampusView(name) {
   flyTo(opening.pos, opening.target, reduced ? 0.01 : 1.8);
   emit('campus-presentation', { view: name });
 }
-export function setInspectionView(name) {
-  const c = built[ui.scene]?.inspection?.views?.[name]; if (!c) return;
-  emit('user-camera'); deselect();
-  built[ui.scene]?.inspection?.setView?.(name);
-  built[ui.scene].inspection.currentView = name;
-  emit('campus-presentation', { view: name });
-  const opening = cameraPreset(c);
-  flyTo(opening.pos, opening.target, reduced ? .01 : 1.5, { detail: !!c.detailSize });
-}
 
 // ---------- camera moves ----------
 // Plain moves slide straight. Cinematic moves (tours) arc: the camera swings around the moving aim point,
@@ -724,10 +708,9 @@ export const setCinema = on => { cinema = on; if (!on) drift = null; };
 export const setTourPace = p => { tourPace = p; };
 // level transitions: Full is the whole dive (about 2 s a level), Quick the same moves in about 60% of the time, Instant
 // a straight cut. The reader's choice is remembered; reduced motion always cuts.
-export const TRANSITIONS = { full: 1, quick: 0.6, instant: 0 };
+const TRANSITIONS = { full: 1, quick: 0.6, instant: 0 };
 let transitions = 'quick';
 try { const v = localStorage.getItem('ifx-transitions'); if (Object.hasOwn(TRANSITIONS, v)) transitions = v; } catch { /* stay at Quick */ }
-export const getTransitions = () => transitions;
 export function setTransitions(v) {
   if (!Object.hasOwn(TRANSITIONS, v)) return;
   transitions = v;
@@ -1217,7 +1200,7 @@ export function select(id, fly) {
   revealInPane([document.querySelector(`#parts button[data-id="${id}"]`)?.closest('li'), $('card')]);
   emit('select', { scene: ui.scene, mode: ui.mode, id });
 }
-export function deselect() {
+function deselect() {
   ui.selected = null; $('card').hidden = true; controls.minDistance = levelMin;
   pins.forEach(p => p.el.classList.remove('on'));
   document.querySelectorAll('#parts button').forEach(b => b.setAttribute('aria-pressed', String(b.hasAttribute('data-overview'))));
@@ -1252,7 +1235,7 @@ export function cycle(d) {
   if (n === 0) selectOverview();
   else select(parts[n - 1].id, true);
 }
-export const hasPart = (scene, id, mode = ui.mode) => !!(PARTS_BY()[mode][SCENES()[scene].id] || []).find(p => p.id === id);
+const hasPart = (scene, id, mode = ui.mode) => !!(PARTS_BY()[mode][SCENES()[scene].id] || []).find(p => p.id === id);
 
 // ---------- level transitions ----------
 // Going in, the camera dives at the part that holds the next level (the hall on the campus, a rack in the hall, a
@@ -1456,10 +1439,9 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   if (queued) { const q = queued; queued = null; go(...q); }
   else if (built[ui.scene]?.model !== store.M) go(ui.scene, null, { force: true, keepCamera: true });   // the scenario changed mid-switch
 }
-export const sceneCount = BUILDERS.length;
 // Back out of a side level to the level, layer and door part the reader came in by; out of a main level to the one
 // above it, at the part whose door leads here
-export async function backOut() {
+async function backOut() {
   if (ui.scene <= 0) return;
   const restoreFocus = document.activeElement === $('back-out');
   if (!isSide(ui.scene)) {
@@ -1685,29 +1667,6 @@ timer.connect(document);                                  // no rAF runs while t
 // the frames straight after coming back say nothing about this tier
 document.addEventListener('visibilitychange', () => { if (!document.hidden) hush(1500); });
 let visible = true, t = 0, frameN = 0;
-// ---------- the clock drives the flows: null means steady state ----------
-let levels = null, levelsWere = null;
-export const setLevels = L => { levels = L; };
-const POWERISH = new Set(['lv', 'hvdc', 'dc', 'bus12', 'core']);
-function applyLevels(b) {
-  if (!levels && !levelsWere) return;
-  const L = levels, heat = ui.mode === 'heat';
-  if (!L) {                                               // clock closed: put every flow in every scene back
-    built.forEach(bb => bb && [bb.flows, bb.dataFlows, bb.heatFlows].forEach(list => list?.forEach(f => f.setLevel?.(1, 1))));
-    levelsWere = null; return;
-  }
-  for (const f of flowsFor(b)) {
-    if (!f.setLevel) continue;
-    if (f.role === 'standby') f.setLevel(L.standby > 0 ? 5 : 1, L.standby > 0 ? 2.8 : 1);
-    else if (heat) f.setLevel(f.cls === 'vapor' ? L.vapor : L.cool);
-    else if (f.cls === 'hv') f.setLevel(L.grid);
-    else if (f.cls === 'mv') f.setLevel(L.mv);
-    else if (POWERISH.has(f.cls) && ui.mode === 'power') f.setLevel(Math.max(0.08, L.load));
-    else f.setLevel(1);
-  }
-  levelsWere = L;
-}
-
 const tickers = new Set();
 export const onTick = fn => { tickers.add(fn); return () => tickers.delete(fn); };
 onTick(stepIris);
@@ -1721,7 +1680,6 @@ function loop(ts) {
   t += reduced ? dt * 0.35 : dt;
   const b = built[ui.scene];
   const frameStarted = performance.now();
-  applyLevels(b);
   const projection = { position: camera.position,
     worldPerPixelAtUnit: 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.max(1, view.clientHeight) };
   for (const f of flowsFor(b)) f.update(t, projection);

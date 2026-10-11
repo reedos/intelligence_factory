@@ -29,7 +29,6 @@ window.ifx = {
   renderer: stage.getRenderer, renderScale: stage.renderScale, quality: stage.qualityInfo, forceTier: stage.forceTier, setTransitions: stage.setTransitions,
   show: stage.show, THREE, clearance: stage.clearanceStats, setCpoVariant: stage.setCpoVariant, cpoVariant: stage.cpoVariantNow,
 };
-if (new URLSearchParams(location.search).has('module')) import('./app/blender-test.js');
 if (new URLSearchParams(location.search).get('module') !== 'native') import('./app/module-presentation.js');
 if (new URLSearchParams(location.search).get('devicecheck') === '1') import('./app/device-check.js');
 

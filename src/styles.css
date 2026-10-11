@@ -389,23 +389,17 @@ button.chip[data-src]::after { content: "i"; display: inline-grid; place-items: 
 .src-pop li span { font-size: 12px; }
 
 /* ---------- story mode ---------- */
-.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; margin-top: 6px; }
-.hint-inline { font-size: 13px; color: var(--muted); }
 .story-btn { min-height: 36px; padding: 0 16px; background: rgba(0,0,0,.72); backdrop-filter: blur(6px); }
 .story-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #000; }
 body.story .panel-scroll > :not(.story) { display: none; }
 .story { display: grid; gap: 0; }
-.story-head { position: sticky; top: -26px; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 26px 0 14px; margin-top: -26px; background: var(--ground); border-bottom: 1px solid var(--line); }
 .beat { min-height: 44vh; display: grid; align-content: center; gap: 12px; padding: 30px 0; border-bottom: 1px solid var(--line); opacity: .38; transition: opacity .35s; }
 .beat:first-of-type { min-height: 40vh; align-content: start; padding-top: 34px; }
 .beat.on { opacity: 1; }
 .beat .k { font: 400 11px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); display: flex; align-items: center; gap: 9px; }
 /* the part's pin, as the view draws it: lit on the step on stage, as the selected pin is */
-.bpin { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 600 11px/1 var(--mono); letter-spacing: 0; color: #0b0e13; background: var(--ink); }
-.beat.on .bpin { background: var(--accent); }
 .beat h3 { margin: 0; font: 600 clamp(28px, 2.6vw, 38px)/1 var(--display); text-transform: uppercase; }
 .beat p { margin: 0; font-size: 16px; line-height: 1.65; color: var(--ink); max-width: 44ch; }
-.beat-end { min-height: 40vh; display: grid; place-items: center; }
 @media (prefers-reduced-motion: reduce) { .beat { transition: none; } }
 
 .pin.flip { flex-direction: row-reverse; transform-origin: right center; }
@@ -413,38 +407,8 @@ body.story .panel-scroll > :not(.story) { display: none; }
 
 /* ---------- the clock ---------- */
 .clock { flex: none; display: grid; gap: 8px; padding: 10px 16px 12px; background: var(--surface); border-top: 1px solid var(--line-2); }
-.ck-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-.ck-tabs { display: flex; border: 1px solid var(--line-2); }
-.ck-tabs button { all: unset; cursor: pointer; padding: 7px 11px; font: 600 11px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-left: 1px solid var(--line); }
-.ck-tabs button:first-child { border-left: 0; }
-.ck-tabs button[aria-selected="true"] { background: var(--ink); color: #000; }
-.ck-tabs button:focus-visible, .ck-play:focus-visible, .ck-x:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
-.ck-play { all: unset; cursor: pointer; width: 30px; height: 28px; display: grid; place-items: center; border: 1px solid var(--line-2); font-size: 11px; color: var(--ink); }
-.ck-time { font: 600 20px/1 var(--display); font-variant-numeric: tabular-nums; min-width: 6.5ch; }
-.ck-phase { font-size: 13px; color: var(--muted); flex: 1 1 200px; }
-.ck-x { all: unset; cursor: pointer; font-size: 20px; line-height: 1; color: var(--muted); padding: 0 4px; }
-.ck-body { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; }
-.ck-spark { width: 100%; height: 56px; display: block; cursor: ew-resize; touch-action: none; }
-.ck-counters { margin: 0; display: grid; grid-template-columns: repeat(4, auto); gap: 4px 18px; }
-.ck-counters div { display: grid; gap: 3px; }
-.ck-counters dt { font: 400 9.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
-.ck-counters dd { margin: 0; font: 600 17px/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; }
 body.clocking .hud-btns #clock-btn, .story-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #000; }
 .clocks { display: grid; gap: 26px; }
-.clock-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-.ck-card { display: grid; gap: 12px; align-content: start; padding: 20px 20px 18px; background: var(--surface); border: 1px solid var(--line); }
-.ck-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.ck-card h3 { margin: 0; font: 600 26px/1 var(--display); text-transform: uppercase; }
-.ck-card .btn { min-height: 36px; padding: 0 14px; }
-.ck-card .chart-box { overflow: visible; }
-.ck-card .chart-box svg { width: 100%; min-width: 0; height: auto; display: block; }
-.ck-legend .sw[data-area] { height: 10px; background: color-mix(in srgb, var(--c) 30%, transparent); }
-.ck-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); }
-.ck-legend .sw[data-dash] { background: repeating-linear-gradient(90deg, var(--c) 0 4px, transparent 4px 7px); }
-.ck-notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 13px; line-height: 1.55; color: var(--muted); }
-.ck-notes li { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; }
-.ck-card .ctl { display: grid; gap: 8px; }
-@media (max-width: 1000px) { .clock-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------- real campuses ---------- */
 .sc-sites { display: grid; gap: 10px; }
@@ -469,33 +433,15 @@ body.clocking .hud-btns #clock-btn, .story-btn[aria-pressed="true"] { background
 #sc-accel button, #sc-power button, #sc-cooling button { flex: 1 1 0; min-width: 0; padding-inline: 6px; line-height: 1.15; }
 
 /* ---------- journeys ---------- */
-.story-head { flex-wrap: wrap; row-gap: 12px; }
-.tour-tabs { display: flex; border: 1px solid var(--line-2); }
 /* flex:1 1 0 + min-width:0 let four tabs share a fixed-width panel instead of forcing it wider once each
    carries a length line; the length line wraps (unlike the one-word label above it) so it can shrink that far */
-.tour-tabs button { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 3px; flex: 1 1 0; min-width: 0; padding: 8px 8px; font: 600 11px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-left: 1px solid var(--line); white-space: nowrap; }
-.tour-tabs button:first-child { border-left: 0; }
-.tour-tabs button small { display: block; font: 400 9.5px/1.3 var(--mono); letter-spacing: .02em; color: var(--faint); text-transform: none; white-space: normal; }
-.tour-tabs button[aria-selected="true"] { background: var(--ink); color: #000; }
-.tour-tabs button[aria-selected="true"] small { color: #3a4048; }
 /* tour audit finding 10: the length (and, for a chaining Every-part tab, what it hands off into) has to be
    visible on a phone too, or a reader can't see the full scope before pressing play - finding 15 makes the row
    it sits in scroll sideways with a visible affordance instead of hiding this to keep the row from wrapping */
-.tour-tabs button:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
 /* "Every part" is the exhaustive option: a closed disclosure, not a tab row the same size as the four tours */
-.tour-more { display: grid; gap: 6px; }
-.tour-more summary { cursor: pointer; list-style: none; font: 400 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-.tour-more summary::-webkit-details-marker { display: none; }
-.tour-more summary::before { content: '▸'; display: inline-block; margin-right: 6px; }
-.tour-more[open] summary::before { content: '▾'; }
-.tour-more summary:hover { color: var(--ink); }
-.tour-more summary:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
 .tally { flex-basis: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .tally b { font: 600 32px/1 var(--display); color: var(--accent); font-variant-numeric: tabular-nums; }
-.hint-inline a { color: var(--ink); text-underline-offset: 3px; text-decoration-color: var(--line-2); }
-.hint-inline a:hover { text-decoration-color: var(--accent); }
 /* tour audit finding 4: a tour's own note (e.g. the request's illustrative-timeline caveat), under the eyebrow */
-.tour-note { flex-basis: 100%; margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
 /* tour audit finding 14: chapter jumps for the every-part walks */
 .chapters { display: inline-flex; align-items: center; gap: 8px; font: 500 11px/1 var(--sans); color: var(--muted); }
 .chapters select { background: var(--surface); color: var(--ink); border: 1px solid var(--line-2); padding: 6px 10px; font: 500 12px/1 var(--sans); max-width: 100%; }
@@ -513,42 +459,16 @@ body.playing .beat.on .beat-bar { visibility: visible; }
 @media (max-width: 760px) { body.story .hud.bl, body.story .hud.br { display: none; } }
 
 /* ---------- every-part tours ---------- */
-.tour-group { display: grid; gap: 6px; }
-.tour-g { font: 400 10px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
 .beat.level h3 { font-size: clamp(34px, 3.2vw, 46px); }
 .beat.level .k { color: var(--ink); }
-.beat-specs { margin: 4px 0 0; display: grid; gap: 0; max-width: 44ch; }
-.beat-specs div { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: 6px 10px; padding: 7px 0; border-top: 1px solid var(--line); }
-.beat-specs dt { font: 400 10.5px/1.35 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.beat-specs dd { margin: 0; font: 500 13px/1.35 var(--mono); text-align: right; }
-.beat-specs .chip { align-self: center; }
 /* tour audit finding 4: "All N specifications and sources" (row disclosure) and the optics-cutaway figure both
    use this - a beat's own second-level disclosure, distinct from the "Every part, in order" picker's .tour-more */
-.beat-more { margin-top: 8px; max-width: 44ch; }
-.beat-more summary { cursor: pointer; list-style: none; font: 400 10.5px/1.3 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
-.beat-more summary::-webkit-details-marker { display: none; }
-.beat-more summary::before { content: '▸ '; }
-.beat-more[open] summary::before { content: '▾ '; }
-.beat-more summary:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
-.beat-more .beat-specs { margin-top: 8px; max-width: none; }
-.beat-more:has(.beat-figure) { max-width: none; }
 /* the diagram is built for the wide Links section (min-width: 460px there); inside a beat it has to shrink to
    fit a narrow column and a phone screen instead */
-.beat-figure { margin-top: 10px; max-width: 52ch; }
-.beat-figure .oc-grid { display: grid; gap: 14px; }
-.beat-figure .oc-module { overflow-x: visible; padding: 6px; }
-.beat-figure .oc-module svg { min-width: 0; max-width: 100%; height: auto; display: block; }
-.beat-figure .oc-legend { font-size: 10.5px; gap: 4px 12px; margin-top: 8px; }
-.beat-figure .oc-note { font-size: 11.5px; }
-.beat-fig-cap { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 8px 0 0; }
 
 /* ---------- illustrative-model caption ---------- */
 /* a plain flow strip, not an absolutely-positioned overlay, so it can never share a pixel with the HUD;
    it just takes its own thin band below the canvas, on every scale and every layer */
-.view-cap { margin: 0; padding: 6px var(--gutter); font: 500 10.5px/1.35 var(--mono); letter-spacing: .02em; color: var(--faint); background: var(--ground); border-top: 1px solid var(--line); text-align: center; }
-@media (max-width: 760px) { .view-cap { padding: 6px 12px; font-size: 10px; } }
-.vc-short { display: none; }
-@media (max-width: 760px) { .vc-full { display: none; } .vc-short { display: inline; } }
 
 /* ---------- view buttons ---------- */
 /* over the view's top right on wide screens, under the layer switch; a bar under the view on phones */
@@ -582,15 +502,6 @@ body.story #story-btn, body.story #layer-play { display: none; }
 .transport .btn.play:hover { background: #f0cc9c; }
 .transport .btn.play.held { background: transparent; color: var(--accent); }   /* held while the reader looks around: resumes on its own, or now on a press */
 .transport .btn.pace { min-width: 46px; padding: 0 8px; justify-content: center; font: 600 12px/1 var(--mono); font-variant-numeric: tabular-nums; }
-.tour-t { flex: 1 1 auto; min-width: 0; font: 400 10.5px/1.25 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.tour-pick { display: flex; flex-wrap: wrap; gap: 10px 16px; }
-.tour-pick[hidden] { display: none; }
-.tour-chooser { width: 100%; min-width: 0; }
-.tour-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 32px; padding: 4px 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; font: 400 11px/1.4 var(--mono); }
-.tour-toggle:hover { color: var(--ink); }
-.tour-toggle:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
-.tour-toggle[aria-expanded="true"] { margin-bottom: 8px; }
-@media (pointer: coarse) { .tour-toggle { min-height: 44px; } }
 
 /* ---------- narrow screens: the tour takes the screen ---------- */
 /* The view gets whatever the transport and the beat on stage leave; only that beat is drawn, so there is no
@@ -606,24 +517,16 @@ body.story #story-btn, body.story #layer-play { display: none; }
   body.story .panel { flex: none; height: auto; max-height: 52%; min-height: 0; border-top: 1px solid var(--line-2); }
   body.story .panel-scroll { padding: 0; gap: 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
   body.story .story { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-  body.story .story-head { display: contents; }
   body.story .transport { order: 0; flex: none; padding: 8px var(--gutter); border-bottom: 1px solid var(--line); }
   body.story .tally { order: 1; flex: none; padding: 10px var(--gutter) 0; }
   body.story .tally b { font-size: 24px; }
-  body.story .tour-note { order: 1; flex: none; padding: 4px var(--gutter) 0; }
   body.story .chapters { order: 1; flex: none; padding: 6px var(--gutter) 0; }
   body.story .beat { display: none; }
   body.story .beat.on { order: 2; display: grid; flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; align-content: start; gap: 8px; padding: 12px var(--gutter) 14px; border: 0; opacity: 1; }
   body.story .beat.on h3 { font-size: 26px; }
   body.story .beat.on.level h3 { font-size: 30px; }
   body.story .beat.on p { font-size: 15px; line-height: 1.55; max-width: none; }
-  body.story .beat-specs { max-width: none; }
-  body.story .beat-end { display: none; }
   /* The closed picker leaves room for the current beat; expanded choices wrap and scroll vertically. */
-  body.story .tour-chooser { order: 3; flex: none; padding: 0 var(--gutter); border-top: 1px solid var(--line); }
-  body.story .tour-pick { flex-wrap: wrap; gap: 12px; max-height: 20dvh; overflow-y: auto; overflow-x: hidden; padding: 0 0 12px; }
-  body.story .tour-group { display: flex; align-items: center; gap: 8px; flex: none; }
-  body.story .tour-more { display: flex; align-items: center; gap: 8px; flex: none; }
   .panel-scroll { display: flex; flex-direction: column; }
   .card { order: -1; }                                   /* the part tapped reads right under the view */
 }
@@ -639,7 +542,6 @@ body.story #story-btn, body.story #layer-play { display: none; }
   .hud.tl .sub { display: none; }
   .hud.tl .ttl { font-size: 24px; }
 }
-@media (max-width: 1100px) { body.story .ck-tabs { display: none; } }   /* the tour picks the clock */
 
 /* ---------- phones ---------- */
 @media (max-width: 760px) {
@@ -669,16 +571,6 @@ body.story #story-btn, body.story #layer-play { display: none; }
   .hint { display: none; }
   /* the clock: tabs, then time and phase, then the trace, then the four counters in one row */
   .clock { order: 1; padding: 8px 12px 10px; gap: 6px; }
-  .ck-row { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 6px 10px; }
-  .ck-tabs { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); min-width: 0; }
-  .ck-tabs button { padding: 8px 2px; font-size: 9.5px; letter-spacing: .04em; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ck-time { font-size: 17px; min-width: 5.5ch; }
-  .ck-phase { flex: 1 1 auto; min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ck-body { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-  .ck-spark { height: 34px; }
-  .ck-counters { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px 8px; }
-  .ck-counters dt { font-size: 8.5px; letter-spacing: .06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ck-counters dd { font-size: 15px; }
 }
 
 /* ---------- the numbered list's own play ---------- */
@@ -753,7 +645,6 @@ body.scrolled .topbar { background: rgba(3,5,8,.94); border-bottom-color: var(--
 .hero h1 { font-size: clamp(56px, 8.4vw, 144px); max-width: 12ch; text-shadow: 0 2px 30px rgba(0,0,0,.45); }
 .hero .lede { max-width: 58ch; color: #c9d0d6; }
 .hero-note { margin: 0; max-width: 62ch; font-size: 12.5px; line-height: 1.55; color: rgba(240,240,250,.62); }
-.hero .hero-actions { margin-top: 8px; }
 .hero .btn.go { background: var(--accent); border-color: var(--accent); color: #000; }
 .hero .btn.go:hover { background: #f0cc9c; border-color: #f0cc9c; }
 .hero .btn:not(.go) { background: rgba(0,0,0,.35); backdrop-filter: blur(6px); }
@@ -806,15 +697,6 @@ body.scrolled .topbar { background: rgba(3,5,8,.94); border-bottom-color: var(--
 
 @media (max-width: 1240px) and (min-width: 901px) { .topnav a { padding: 0 8px; letter-spacing: .07em; } .topbar { gap: 16px; } }
 
-/* ---------- where a step leads ---------- */
-.beat-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-.beat-acts .btn { min-height: 38px; padding: 0 14px; }
-.beat-acts .btn.go { background: var(--accent); border-color: var(--accent); color: #000; }
-.beat-acts .btn.go:hover { background: #f0cc9c; border-color: #f0cc9c; }
-.beat:not(.on) .beat-acts { opacity: .6; }
-.beat-acts { align-items: center; }
-.beat-acts [data-restart] { order: 9; }                     /* onward first, starting over last in reading order on a row */
-
 /* ---------- links: the media ladder, the copper wall, cutaway optics ---------- */
 .subsec { margin-top: 32px; }
 .sub-h { margin: 0; font: 600 clamp(20px, 2.6vw, 28px)/1.15 var(--display); text-transform: uppercase; color: var(--ink); }
@@ -863,7 +745,6 @@ body.scrolled .topbar { background: rgba(3,5,8,.94); border-bottom-color: var(--
 .pace-menu button[aria-checked="true"]::after { content: '✓'; margin-left: auto; color: var(--accent); font-size: 13px; }
 .pace-menu [role="group"] { display: grid; }
 .pace-menu [role="group"] + [role="group"] { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line-2); }
-.pace-h { padding: 8px 12px 4px; font: 400 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); opacity: .8; }
 .pace-menu [data-t] b { min-width: 64px; }
 
 /* ---------- the contained visualizer (visualizer.html): one screen, nothing scrolls but the side pane ---------- */
@@ -944,16 +825,9 @@ body.app .pane-scenario .sc-sites .lab { font: 400 10.5px/1.3 var(--mono); lette
 #inspector :is(select, input, textarea, img, svg) { max-width: 100%; }
 #inspector .card-links button b { white-space: normal; }
 #inspector .chart-box svg { min-width: 0; }
-#inspector .tour-tabs button { white-space: normal; line-height: 1.3; }
-#inspector .tour-pick { flex-wrap: wrap; overflow-x: hidden; }
-#inspector :is(.tour-pick, .tour-group, .tour-more) { min-width: 0; width: 100%; max-width: 100%; flex-wrap: wrap; }
-#inspector .tour-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 100px), 1fr)); width: 100%; }
 @container inspector (max-width: 450px) {
   #inspector .site-card { grid-template-columns: minmax(0, 1fr); padding: 16px; }
   #inspector .tok-counters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  #inspector .beat-specs div { grid-template-columns: minmax(0, 1fr) auto; }
-  #inspector .beat-specs dd { grid-column: 1; text-align: left; }
-  #inspector .beat-specs .chip { grid-column: 2; grid-row: 1 / span 2; }
   #inspector .kpi .kv { white-space: normal; }
 }
 body.story .pane-tabs { display: none; }
@@ -1139,13 +1013,6 @@ body.story .pane-note { display: none; }
 @media (prefers-reduced-motion: reduce) { body.app .view { transition: none; } }
 
 /* the story page's way into the visualizer, where the embedded viewer used to be */
-.open-vis { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 28px; align-items: center; padding: 34px; border: 1px solid var(--line); background: var(--surface); margin-block: 8px 40px; }
-.open-vis h2 { margin: 6px 0 12px; }
-.open-vis p { max-width: 62ch; }
-.ov-actions { display: grid; gap: 10px; justify-items: stretch; }
-.ov-actions .btn { justify-content: center; min-height: 46px; }
-.ov-actions .ov-open { font-size: 15px; min-height: 56px; }
-@media (max-width: 900px) { .open-vis { grid-template-columns: minmax(0, 1fr); padding: 22px; } }
 
 /* previous / next part, always in view (Reed, 09/30): in the control row beside Auto cycle on a desktop, in the side
    pane's tab bar below 1100 px */
