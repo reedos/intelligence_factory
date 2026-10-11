@@ -71,7 +71,7 @@ export const ACCELERATORS: Record<AccelId, Accel> = {
     // NVIDIA's own reference design (DGX OS / DSX architecture docs, and the CoreWeave GB200 launch) wires one
     // 400G ConnectX-7 port per GPU; ConnectX-8 800G is a documented upgrade path, not the shipping default.
     nvlink: { gen: 'NVLink 5', tbs: 1.8, domain: 72, switchChipsPerRack: 18, linksPerGpu: 18 }, nicGbps: 400, nicPortGbps: 400, nicsPerGpu: 1, dpusPerTray: 2, gpuPortsPerModule: 1, fp8PF: 5, fp4PF: 10,
-    publishedRackKW: [120, 132], coolingOptions: ['liquid', 'warm'], dc800: true, basis: 'typical',
+    publishedRackKW: [120, 132], coolingOptions: ['liquid', 'warm'], dc800: false, basis: 'typical',
   },
   gb300: {
     id: 'gb300', name: 'NVIDIA GB300 NVL72', short: 'GB300', rackName: 'GB300 NVL72', year: '2025–26',
@@ -80,7 +80,7 @@ export const ACCELERATORS: Record<AccelId, Accel> = {
     hbmShare: 0.15, vrmEff: 0.91, ibcEff: 0.9828, psuEff: 0.975, liquidShare: 0.9,
     hbm: { type: 'HBM3e', gb: 288, tbs: 8, stacks: 8, layers: 12 }, dies: 2,
     nvlink: { gen: 'NVLink 5', tbs: 1.8, domain: 72, switchChipsPerRack: 18, linksPerGpu: 18 }, nicGbps: 800, nicPortGbps: 800, nicsPerGpu: 1, dpusPerTray: 1, gpuPortsPerModule: 1, fp8PF: 5, fp4PF: 15,
-    publishedRackKW: [135, 155], coolingOptions: ['liquid', 'warm'], dc800: true, basis: 'typical',
+    publishedRackKW: [135, 155], coolingOptions: ['liquid', 'warm'], dc800: false, basis: 'typical',
   },
   rubin: {
     id: 'rubin', name: 'NVIDIA Vera Rubin NVL72', short: 'Vera Rubin', rackName: 'Vera Rubin NVL72', year: '2026–27',

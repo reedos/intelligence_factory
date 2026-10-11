@@ -528,12 +528,12 @@ export function content(M, opts = {}) {
     : A.id === 'gb200'
       ? { basis: 'reported', ev: { refs: [ref('semianalysis-gb200-nvl72-specs', 'chip spec table: "TDP per chip: 1,200 W"')] } }
       : A.id === 'gb300'
-        ? { basis: 'reported', ev: { refs: [ref('semianalysis-gb300-nvl72-specs', 'chip spec table: "TDP per chip: 1,400 W"')] } }
+        ? { basis: 'spec', ev: { refs: [ref('nvidia-blackwell-ultra-blog', 'body text: per-GPU TDP "Up to 1,400W"')] } }
         : { basis: 'assumed', ev: { assume: 'rubin-gpu-power' } };
   const transistorsEv = () => A.id === 'h100'
     ? { basis: 'spec', ev: { refs: [ref('nvidia-hopper-architecture-page', '"Built with over 80 billion transistors using a cutting edge TSMC 4N process"')] } }
     : A.id === 'rubin'
-      ? { basis: 'vendor', ev: { refs: [ref('wccftech-nvidia-rubin-gpu-architecture', '"The chip packs a total of 336 billion transistors," reporting NVIDIA’s architecture disclosure')], vs: 'Blackwell Ultra (GB300)’s 208 billion transistors, a 62% increase' } }
+      ? { basis: 'spec', ev: { refs: [ref('nvidia-rubin-gpu-architecture-blog', 'body text: "336 billion transistors"')] } }
       : { basis: 'spec', ev: { refs: [ref('nvidia-blackwell-architecture-page', '"NVIDIA Blackwell-architecture GPUs pack 208 billion transistors"')] } };
   const hbmMemEv = () => A.id === 'h100'
     ? { basis: 'spec', value: hbmSpec, ev: { refs: [ref('nvidia-h100-product-page', 'spec table: "GPU Memory | 80GB" with "3.35TB/s" bandwidth')] } }
@@ -547,7 +547,7 @@ export function content(M, opts = {}) {
       ? { basis: 'spec', ev: { refs: [ref('nvidia-dgx-gb200-hardware', 'Hardware: each compute tray has "4x NVIDIA ConnectX-7 single port 400G OSFP NIC"')] } }
       : A.id === 'gb300'
         ? { basis: 'spec', ev: { refs: [ref('nvidia-gb300-nvl72', '"NVIDIA ConnectX-8 SuperNIC’s" provide "800 gigabits per second (Gb/s) of network connectivity for each GPU"')] } }
-        : { basis: 'vendor', ev: { refs: [ref('nvidia-ethernet-supernic', '"NVIDIA ConnectX-9 SuperNIC delivers up to 1.6 Tb/s throughput per GPU"')], vs: 'ConnectX-8 SuperNIC’s 800 Gb/s (GB300 generation)' } };
+        : { basis: 'spec', ev: { refs: [ref('nvidia-ethernet-supernic', '"NVIDIA ConnectX-9 SuperNIC delivers up to 1.6 Tb/s throughput per GPU"')] } };
   const nvl72LayoutEv = () => A.id === 'rubin'
     ? { basis: 'spec', ev: { refs: [ref('nvidia-vera-rubin-pod-blog', 'Streamlined design section and Figures 6–7: 18 compute trays, 9 switch trays; two superchips per compute tray, four switch ASICs per switch tray.'), ref('nvidia-vera-rubin-system-blog', 'Vera Rubin superchip and compute-tray sections: one Vera CPU and two Rubin GPUs per superchip; two superchips per tray.')] } }
     : { basis: 'spec', ev: { refs: [ref('nvidia-dgx-gb200-hardware', 'Hardware: "18x 1RU compute trays, each with 2 Grace CPUs and 4 Blackwell GPUs"; "9x 1RU NVLink switch trays" of "2x NVLink NVSwitches" each'), ref('nvidia-nvl72-reference-arch', 'System Hardware & Components: 18 compute trays, 9 NVLink switch trays of 2 NVSwitch ASICs each')] } };
@@ -717,7 +717,7 @@ export function content(M, opts = {}) {
       layers: { basis: 'reported', ev: { refs: [['wccftech-rubin-gpu-architecture', 'body text: "288 GB of capacity across eight 12-Hi stacks"']] } },
       hbm: { basis: 'spec', ev: { refs: [['nvidia-vera-rubin-current-specs', 'GPU column, checked 9/29/2026: 288 GB HBM4 and 19.2 TB/s. Older architecture blogs retain 22 TB/s.']] } },
       nvlink: { basis: 'spec', ev: { refs: [['nvidia-nvlink-current-specs', 'Sixth-generation table, checked 9/29/2026: 3,000 GB/s per GPU and 216 TB/s per rack; preliminary. Older blogs retain 3.6 TB/s and 260 TB/s.']] } },
-      pkgPower: { basis: 'assumed', ev: { assume: 'rubin-package-power' } },
+      pkgPower: { basis: 'assumed', ev: { assume: 'rubin-gpu-power' } },
     },
   }[A.id];
 
@@ -1055,10 +1055,10 @@ export function content(M, opts = {}) {
       { id: 'dpu', title: 'BlueField DPU', kicker: 'Front-end network',
         body: `A separate network carries user requests, storage and management. This tray has ${A.dpusPerTray} ${A.id === 'rubin' ? 'BlueField-4' : 'BlueField-3'} ${A.dpusPerTray === 1 ? 'DPU' : 'DPUs'} to offload network, storage and security work.`,
         specs: [['DPUs per tray', String(A.dpusPerTray), 'spec', { refs: [ref(A.id === 'rubin' ? 'nvidia-vera-rubin-pod-blog' : A.id === 'gb300' ? 'nvidia-dgx-gb300' : 'nvidia-dgx-gb200-hardware', A.id === 'rubin' ? 'Compute tray includes one BlueField-4.' : A.id === 'gb300' ? '18 BlueField-3 DPUs across 18 compute trays.' : 'Compute tray includes two BlueField-3 DPUs.')] }], A.id === 'rubin'
-          ? ['BlueField-4', 'up to 800 Gb/s', 'vendor', { refs: [ref('nvidia-bluefield4-blog', '"800Gb/s throughput" stated in the launch blog’s subtitle')], vs: 'BlueField-3’s 400 Gb/s' }]
+          ? ['BlueField-4', 'up to 800 Gb/s', 'spec', { refs: [ref('nvidia-bluefield4-blog', '"800Gb/s throughput" stated in the launch blog’s subtitle')] }]
           : ['BlueField-3', 'up to 400 Gb/s', 'spec', { refs: [ref('nvidia-bf3-networking-docs', '"BlueField-3 offers speeds up to 400 gigabits per second (Gb/s)"')] }],
-          ['Role', 'storage, security, tenant networking', A.id === 'rubin' ? 'vendor' : 'spec', A.id === 'rubin'
-            ? { refs: [ref('nvidia-bluefield4-blog', '"software-defined acceleration across AI data storage, networking and security"')], vs: 'the host CPU handling these functions directly' }
+          ['Role', 'storage, security, tenant networking', 'spec', A.id === 'rubin'
+            ? { refs: [ref('nvidia-bluefield4-blog', '"software-defined acceleration across AI data storage, networking and security"')] }
             : { refs: [ref('nvidia-bf3-networking-docs', 'describes BlueField-3 offloading "software-defined networking, storage, security, and management functions"')] }]] },
       { id: 'gpu', title: X.gpus, kicker: 'Where the links begin', drill: 5,
         body: A.id === 'rubin' ? 'NVLink leaves the GPU for the rack’s copper spine. For scale-out, the path crosses NVLink-C2C to Vera, then PCIe to the ConnectX-9 NICs, and electrical SerDes to the front optical modules.' : 'Every one of these links starts at the edge of the GPU dies.',
@@ -1504,7 +1504,7 @@ export function content(M, opts = {}) {
   const nextCelestial = ['Celestial AI', 'bought by Marvell, 02/02/2026, for optical scale-up', 'reported', { refs: [ref('marvell-celestial-close-2026', 'opening: "completed its previously announced acquisition of Celestial AI, a pioneer in optical interconnect technology for scale-up connectivity"; outlook: initial revenue "in the second half of fiscal 2028"')] }];
   const cpoToday = { id: 'today', title: 'Who ships CPO today', kicker: 'Switches, as of 10/01/2026', body: 'CPO in production today means network switches: a switch chip ringed by optical engines, in a standalone box in the scale-out network, like this package and the CPO switch set apart in the data hall. NVIDIA and Broadcom both make them, and NVIDIA names cloud providers among its first users. Pluggable modules still carry most optical links. Google’s optical circuit switches are something else: mirrors that steer light between ordinary transceivers, with no optics on a chip package.', specs: [nowSpectrum, nowQuantum, nowDavisson, nowBailly, nowMeta] };
   const cpoNext = { id: 'next', title: 'Where CPO is heading', kicker: 'Onto the GPU package, not there yet', body: 'The next step moves optical engines from the switch onto the GPU or accelerator package, so scale-up links could run on fiber past one rack. As of 10/01/2026 that is concepts, reference designs and early products, not shipping systems. Marvell has shown a 1U compute-tray concept and a reference CPO switch; Ayar Labs and Lightmatter offer optical engines meant for accelerator packages; Marvell bought Celestial AI for its optical scale-up fabric. Some designs put the drivers and TIAs on the same die as the photonics: Ranovus describes its Odin engine as a monolithic electronic and photonic integrated circuit, and Ayar Labs builds its TeraPHY optical I/O chiplets, for accelerator packages, on a micro-ring based monolithic electronic/photonic platform. Six companies founded the OCI MSA to write an open optical scale-up specification.', specs: [nextTray, nextSwitch, nextOci, nextAyar, nextLightmatter, nextCelestial, odinMono, ayarMono] };
-  const ringRow = ['Modulators, NVIDIA figure', 'micro-rings, 200G PAM4 per wavelength', 'vendor', { refs: [ref('nvidia-cpo-industry-collaboration-blog', 'How TSMC helped solve Micro Ring Modulator problems: NVIDIA identifies microring modulation and a direct 200 Gb/s PAM4 rate per wavelength.')], vs: 'NVIDIA’s stated per-wavelength operating rate; not a comparison against another modulator design' }];
+  const ringRow = ['Modulators, NVIDIA figure', 'micro-rings, 200G PAM4 per wavelength', 'spec', { refs: [ref('nvidia-cpo-industry-collaboration-blog', 'How TSMC helped solve Micro Ring Modulator problems: NVIDIA identifies microring modulation and a direct 200 Gb/s PAM4 rate per wavelength.')] }];
   PARTS.cpo = [
     { id: 'asic', title: 'Switch ASIC', kicker: 'Likely the package’s largest power draw', body: `The switch chip does the switching and drives every lane a few millimeters to the optical engines around it. One of these packages is drawn; a Quantum-X Photonics switch holds ${count(CPO_SWITCH.packages).toLowerCase()}.`, specs: [q3450W, cpoLay] },
     { id: 'engine', title: 'Optical engines', kicker: 'Powered from the package', body: 'Each engine is an electronic chip bonded on top of a photonic chip, fed from the package substrate like the switch chip beside it. One engine does the work of one 1.6T module: 8 lanes × 200 Gb/s = 1.6 Tb/s each way. This package holds 18, so 18 × 1.6 Tb/s = 28.8 Tb/s, the switch chip’s rate. The toggle above the view switches to a package with Mach-Zehnder modulators.', specs: [coupe, quantumOSA, perEngine, nvMath, cpoOpticsW] },

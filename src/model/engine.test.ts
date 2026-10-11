@@ -82,7 +82,7 @@ describe('choices move the numbers the right way', () => {
     expect(liq).toBeGreaterThan(warm);
   });
   it('800 V DC delivers more IT power from the same meter, within NVIDIA’s "up to 5%"', () => {
-    const ac = run({ power: 'ac415' }), dc = run({ power: 'dc800' });
+    const ac = run({ accel: 'rubin', power: 'ac415' }), dc = run({ accel: 'rubin', power: 'dc800' });
     const gain = dc.gpuSiliconMW / ac.gpuSiliconMW - 1;
     expect(gain).toBeGreaterThan(0.01);
     expect(gain).toBeLessThan(0.05);
@@ -91,6 +91,9 @@ describe('choices move the numbers the right way', () => {
     const m = run({ accel: 'h100', power: 'dc800', cooling: 'warm' });
     expect(m.power.id).toBe('ac415');
     expect(m.cooling.id).not.toBe('warm');
+  });
+  it('GB200 and GB300 are 54 V DC racks: 800 V DC starts with the 2027 racks, so the engine falls back', () => {
+    for (const accel of ['gb200', 'gb300'] as const) expect(run({ accel, power: 'dc800' }).power.id).toBe('ac415');
   });
   it('NVL72 racks are liquid-cooled only', () => {
     expect(run({ accel: 'gb200', cooling: 'air' }).cooling.id).not.toBe('air');
