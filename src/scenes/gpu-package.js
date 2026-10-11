@@ -30,8 +30,8 @@ function twin(id, label) {
   const sites = [-2.02, -0.7, 0.7, 2.02].flatMap(x => [-2.3, 2.3].map(z => [x, z]));
   return {
     id, label, hbmEdge: 'z',
-    substrate: { w: 8.4, d: 8.4 },
-    interposer: { w: 6.2, d: 5.9 },
+    substrate: { w: 8.4, d: 8.4 },     // chosen, not sourced: the chip card's "Substrate size, as drawn" row is Assumed
+    interposer: { w: 6.2, d: 5.9 },    // chosen, not sourced; no card row shows it
     dies: [{ x: -1.36, z: 0, w: 2.6, d: 3.3 }, { x: 1.36, z: 0, w: 2.6, d: 3.3 }],
     hbm: { ...HBM, sites, spare: -1 },
     // chip-level only: the heat spreader footprint, board and ball grid, stiffener ring, capacitor clusters, name etch
@@ -48,8 +48,8 @@ function twin(id, label) {
 export const GPU_PACKAGE = {
   h100: {
     id: 'h100', label: 'H100 SXM5', hbmEdge: 'x',
-    substrate: { w: 5.5, d: 5.8 },
-    interposer: { w: 5.12, d: 3.7 },
+    substrate: { w: 5.5, d: 5.8 },     // one analyst's photo-scaled estimate; the card row is Assumed
+    interposer: { w: 5.12, d: 3.7 },   // chosen, not sourced; no card row shows it
     dies: [{ x: 0, z: 0, w: 2.6, d: 3.13 }],
     // six sites, five working stacks and a blank spacer at the last one (+x, +z)
     hbm: { ...HBM, sites: [-1.98, 1.98].flatMap(x => [-1.12, 0, 1.12].map(z => [x, z])), spare: 5 },

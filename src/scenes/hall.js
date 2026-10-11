@@ -582,9 +582,9 @@ export function build({ quality, model }) {
     });
     }
   });
-  // yellow fiber runway over the rows and a trunk to the network spine. A slightly muted safety yellow
-  // (representative) so the moving fiber ribbons, not the tray, stay the brightest thing in the data view.
-  const runwayMat = new THREE.MeshStandardMaterial({ color: 0xc9a431, roughness: 0.5, metalness: 0.05 });
+  // fiber runway over the rows and a trunk to the network spine, in neutral grey (representative; real runways are
+  // often yellow) so every saturated colour on screen is a keyed one and the moving fiber ribbons stay the brightest.
+  const runwayMat = new THREE.MeshStandardMaterial({ color: 0x7d848b, roughness: 0.5, metalness: 0.05 });
   rowZs.forEach(z => { N.box(rowX1 - rowX0, 0.04, 0.3, runwayMat, (rowX0 + rowX1) / 2, 4.3, z); N.box(rowX1 - rowX0, 0.1, 0.02, runwayMat, (rowX0 + rowX1) / 2, 4.35, z - 0.15); N.box(rowX1 - rowX0, 0.1, 0.02, runwayMat, (rowX0 + rowX1) / 2, 4.35, z + 0.15); });
   // rolled lips on the channel walls and a joint splice every 1.8 m, so the runway reads as a formed U-channel
   rowZs.forEach(z => {

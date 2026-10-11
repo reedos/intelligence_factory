@@ -371,7 +371,10 @@ def rack_front_finish(accel):
     # The NVL72 front reads as bands: power shelves lightest, compute trays mid, NVLink switch trays darkest (plus the
     # blanking panels, which read as a black slab over the upper front). The faces are rack.js's canvas drawings, lifted
     # per kind; each kind's instances import as one joined object, its lowest tray naming the kind (nvl72-layout.js).
-    lift={'ps':2.4,'compute':1.8,'switch':1.35,'mgmt':1.35}
+    # The free units over the management switches (1U cable manager, then blanking panels: rack.js, ASSUMPTIONS
+    # 'rack-elevation-fill') lift to the power shelves' light finish (#1b base to about the shelves' #3b-at-2.4), so the top
+    # of the rack reads as a closed light band instead of a dark cavity. No PSU or device is drawn there.
+    lift={'ps':2.4,'compute':1.8,'switch':1.35,'mgmt':1.35,'blank':5.5}
     RK=LAY['rack'];done=set()
     for o in bpy.context.scene.objects:
         if o.type!='MESH':continue
@@ -382,7 +385,7 @@ def rack_front_finish(accel):
             img=getattr(bc.links[0].from_node,'image',None)
             if not img or img.name in done:continue
             k=None
-            if mat.name.startswith('Snap-in blanking panel') or mat.name.startswith('Brush-strip cable manager'):k=1.9
+            if mat.name.startswith('Snap-in blanking panel') or mat.name.startswith('Brush-strip cable manager'):k=lift['blank']
             elif accel!='h100' and len(o.data.materials)>=6 and abs((max(v.co.x for v in o.data.vertices)-min(v.co.x for v in o.data.vertices))-.44)<.002:
                 zmin=min((o.matrix_world@v.co).z for v in o.data.vertices)
                 row=int((zmin-RK['base'])/RK['pitch']+.5)
@@ -400,6 +403,12 @@ def rack_front_finish(accel):
             c=p.inputs['Base Color'].default_value[:3]
             if .035<max(c)<.10 and min(c)>.03:
                 s=.17/max(c);p.inputs['Base Color'].default_value=(*[v*s for v in c],1);mat.diffuse_color=(*[v*s for v in c],1)
+    # The NVLink spine's copper cartridges on the rear (rack.js) were 0.02-albedo sheet steel, invisible under the data view's
+    # glow: the same lift to graphite, so the four cartridges read as hardware behind it.
+    for mat in bpy.data.materials:
+        if mat.name.startswith('NVLink cartridge sheet steel') and mat.use_nodes:
+            p=mat.node_tree.nodes.get('Principled BSDF');c=p.inputs['Base Color'].default_value[:3];s=.15/max(c)
+            p.inputs['Base Color'].default_value=(*[v*s for v in c],1);mat.diffuse_color=(*[v*s for v in c],1)
 
 def tray_package_finish(accel):
     # The tray's GPU packages in the chip level's finishes (chip.js, compute-chip-*.glb), so the tray close-up and level 6
@@ -479,7 +488,6 @@ def rack_hardware(accel,m):
             y=RK['base']+i*RK['pitch']+RK['pitch']/2
             for x in [-.205,.185]:
                 box('Folded service handle',(x,y,.485),(.009,.026,.013),m['bright'],u,.003)
-            for k in range(17 if accel!='rubin' and 12<=i<=20 else 0):box('Vent grille relief',(-.186+k*.0075,y,.469),(.002,.019,.005),m['graphite'],u,0)
 
 def rounded_rect(half,r,n=6,half_d=None):
     # Counter-clockwise outline of a rectangle with radiused corners (half-width, radius in native units; half_d is the half-depth, the half-width again for a square).
@@ -614,6 +622,34 @@ def separate_coplanar(kind):
         moved+=len(faces)
     print('COPLANAR_SEPARATED',kind,moved,'faces')
 
+def cull_covered_passive_faces(kind):
+    # SMD passives are hundreds of small boxes (tray: 0402-class parts, about 21k triangles of terminations; chip: the
+    # package's MLCCs). Each box's underside sits on its board and each termination's inner end sits against its body,
+    # so a third of their faces can never be seen. Delete a face when a point 10 um outside it lies inside another solid
+    # (the board, the substrate, the body). Nothing visible changes and no part moves.
+    names={'tray':('PCB passive',),'chip':('MLCC',)}.get(kind)
+    if not names:return
+    from mathutils.bvhtree import BVHTree
+    meshes=[o for o in bpy.context.scene.objects if o.type=='MESH' and o.data.polygons]
+    def tree(o):
+        mw=o.matrix_world;return BVHTree.FromPolygons([mw@v.co for v in o.data.vertices],[tuple(p.vertices) for p in o.data.polygons])
+    trees={o:tree(o) for o in meshes}
+    culled=0
+    for o in meshes:
+        if not any(m and m.name.startswith(names) for m in o.data.materials):continue
+        others=[t for k,t in trees.items() if k is not o];mw=o.matrix_world;rot=mw.to_3x3()
+        doomed=[]
+        for f in o.data.polygons:
+            n=(rot@f.normal).normalized();p=mw@f.center+n*1e-5
+            for t in others:
+                hit=t.find_nearest(p,5e-5)
+                if hit[0] is not None and (p-hit[0]).dot(hit[1])<0:doomed.append(f.index);break
+        if doomed:
+            bm=bmesh.new();bm.from_mesh(o.data);bm.faces.ensure_lookup_table()
+            bmesh.ops.delete(bm,geom=[bm.faces[i] for i in doomed],context='FACES_ONLY');bm.to_mesh(o.data);bm.free()
+            culled+=len(doomed)
+    print('PASSIVE_FACES_CULLED',kind,culled)
+
 def export_variant(kind,accel):
     bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
     bpy.ops.import_scene.gltf(filepath=str(HERE/'references'/f'{kind}-{accel}.glb'))
@@ -662,6 +698,7 @@ def export_variant(kind,accel):
     for o in authored_meshes:o.select_set(True)
     bpy.context.view_layer.objects.active=authored_meshes[0]
     bpy.ops.object.convert(target='MESH')
+    cull_covered_passive_faces(kind)
     separate_coplanar(kind)
     batches={}
     for o in list(bpy.context.scene.objects):

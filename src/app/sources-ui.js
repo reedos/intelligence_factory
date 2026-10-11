@@ -1,10 +1,13 @@
 // Source popovers. A basis chip with data-src names one claim (src/claims.js); its popover says what the label means
 // and what backs that one figure: each source with where in it the figure is, when it was published and when it was
 // checked; or how the model calculates it; or what the model assumes and why.
-import { SOURCES } from '../sources.js';
+// The source list and the claims load on the first chip click, not with the page.
 import { BASIS, CALCS, ASSUMPTIONS } from '../evidence.js';
-import { claimByKey } from '../claims.js';
 import { store } from './store.js';
+let SOURCES, claimByKey, loading;
+const load = () => loading ||= Promise.all([import('../sources.js'), import('../claims.js')])
+  .then(([s, c]) => { SOURCES = s.SOURCES; claimByKey = c.claimByKey; })
+  .catch(e => { loading = null; throw e; });
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const pop = document.createElement('div');
@@ -48,7 +51,8 @@ function place(chip) {
 }
 const more = () => pop.classList.toggle('has-more', pop.scrollHeight - pop.clientHeight - pop.scrollTop > 8);
 pop.addEventListener('scroll', more, { passive: true });
-function open(chip) {
+async function open(chip) {
+  await load();
   pop.innerHTML = body(chip.dataset.src);
   pop.hidden = false;
   place(chip);

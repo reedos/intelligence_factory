@@ -945,7 +945,7 @@ describe('module level NIC side', () => {
     const sw = content(M) as any, C = content(M, { moduleSide: 'nic' }) as any;
     const scene = C.SCENES.find((s: any) => s.id === 'module'), swScene = sw.SCENES.find((s: any) => s.id === 'module');
     expect(scene.kicker).toBe(`${rate} DR4 · ${id.toUpperCase()} NIC`); expect(swScene.kicker).toMatch(/ · switch$/);
-    expect(scene.title).toBe('Inside the NIC module'); expect(swScene.title).toBe('Inside the switch module');
+    expect(scene.title).toBe('Pluggable optics'); expect(swScene.title).toBe('Pluggable optics');
     expect(scene.dataIntro).toContain(`This tray’s NIC module, ${label}`);
     const spec = (parts: any[], pid: string, l: string | RegExp) => parts.find(p => p.id === pid)?.specs.find((r: any[]) => (l instanceof RegExp ? l.test(r[0]) : r[0] === l));
     expect(spec(C.PARTS_DATA.module, 'fingers', 'Host lanes')[1]).toContain(`4 × ${lane}`);

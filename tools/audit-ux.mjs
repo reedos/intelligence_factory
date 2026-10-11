@@ -24,7 +24,7 @@ for(const width of [1440,360]) {
  await p.waitForFunction(()=>window.ifx?.state.scene===0,null,{timeout:120000});
  await p.locator('[data-pane="scenario"]').click();
  assert.equal(await p.evaluate(()=>ifx.state.selected),null);
- await p.locator('.present-launch').click();assert(await p.evaluate(()=>document.body.classList.contains('presentation-view')));
+ await p.locator('#more-btn').click();await p.locator('.present-launch').click();assert(await p.evaluate(()=>document.body.classList.contains('presentation-view')));
  await p.keyboard.press('Escape');assert(!(await p.evaluate(()=>document.body.classList.contains('presentation-view'))));
  assert.equal(errors.length,0,errors.join('\n'));await p.close();
  console.log(width,'story images, no overflow, scenario and Present: PASS');

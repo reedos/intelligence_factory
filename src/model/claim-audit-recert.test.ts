@@ -51,7 +51,7 @@ it('rack and chip scale labels follow the drawn geometry', () => {
     const s = (GPU_PACKAGE as any)[m.accel.id].substrate;
     const board = Math.max(s.w, s.d) + 2 * 1.2;
     const sc = content(m).SCENES;
-    expect(sc.find((x: any) => x.id === 'chip')!.scale).toBe(`${Math.round(board)} cm across`);
+    expect(sc.find((x: any) => x.id === 'chip')!.scale).toBe(`${Math.round(board)} cm view`);
     if (m.accel.id !== 'h100') expect(sc.find((x: any) => x.id === 'rack')!.scale).toBe('2.2 m tall');
   }
 });

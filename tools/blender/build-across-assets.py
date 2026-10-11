@@ -18,18 +18,18 @@ dark=mat('Graphite recess',(.035,.055,.075),.4,.4)
 steel=mat('Brushed structural steel',(.3,.38,.45),.75,.34)
 concrete=mat('Satin concrete',(.38,.40,.42),.05,.72)
 glass=mat('Photovoltaic glazing',(.015,.07,.12),.55,.22)
-names=['MAP_SURFACE','GAS_PLANT','NUCLEAR_PLANT','WIND_MAST','WIND_ROTOR','SOLAR_ROW','SOLAR_SKID','SOLAR_ROAD','GRID_PYLON','HUT_SITE','TERMINAL_TRIM','GRID_SUBSTATION','COAL_PLANT']
+names=['MAP_SURFACE','GAS_PLANT','NUCLEAR_PLANT','WIND_MAST','WIND_ROTOR','SOLAR_ROW','SOLAR_SKID','SOLAR_ROAD','GRID_PYLON','HUT_SITE','TERMINAL_TRIM','GRID_SUBSTATION','COAL_PLANT','MAP_CAMPUS','MAP_HUT','MAP_TERMINAL']
 groups={}
 for n in names:
  g=bpy.data.objects.new(n,None);S.collection.objects.link(g);groups[n]=g
 def pt(p):return(p[0],-p[2],p[1])
-def mesh(n,v,f,m,g,bevel=0,smooth=False):
+def mesh(n,v,f,m,g,bevel=0,smooth=False,segs=2):
  me=bpy.data.meshes.new(n);me.from_pydata([pt(p) for p in v],[],f);me.update()
  if smooth:
   for poly in me.polygons:poly.use_smooth=True
  o=bpy.data.objects.new(n,me);S.collection.objects.link(o);o.parent=groups[g];me.materials.append(m)
  if bevel:
-  q=o.modifiers.new('Manufactured radius','BEVEL');q.width=bevel;q.segments=2
+  q=o.modifiers.new('Manufactured radius','BEVEL');q.width=bevel;q.segments=segs
   o.modifiers.new('Weighted normals','WEIGHTED_NORMAL')
  return o
 def box(n,p,d,m,g,b=.04):
@@ -215,10 +215,9 @@ for y,w in [(4.5,3.2),(6,4)]:
    if k==0 and w==4:x=sx*1.6
    beam('Insulator string',(x,y,0),(x,y-.7,0),.08,glassIns,g)
 for sx in [-1,1]:beam('Shield-wire peak',(sx*.22,6,0),(sx*.8,7.1,0),.06,galv,g)
-# The regional HV lines now end at the substation yard built into the campus
-# catalog's MAP_CAMPUS symbol, so this file no longer authors its own.
+# The regional HV lines end at the substation yard built into the MAP_CAMPUS symbol below.
 gravel=mat('Crushed rock yard',(.13,.14,.15),0,.95)
-# Amplifier hut site dressing, placed with each shared MAP_HUT shelter: a gravel
+# Amplifier hut site dressing, placed with each MAP_HUT shelter: a gravel
 # apron and a chain-link fence around it, a wall-pack HVAC unit on the -x end, a
 # door lamp and a small roof beacon. Representative, not one carrier's standard.
 g='HUT_SITE'
@@ -236,9 +235,9 @@ o=lathe('HVAC fan grille',[(0,.42),(.04,.42)],steel,g,16);o.rotation_euler.y=mat
 box('Door lamp',(1.5,2.92,2.1),(1.1,.09,.12),hutLamp,g,0)
 cyl('Roof beacon mast',(2.4,3.5,1.5),.1,.35,steel,g,8)
 cyl('Roof beacon',(2.4,3.74,1.5),.16,.14,hutLamp,g,10)
-# Line terminal trim, placed with each shared MAP_TERMINAL: a lit fiber-entrance
+# Line terminal trim, placed with each MAP_TERMINAL: a lit fiber-entrance
 # vault on the east wall, where the DWDM route ends. (The gold crown fixture is
-# now part of MAP_TERMINAL itself in the campus catalog.)
+# part of MAP_TERMINAL itself, below.)
 g='TERMINAL_TRIM'
 goldLamp=mat('Fiber gold lamp',(1,.83,.36),0,.5,4)
 box('Fiber entrance vault',(5.3,.18,0),(.9,.36,1.1),dark,g,.04)
@@ -307,6 +306,79 @@ for z in [1,5]:
  for dz in [-.7,0,.7]:beam('GSU bushing',(13.5,3.2,z+dz),(13.5,4.6,z+dz),.13,chimney,g)
 for z in [.6,5.4]:beam('Line gantry post',(16,0,z),(16,7,z),.14,chimney,g)
 box('Line gantry beam',(16,7,3),(.3,.3,5.4),chimney,g,.02)
+# Map symbols for a campus, an amplifier hut and a line terminal. They moved here from build-campus-catalog.py
+# on 10/11/2026 so the first view loads one GLB instead of the whole campus catalog. They keep the catalog's
+# finishes, three-segment box bevels and primitive cylinders and rings, so they look as they did; the local
+# names below shadow this file's own pearl, steel and cyl inside the function only.
+def map_symbols():
+ pearl=mat('Ceramic-coated pearl aluminum',(.48,.55,.58),.48,.42)
+ shadow=mat('Recessed graphite panels',(.035,.075,.095),.55,.38)
+ bronze=mat('Champagne anodized reveals',(.38,.26,.14),.75,.29)
+ base=mat('Honed concrete plinth',(.27,.33,.35),.05,.72)
+ lamp=mat('Warm white recessed fixtures',(1,.67,.35),.05,.3,2.2)
+ black=mat('Service recess',(.014,.025,.032),.1,.7)
+ steel=mat('Mechanical brushed steel',(.34,.42,.46),.8,.35)
+ white=mat('Equipment ceramic white',(.72,.77,.76),.3,.39)
+ def box(n,p,d,m,g,b=.04):
+  v=[(p[0]+x*d[0]/2,p[1]+y*d[1]/2,p[2]+z*d[2]/2) for z in [-1,1] for y in [-1,1] for x in [-1,1]]
+  return mesh(n,v,[(0,4,6,2),(1,3,7,5),(0,1,5,4),(2,6,7,3),(0,2,3,1),(4,5,7,6)],m,g,b,segs=3)
+ def cyl(n,p,r,h,m,g,axis='y',segments=24):
+  bpy.ops.mesh.primitive_cylinder_add(vertices=segments,radius=r,depth=h,location=pt(p));o=bpy.context.object;o.name=n;o.parent=groups[g];o.data.materials.append(m)
+  if axis=='x':o.rotation_euler.y=math.pi/2
+  if axis=='z':o.rotation_euler.x=math.pi/2
+  q=o.modifiers.new('Turned edge','BEVEL');q.width=min(r,h)*.08;q.segments=2;o.modifiers.new('Weighted normals','WEIGHTED_NORMAL');return o
+ def ring(n,p,r,minor,m,g,major=32,minor_seg=8):
+  bpy.ops.mesh.primitive_torus_add(major_radius=r,minor_radius=minor,major_segments=major,minor_segments=minor_seg,location=pt(p));o=bpy.context.object;o.name=n;o.parent=groups[g];o.data.materials.append(m);return o
+ g='MAP_CAMPUS'
+ # Map symbol for a campus (the across-map level instances it, uniformly scaled). Two halls with vertical
+ # pilasters, a warm clerestory band and bright eave lamps on both long edges so the icon holds at map
+ # distances, six rooftop cooler fans per hall, and a small substation yard at the -X edge of the plinth
+ # (fenced pad, two transformers, a gantry and a glowing bus) for the grid routes to end at.
+ clere=mat('Symbol warm clerestory',(1,.83,.6),0,.4,1.2)
+ hvGlow=mat('Symbol HV bus glow',(.72,.62,1),0,.3,2.0)
+ box('Campus symbol plinth',(0,.3,0),(34,.6,26),base,g,.2)
+ for z in [-6,6]:
+  box('Campus symbol hall',(2,3.1,z),(24,5,8),shadow,g,.2)
+  box('Folded symbol roof',(2,5.73,z),(24.8,.35,8.4),pearl,g,.13)
+  for sz in [-1,1]:
+   for i in range(7):box('Symbol pilaster',(-9.6+i*3.9,3.0,z+sz*4.12),(.5,4.8,.3),pearl,g,.04)
+   for i in range(6):box('Symbol bay',(-7.65+i*3.9,2.5,z+sz*4.03),(2.6,3.2,.1),pearl,g,.04)
+   box('Symbol clerestory band',(2,4.95,z+sz*4.05),(23,.45,.08),clere,g,0)
+   box('Symbol roof edge light',(2,5.98,z+sz*4.1),(22.5,.3,.3),lamp,g,.04)
+  for i in range(6):
+   cyl('Symbol cooler fan',(-7.5+i*3.8,6.03,z),.9,.06,black,g,'y',16);ring('Symbol fan ring',(-7.5+i*3.8,6.05,z),.92,.08,steel,g,20,4)
+ box('Campus symbol service wing',(-14,2.1,0),(6,3,10),steel,g,.15)
+ # substation yard at the plinth edge
+ box('Symbol substation pad',(-21.5,.2,0),(8,.4,11),base,g,.05)
+ for x in [-25.3,-17.7]:
+  for zz in [-5.3,-2.65,0,2.65,5.3]:box('Symbol fence post',(x,1.0,zz),(.12,1.6,.12),steel,g,0)
+  box('Symbol fence rail',(x,1.75,0),(.08,.08,10.6),steel,g,0)
+ for zz in [-5.3,5.3]:box('Symbol fence rail',(-21.5,1.75,zz),(7.6,.08,.08),steel,g,0)
+ for zz in [-2.3,2.3]:
+  box('Symbol transformer',(-20.2,1.45,zz),(2.4,2.1,2.6),pearl,g,.08)
+  for dz in [-.7,0,.7]:cyl('Symbol bushing',(-21.0,2.9,zz+dz),.12,.9,steel,g,'y',8)
+ for zz in [-4.4,4.4]:box('Symbol gantry column',(-23.6,2.5,zz),(.35,4.6,.35),steel,g,0)
+ box('Symbol gantry beam',(-23.6,4.75,0),(.35,.35,9.2),steel,g,0)
+ box('Symbol HV bus',(-22.4,3.6,0),(.22,.22,8.0),hvGlow,g,0)
+ g='MAP_HUT'
+ box('Fiber shelter plinth',(0,.15,0),(6.5,.3,4.5),base,g,.12)
+ box('Fiber shelter casing',(0,1.65,0),(6,3,4),white,g,.2)
+ box('Fiber shelter folded roof',(0,3.2,0),(6.5,.28,4.5),steel,g,.12)
+ box('Shelter recessed door',(1.5,1.55,2.015),(1.2,2.35,.06),shadow,g,.035)
+ box('Shelter door handle',(1.91,1.55,2.075),(.06,.43,.08),bronze,g,.014)
+ for y in [.75+i*.21 for i in range(9)]:box('Shelter ventilation louver',(-1.2,y,2.04),(1.9,.09,.13),steel,g,.025)
+ for x in [-2.7,2.7]:box('Shelter corner extrusion',(x,1.65,2.06),(.15,2.85,.18),pearl,g,.04)
+ g='MAP_TERMINAL'
+ box('Line terminal foundation',(0,.2,0),(8.8,.4,6.8),base,g,.15)
+ box('Line terminal enclosure',(0,2.2,0),(8,4,6),shadow,g,.2)
+ box('Line terminal crown',(0,4.28,0),(8.6,.35,6.6),pearl,g,.14)
+ for x in [-3,-1,1,3]:box('Terminal face panel',(x,2.2,3.04),(1.75,3.45,.16),white,g,.035)
+ box('Terminal entrance',(0,1.5,3.16),(1.1,2.55,.1),steel,g,.04)
+ # the crown fixture carries the data layer's gold (#ffd35c) onto the building, so the regional map needs no
+ # separate trim strip in front of it
+ termGold=mat('Terminal gold fixture',(1,.83,.36),0,.5,4)
+ box('Terminal fixture',(0,4.03,3.24),(7,.12,.12),termGold,g,.02)
+map_symbols()
 # Bake modifiers, merge by semantic asset/material, then write reusable assets.
 for o in list(S.objects):
  if o.type=='MESH':

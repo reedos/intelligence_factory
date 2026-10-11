@@ -69,7 +69,7 @@ if (!['native', 'original'].includes(new URLSearchParams(location.search).get('m
   coherentBuilder = links.coherentBuilder; copperBuilder = links.copperBuilder;
 }
 const BUILDERS = [across, campus, hall, rackBuilder, trayBuilder, chipBuilder, moduleBuilder, cpoBuilder, coherentBuilder, copperBuilder];
-const MAIN_LEVELS = 6, MODULE_LEVEL = 6, CPO_LEVEL = 7;
+const MAIN_LEVELS = 6, MODULE_LEVEL = 6, CPO_LEVEL = 7, HALL_LEVEL = 2;
 export const isSide = i => i >= MAIN_LEVELS;
 // how the reader entered the side levels: the level, the door part and the layer, restored by Back out. A link opened
 // straight into a side level has none, and Back out goes to the level that holds that diagram instead.
@@ -1020,13 +1020,14 @@ export function settle() { drift = null; if (tween) { camera.position.copy(tween
 // Two groups in one bar: the six levels in a line, then the four interconnects (the side levels), each under a small
 // label of its own. Wide screens show all ten as tabs; narrower ones a picker whose menu has the same two sections
 // (Reed, 10/01/2026: the interconnects stay off the 1-6 zoom path, but in plain sight).
-const GROUPS = [['steps-main', 'Levels 1–6', false], ['steps-side', 'Interconnects', true]];
+const GROUPS = [['steps-main', 'Levels 1–6', false], ['steps-side', 'Interconnects · side trips', true]];
 const whereOf = s => (s.side ? 'Interconnects' : `Level ${s.n} of ${MAIN_LEVELS}`);
 const tabName = s => s.tab || s.title;
 // a level's subtitle in the tabs and the picker: its size, the same in every layer and short enough for one line (the
 // layer's own word stays on the view's heading); the pluggable module's names the module on show
-// an interconnect tab's subtitle is one short token ("package", not "package, representative"), so the four tabs keep one line
-const metaOf = s => s.side ? (s.id === 'module' ? s.kicker : (s.kicker || s.scale).split(' · ')[0].split(', ')[0]) : s.scale;
+// an interconnect tab's subtitle is one short token ("package", not "package, representative"; "800G 2×DR4", not the
+// module's end as well; "DAC·ACC·AEC"), so the four tabs keep one line and nothing is cut off with an ellipsis
+const metaOf = s => s.side ? (s.kicker || s.scale).split(' · ')[0].split(', ')[0].replace(/\s*\/\s*/g, '·') : s.scale;
 const stepsEl = $('steps'), stepBtns = [], stepGroups = [];
 for (const [cls, label, side] of GROUPS) {
   const g = document.createElement('div'), h = document.createElement('span'), row = document.createElement('div');
@@ -1154,7 +1155,8 @@ function buildPanel(i) {
   $('hud-sub').textContent = `${s.kicker ? `${s.kicker} · ` : ''}${built[i]?.variant?.sub?.(ui.mode) || voltFor(s).name} · ${s.scale}`;
   const list = $('parts'); list.innerHTML = '';
   $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · ${s.side ? 'interconnects' : `level ${s.n}`} · ${parts.length} parts`;
-  const tabN = $('parts-n'); if (tabN) { tabN.textContent = parts.length; tabN.setAttribute('aria-label', `, ${parts.length} parts`); }
+  // the count is drawn for the eye; the tab's own name carries it for a screen reader (aria-label on a bare span is ignored)
+  const tabN = $('parts-n'); if (tabN) { tabN.textContent = parts.length; tabN.setAttribute('aria-hidden', 'true'); tabN.parentElement.setAttribute('aria-label', `Parts, ${parts.length}`); }
   const playThese = $('play-these');
   if (playThese) { playThese.textContent = `▶ Play 1 to ${parts.length}`; playThese.hidden = !parts.length; }
   const overviewRow = document.createElement('li'), overview = document.createElement('button');
@@ -1183,10 +1185,13 @@ function buildPanel(i) {
     return { el, id: p.id, pos: V(hs[p.id].pos), mapNamed: !!hs[p.id].mapNamed };
   });
   // Heat motion is drawn on one log rule (src/heat.js): the legend says so, so the compression is not hidden.
-  $('legend').innerHTML = legends(store.M)[ui.mode][i].map(([k, l]) => `<span class="legend-item" style="--c:${VOLT[k].css}"><span class="sw"></span>${l}</span>`).join('')
+  // data-k lets a swatch carry a pattern as well as a hue (styles.css: water dashed, medium and high voltage thicker);
+  // the map's state fills are keyed too, since unexplained color reads as data
+  $('legend').innerHTML = legends(store.M)[ui.mode][i].map(([k, l]) => `<span class="legend-item" data-k="${k}" style="--c:${VOLT[k].css}"><span class="sw"></span>${l}</span>`).join('')
+    + (i === 0 && ui.mode === 'power' ? '<span class="legend-item" data-k="fill"><span class="sw"></span>fill = grid carbon, g/kWh</span>' : '')
     + (ui.mode === 'heat' ? '<span class="legend-note">Heat on a log scale: each step ≈ 10× the power</span>' : '');
   markCurrent(i);
-  $('card').hidden = true; ui.selected = null;
+  $('card').hidden = true; ui.selected = null; setExposure();
   announce(placeOf(s));
 }
 // bring the selected row and its card into the side pane's view, scrolling the pane alone (never the page): both
@@ -1224,12 +1229,16 @@ export function select(id, fly) {
   const hs = hotspotsFor(ui.scene)[id];
   controls.minDistance = hs?.view?.close ? Math.min(levelMin, 0.8 * V(viewFor(hs).pos).distanceTo(V(viewFor(hs).target))) : levelMin;
   if (fly) { const h = hs; if (h?.view) { const f = frame(built[ui.scene], h); flyTo(f.pos, f.target, 1.1, { detail: !!h.view.detailSize }); } }
+  setExposure(hs);
   revealInPane([document.querySelector(`#parts button[data-id="${id}"]`)?.closest('li'), $('card')]);
   announce(`${placeOf(SCENES()[ui.scene])}: part ${parts.indexOf(p) + 1} of ${parts.length}, ${p.title}`);
   emit('select', { scene: ui.scene, mode: ui.mode, id });
 }
+// a close part view may ask for less exposure than its level (the tray's GPU close-up washed out pale): `exposure` on
+// the hotspot scales the level's own while that part is selected
+function setExposure(h = null) { if (ui.scene >= 0) renderer.toneMappingExposure = lookOf(ui.scene).exposure * (h?.exposure ?? 1); }
 function deselect() {
-  ui.selected = null; $('card').hidden = true; controls.minDistance = levelMin;
+  ui.selected = null; $('card').hidden = true; controls.minDistance = levelMin; setExposure();
   pins.forEach(p => p.el.classList.remove('on'));
   document.querySelectorAll('#parts button').forEach(b => b.setAttribute('aria-pressed', String(b.hasAttribute('data-overview'))));
 }
@@ -1646,7 +1655,10 @@ function updatePins() {
     const sel = p.id === ui.selected;
     // on a phone only the selected pin's name is drawn, in the chip: no label to place; a pin whose name the scene
     // already draws on the map (L1's home campus tag) keeps its number and leaves the name to the map
-    const labelBox = namesInChip || p.mapNamed ? null : pinLabelBox(x, y, labelWidth, w, h, [...taken, ...circles], sel, true);
+    // the hall's thirteen parts crowd a busy scene (round-3 review): there only the selected pin's name is drawn, the
+    // others on hover or focus, and the numbered Parts list beside the view names them all
+    const quiet = ui.scene === HALL_LEVEL && !sel;
+    const labelBox = namesInChip || p.mapNamed || quiet ? null : pinLabelBox(x, y, labelWidth, w, h, [...taken, ...circles], sel, true);
     p.el.classList.remove('flip');
     const hideLabel = !labelBox;
     const left = labelBox?.left ?? x + 18;

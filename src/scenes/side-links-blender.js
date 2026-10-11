@@ -14,7 +14,7 @@ let pending;
 export function preloadLinks() {
   if (cached.size === 2) return Promise.resolve();
   if (!pending) pending = Promise.all(['coherent', 'copper'].map(async name => {
-    const gltf = await gltfLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 21 : 18}`);
+    const gltf = await gltfLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 21 : 19}`);
     cached.set(name, gltf.scene);
   })).catch(error => { pending = null; throw error; });
   return pending;
@@ -197,9 +197,9 @@ function build(name, nativeBuilder, options) {
     for (const [kind, x] of [['dac', -4.6], ['acc', 0], ['aec', 4.6]]) {
       const hit = surfaceHit(model, [x, 12, -1.7], [0, -1, 0], o => /lifted cover/i.test(o.material?.name || ''));
       if (!hit) continue;
-      printDecals(built.scene, { texture: textTexture([{ text: COPPER_LABELS[kind], size: .78, weight: 600 }], { px: 128, aspect: 2.5, ink: '#dfe7ef', align: 'center' }),
+      printDecals(built.scene, { texture: textTexture([{ text: COPPER_LABELS[kind], size: .78, weight: 600 }], { px: 128, aspect: 2.5, ink: '#1c2228', plate: '#e6e9ec', align: 'center' }),
         size: [1.15, .46], placements: [{ p: hit.point.toArray(), face: 'top' }], lift: .004, name: `Copper ${kind.toUpperCase()} lid print`,
-        material: { roughness: .6, opacity: .5 } });
+        material: { roughness: .6, opacity: 1 } });
     }
   }
   if (name === 'coherent') {

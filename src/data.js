@@ -14,6 +14,7 @@ export { BASIS };
 // Voltage classes: one color per class, used by every flow, chip and chart.
 export const VOLT = {
   hv: { css: '#b69cff', name: '345 kV AC', short: '345 kV' },
+  grid: { css: '#b69cff', name: '345–500 kV AC', short: '345–500 kV' },   // Level 1's header: the range real campuses use (Level 2's model line is 345 kV)
   mv: { css: '#ffb14e', name: '34.5 kV AC', short: '34.5 kV' },
   lv: { css: '#ff7f50', name: '480 / 415 V AC', short: '415 V' },
   hvdc: { css: '#e8ff5a', name: '800 V DC', short: '800 V' },
@@ -160,7 +161,7 @@ export function content(M, opts = {}) {
   // ---------- scenes, largest to smallest. unit = meters per world unit, for the scale bar ----------
   const SCENES = [
     {
-      id: 'across', n: 1, title: 'Scale across', scale: '2,000 km across', unit: 1000, volt: 'hv', dataVolt: 'dci', heatVolt: 'air', heatShort: 'climate',
+      id: 'across', n: 1, title: 'Scale across', scale: '2,000 km across', unit: 1000, volt: 'grid', dataVolt: 'dci', heatVolt: 'air', heatShort: 'climate',
       heatIntro: 'Heat stays local, so climate and water pick sites along with power. Cool, dry places reject heat to air most of the year without spending water.',
       intro: 'Start at the grid. Power plants feed 345–500 kV lines into campuses hundreds of kilometers apart, and each campus is its own grid customer, so very large clusters are often split across sites. Go into the lit campus to follow its power in.',
       dataIntro: 'Campuses hundreds of kilometers apart can train one model. Coherent optics light dozens of wavelengths per fiber, amplified every 80 km or so, but light still takes about 5 ms to cross 1,000 km.',
@@ -181,17 +182,18 @@ export function content(M, opts = {}) {
     },
     {
       id: 'hall', n: 3, title: 'Power room & data hall', scale: '70 m across', unit: 1, volt: dc ? 'hvdc' : 'lv', dataVolt: 'eth', heatVolt: air ? 'air' : 'warm', heatShort: air ? 'all air' : 'water + air',
-      heatIntro: air
+      heatIntro: (air
         ? 'Every rack breathes cold air in the front and blows hot air out the back into a sealed aisle. Cooling units in the rows pull that air through chilled-water coils and send it back cold.'
         : liq >= 0.99
           ? 'Every rack here is cooled by water: its heat goes through a coolant unit in its row to the facility loop overhead, and no hot aisle is drawn.'
-          : 'Two heat paths leave every rack. Most goes into water, through a coolant unit in its row to the facility loop overhead. The rest is hot air, trapped in the aisle between rack backs and pulled through the fan wall.',
+          : 'Two heat paths leave every rack. Most goes into water, through a coolant unit in its row to the facility loop overhead. The rest is hot air, trapped in the aisle between rack backs and pulled through the fan wall.')
+        + ` The facility water carries the heat to the ${warm ? 'dry coolers' : air || !closed ? 'chillers and cooling towers' : 'air-cooled chillers'} on Level 2.`,
       dataIntro: `Scale-out lives here. Every GPU has dedicated scale-out optical connections. Fibers run up from each rack into yellow runways, to leaf switches at the row ends and on to the spine, so any GPU can reach any other in a few microseconds.`,
       intro: (dc
-        ? 'Solid-state transformers take 34.5 kV and make 800 V DC in one step, with batteries on the DC bus instead of a UPS. DC busway carries 800 V over the rows into every rack.'
-        : 'Outside the wall a unit substation drops 34.5 kV to 480 V. Inside, switchgear and UPS modules feed overhead busway at 415 V that drops into every rack.')
+        ? 'Solid-state transformers make 800 V DC from 34.5 kV in one step, with batteries on the DC bus instead of a UPS, and DC busway carries it over every rack.'
+        : 'Outside the wall a unit substation drops 34.5 kV to 480 V; inside, past switchgear and UPS modules, a transformer steps it to 415 V for the busway over every rack.')
         + (air ? ' Chilled water runs overhead to cooling units in every row.' : ' Facility water runs overhead to coolant units in each row, one per eight racks.')
-        + ` Shown: a representative hall of ${HALL_SLICE.racks} racks in ${count(HALL_SLICE.rows).toLowerCase()} rows, the same for every scenario; card counts say whether they cover the campus or one hall.`,
+        + ` Shown: a representative hall of ${HALL_SLICE.racks} racks in ${count(HALL_SLICE.rows).toLowerCase()} rows, the same in every scenario.`,
     },
     nvl ? {
       id: 'rack', n: 4, title: 'The rack', scale: '2.2 m tall', unit: 1, volt: 'dc', dataVolt: 'nvl', heatVolt: 'warm', heatShort: `≈${Math.round(liq * 100)}% water`,
@@ -222,8 +224,8 @@ export function content(M, opts = {}) {
       intro: 'This is one complete 8U DGX H100 server pulled from the rack, not an NVL72 compute tray, cut open along one side. As NVIDIA’s figures show it, the GPU tray fills the top, the motherboard tray with the CPUs, memory and network modules sits under it, and six power supplies run across the bottom of the rear; both trays plug into a midplane behind the twelve front fans. Depths, the midplane’s openings and the power copper under the motherboard tray are representative.',
     },
     {
-      id: 'chip', n: 6, title: 'GPU package & tokens', scale: `${Math.round(gpuBoardCm(A.id))} cm across`, unit: 0.01, volt: 'core', dataVolt: 'hbm', heatVolt: 'hot', heatShort: 'die, hottest',
-      heatIntro: `Every watt that arrives turns into heat inside ${A.dies > 1 ? 'two dies' : 'one die'} smaller than a postcard. It climbs through a thin thermal interface ${A.id === 'h100' ? '' : 'and a heat spreader '}into ${nvl ? 'the cold plate' : 'the heat sink'}; the hard part is getting it out of the silicon fast enough.`,
+      id: 'chip', n: 6, title: 'GPU package & tokens', scale: `${Math.round(gpuBoardCm(A.id))} cm view`, unit: 0.01, volt: 'core', dataVolt: 'hbm', heatVolt: 'hot', heatShort: 'die, hottest',
+      heatIntro: `Every watt that arrives turns into heat inside ${A.dies > 1 ? 'two dies' : 'one die'} smaller than a postcard. It climbs through a thin thermal interface ${A.id === 'h100' ? '' : 'and a lid, if fitted, '}into ${nvl ? 'the cold plate' : 'the heat sink'}; the hard part is getting it out of the silicon fast enough.`,
       dataIntro: A.dies > 1
         ? `The fastest links are the shortest. HBM feeds the dies at ${hbmTB} over millimeters, the two dies talk at 10 TB/s across their seam, and ${A.nvlink.gen} leaves the package edge at ${nvlTB}.`
         : `The fastest links are the shortest. HBM feeds the die at ${hbmTB} over millimeters, and 18 ${A.nvlink.gen} links leave the package edge at ${nvlTB}.`,
@@ -233,10 +235,10 @@ export function content(M, opts = {}) {
     // line of six): a module from a tray's cages or the hall's pluggables, the CPO package from the hall's CPO switch,
     // the coherent module from the line terminals, the copper cables from an NVL72 rack's NVLink spine
     {
-      id: 'module', n: '+', side: true, title: `Inside the ${NICS ? 'NIC' : 'switch'} module`, tab: 'Pluggable optics', kicker: moduleTabName(MT), door: 'pluggable optics', scale: '10.8 cm long', unit: 0.01, volt: 'v33', dataVolt: ONE ? (MT.rate === '400G' ? 'nic4' : 'nic8') : MT8 ? 'mod8' : 'mod16', heatVolt: 'hot', heatShort: 'fins',
+      id: 'module', n: '+', side: true, title: 'Pluggable optics', tab: 'Pluggable optics', kicker: moduleTabName(MT), door: 'pluggable optics', scale: '10.8 cm long', unit: 0.01, volt: 'v33', dataVolt: ONE ? (MT.rate === '400G' ? 'nic4' : 'nic8') : MT8 ? 'mod8' : 'mod16', heatVolt: 'hot', heatShort: 'fins',
       intro: ONE
-        ? `${MOD_WHERE} A ${MT.rate} single-port optical module, opened up: its footprint drawn to its published size, its layers pulled apart vertically, its parts representative. This tray’s module: ${mtName}, the module in the compute tray’s NIC cages. It carries one ${MT.port} link: one DSP serves a representative photonics chip, with four ${MT.lane} transmit channels grouped on one side and four receive channels on the other, all feeding one optical port. It is one DR4 engine of the twin-port module at the switch end: the same board, shell and parts, with the second engine’s lanes left out. The internal placement and separate analog chips are representative, not a documented teardown. The switch end of the link takes ${swName}, a twin-port; the Switch side · NIC side toggle flips between the two. The other toggle also shows a half-retimed (LRO) version, with the DSP on transmit only, and the LPO version, with no DSP.`
-        : `${MOD_WHERE} A ${MT.rate} twin-port optical module, opened up: its footprint drawn to its published size, its layers pulled apart vertically, its parts representative. This scenario’s ${NICS ? `${A.id === 'h100' ? 'DGX H100 server' : 'compute tray'} module` : 'switch module'}: ${mtName}, ${NICS ? (A.id === 'h100' ? 'the module in the server’s rear cages (the server takes the flat-top version of this finned one)' : 'the module in the tray’s NIC cages, a type NVIDIA does not publish') : 'the module in the leaf and spine switches’ cages'}. It carries two ${MT.port} links: one shared eight-lane DSP serves a representative photonics chip, with eight ${MT.lane} transmit channels grouped on one side and eight receive channels on the other. Four channels in each direction feed each optical port. The internal placement and separate analog chips are representative, not a documented teardown.${A.id === 'h100' ? (NICS ? ' The same twin-port module sits at both ends of the link: the servers take the flat-top version, the switches this finned one. The Switch side · NIC side toggle changes the end named, not the drawing.' : ' The DGX H100 servers take the flat-top version of this module; the switches take this finned one. The Switch side · NIC side toggle changes the end named, not the drawing.') : A.id === 'gb200' ? ' The compute trays’ own NIC ports take a different module, a single-port OSFP 400G DR4; the Switch side · NIC side toggle opens the tray end of the link.' : A.id === 'gb300' ? ' The compute trays’ own NIC ports take a different module, a single-port OSFP 800G DR4; the Switch side · NIC side toggle opens the tray end of the link.' : ' This scenario models two 800G links per GPU; the network and transceiver selection are illustrative, and the drawing is the 1.6T twin-port at either end.'} The other toggle also shows a half-retimed (LRO) version, with the DSP on transmit only, and the LPO version, with no DSP.`,
+        ? `${MOD_WHERE} This tray’s module: ${mtName}, a ${MT.rate} single-port module opened up, its footprint to its published size, its layers pulled apart, its parts and their placement representative. It is one DR4 engine of ${swName}, the twin-port at the switch end, with the second engine’s lanes left out.`
+        : `${MOD_WHERE} This scenario’s ${NICS ? `${A.id === 'h100' ? 'DGX H100 server' : 'compute tray'} module` : 'switch module'}: ${mtName}, a ${MT.rate} twin-port module opened up, its footprint to its published size, its layers pulled apart, its parts and their placement representative.${A.id === 'h100' ? ' The servers take its flat-top version, the switches this finned one.' : A.id === 'gb200' ? ' The compute trays’ NIC ports take a single-port 400G DR4 instead.' : A.id === 'gb300' ? ' The compute trays’ NIC ports take a single-port 800G DR4 instead.' : ' This module choice is illustrative: NVIDIA has not published it.'}`,
       dataIntro: ONE
         ? `This tray’s NIC module, ${MT.label}: one four-channel transmit bank and one four-channel receive bank at ${MT.lane} per lane, serving one ${MT.port} optical port. Internal placement and chip partitioning are representative. Out: the host’s lanes, the DSP, a driver, electrical connections to the modulators, which put each lane onto the lasers’ light, then glass fiber to the connector. In: fiber from the connector to a photodiode, electrical connections to the TIA, the DSP, and back to the host.`
         : `This scenario’s ${NICS ? 'NIC' : 'switch'} module, ${MT.label}: one eight-channel transmit bank and one eight-channel receive bank at ${MT.lane} per lane, serving two ${MT.port} optical ports. Internal placement and chip partitioning are representative. Out: the host’s lanes, the shared eight-lane DSP, a driver, electrical connections to the modulators, which put each lane onto the lasers’ light, then glass fiber to the connector. In: fiber from the connector to a photodiode, electrical connections to the TIA, the DSP, and back to the host.`,

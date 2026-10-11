@@ -5,7 +5,7 @@ exec((HERE/'build-campus-architecture.py').read_text().split('# Full opaque buil
 import random
 for g in list(groups.values()):bpy.data.objects.remove(g,do_unlink=True)
 groups={}
-for name in ['COOLER','UNITSUB','GENSET','BESS','CAR','TRUCK','TREE0','TREE1','TREE2','FAN','HALL_RACK','HALL_CABINET','MAP_CAMPUS','MAP_HUT','MAP_TERMINAL','WALKER','EHOUSE','CTRL_HOUSE','SHELTER','GATEHOUSE','TOWER_CELL','BESS_PCS','SUB_BREAKER','SUB_POST','SUB_ARRESTER','SUB_CVT','SUB_DISCONNECT','SUB_STRING','FUEL_TANK','FUEL_TANK_ACCESS','HALL_SWGR_SECTION','HALL_UPS','HALL_BATT']:
+for name in ['COOLER','UNITSUB','GENSET','BESS','CAR','TRUCK','TREE0','TREE1','TREE2','FAN','HALL_RACK','HALL_CABINET','WALKER','EHOUSE','CTRL_HOUSE','SHELTER','GATEHOUSE','TOWER_CELL','BESS_PCS','SUB_BREAKER','SUB_POST','SUB_ARRESTER','SUB_CVT','SUB_DISCONNECT','SUB_STRING','FUEL_TANK','FUEL_TANK_ACCESS','HALL_SWGR_SECTION','HALL_UPS','HALL_BATT']:
  g=bpy.data.objects.new(name,None);S.collection.objects.link(g);groups[name]=g
 steel=mat('Mechanical brushed steel',(.34,.42,.46),.8,.35)
 white=mat('Equipment ceramic white',(.72,.77,.76),.3,.39)
@@ -340,57 +340,8 @@ for y in [.22+i*.2 for i in range(8)]:
  box('Module status LED',(.19,y+.04,.422),(.02,.02,.004),screen,g,0)
  box('Module pull',(0,y-.04,.425),(.16,.02,.02),steel,g,0)
 for y in [.5+i*.08 for i in range(10)]:box('Rear louvre',(0,y,-.405),(.46,.03,.012),shadow,g,0)
-# Cartographic facilities: complete authored silhouettes, intentionally exaggerated.
-g='MAP_CAMPUS'
-# Map symbol for a campus (the across-map level instances it, uniformly scaled). Two halls with vertical
-# pilasters, a warm clerestory band and bright eave lamps on both long edges so the icon holds at map
-# distances, six rooftop cooler fans per hall, and a small substation yard at the -X edge of the plinth
-# (fenced pad, two transformers, a gantry and a glowing bus) for the grid routes to end at.
-clere=mat('Symbol warm clerestory',(1,.83,.6),0,.4,1.2)
-hvGlow=mat('Symbol HV bus glow',(.72,.62,1),0,.3,2.0)
-box('Campus symbol plinth',(0,.3,0),(34,.6,26),base,g,.2)
-for z in [-6,6]:
- box('Campus symbol hall',(2,3.1,z),(24,5,8),shadow,g,.2)
- box('Folded symbol roof',(2,5.73,z),(24.8,.35,8.4),pearl,g,.13)
- for sz in [-1,1]:
-  for i in range(7):box('Symbol pilaster',(-9.6+i*3.9,3.0,z+sz*4.12),(.5,4.8,.3),pearl,g,.04)
-  for i in range(6):box('Symbol bay',(-7.65+i*3.9,2.5,z+sz*4.03),(2.6,3.2,.1),pearl,g,.04)
-  box('Symbol clerestory band',(2,4.95,z+sz*4.05),(23,.45,.08),clere,g,0)
-  box('Symbol roof edge light',(2,5.98,z+sz*4.1),(22.5,.3,.3),lamp,g,.04)
- for i in range(6):
-  cyl('Symbol cooler fan',(-7.5+i*3.8,6.03,z),.9,.06,black,g,'y',16);ring('Symbol fan ring',(-7.5+i*3.8,6.05,z),.92,.08,steel,g,20,4)
-box('Campus symbol service wing',(-14,2.1,0),(6,3,10),steel,g,.15)
-# substation yard at the plinth edge
-box('Symbol substation pad',(-21.5,.2,0),(8,.4,11),base,g,.05)
-for x in [-25.3,-17.7]:
- for zz in [-5.3,-2.65,0,2.65,5.3]:box('Symbol fence post',(x,1.0,zz),(.12,1.6,.12),steel,g,0)
- box('Symbol fence rail',(x,1.75,0),(.08,.08,10.6),steel,g,0)
-for zz in [-5.3,5.3]:box('Symbol fence rail',(-21.5,1.75,zz),(7.6,.08,.08),steel,g,0)
-for zz in [-2.3,2.3]:
- box('Symbol transformer',(-20.2,1.45,zz),(2.4,2.1,2.6),pearl,g,.08)
- for dz in [-.7,0,.7]:cyl('Symbol bushing',(-21.0,2.9,zz+dz),.12,.9,steel,g,'y',8)
-for zz in [-4.4,4.4]:box('Symbol gantry column',(-23.6,2.5,zz),(.35,4.6,.35),steel,g,0)
-box('Symbol gantry beam',(-23.6,4.75,0),(.35,.35,9.2),steel,g,0)
-box('Symbol HV bus',(-22.4,3.6,0),(.22,.22,8.0),hvGlow,g,0)
-g='MAP_HUT'
-box('Fiber shelter plinth',(0,.15,0),(6.5,.3,4.5),base,g,.12)
-box('Fiber shelter casing',(0,1.65,0),(6,3,4),white,g,.2)
-box('Fiber shelter folded roof',(0,3.2,0),(6.5,.28,4.5),steel,g,.12)
-box('Shelter recessed door',(1.5,1.55,2.015),(1.2,2.35,.06),shadow,g,.035)
-box('Shelter door handle',(1.91,1.55,2.075),(.06,.43,.08),bronze,g,.014)
-for y in [.75+i*.21 for i in range(9)]:box('Shelter ventilation louver',(-1.2,y,2.04),(1.9,.09,.13),steel,g,.025)
-for x in [-2.7,2.7]:box('Shelter corner extrusion',(x,1.65,2.06),(.15,2.85,.18),pearl,g,.04)
-g='MAP_TERMINAL'
-box('Line terminal foundation',(0,.2,0),(8.8,.4,6.8),base,g,.15)
-box('Line terminal enclosure',(0,2.2,0),(8,4,6),shadow,g,.2)
-box('Line terminal crown',(0,4.28,0),(8.6,.35,6.6),pearl,g,.14)
-for x in [-3,-1,1,3]:box('Terminal face panel',(x,2.2,3.04),(1.75,3.45,.16),white,g,.035)
-box('Terminal entrance',(0,1.5,3.16),(1.1,2.55,.1),steel,g,.04)
-# the crown fixture carries the data layer's gold (#ffd35c) onto the building, so the regional map needs no
-# separate trim strip in front of it
-termGold=mat('Terminal gold fixture',(1,.83,.36),0,.5,4)
-box('Terminal fixture',(0,4.03,3.24),(7,.12,.12),termGold,g,.02)
-
+# The across map's cartographic symbols (MAP_CAMPUS, MAP_HUT, MAP_TERMINAL) live in build-across-assets.py, so
+# the first view loads only across-infrastructure.glb.
 # Walking human scale cue, 1.75 m, facing +X (the direction fx.movers travels), mid-stride.
 # Dark work clothes under a muted hi-vis vest with a retro-reflective band, boots and a hard hat.
 def tube(n,a,b,r,m,g,r2=None,segments=8):

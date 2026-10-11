@@ -23,13 +23,14 @@ export function applyComputeArtDirection({ built, level, quality = {}, matched =
   if (level === 3 && built.camera?.portrait) {
     // Round-2 review (10/11/2026): the cabinet, not the busway, fills the frame - about 60% of the view's height, the
     // overhead busway cropped at the top. Same viewing direction as compute-framing.js, a lower pivot, closer in.
-    const dir = new THREE.Vector3(2.8, 1.2, 3.42).normalize(), target = [-0.05, 1.3, 0.3];
+    // Round 3: about 10% further back and a touch higher, so the rack feed's drop from the busway is in frame too.
+    const dir = new THREE.Vector3(2.8, 1.2, 3.42).normalize(), target = [-0.05, 1.38, 0.3];
     const at = d => target.map((v, i) => v + dir.getComponent(i) * d);
-    built.camera = { ...built.camera, pos: at(6.2), target, portrait: { ...built.camera.portrait, pos: at(5.1), target } };
+    built.camera = { ...built.camera, pos: at(6.8), target, portrait: { ...built.camera.portrait, pos: at(5.4), target } };
     // Data: the copper NVLink spine is on the cabinet's rear face, so the data layer looks from behind and to the right,
     // where the scale-up (pink) cartridges the intro leads with are in plain view, not hidden behind the cabinet.
     const back = new THREE.Vector3(3.2, 1.3, -2.6).normalize(), behind = d => target.map((v, i) => v + back.getComponent(i) * d);
-    built.cameraByMode = { ...built.cameraByMode, data: { pos: behind(6.2), target, portrait: { ...built.camera.portrait, pos: behind(5.1), target } } };
+    built.cameraByMode = { ...built.cameraByMode, data: { pos: behind(6.8), target, portrait: { ...built.camera.portrait, pos: behind(5.4), target } } };
   }
   if (level === 3) {
     // The studio floor takes no cast shadow: the cabinet's shadow stretched toward the camera read as a black wedge, a
