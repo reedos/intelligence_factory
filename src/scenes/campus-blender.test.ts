@@ -15,11 +15,11 @@ beforeAll(async()=>{
  const opts={quality:{mobile:true,shadows:false},model:compute(DEFAULT_SCENARIO)};
  native=campus.build(opts);hall=await import('./hall.js');nativeHall=hall.build(opts);
  const assets=new Map();
- for(const name of ['campus-architecture','campus-catalog','site-construction','campus-vehicles','hall-finish','campus-transformer']){
+ for(const name of ['campus-architecture','campus-catalog','site-construction','hall-finish','campus-transformer']){
   const b=readFileSync(new URL(`../../public/models/${name}.glb`,import.meta.url));
   assets.set(name,await gltfLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),''));
  }
- vi.spyOn(GLTFLoader.prototype,'loadAsync').mockImplementation(async url=>assets.get(url.includes('campus-architecture')?'campus-architecture':url.includes('site-construction')?'site-construction':url.includes('campus-vehicles')?'campus-vehicles':url.includes('hall-finish')?'hall-finish':url.includes('campus-transformer')?'campus-transformer':'campus-catalog'));
+ vi.spyOn(GLTFLoader.prototype,'loadAsync').mockImplementation(async url=>assets.get(url.includes('campus-architecture')?'campus-architecture':url.includes('site-construction')?'site-construction':url.includes('hall-finish')?'hall-finish':url.includes('campus-transformer')?'campus-transformer':'campus-catalog'));
  await campus.preload();built=campus.build(opts);await hall.preload();builtHall=hall.build(opts);
 },20000);
 afterAll(()=>{vi.restoreAllMocks();vi.unstubAllGlobals();});
@@ -43,15 +43,6 @@ describe('authored Blender campus replaces geometry without changing the enginee
    expect(Math.hypot(dx,dz),'pole intrudes into paved circulation').toBeGreaterThan(pole.radius+.5);
   }
   for(const [x,z]of [[-350,-64],[-350,-46],[-250,-64],[-250,-46],[-100,-64],[-100,-46],[250,-64],[250,-46],[-121,143]])expect(plan.streetLightPoles.some((p:any)=>p.x===x&&p.z===z)).toBe(false);
- });
- it('fits the larger shuttle inside its dedicated bay',()=>{
-  const fleet=built.scene.userData.blenderFleet,bay=fleet.robovanBay;
-  expect(fleet.robovanCount).toBe(1);
-  for(const name of ['MODEL_3','MODEL_Y','CYBERCAB','ROBOVAN'])expect(built.scene.getObjectByName(`Blender fleet ${name}`)).toBeDefined();
-  const bounds=new THREE.Box3().setFromObject(built.scene.getObjectByName('Blender fleet ROBOVAN'));
-  expect(bounds.min.x).toBeGreaterThan(bay.x-bay.width/2);expect(bounds.max.x).toBeLessThan(bay.x+bay.width/2);
-  expect(bounds.min.z).toBeGreaterThan(bay.z-bay.depth/2);expect(bounds.max.z).toBeLessThan(bay.z+bay.depth/2);
-  expect(bounds.max.z).toBeLessThan(202); // preserved pedestrian path
  });
  it('keeps deformed cable surface normals facing out',async()=>{
   const {authoredConstruction}=await import('./site-blender-construction.js');

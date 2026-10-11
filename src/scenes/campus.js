@@ -3,14 +3,13 @@ import { SiteBuilder as Builder, preloadSiteConstruction, finalizeSiteGeometry, 
 // Scene 1: grid & campus. Units are meters. x runs east, z runs south, y up.
 import { THREE, MAT, mtx, flow, insulator, latticeTower, catenary, wires, canvasTex, sky, person, glowMat, spinners, surfaceDetail, textSprite } from '../kit.js';
 import { rbox, lamps, plumes, movers } from '../fx.js';
-import { terrainTexture, clouds, treeMatrices, carBuild, truckBuild, walkerBuild } from './campus-detail.js';
+import { terrainTexture, clouds, treeMatrices, carBuild, parkedCarBuild, truckBuild, walkerBuild } from './campus-detail.js';
 import { campusRoadPlan, addCampusRoads, containsPlan } from './campus-roads.js';
 import { campusMaterials, addCampusArchitecture } from './campus-architecture.js';
 import { campusHorizon, campusLightPools, campusTreeBelt } from './campus-atmosphere.js';
-import { campusWoodland, campusMeadow, campusContactShade } from './campus-landscape.js';
+import { campusWoodland, campusFarTrees, campusMeadow, campusContactShade } from './campus-landscape.js';
 import { preloadCampusArchitecture, hasCampusArchitecture, addBlenderCampusArchitecture, addBlenderCampusExpansion } from './campus-blender-architecture.js';
 import { preloadCampusCatalog, campusCatalogInstances, campusCatalogRotor, campusCatalogBuilder } from './campus-blender-catalog.js';
-import { preloadCampusVehicles, hasCampusVehicles, campusVehicleInstances } from './campus-blender-vehicles.js';
 import { palette } from './campus-palette.js';
 import { addLineTerminalCutaway } from './dwdm-terminal.js';
 import { campusMarks } from './electrical-marks.js';
@@ -19,7 +18,7 @@ import { preloadCampusTransformer, hasCampusTransformer, campusTransformerInstan
 import { campusFootprint, campusHallCells } from './campus-layout.js';
 import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
 import { ledgerW } from '../power-glow.js';
-export const preload = () => Promise.all([preloadCampusArchitecture(), preloadCampusCatalog(), preloadSiteConstruction(), preloadCampusVehicles(), preloadCampusTransformer()]);
+export const preload = () => Promise.all([preloadCampusArchitecture(), preloadCampusCatalog(), preloadSiteConstruction(), preloadCampusTransformer()]);
 
 export function build({ quality, model }) {
   const L = model.layout, warm = model.cooling.id === 'warm';
@@ -751,19 +750,11 @@ export function build({ quality, model }) {
   // Parking pavement/entry curb are part of the connected road union.
   for (let x = -76; x <= 76; x += 3.2) for (const z of [150, 160, 180, 190]) N.slab(0.12, 0.06, 4.6, MAT.paint, x, 0.27, z);
   // No separate full-length lot curb crossing its entrance.
-  const car = new Builder(); carBuild(car);
+  // One generic low-poly car, instanced: the lot is a few pixels tall from every campus view.
+  const car = new Builder(); parkedCarBuild(car);
   const carMx = [];
   for (let x = -74; x <= 74; x += 3.2) for (const z of [155, 185]) if (rnd() < 0.62) { const m = mtx(x + 1.6, 0.27, z, Math.PI / 2); carMx.push(m); }
-  if(hasCampusVehicles()) {
-    // Keep the original occupied-vehicle count. One shuttle moves to a dedicated
-    // 8.5 x 3.5m bay on the existing paved south edge, clear of z202 pedestrian path.
-    const ordinary=carMx.slice(0,-1),fleet=['MODEL_3','MODEL_Y','CYBERCAB'];
-    for(const [i,name] of fleet.entries())scene.add(campusVehicleInstances(name,ordinary.filter((_,j)=>j%3===i)));
-    scene.add(campusVehicleInstances('ROBOVAN',[mtx(52,.27,196)]));
-    for(const z of [194.25,197.75])N.slab(8.5,.025,.08,MAT.paint,52,.28,z);
-    for(const x of [47.75,56.25])N.slab(.08,.025,3.5,MAT.paint,x,.28,196);
-    scene.userData.blenderFleet={ordinaryCount:ordinary.length,robovanCount:1,total:carMx.length,robovanBay:{x:52,z:196,width:8.5,depth:3.5},representative:true};
-  } else scene.add(car.instance(carMx));
+  scene.add(car.instance(carMx));
   const gardenMotion = addCampusArchitecture({ scene, hallList, hallX0, hallX1, extra, quality, materials: architectureMaterials, authoredHall: authoredCampus });
   if (authoredCampus) addBlenderCampusArchitecture(scene, hallList, hallX0, hallX1, quality);
   if (authoredCampus) scene.add(campusCatalogInstances('GATEHOUSE', [mtx(-96, 0.15, 232)], { cast: true }));
@@ -826,9 +817,9 @@ export function build({ quality, model }) {
   [[-410.2, -100.6, -1.9], [-409.6, -102.4, -1.2], [-411.4, -98.6, -2.6]].forEach(([x, z, ry]) => person(N, x, z, ry, 0.4));
   [[-384.8, -168.2, -2.2], [-385.6, -166.6, 0.6]].forEach(([x, z, ry]) => person(N, x, z, ry, 0.4));
   person(N, 212, -104, 1.2); person(N, 214, -103, 2.2);
-  const treeCount = quality.mobile ? 5 : 9;
-  const treeMx = treeMatrices(rnd, {
-    clusters: treeCount, perCluster: quality.mobile ? 26 : 48, distant: quality.mobile ? 90 : 190,
+  // Clusters and a far ring 550 m to 2 km out; a phone keeps only the near belt and the south row.
+  const treeMx = quality.mobile ? [] : treeMatrices(rnd, {
+    clusters: 9, perCluster: 48, distant: 190,
     minR: 550, maxR: 1500, distMinR: 1550, distMaxR: 1950,
     exclude: (x, z) => (x < -600 && Math.abs(z - towerZ) < 45)
       || (extra && x > 580 && x < reach + 100 && Math.abs(z + 55) < perCol * 60 + 30),
@@ -836,7 +827,10 @@ export function build({ quality, model }) {
   for (let i = 0; i < 80; i++) { const x = -620 + rnd() * 1100, z = 262 + rnd() * 90; treeMx.push(mtx(x, 0, z, rnd() * 6, 0.6 + rnd() * 0.6)); }
   campusTreeBelt(treeMx, rnd, { extra, perCol, mobile: quality.mobile });
   const roadsideTrees=treeMx.filter(m=>!roadPlan.rects.some(r=>containsPlan(r,m.elements[12],m.elements[14],10)));
-  const woodlandMotion = campusWoodland(scene, roadsideTrees, quality);
+  // Full trees within 600 m of the compound center, light ones beyond.
+  const isFar=m=>Math.hypot(m.elements[12]+70,m.elements[14]+40)>600;
+  const woodlandMotion = campusWoodland(scene, roadsideTrees.filter(m=>!isFar(m)), quality);
+  campusFarTrees(scene, roadsideTrees.filter(isFar));
   campusContactShade(scene, [
     ...hallList.flatMap(h => {
       const cz = (h.z0 + h.z1) / 2;

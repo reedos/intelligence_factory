@@ -24,6 +24,11 @@ def material(name,color,metal=.7,rough=.38):
 
 def p3(p,u):return (p[0]*u,-p[2]*u,p[1]*u)
 
+def edge_segments(width):
+    # Round-edge segments by the radius in metres: a sub-2 mm radius is a pixel or two at every camera that sees it (rack
+    # latches at 2 m, tray screws at 10-30 cm), so one chamfer catches the same highlight; three only on 5 mm and up.
+    return 1 if width<.002 else 2 if width<.005 else 3
+
 def box(name,p,d,m,u,bevel=.012):
     x,y,z=d[0]*u/2,d[2]*u/2,d[1]*u/2
     verts=[(-x,-y,-z),(x,-y,-z),(x,y,-z),(-x,y,-z),(-x,-y,z),(x,-y,z),(x,y,z),(-x,y,z)]
@@ -32,7 +37,7 @@ def box(name,p,d,m,u,bevel=.012):
     o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o);o.location=p3(p,u)
     o.data.materials.append(m)
     if bevel:
-        mod=o.modifiers.new('Precision edge radius','BEVEL');mod.width=min(bevel,min(d)*.38)*u;mod.segments=3
+        w=min(bevel,min(d)*.38)*u;mod=o.modifiers.new('Precision edge radius','BEVEL');mod.width=w;mod.segments=edge_segments(w)
     mod=o.modifiers.new('Face weighted normals','WEIGHTED_NORMAL');mod.keep_sharp=True
     for f in o.data.polygons:f.use_smooth=True
     return o
@@ -44,7 +49,7 @@ def cylinder(name,p,r,h,m,u,axis='y'):
     o=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(o);o.location=p3(p,u);o.data.materials.append(m)
     if axis=='z':o.rotation_euler.x=math.pi/2
     if axis=='x':o.rotation_euler.y=math.pi/2
-    mod=o.modifiers.new('Turned edge','BEVEL');mod.width=min(r*.12,h*.2)*u;mod.segments=2
+    w=min(r*.12,h*.2)*u;mod=o.modifiers.new('Turned edge','BEVEL');mod.width=w;mod.segments=1 if w<.001 else 2
     o.modifiers.new('Machined normals','WEIGHTED_NORMAL')
     return o
 
@@ -138,7 +143,9 @@ def refine_reference(kind,accel):
         if kind=='rack':
             # The overhead and side optical patch bundle is the heaviest rack mesh (76-148k triangles) and is seen at
             # about 300 px: planar dissolve along the straight runs, then collapse to about 30% of the original.
-            if tris>20000 and any(m and 'patch cable jacket' in m.name for m in o.data.materials):decimate(o,tris,.3)
+            # The front handles and latches (300-triangle rounded parts, 23 mm, about 7 px at the rack camera; 48-53k triangles in
+            # one mesh) collapse to about 40%.
+            if tris>20000:decimate(o,tris,.3 if any(m and 'patch cable jacket' in m.name for m in o.data.materials) else .4)
             o.modifiers.new('Precision surface normals','WEIGHTED_NORMAL').keep_sharp=True
             continue
         # Dense repeated parts (heat-sink fins, pin rows, 1,000+ small boxes) gain nothing visible from a 0.2 mm radius
@@ -152,7 +159,8 @@ def refine_reference(kind,accel):
             o.modifiers.new('Precision surface normals','WEIGHTED_NORMAL');continue
         mod=o.modifiers.new('Blender manufactured edge finish','BEVEL')
         mod.width={'rack':.00035,'tray':.00022,'chip':.000025}[kind]
-        mod.segments=2;mod.limit_method='ANGLE';mod.angle_limit=.65;mod.use_clamp_overlap=True
+        # 0.22 mm (tray) and 25 um (chip) radii are under a pixel at their closest cameras: one chamfer segment.
+        mod.segments=1;mod.limit_method='ANGLE';mod.angle_limit=.65;mod.use_clamp_overlap=True
         o.modifiers.new('Precision surface normals','WEIGHTED_NORMAL')
 
 def tray_hardware(accel,m):
@@ -393,25 +401,32 @@ def rack_front_finish(accel):
             if .035<max(c)<.10 and min(c)>.03:
                 s=.17/max(c);p.inputs['Base Color'].default_value=(*[v*s for v in c],1);mat.diffuse_color=(*[v*s for v in c],1)
 
-def tray_package_finish():
-    # Close-up package tops, material only: the dies keep their drawn face but read as polished silicon (a little
-    # metallic sheen, low roughness); the HBM stacks get a matte epoxy mold-compound top instead of glossy black.
-    def dims(o):
-        lo,hi=bounds(o);return sorted(hi[i]-lo[i] for i in range(3))
+def tray_package_finish(accel):
+    # The tray's GPU packages in the chip level's finishes (chip.js, compute-chip-*.glb), so the tray close-up and level 6
+    # draw one part: blue-grey polished silicon dies with a near-black sidewall, the organic CoWoS-L interposer near-black
+    # (it read as a light frame around dark, recessed-looking dies), and each HBM stack a dark molded top over the lighter
+    # DRAM die edges, so the eight stacks stand apart from the interposer instead of reading as black blocks. Faces are
+    # reassigned by footprint (references/gpu-package.json, the descriptor both levels build from); no geometry changes.
+    pkg=json.loads((HERE/'references'/'gpu-package.json').read_text()).get(accel)
+    if not pkg:return
+    cm=.01;die=pkg['dies'][0];ip=pkg['interposer'];hb=pkg['hbm']
+    top=material('GPU die silicon backside',(.0685,.0844,.1221),.35,.3)
+    p=top.node_tree.nodes.get('Principled BSDF')
+    p.inputs['Coat Weight'].default_value=1;p.inputs['Coat Roughness'].default_value=.06
+    p.inputs['Emission Color'].default_value=(.159,.686,1,1);p.inputs['Emission Strength'].default_value=.08   # level 6's resting power glow
+    finish={'die_top':top,'die_side':material('GPU die sidewall',(.0103,.0123,.0176),.3,.4),
+            'interposer':material('CoWoS-L organic redistribution interposer',(.0116,.0103,.0103),.1,.5),
+            'hbm_top':material('HBM molded top',(.035,.038,.045),.05,.5),'hbm_side':material('HBM DRAM die edge',(.0999,.1195,.15),.35,.3)}
+    def near(a,b,t=.0006):return abs(a-b)<t
+    def foot(sx,sy,w,d):return (near(sx,w*cm) and near(sy,d*cm)) or (near(sx,d*cm) and near(sy,w*cm))
+    def dark(o,f):
+        m=o.data.materials[f.material_index] if f.material_index<len(o.data.materials) else None
+        q=m and m.use_nodes and m.node_tree.nodes.get('Principled BSDF')
+        return bool(q) and not q.inputs['Base Color'].is_linked and max(q.inputs['Base Color'].default_value[:3])<.06
+    count={}
     for o in bpy.context.scene.objects:
         if o.type!='MESH' or not o.data.materials:continue
-        d=dims(o)
-        # One die per object: 2 mm thick, 26 x 31-33 mm (gpu-package.js dies; H100 26 x 31.3 mm).
-        if abs(d[0]-.002)<.0005 and abs(d[1]-.026)<.001 and .030<d[2]<.034:
-            for mat in o.data.materials:
-                p=mat and mat.use_nodes and mat.node_tree.nodes.get('Principled BSDF')
-                if p and p.inputs['Base Color'].is_linked:
-                    p.inputs['Metallic'].default_value=.45;p.inputs['Roughness'].default_value=.24
-            continue
-        # The merged HBM slabs: most loose parts 10.6 x 10 mm stacks (the rest small details in the same finish).
-        me=o.data
-        if not 8<=len(me.vertices)<=4000 or len(me.materials)!=1:continue
-        bm=bmesh.new();bm.from_mesh(me);hits=parts=0;seen=set()
+        bm=bmesh.new();bm.from_mesh(o.data);mw=o.matrix_world;rot=mw.to_3x3();seen=set();assign=[]
         for s in bm.verts:
             if s in seen:continue
             g={s};st=[s]
@@ -420,15 +435,23 @@ def tray_package_finish():
                 for e in v.link_edges:
                     w=e.other_vert(v)
                     if w not in g:g.add(w);st.append(w)
-            seen|=g;ps=[o.matrix_world@v.co for v in g]
-            sz=sorted(max(p[i] for p in ps)-min(p[i] for p in ps) for i in range(3))
-            parts+=1;hits+=abs(sz[1]-.0100)<.0006 and abs(sz[2]-.0106)<.0006
+            seen|=g;ps=[mw@v.co for v in g]
+            sx,sy,sz=(max(q[i] for q in ps)-min(q[i] for q in ps) for i in range(3))
+            faces={f for v in g for f in v.link_faces}
+            if foot(sx,sy,die['w'],die['d']) and sz<.0025:kind='die'   # the die body and its printed top skin
+            elif pkg['id']!='h100' and foot(sx,sy,ip['w'],ip['d']) and sz<.003:kind='interposer'
+            elif foot(sx,sy,hb['w'],hb['d']) and .002<sz<.006 and all(dark(o,f) for f in faces):kind='hbm'   # not the H100's blank silicon spacer
+            else:continue
+            count[kind]=count.get(kind,0)+1
+            for f in faces:
+                up=(rot@f.normal).normalized().z>.9
+                assign.append((f.index,finish[kind if kind=='interposer' else kind+('_top' if up else '_side')]))
         bm.free()
-        if hits>=8 and hits>=parts*.6:
-            p=me.materials[0].node_tree.nodes.get('Principled BSDF')
-            p.inputs['Base Color'].default_value=(.024,.025,.028,1);me.materials[0].diffuse_color=(.024,.025,.028,1)
-            p.inputs['Metallic'].default_value=0;p.inputs['Roughness'].default_value=.82
-            print('HBM_MOLD_TOP',o.name,hits,'of',parts)
+        for i,m in assign:
+            slots=list(o.data.materials)
+            if m not in slots:o.data.materials.append(m);slots.append(m)
+            o.data.polygons[i].material_index=slots.index(m)
+    print('TRAY_PACKAGE_FINISH',accel,count)
 
 def rack_hardware(accel,m):
     u=1
@@ -525,6 +548,72 @@ def dedupe_reference_materials():
     for m in list(bpy.data.materials):
         if m.users==0:bpy.data.materials.remove(m)
 
+def separate_coplanar(kind):
+    # Same-facing coplanar faces of two different parts z-fight (a connector's base flush with its board's underside, a
+    # duplicated boot, a trace flush with the mask). Where one part's face overlaps a larger part's, in the same plane and
+    # facing the same way, move the smaller part's face out along its normal: 0.05 mm at the tray and chip, 0.3 mm at the
+    # rack's distance. Positions otherwise stay as audited; translucent surfaces are left alone.
+    off={'rack':.0003,'tray':.00005,'chip':.00005}[kind]
+    def opaque(m):
+        q=m and m.use_nodes and m.node_tree.nodes.get('Principled BSDF')
+        return not q or (not q.inputs['Alpha'].is_linked and q.inputs['Alpha'].default_value>=1)
+    buckets={};meshes=[o for o in bpy.context.scene.objects if o.type=='MESH']
+    for oi,o in enumerate(meshes):
+        me=o.data;mw=o.matrix_world;rot=mw.to_3x3();ok=[opaque(m) for m in me.materials] or [True]
+        world=[mw@v.co for v in me.vertices]
+        parent=list(range(len(me.vertices)))
+        def find(a):
+            while parent[a]!=a:parent[a]=parent[parent[a]];a=parent[a]
+            return a
+        for e in me.edges:
+            a,b=find(e.vertices[0]),find(e.vertices[1])
+            if a!=b:parent[b]=a
+        for f in me.polygons:
+            if not ok[min(f.material_index,len(ok)-1)]:continue
+            n=(rot@f.normal).normalized();ax=next((i for i in range(3) if abs(n[i])>.9999),None)
+            if ax is None:continue
+            u,v=(ax+1)%3,(ax+2)%3;pts=[(world[i][u],world[i][v]) for i in f.vertices];plane=world[f.vertices[0]][ax]
+            key=(ax,n[ax]>0,round(plane*1e5))
+            buckets.setdefault(key,{}).setdefault((oi,find(f.vertices[0])),[]).append((f.index,pts,f.area))
+    def inside(pt,poly,t=1e-5):
+        # strictly inside a convex face, at least 10 um from its edges (parts that only touch along an edge stay put)
+        sgn=0
+        for i in range(len(poly)):
+            (x0,y0),(x1,y1)=poly[i],poly[(i+1)%len(poly)]
+            L=math.hypot(x1-x0,y1-y0)
+            if L<1e-9:continue
+            c=((x1-x0)*(pt[1]-y0)-(y1-y0)*(pt[0]-x0))/L
+            if abs(c)<=t:return False
+            if sgn==0:sgn=1 if c>0 else -1
+            elif (c>0)!=(sgn>0):return False
+        return True
+    def box2(polys):
+        xs=[x for _,p,_ in polys for x,_ in p];ys=[y for _,p,_ in polys for _,y in p];return min(xs),max(xs),min(ys),max(ys)
+    move={}
+    for (ax,pos,_),groups in buckets.items():
+        if len(groups)<2:continue
+        order=sorted(groups.items(),key=lambda kv:-sum(a for _,_,a in kv[1]));kept=[]
+        for (oi,isl),faces in order:
+            bx=box2(faces)
+            for f,pts,_ in faces:
+                cx=sum(x for x,_ in pts)/len(pts);cy=sum(y for _,y in pts)/len(pts)
+                for kb,kfaces in kept:
+                    if kb[0]>bx[1] or kb[1]<bx[0] or kb[2]>bx[3] or kb[3]<bx[2]:continue
+                    if any(any(inside(q,kp) for q in pts+[(cx,cy)]) or any(inside(r,pts) for r in kp) for _,kp,_ in kfaces):
+                        d=[0,0,0];d[ax]=off if pos else -off;move.setdefault(oi,{})[f]=d;break
+            kept.append((bx,faces))
+    moved=0
+    for oi,faces in move.items():
+        o=meshes[oi];inv=o.matrix_world.inverted().to_3x3();dv={}
+        for fi,d in faces.items():
+            for vi in o.data.polygons[fi].vertices:
+                acc=dv.setdefault(vi,[0,0,0])
+                for i in range(3):
+                    if d[i]:acc[i]=d[i]
+        for vi,d in dv.items():o.data.vertices[vi].co+=inv@Vector(d)
+        moved+=len(faces)
+    print('COPLANAR_SEPARATED',kind,moved,'faces')
+
 def export_variant(kind,accel):
     bpy.ops.object.select_all(action='SELECT');bpy.ops.object.delete(use_global=False)
     bpy.ops.import_scene.gltf(filepath=str(HERE/'references'/f'{kind}-{accel}.glb'))
@@ -557,7 +646,7 @@ def export_variant(kind,accel):
     spec=importlib.util.spec_from_file_location('compute_hero',HERE/'compute-hero-detail.py')
     hero=importlib.util.module_from_spec(spec);spec.loader.exec_module(hero)
     hero.enhance(kind,accel,m,box,cylinder,p3,material)
-    if kind=='tray':tray_specular_finish();tray_package_finish();dedupe_materials()
+    if kind=='tray':tray_specular_finish();tray_package_finish(accel);dedupe_materials()
     if kind=='rack':
         spec=importlib.util.spec_from_file_location('rack_inspection',HERE/'rack-inspection-detail.py')
         inspection=importlib.util.module_from_spec(spec);spec.loader.exec_module(inspection)
@@ -573,6 +662,7 @@ def export_variant(kind,accel):
     for o in authored_meshes:o.select_set(True)
     bpy.context.view_layer.objects.active=authored_meshes[0]
     bpy.ops.object.convert(target='MESH')
+    separate_coplanar(kind)
     batches={}
     for o in list(bpy.context.scene.objects):
         if o.type!='MESH':continue
@@ -583,7 +673,11 @@ def export_variant(kind,accel):
         bpy.ops.object.select_all(action='DESELECT')
         for o in objects:o.select_set(True)
         bpy.context.view_layer.objects.active=objects[0];bpy.ops.object.join()
-        bpy.context.object.name='Blender hardware '+key[0]
+    # Every exported node and mesh named after its material ('Blender hardware Copper contact surface'), not REFERENCE_*_00xx /
+    # Mesh_N; nothing reads these names (src and tools/tray-parts.mjs go by material), they are for debugging and picking.
+    for o in bpy.context.scene.objects:
+        if o.type=='MESH' and o.data.materials and o.data.polygons:
+            o.name='Blender hardware '+o.data.materials[o.data.polygons[0].material_index].name;o.data.name=o.name
     bpy.ops.export_scene.gltf(filepath=str(OUT/f'compute-{kind}-{accel}.glb'),export_format='GLB',export_yup=True,export_extras=True,export_apply=True,export_cameras=False,export_lights=False)
     print('COMPUTE_EXPORTED',kind,accel,(OUT/f'compute-{kind}-{accel}.glb').stat().st_size)
 

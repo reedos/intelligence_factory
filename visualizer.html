@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="/src/styles.css">
 </head>
 <body class="app">
+<a class="skip-link" href="#parts">Skip to parts</a>
 <header class="topbar" id="topbar">
   <a class="brand" href="index.html" aria-label="The Intelligence Factory, the story"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span><span class="brand-t">The Intelligence Factory</span></a>
   <nav class="topnav" id="topnav" aria-label="Site">
@@ -33,10 +34,10 @@
     <!-- one top row: the six levels (a picker on phones), the layer switch on phones, and one menu for the rest -->
     <div class="toprow" id="toprow">
       <nav class="steps" id="steps" aria-label="Scale"></nav>
-      <button type="button" class="level-pick" id="level-pick" aria-haspopup="true" aria-expanded="false" aria-controls="level-menu"><span class="lp-k" id="lp-k">Level 1 of 6</span><span class="lp-t" id="lp-t">Scale across</span><i aria-hidden="true"></i></button>
+      <button type="button" class="level-pick" id="level-pick" aria-expanded="false" aria-controls="level-menu"><span class="lp-k" id="lp-k">Level 1 of 6</span><span class="lp-t" id="lp-t">Scale across</span><i aria-hidden="true"></i></button>
       <div class="pop level-menu" id="level-menu" role="group" aria-label="Levels" hidden></div>
       <div class="mode-slot" id="mode-slot"></div>
-      <button type="button" class="more-btn" id="more-btn" aria-haspopup="true" aria-expanded="false" aria-controls="more-menu" aria-label="More: view controls, share, quality, hide details"><span aria-hidden="true">⋯</span></button>
+      <button type="button" class="more-btn" id="more-btn" aria-expanded="false" aria-controls="more-menu" aria-label="More: view controls, share, quality, hide details"><span aria-hidden="true">⋯</span></button>
       <div class="pop more-menu" id="more-menu" role="group" aria-label="More" hidden>
         <div class="mm-view" id="mm-view"><p class="mm-h">This view</p></div>
         <div class="mm-tools" id="mm-tools"><button type="button" class="mm-item" id="share-btn">Share this view</button></div>
@@ -99,7 +100,7 @@
           <p class="intro" id="intro"></p>
           <button type="button" class="intro-more" id="intro-more" aria-expanded="false" aria-controls="intro" hidden>Read more</button>
           <div class="parts-head"><span class="eyebrow" id="parts-k">Numbered in the view</span></div>
-          <ul class="parts" id="parts"></ul>
+          <ul class="parts" id="parts" tabindex="-1" aria-label="Parts"></ul>
           <article class="card" id="card" hidden>
             <span class="k" id="card-k"></span>
             <h3 id="card-t"></h3>
@@ -118,7 +119,7 @@
               </div>
             </div>
           </article>
-          <p class="pane-note">Personal educational project based on cited public sources. Not an official publication of my employer or the companies discussed. Models are schematic; estimates and assumptions are identified. Counts and layouts follow this scenario, not a photograph or one vendor's hardware.</p>
+          <p class="pane-note">Personal project from public sources; models are schematic. <a href="method.html">Method</a></p>
         </div>
       </aside>
     </div>

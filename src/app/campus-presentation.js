@@ -33,9 +33,14 @@ const inMenu = matchMedia('(max-width: 1100px)');
 // tab bar, which never scrolls away, where the view controls fold into the menu
 const partNav = document.querySelector('.card-navigation');
 partNav.classList.add('part-nav');
+// A level's own toggles (Annotations, the covers) sit with its variant toggles at the view's top left on a desktop, so
+// every level puts its extras in one place and the row under the view holds Previous/Next alone; in the menu below that
+const annotationsBtn = panel.querySelector('#link-annotations'), coversBtn = panel.querySelector('#link-covers');
+const viewToggles = document.createElement('div');
+viewToggles.className = 'mode variant view-toggles'; viewToggles.setAttribute('role', 'group'); viewToggles.setAttribute('aria-label', 'This view');
 const place = () => {
-  if (inMenu.matches) { document.getElementById('mm-view').append(panel); document.querySelector('.pane-tabs').append(partNav); }
-  else { document.getElementById('viewer').append(panel); panel.prepend(partNav); }
+  if (inMenu.matches) { document.getElementById('mm-view').append(panel); panel.append(annotationsBtn, coversBtn); document.querySelector('.pane-tabs').append(partNav); }
+  else { document.getElementById('viewer').append(panel); panel.prepend(partNav); viewToggles.append(annotationsBtn, coversBtn); document.querySelector('.hud.vl')?.append(viewToggles); }
 };
 inMenu.addEventListener('change', place); place();
 const scope = document.createElement('section'); scope.className = 'link-scope'; scope.hidden = true;
@@ -121,7 +126,7 @@ function sync() {
       : 'Representative plug ends and internal routing. Moving marks explain flow, not speed or watts.';
   if (scope.dataset.scene !== String(store.ui.scene)) { scopeDetails.open = false; scope.dataset.scene = String(store.ui.scene); }
   syncCycle();
-  const annotations = panel.querySelector('#link-annotations'), covers = panel.querySelector('#link-covers');
+  const annotations = annotationsBtn, covers = coversBtn;
   annotations.hidden = !inspection;
   annotations.setAttribute('aria-pressed', String(!!inspection?.annotations));
   covers.hidden = !inspection?.hasCovers || !!inspection?.coversAlwaysVisible;
@@ -130,6 +135,7 @@ function sync() {
   const coverLabel = inspection?.coverLabel || 'covers';
   covers.textContent = thermal ? `${coverLabel === 'covers' ? 'Thermal covers' : 'Cold plate'} shown` : `${inspection?.covers ? 'Hide' : 'Show'} ${coverLabel}`;
   covers.setAttribute('aria-pressed', String(thermal || !!inspection?.covers));
+  viewToggles.hidden = annotations.hidden && covers.hidden;
   const campus = store.ui.scene === 1;
   extras.querySelector('.campus-view-buttons').hidden = !campus;
   focusButton.hidden = !campus;
@@ -144,10 +150,10 @@ function sync() {
 }
 extras.querySelectorAll('[data-campus-view]').forEach(button => button.addEventListener('click', () => setCampusView(button.dataset.campusView)));
 focusButton.addEventListener('click', () => { setCampusFocus(!campusFocusInfo().enabled); sync(); });
-panel.querySelector('#link-annotations').addEventListener('click', () => {
+annotationsBtn.addEventListener('click', () => {
   const api = built[store.ui.scene]?.inspection; api?.setAnnotations(!api.annotations); sync();
 });
-panel.querySelector('#link-covers').addEventListener('click', () => {
+coversBtn.addEventListener('click', () => {
   const api = built[store.ui.scene]?.inspection; api?.setCovers(!api.covers); sync();
 });
 for (const event of ['scene', 'scenario', 'mode', 'module-variant', 'select', 'campus-presentation', 'render-quality']) on(event, sync);

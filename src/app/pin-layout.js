@@ -25,9 +25,10 @@ export function pinLabelBox(x, y, width, canvasWidth, canvasHeight, reserved, se
 // points: [{ id, x, y }] in list order. Returns placements (id -> { x, y, ax, ay }, true point ax/ay),
 // hidden ids, and groups ({ key, ids, x, y }) to draw as badges.
 // `fixed` ([{ x, y }]) are pins that do not move (the selected one): a cluster that would touch one is slid clear of it.
-// radius defaults to a pin's diameter (22) plus 6 px.
-/** @param {{ id: string, x: number, y: number }[]} points @param {{ radius?: number, collapseAt?: number, expanded?: Set<string> | null, fixed?: { x: number, y: number }[] }} [opts] */
-export function declutterPins(points, { radius = 28, collapseAt = 5, expanded = null, fixed = [] } = {}) {
+// radius defaults to a pin's diameter (22) plus 6 px. `gap` is the clear space kept between two pins' circles once laid
+// out (4 px by default); stage.js asks for more, since each pin's dark ring makes it about 30 px across on screen.
+/** @param {{ id: string, x: number, y: number }[]} points @param {{ radius?: number, gap?: number, collapseAt?: number, expanded?: Set<string> | null, fixed?: { x: number, y: number }[] }} [opts] */
+export function declutterPins(points, { radius = 28, gap = 4, collapseAt = 5, expanded = null, fixed = [] } = {}) {
   const PIN = 12, BADGE = 21;   // half-sizes: a 22 px pin with its ring, a "N +k" badge
   const order = new Map(points.map((p, i) => [p.id, i]));
   let clusters = points.map(p => [p]);
@@ -45,8 +46,8 @@ export function declutterPins(points, { radius = 28, collapseAt = 5, expanded = 
     const open = expanded && m.some(p => expanded.has(p.id));
     if (k >= collapseAt && !open) return { c, group: true, items: [{ x: c.x, y: c.y, r: BADGE }] };
     // evenly spaced round the centre, in the order the pins already sit round it, so each keeps its side;
-    // neighbours 34 px apart: 22 px badges with a clear gap
-    const r = 17 / Math.sin(Math.PI / k);
+    // neighbours at least 34 px apart: 22 px badges with a clear gap
+    const r = Math.max(17, PIN + gap / 2 + 1) / Math.sin(Math.PI / k);
     const ang = m.map(p => Math.hypot(p.x - c.x, p.y - c.y) < 1 ? null : Math.atan2(p.y - c.y, p.x - c.x));
     const start = ang.find(a => a !== null) ?? -Math.PI / 2;
     const rel = a => ((a - start) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
@@ -59,7 +60,7 @@ export function declutterPins(points, { radius = 28, collapseAt = 5, expanded = 
     if (!fixed.length) return l;
     let dx = 0, dy = 0;
     for (let n = 0; n < 80; n++) {
-      const f = fixed.find(q => l.items.some(it => Math.hypot(it.x + dx - q.x, it.y + dy - q.y) < it.r + 11 + 4));
+      const f = fixed.find(q => l.items.some(it => Math.hypot(it.x + dx - q.x, it.y + dy - q.y) < it.r + 11 + gap));
       if (!f) break;
       const vx = l.c.x + dx - f.x, vy = l.c.y + dy - f.y, d = Math.hypot(vx, vy);
       if (d < 0.5) dy -= 3; else { dx += vx / d * 3; dy += vy / d * 3; }
@@ -71,7 +72,7 @@ export function declutterPins(points, { radius = 28, collapseAt = 5, expanded = 
   for (let again = true; again;) {
     again = false; laid = clusters.map(layout);
     outer: for (let i = 0; i < laid.length; i++) for (let j = i + 1; j < laid.length; j++)
-      if (laid[i].items.some(a => laid[j].items.some(b => Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r + 4))) { merge(i, j); again = true; break outer; }
+      if (laid[i].items.some(a => laid[j].items.some(b => Math.hypot(a.x - b.x, a.y - b.y) < a.r + b.r + gap))) { merge(i, j); again = true; break outer; }
   }
   const placements = new Map(), hidden = new Set(), groups = [];
   laid.forEach((l, i) => {

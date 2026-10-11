@@ -746,7 +746,7 @@ describe('module level follows the scenario', () => {
     result.variant.set('dsp'); expect(result.variant.lid).toBe(switchLabel(accel));
     const captions: string[] = [];
     result.scene.traverse((o: THREE.Object3D) => { if (o.userData.caption) captions.push(o.userData.caption.text); });
-    expect(captions).toContain(`One DSP · ${rate} · 8 TX + 8 RX at ${lane} PAM4 · two ${port} ports`);
+    expect(captions.some(t => /One DSP|footprint/.test(t)), 'one caption line under the model; the rest is in the cards').toBe(false);
     expect(captions.some(t => t.startsWith(`Pluggable module · ${rate}`)), captions.join(' | ')).toBe(true);
     if (id === 'rubin') expect(captions.some(t => /type unpublished/.test(t))).toBe(true);
     // the DSP's printed capacity: the asset's modeled 1.6T text, or the 800G overlay in its place
@@ -912,7 +912,7 @@ describe('module level NIC side', () => {
     result.variant.set('dsp');
     const captions: string[] = [];
     result.scene.traverse((o: THREE.Object3D) => { if (o.userData.caption) captions.push(o.userData.caption.text); });
-    expect(captions).toContain(`One DSP · ${rate} · 4 TX + 4 RX at ${lane} PAM4 · one ${rate} port`);
+    expect(captions.some(t => /One DSP|footprint/.test(t)), 'one caption line under the model; the rest is in the cards').toBe(false);
     expect(captions.some(t => t.startsWith(`${id.toUpperCase()} NIC-side module · ${rate} single-port OSFP, DR4`)), captions.join(' | ')).toBe(true);
     const marks: string[] = [];
     result.scene.traverse((o: THREE.Object3D) => { if (o.visible && o.userData.capacityMarking && /DSP/.test(o.userData.capacityMarking)) marks.push(o.userData.capacityMarking); });

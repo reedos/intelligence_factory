@@ -752,10 +752,17 @@ export function build({ quality, model, state = {} }) {
   const [hx, hz] = H, h0 = huts[3] || huts[0] || [hx, 3, hz], R0 = near[0] ? world(near[0].p.site.lon, near[0].p.site.lat) : [hx + 300, hz];
   const view = (x, z, d = 200) => ({ pos: [x + d * 0.3, d * 0.9, z + d * 1.1], target: [x, 0, z] });
   const siteSpots = Object.fromEntries(others.map(p => { const [x, z] = world(p.site.lon, p.site.lat); return [placeKey(p), { pos: [x, 12, z], view: view(x - 15, z, 300) }]; }));
+  // The overview frames every numbered campus (round-2 review: Abilene and Hyperion sat off the frame): centred on
+  // their extent, along the same viewing direction, pulled back as far as the widest spread needs (1,250 m of map
+  // across at the authored distance, plus a margin for the title and buttons).
+  const spread = [[hx, hz], ...Object.values(siteSpots).map(v => [v.pos[0], v.pos[2]])];
+  const [x0, x1] = [Math.min(...spread.map(p => p[0])), Math.max(...spread.map(p => p[0]))];
+  const [z0, z1] = [Math.min(...spread.map(p => p[1])), Math.max(...spread.map(p => p[1]))];
+  const fitK = Math.max(1, (x1 - x0 + 300) / 1250, (z1 - z0 + 260) / 1000), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2 + 40;
   const built = {
     scene, flows, dataFlows, heatFlows, layers: { power, data }, powerDraw,
     look: { exposure: 1.45, bloom: 0.85, threshold: 0.92, ao: 0, env: 'night', envIntensity: 0.5 },
-    camera: { pos: [hx - 220, 1250, hz + 1560], target: [hx - 60, 0, hz + 200], near: 1, far: 30000, min: 60, max: 6000 },
+    camera: { pos: [cx - 160 * fitK, 1250 * fitK, cz + 1360 * fitK], target: [cx, 0, cz], near: 1, far: 30000, min: 60, max: 6000 },
     hotspots: {
       grid: { pos: [(plants[1][0] + hx) / 2, 12, (plants[1][1] + hz) / 2], view: view((plants[1][0] + hx) / 2, (plants[1][1] + hz) / 2, 700) },
       plants: { pos: [plants[0][0] + 5 * Math.cos(GAS_RY) - 7 * Math.sin(GAS_RY), 24, plants[0][1] - 5 * Math.sin(GAS_RY) - 7 * Math.cos(GAS_RY)], view: view(plants[0][0] + 2, plants[0][1] - 4, 95) },

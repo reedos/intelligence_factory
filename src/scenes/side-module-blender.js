@@ -2,7 +2,7 @@
 // The asset is a representative layout, not a recovered production design. Exported
 // routes describe visible conductors; chip-internal paths are omitted; contact breakout uses representative PCB layers.
 import { gltfLoader } from './gltf-loader.js';
-import { THREE, flow, laneFlow, setup, label, FLOW, COL, note, unitCol } from './side-kit.js';
+import { THREE, flow, laneFlow, setup, label, FLOW, COL } from './side-kit.js';
 import { applyArtDirection } from './module-art-direction.js';
 import { MODULE_VARIANTS, LRO_COLOR, inVariant, splitByZ, lroDieTop, lroIntro, lroPartCopy, dspMarkingTop } from './module-lro.js';
 import { moduleLabel, moduleTier, moduleName, normSide } from './lid-labels.js';
@@ -11,7 +11,6 @@ import { attachFlowRibbons } from '../flow-ribbons.js';
 import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
 import { hardwareBounds, componentView } from '../app/housing-frame.js';
 import { footprint } from '../power-glow.js';
-import { OSFP_MM } from './osfp-size.js';
 
 let cached, pending;
 const CM = 100;
@@ -30,7 +29,7 @@ const PIN_OFFSET = {
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
 
-export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=lanes2`) {
+export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=r2blender`) {
   if (cached) return Promise.resolve(cached);
   if (!pending) pending = gltfLoader().loadAsync(url).then(gltf => {
     cached = gltf;
@@ -367,12 +366,9 @@ export function build({ quality, state, model: scenario, side: sideOption }) {
   // which end of the link the reader is on: the switch cage's module, the tray's NIC cage's, or (H100, Rubin) one module at both
   const headLine = `${side === 'nic' && !tier.same ? `${tier.nicName} NIC-side module` : 'Pluggable module'} · ${moduleName(tier)}`;
   label(scene, tier.same ? `${headLine} · ${side === 'nic' ? `${tier.nicName} NIC end` : 'switch end'}, same module at both ends` : headLine, [0.6, -0.35, 2.6], '#e8ecf2', 0.32);
-  label(scene, `${OSFP_MM.len} × ${OSFP_MM.w} mm footprint · exploded spacing · representative internals`, [0.6, -0.72, 2.95], note, 0.17);
-  label(scene, `One DSP · ${tier.rate} · ${tier.lanes} TX + ${tier.lanes} RX at ${tier.lane} PAM4 · ${tier.ports === 1 ? `one ${tier.port} port` : `two ${tier.port} ports`}`, [0.6, -1.02, 3.25], unitCol, 0.17);
-  // End-to-end TX/RX explanations live in the panel. Placing them at the host
-  // connector would imply that light enters or leaves that electrical interface.
-  const modeNote = label(scene, 'Power and heat arrows are schematic across the exploded assembly.',
-    [0.6, -1.32, 3.55], note, 0.14);
+  // One caption line, as on the CPO and coherent levels: footprint, exploded spacing, representative internals, the
+  // DSP's lanes and the schematic arrows are in the level's intro and part cards. End-to-end TX/RX explanations live
+  // in the panel too: placed at the host connector they would imply that light enters or leaves that interface.
   const diagramLabels = scene.children.filter(o => o.isSprite);
   // The overview frames the captions with the hardware, so the fit keeps them inside the clear view and off the
   // bottom HUD (the drag hint, the scale bar, the legend): see presentation.clearBottomHud and stage.js safeBox.
@@ -411,7 +407,6 @@ export function build({ quality, state, model: scenario, side: sideOption }) {
       f.group.visible = amount === 1 && targetAmount === 1 && state.mode === mode && inVariant(kind, f.route.variant, rxFlow(f));
     }
     for (const sprite of diagramLabels) sprite.visible = amount === 1 && targetAmount === 1 && !state.selected;
-    modeNote.visible = amount === 1 && targetAmount === 1 && state.mode !== 'data' && !state.selected;
     lpoTag.visible = amount === 1 && targetAmount === 1 && lpo;
     lroTag.visible = amount === 1 && targetAmount === 1 && kind === 'lro' && !state.selected;
   }

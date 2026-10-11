@@ -151,6 +151,7 @@ const isInward = (from, to) => isSide(to) ? true : isSide(from) ? false : to > f
 // per scene defaults: bloom, ambient occlusion radius (world units, 0 = off), exposure. A scene can override any of
 // these, and pick its lighting environment and depth of field, by returning `look` from build():
 //   look: { bloom, threshold, ao, exposure, env: 'room' | 'studio' | 'indoor' | 'sky' | 'night', envIntensity, dof: true }
+// `bloomCap` (stage only) caps whatever bloom the level's own look asks for.
 // `lift` here (stage only) multiplies a level's own lights and environment after its art direction has set them.
 const LOOK = [
   { bloom: 0.8, threshold: 0.95, ao: 0, exposure: 1.0 },
@@ -160,7 +161,7 @@ const LOOK = [
   { bloom: 0.55, threshold: 1.35, ao: 0.12, exposure: 0.95 },
   { bloom: 0.6, threshold: 1.7, ao: 0.15, exposure: 0.95 },
   { bloom: 0.6, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // inside the module
-  { bloom: 0.6, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // the CPO package
+  { bloom: 0.6, threshold: 1.6, ao: 0.12, exposure: 0.95, bloomCap: 0.32 },   // the CPO package: a cap, so the lit switch die stays readable
   { bloom: 0.6, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // the coherent module
   { bloom: 0.5, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // the copper cables
 ];
@@ -236,6 +237,7 @@ const stageRegion = document.querySelector('.stage');
 const stageActive = () => !!stageRegion && (stageRegion.contains(document.activeElement) || stageRegion.matches(':hover'));
 // what a scene may spend: shadows, the floor mirror (renders the scene twice) and depth of field are desktop only
 const quality = { shadows: !mobile, mobile, reflections: !mobile, dof: !mobile };
+const CLOSE_GLOW = { 5: .3, 7: .3 };   // the power glow's share on close-up levels (getScene)
 const lookOf = i => ({ envIntensity: 0.35, env: 'room', dof: true, ...LOOK[i], ...(built[i]?.look || {}) });
 
 // ---------- renderer ----------
@@ -339,6 +341,13 @@ function getScene(i) {
     if (b.heatFlows) balanceHeat(b.heatFlows);
     // the power layer's glow on every part that draws power, in the level's own power color (src/power-glow.js)
     attachPowerGlow(b, { color: VOLT[SCENES()[i].volt]?.css, reduced, mode: ui.mode });
+    // close-ups (the package, the CPO switch): the glow round the parts that draw most covered the part being explained
+    // in white (round-2 review), so it is held to a fraction there
+    const glowCut = CLOSE_GLOW[i];
+    if (glowCut && b.powerGlow) {
+      const setTier = b.powerGlow.setTier.bind(b.powerGlow);
+      b.powerGlow.setTier = t => { setTier(t); b.powerGlow.mesh.material.uniforms.uBoost.value *= glowCut; };
+    }
     b.powerGlow?.setTier(tierOf(i));
     built[i] = b;
     const lift = LOOK[i]?.lift;
@@ -409,7 +418,7 @@ function getComposer(i) {
   // Layer-specific bloom keeps dense heat/signal fields crisp without dimming
   // the same hardware's other layers. Reapply when returning to a cached scene.
   const L = lookOf(i);
-  composers[i].flowBloom.strength = (L.bloomByMode?.[ui.mode] ?? L.bloom) * .7;
+  composers[i].flowBloom.strength = Math.min(L.bloomByMode?.[ui.mode] ?? L.bloom, L.bloomCap ?? Infinity) * .7;
   return composers[i];
 }
 function disposeScene(b) {
@@ -1016,7 +1025,8 @@ const whereOf = s => (s.side ? 'Interconnects' : `Level ${s.n} of ${MAIN_LEVELS}
 const tabName = s => s.tab || s.title;
 // a level's subtitle in the tabs and the picker: its size, the same in every layer and short enough for one line (the
 // layer's own word stays on the view's heading); the pluggable module's names the module on show
-const metaOf = s => s.side ? (s.id === 'module' ? s.kicker : (s.kicker || s.scale).split(' · ')[0]) : s.scale;
+// an interconnect tab's subtitle is one short token ("package", not "package, representative"), so the four tabs keep one line
+const metaOf = s => s.side ? (s.id === 'module' ? s.kicker : (s.kicker || s.scale).split(' · ')[0].split(', ')[0]) : s.scale;
 const stepsEl = $('steps'), stepBtns = [], stepGroups = [];
 for (const [cls, label, side] of GROUPS) {
   const g = document.createElement('div'), h = document.createElement('span'), row = document.createElement('div');
@@ -1165,6 +1175,7 @@ function buildPanel(i) {
   pins = parts.filter(p => hs[p.id]).map((p) => {
     const el = document.createElement('button');
     el.type = 'button'; el.className = 'pin'; el.dataset.id = p.id;
+    el.tabIndex = -1;   // out of the tab order: the Parts list holds the same parts, in order, for the keyboard
     el.innerHTML = `<span class="num">${parts.indexOf(p) + 1}</span><span class="lbl">${p.title}</span>`;
     el.setAttribute('aria-label', p.title);
     el.addEventListener('click', () => select(p.id, true));
@@ -1229,6 +1240,7 @@ async function selectOverview() {
   await show({ scene: ui.scene, mode: ui.mode, part: null }, { scroll: false });
   if (focusOverview) document.querySelector('#parts button[data-overview]')?.focus({ preventScroll: true });
   revealInPane([$('intro')]);
+  announce(`${placeOf(SCENES()[ui.scene])}: overview`);   // arrow keys reach Overview too: say so, as for a part
 }
 export function setModuleExplode(value, { frame: reframe = true } = {}) {
   const b = built[ui.scene]; if (!b?.presentation) return;
@@ -1552,7 +1564,7 @@ function syncPinGroups(groups, w, h) {
     live.add(g.key);
     let el = pinGroups.get(g.key);
     if (!el || !el.isConnected) {
-      el = document.createElement('button'); el.type = 'button'; el.className = 'pin-group';
+      el = document.createElement('button'); el.type = 'button'; el.className = 'pin-group'; el.tabIndex = -1;   // the Parts list is the keyboard route
       const nums = g.ids.map(id => pins.find(p => p.id === id)?.el.querySelector('.num')?.textContent).filter(Boolean);
       el.innerHTML = `<b>${nums[0]}</b><span>+${nums.length - 1}</span>`;
       el.setAttribute('aria-label', `${nums.length} parts here: ${nums.join(', ')}. Show them`);
@@ -1596,7 +1608,7 @@ function updatePins() {
     }
     cands.sort((a, b) => pins.findIndex(p => p.id === a.id) - pins.findIndex(p => p.id === b.id));
     const selPoint = pinPoints.find(q => q.id === ui.selected && q.z <= 1);
-    clutter = declutterPins(cands, { expanded: expandedPins, fixed: selPoint ? [{ x: selPoint.x, y: selPoint.y }] : [], ...(small ? {} : { collapseAt: Infinity }) });
+    clutter = declutterPins(cands, { radius: 40, gap: 14, expanded: expandedPins, fixed: selPoint ? [{ x: selPoint.x, y: selPoint.y }] : [], ...(small ? {} : { collapseAt: Infinity }) });
   }
   syncPinGroups(clutter?.groups || [], w, h);
   for (const p of ordered) {

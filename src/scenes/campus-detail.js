@@ -1,4 +1,3 @@
-import { hasCampusVehicles, campusVehicleBuilder } from './campus-blender-vehicles.js';
 // Companion helpers for the campus scene (src/scenes/campus.js), split out only because that file
 // was getting long. Nothing here is scene-specific: a surrounding-terrain texture, a few cloud
 // sprites, a clustered-tree layout, and the vehicle/person assemblies driven by fx.movers.
@@ -102,8 +101,11 @@ export function treeMatrices(rnd, { cx = -70, cz = -40, clusters = 9, perCluster
 
 // ---------- moving vehicles and walking people, drawn at the origin facing +x for fx.movers ----------
 export function carBuild(B) {
-  if(hasCampusVehicles())return campusVehicleBuilder('MODEL_3',B);
   if(hasCampusCatalog()) { campusCatalogBuilder('CAR',B); return; }
+  parkedCarBuild(B);
+}
+// A generic low-poly car (about 200 triangles) for the parked rows, which are a few pixels tall from every campus view.
+export function parkedCarBuild(B) {
   B.slab(4.4, 0.8, 1.8, MAT.steel, 0, 0.25, 0);
   B.slab(2.4, 0.6, 1.6, MAT.glass, -0.2, 1.05, 0);
   for (const dz of [-0.95, 0.95]) { B.cylZ(0.34, 0.22, MAT.darkSteel, 1.35, 0.34, dz, 10); B.cylZ(0.34, 0.22, MAT.darkSteel, -1.35, 0.34, dz, 10); }
