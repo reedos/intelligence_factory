@@ -1639,6 +1639,11 @@ export function content(M, opts = {}) {
   for (const [P, walk] of [[PARTS, WALK.power], [PARTS_DATA, WALK.data], [PARTS_HEAT, WALK.heat]])
     for (const [sc, ids] of Object.entries(walk)) if (P[sc]) P[sc] = [...P[sc]].sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 
+  // a campus whose own chips this NVIDIA-only model cannot draw says so at the levels that draw the chips
+  const real = M.scenario.site ? SITES[M.scenario.site] : null;
+  if (real?.realChip) for (const S of SCENES) if (['rack', 'tray', 'chip'].includes(S.id))
+    for (const k of ['intro', 'heatIntro', 'dataIntro']) if (S[k]) S[k] = `Drawn: the closest NVIDIA match. ${real.name} runs ${real.realChip}, which this model does not draw. ${S[k]}`;
+
   return {
     SCENES, PARTS, PARTS_DATA, PARTS_HEAT, BOM, TEMPS, PARALLEL, LEDGER_END,
     LEDGER: M.ledger, LEDGER_MARKS: M.marks, STAIRCASE: M.staircase, BANDWIDTH: M.bandwidth,

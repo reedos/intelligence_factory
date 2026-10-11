@@ -42,6 +42,7 @@ export interface Site {
   carbonG: number; carbonNote: string;
   facts: ([string, string, Basis] | [string, string, Basis, Ev])[];
   unknowns: string[];               // what the preset had to assume
+  realChip?: string;                // the campus's own accelerator, when it is not one this NVIDIA-only model draws
   sources: string[];                // ids in src/sources.js
   status: Status;
 }
@@ -185,6 +186,7 @@ export const SITES: Record<SiteId, Site> = {
   "rainier": {
     id: "rainier", name: "Amazon Project Rainier", owner: "Amazon Web Services (built for Anthropic)", place: "New Carlisle, IN", lat: 41.7, lon: -86.51, state: "18",
     scenario: { meterMW: 1050, accel: "h100", power: "ac415", cooling: "air" },
+    realChip: "AWS Trainium2 chips in 64-chip UltraServers",
     carbonG: 632, carbonNote: "Indiana, 1,393 lb/MWh (EIA 2024), the highest state rate mapped here; the campus's operating power comes entirely from the grid, with on-site diesel generators kept for backup only.",
     facts: [
       ["IT power operating, ~16 of ~30 buildings live", "≈910 MW", "reported", { refs: [["epoch-dc-new-carlisle", 'directory entry: "CURRENT IT POWER" 910MW']] }],
