@@ -11,7 +11,7 @@ const load = () => loading ||= Promise.all([import('../sources.js'), import('../
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const pop = document.createElement('div');
-pop.className = 'src-pop'; pop.id = 'src-pop'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'Sources'); pop.hidden = true;
+pop.className = 'src-pop'; pop.id = 'src-pop'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-labelledby', 'sp-title'); pop.hidden = true;
 document.body.appendChild(pop);
 let opener = null;
 
@@ -26,7 +26,7 @@ const refItem = ([id, at]) => {
 function body(key) {
   const c = claimByKey(store.M, store.C, key);
   const basis = c?.basis && BASIS[c.basis] ? c.basis : 'est', b = BASIS[basis], ev = c?.ev;
-  const head = `<div class="sp-head"><span class="chip ${basis}">${b.short}</span><b>${b.label}</b><button type="button" class="sp-x" aria-label="Close">×</button></div>
+  const head = `<div class="sp-head"><span class="chip ${basis}">${b.short}</span><b id="sp-title">${b.label}</b><button type="button" class="sp-x" aria-label="Close">×</button></div>
     ${c ? `<p class="sp-claim">${esc(c.label)}${c.value ? `: <b>${esc(c.value)}</b>` : ''}</p>` : ''}<p class="sp-mean">${b.meaning}</p>`;
   if (ev) {
     let html = head;
@@ -73,7 +73,9 @@ document.addEventListener('click', e => {
   if (chip) { e.preventDefault(); e.stopPropagation(); if (opener === chip) close(); else open(chip); return; }
   if (!pop.contains(e.target)) close();
 }, true);
-document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+// Escape closes only the popover: caught first (window, capture phase) so the stage's Escape does not also drop the
+// selected part and hide the chip that focus returns to
+addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) { e.stopImmediatePropagation(); close(); } }, true);
 // a scroll moves the popover with its chip, whether the reader scrolled or a tour step scrolled the column on its own;
 // it closes only once the chip is off screen or gone
 function follow() {

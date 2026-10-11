@@ -50,7 +50,7 @@ export const VOLT = {
 };
 
 import { SITES, PLACES, placeKey, STATE_CARBON, STATE_EIA_SOURCE, DEFAULT_PLACE, US_CARBON_G, STATUS_WORD } from './model/sites.ts';
-import { waterM3h, WATER } from './model/engine.ts';
+import { waterM3h, WATER, LOOP } from './model/engine.ts';
 // a real campus's status as spec rows: its state and live figure, and a ranking where one is claimed. Both are
 // reported by the tracker named in s.status.source (Epoch AI's Frontier Data Centers directory for every site but
 // Colossus 1, which follows Compute Atlas instead; see src/model/sites.ts).
@@ -134,6 +134,7 @@ export function content(M, opts = {}) {
   // a real campus's own mix (sites.ts fleet): every total counts each accelerator at its own figures
   const FL = M.fleet, mixed = M.mixed;
   const SHELVES = SHELVES_BOTTOM + SHELVES_TOP;   // per NVL72 rack, as the rack level draws them
+  const shelvesPerRack = A.id === 'rubin' ? 4 : SHELVES;   // Vera Rubin: four 110 kW shelves (Cisco, GIGABYTE), drawn as eight
   const busHalfA = Math.round(RK.dcBusKW * 1000 / 50 / 2 / 100) * 100;   // shelves above and below feed the bar from both ends
   const tPerGpu = a => parseFloat(FACTS[a.id].transistors.replace('≈', '')) * 1e9;
   const liq = air ? 0 : A.liquidShare, liqKW = Math.round(RK.kw * liq), airKW = rackKW - liqKW;
@@ -178,7 +179,7 @@ export function content(M, opts = {}) {
       dataIntro: multiHall
         ? `Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses, while about ${kfmt(NET.crossHallFibers)} strands in duct banks tie ${halls === 2 ? 'the two halls' : `all ${halls} halls`} into one fabric.`
         : 'Two diverse fiber routes enter the site. Coherent optics in a line-terminal hut turn them into the campus’s link to other campuses. With one hall, the whole fabric lives under one roof.',
-      intro: `A 345 kV line lands at the campus substation. ${count(L.transformers)} transformers step it down to 34.5 kV, which runs underground to transformers along ${multiHall ? `each of ${halls} data halls` : 'the data hall'}. The grid itself lost about 5% getting here. ${bat ? 'Batteries stand by for when the grid drops; the operator names no diesel generators.' : 'Diesel generators and batteries stand by for when the grid drops.'}${halls > 2 ? ` The two halls in front are drawn in detail; the other ${halls - 2} are the plain blocks beyond.` : ''}`,
+      intro: `A 345 kV line lands at the campus substation. ${count(L.transformers)} transformers step it down to 34.5 kV, which runs underground to transformers along ${multiHall ? `each of ${halls} data halls` : 'the data hall'}. Across the US grid about 5% of electricity is lost between plant and customer; a campus fed straight from 345 kV loses less, since it skips the lower-voltage distribution lines. ${bat ? 'Batteries stand by for when the grid drops; the operator names no diesel generators.' : 'Diesel generators and batteries stand by for when the grid drops.'}${halls > 2 ? ` The two halls in front are drawn in detail; the other ${halls - 2} are the plain blocks beyond.` : ''}`,
     },
     {
       id: 'hall', n: 3, title: 'Power room & data hall', scale: '70 m across', unit: 1, volt: dc ? 'hvdc' : 'lv', dataVolt: 'eth', heatVolt: air ? 'air' : 'warm', heatShort: air ? 'all air' : 'water + air',
@@ -188,11 +189,11 @@ export function content(M, opts = {}) {
           ? 'Every rack here is cooled by water: its heat goes through a coolant unit in its row to the facility loop overhead, and no hot aisle is drawn.'
           : 'Two heat paths leave every rack. Most goes into water, through a coolant unit in its row to the facility loop overhead. The rest is hot air, trapped in the aisle between rack backs and pulled through the fan wall.')
         + ` The facility water carries the heat to the ${warm ? 'dry coolers' : air || !closed ? 'chillers and cooling towers' : 'air-cooled chillers'} on Level 2.`,
-      dataIntro: `Scale-out lives here. Every GPU has dedicated scale-out optical connections. Fibers run up from each rack into yellow runways, to leaf switches at the row ends and on to the spine, so any GPU can reach any other in a few microseconds.`,
+      dataIntro: `Scale-out lives here. Every GPU has dedicated scale-out optical connections. Fibers run up from each rack into overhead runways, to leaf switches at the row ends and on to the spine, so any GPU can reach any other in a few microseconds.`,
       intro: (dc
         ? 'Solid-state transformers make 800 V DC from 34.5 kV in one step, with batteries on the DC bus instead of a UPS, and DC busway carries it over every rack.'
         : 'Outside the wall a unit substation drops 34.5 kV to 480 V; inside, past switchgear and UPS modules, a transformer steps it to 415 V for the busway over every rack.')
-        + (air ? ' Chilled water runs overhead to cooling units in every row.' : ' Facility water runs overhead to coolant units in each row, one per eight racks.')
+        + (air ? ' Chilled water runs overhead to cooling units in every row.' : ` Facility water runs overhead to coolant units in each row; at ${rackKW} kW a rack, one 1.25 MW unit serves about ${Math.floor(1250 / rackKW)} racks.`)
         + ` Shown: a representative hall of ${HALL_SLICE.racks} racks in ${count(HALL_SLICE.rows).toLowerCase()} rows, the same in every scenario.`,
     },
     nvl ? {
@@ -206,7 +207,7 @@ export function content(M, opts = {}) {
         : `A ${A.rackName} rack takes 415 V AC in at the top and turns it into about 50 V DC in its power shelves. A copper busbar down the back feeds 18 compute trays and 9 NVLink switch trays, cooled mostly by water. It draws about ${rackKW} kW.`,
     } : {
       id: 'rack', n: 4, title: 'The rack', scale: '2.2 m tall', unit: 1, volt: 'lv', dataVolt: 'nvl', heatVolt: 'air', heatShort: 'all air',
-      heatIntro: `All ${rackKW} kW leaves as air. Fans pull cold air in the front of each server and push it out the back, about ${n0(Math.round(rackKW / (1.2 * 1.005 * 15) * 2119 / 100) * 100)} cubic feet a minute for the rack at a 15 °C rise.`,
+      heatIntro: `All ${rackKW} kW leaves as air. Fans pull cold air in the front of each server and push it out the back, about ${n0(Math.round(rackKW / (1.2 * 1.005 * LOOP.airRiseC) * 2119 / 100) * 100)} cubic feet a minute for the rack at an ${LOOP.airRiseC} °C rise.`,
       dataIntro: 'Scale-up stops at the server. Each DGX H100 has its own 8-GPU NVLink domain on its baseboard; everything between servers, even in the same rack, goes out as fiber.',
       intro: `A rack of four DGX H100 servers, ${rackKW} kW in all, the density NVIDIA's reference design allows for air cooling. Power strips at the back take 415 V from the busway and feed each server's own AC power supplies.`,
     },
@@ -252,7 +253,7 @@ export function content(M, opts = {}) {
     },
     {
       id: 'coherent', n: '+', side: true, title: 'Coherent optics', tab: 'Coherent optics', kicker: '800ZR · data center interconnect', door: 'coherent optics', scale: '10.8 cm long', unit: 0.01, volt: 'v33', dataVolt: 'zr800', heatVolt: 'hot', heatShort: 'fins',
-      intro: 'The plug in the line terminals that carries 800G to other campuses on one wavelength: an 800ZR coherent pluggable. This representative design uses discrete board-mounted driver and TIA packages, separate from the transmit and receive optical assemblies. Parts sit in the order the OIF packaging agreements imply: the DSP, then the driver and TIA beside it, then the optics with their fibers facing the front, and the laser toward the fiber end, off the electrical path. Only the OSFP envelope and the cited nano-ITLA case are to scale; the other parts and their exact placement are illustrative.',
+      intro: 'The plug in the line terminals that carries 800G to other campuses on one wavelength: an 800ZR coherent pluggable, good for about 120 km; ZR+ versions of the same module carry 800G a few hundred kilometers. This representative design uses discrete board-mounted driver and TIA packages, separate from the transmit and receive optical assemblies. Parts sit in the order the OIF packaging agreements imply: the DSP, then the driver and TIA beside it, then the optics with their fibers facing the front, and the laser toward the fiber end, off the electrical path. Only the OSFP envelope and the cited nano-ITLA case are to scale; the other parts and their exact placement are illustrative.',
       dataIntro: 'Follow the separately packaged electronics and optical assemblies: DSP → driver IC → IQ modulator on transmit; receiver photodiodes → TIA IC → DSP on receive. The driver and TIA carry electrical signals, not light. One laser feeds the modulator and the receiver’s local oscillator. This discrete package arrangement is a design assumption, not a teardown of a specific product.',
       heatIntro: 'The DSP, laser, driver IC and TIA IC are distinct heat sources, the DSP by far the largest. The modulator and receiver optics lose a little too, well under half a watt: too little to draw. Heat is drawn on a log scale, so each 10× in power is 5× the motion.',
     },
@@ -281,7 +282,7 @@ export function content(M, opts = {}) {
       ] },
     { id: 'plants', title: 'Generation', kicker: 'Gas, coal, nuclear, wind, solar',
       body: 'Plants inject power into the grid far from the campus; the grid delivers it with about 5% lost on the way.',
-      specs: [['US grid losses', '≈5% (EIA)', 'spec', { refs: [['eia-td-losses', 'FAQ answer: "annual electricity transmission and distribution (T&D) losses averaged about 5% of the electricity transmitted and distributed in the United States in 2018 through 2022"']] }],
+      specs: [['US grid losses', '≈5% (EIA)', 'reported', { refs: [['eia-td-losses', 'FAQ answer: "annual electricity transmission and distribution (T&D) losses averaged about 5% of the electricity transmitted and distributed in the United States in 2018 through 2022"']] }],
         ['Plant symbols', 'representative types, heights exaggerated', 'assumed', { assume: 'across-map-symbols' }]] },
     site
       ? { id: 'home', title: site.name, kicker: `${site.place} · ${meter} modeled`,
@@ -293,12 +294,12 @@ export function content(M, opts = {}) {
     { id: 'carbon', title: 'Grid carbon by state', kicker: `${stateC ? `${stateC.name}: ${stateC.g} g CO₂/kWh` : 'EIA state profiles, 2024'}`,
       body: `Shaded states have EIA figures, tagged in grams of CO₂ per kWh: teal for hydro-heavy grids, amber and red for coal and gas. The same campus emits three to four times more in Wisconsin than in Washington.${site ? ` ${site.carbonNote}` : ''}`,
       specs: [
-        ...(stateC ? [[`${stateC.name}, 2024`, `${stateC.lb.toLocaleString('en-US')} lb/MWh, ${stateC.g} g/kWh`, 'spec',
+        ...(stateC ? [[`${stateC.name}, 2024`, `${stateC.lb.toLocaleString('en-US')} lb/MWh, ${stateC.g} g/kWh`, 'reported',
           { refs: [[STATE_EIA_SOURCE[(site || DEFAULT_PLACE).state], `Table 1. 2024 Summary statistics (${stateC.name}), row "Carbon Dioxide (lbs/MWh)"`]] }]] : []),
-        ['US average, eGRID 2022', `${US_CARBON_G} g/kWh`, 'spec',
+        ['US average, eGRID 2022', `${US_CARBON_G} g/kWh`, 'reported',
           { refs: [['epa-egrid2022-summary-tables', 'Table 3, State Output Emission Rates (eGRID2022), "U.S." row, CO2 lb/MWh (823.1, matching Table 1’s subregion total)']] }],
-        ['Lowest shown, Washington', '113 g/kWh', 'spec', { refs: [['eia-state-washington', 'Table 1. 2024 Summary statistics (Washington), row "Carbon Dioxide (lbs/MWh)": 249']] }],
-        ['Highest shown, Wisconsin', '494 g/kWh', 'spec', { refs: [['eia-state-wisconsin', 'Table 1. 2024 Summary statistics (Wisconsin), row "Carbon Dioxide (lbs/MWh)"']] }],
+        ['Lowest shown, Washington', '113 g/kWh', 'reported', { refs: [['eia-state-washington', 'Table 1. 2024 Summary statistics (Washington), row "Carbon Dioxide (lbs/MWh)": 249']] }],
+        ['Highest shown, Wisconsin', '494 g/kWh', 'reported', { refs: [['eia-state-wisconsin', 'Table 1. 2024 Summary statistics (Wisconsin), row "Carbon Dioxide (lbs/MWh)"']] }],
       ] },
     ...PLACES.filter(p => !site || !p.ids.includes(site.id)).map(p => {
       // Colossus 1 and 2 share a pin; the card leads with the one that is bigger now
@@ -318,7 +319,7 @@ export function content(M, opts = {}) {
       specs: [
         ['Voltage', '345 kV line-to-line', 'assumed', evAssume('campus-interconnect-voltage')],
         [`Current, ${meter}`, lineA.replace('per phase', 'per phase, on each circuit'), 'derived', evCalc('line-current')],
-        ['US grid losses, 2018–2022', '≈5% (EIA)', 'spec', evRefs([['eia-td-losses', 'FAQ answer: "annual electricity transmission and distribution (T&D) losses averaged about 5% of the electricity transmitted and distributed in the United States in 2018 through 2022"']])],
+        ['US grid losses, 2018–2022', '≈5% (EIA)', 'reported', evRefs([['eia-td-losses', 'FAQ answer: "annual electricity transmission and distribution (T&D) losses averaged about 5% of the electricity transmitted and distributed in the United States in 2018 through 2022"']])],
         ['Example', 'Stargate Abilene: double 345 kV corridor', 'reported', evRefs([['yesenergy-abilene-hyperscale', 'blog post: "The facility is fed by a double 345 kV corridor that goes from Midland to Graham, Texas."']])],
       ] },
     { id: 'substation', title: 'Campus substation', kicker: 'Utility interconnect',
@@ -400,7 +401,7 @@ export function content(M, opts = {}) {
       ], drill: 2 },
     warm
       ? { id: 'drycoolers', title: 'Dry coolers', kicker: 'Heat out, no water used',
-        body: 'Rooftop coils, such as EVAPCO’s Apex or Baltimore Aircoil’s TrilliumSeries dry coolers, reject the heat carried out of the GPUs by warm water with big fans. Water at 30–40 °C is warm enough to dump heat to outside air most of the year without chillers.',
+        body: 'Rooftop coils, such as EVAPCO’s Apex or Baltimore Aircoil’s TrilliumSeries dry coolers, reject the heat carried out of the GPUs by warm water with big fans. Water at about 40–50 °C is warm enough to dump heat to outside air most of the year without chillers.',
         specs: [
           ['Heat rejected', `≈${mwTxt(IT_MW * 1.05)}`, 'derived', evCalc('campus-heat-rejected')],
           ['Units, ≈0.8 MW each', `≈${n0(L.dryCoolers)}`, 'derived', evCalc('campus-drycooler-count')],
@@ -458,8 +459,9 @@ export function content(M, opts = {}) {
   const nicSpecBasis = 'spec';
   const rackPublishedEv = A.id === 'rubin' ? { assume: 'rubin-prelaunch-power' }
     : A.id === 'gb200' ? { refs: [['servethehome-dgx-gb200', 'confirms the 120 kW figure ("the 120kW flagship system stacked in a single rack"); this site’s 132 kW upper figure is a commonly repeated peak/TDP figure not independently re-confirmed in this pass']] }
-    : { refs: [['servethehome-dgx-gb200', 'establishes the GB200-generation 120 kW flagship figure this GB300 range is reported relative to'], ['nvidia-gb300-power', 'NVIDIA’s own GB300 NVL72 power-smoothing post, describing the same rack platform this range covers']] };
-  const rackPublishedBasis = A.id === 'rubin' ? 'assumed' : 'reported';
+    : { refs: [['nvidia-nvl72-reference-arch', 'GB300 NVL72 System Hardware & Components: "8 power shelves of 33 kW" for a rack "requiring up to 142 kW"']] };
+  const rackPublishedBasis = A.id === 'rubin' ? 'assumed' : A.id === 'gb300' ? 'spec' : 'reported';
+  const rackPublishedTxt = A.id === 'gb300' ? `up to ${A.publishedRackKW[1]} kW (NVIDIA)` : `${A.publishedRackKW[0]}–${A.publishedRackKW[1]} kW`;
   PARTS.hall = [
     { id: 'unitsub', title: 'Unit substation', kicker: dc ? '34.5 kV → 480 V, for cooling' : '34.5 kV → 480 V, 2.5 MVA',
       body: dc
@@ -485,7 +487,7 @@ export function content(M, opts = {}) {
       specs: [['Runtime', 'set by string count, often ≈5 min', 'assumed', { assume: 'hall-batt-runtime' }], ['Chemistry', 'Li-ion (LFP or NMC)', 'assumed', { assume: 'hall-standard-practice' }]] },
     { id: 'busway', title: dc ? '800 V DC busway' : 'Overhead busway', kicker: dc ? '800 V DC to every rack' : '415 V to every rack',
       body: dc
-        ? `Two conductors instead of three phases, and about a fifth of the current of 415 V AC at the same power. NVIDIA says 800 V DC cuts copper in the rack path by 45%.`
+        ? `Two conductors instead of three phases, each carrying a little less current than a 415 V AC phase at the same power (about 0.85×, as the staircase shows). NVIDIA says 800 V DC cuts copper in the rack path by 45%.`
         : 'A transformer steps 480 V to 415 V, the voltage OCP rack power shelves take. Copper bars in an aluminum housing then run over each row, two to a row: an A busway over the rack backs and a B busway over the fronts, each from its own UPS side. Plug-in tap-off boxes drop one short cable from each into every rack, so moving a rack means moving two plugs.',
       specs: dc
         ? [['Rack voltage', '800 V DC', 'spec', { refs: [['nvidia-800v-hvdc', "NVIDIA's own architecture post names 800 V as the DC bus voltage for its next-generation AI-factory power design"]] }], ['Per rack', M.staircase.find(s => s.v === 800)?.current ?? '', 'derived', { calc: 'hall-busway-current' }], ['Copper, NVIDIA claim', '−45%', 'vendor', { refs: [['nvidia-800v-hvdc', '"With lower current, thinner conductors can handle the same load, reducing copper requirements by 45%."']], vs: '415 V AC busway distribution at the same delivered power' }], ['Hardware as drawn', 'representative', 'assumed', { assume: 'hall-busway-hardware' }]]
@@ -495,7 +497,7 @@ export function content(M, opts = {}) {
         ? `Each rack draws what a whole row of racks drew ten years ago. About ${Math.round(liq * 100)}% of its heat leaves in water${liq < 1 ? ', the rest in air' : ''}.${mixed ? ` This campus runs ${FL.map(m => `≈${n0(m.racksShown)} ${m.accel.rackName}`).join(' and ')} racks; the levels below show a ${A.rackName}.` : ''}`
         : 'Four air-cooled servers per rack, eight GPUs each. More would overheat: NVIDIA caps air-cooled DGX H100 at four per rack.',
       specs: nvl
-        ? [...(mixed ? FL.map(m => [`${m.accel.short} rack, this model`, `≈${Math.round(m.rackKW)} kW`, 'derived', { calc: 'hall-rack-power' }]) : [['Power, this model', `≈${rackKW} kW`, 'derived', { calc: 'hall-rack-power' }]]), ['Published range', `${A.publishedRackKW[0]}–${A.publishedRackKW[1]} kW`, rackPublishedBasis, rackPublishedEv], ['GPUs', `72 ${X.arch}`, 'spec', { refs: [['nvidia-gb200-nvl72', 'product page: the NVL72 platform name and specifications describe a 72-GPU rack']] }], ['Liquid / air', `${liqKW} kW / ${airKW} kW`, 'derived', { calc: 'hall-liquid-air-split' }]]
+        ? [...(mixed ? FL.map(m => [`${m.accel.short} rack, this model`, `≈${Math.round(m.rackKW)} kW`, 'derived', { calc: 'hall-rack-power' }]) : [['Power, this model', `≈${rackKW} kW`, 'derived', { calc: 'hall-rack-power' }]]), [A.id === 'gb300' ? 'Published' : 'Published range', rackPublishedTxt, rackPublishedBasis, rackPublishedEv], ['GPUs', `72 ${X.arch}`, 'spec', { refs: [['nvidia-gb200-nvl72', 'product page: the NVL72 platform name and specifications describe a 72-GPU rack']] }], ['Liquid / air', `${liqKW} kW / ${airKW} kW`, 'derived', { calc: 'hall-liquid-air-split' }]]
         : [['Power, this model', `≈${rackKW} kW`, 'derived', { calc: 'hall-rack-power' }], ['Published', '≈41 kW for 4 systems', 'spec', { refs: [['nvidia-dgx-h100', 'product page: per-server maximum power draw, ×4 servers per rack']] }], ['GPUs', '32 H100', 'spec', { refs: [['nvidia-dgx-h100', 'product page: 8 GPUs per DGX H100 server × 4 servers per rack']] }]],
       drill: 3 },
     { id: 'containment', title: 'Hot aisle containment', kicker: air ? 'Keeps hot and cold air apart' : 'For the heat water misses',
@@ -506,7 +508,7 @@ export function content(M, opts = {}) {
         body: 'Cabinets the size of a rack sit in each row. Fans pull hot-aisle air through chilled-water coils and blow it out cold into the room at the rack fronts.',
         specs: [['Capacity', '≈60–100 kW each', 'assumed', { assume: 'inrow-capacity' }], ['Units', perCampus(L.airUnits), 'derived', { calc: 'bom-facility-count', assume: 'inrow-capacity' }], ['Supply air', '≈18–27 °C (ASHRAE)', 'spec', { refs: [['ashrae-tc99-reference-card', 'Table 2.1, 2015 Thermal Guidelines: Recommended row, classes A1 to A4, 18 to 27 °C']] }], ['Cabinet drawn', 'representative', 'assumed', { assume: 'hall-cdu-cabinet' }]] }
       : { id: 'cdu', title: 'Coolant distribution unit', kicker: 'Two loops, one heat exchanger',
-        body: 'The CDU keeps the rack loop, filtered water with glycol running through cold plates, separate from facility water. Units such as Vertiv’s CoolChip or Motivair’s CDU line pack the pumps, plate heat exchanger and controls into one cabinet; here one stands in the row beside every eight racks.',
+        body: `The CDU keeps the rack loop, filtered water with glycol running through cold plates, separate from facility water. Units such as Vertiv’s CoolChip or Motivair’s CDU line pack the pumps, plate heat exchanger and controls into one cabinet. The slice drawn here puts one beside every eight racks; at this rack power a ≈1.25 MW unit covers about ${Math.floor(1250 / rackKW)}.`,
         specs: [['Capacity range', '70 kW – 2.3 MW', 'spec', { refs: [['vertiv-coolchip-cdu', 'CoolChip CDU family: models from CDU 70 (70 kW) to CDU 2300 (2300 kW)'], ['motivair-cdu-brochure', '"COOLING UP TO 2.3MW", MCDU-4U (102 kW) through MCDU-60 (2.3 MW) rated-capacity table']] }], ['Units, ≈1.25 MW each', perCampus(L.cdus), 'derived', { calc: 'bom-facility-count', assume: 'cdu-module-mw' }], ['Rule', 'rack loop stays above dew point', 'spec', { refs: [['motivair-cdu-brochure', '"The CDU maintains a secondary loop water temperature above the dew point in the data center to eliminate the possibility of condensation"']] }], ['Cabinet drawn', 'representative', 'assumed', { assume: 'hall-cdu-cabinet' }]] },
     { id: 'fwater', title: air ? 'Chilled water loop' : 'Facility water loop', kicker: 'Supply and return headers',
       body: `Insulated steel headers carry water between the ${air ? 'cooling units' : 'CDUs'} and the ${warm ? 'rooftop dry coolers' : 'chiller plant'}. Blue carries cooler supply, red carries warm return.`,
@@ -515,7 +517,7 @@ export function content(M, opts = {}) {
       body: air ? 'A wall of fans and coils handles room air and the heat from lights, people and power gear.' : 'A wall of fans and coils cools the air that carries the remaining heat from power shelves, switches, optics and memory.',
       specs: [['Share of rack heat', `≈${Math.round((1 - liq) * 100)}%`, 'derived', { calc: 'hall-air-heat-share' }], ['Cells as drawn', 'representative', 'assumed', { assume: 'hall-fanwall-cells' }]] },
     { id: 'network', title: 'Network spine', kicker: 'Where tokens leave',
-      body: 'Spine switches tie every rack to every other and to the fiber out of the building. Dense yellow trays carry thousands of fibers overhead.',
+      body: 'Spine switches tie every rack to every other and to the fiber out of the building. Dense overhead trays carry thousands of fibers.',
       specs: [['Per GPU', `${nicTxt} scale-out`, nicSpecBasis, nicSpecEv]] },
   ];
   // ---------- L45 tracing helpers: evidence for facts that recur across the rack and tray cards, per accelerator.
@@ -536,7 +538,7 @@ export function content(M, opts = {}) {
     : A.id === 'gb200'
       ? { basis: 'reported', ev: { refs: [ref('semianalysis-gb200-nvl72-specs', 'chip spec table: "TDP per chip: 1,200 W"')] } }
       : A.id === 'gb300'
-        ? { basis: 'spec', ev: { refs: [ref('nvidia-blackwell-ultra-blog', 'body text: per-GPU TDP "Up to 1,400W"')] } }
+        ? { basis: 'assumed', ev: { assume: 'gb300-gpu-power', refs: [ref('nvidia-blackwell-ultra-blog', 'body text: per-GPU TDP "Up to 1,400W", the ceiling this modeled figure sits under')] } }
         : { basis: 'assumed', ev: { assume: 'rubin-gpu-power' } };
   const transistorsEv = () => A.id === 'h100'
     ? { basis: 'spec', ev: { refs: [ref('nvidia-hopper-architecture-page', '"Built with over 80 billion transistors using a cutting edge TSMC 4N process"')] } }
@@ -568,13 +570,18 @@ export function content(M, opts = {}) {
         body: 'With DC already in the busway, shelves such as Delta’s or LITEON’s 800 V DC power shelves only step voltage down, one conversion instead of rectifying AC. Later racks move this conversion onto the trays.',
         specs: [['Efficiency, Navitas claim', '≈98.5% peak', 'vendor', { refs: [ref('navitas-10kw-dcdc-985', 'press release: "98.5% peak efficiency and 98.1% full load efficiency" for an 800 V-to-50 V DC-DC platform')], vs: 'a multi-stage AC-fed power shelf' }], ['Loss per rack', `≈${RK.convKW.toFixed(1)} kW`, 'derived', { calc: 'shelf-loss', refs: [ref('navitas-10kw-dcdc-985', '98.5% peak efficiency, the published input to this calculation')] }]] }
       : { id: 'shelves', title: 'Power shelves', kicker: '415 V AC → ≈50 V DC',
-        body: `Each 1U shelf, such as LITEON’s power shelf for NVL72 racks, holds six hot-swap rectifiers in a 3+3 arrangement that turn AC into about 50 V DC.${A.id === 'gb300' ? ' GB300 shelves add capacitors that store 65 J per GPU to smooth training load swings.' : ''}`,
-        specs: [['Shelf', '≈33 kW, 6 × 5.5 kW', 'spec', { refs: [ref('flex-gb200-power-shelf', 'product page: "consist of 6 PSUs with a max output power of 33kW"; component diagram separately labels one PSU "5500W PSU" (33 kW ÷ 6 = 5.5 kW matches)')] }],
+        body: A.id === 'rubin'
+          ? 'Vera Rubin racks carry four large shelves of about 110 kW each, built from 18.3 kW rectifiers, that turn AC into DC for the busbar. The drawing keeps the GB200 layout of eight 1U shelves.'
+          : `Each 1U shelf, such as LITEON’s power shelf for NVL72 racks, holds six hot-swap rectifiers in a 3+3 arrangement that turn AC into about 50 V DC.${A.id === 'gb300' ? ' GB300 shelves add capacitors that store 65 J per GPU to smooth training load swings.' : ''}`,
+        specs: [A.id === 'rubin'
+            ? ['Shelf', '≈110 kW, 18.3 kW rectifiers', 'reported', { refs: [ref('cisco-vera-rubin-nvl72-ds', 'Table 4, Power: "4x 110 kW power shelves with redundant 18.3 kW power supply units"')] }]
+            : ['Shelf', '≈33 kW, 6 × 5.5 kW', 'spec', { refs: [ref('flex-gb200-power-shelf', 'product page: "consist of 6 PSUs with a max output power of 33kW"; component diagram separately labels one PSU "5500W PSU" (33 kW ÷ 6 = 5.5 kW matches)')] }],
           A.id === 'gb300'
             ? ['Shelves per rack', '8', 'spec', { refs: [ref('nvidia-nvl72-reference-arch', 'GB300 NVL72 System Hardware & Components: "8 power shelves of 33 kW, with each shelf having six 5.5 kW PSUs" for a rack "requiring up to 142 kW"')] }]
             : A.id === 'gb200'
               ? ['Shelves per rack', '8', 'spec', { refs: [ref('nvidia-dgx-gb200-hardware', 'Hardware: "The power shelf uses six air-cooled 5.5kW PSUs in eight power shelves that provide N+N redundancy and the required input power of 33kW per power shelf"')] }]
-              : ['Shelves per rack', '8', 'assumed', { assume: 'gb200-shelf-count', refs: [ref('nvidia-dgx-gb200-hardware', 'Hardware: "six air-cooled 5.5kW PSUs in eight power shelves" for the GB200 rack, the count assumed here for Rubin')] }],
+              : ['Shelves per rack', '4, enough for this rack; drawn as 8 × 1U', 'reported', { refs: [ref('cisco-vera-rubin-nvl72-ds', 'Table 4, Power: "4x 110 kW power shelves"'), ref('gigabyte-vera-rubin-nvl72', 'rack specifications: "4 x 3RU 110 kW power shelves" and "up to 240 kW" rack power consumption')] }],
+          ...(A.id === 'rubin' ? [['Shelves as drawn', '8 × 1U, the GB200 layout', 'assumed', { assume: 'gb200-shelf-count' }]] : []),
           ['Efficiency', '≈97.5% peak', 'spec', { refs: [ref('flex-gb200-power-shelf', 'product page: "High efficiency up to 97.5% (peak)"')] }], ...(A.id === 'gb300' ? [['GB300 smoothing', '−30% peak grid demand', 'spec', { refs: [ref('nvidia-gb300-power', 'blog: "the peak grid demand is reduced by 30% when training the Megatron LLM"')] }]] : [])] },
     { id: 'busbar', title: 'DC busbar', kicker: `Fed from both ends: ≈${n0(busHalfA)} A per half`,
       body: `A vertical copper busbar runs the full height of the rack. Every tray has a clip on its back that grabs the bar when it slides in, so there are no power cables to trays.${busHalfA > 1400 ? ' This model’s current is above the GB200 bar’s rating; no rating is published for this rack.' : ''}`,
@@ -714,7 +721,7 @@ export function content(M, opts = {}) {
       layers: { basis: 'spec', ev: { refs: [['micron-hbm3e-brief', 'specifications table: "8H, 12H HBM3E" at "24GB, 36GB"']] } },
       hbm: { basis: 'spec', ev: { refs: [['nvidia-blackwell-ultra-blog', 'body text: "288 GB of HBM3e per GPU" and "8 TB/s per GPU"'], ['micron-hbm3e-brief', 'specifications table: 36 GB at 12-Hi']] } },
       nvlink: { basis: 'spec', ev: { refs: [['nvidia-blackwell-ultra-blog', 'body text: "1.8 TB/s bidirectional (18 links x 100 GB/s)"']] } },
-      pkgPower: { basis: 'spec', ev: { refs: [['nvidia-blackwell-ultra-blog', 'body text: per-GPU TDP "Up to 1,400W"']] } },
+      pkgPower: { basis: 'assumed', ev: { assume: 'gb300-gpu-power', refs: [['nvidia-blackwell-ultra-blog', 'body text: per-GPU TDP "Up to 1,400W", the ceiling this modeled figure sits under']] } },
     },
     rubin: {
       pack: { basis: 'assumed', ev: { assume: 'rubin-packaging' } },
@@ -759,7 +766,7 @@ export function content(M, opts = {}) {
       body: 'Every token a model writes is a pass through billions of weights. Run the numbers below to see how many a kilowatt-hour buys.',
       specs: [
         ['Google, median Gemini text prompt', '0.24 Wh, all-in', 'spec', { refs: [['google-inference-impact', 'body text: "the median Gemini Apps text prompt uses 0.24 watt-hours (Wh) of energy"']] }],
-        ['LLaMA-65B on V100, 2023', '≈3–4 J per token', 'spec', { refs: [['samsi-words-to-watts', 'Section IV.C: "with length 512, we see that it takes about 3-4 Joules for a output token" — Figs. 6-7\'s 8/16/32-shard x-axis is the paper\'s V100 config (Table II: 65B needs 8 V100s but only 4 A100s)']] }],
+        ['LLaMA-65B on V100, 2023', '≈3–4 J per token', 'reported', { refs: [['samsi-words-to-watts', 'Section IV.C: "with length 512, we see that it takes about 3-4 Joules for a output token" — Figs. 6-7\'s 8/16/32-shard x-axis is the paper\'s V100 config (Table II: 65B needs 8 V100s but only 4 A100s)']] }],
         ['GB200 vs H200', '≈8× tokens per MW', 'reported', { refs: [['semianalysis-inferencex-inferencemax', 'body text: "single node H200 FP8 vs a GB200 NVL72 FP4 (without Multi Token Prediction)... ~8x improvement in token/s processed per all-in provisioned MW" (DeepSeek R1)']] }],
       ] },
   ];
@@ -796,8 +803,8 @@ export function content(M, opts = {}) {
     ] },
     { group: 'Racks', rows: nvl ? [
       ...FL.map(m => [`${m.accel.rackName} racks`, `≈${n0(m.racksShown)}`, 'derived', Lk(2, 'racks'), { calc: M.stage != null ? 'bom-racks-from-gpus' : 'bom-racks-from-power' }]),
-      [dc ? 'DC-DC shelves' : 'Power shelves', `≈${n0(RACKS * SHELVES)}`, 'derived', Lk(3, 'shelves'), bomRack],
-      ...(dc ? [] : [['Rectifiers', `≈${n0(RACKS * SHELVES * 6)}`, 'derived', Lk(3, 'shelves'), bomRack]]),
+      [dc ? 'DC-DC shelves' : 'Power shelves', `≈${n0(RACKS * shelvesPerRack)}`, 'derived', Lk(3, 'shelves'), bomRack],
+      ...(dc ? [] : [['Rectifiers', `≈${n0(RACKS * shelvesPerRack * 6)}`, 'derived', Lk(3, 'shelves'), bomRack]]),
       ...(!FL.some(m => m.accel.id === 'rubin') ? [['NVLink copper connections', `≈${kfmt(NET.nvlinkPairs)}`, 'derived', Lk(3, 'spine'), bomRack]] : []),
     ] : [
       ['DGX H100 racks', `≈${n0(RACKS)}`, 'derived', Lk(2, 'racks'), { calc: 'bom-racks-from-power' }],
@@ -813,7 +820,7 @@ export function content(M, opts = {}) {
     ] },
     { group: 'Network', rows: [
       [nvl ? 'NVLink switch chips' : 'NVSwitch chips', `≈${n0(NET.nvswitchChips)}`, 'derived', nvl ? Lk(3, 'nvswitch', 'data') : Lk(4, 'nvswitch', 'data'), bomRack],
-      [nvl ? 'SuperNICs' : 'ConnectX-7 NICs', `≈${n0(FL.reduce((sum, m) => sum + m.gpus * m.accel.nicsPerGpu, 0))}`, 'derived', Lk(4, 'cx', 'data'), bomNetwork],
+      [A.id === 'h100' || A.id === 'gb200' ? 'ConnectX-7 NICs' : 'SuperNICs', `≈${n0(FL.reduce((sum, m) => sum + m.gpus * m.accel.nicsPerGpu, 0))}`, 'derived', Lk(4, 'cx', 'data'), bomNetwork],
       [`Leaf / spine / core switches, ${NET.fabric.radix}-port`, `≈${n0(NET.switches)}`, 'derived', Lk(2, 'spine', 'data'), { calc: 'bom-network-count', refs: fabricRefs }],
       ['Optical modules', `≈${kfmt(NET.modules)}`, 'derived', Lk(2, 'optics', 'data'), { calc: 'bom-network-count', refs: [['nvidia-800g-dr8-datasheet', 'section 4.2: Maximum Power Dissipation, Max 17 W -- the per-module figure the fabric’s optics-power model scales from']] }],
       ['Fiber strands in the fabric', `≈${kfmt(NET.fibers)}`, 'derived', Lk(2, 'runways', 'data'), bomNetwork],
@@ -855,9 +862,10 @@ export function content(M, opts = {}) {
           ['Field trial', '1.6 Tb/s over 1,100 km (Telstra)', 'reported', { refs: [['convergedigest-telstra-ciena-1100km', 'lead sentence: "Telstra has transmitted four 400GbE client services over a single 1.6 Tbps wavelength across approximately 1,100 km between Melbourne and Sydney"']] }],
           ['C+L band', 'up to 2× capacity per fiber', 'reported', { refs: [['convergedigest-telstra-ciena-1100km', 'body text: expanding from C-band into L-band "effectively opens a second optical transmission band, increasing the usable spectrum"']] }],
           ['Inside a line terminal, e.g. Ciena 6500 RLS', 'mux/demux, ROADM and amplifier modules in compact shelves', 'spec', { refs: [['ciena-6500-rls-datasheet', 'module list: "ROADM with Line Amplifier (RLA) 12x1 C-band Module ... integrating twin 1x12 flexible grid WSS, EDFAs"; "Dual Line Amplifier (DLA) C-band module ... integrating bi-directional C-band EDFA line amplifiers"; "Raman Amplifier (SRA) C-band Module"; "Colorless Channel Mux/Demux (CCMD)"']] }],
-          ['Mux/demux, e.g. Ciena CMD64', 'up to 64 channels on a 75 GHz grid', 'spec', { refs: [['ciena-6500-rls-datasheet', 'module list: "64-channel mux/demux (CMD64): 2RU 75GHz, C-band channel mux/demux for add/drop of up to 64 channels; including support for coherent pluggables"']] }],
+          ['800G ZR+ reach, Juniper example', '800G to 450 km · 600G to 900 km · 400G to 1,800 km', 'spec', { refs: [['juniper-jco800-zr-hp', 'parameters table, "Distance (amplified)": 450km (800G ZR+), 900km (600G 8QAM), 1800km (400G QPSK), all at 118.2GBd; 120km for OIF 800ZR']] }],
+          ['Slot per 800G wavelength', '≈150 GHz at ≈118 GBd, so 32 fill the C-band', 'reported', { refs: [['mapyourtech-psd-parity-zr', 'section 2: "An 800ZR carrier at 118.2 GBd and minus 7 dBm sits in a 150 GHz slot"; Table 1, channel spacing 150 GHz'], ['juniper-jco800-zr-hp', 'parameters table: signaling rate "(118.2GBd)" for the 800G modes']] }],
         ] },
-      { id: 'ila', title: 'Amplifier huts', kicker: 'Every 60–100 km',
+      { id: 'ila', title: 'Amplifier huts', kicker: 'Every 80–100 km',
         body: 'Small buildings along the route boost the light directly, in the optical domain, without converting it back to electricity or reading the data.',
         specs: [['Spacing', '≈80–100 km, rule of thumb', 'assumed', { assume: 'amplifier-spacing' }]] },
       { id: 'route', title: 'Fiber route', kicker: '≈5 milliseconds per 1,000 km, one way',
@@ -866,7 +874,7 @@ export function content(M, opts = {}) {
           ['Speed in fiber', '≈4.9 µs per km, one way', 'derived', { calc: 'fiber-speed' }],
           ['1,000 km, propagation only', '≈5 ms one way, ≈10 ms round trip', 'derived', { calc: 'route-1000km-latency' }],
           ['Microsoft hollow-core fiber', '≈33% lower latency', 'reported', { refs: [['microsoft-hollow-core-fiber', 'body text: hollow-core fiber "cutting latency by 33%" versus solid-glass fiber'], ['networkworld-hollow-core-fiber', 'article text: Microsoft’s pilot "involved over 1,200 km of fibre, now installed underground and actively carrying live traffic"']] }],
-          ['Per fiber pair, C-band 800ZR', '32 × 800G = 25.6 Tb/s', 'reported', { refs: [['coherent-full-cband-pols', 'article text: "the enhanced POLS can support 32 DWDM wavelengths over a fiber pair," an "aggregate capacity of 25.6 Tbps"']] }],
+          ['Per fiber pair, C-band 800G', '32 × 800G = 25.6 Tb/s', 'reported', { refs: [['coherent-full-cband-pols', 'article text: "the enhanced POLS can support 32 DWDM wavelengths over a fiber pair," an "aggregate capacity of 25.6 Tbps"']] }],
         ] },
       { id: 'remote', title: 'Other campuses', kicker: 'One model, several sites',
         body: 'Builders now train single models across campuses, splitting the work so the slow links carry the least traffic. Google trains its largest models across campuses and metros; Microsoft links Fairwater sites about 700 miles apart.',
@@ -891,10 +899,11 @@ export function content(M, opts = {}) {
           ['Module power, 400ZR / 800ZR', '≈18–20 W / ≈23–25 W', 'reported', evRefs([['ascentoptics-coherent-power-consumption', 'guide: 400ZR modules "typically consume 18 to 20 W"; "one 800G link delivers the same capacity at 23 to 25 watts"']])],
         ] },
       { id: 'lineterm', title: 'Inside the line terminal', kicker: 'Cut away beside the hut',
-        body: 'Opened up, the hut splits the work three ways. Coherent pluggables sit in the router’s own ports, each sending one wavelength. A passive mux/demux lays those wavelengths side by side on one fiber, each in its own slot of a fixed grid. A ROADM shelf with built-in amplifiers can add, drop or pass single wavelengths without turning the rest back into electricity, and amplifies the combined light before it leaves through the wall. The cutaway is drawn beside the hut so it reads on its own; its colors only tell the wavelengths apart, all of them infrared.',
+        body: 'Opened up, the hut splits the work three ways. Coherent pluggables sit in the router’s own ports, each sending one wavelength: 800ZR for a link of up to about 120 km, 800G ZR+ for a regional route of a few hundred. A mux/demux lays those wavelengths side by side on one fiber, each in its own slot: 75 GHz suits 400G-class waves, while an 800G wave needs about 150 GHz, so 32 of them fill the C-band. A ROADM shelf with built-in amplifiers can add, drop or pass single wavelengths without turning the rest back into electricity, and amplifies the combined light before it leaves through the wall. The cutaway is drawn beside the hut so it reads on its own; its colors only tell the wavelengths apart, all of them infrared.',
         specs: [
           ['Coherent pluggables', 'one wavelength each, straight from a router port', 'spec', evRefs([['cisco-800g-zr-datasheet', 'overview: "Cisco 800G-capable coherent optics can transmit a single wavelength of 800G traffic directly from a router or switch port up to 120 km for 800ZR in a Data Center Interconnect (DCI) application"']])],
-          ['Mux/demux, e.g. Ciena CMD64', '2RU, up to 64 channels on a 75 GHz C-band grid', 'spec', evRefs([['ciena-6500-rls-datasheet', 'module list: "64-channel mux/demux (CMD64): 2RU 75GHz, C-band channel mux/demux for add/drop of up to 64 channels; including support for coherent pluggables"']])],
+          ['Mux/demux drawn, e.g. Ciena CMD64', '2RU, up to 64 channels on a 75 GHz C-band grid', 'spec', evRefs([['ciena-6500-rls-datasheet', 'module list: "64-channel mux/demux (CMD64): 2RU 75GHz, C-band channel mux/demux for add/drop of up to 64 channels; including support for coherent pluggables"']])],
+          ['Slot per 800G wavelength', '≈150 GHz, so 32 per fiber, not 64', 'reported', evRefs([['mapyourtech-psd-parity-zr', 'section 2: "An 800ZR carrier at 118.2 GBd and minus 7 dBm sits in a 150 GHz slot"']])],
           ['A 64 × 75 GHz grid, in frequency', '191.3625–196.0875 THz, ≈1,529–1,567 nm', 'reported', evRefs([['fs-64ch-cband-mux', 'product title: "64 Channels DWDM Mux Demux, Super C-band 75GHz 191.3625-196.0875THz"; wavelength = speed of light ÷ frequency']])],
           ['ROADM shelf drawn, Ciena 6500 RLS R8-300', '8 slots; 330 × 440 × 281 mm, 7.5U', 'spec', evRefs([['ciena-6500-rls-datasheet', 'Physical dimensions: "R8-300 8-slot shelf: 7.5U, 330 mm (H) x 440 mm (W) x 281 mm (D)"']])],
           ['Modules in that family', 'ROADM with line amplifier (WSS and EDFAs), dual line amplifier, Raman amplifier, colorless mux/demux', 'spec', evRefs([['ciena-6500-rls-datasheet', 'module list: "ROADM with Line Amplifier (RLA) 12x1 C-band Module ... integrating twin 1x12 flexible grid WSS, EDFAs"; "Dual Line Amplifier (DLA) C-band module ... integrating bi-directional C-band EDFA line amplifiers"; "Raman Amplifier (SRA) C-band Module"; "Colorless Channel Mux/Demux (CCMD)"']])],
@@ -957,8 +966,8 @@ export function content(M, opts = {}) {
       { id: 'control', title: 'Management and login servers', kicker: 'Where the cluster is run',
         body: 'A small set of ordinary CPU servers runs the cluster rather than the model: installing and monitoring every node, scheduling jobs, and giving users somewhere to log in. They sit on the in-band management network.',
         specs: [['In NVIDIA’s B300 design', '2 for Base Command Manager, 3 for Kubernetes, 2 Slurm login nodes', 'spec', evRefs([['nvidia-superpod-b300-management-servers', 'Management Server Quantities and Connectivity: "Base Command Manager in High Availability (HA): 2 Nodes"; "K8s Management Server: 3 Nodes"; "SLURM Login Nodes, 2 Nodes"']])]] },
-      { id: 'runways', title: 'Fiber runways', kicker: 'Yellow means fiber',
-        body: 'Overhead yellow trays carry thousands of fiber strands. A parallel optical link runs each lane on its own fiber, one each way, so strand counts climb fast.',
+      { id: 'runways', title: 'Fiber runways', kicker: 'Fiber only, overhead',
+        body: 'Overhead runways carry thousands of fiber strands; the jacket color, listed below, tells single-mode from multimode. A parallel optical link runs each lane on its own fiber, one each way, so strand counts climb fast.',
         specs: [['Fibers per link', `${NET.fabric.fibersPerLink}`, 'assumed', { assume: 'fibers-per-link' }],
           ...(A.nicPortGbps === 400 ? [['Multimode fiber jacket', 'aqua', 'spec', { refs: [['nvidia-mma4z00-ns400-datasheet', 'Introduction: "Multimode optics is denoted by a tan-colored pull tab and aqua-colored optical fiber."'], ['nvidia-mfp7e20-splitter', '§2 Application: "Multimode fibers use an industry standard Aqua fiber jacket color"']] }]] : []),
           ['Single-mode fiber jacket', 'yellow', 'spec', { refs: [['nvidia-mfp7e40-splitter', '§2 Application: "Single-mode fibers use an industry standard yellow fiber jacket color"']] }],
@@ -1045,7 +1054,7 @@ export function content(M, opts = {}) {
         specs: A.id === 'rubin'
           ? [['Bandwidth', X.c2c, 'spec', { refs: [ref('nvidia-vera-rubin-current-specs', 'Superchip column: 1.8 TB/s NVLink-C2C bandwidth.')] }]]
           : [['Bandwidth', X.c2c, 'assumed', { assume: 'grace-gpu-c2c-bandwidth', refs: [ref('nvidia-grace-cpu-page', '"The Grace CPU Superchip is composed of two Grace CPUs connected coherently over NVIDIA NVLink-C2C at 900 GB/s" — Grace-to-Grace, not Grace-to-GPU'), ref('nvidia-grace-hopper-superchip', '"900 gigabytes per second (GB/s) of coherent interface" for the Grace-to-Hopper CPU-to-GPU link, one generation earlier')] }]] },
-      { id: 'cx', title: 'SuperNICs', kicker: A.id === 'rubin' ? 'Eight per tray' : 'Four per tray',
+      { id: 'cx', title: A.id === 'gb200' ? 'ConnectX-7 NICs' : 'SuperNICs', kicker: A.id === 'rubin' ? 'Eight per tray' : 'Four per tray',
         body: A.id === 'rubin' ? 'Two front networking assemblies carry eight ConnectX-9 SuperNICs in total. They provide the four GPUs with scale-out connectivity through the PCB midplane; the quoted per-GPU bandwidth is aggregate, not a count of physical NICs.' : `Four ${X.nic} interfaces carry the four GPUs’ scale-out traffic, allowing communication with other racks without passing through the CPU.`,
         specs: (() => { const n = nicPerGpuEv(); return [['NIC', X.nic, n.basis, n.ev], ['Per GPU', X.nicNote, n.basis, n.ev], ...(A.id === 'gb200' ? [gb200Retimers] : [])]; })() },
       // the tray's own modules: a single-port module per NIC port; the twin-port module that carries two of these

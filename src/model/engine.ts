@@ -75,12 +75,14 @@ export const ACCELERATORS: Record<AccelId, Accel> = {
   },
   gb300: {
     id: 'gb300', name: 'NVIDIA GB300 NVL72', short: 'GB300', rackName: 'GB300 NVL72', year: '2025–26',
-    gpuW: 1400, gpusPerRack: 72, cpusPerRack: 36, cpuW: 364, cpuName: 'Grace CPUs + LPDDR5X',
+    // NVIDIA lists "up to 1,400W" per GPU and a rack "requiring up to 142 kW"; at 1,400 W on every GPU this bottom-up
+    // sum would reach ≈148 kW, so the model runs the GPUs at 1,300 W (ASSUMPTIONS 'gb300-gpu-power')
+    gpuW: 1300, gpusPerRack: 72, cpusPerRack: 36, cpuW: 364, cpuName: 'Grace CPUs + LPDDR5X',
     scaleupKW: 10.6, nicKW: 5.0, otherKW: 2.35, busbarKW: 0.34,
     hbmShare: 0.15, vrmEff: 0.91, ibcEff: 0.9828, psuEff: 0.975, liquidShare: 0.9,
     hbm: { type: 'HBM3e', gb: 288, tbs: 8, stacks: 8, layers: 12 }, dies: 2,
     nvlink: { gen: 'NVLink 5', tbs: 1.8, domain: 72, switchChipsPerRack: 18, linksPerGpu: 18 }, nicGbps: 800, nicPortGbps: 800, nicsPerGpu: 1, dpusPerTray: 1, gpuPortsPerModule: 1, fp8PF: 5, fp4PF: 15,
-    publishedRackKW: [135, 155], coolingOptions: ['liquid', 'warm'], dc800: false, basis: 'typical',
+    publishedRackKW: [135, 142], coolingOptions: ['liquid', 'warm'], dc800: false, basis: 'typical',   // NVIDIA: "up to 142 kW"
   },
   rubin: {
     id: 'rubin', name: 'NVIDIA Vera Rubin NVL72', short: 'Vera Rubin', rackName: 'Vera Rubin NVL72', year: '2026–27',
@@ -89,7 +91,7 @@ export const ACCELERATORS: Record<AccelId, Accel> = {
     hbmShare: 0.16, vrmEff: 0.915, ibcEff: 0.983, psuEff: 0.975, liquidShare: 1,
     hbm: { type: 'HBM4', gb: 288, tbs: 19.2, stacks: 8, layers: 12 }, dies: 2,   // stack count not yet published
     nvlink: { gen: 'NVLink 6', tbs: 3, domain: 72, switchChipsPerRack: 36, linksPerGpu: 36 }, nicGbps: 1600, nicPortGbps: 800, nicsPerGpu: 2, dpusPerTray: 1, gpuPortsPerModule: 1, fp8PF: 17.5, fp4PF: 35,   // dense peaks, NVIDIA current specifications checked 10/07/2026
-    publishedRackKW: [170, 230], coolingOptions: ['liquid', 'warm'], dc800: true, basis: 'est',
+    publishedRackKW: [170, 240], coolingOptions: ['liquid', 'warm'], dc800: true, basis: 'est',   // OEMs size up to 227–240 kW
   },
 };
 
@@ -101,7 +103,7 @@ export const POWER: Record<PowerId, PowerArch> = {
 };
 const EFF = {
   mpt: 0.996, campus: 0.997,              // main transformers, campus cables and switchgear
-  unitSub: 0.99, ups: 0.965, busway: 0.995,
+  unitSub: 0.99, ups: 0.965, pdu: 0.987, busway: 0.995,   // pdu: the 480 → 415 V transformers ahead of the busway
   sst: 0.98, dcBus: 0.997, dcBattery: 0.998, rackDcDc: 0.985,   // Navitas: SST >98%, 800 → 50 V at 98.5% peak
 };
 
@@ -109,10 +111,11 @@ const EFF = {
 export interface Cooling { id: CoolingId; name: string; short: string; sub: string; coolFrac: number; wue: number; basis: Basis }
 export const COOLING: Record<CoolingId, Cooling> = {
   // coolFrac is cooling power per unit of IT load, set so each design lands in its published PUE band
-  // (air ≈1.5, liquid with chillers 1.10–1.20, warm water 1.05–1.15) once the power chain's own losses are added
+  // (air ≈1.5, liquid with chillers 1.10–1.20, warm water 1.05–1.15) once the power chain's own losses are added;
+  // engine.test.ts checks every accelerator and power path against these bands
   air: { id: 'air', name: 'Air-cooled halls with chillers', short: 'Air', sub: 'chillers', coolFrac: 0.42, wue: 1.0, basis: 'typical' },
-  liquid: { id: 'liquid', name: 'Liquid to the chip, chilled water', short: 'Liquid', sub: 'chilled water', coolFrac: 0.13, wue: 0.5, basis: 'typical' },
-  warm: { id: 'warm', name: 'Warm-water liquid, dry coolers', short: 'Warm water', sub: 'dry coolers', coolFrac: 0.08, wue: 0.16, basis: 'typical' },
+  liquid: { id: 'liquid', name: 'Liquid to the chip, chilled water', short: 'Liquid', sub: 'chilled water', coolFrac: 0.10, wue: 0.5, basis: 'typical' },
+  warm: { id: 'warm', name: 'Warm-water liquid, dry coolers', short: 'Warm water', sub: 'dry coolers', coolFrac: 0.05, wue: 0.16, basis: 'typical' },
 };
 const MISC_FRAC = 0.017;   // lighting, controls, offices, as a share of IT
 
@@ -227,7 +230,7 @@ export function compute(s: Scenario) {
 
   // ----- facility -----
   const upstream = EFF.mpt * EFF.campus;
-  const itPath = power.id === 'dc800' ? EFF.sst * EFF.dcBus * EFF.dcBattery : EFF.unitSub * EFF.ups * EFF.busway;
+  const itPath = power.id === 'dc800' ? EFF.sst * EFF.dcBus * EFF.dcBattery : EFF.unitSub * EFF.ups * EFF.pdu * EFF.busway;
   const sidePath = EFF.unitSub;   // cooling and building loads
   // meter · upstream = IT / itPath + (coolFrac + misc) · IT / sidePath
   const meterPerIT = (1 / itPath + (cooling.coolFrac + MISC_FRAC) / sidePath) / upstream;
@@ -269,7 +272,7 @@ export function compute(s: Scenario) {
   const leaf = sumFab(x => x.leaf), spine = sumFab(x => x.spine), core = sumFab(x => x.core), switches = sumFab(x => x.switches);
   const links = sumFab(x => x.links), gpuModules = sumFab(x => x.gpuModules), switchModules = sumFab(x => x.switchModules);
   const switchMW = sumFab(x => x.switchMW), opticsMW = sumFab(x => x.opticsMW);
-  const dci = { routes: 2, lambdas: 32, gbps: 800, routeKm: 1100, spanKm: 80, cableStrands: 432, portsPerLinecard: 36, litPairs: 0, tbpsPerRoute: 0, modulesPerEnd: 0, huts: 0 };
+  const dci = { routes: 2, lambdas: 32, gbps: 800, routeKm: 400, spanKm: 80, cableStrands: 432, portsPerLinecard: 36, litPairs: 0, tbpsPerRoute: 0, modulesPerEnd: 0, huts: 0 };
   dci.litPairs = Math.max(2, Math.round(gpus * 10 / 1000 / 2 / (dci.lambdas * dci.gbps / 1000)));   // ≈10 Gb/s per GPU to other sites
   dci.tbpsPerRoute = dci.litPairs * dci.lambdas * dci.gbps / 1000;
   dci.modulesPerEnd = dci.routes * dci.litPairs * dci.lambdas;
@@ -307,7 +310,7 @@ export function compute(s: Scenario) {
     ] : [
       { label: 'Unit substations', mw: (itIn + sideIn) * (1 - EFF.unitSub), kind: 'loss', scene: 2, basis: 'derived', ev: { calc: 'ledger-stage-loss', assume: 'unitsub-cooling-side-eff-99', refs: [['doe-transformer-standards-2024', "DOE's own summary of the 04/04/2024 final rule updating distribution-transformer efficiency standards -- supersedes the 2013 rule this site cited before"]] }, link: L(2, 'unitsub') } as LedgerRow,
       { label: 'UPS, double conversion', mw: itIn * EFF.unitSub * (1 - EFF.ups), kind: 'loss', scene: 2, basis: 'derived', ev: { calc: 'ledger-conv-loss', assume: 'ups-eff-96.5', refs: [['ceie-eaton-9395xr', "distributor summary of Eaton's tested figures: \"dual conversion in online mode is as high as 97.5%\", eco/AC-direct mode \"can be improved to 99%\""]] }, link: L(2, 'ups') } as LedgerRow,
-      { label: 'Busway & whips', mw: itIn * EFF.unitSub * EFF.ups * (1 - EFF.busway), kind: 'loss', scene: 2, basis: 'derived', ev: { calc: 'ledger-stage-loss', assume: 'busway-eff-99.5' }, link: L(2, 'busway') } as LedgerRow,
+      { label: 'Busway & whips, with 480 → 415 V transformers', mw: itIn * EFF.unitSub * EFF.ups * (1 - EFF.pdu * EFF.busway), kind: 'loss', scene: 2, basis: 'derived', ev: { calc: 'ledger-stage-loss', assume: 'busway-eff-99.5' }, link: L(2, 'busway') } as LedgerRow,
     ]),
     { label: `Cooling: ${cooling.short.toLowerCase()}, ${cooling.sub}`, mw: coolMW, kind: 'overhead', scene: 2, basis: 'derived', ev: { calc: 'ledger-overhead-frac', assume: 'cooling-overhead-frac', refs: [['google-pue', 'Efficiency page: Google’s own fleet-wide PUE, anchoring the low end of the warm-water/liquid band']] }, link: L(1, cooling.id === 'warm' ? 'drycoolers' : 'chillers') },
     { label: 'Lighting, controls, offices', mw: miscMW, kind: 'overhead', scene: 2, basis: 'derived', ev: { calc: 'ledger-overhead-frac', assume: 'cooling-overhead-frac' } },
@@ -317,7 +320,7 @@ export function compute(s: Scenario) {
     { label: hgx ? 'Server power cabling' : 'Busbar', mw: R(m => m.accel.busbarKW), kind: 'loss', scene: 3, basis: 'derived', ev: { calc: 'ledger-rack-share' }, link: L(3, hgx ? 'cabling' : 'busbar') },
     { label: hgx ? 'NVSwitch chips (scale-up)' : 'NVLink switch trays (scale-up)', mw: R(m => m.accel.scaleupKW), kind: 'net', scene: 3, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power' }, link: hgx ? L(4, 'nvswitch') : L(3, 'nvswitch') },
     { label: accel.cpuName, mw: R(m => m.rack.cpuKW), kind: 'work', scene: 4, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power' }, link: L(4, hgx ? 'cpu' : 'grace') },
-    { label: hgx ? 'NICs & DPUs' : 'SuperNICs & DPUs', mw: R(m => m.accel.nicKW), kind: 'net', scene: 4, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power', refs: [['nvidia-coreweave-gb200-400g', "\"NVIDIA Quantum-2 InfiniBand networking that delivers 400Gb/s bandwidth per GPU\" -- the per-GPU NIC rate this row's per-rack figure is built from"]] }, link: L(4, 'nic') },
+    { label: hgx || accel.id === 'gb200' ? 'NICs & DPUs' : 'SuperNICs & DPUs', mw: R(m => m.accel.nicKW), kind: 'net', scene: 4, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power', refs: [['nvidia-coreweave-gb200-400g', "\"NVIDIA Quantum-2 InfiniBand networking that delivers 400Gb/s bandwidth per GPU\" -- the per-GPU NIC rate this row's per-rack figure is built from"]] }, link: L(4, 'nic') },
     { label: 'SSDs, fans, management', mw: R(m => m.accel.otherKW), kind: 'work', scene: 4, basis: 'derived', ev: { calc: 'ledger-rack-share', assume: 'rack-component-power' }, ...(hgx ? { link: L(4, 'fans', 'heat') } : {}) },
     { label: hgx ? 'Bus converters, 54 → 12 V' : 'Bus converters, 50 → 12 V', mw: R(m => m.rack.ibcLossKW), kind: 'loss', scene: 4, basis: 'derived', ev: { calc: 'ledger-conv-loss', refs: [['semianalysis-blackwell-power-delivery', 'board-level power-delivery survey behind the assumed ≈97–98% intermediate-bus-converter efficiency (no vendor publishes an absolute IBC efficiency at a stated voltage/current point)']] }, link: L(4, 'ibc') },
     { label: 'Voltage regulators, 12 → 0.8 V', mw: R(m => m.rack.vrmLossKW), kind: 'loss', scene: 4, basis: 'derived', ev: { calc: 'ledger-conv-loss', refs: [['semianalysis-blackwell-power-delivery', 'board-level power-delivery survey behind the assumed VRM efficiency at ≈0.8 V core voltage (no vendor publishes an absolute figure at a stated current)']] }, link: L(4, 'vrm') },

@@ -128,7 +128,7 @@ function sync() {
   const thermal = !!inspection?.coversForced;
   covers.disabled = thermal;
   const coverLabel = inspection?.coverLabel || 'covers';
-  covers.textContent = thermal ? `${coverLabel === 'covers' ? 'Thermal covers' : 'Cold plate'} shown` : `${inspection?.covers ? 'Hide' : 'Show'} ${coverLabel}`;
+  covers.textContent = thermal ? `${coverLabel === 'covers' ? 'Thermal covers' : coverLabel[0].toUpperCase() + coverLabel.slice(1)} shown` : `${inspection?.covers ? 'Hide' : 'Show'} ${coverLabel}`;
   covers.setAttribute('aria-pressed', String(thermal || !!inspection?.covers));
   viewToggles.hidden = annotations.hidden && covers.hidden;
   const campus = store.ui.scene === 1;

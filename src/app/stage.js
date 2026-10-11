@@ -10,7 +10,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { HardwareBokehPass } from './hardware-bokeh.js';
-import { DETAIL } from '../kit.js';
+import { DETAIL, setTextureAnisotropy } from '../kit.js';
 import { TIERS, qualityPressure } from './render-quality.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VOLT, BASIS } from '../data.js';
@@ -35,7 +35,7 @@ import { poseAt, planPath } from './camera-path.js';
 import { occupancyBuilder } from './occupancy.js';
 import { buildTriGrid } from './tri-grid.js';
 import { fitHousing, fitComponent } from './housing-frame.js';
-import { overlapsRect, pinLabelBox, declutterPins } from './pin-layout.js';
+import { overlapsRect, pinLabelBox, declutterPins, keepInside } from './pin-layout.js';
 import { renderIntro } from './intro-hook.js';
 import { createSceneCaptions } from './scene-captions.js';
 
@@ -204,7 +204,7 @@ function legends(M) {
       nvl ? [['hot', 'Heat into the plates'], ['cool', 'Supply'], ['warm', 'Return'], ['air', 'Fan air']] : [['hot', 'Heat into the sinks'], ['air', 'Air through the server']],
       [['hot', `Heat out of the ${M.accel.dies > 1 ? 'dies' : 'die'}`], ['air', 'Out of HBM']],
       [['hot', 'Heat out of the chips'], ['air', 'Air through the fins']],
-      [['hot', 'Heat into the plate'], ['cool', 'Water through the plate']],
+      cpoVariant === 'mzm' ? [['hot', 'Heat into the sink'], ['air', 'Air through the fins']] : [['hot', 'Heat into the plate'], ['cool', 'Water through the plate']],   // the Mach-Zehnder package is air-cooled
       [['hot', 'Heat out of the chips']],
       [['hot', 'Little heat']],
     ],
@@ -229,7 +229,11 @@ const hotspotsFor = (i, mode = ui.mode) => (built[i] && { power: built[i].hotspo
 const voltFor = s => ui.mode === 'heat' ? { ...VOLT[s.heatVolt], short: s.heatShort, name: VOLT[s.heatVolt].name } : VOLT[ui.mode === 'data' ? s.dataVolt : s.volt];
 const flowsFor = b => (ui.mode === 'data' ? b.dataFlows : ui.mode === 'heat' ? b.heatFlows : b.flows) || [];
 export const mobile = matchMedia('(max-width: 760px), (pointer: coarse)').matches;
-export const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// reduced motion: camera moves cut, and the flow clock stops, so flows hold as a still frame (they stay drawn). Live,
+// so changing the setting with the page open takes effect at once.
+const reducedQuery = matchMedia('(prefers-reduced-motion: reduce)');
+export let reduced = reducedQuery.matches;
+reducedQuery.addEventListener?.('change', e => { reduced = e.matches; });
 // the 3D view/stage region (nav, viewer and the parts panel, which holds the tour too): single-character
 // shortcuts anywhere on the page only fire while this has focus or the pointer, so they never hijack a key
 // meant for something else on the page - a form, a screen reader command, dictation (WCAG 2.1.4)
@@ -243,11 +247,15 @@ const lookOf = i => ({ envIntensity: 0.35, env: 'room', dof: true, ...LOOK[i], .
 // ---------- renderer ----------
 const view = $('view'), canvas = $('gl');
 let renderer;
-try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' }); }
+// antialias off: every frame draws into the composer's own (multisampled on desktop) target and only full-screen passes
+// reach the canvas, so a multisampled default framebuffer was VRAM and bandwidth for nothing (round 5)
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' }); }
 catch (e) { $('veil').textContent = 'This view needs WebGL, which this browser has turned off.'; throw e; }
 const maxRatio = Math.min(devicePixelRatio, mobile ? 1.5 : 1.75);
 let ratio = maxRatio;
 renderer.setPixelRatio(ratio);
+// canvas textures filter sharply at grazing angles on desktop (the GPU's maximum anisotropy); phones keep 4
+setTextureAnisotropy(mobile ? 4 : renderer.capabilities.getMaxAnisotropy());
 
 // ---------- the quality governor ----------
 // Frame time decides what each level can afford, not a guess about the device. Each tier sheds the next most costly
@@ -299,11 +307,23 @@ function envScene(kind) {
   const s = new THREE.Scene(), box = (w, h, d, color, k, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(k), side: THREE.BackSide })); m.position.set(x, y, z); s.add(m); return m; };
   const panel = (w, h, color, k, x, y, z, rx, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(k), side: THREE.DoubleSide })); m.position.set(x, y, z); m.rotation.set(rx, ry, 0); s.add(m); };
   if (kind === 'studio') {            // a dark stage: a big softbox overhead-front, cool and warm rim strips, a dim floor
-    box(20, 12, 20, '#0b0d11', 1, 0, 3, 0);
+    // the walls darken toward the floor, so glossy silicon and lids pick up a soft reflection gradient at any angle
+    const walls = new THREE.BoxGeometry(20, 12, 20, 1, 6, 1), wc = [], wp = walls.attributes.position, low = new THREE.Color('#0b0d11'), high = new THREE.Color('#1d212a');
+    for (let i = 0; i < wp.count; i++) { const c = low.clone().lerp(high, THREE.MathUtils.clamp((wp.getY(i) + 1) / 7, 0, 1)); wc.push(c.r, c.g, c.b); }
+    walls.setAttribute('color', new THREE.Float32BufferAttribute(wc, 3));
+    const wm = new THREE.Mesh(walls, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })); wm.position.set(0, 3, 0); s.add(wm);
     panel(8, 5, '#ffffff', 4.5, 0, 7, 4, -Math.PI / 2 + 0.5, 0);
     panel(1.2, 7, '#bcd4ff', 3.2, -8, 3, -2, 0, Math.PI / 2);
     panel(1.2, 7, '#ffd9b0', 2.6, 8, 3, -2, 0, -Math.PI / 2);
-    panel(20, 20, '#1a1d22', 1, 0, -2.9, 0, -Math.PI / 2, 0);
+    // round 5: more shapes for metal to reflect - a long overhead strip pair, a large dim front-left softbox and a
+    // back-left softbox - and a floor that brightens toward the horizon, so rough metal no longer averages an empty sky
+    for (const x of [-2.4, 2.4]) panel(0.9, 14, '#f4f7ff', 1.5, x, 8.8, -1, Math.PI / 2, 0);
+    panel(7, 5, '#e6edf8', 1.15, -6.5, 3.2, 7.5, 0, -0.7);
+    panel(6, 6, '#dfe8f6', 1.3, -6.5, 5.4, -9.6, 0, 0);   // back-left: where the tray and package cameras' reflections off flat silicon land
+    const floor = new THREE.PlaneGeometry(20, 20, 1, 8), fc = [], fp = floor.attributes.position, near = new THREE.Color('#1a1d22'), far = new THREE.Color('#30343a');
+    for (let i = 0; i < fp.count; i++) { const r = Math.abs(fp.getY(i)) / 10, c = near.clone().lerp(far, r); fc.push(c.r, c.g, c.b); }
+    floor.setAttribute('color', new THREE.Float32BufferAttribute(fc, 3));
+    const fm = new THREE.Mesh(floor, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })); fm.position.set(0, -2.9, 0); fm.rotation.x = -Math.PI / 2; s.add(fm);
   } else if (kind === 'indoor') {     // a hall: rows of ceiling panels over grey walls
     box(40, 8, 40, '#3a3e44', 1, 0, 3, 0);
     for (let x = -15; x <= 15; x += 6) for (let z = -15; z <= 15; z += 6) panel(3, 1, '#fff4e6', 6, x, 6.9, z, Math.PI / 2, 0);
@@ -321,6 +341,21 @@ function envScene(kind) {
   return s;
 }
 function envFor(kind) { return envs[kind] ||= pmrem.fromScene(envScene(kind), 0.04).texture; }
+// Levels 3-9 (round 5): a soft studio backdrop in place of flat black, so dark hardware keeps its silhouette - lighter
+// behind the subject, falling to near black at the floor - filtered in linear light and dithered by the finish pass's grain, so it does not band. Levels 0-2 keep theirs.
+let backdropTex = null;
+function backdrop() {
+  if (backdropTex) return backdropTex;
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d'), lin = g.createLinearGradient(0, 0, 0, 256);
+  lin.addColorStop(0, '#121821'); lin.addColorStop(0.45, '#0d121a'); lin.addColorStop(1, '#05070b');
+  g.fillStyle = lin; g.fillRect(0, 0, 256, 256);
+  const rad = g.createRadialGradient(128, 100, 0, 128, 100, 150);
+  rad.addColorStop(0, 'rgba(34,42,56,0.45)'); rad.addColorStop(1, 'rgba(34,42,56,0)');
+  g.fillStyle = rad; g.fillRect(0, 0, 256, 256);
+  backdropTex = new THREE.CanvasTexture(c); backdropTex.colorSpace = THREE.SRGBColorSpace;
+  return backdropTex;
+}
 
 export const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 1000);
 export const controls = new OrbitControls(camera, canvas);
@@ -345,8 +380,12 @@ function getScene(i) {
     // in white (round-2 review), so it is held to a fraction there
     const glowCut = CLOSE_GLOW[i];
     if (glowCut && b.powerGlow) {
-      const setTier = b.powerGlow.setTier.bind(b.powerGlow);
-      b.powerGlow.setTier = t => { setTier(t); b.powerGlow.mesh.material.uniforms.uBoost.value *= glowCut; };
+      // and halved again (about 0.15) while a part is selected, so the selection does not sit in white fog (round 5)
+      const g = b.powerGlow, boost = g.mesh.material.uniforms.uBoost, setTier = g.setTier.bind(g), update = g.update.bind(g);
+      let base = boost.value;
+      const apply = () => { boost.value = base * glowCut * (ui.selected ? 0.5 : 1); };
+      g.setTier = t => { setTier(t); base = boost.value; apply(); };
+      g.update = (...a) => { apply(); return update(...a); };
     }
     b.powerGlow?.setTier(tierOf(i));
     built[i] = b;
@@ -357,6 +396,19 @@ function getScene(i) {
     }
     const L = lookOf(i);
     b.scene.environment = envFor(L.env); b.scene.environmentIntensity = L.envIntensity; b.model = store.M;
+    if (i >= 3 && b.scene.background?.isColor) {
+      b.scene.background = backdrop();
+      b.scene.fog?.color.set(0x11161f);   // the rack's floor fades into the backdrop at the horizon, not to a darker band
+    }
+    // desktop with a discrete GPU (round 5): finer, softer key-light shadows on the close-up levels - 4096 maps, a
+    // wider PCF disk, and on the tray a frustum of ±5 units instead of ±6 (about 0.25 mm per shadow texel, was 0.6)
+    if (i >= 3 && quality.shadows && !integrated) b.scene.traverse(o => {
+      if (!o.isLight || !o.castShadow || !o.shadow) return;
+      if (o.shadow.mapSize.x < 4096) o.shadow.mapSize.set(4096, 4096);
+      o.shadow.radius = 2.5;
+      const cam = o.shadow.camera;
+      if (i === 4 && cam.isOrthographicCamera && cam.right > 5) { cam.left = cam.bottom = -5; cam.right = cam.top = 5; cam.updateProjectionMatrix(); }
+    });
     applyMode(b);
     b._mirrors = []; b.scene.traverse(o => { if (o.isReflector) b._mirrors.push(o); });
     b._mirrors.forEach(m => { m.visible = tierOf(i).mirror; });
@@ -613,7 +665,10 @@ function safeBox() {
   const toY = px => 1 - 2 * (px - vr.top) / vr.height;
   // a level whose overview carries captions under its hardware (the module) also keeps them off the bottom HUD
   const bottom = built[ui.scene]?.presentation?.clearBottomHud ? ['.hud.bl .hint', '.hud.bl .scalebar', '#legend'] : [];
-  for (const sel of ['.hud.tl', '.hud.tr', '.present-launch', '#hud-btns', ...bottom]) {        // the clock and the phone buttons sit below the view
+  // on a phone the side levels' variant toggles stack under the title, over the model: keep the overview below them
+  // (round-5 review: the module sat under its toggles with empty view beneath)
+  const toggles = vr.width < 640 ? ['#optics-variant', '#module-side', '#cpo-variant'] : [];
+  for (const sel of ['.hud.tl', '.hud.tr', '.present-launch', '#hud-btns', ...toggles, ...bottom]) {        // the clock and the phone buttons sit below the view
     const el = document.querySelector(sel); if (!el || el.hidden || getComputedStyle(el).display === 'none') continue;
     const r = el.getBoundingClientRect(); if (!r.width) continue;
     if (r.top - vr.top < vr.height / 2) box.y1 = Math.min(box.y1, toY(r.bottom + 14));   // overlay along the top
@@ -1027,7 +1082,8 @@ const tabName = s => s.tab || s.title;
 // layer's own word stays on the view's heading); the pluggable module's names the module on show
 // an interconnect tab's subtitle is one short token ("package", not "package, representative"; "800G 2×DR4", not the
 // module's end as well; "DAC·ACC·AEC"), so the four tabs keep one line and nothing is cut off with an ellipsis
-const metaOf = s => s.side ? (s.kicker || s.scale).split(' · ')[0].split(', ')[0].replace(/\s*\/\s*/g, '·') : s.scale;
+// the module tab gives its rate alone ("800G"): "800G 2×DR4" was cut to "800G 2×D…" at 1280 px (round-5 review)
+const metaOf = s => s.id === 'module' ? s.kicker.split(' ')[0] : s.side ? (s.kicker || s.scale).split(' · ')[0].split(', ')[0].replace(/\s*\/\s*/g, '·') : s.scale;
 const stepsEl = $('steps'), stepBtns = [], stepGroups = [];
 for (const [cls, label, side] of GROUPS) {
   const g = document.createElement('div'), h = document.createElement('span'), row = document.createElement('div');
@@ -1119,6 +1175,9 @@ export function setMode(m) {
     const opening = cameraPreset(overviewCamera(built[ui.scene]));
     flyTo(opening.pos, opening.target, 1.1);
   }
+  // say the layer, not the level again (the reader stayed on this level); a kept part is named after it
+  const parts = ui.scene >= 0 ? partsFor(ui.scene) : [], kept = parts.find(p => p.id === ui.selected);
+  announce(`${{ power: 'Power', data: 'Data', heat: 'Heat' }[m]} layer${kept ? `: part ${parts.indexOf(kept) + 1} of ${parts.length}, ${kept.title}` : ''}`);
   emit('mode', m);
 }
 document.querySelectorAll('[data-mode]').forEach(x => x.addEventListener('click', () => setMode(x.dataset.mode)));
@@ -1639,6 +1698,7 @@ function updatePins() {
     const off = presentation?.hidePins || overlaps || !!clutter?.hidden.has(p.id) || (markerBlocked && p.id !== ui.selected) || pv.z > 1 || x < 6 || x > w - 6 || y < 6 || y > h - 6;
     p.el.classList.toggle('off', off);
     if (off) continue;
+    [x, y] = keepInside(x, y, w, h);
     p.el.style.transform = `translate(${(x - PIN_R).toFixed(1)}px, ${(y - PIN_R).toFixed(1)}px)`;
     p.el.querySelector('.num').style.visibility = markerBlocked ? 'hidden' : '';
     placed.push([x, y]);
@@ -1720,7 +1780,7 @@ function loop(ts) {
   const raw = timer.getDelta(), dt = Math.min(raw, 0.05);
   tickers.forEach(fn => fn(dt));
   if (!visible || document.hidden || ui.scene < 0 || !built[ui.scene]) return;
-  t += reduced ? dt * 0.35 : dt;
+  if (!reduced) t += dt;                                  // reduced motion: a still frame
   const b = built[ui.scene];
   const frameStarted = performance.now();
   const projection = { position: camera.position,

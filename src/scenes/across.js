@@ -123,7 +123,7 @@ function labelSprite(text, color = '#ffe7a3', size = 30) {
 // with a leader whenever screen-space collision avoidance displaces it.
 // `reserved` holds screen boxes already taken by the page's own overlays (numbered pins, title, buttons), in the
 // canvas's CSS pixels, so a caption steps around them instead of printing over them.
-export function layoutMapCaptions(entries, camera, width, height, selected = null, reserved = []) {
+export function layoutMapCaptions(entries, camera, width, height, selected = null, reserved = [], mode = 'power') {
   const occupied = [...reserved];
   camera.updateMatrixWorld();
   for (const entry of [...entries].sort((a, b) =>
@@ -141,9 +141,10 @@ export function layoutMapCaptions(entries, camera, width, height, selected = nul
     let box = null;
     const tries = [];
     // route distances also try sideways and further out: two routes leaving one campus put their midpoints close
-    // and so does the home campus tag, so it steps off the numbered pins clustered round it (round-3 review, phones)
+    // and so does the home campus tag, so it steps off the numbered pins clustered round it (round-3 review, phones);
+    // not in the data layer, where a sideways step puts the tag on the glowing route out of the campus (round-5 review)
     const dys = entry.route ? [0, -24, 24, -48, 48, -72, 72, -96, 96, -120, 120, -144, 144] : [0, -24, 24, -48, 48, -72, 72, -96, 96];
-    for (const dx of entry.route || entry.main ? [0, -0.6, 0.6] : [0]) for (const dy of dys) tries.push([dx * w, dy]);
+    for (const dx of entry.route || (entry.main && mode !== 'data') ? [0, -0.6, 0.6] : [0]) for (const dy of dys) tries.push([dx * w, dy]);
     tries.sort((a, b) => Math.hypot(...a) - Math.hypot(...b));
     // the home campus caption never disappears: if every slot is taken it keeps its anchor slot
     if (entry.main) tries.push([0, 0, true]);
@@ -751,7 +752,7 @@ export function build({ quality, model, state = {} }) {
   };
   scene.onBeforeRender = (renderer, _scene, camera) => {
     renderer.getSize(viewport);
-    layoutMapCaptions(mapCaptions, camera, viewport.x, viewport.y, state.selected, reservedBoxes(renderer.domElement));
+    layoutMapCaptions(mapCaptions, camera, viewport.x, viewport.y, state.selected, reservedBoxes(renderer.domElement), state.mode);
   };
 
   const [hx, hz] = H, h0 = huts[3] || huts[0] || [hx, 3, hz], R0 = near[0] ? world(near[0].p.site.lon, near[0].p.site.lat) : [hx + 300, hz];
@@ -763,7 +764,8 @@ export function build({ quality, model, state = {} }) {
   const spread = [[hx, hz], ...Object.values(siteSpots).map(v => [v.pos[0], v.pos[2]])];
   const [x0, x1] = [Math.min(...spread.map(p => p[0])), Math.max(...spread.map(p => p[0]))];
   const [z0, z1] = [Math.min(...spread.map(p => p[1])), Math.max(...spread.map(p => p[1]))];
-  const fitK = Math.max(1, (x1 - x0 + 300) / 1250, (z1 - z0 + 260) / 1000), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2 + 40;
+  // +300 on z: room under the spread for the key hint at the foot of the view (round-5 review: Abilene sat behind it at 1280x720)
+  const fitK = Math.max(1, (x1 - x0 + 300) / 1250, (z1 - z0 + 560) / 1000), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2 + 40;
   const built = {
     scene, flows, dataFlows, heatFlows, layers: { power, data }, powerDraw,
     look: { exposure: 1.45, bloom: 0.85, threshold: 0.92, ao: 0, env: 'night', envIntensity: 0.5 },

@@ -59,7 +59,7 @@ export function story(M) {
   return keyed('story', [
     // 1 · scale across
     { link: at(0, 'home'), k: 'Scale across', title: `${meter}, one grid customer`,
-      text: `This campus draws ${meter} at its meter, about as much as ${n0(homes)} American homes. The grid lost about 5% delivering it. Every number below follows from that one choice and the three others in the scenario bar.`,
+      text: `This campus draws ${meter} at its meter, about as much as ${n0(homes)} American homes. The US grid loses about 5% on average between plant and customer, less at 345 kV. Every number below follows from that one choice and the three others in the scenario bar.`,
       specs: rows(['Meter power', meter, 'assumed', { assume: 'scenario-meter-choice' }], ['American homes, same power', `≈${n0(homes)}`, 'derived', { calc: 'homes-equivalent' }], card('power', 1, 'line', 'US grid losses')) },
     { link: at(0, 'route', 'data'), k: 'Data · scale across', title: 'Even light takes time',
       text: `Campuses hundreds of kilometers apart can train one model together. In glass, light travels at about two thirds of its speed in a vacuum, so crossing 1,000 km still takes ${dci.latency.replace('one way', 'each way')}. That makes synchronizing often expensive, and some methods, such as DiLoCo, synchronize much less often. In this model the long links carry the least traffic per GPU, and the fast ones are further in.`,

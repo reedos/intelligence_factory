@@ -66,6 +66,13 @@ body.app:not(.story) .sheet-toggle { display: grid; touch-action: none; user-sel
   body.app:not(.story) .hud-row .btn { min-height: 44px; border: 1px solid rgba(240,240,250,.65); background: rgba(0,0,0,.72); }
   body.app:not(.story) .hud-row #back-out { flex: none; max-width: 220px; padding: 5px 12px; }
 }
+/* a phone on its side (390 px tall): the sheet rests at its tab row, so the view gets the screen; its handle pulls it
+   up. The level picker names the level, so the view drops its own title. */
+@media (max-width: 1100px) and (max-height: 500px) {
+  body.app:not(.story):not(.sheet-open) .panel { flex: none; }
+  body.app:not(.story):not(.sheet-open) .panel > :not(.pane-tabs) { display: none; }
+}
+@media (max-height: 500px) { body.app:not(.story) .hud.tl { display: none; } }
 
 .link-scope p { margin: 0; }
 .link-scope summary { margin-top: 8px; color: var(--ink); cursor: pointer; }

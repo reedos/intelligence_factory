@@ -850,7 +850,7 @@ export const TERMS = [
   "aka": [
    "high-bandwidth memory"
   ],
-  "def": "Stacked DRAM built beside the GPU die on the same interposer, feeding it at several terabytes per second over millimeters of wiring. This page assumes it runs 8-15% of a GPU's power, an estimate drawn from academic GPU power-characterization studies rather than a vendor disclosure; moving weights out of it for every token is a large share of inference energy.",
+  "def": "Stacked DRAM built beside the GPU die on the same interposer, feeding it at several terabytes per second over millimeters of wiring. This page assumes it runs 10-16% of a GPU's power (10% for H100, 16% for the pre-launch Rubin), an estimate drawn from academic GPU power-characterization studies, which commonly cite about 8-15% for HBM3-class memory, rather than a vendor disclosure; moving weights out of it for every token is a large share of inference energy.",
   "layer": "compute",
   "sources": [
    "micron-hbm3e-brief"

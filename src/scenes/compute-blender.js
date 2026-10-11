@@ -8,6 +8,8 @@ import { applyPcb, PCB_MATERIAL } from './tray-pcb.js';
 import { rackMarks } from './electrical-marks.js';
 import { rackManifoldMarks } from './cooling-marks.js';
 import { surfaceHit, realizeSpots } from './print-kit.js';
+import * as THREE from 'three';
+import { canvasTex } from '../kit.js';
 
 const cache = new Map(), pending = new Map();
 const physical = o => o.isMesh && !o.isReflector && !o.userData.computeDynamic && !o.userData.nativeOverlay && !o.userData.printed   // nativeOverlay: kept native, never baked (rack-mgmt.js)
@@ -51,6 +53,50 @@ function ownedClone(source) {
   return root;
 }
 
+// Round 5 (graphics): the GPU die is polished backside silicon, a dark near-mirror, not a slate card. A faint
+// backgrind texture - wide concentric arcs left by the grinding wheel - breaks the key light across it (roughness
+// about 0.12 to 0.25). Dies carry no usable UVs in the tray file, so the arcs are projected by position, top-down,
+// over each die's own footprint. Emissive (the data/heat cues) and the animated-surface key are left untouched.
+const DIE = /^GPU die silicon backside/;
+function backgrind() {
+  return canvasTex(512, 512, (g, w, h) => {
+    g.fillStyle = 'rgb(46,46,46)'; g.fillRect(0, 0, w, h);
+    let seed = 29; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const cx = -0.55 * w, cy = 1.45 * h;
+    for (let r = 0.9 * w; r < 2.6 * w; r += 2 + rnd() * 3) {
+      const v = 31 + Math.round(rnd() * 33);
+      g.strokeStyle = `rgba(${v},${v},${v},0.55)`; g.lineWidth = 1 + rnd() * 1.6;
+      g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2); g.stroke();
+    }
+  }, { srgb: false });
+}
+function finishDies(root) {
+  if (typeof document === 'undefined') return;
+  const dies = [], box = new THREE.Box3(), v = new THREE.Vector3();
+  root.updateMatrixWorld(true);
+  root.traverse(o => { if (o.isMesh && !Array.isArray(o.material) && DIE.test(o.material.name)) dies.push(o); });
+  if (!dies.length) return;
+  const rough = backgrind(), done = new Set();
+  for (const mesh of dies) {
+    const m = mesh.material;
+    if (!done.has(m)) {
+      done.add(m);
+      m.color.set(0x2a313c); m.metalness = 0.6; m.roughness = 1.3; m.roughnessMap = rough;   // about 0.16 to 0.33: the key light's highlight spreads instead of whiting out the die
+      if (m.clearcoat) { m.clearcoatRoughness = 1; m.clearcoatRoughnessMap = rough; }   // the chip's clearcoat shows the arcs too
+      m.envMapIntensity = Math.max(m.envMapIntensity ?? 1, 1.1); m.needsUpdate = true;
+    }
+    const pos = mesh.geometry.attributes.position, uv = new Float32Array(pos.count * 2);
+    box.makeEmpty();
+    for (let i = 0; i < pos.count; i++) box.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld));
+    const w = Math.max(box.max.x - box.min.x, 1e-6), d = Math.max(box.max.z - box.min.z, 1e-6);
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld);
+      uv[i * 2] = (v.x - box.min.x) / w; uv[i * 2 + 1] = (v.z - box.min.z) / d;
+    }
+    mesh.geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  }
+}
+
 function build(kind, native, options) {
   const key = assetKey(kind, options.model), source = cache.get(key);
   if (!source) throw new Error(`Call ${kind}Builder.preload({model}) before build.`);
@@ -85,6 +131,7 @@ function build(kind, native, options) {
     }
   });
   dress(hardware);
+  finishDies(hardware);
   for (const o of obsolete) { o.removeFromParent(); o.geometry.dispose(); }
   if (rotors.length) {
     // compute-solder carries a reflowed BGA ball and a lighter C4 bump mesh.
@@ -114,6 +161,7 @@ function build(kind, native, options) {
     seated.name = 'Blender complete tray hardware, pulled (the tray level\'s own)';
     seated.traverse(o => { delete o.userData.ifxCompute; });   // the tray file's generation stamp names the tray; this hardware is the rack's
     dress(seated);
+    finishDies(seated);
     seated.scale.setScalar(10); seated.position.set(0, 0, 0); seated.updateMatrixWorld(true);
     applyPcb(seated, accel, { lod: 'rack', named: PCB_MATERIAL });
     seated.scale.setScalar(1); seated.position.set(frame.x, frame.floor, frame.z);

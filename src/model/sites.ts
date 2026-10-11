@@ -90,7 +90,7 @@ export const SITES: Record<SiteId, Site> = {
   colossus2: {
     id: 'colossus2', name: 'SpaceXAI Colossus 2', owner: 'SpaceXAI (formerly xAI)', place: 'Memphis, TN', lat: 35.02, lon: -90.05, state: '47',
     // meterMW is what the model derives for the first stage below; the fleet, not this figure, sizes the campus
-    scenario: { meterMW: 1460, accel: 'gb300', power: 'ac415', cooling: 'liquid', stage: 0 },
+    scenario: { meterMW: 1380, accel: 'gb300', power: 'ac415', cooling: 'liquid', stage: 0 },
     // SpaceXAI's Mid-South page (checked 09/27/2026): a 3.3 GWh grid-connected battery pack planned, no diesel
     // mentioned, and closed-loop cooling that takes only domestic water
     plant: { backup: 'battery', bessMWh: 3300, closedLoop: true },
@@ -185,7 +185,7 @@ export const SITES: Record<SiteId, Site> = {
   },
   "rainier": {
     id: "rainier", name: "Amazon Project Rainier", owner: "Amazon Web Services (built for Anthropic)", place: "New Carlisle, IN", lat: 41.7, lon: -86.51, state: "18",
-    scenario: { meterMW: 1050, accel: "h100", power: "ac415", cooling: "air" },
+    scenario: { meterMW: 1380, accel: "h100", power: "ac415", cooling: "air" },
     realChip: "AWS Trainium2 chips in 64-chip UltraServers",
     carbonG: 632, carbonNote: "Indiana, 1,393 lb/MWh (EIA 2024), the highest state rate mapped here; the campus's operating power comes entirely from the grid, with on-site diesel generators kept for backup only.",
     facts: [
@@ -195,7 +195,7 @@ export const SITES: Record<SiteId, Site> = {
       ["Grid interconnection", "Indiana Michigan Power (AEP), existing Olive 345 kV station", "reported", { refs: [["measuredai-new-carlisle", 'body text: "the campus already adjoined... the Olive 345 kV station" on "a purpose-built 345 kV transmission delivery scheme"'], ["compute-atlas-rainier", 'facility profile: utility "Indiana Michigan Power (AEP)"']] }],
       ["On-site generation", "none for operating power; diesel gensets for backup only", "reported", { refs: [["measuredai-new-carlisle", 'body text: "All operating power comes from the utility grid... The only on-site generation is a diesel fleet held in reserve for emergency backup"']] }],
     ],
-    unknowns: ["This site's engine models NVIDIA accelerators only; Project Rainier runs AWS's own Trainium2 chips (UltraServers of 64 chips each), which it cannot model, so the closest preset by rack power and cooling is used instead — H100-class, air-cooled, 415 V AC — and its watts-per-chip and per-rack figures are NVIDIA's, not Amazon's real silicon.", "Meter power is estimated from the ≈910 MW IT figure at a PUE near 1.15, the value reported for this chiller-free, air-cooled design.", "The Trainium2-to-Trainium3 mix as later buildings come online is not modeled; all live capacity is treated as one class.", "Building counts vary by source (30 per company figures, up to 32 in Epoch's imagery-based count, ≈18 per Compute Atlas); this page follows Epoch's 16-of-32-live split."],
+    unknowns: ["This site's engine models NVIDIA accelerators only; Project Rainier runs AWS's own Trainium2 chips (UltraServers of 64 chips each), which it cannot model, so the closest preset by rack power and cooling is used instead — H100-class, air-cooled, 415 V AC — and its watts-per-chip and per-rack figures are NVIDIA's, not Amazon's real silicon.", "Meter power is set so the modeled IT load matches Epoch's ≈910 MW. AWS has not published this campus's cooling design or PUE; the H100 preset can only use this model's air design, halls with chillers at a PUE near 1.5, so the meter figure and the chillers drawn are the model's, and a more efficient real design would draw less at the meter for the same IT load.", "The Trainium2-to-Trainium3 mix as later buildings come online is not modeled; all live capacity is treated as one class.", "Building counts vary by source (30 per company figures, up to 32 in Epoch's imagery-based count, ≈18 per Compute Atlas); this page follows Epoch's 16-of-32-live split."],
     sources: ["epoch-dc-new-carlisle", "eia-state-indiana", "measuredai-new-carlisle", "compute-atlas-rainier", "blackridge-rainier"],
     status: { state: "partial", live: "≈910 MW IT", asOf: "09/24/2026", source: "epoch-dc-new-carlisle",
       line: "About 16 of roughly 30 planned buildings are live: near 910 MW of IT power and about a million Trainium2 chips by Epoch AI’s count. The rest are under construction toward about 1.9 GW, due around Q1 2028." },

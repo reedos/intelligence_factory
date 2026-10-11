@@ -78,7 +78,7 @@ it('facility and rack counts satisfy independently reconstructed capacity budget
     // Work backward from the meter: upstream losses, then divide incoming power
     // between IT and the cooling/building branch by numerical bisection.
     const input = meterMW * 0.996 * 0.997;
-    const path = m.power.id === 'dc800' ? [0.98, 0.997, 0.998] : [0.99, 0.965, 0.995];
+    const path = m.power.id === 'dc800' ? [0.98, 0.997, 0.998] : [0.99, 0.965, 0.987, 0.995];   // 0.987: the 480 → 415 V transformers
     let low = 0, high = input;
     for (let i = 0; i < 70; i++) {
       const it = (low + high) / 2;

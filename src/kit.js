@@ -1,4 +1,4 @@
-import { particleBudget } from './app/render-quality.js';
+import { particleBudget, TEX, setTextureAnisotropy } from './app/render-quality.js';
 // Shared modeling kit: materials, a geometry merger, animated power flows and builders for
 // parts that repeat across scenes. Blender adapters provide authored physical
 // meshes; this kit also supplies runtime teaching overlays and native references.
@@ -526,13 +526,15 @@ export function wires(polylines, color = 0x2a2e33, opacity = 0.9) {
 }
 
 // ---------- canvas textures ----------
+// Texture filtering at grazing angles (render-quality.js): stage.js raises it to the GPU's maximum on desktop.
+export { TEX, setTextureAnisotropy };
 export function canvasTex(w, h, draw, { repeat = [1, 1], srgb = true } = {}) {
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   draw(c.getContext('2d'), w, h);
   const t = new THREE.CanvasTexture(c);
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat);
-  t.anisotropy = 4;
+  t.anisotropy = TEX.anisotropy;
   return t;
 }
 export const texMat = (tex, { rough = 0.7, metal = 0.1, emissive = null, emissiveIntensity = 1 } = {}) => new THREE.MeshStandardMaterial({

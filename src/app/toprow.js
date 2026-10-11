@@ -23,6 +23,11 @@ for (const p of pops) {
 addEventListener('keydown', e => { if (e.key !== 'Escape') return; const p = pops.find(q => !q.menu.hidden); if (p) { e.stopPropagation(); close(p, { focus: true }); } }, true);
 document.addEventListener('pointerdown', e => { for (const p of pops) if (!p.menu.hidden && !p.menu.contains(e.target) && !p.btn.contains(e.target)) close(p); }, true);
 
+// the site menu (phones): its links come before MENU in the page, so opening it moves focus to the first link
+// (site.js opens it, and Escape there closes it and returns focus to MENU)
+const menuBtn = $('menu-btn');
+menuBtn?.addEventListener('click', () => { if (menuBtn.getAttribute('aria-expanded') === 'true') $('topnav')?.querySelector('a')?.focus({ preventScroll: true }); });
+
 // phones: the layer switch moves from over the view into the top row
 const phone = matchMedia('(max-width: 760px)');
 const layers = document.querySelector('.hud.tr .mode'), home = document.querySelector('.hud.tr'), slot = $('mode-slot');

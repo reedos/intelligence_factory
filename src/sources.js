@@ -481,6 +481,11 @@ export const SOURCES = {
   // ---- 09/30/2026, interconnect: inside the DWDM line terminal ----
   'ciena-6500-rls-datasheet': { title: '6500 Reconfigurable Line System data sheet (DS365)', publisher: 'Ciena', url: 'https://telecomcauliffe.com/wp-content/uploads/2023/10/Ciena_6500_Reconfigurable_Line_System_DS.pdf', published: '09/2023', dated: 'DS365 9.2023, copyright 2023 Ciena', via: 'reseller-hosted copy of the Ciena data sheet', accessed: '09/30/2026', kind: 'primary', marketing: true },
   'fs-64ch-cband-mux': { title: '64 Channels DWDM Mux Demux, Super C-band 75GHz', publisher: 'FS.com', url: 'https://www.fs.com/products/166004.html', published: 'undated', dated: 'live product page', accessed: '09/30/2026', kind: 'secondary', marketing: true },
+  // ---- 10/11/2026, round-5 domain fixes: long-haul coherent reach, 800G channel slots, Vera Rubin power shelves ----
+  'juniper-jco800-zr-hp': { title: 'JCO800-QDD-ZR-M-HP optical standards parameters (800G ZR/ZR+ QSFP-DD)', publisher: 'Juniper Networks', url: 'https://www.juniper.net/documentation/ke-apps/hct/optStdParams/stdHtml/JCO800-QDD-ZR-M-HP.html', published: 'undated', dated: 'live Hardware Compatibility Tool page', accessed: '10/11/2026', kind: 'primary', marketing: false },
+  'mapyourtech-psd-parity-zr': { title: 'Power Spectral Density Parity Across 400ZR, 800ZR and 1600ZR', publisher: 'MapYourTech', url: 'https://mapyourtech.com/power-spectral-density-parity-across-400zr-800zr-and-1600zr/', published: '09/16/2026', accessed: '10/11/2026', kind: 'secondary', marketing: false },
+  'cisco-vera-rubin-nvl72-ds': { title: 'Cisco AI Rack for NVIDIA Vera Rubin NVL72 data sheet', publisher: 'Cisco', url: 'https://www.cisco.com/site/us/en/solutions/global-partners/supermicro/nvidia-vera-rubin-nvl72-ds.html', published: '09/15/2026', dated: 'page\'s own "Last Updated: September 15, 2026"', accessed: '10/11/2026', kind: 'primary', marketing: false },
+  'gigabyte-vera-rubin-nvl72': { title: 'GIGABYTE AI DLC Rack, NVIDIA Vera Rubin NVL72', publisher: 'GIGABYTE', url: 'https://www.gigabyte.com/Enterprise/GIGAPOD-Rack-Scale/AI-DLC-Rack_NVIDIA-Vera-Rubin-NVL72', published: 'undated', dated: 'live product page', accessed: '10/11/2026', kind: 'primary', marketing: true, via: 'the page refuses automated fetches; its "4 x 3RU 110 kW power shelves" and "up to 240 kW" rack power were confirmed from search-result text of the rack and pod pages' },
   'wikipedia-roadm': { title: 'Reconfigurable optical add-drop multiplexer', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Reconfigurable_optical_add-drop_multiplexer', published: 'undated', dated: 'live article', accessed: '09/30/2026', kind: 'secondary' },
 
 };
@@ -533,7 +538,7 @@ export const PART_SOURCES = {
   'power:hall:ups': ['eaton-9395xr-ups'],
   'power:hall:batt': [],
   'power:hall:busway': ['lv-distribution-busway', 'nvidia-800v-hvdc'],
-  'power:hall:racks': ['nvidia-gb200-nvl72', 'hpe-gb200-quickspecs', 'nvidia-dgx-h100'],
+  'power:hall:racks': ['nvidia-gb200-nvl72', 'hpe-gb200-quickspecs', 'nvidia-dgx-h100', 'nvidia-nvl72-reference-arch', 'gigabyte-vera-rubin-nvl72'],
   'power:hall:containment': [],
   'power:hall:inrow': [],
   'power:hall:cdu': ['vertiv-coolchip-cdu', 'motivair-cdu-brochure'],
@@ -542,7 +547,7 @@ export const PART_SOURCES = {
   'power:hall:network': [],
 
   'power:rack:feed': [],
-  'power:rack:shelves': ['navitas-800vdc', 'nvidia-gb200-ocp', 'liteon-gb200-power-system', 'delta-ocp-800vdc', 'liteon-gtc-2026'],
+  'power:rack:shelves': ['navitas-800vdc', 'nvidia-gb200-ocp', 'liteon-gb200-power-system', 'delta-ocp-800vdc', 'liteon-gtc-2026', 'cisco-vera-rubin-nvl72-ds', 'gigabyte-vera-rubin-nvl72'],
   'power:rack:busbar': ['nvidia-gb200-ocp', 'nvidia-800v-hvdc'],
   'power:rack:compute': ['nvidia-gb200-nvl72'],
   'power:rack:nvswitch': ['nvidia-nvl72-reference-arch'],
@@ -577,7 +582,7 @@ export const PART_SOURCES = {
   'power:chip:tokens': ['google-inference-impact', 'samsi-words-to-watts'],
 
   // ---- data ----
-  'data:across:dci': ['ciena-wavelogic6', 'marvell-colorz-800', 'ciena-wavelogic6-nano', 'ciena-6500-rls-datasheet'],
+  'data:across:dci': ['ciena-wavelogic6', 'marvell-colorz-800', 'ciena-wavelogic6-nano', 'ciena-6500-rls-datasheet', 'juniper-jco800-zr-hp', 'mapyourtech-psd-parity-zr'],
   'data:across:ila': [],
   'data:across:route': ['microsoft-hollow-core-fiber', 'coherent-full-cband-pols'],
   'data:across:remote': ['microsoft-ai-wan', 'nvidia-spectrum-xgs', 'deepmind-decoupled-diloco'],
@@ -585,7 +590,7 @@ export const PART_SOURCES = {
 
   'data:campus:fiber': ['zayo-route-diversity'],
   'data:campus:dci': ['ciena-wavelogic6'],
-  'data:campus:lineterm': ['cisco-800g-zr-datasheet', 'ciena-6500-rls-datasheet', 'fs-64ch-cband-mux', 'wikipedia-roadm'],
+  'data:campus:lineterm': ['cisco-800g-zr-datasheet', 'ciena-6500-rls-datasheet', 'fs-64ch-cband-mux', 'wikipedia-roadm', 'juniper-jco800-zr-hp', 'mapyourtech-psd-parity-zr'],
   'data:campus:interhall': ['nvidia-linkx-interconnect', 'nvidia-mms4x50-nm', 'tiafotc-400gbase-fr4', 'ieee-802-3cu-lr4-baseline'],
   'data:campus:ductbank': ['prysmian-flexribbon'],
   'data:campus:hall': [],
@@ -762,7 +767,7 @@ export const LEDGER_SOURCES = [
   ['Solid-state transformers', ['navitas-800vdc', 'nvidia-800v-hvdc']],
   ['800 V DC bus & batteries', ['nvidia-800v-hvdc']],
   ['UPS, double conversion', ['eaton-9395xr-ups']],
-  ['Busway & whips', ['lv-distribution-busway', 'nvidia-800v-hvdc']],
+  ['Busway & whips', ['lv-distribution-busway', 'nvidia-800v-hvdc', 'doe-transformer-standards-2024']],
   ['Cooling:', ['ashrae-liquid-cooling-classes', 'introl-wue']],
   ['Lighting, controls, offices', []],
   ['Scale-out switches', ['nvidia-quantum2-qm9700-specs', 'nvidia-xdr-switch-specs']],
@@ -799,5 +804,5 @@ export const EST_NOTES = {
   'power:chip:balls': 'Core current from GPU power (minus HBM share) ÷ 0.8 V assumed core voltage.',
   'power:tray:vrm': 'Core current from GPU power (minus HBM share) ÷ 0.8 V assumed core voltage.',
   'heat:chip:flux': 'Average flux from GPU power (minus HBM share) ÷ die area; hot spots run well above this average.',
-  'heat:tray:fans': 'Airflow from rack heat, air density and specific heat at a 15 °C rise (Q = ṁ·cp·ΔT).',
+  'heat:tray:fans': 'Airflow from rack heat, air density and specific heat at the model’s 18 °C rise (Q = ṁ·cp·ΔT).',
 };

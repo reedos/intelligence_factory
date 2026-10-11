@@ -1,3 +1,7 @@
+// a pin whose anchor sits just inside the canvas edge is drawn whole: its circle (with its ring) is held `margin` px in
+// from each edge (round-5 review: pins half cut off at the edge of the phone view)
+export const keepInside = (x, y, w, h, margin = 16) => [Math.max(margin, Math.min(w - margin, x)), Math.max(margin, Math.min(h - margin, y))];
+
 export const overlapsRect = (a, b, gap = 0) => a.left < b.right + gap && a.right > b.left - gap && a.top < b.bottom + gap && a.bottom > b.top - gap;
 
 export function pinLabelBox(x, y, width, canvasWidth, canvasHeight, reserved, selected = false) {

@@ -302,7 +302,26 @@ export function build({ quality, state, model: scenario, side: sideOption }) {
   // Heat mode warms the finned cover itself, brightest over the DSP and toward
   // the fin roots: a qualitative cue, not a temperature map.
   const cover = object('04_COVER'), shellHeat = { value: 0 }, coverBase = { value: 0 }, heatX = { value: dspAnchor[0] };
-  const shellMaterials = new Map();
+  const shellMaterials = new Map(), grain = !quality.mobile;
+  // Round 5 (desktop): brushed-aluminium grain on the shell, in world space (no UVs needed): fine streaks along the
+  // module's length that break up roughness and, faintly, color, faded out before they can alias - like the PCB weave.
+  const brushed = (shader, vertexHook) => {
+    if (!grain) return;
+    if (!shader.vertexShader.includes('vIfxWorld')) shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vIfxWorld;')
+      .replace(vertexHook, `${vertexHook}\nvIfxWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;`);
+    if (!shader.fragmentShader.includes('varying vec3 vIfxWorld')) shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vIfxWorld;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+float ifxHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float ifxBrush(vec3 w) {
+  vec2 p = vec2(w.x / 1.6, (w.y + w.z) / 0.06);
+  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  float n = mix(mix(ifxHash(i), ifxHash(i + vec2(1.0, 0.0)), f.x), mix(ifxHash(i + vec2(0.0, 1.0)), ifxHash(i + vec2(1.0, 1.0)), f.x), f.y);
+  float fade = 1.0 - smoothstep(0.45, 0.9, fwidth(p.y));
+  return (n - 0.5) * fade;
+}`)
+      .replace('#include <map_fragment>', '#include <map_fragment>\nfloat ifxB = ifxBrush(vIfxWorld);\ndiffuseColor.rgb *= 1.0 + ifxB * 0.05;')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp(roughnessFactor + ifxB * 0.15, 0.05, 1.0);');
+  };
   cover.traverse(node => {
     if (!node.isMesh || !/Satin nickel aluminium/i.test(node.material?.name || '')) return;
     if (!shellMaterials.has(node.material)) {
@@ -319,11 +338,24 @@ export function build({ quality, state, model: scenario, side: sideOption }) {
           float ifxDx = (vIfxWorld.x - ifxHeatX) / 2.6;
           float ifxRise = clamp((vIfxWorld.y - ifxCoverBase) / 0.7, 0.0, 1.0);
           totalEmissiveRadiance *= ifxShellHeat * (0.18 + 0.82 * exp(-ifxDx * ifxDx)) * (1.0 - 0.6 * ifxRise);`);
+        brushed(shader, '#include <project_vertex>');
       };
-      m.customProgramCacheKey = () => 'ifx-module-shell-heat';
+      m.customProgramCacheKey = () => grain ? 'ifx-module-shell-heat-brushed' : 'ifx-module-shell-heat';
       shellMaterials.set(node.material, m);
     }
     node.material = shellMaterials.get(node.material);
+  });
+  // the rest of the shell (the base and its rails) takes the same grain, without the cover's heat cue
+  const covered = new Set(shellMaterials.values()), grained = new Map();
+  if (grain) model.traverse(node => {
+    if (!node.isMesh || covered.has(node.material) || !/Satin nickel aluminium/i.test(node.material?.name || '')) return;
+    if (!grained.has(node.material)) {
+      const m = node.material.clone();
+      m.onBeforeCompile = shader => brushed(shader, '#include <project_vertex>');
+      m.customProgramCacheKey = () => 'ifx-module-shell-brushed';
+      grained.set(node.material, m);
+    }
+    node.material = grained.get(node.material);
   });
   // The driver, TIA and laser sources get their own, dimmer heat glow so every
   // heat arrow starts at a warm source; their silicon is shared with the PIC otherwise.
