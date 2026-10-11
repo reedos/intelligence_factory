@@ -1,10 +1,10 @@
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { Builder } from '../kit.js';
 let source,pending;
 export const hasHallFinish=()=>!!source;
 export function preloadHallFinish(){
  if(source)return Promise.resolve(source);
- return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/hall-finish.glb?v=18`).then(g=>{source=g.scene;source.updateMatrixWorld(true);return source;}).catch(e=>{pending=undefined;throw e;});
+ return pending ||= gltfLoader().loadAsync(`${import.meta.env.BASE_URL}models/hall-finish.glb?v=18`).then(g=>{source=g.scene;source.updateMatrixWorld(true);return source;}).catch(e=>{pending=undefined;throw e;});
 }
 export function hallFinishInstances(name,matrices){
  const asset=source?.getObjectByName(name);if(!asset)throw new Error(`Missing authored hall finish ${name}`);

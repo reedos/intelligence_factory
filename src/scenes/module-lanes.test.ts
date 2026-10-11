@@ -8,6 +8,7 @@ import { beforeAll, describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { moduleTier } from './lid-labels.js';
 import { ACCELERATORS } from '../model/engine';
 
@@ -75,7 +76,7 @@ beforeAll(async () => {
   vi.stubGlobal('document', canvasDocument());
   data = await import('../data.js'); engine = await import('../model/engine');
   const b = readFileSync(new URL('../../public/models/osfp-module-runtime.glb', import.meta.url));
-  asset = await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), '');
+  asset = await gltfLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), '');
   asset.scene.traverse((o: THREE.Object3D) => { if (o.userData.ifx) meta = JSON.parse(o.userData.ifx); });
   for (const [stage, [name]] of Object.entries(STAGES)) {
     const mesh = meshNamed(name);
@@ -157,7 +158,7 @@ describe('module lanes, NIC side: one DR4 engine, four per direction', () => {
   const nicCounts: Record<string, number> = {};
   beforeAll(async () => {
     const b = readFileSync(new URL('../../public/models/osfp-module-runtime.glb', import.meta.url));
-    nic = await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), '');
+    nic = await gltfLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), '');
     const { keepEngine } = await import('./module-engine.js');
     keepEngine(nic.scene, meta, 1);
     const find = (name: string) => { let m: THREE.Mesh | undefined; nic.scene.traverse((o: any) => { if (o.isMesh && norm(o.name) === norm(name)) m = o; }); return m; };

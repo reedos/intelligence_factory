@@ -88,6 +88,7 @@ references used by `build-compute.py`. The exporter needs `@napi-rs/canvas`; set
 `IFX_CANVAS_PACKAGE` to its installed package path instead of relying on the author’s
 machine-specific default. Run the builder with Blender in background mode after its
 reference export. Other builders document their inputs in their file headers.
+After rebuilding GLBs, run `npm run models:compress` (meshopt compression; already-compressed files are skipped).
 
 Commit the resulting `public/models/` assets with their source changes and increment
 the affected loader’s `?v=N` cache key. Run typecheck, unit tests, the claims audit and

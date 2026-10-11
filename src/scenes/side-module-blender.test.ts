@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { ACCELERATORS, compute, DEFAULT_SCENARIO } from '../model/engine';
 import { content } from '../data.js';
 import { switchLabel, nicLabel, moduleTier } from './lid-labels.js';
@@ -85,7 +86,7 @@ beforeAll(async () => {
   vi.stubGlobal('document', canvasDocument());
   const bytes = readFileSync(new URL('../../public/models/osfp-module-runtime.glb', import.meta.url));
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-  asset = await new GLTFLoader().parseAsync(buffer, '');
+  asset = await gltfLoader().parseAsync(buffer, '');
   const root = asset.scene.getObjectByName('IFX_OSFP');
   expect(root, 'GLB has the named runtime root').toBeDefined();
   metadata = JSON.parse(root!.userData.ifx);

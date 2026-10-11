@@ -151,11 +151,12 @@ const isInward = (from, to) => isSide(to) ? true : isSide(from) ? false : to > f
 // per scene defaults: bloom, ambient occlusion radius (world units, 0 = off), exposure. A scene can override any of
 // these, and pick its lighting environment and depth of field, by returning `look` from build():
 //   look: { bloom, threshold, ao, exposure, env: 'room' | 'studio' | 'indoor' | 'sky' | 'night', envIntensity, dof: true }
+// `lift` here (stage only) multiplies a level's own lights and environment after its art direction has set them.
 const LOOK = [
   { bloom: 0.8, threshold: 0.95, ao: 0, exposure: 1.0 },
   { bloom: 0.85, threshold: 0.86, ao: 0, exposure: 1.0 },
   { bloom: 0.5, threshold: 1.0, ao: 0.6, exposure: 1.0 },
-  { bloom: 0.55, threshold: 1.0, ao: 0.06, exposure: 1.0 },
+  { bloom: 0.55, threshold: 1.0, ao: 0.06, exposure: 1.0, lift: 1.25 },   // the rack: graphite on black, lit a quarter up
   { bloom: 0.55, threshold: 1.35, ao: 0.12, exposure: 0.95 },
   { bloom: 0.6, threshold: 1.7, ao: 0.15, exposure: 0.95 },
   { bloom: 0.6, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // inside the module
@@ -340,6 +341,11 @@ function getScene(i) {
     attachPowerGlow(b, { color: VOLT[SCENES()[i].volt]?.css, reduced, mode: ui.mode });
     b.powerGlow?.setTier(tierOf(i));
     built[i] = b;
+    const lift = LOOK[i]?.lift;
+    if (lift) {
+      b.scene.children.forEach(o => { if (o.isLight) o.intensity *= lift; });
+      b.look = { ...b.look, envIntensity: lookOf(i).envIntensity * lift };
+    }
     const L = lookOf(i);
     b.scene.environment = envFor(L.env); b.scene.environmentIntensity = L.envIntensity; b.model = store.M;
     applyMode(b);
@@ -685,9 +691,12 @@ export function setCampusFocus(enabled) { campusSoftFocus = !!enabled; emit('cam
 function housingFrame(c) {
   return fitHousing(c, built[ui.scene]?.housingBounds, view.clientWidth, view.clientHeight, safeBox());
 }
+// phones held upright (round-1 review, 10/11/2026): the rack's overview closes in a little, since it sat small in the
+// frame, and the package's pulls back, since it cut pins off at the sides
+const PORTRAIT_PULL = { 3: .9, 5: 1.4 };
 function cameraPreset(c) {
   if (c.detailSize) return frame(built[ui.scene], { pos: c.focus, view: c });
-  return housingFrame(cameraPresetFor(c, view.clientWidth, view.clientHeight));
+  return housingFrame(cameraPresetFor(c, view.clientWidth, view.clientHeight, PORTRAIT_PULL[ui.scene]));
 }
 const overviewCamera = b => ({ ...b.camera, ...(b.cameraByMode?.[ui.mode] || {}) });
 export function setCampusView(name) {
@@ -1005,7 +1014,9 @@ export function settle() { drift = null; if (tween) { camera.position.copy(tween
 const GROUPS = [['steps-main', 'Levels 1–6', false], ['steps-side', 'Interconnects', true]];
 const whereOf = s => (s.side ? 'Interconnects' : `Level ${s.n} of ${MAIN_LEVELS}`);
 const tabName = s => s.tab || s.title;
-const metaOf = (s, v) => `${s.kicker ? `${s.kicker} · ` : ''}${v.short} · ${s.scale}`;
+// a level's subtitle in the tabs and the picker: its size, the same in every layer and short enough for one line (the
+// layer's own word stays on the view's heading); the pluggable module's names the module on show
+const metaOf = s => s.side ? (s.id === 'module' ? s.kicker : (s.kicker || s.scale).split(' · ')[0]) : s.scale;
 const stepsEl = $('steps'), stepBtns = [], stepGroups = [];
 for (const [cls, label, side] of GROUPS) {
   const g = document.createElement('div'), h = document.createElement('span'), row = document.createElement('div');
@@ -1047,7 +1058,7 @@ function renderLevelPick() {
   levelItems.forEach((b, i) => {
     const t = SCENES()[i], v = voltFor(t);
     b.style.setProperty('--c', v.css);
-    b.innerHTML = `<span class="n">${t.side ? '+' : t.n}</span><span class="t">${tabName(t)}</span><span class="meta"><span class="dot"></span><span>${metaOf(t, v)}</span></span>`;
+    b.innerHTML = `<span class="n">${t.side ? '+' : t.n}</span><span class="t">${tabName(t)}</span><span class="meta"><span class="dot"></span><span>${metaOf(t)}</span></span>`;
     if (i === cur) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
   });
 }
@@ -1061,8 +1072,8 @@ function renderSteps() {
     const s = SCENES()[i], v = voltFor(s);
     b.style.setProperty('--c', v.css);
     b.innerHTML = s.side
-      ? `<span class="top"><span class="t">${tabName(s)}</span></span><span class="meta"><span class="dot"></span><span>${s.kicker || s.scale}</span></span>`
-      : `<span class="top"><span class="n">${s.n}</span><span class="t">${s.title}</span></span><span class="meta"><span class="dot"></span><span>${v.short} · ${s.scale}</span></span>`;
+      ? `<span class="top"><span class="t">${tabName(s)}</span></span><span class="meta"><span class="dot"></span><span>${metaOf(s)}</span></span>`
+      : `<span class="top"><span class="n">${s.n}</span><span class="t">${s.title}</span></span><span class="meta"><span class="dot"></span><span>${metaOf(s)}</span></span>`;
     if (i === MODULE_LEVEL) b.dataset.module = '';
     b.setAttribute('aria-label', s.side ?`${tabName(s)}${s.kicker ? `, ${s.kicker}` : ''}, ${v.name}` : `${s.n}. ${s.title}, ${v.name}`);
   });
@@ -1107,6 +1118,9 @@ let pins = [];
 let expandedPins = null;          // ids of a pin group the reader opened (small screens)
 const pinGroups = new Map();
 let groupCued = false;   // the first group badge of a visit pulses, once, to say it opens
+// one polite line for screen readers on each move (#nav-live): the level, then the part picked in it
+const placeOf = s => (s.side ? `Interconnects, ${s.title}` : `Level ${s.n}, ${s.title}`);
+const announce = t => { const el = $('nav-live'); if (el && el.textContent !== t) el.textContent = t; };
 function buildPanel(i) {
   const s = SCENES()[i], parts = partsFor(i);
   let intro = built[i]?.variant?.intro?.(ui.mode) || { power: s.intro, data: s.dataIntro, heat: s.heatIntro }[ui.mode];
@@ -1115,6 +1129,7 @@ function buildPanel(i) {
   }
   renderIntro($('intro'), intro);
   $('hud-title').textContent = s.side ? s.title : `${s.n}. ${s.title}`;
+  canvas.setAttribute('aria-label', `3D view of ${placeOf(s)}, ${s.scale}. Its ${parts.length} numbered parts are listed in the Parts pane.`);
   $('optics-variant').hidden = i !== MODULE_LEVEL;
   const sideToggle = $('module-side'); if (sideToggle) sideToggle.hidden = i !== MODULE_LEVEL;
   const cpoToggle = $('cpo-variant'); if (cpoToggle) cpoToggle.hidden = i !== CPO_LEVEL;
@@ -1161,6 +1176,7 @@ function buildPanel(i) {
     + (ui.mode === 'heat' ? '<span class="legend-note">Heat on a log scale: each step ≈ 10× the power</span>' : '');
   markCurrent(i);
   $('card').hidden = true; ui.selected = null;
+  announce(placeOf(s));
 }
 // bring the selected row and its card into the side pane's view, scrolling the pane alone (never the page): both
 // when they fit, otherwise the card's top
@@ -1198,6 +1214,7 @@ export function select(id, fly) {
   controls.minDistance = hs?.view?.close ? Math.min(levelMin, 0.8 * V(viewFor(hs).pos).distanceTo(V(viewFor(hs).target))) : levelMin;
   if (fly) { const h = hs; if (h?.view) { const f = frame(built[ui.scene], h); flyTo(f.pos, f.target, 1.1, { detail: !!h.view.detailSize }); } }
   revealInPane([document.querySelector(`#parts button[data-id="${id}"]`)?.closest('li'), $('card')]);
+  announce(`${placeOf(SCENES()[ui.scene])}: part ${parts.indexOf(p) + 1} of ${parts.length}, ${p.title}`);
   emit('select', { scene: ui.scene, mode: ui.mode, id });
 }
 function deselect() {
@@ -1527,6 +1544,7 @@ function updateScale() {
 
 // ---------- pins ----------
 const pv = new THREE.Vector3();
+const PIN_R = 12;   // half of .pin .num's 24 px (styles.css): the transform centres the circle on its anchor
 // group badges for piled-up pins on small screens: "2 +4" is pin 2 and four more; a tap fans them all out
 function syncPinGroups(groups, w, h) {
   const live = new Set();
@@ -1564,11 +1582,12 @@ function updatePins() {
     pv.copy(p.pos).project(camera);
     return { id: p.id, x: (pv.x + 1) / 2 * w, y: (1 - pv.y) / 2 * h, z: pv.z };
   });
-  // Small screens: pins that pile up are fanned out or gathered into a group badge (declutterPins) instead of
-  // overlapping or being dropped. The selected pin never joins a cluster.
+  // Pins that pile up are fanned out (declutterPins) instead of overlapping or being dropped; on small screens a big
+  // pile folds into a group badge. The selected pin never joins a cluster. Wide screens leave the interconnects'
+  // compact pins to their own rule below.
   const small = w < 640;
   let clutter = null;
-  if (small && !presentation?.hidePins) {
+  if ((small || !compact) && !presentation?.hidePins) {
     const cands = [];
     for (const q of pinPoints) {
       if (q.id === ui.selected || q.z > 1 || q.x < 6 || q.x > w - 6 || q.y < 6 || q.y > h - 6) continue;
@@ -1577,7 +1596,7 @@ function updatePins() {
     }
     cands.sort((a, b) => pins.findIndex(p => p.id === a.id) - pins.findIndex(p => p.id === b.id));
     const selPoint = pinPoints.find(q => q.id === ui.selected && q.z <= 1);
-    clutter = declutterPins(cands, { expanded: expandedPins, fixed: selPoint ? [{ x: selPoint.x, y: selPoint.y }] : [] });
+    clutter = declutterPins(cands, { expanded: expandedPins, fixed: selPoint ? [{ x: selPoint.x, y: selPoint.y }] : [], ...(small ? {} : { collapseAt: Infinity }) });
   }
   syncPinGroups(clutter?.groups || [], w, h);
   for (const p of ordered) {
@@ -1599,7 +1618,7 @@ function updatePins() {
     const off = presentation?.hidePins || overlaps || !!clutter?.hidden.has(p.id) || (markerBlocked && p.id !== ui.selected) || pv.z > 1 || x < 6 || x > w - 6 || y < 6 || y > h - 6;
     p.el.classList.toggle('off', off);
     if (off) continue;
-    p.el.style.transform = `translate(${(x - 11).toFixed(1)}px, ${(y - 11).toFixed(1)}px)`;
+    p.el.style.transform = `translate(${(x - PIN_R).toFixed(1)}px, ${(y - PIN_R).toFixed(1)}px)`;
     p.el.querySelector('.num').style.visibility = markerBlocked ? 'hidden' : '';
     placed.push([x, y]);
     shown.push({ p, x, y });
@@ -1608,7 +1627,7 @@ function updatePins() {
   // places to try) wherever its box is clear of the title, layer switch and buttons, every pin's circle and the labels
   // already placed; a label with no such place is not drawn, and shows on hover or focus instead (.hide-lbl). The
   // selected pin goes first, then pins in list order.
-  const circles = shown.map(({ x, y }) => ({ left: x - 11, right: x + 11, top: y - 11, bottom: y + 11 }));
+  const circles = shown.map(({ x, y }) => ({ left: x - PIN_R, right: x + PIN_R, top: y - PIN_R, bottom: y + PIN_R }));
   const taken = [...reserved], namesInChip = chipQuery.matches;
   for (const { p, x, y } of shown) {
     const lbl = p.el.querySelector('.lbl'), labelWidth = (p.lw ||= lbl.offsetWidth) || 120;
@@ -1619,7 +1638,7 @@ function updatePins() {
     p.el.classList.remove('flip');
     const hideLabel = !labelBox;
     const left = labelBox?.left ?? x + 18;
-    Object.assign(lbl.style, { position: 'absolute', right: 'auto', left: `${left - x + 11}px`, top: `${(labelBox?.top ?? y - 9) - y + 11}px`, visibility: '' });
+    Object.assign(lbl.style, { position: 'absolute', right: 'auto', left: `${left - x + PIN_R}px`, top: `${(labelBox?.top ?? y - 9) - y + PIN_R}px`, visibility: '' });
     p.el.classList.toggle('hide-lbl', hideLabel);
     if (labelBox) taken.push(labelBox);
   }

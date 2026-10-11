@@ -383,9 +383,10 @@ export function build({ quality, model, state = {} }) {
   others.forEach(p => { const [x, z] = world(p.site.lon, p.site.lat), l = labelSprite(p.name, '#e8ecf2', 28); l.position.set(x, 52, z); data.add(l); caption(l, data, { key: placeKey(p), priority: 1 / Math.max(1, greatCircleKm(here, p.site)) }); });
 
   // ---------- power layer: state carbon labels, plants and the HV backbone near this campus ----------
-  Object.entries(STATE_CARBON).forEach(([id, c]) => {
+  // (not on phones, where they drew at about 6 px: the state colors and the parts list carry the figures there)
+  if (!(quality.mobile && globalThis.matchMedia?.('(max-width: 760px)').matches)) Object.entries(STATE_CARBON).forEach(([id, c]) => {
     const at = CENTROID[id]; if (!at) return;
-    const l = labelSprite(`${c.abbr} ${c.g} g`, carbonColor(c.g), 34); l.position.set(at[0], 30, at[1]); power.add(l);
+    const l = labelSprite(`${c.abbr} ${c.g} g/kWh`, carbonColor(c.g), 34); l.position.set(at[0], 30, at[1]); power.add(l);
     // state figures yield to campus names and pins: they shift a little, or drop out where the map is crowded
     caption(l, power, { key: `carbon-${id}`, priority: 0.1, maxShift: 30 });
   });

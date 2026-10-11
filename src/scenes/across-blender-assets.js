@@ -1,10 +1,10 @@
 // Authored geographic surface and plant symbols. Runtime only places/instances.
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { Builder } from '../kit.js';
 let source, pending;
 export function preloadAcrossAssets() {
   if (source) return Promise.resolve();
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/across-infrastructure.glb?v=8`)
+  return pending ||= gltfLoader().loadAsync(`${import.meta.env.BASE_URL}models/across-infrastructure.glb?v=8`)
     .then(g => { source = g.scene; source.updateMatrixWorld(true); })
     .catch(e => { pending = null; throw e; });
 }

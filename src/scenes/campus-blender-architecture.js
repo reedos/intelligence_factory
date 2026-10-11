@@ -1,12 +1,12 @@
 // Real Blender-authored architecture. Runtime owns scenario count and placement.
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { Builder } from '../kit.js';
 import { palette } from './campus-palette.js';
 let source, pending;
 export function preloadCampusArchitecture() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/campus-architecture.glb?v=6`).then(g => source = g.scene).catch(e => { pending = undefined; throw e; });
+  return pending ||= gltfLoader().loadAsync(`${import.meta.env.BASE_URL}models/campus-architecture.glb?v=6`).then(g => source = g.scene).catch(e => { pending = undefined; throw e; });
 }
 export const hasCampusArchitecture = () => !!source;
 // One assembly (HALL or OFFICE) as palette-merged geometry in its own frame: the same meshes and finishes, drawn in

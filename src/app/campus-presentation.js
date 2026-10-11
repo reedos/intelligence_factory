@@ -22,7 +22,8 @@ extras.innerHTML = `<div class="campus-view-buttons" role="group" aria-label="Ca
   <span id="campus-focus-note" class="view-sr-only">Gentle depth of field; labels stay crisp.</span>
   <button type="button" id="part-cycle" aria-pressed="false" title="Cycle through this level's parts in order. Each part holds for 8 seconds after the camera arrives.">▶ Auto cycle</button>`;
 document.getElementById('mm-view').append(extras);
-// Share, quality and Hide details live in the one menu at the end of the top row (visualizer.html); Present floats on the view
+// Share, quality and Hide details live in the one menu at the end of the top row (visualizer.html); Present sits beside
+// Zoom out over the view, and joins that menu on phones
 document.getElementById('mm-tools').insertAdjacentHTML('beforeend', `<label class="mm-select"><span>Rendering</span><select id="render-quality"><option value="max" title="Every effect on at every level; never lowers quality to keep frames smooth">Max quality</option><option value="auto">Auto quality</option><option value="laptop" title="Turns off reflections, ambient occlusion, depth of field and anti-aliasing to keep the GPU cool and save battery">Battery saver</option></select></label>
   <button type="button" class="mm-item" id="inspector-toggle" aria-expanded="true" aria-controls="inspector">Hide details</button>`);
 // On tablets and phones the view's own controls join that menu too, so no control row sits between the view and the
@@ -47,9 +48,14 @@ document.getElementById('intro').before(scope);
 document.querySelector('.panel').id = 'inspector';
 const details = document.getElementById('inspector-toggle');
 const launch = document.createElement('button');
-launch.type = 'button'; launch.className = 'present-launch';
+launch.type = 'button';
 launch.textContent = 'Present'; launch.setAttribute('aria-pressed', 'false');
-document.getElementById('view').append(launch);
+const phone = matchMedia('(max-width: 760px)');
+const placeLaunch = () => {
+  if (phone.matches) { launch.className = 'mm-item present-launch'; document.getElementById('mm-tools').prepend(launch); }
+  else { launch.className = 'btn story-btn present-launch'; document.getElementById('back-out').before(launch); }
+};
+phone.addEventListener('change', placeLaunch); placeLaunch();
 let previousCollapsed = false;
 function collapseInspector(collapsed) {
   document.body.classList.toggle('inspector-collapsed', collapsed);

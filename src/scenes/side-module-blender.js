@@ -1,7 +1,7 @@
 // Opt-in Blender geometry behind the existing module scene contract. World unit = 1 cm.
 // The asset is a representative layout, not a recovered production design. Exported
 // routes describe visible conductors; chip-internal paths are omitted; contact breakout uses representative PCB layers.
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { THREE, flow, laneFlow, setup, label, FLOW, COL, note, unitCol } from './side-kit.js';
 import { applyArtDirection } from './module-art-direction.js';
 import { MODULE_VARIANTS, LRO_COLOR, inVariant, splitByZ, lroDieTop, lroIntro, lroPartCopy, dspMarkingTop } from './module-lro.js';
@@ -32,7 +32,7 @@ const cm = point => point.map(value => value * CM);
 
 export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=lanes2`) {
   if (cached) return Promise.resolve(cached);
-  if (!pending) pending = new GLTFLoader().loadAsync(url).then(gltf => {
+  if (!pending) pending = gltfLoader().loadAsync(url).then(gltf => {
     cached = gltf;
     return gltf;
   }).catch(error => { pending = undefined; throw error; });

@@ -3,6 +3,7 @@ import {beforeAll,afterAll,it,expect,vi} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {PerspectiveCamera, Vector3, Matrix4} from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import {compute,DEFAULT_SCENARIO} from '../model/engine';
 let native:any,built:any,across:any;
 beforeAll(async()=>{
@@ -14,7 +15,7 @@ beforeAll(async()=>{
  const assets=new Map();
  for(const name of ['campus-catalog','across-infrastructure','campus-architecture']){
   const b=readFileSync(new URL(`../../public/models/${name}.glb`,import.meta.url));
-  assets.set(name,await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),''));
+  assets.set(name,await gltfLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),''));
  }
  vi.spyOn(GLTFLoader.prototype,'loadAsync').mockImplementation(async url=>assets.get(url.includes('across-infrastructure')?'across-infrastructure':url.includes('campus-architecture')?'campus-architecture':'campus-catalog'));
  await across.preload();built=across.build(options);

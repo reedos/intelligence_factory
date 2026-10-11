@@ -57,7 +57,7 @@ export const CALCS = {
   'busway-current': { title: 'Per-rack busway current', how: 'Current = rack kW ÷ (√3 × 415 V × power factor).', inputs: ['rack kW', 'assumed power factor'] },
   'rack-liquid-split': { title: 'Liquid and air heat per rack', how: 'Split the rack total by the liquid-cooled share this site assumes for this rack (the cited vendor spec sheet could not be re-read in the 10/08/2026 audit).', inputs: ['rack kW', 'assumed liquid share'] },
   'busbar-current': { title: 'Rack busbar current', how: 'Current = rack DC bus power ÷ busbar voltage.', inputs: ['rack DC bus power', 'busbar voltage'] },
-  'core-current': { title: 'GPU core current', how: 'Current = GPU power less its HBM share ÷ assumed core voltage.', inputs: ['GPU power', 'HBM share', 'assumed core voltage'] },
+  'core-current': { title: 'GPU core current', how: 'Current = GPU power less its HBM share (the HBM stacks have their own supply) ÷ an assumed 0.8 V core voltage.', inputs: ['GPU power', 'HBM share', 'assumed core voltage'] },
   'heat-flux': { title: 'Average heat flux through the die', how: 'Flux = GPU power less its HBM share ÷ die area. Hot spots run well above this average.', inputs: ['GPU power', 'HBM share', 'die area'] },
   'fan-airflow': { title: 'Fan airflow', how: 'Airflow from Q = ṁ · cp · ΔT: rack heat carried by air, air density and specific heat, at the stated temperature rise.', inputs: ['air-cooled heat', 'assumed temperature rise'] },
   // ---- level workstreams add theirs below, each in its own block ----

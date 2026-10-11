@@ -1,11 +1,11 @@
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { Builder } from '../kit.js';
 import { palette } from './campus-palette.js';
 let source,pending;
 export const hasCampusVehicles=()=>!!source;
 export function preloadCampusVehicles(){
  if(source)return Promise.resolve(source);
- return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/campus-vehicles.glb?v=7`).then(g=>{source=g.scene;source.updateMatrixWorld(true);return source;}).catch(e=>{pending=undefined;throw e;});
+ return pending ||= gltfLoader().loadAsync(`${import.meta.env.BASE_URL}models/campus-vehicles.glb?v=7`).then(g=>{source=g.scene;source.updateMatrixWorld(true);return source;}).catch(e=>{pending=undefined;throw e;});
 }
 export function campusVehicleBuilder(name,target=new Builder()){
  const group=source?.getObjectByName(name);if(!group)throw new Error(`Missing Blender fleet model ${name}`);

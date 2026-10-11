@@ -9,3 +9,5 @@ design/hero/incoming/
 cf-stage/
 
 /work/
+*.blend1
+__pycache__/

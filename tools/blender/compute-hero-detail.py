@@ -32,15 +32,17 @@ def enhance(kind,accel,m,box,cylinder,p3,material):
         for z in [-.26,.26]:box('Pressed side stiffener',(-.338,1.15,z),(.009,1.70,.035),titanium,1,.004)
         for y in [.25,2.05]:
             for z in [-.39,.39]:cylinder('Quarter turn panel fastener',(-.345,y,z),.010,.008,trim,1,'x')
-        box('Upper fascia insert',(0,2.105,.478),(.445,.165,.025),ceramic,1,.012)
-        for y in [2.046,2.164]:box('Fascia chamfer edge',(0,y,.495),(.418,.008,.008),trim,1,.003)
-        for x in [-.185,.185]:box('Recessed fascia latch',(x,2.105,.497),(.026,.080,.008),dark,1,.005)
+        # No upper fascia slab: it covered the snap-in blanking panels and read as a black block over the upper front.
         if accel!='h100':
             layout=LAY['rack']['layout']   # src/scenes/nvl72-layout.js
+            # One bezel finish per tray kind, so the NVL72 front reads as bands from across the room: light power
+            # shelves, satin compute trays, darker NVLink switch trays (and the two management switches).
+            bezel={'ps':material('Power shelf bezel light satin',(.60,.62,.63),.55,.46),
+                   'compute':material('Compute tray bezel satin aluminum',(.44,.49,.54),.6,.42)}
             for i in range(36):
                 if i in [LAY['rack']['switchPulled'],LAY['rack']['pulled']]:continue
                 y=LAY['rack']['base']+i*LAY['rack']['pitch']+LAY['rack']['pitch']/2
-                front_frame('Service tray machined bezel',0,y,.479,.444,.039,.0045,1)
+                front_frame('Service tray machined bezel',0,y,.479,.444,.039,.0045,1,bezel.get(layout[i],titanium))
                 # Offset embossed grille over the pre-existing vent half only.
                 if layout[i]=='switch' and accel!='rubin':
                     box('Service intake cavity',(-.128,y,.480),(.175,.027,.008),dark,1,.003)

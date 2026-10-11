@@ -3,6 +3,7 @@ import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { compute, DEFAULT_SCENARIO } from '../model/engine';
 import { SITES } from '../model/sites';
 let campus:any, native:any, built:any, hall:any, nativeHall:any, builtHall:any;
@@ -16,7 +17,7 @@ beforeAll(async()=>{
  const assets=new Map();
  for(const name of ['campus-architecture','campus-catalog','site-construction','campus-vehicles','hall-finish','campus-transformer']){
   const b=readFileSync(new URL(`../../public/models/${name}.glb`,import.meta.url));
-  assets.set(name,await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),''));
+  assets.set(name,await gltfLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),''));
  }
  vi.spyOn(GLTFLoader.prototype,'loadAsync').mockImplementation(async url=>assets.get(url.includes('campus-architecture')?'campus-architecture':url.includes('site-construction')?'site-construction':url.includes('campus-vehicles')?'campus-vehicles':url.includes('hall-finish')?'hall-finish':url.includes('campus-transformer')?'campus-transformer':'campus-catalog'));
  await campus.preload();built=campus.build(opts);await hall.preload();builtHall=hall.build(opts);

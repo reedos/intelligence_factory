@@ -83,6 +83,17 @@ def remove_tray_mechanics(o):
     if remove:bmesh.ops.delete(bm,geom=remove,context='VERTS')
     bm.to_mesh(o.data);bm.free()
 
+def decimate(o,tris,target):
+    # Planar dissolve first (straight runs carry most of a swept tube's rings), then collapse to the target share.
+    bpy.ops.object.select_all(action='DESELECT');o.select_set(True);bpy.context.view_layer.objects.active=o
+    mod=o.modifiers.new('Planar run dissolve','DECIMATE');mod.decimate_type='DISSOLVE';mod.angle_limit=math.radians(4)
+    bpy.ops.object.modifier_apply(modifier=mod.name)
+    o.data.calc_loop_triangles();after=len(o.data.loop_triangles)
+    if after>tris*target:
+        mod=o.modifiers.new('Viewing distance collapse','DECIMATE');mod.decimate_type='COLLAPSE';mod.ratio=tris*target/after
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+    o.data.calc_loop_triangles();print('DECIMATED',o.name,tris,'->',len(o.data.loop_triangles))
+
 def refine_reference(kind,accel):
     for o in list(bpy.context.scene.objects):
         if o.type!='MESH':continue
@@ -90,6 +101,10 @@ def refine_reference(kind,accel):
             # The old adjacent context rack hid the hero cabinet's side cover.
             # Remove only that disconnected decorative enclosure; the single
             # inspected rack and every functional component stay untouched.
+            # Also drop the hall floor's tile seams (16 m strips at floor level, merged into the dark-steel batch): they are
+            # room dressing, not rack hardware, and stretched the rack's bounds to the whole floor. The single floor plane
+            # (a 2-triangle mesh of its own) stays: compute-blender.js removes rack.js's native floor in its favor.
+            floor_plane=len(o.data.polygons)<=2
             bm=bmesh.new();bm.from_mesh(o.data);bmesh.ops.remove_doubles(bm,verts=list(bm.verts),dist=1e-7);seen=set();remove=[]
             for start in bm.verts:
                 if start in seen:continue
@@ -101,6 +116,7 @@ def refine_reference(kind,accel):
                         if other not in seen:seen.add(other);group.add(other);stack.append(other)
                 ps=[o.matrix_world@v.co for v in group];lo=[min(p[i] for p in ps) for i in range(3)];hi=[max(p[i] for p in ps) for i in range(3)]
                 if hi[0]<-.31 and hi[0]-lo[0]>.58 and hi[2]-lo[2]>2.20 and hi[1]-lo[1]>1.0:remove.extend(group)
+                elif not floor_plane and hi[2]<.012 and max(hi[0]-lo[0],hi[1]-lo[1])>1.5:remove.extend(group)
             if remove:bmesh.ops.delete(bm,geom=remove,context='VERTS')
             bm.to_mesh(o.data);bm.free()
         if kind=='tray' and accel in ['gb200','gb300']:remove_tray_mechanics(o)
@@ -108,12 +124,27 @@ def refine_reference(kind,accel):
         # Weld reference face splits, then add genuine manufacturing edge radii.
         # Curved cables and spheres keep their existing shape; bevel only sharp edges.
         bm=bmesh.new();bm.from_mesh(o.data)
-        bmesh.ops.remove_doubles(bm,verts=list(bm.verts),dist=1e-7)
+        # Racks weld at 10 um so coplanar seams of the native boxes join (cleaner cabinet shading, fewer vertices).
+        bmesh.ops.remove_doubles(bm,verts=list(bm.verts),dist=1e-5 if kind=='rack' else 1e-7)
+        tris=sum(len(f.verts)-2 for f in bm.faces)
+        if kind=='rack' or (kind=='tray' and tris>=3000):
+            # Smooth by angle for the unbeveled meshes: box edges stay crisp, cable and hose sections shade round.
+            for e in bm.edges:e.smooth=not(len(e.link_faces)==2 and e.calc_face_angle(0)>math.radians(30))
+            for f in bm.faces:f.smooth=True
         bm.to_mesh(o.data);bm.free()
         # Rack references already have rounded enclosure/cable cross-sections.
         # Re-beveling those small repeated curves adds export weight without
         # a visible silhouette improvement at rack inspection distances.
-        if kind=='rack':continue
+        if kind=='rack':
+            # The overhead and side optical patch bundle is the heaviest rack mesh (76-148k triangles) and is seen at
+            # about 300 px: planar dissolve along the straight runs, then collapse to about 30% of the original.
+            if tris>20000 and any(m and 'patch cable jacket' in m.name for m in o.data.materials):decimate(o,tris,.3)
+            o.modifiers.new('Precision surface normals','WEIGHTED_NORMAL').keep_sharp=True
+            continue
+        # Dense repeated parts (heat-sink fins, pin rows, 1,000+ small boxes) gain nothing visible from a 0.2 mm radius
+        # but grew about 9x under it (the H100 tray's fin stack: 5.7k to 51k triangles).
+        if kind=='tray' and tris>=3000:
+            o.modifiers.new('Precision surface normals','WEIGHTED_NORMAL').keep_sharp=True;continue
         # Swept twinax ribbons already have a rounded, lobed section, and 0402/0201
         # passives are a millimetre long: an angle bevel only folds sub-millimetre
         # slivers and triples their triangles.
@@ -290,7 +321,7 @@ def tray_specular_finish():
             elif metal.default_value>=.35 and rough.default_value<.45:
                 rough.default_value=.45
 
-def dedupe_materials():
+def dedupe_materials(keep_names=False):
     # The reference import creates one material per native mesh ("Physical 10",
     # "Physical 10.001" ...), so identical surfaces never shared a batch. Map
     # every slot to one canonical material per visible look, then the export
@@ -306,7 +337,11 @@ def dedupe_materials():
                 return ('tex',getattr(getattr(n,'image',None),'name',n.name))
             v=i.default_value
             return tuple(round(x,4) for x in v) if hasattr(v,'__len__') else round(v,4)
-        return (val('Base Color'),val('Metallic'),val('Roughness'),val('Emission Color'),val('Emission Strength'),val('Alpha'),mat.blend_method,tuple(sorted(mat.keys())))
+        # keep_names (racks): a named material ("Cable manager steel", "Inserted flat top OSFP shell") only merges with its
+        # own .001 copies, never into a look-alike "Physical N": tools/tray-parts.mjs tells rack-owned parts by name.
+        name=mat.name.split('.')[0]
+        group=name if keep_names and not name.startswith('Physical') else ''
+        return (val('Base Color'),val('Metallic'),val('Roughness'),val('Emission Color'),val('Emission Strength'),val('Alpha'),mat.blend_method,tuple(sorted(mat.keys())),group)
     canon={}
     for o in bpy.context.scene.objects:
         if o.type!='MESH':continue
@@ -316,6 +351,85 @@ def dedupe_materials():
             canon.setdefault(k,slot.material)
             if canon[k]!=slot.material:slot.material=canon[k]
 
+def lift_image(img,k):
+    # Lift a dark face texture toward mid-grey: v' = 1-(1-v)^k on the stored (sRGB) values. Darks rise about k times,
+    # highlights (LEDs, labels) barely move, so the drawing stays the same and only reads lighter.
+    px=list(img.pixels)
+    for i in range(len(px)):
+        if i%4!=3:px[i]=1-(1-px[i])**k
+    img.pixels[:]=px;img.pack()
+
+def rack_front_finish(accel):
+    # The NVL72 front reads as bands: power shelves lightest, compute trays mid, NVLink switch trays darkest (plus the
+    # blanking panels, which read as a black slab over the upper front). The faces are rack.js's canvas drawings, lifted
+    # per kind; each kind's instances import as one joined object, its lowest tray naming the kind (nvl72-layout.js).
+    lift={'ps':2.4,'compute':1.8,'switch':1.35,'mgmt':1.35}
+    RK=LAY['rack'];done=set()
+    for o in bpy.context.scene.objects:
+        if o.type!='MESH':continue
+        for mat in o.data.materials:
+            if not mat or not mat.use_nodes:continue
+            p=mat.node_tree.nodes.get('Principled BSDF');bc=p and p.inputs['Base Color']
+            if not bc or not bc.is_linked:continue
+            img=getattr(bc.links[0].from_node,'image',None)
+            if not img or img.name in done:continue
+            k=None
+            if mat.name.startswith('Snap-in blanking panel') or mat.name.startswith('Brush-strip cable manager'):k=1.9
+            elif accel!='h100' and len(o.data.materials)>=6 and abs((max(v.co.x for v in o.data.vertices)-min(v.co.x for v in o.data.vertices))-.44)<.002:
+                zmin=min((o.matrix_world@v.co).z for v in o.data.vertices)
+                row=int((zmin-RK['base'])/RK['pitch']+.5)
+                if 0<=row<len(RK['layout']):k=lift.get(RK['layout'][row])
+            if k:lift_image(img,k);done.add(img.name)
+    # Near-black cabinet and tray-side finishes (0.04-0.09 albedo) melted into the dark stage: lift them to about 0.15,
+    # keeping their hue. Cables, hoses and named parts keep their colors.
+    seen=set()
+    for o in bpy.context.scene.objects:
+        if o.type!='MESH':continue
+        for mat in o.data.materials:
+            if not mat or mat.name in seen or not mat.use_nodes or not mat.name.startswith('Physical'):continue
+            seen.add(mat.name);p=mat.node_tree.nodes.get('Principled BSDF')
+            if not p or p.inputs['Base Color'].is_linked:continue
+            c=p.inputs['Base Color'].default_value[:3]
+            if .035<max(c)<.10 and min(c)>.03:
+                s=.17/max(c);p.inputs['Base Color'].default_value=(*[v*s for v in c],1);mat.diffuse_color=(*[v*s for v in c],1)
+
+def tray_package_finish():
+    # Close-up package tops, material only: the dies keep their drawn face but read as polished silicon (a little
+    # metallic sheen, low roughness); the HBM stacks get a matte epoxy mold-compound top instead of glossy black.
+    def dims(o):
+        lo,hi=bounds(o);return sorted(hi[i]-lo[i] for i in range(3))
+    for o in bpy.context.scene.objects:
+        if o.type!='MESH' or not o.data.materials:continue
+        d=dims(o)
+        # One die per object: 2 mm thick, 26 x 31-33 mm (gpu-package.js dies; H100 26 x 31.3 mm).
+        if abs(d[0]-.002)<.0005 and abs(d[1]-.026)<.001 and .030<d[2]<.034:
+            for mat in o.data.materials:
+                p=mat and mat.use_nodes and mat.node_tree.nodes.get('Principled BSDF')
+                if p and p.inputs['Base Color'].is_linked:
+                    p.inputs['Metallic'].default_value=.45;p.inputs['Roughness'].default_value=.24
+            continue
+        # The merged HBM slabs: most loose parts 10.6 x 10 mm stacks (the rest small details in the same finish).
+        me=o.data
+        if not 8<=len(me.vertices)<=4000 or len(me.materials)!=1:continue
+        bm=bmesh.new();bm.from_mesh(me);hits=parts=0;seen=set()
+        for s in bm.verts:
+            if s in seen:continue
+            g={s};st=[s]
+            while st:
+                v=st.pop()
+                for e in v.link_edges:
+                    w=e.other_vert(v)
+                    if w not in g:g.add(w);st.append(w)
+            seen|=g;ps=[o.matrix_world@v.co for v in g]
+            sz=sorted(max(p[i] for p in ps)-min(p[i] for p in ps) for i in range(3))
+            parts+=1;hits+=abs(sz[1]-.0100)<.0006 and abs(sz[2]-.0106)<.0006
+        bm.free()
+        if hits>=8 and hits>=parts*.6:
+            p=me.materials[0].node_tree.nodes.get('Principled BSDF')
+            p.inputs['Base Color'].default_value=(.024,.025,.028,1);me.materials[0].diffuse_color=(.024,.025,.028,1)
+            p.inputs['Metallic'].default_value=0;p.inputs['Roughness'].default_value=.82
+            print('HBM_MOLD_TOP',o.name,hits,'of',parts)
+
 def rack_hardware(accel,m):
     u=1
     # Rack scale only: satin nickel faces up at the studio softbox and bloomed
@@ -323,6 +437,8 @@ def rack_hardware(accel,m):
     for key,rough,color in [('shell',.56,(.36,.42,.47)),('bright',.42,(.55,.6,.64))]:
         p=m[key].node_tree.nodes.get('Principled BSDF');p.inputs['Roughness'].default_value=rough
         p.inputs['Base Color'].default_value=(*color,1);m[key].diffuse_color=(*color,1)
+    # The cabinet's graphite (0.055-0.095 albedo) melted into the dark stage; about 0.15 keeps it graphite but legible.
+    m['graphite'].node_tree.nodes.get('Principled BSDF').inputs['Base Color'].default_value=(.13,.15,.17,1);m['graphite'].diffuse_color=(.13,.15,.17,1)
     # Contoured external stiles and repeating vent relief: no extra chassis or port.
     for x in [-.289,.289]:
         box('Extruded cabinet stile',(x,1.15,.526),(.016,2.12,.04),m['graphite'],u,.005)
@@ -441,11 +557,12 @@ def export_variant(kind,accel):
     spec=importlib.util.spec_from_file_location('compute_hero',HERE/'compute-hero-detail.py')
     hero=importlib.util.module_from_spec(spec);spec.loader.exec_module(hero)
     hero.enhance(kind,accel,m,box,cylinder,p3,material)
-    if kind=='tray':tray_specular_finish();dedupe_materials()
+    if kind=='tray':tray_specular_finish();tray_package_finish();dedupe_materials()
     if kind=='rack':
         spec=importlib.util.spec_from_file_location('rack_inspection',HERE/'rack-inspection-detail.py')
         inspection=importlib.util.module_from_spec(spec);spec.loader.exec_module(inspection)
         inspection.enhance(accel,m,box,cylinder,material)
+        rack_front_finish(accel);dedupe_materials(keep_names=True)
     root=bpy.data.objects.new('IFX_BLENDER_COMPUTE',None);bpy.context.collection.objects.link(root)
     root['ifxCompute']=json.dumps({'scene':kind,'accel':accel,'units':'m','fullStaticHardware':True,'basis':'Representative authored mechanics; technical layout and overlays retained.'})
     bpy.ops.wm.save_as_mainfile(filepath=str(HERE/f'compute-{kind}-{accel}.blend'))

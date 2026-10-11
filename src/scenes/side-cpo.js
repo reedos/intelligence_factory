@@ -248,8 +248,7 @@ export function build({ quality, state, authoredHardware = false, authoredAsicMa
   viewLabel('ring', 'Size and layout representative · counts are NVIDIA’s', [0, 0.1, FZ], note, 0.2);
   viewLabel('ring', '18 engines × 1.6 Tb/s = 28.8 Tb/s each way', [0, -0.3, FZ], unitCol, 0.2);
   viewLabel('ring', 'Each engine: 8 lanes × 200 Gb/s = 1.6 Tb/s each way, like one 1.6T module', [0, -0.65, FZ], unitCol, 0.17);
-  viewLabel('ring', 'Detail · one engine, lifted out and exploded · 2.5×', [DX, DY - 0.45, DZ + 2.45], '#e8ecf2', 0.15);
-  viewLabel('ring', 'Functional schematic · bonded faces and surface fiber coupling unfolded', [DX, DY - 0.45, DZ + 2.0], note, 0.13);
+  viewLabel('ring', 'One engine lifted out · 2.5×', [DX, DY - 0.45, DZ + 2.2], '#e8ecf2', 0.15);
   viewLabel('ring', 'Electronic chip: drivers (TX) and TIAs (RX)', [DX, DY + 2.35, DZ - 1.6], unitCol, 0.15);
   viewLabel('ring', 'Photonic chip: ring modulators (TX), photodiodes (RX)', [DX, DY + 0.55, DZ + 2.0], unitCol, 0.15);
   viewLabel('ring', 'Light · all 8 lanes each way: 8 TX, 8 RX fibers, 2 laser fibers', [DX - PW / 2 - 1.6, DY + 0.75, DZ], COL.tx, 0.15);

@@ -1,6 +1,6 @@
 // Complete static compute hardware authored in Blender. Native builders supply
 // the teaching contract only: routes, scenario counts, cameras and animations.
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { build as rack } from './rack.js';
 import { build as tray } from './tray.js';
 import { build as chip } from './chip.js';
@@ -17,7 +17,7 @@ const assetKey = (kind, model) => `compute-${kind}-${variant(kind, model)}`;
 
 async function load(key) {
   if (cache.has(key)) return;
-  if (!pending.has(key)) pending.set(key, new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=pulledtray1`)
+  if (!pending.has(key)) pending.set(key, gltfLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.glb?v=pulledtray1`)
     .then(gltf => { cache.set(key, gltf.scene); pending.delete(key); })
     .catch(error => { pending.delete(key); throw error; }));
   await pending.get(key);

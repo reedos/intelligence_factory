@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { compute, DEFAULT_SCENARIO } from '../model/engine';
 import { cameraPresetFor } from '../app/camera-presets.js';
 import { auditFlows } from '../../tools/flow-audit.mjs';
@@ -25,7 +26,7 @@ beforeAll(async()=>{
   vi.stubGlobal('createImageBitmap',async()=>({width:1,height:1,close(){}}));
   for(const name of ['compute-rotor','compute-solder',...kinds.flatMap(k=>ids.map(id=>`compute-${k}-${id}`))]){
     const b=readFileSync(new URL(`../../public/models/${name}.glb`,import.meta.url));
-    assets.set(name,await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),''));
+    assets.set(name,await gltfLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),''));
   }
   vi.spyOn(GLTFLoader.prototype,'loadAsync').mockImplementation(async url=>{
     const key=url.split('/').pop()!.split('.glb')[0];if(!assets.has(key))throw new Error(`Unexpected asset ${url}`);return assets.get(key);

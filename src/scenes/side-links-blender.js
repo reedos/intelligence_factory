@@ -1,5 +1,5 @@
 // Complete Blender hardware, with native flow and interaction contracts retained.
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { build as buildCoherent } from './side-coherent.js';
 import { build as buildCopper } from './side-copper.js';
 import { directLink } from './link-art-direction.js';
@@ -14,7 +14,7 @@ let pending;
 export function preloadLinks() {
   if (cached.size === 2) return Promise.resolve();
   if (!pending) pending = Promise.all(['coherent', 'copper'].map(async name => {
-    const gltf = await new GLTFLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 21 : 18}`);
+    const gltf = await gltfLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${name}-hardware.glb?v=${name === 'copper' ? 21 : 18}`);
     cached.set(name, gltf.scene);
   })).catch(error => { pending = null; throw error; });
   return pending;
@@ -145,23 +145,11 @@ function build(name, nativeBuilder, options) {
   built.scene.add(model);
   directLink({ built, model, kind: name, quality: options.quality, state: options.state });
   if (name === 'copper') {
-    // A cool rim from camera-right, low and slightly behind, so the die-cast
+    // A neutral rim from camera-right, low and slightly behind, so the die-cast
     // shell edges, lids and twinax foils catch a highlight in every layer.
-    const rim = new THREE.DirectionalLight(0xa9ccff, 1.3);
-    rim.name = 'Copper cool rim'; rim.position.set(11, 6, -3); rim.target.position.set(0, 0.8, -0.5);
+    const rim = new THREE.DirectionalLight(0xe8ecf2, 1.1);
+    rim.name = 'Copper rim'; rim.position.set(11, 6, -3); rim.target.position.set(0, 0.8, -0.5);
     built.scene.add(rim, rim.target);
-    // A dark satin bench under the three plugs: it catches their contact shadows and a soft studio streak, then
-    // fades to the background so the plugs sit somewhere instead of floating in a void.
-    const fade = document.createElement('canvas'); fade.width = fade.height = 256;
-    const g = fade.getContext('2d'), r = g.createRadialGradient(128, 128, 0, 128, 128, 128);
-    r.addColorStop(0, '#fff'); r.addColorStop(0.55, '#8a8a8a'); r.addColorStop(1, '#000');
-    g.fillStyle = r; g.fillRect(0, 0, 256, 256);
-    const bench = new THREE.Mesh(new THREE.CircleGeometry(12, 64), new THREE.MeshStandardMaterial({
-      name: 'Copper bench', color: 0x2a3648, metalness: 0.35, roughness: 0.34, envMapIntensity: 0.9,
-      transparent: true, alphaMap: new THREE.CanvasTexture(fade), depthWrite: false }));
-    bench.name = 'Copper bench'; bench.rotation.x = -Math.PI / 2; bench.position.set(0, -0.08, -1.6);
-    bench.scale.set(1, 0.72, 1); bench.receiveShadow = !!options.quality.shadows; bench.raycast = () => {};
-    built.scene.add(bench);
   }
   built.inspection.scope = name === 'coherent'
     ? 'Discrete board-level design: the driver and TIA are each in their own electronic package, physically separate from the IQ modulator and receiver optical assemblies. No shared package or substrate joins electronics to optics here. This packaging choice, dimensions and RF routing are representative assumptions, not a teardown of a shipping 800ZR. The order along the board follows the OIF HB-CDM, micro-ICR and IC-TROSA agreements, which put each optical package’s RF interface at the end facing the DSP and its fibers at the opposite end: DSP, then driver and TIA, then the optics, with the laser toward the fiber end and off the RF path. Exact die placement varies. OSFP shell footprint and the nano-ITLA case envelope are to scale; the remaining layout is representative. The label sits where OSFP MSA Fig. 3-4 recommends, a 15 × 20 mm field on top at the fiber end; its wording and stock are representative. The finned shell and the pull tab are the same shapes the pluggable module draws, not authored separately; the tab is recolored white, the OSFP MSA color for 1550 nm modules up to 80 km, because the MSA table has no coherent row. With it the model stays within the 116 mm maximum length Cisco lists for its OSFP 800G modules with pull tab. Layers are separated for inspection; transfer across display gaps is schematic. The same tunable laser supplies the transmit carrier and receive local oscillator. Heat streams are sized by each part’s assumed watts on the site’s log heat scale (each 10× in power is 5× the motion); the modulator’s and photodiodes’ bias, well under half a watt, draws none.'
@@ -254,7 +242,8 @@ function build(name, nativeBuilder, options) {
   });
   // Keep a readable enclosure outline without layering a bright sheet over
   // the electronics. This is an inspection treatment, not clear metal.
-  const baseOpacity = material => options.state.mode === 'heat' ? .18 : /edge highlights/i.test(material.name) ? .32 : .07;
+  // Copper's lifted halves read as frosted shells (.15), not clear glass, so the boards under them stay the subject.
+  const baseOpacity = material => options.state.mode === 'heat' ? .18 : /edge highlights/i.test(material.name) ? .32 : name === 'copper' ? .15 : .07;
   let coverFade = 1, coverOpacity = baseOpacity;
   if (name === 'coherent' && covers.length) {
     // Coherent part close-ups sit just beside or under the raised finned lid,

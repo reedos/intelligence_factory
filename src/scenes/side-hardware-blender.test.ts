@@ -3,6 +3,7 @@ import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { cameraPresetFor } from '../app/camera-presets.js';
 
 function canvasDocument() {
@@ -23,7 +24,7 @@ beforeAll(async()=>{
   vi.stubGlobal('document',canvasDocument()); assets=new Map();
   for (const name of ['cpo','coherent','copper']) {
     const b=readFileSync(new URL(`../../public/models/${name}-hardware.glb`,import.meta.url));
-    assets.set(name,await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),''));
+    assets.set(name,await gltfLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),''));
   }
   vi.spyOn(GLTFLoader.prototype,'loadAsync').mockImplementation(async url=>{
     const name=['cpo','coherent','copper'].find(n=>url.includes(`${n}-hardware`));

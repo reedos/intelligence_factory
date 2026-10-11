@@ -35,7 +35,7 @@ if (new URLSearchParams(location.search).get('devicecheck') === '1') import('./a
 // the side pane's two tabs: the parts of the level on screen, and the scenario that sizes everything
 const tabs = [...document.querySelectorAll('[data-pane]')], sc = document.getElementById('pane-scenario');
 function showPane(which) {
-  tabs.forEach(b => b.setAttribute('aria-selected', String(b.dataset.pane === which)));
+  tabs.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pane === which)));
   sc.hidden = which !== 'scenario';
   document.querySelectorAll('.panel-scroll > :not(#pane-scenario):not(.story):not(.pane-note)').forEach(el => el.classList.toggle('pane-off', which === 'scenario'));
   document.querySelector('.panel-scroll').scrollTop = 0;
