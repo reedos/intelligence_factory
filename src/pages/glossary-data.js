@@ -201,11 +201,13 @@ export const TERMS = [
  },
  {
   "term": "800 V DC",
-  "def": "A higher-voltage rack feed NVIDIA is moving toward for 2027-class racks, made in one step from 34.5 kV AC by solid-state transformers, with batteries sitting right on the DC bus instead of behind a UPS. NVIDIA says it cuts copper in the rack power path by 45% compared with 415 V AC at the same power.",
+  "def": "A higher-voltage rack feed NVIDIA is moving toward for 2027-class racks, made in one step from 34.5 kV AC by solid-state transformers, with batteries sitting right on the DC bus instead of behind a UPS. NVIDIA says it cuts copper in the rack power path by 45% compared with 415 V AC at the same power. Google, Meta and Microsoft's Mt Diablo design feeds racks at ±400 V DC (800 V between its two poles) from a sidecar power rack; on 08/11/2026 NVIDIA said it, Google and Microsoft are working to make 800 V DC the open standard, with Mt Diablo's ±400 V spec serving current racks and a native-800 V version to follow.",
   "layer": "power",
   "sources": [
    "nvidia-800v-hvdc",
-   "navitas-800vdc"
+   "navitas-800vdc",
+   "google-ocp-emea-400vdc",
+   "ocp-800vdc-google-microsoft-nvidia"
   ],
   "cites": [
    ["nvidia-800v-hvdc", "Row-level power management section: 'With lower current, thinner conductors can handle the same load, reducing copper requirements by 45%'"]
@@ -383,10 +385,13 @@ export const TERMS = [
  },
  {
   "term": "Scale-up",
-  "def": "The network tier that stays inside one machine, an NVL72 rack or a single DGX H100 server, fast enough to split one model layer's own math across GPUs. It is the chattiest traffic on the page, which is why it never leaves copper.",
+  "def": "The network tier that joins a small group of accelerators tightly enough to split one model layer's own math across them. Here it is NVLink inside an NVL72 rack or a single DGX H100 server, on copper. Other chips use their own: ICI inside a 64-chip Google TPU cube, whose cubes are joined by optical circuit switches; NeuronLink across a 64-chip AWS Trainium2 UltraServer; and UALink, an open standard for the same job.",
   "layer": "data",
   "sources": [
-   "nvidia-nvl72-reference-arch"
+   "nvidia-nvl72-reference-arch",
+   "google-ironwood-codesign",
+   "aws-trn2-arch",
+   "ualink-200g-1-0"
   ],
   "link": {
    "scene": 3,
@@ -403,6 +408,44 @@ export const TERMS = [
    "mode": "data",
    "part": "uplinks"
   }
+ },
+ {
+  "term": "ICI (Inter-Chip Interconnect)",
+  "def": "Google's scale-up fabric for its TPUs: in Ironwood, each chip links straight to six neighbors in a 3D torus across a 64-chip cube (one rack), and optical circuit switches join cubes into pods of up to 9,216 chips. It does the job NVLink does in the NVIDIA racks drawn here.",
+  "layer": "data",
+  "sources": [
+   "google-ironwood-codesign"
+  ],
+  "cites": [
+   ["google-ironwood-codesign", "'Each chip is connected to 6 other chips in the 3D torus'; 'a 9,216-chip system with 144 cubes'"]
+  ]
+ },
+ {
+  "term": "NeuronLink",
+  "def": "AWS's chip-to-chip fabric for its Trainium accelerators. A Trn2 instance joins 16 Trainium2 chips in a 4x4 torus, and NeuronLink rings four instances into a 64-chip UltraServer: AWS's counterpart to an NVLink domain. AWS's EFA network does the scale-out job.",
+  "layer": "data",
+  "sources": [
+   "aws-trn2-arch"
+  ],
+  "cites": [
+   ["aws-trn2-arch", "'16 Trainium2 chips are connected using a 4x4, 2D Torus topology'; 'a total of 64 Trainium2 chips to be interconnected within a Trn2 UltraServer'"]
+  ]
+ },
+ {
+  "term": "UALink",
+  "def": "Ultra Accelerator Link, an open scale-up standard from a consortium of chip and system makers, for accelerators that are not NVIDIA's. Its 1.0 specification (04/08/2025) runs 200 Gb/s lanes and joins up to 1,024 accelerators in one pod with memory reads and writes between them.",
+  "layer": "data",
+  "sources": [
+   "ualink-200g-1-0"
+  ]
+ },
+ {
+  "term": "Ultra Ethernet",
+  "def": "An open Ethernet stack for AI and HPC scale-out networks from the Ultra Ethernet Consortium, whose founders include AMD, Arista, Broadcom, Cisco, HPE, Intel, Meta and Microsoft. Its 1.0 specification (06/11/2025) adds RDMA transport and congestion control across NICs, switches, optics and cables: an open alternative to InfiniBand for the compute fabric.",
+  "layer": "data",
+  "sources": [
+   "uec-1-0"
+  ]
  },
  {
   "term": "Scale-across",

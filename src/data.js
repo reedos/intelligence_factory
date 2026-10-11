@@ -987,7 +987,7 @@ export function content(M, opts = {}) {
     ],
     rack: nvl ? [
       { id: 'tp', title: 'Tensor + expert parallel', kicker: 'The chattiest work lives here',
-        body: 'Inside one rack a model layer’s math is split across GPUs, or its experts are spread across as many as its 72 GPUs. The GPUs trade partial results inside every layer, which only NVLink is fast enough for.',
+        body: 'Inside one rack a model layer’s math is split across GPUs, or its experts are spread across as many as its 72 GPUs. The GPUs trade partial results inside every layer, which takes a scale-up fabric: NVLink here, ICI on Google’s TPUs, NeuronLink on AWS Trainium.',
         specs: [['Traffic', 'every layer, many times per token', 'reported', { refs: [ref('meta-llama3-herd-parallelism', 'describes tensor-parallel GPUs exchanging activations inside every transformer layer, many times per forward/backward pass')] }], ['Llama 3 405B, H100', 'tensor parallel 8, inside each server', 'spec', { refs: [ref('meta-llama3-herd-parallelism', 'training section: 405B model trained with tensor parallelism 8')] }], ['NVL72 wide expert parallel', 'up to 72 GPUs, the NVLink domain', 'reported', { refs: [ref('nvidia-gb200-dynamo-moe', 'blog: "The NVLink domain can now support up to 72 NVIDIA Blackwell GPUs"; its own DeepSeek R1 example spreads 256 routed experts across 64 of those GPUs, not all 72')] }]] },
       { id: 'nvswitch', title: 'NVLink switch trays', kicker: 'Scale-up: one domain',
         body: 'Nine switch trays connect all 72 GPUs. One of the nine is pulled out for inspection; highlighted connections across that display gap are schematic, not exposed physical cables.',
