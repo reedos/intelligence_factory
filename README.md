@@ -11,7 +11,8 @@ specification. Product and performance claims are attributed to the companies th
 
 It is also a small model. Pick a campus size (10 MW to 5 GW), an accelerator (H100, GB200, GB300, Rubin),
 a power path (415 V AC or 800 V DC) and cooling (air, chilled liquid, warm water), or start from a real
-campus, and every scene, chart, count and sentence recomputes. Pin a scenario to compare against it.
+campus, and every scene, chart, count and sentence recomputes. Pin a scenario to compare against it. The model covers NVIDIA
+systems only; Google TPUs, AWS Trainium and AMD Instinct appear as cited comparisons, not as models.
 
 Figures shown with a label say what kind of statement they are: **Spec** (the maker or a standards body publishes
 it), **Vendor** (a vendor's own comparison, attributed, with its baseline), **Reported** (a named third party states

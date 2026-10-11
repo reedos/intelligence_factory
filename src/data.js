@@ -742,7 +742,11 @@ export function content(M, opts = {}) {
     { id: 'hbm', title: `${A.hbm.type} stacks`, kicker: `${stacksTxt}, ${A.hbm.gb} GB`,
       body: `Each stack, from suppliers such as SK hynix, Micron and Samsung, is ${A.hbm.layers} DRAM dies thinned and stacked with through-silicon vias. Moving model weights out of HBM for every token is a large share of inference energy.`,
       specs: [['Capacity', `${A.hbm.gb} GB${A.id === 'gb200' ? ' nominal; rack total implies ≈186 GB' : A.id === 'gb300' ? ' nominal; rounded rack total implies ≈278 GB' : ''}`, EV6.hbm.basis, EV6.hbm.ev], ['Bandwidth', hbmTB, EV6.hbm.basis, EV6.hbm.ev],
-        ['Layers per stack', `${A.hbm.layers}`, EV6.layers.basis, EV6.layers.ev], ['Share of GPU power', `≈${+(A.hbmShare * 100).toFixed(1)}%`, 'assumed', { assume: 'hbm-share-of-gpu-power' }], ['Stack height, as drawn', 'about 3× real', 'assumed', { assume: 'hbm-stack-drawing' }]] },
+        ['Layers per stack', `${A.hbm.layers}`, EV6.layers.basis, EV6.layers.ev], ['Share of GPU power', `≈${+(A.hbmShare * 100).toFixed(1)}%`, 'assumed', { assume: 'hbm-share-of-gpu-power' }], ['Stack height, as drawn', 'about 3× real', 'assumed', { assume: 'hbm-stack-drawing' }],
+        // other makers' accelerators, not drawn or modeled: their own published memory and power, for comparison
+        ['Not drawn: Google Ironwood TPU', '192 GB HBM at ≈7.37 TB/s per chip; Google publishes no chip power', 'spec', { refs: [ref('google-tpu7x-docs', '"Each chip is equipped with 192 GB of HBM" with "bandwidth of approximately 7.37 TB/s"; no power figure')] }],
+        ['Not drawn: AWS Trainium2', '1.5 TB HBM3 at 46 TB/s per 16-chip instance; AWS publishes no chip power', 'spec', { refs: [ref('aws-trn2-instances', '"16 Trainium2 chips"; "1.5 TB HBM3 with 46 terabytes per second (TBps) of memory bandwidth"')] }],
+        ['Not drawn: AMD Instinct MI355X', '288 GB HBM3E at 8 TB/s; 1,400 W, liquid-cooled', 'spec', { refs: [ref('amd-mi350-rocm-arch', '"288GB of total capacity (36GB per stack)"; "up to 8 TB/s of peak theoretical memory bandwidth"; MI355X "1400W, direct liquid-cooled"')] }]] },
     { id: 'tokens', title: 'Tokens', kicker: 'What leaves', math: tokenMathRows(M),
       body: 'Every token a model writes is a pass through billions of weights. Run the numbers below to see how many a kilowatt-hour buys.',
       specs: [
