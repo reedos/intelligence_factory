@@ -2,6 +2,8 @@
 # https://<branch>.intelligence-factory-dly.pages.dev (slashes in the branch name become dashes; the
 # project is "intelligence-factory", its pages.dev subdomain got a suffix). Cloudflare marks preview
 # deployments noindex. Production stays on GitHub Pages (pages.yml); nothing here touches reedos.dev.
+# Dependabot branches are skipped: the upload step failed on every Dependabot run (10/07 to 10/14), and Dependabot
+# runs read a separate secret store from the repo's Actions secrets. checks.yml still tests and builds them.
 name: preview
 on:
   push: { branches-ignore: [main] }
@@ -10,6 +12,7 @@ permissions: { contents: read, deployments: write }
 concurrency: { group: 'preview-${{ github.ref_name }}', cancel-in-progress: true }
 jobs:
   preview:
+    if: ${{ !startsWith(github.ref_name, 'dependabot/') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
