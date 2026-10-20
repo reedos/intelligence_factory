@@ -14,8 +14,8 @@ function material({ width, brightness, dashed, opacity }) {
   m.onBeforeCompile = shader => {
     shader.vertexShader = `attribute float instanceFlowPhase;\nattribute float instanceFlowAlpha;\nvarying float vFlowAlpha;\n${shader.vertexShader}`
       .replace('void main() {', 'void main() { vFlowAlpha = instanceFlowAlpha;')
-      .replace('dashScale * instanceDistanceStart : dashScale * instanceDistanceEnd;',
-        'dashScale * instanceDistanceStart + instanceFlowPhase : dashScale * instanceDistanceEnd + instanceFlowPhase;');
+      .replace('float lineDistanceStart = dashScale * instanceDistanceStart;', 'float lineDistanceStart = dashScale * instanceDistanceStart + instanceFlowPhase;')
+      .replace('float lineDistanceEnd = dashScale * instanceDistanceEnd;', 'float lineDistanceEnd = dashScale * instanceDistanceEnd + instanceFlowPhase;');
     shader.fragmentShader = `varying float vFlowAlpha;\n${shader.fragmentShader}`
       .replace('gl_FragColor = vec4( diffuseColor.rgb, alpha );',
         `alpha *= vFlowAlpha; ${dashed
