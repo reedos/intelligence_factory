@@ -10,13 +10,12 @@ import { THREE, MAT, Builder, mtx, flow, canvasTex, sky, glowMat, spinners } fro
 import { rbox, plumes } from '../fx.js';
 import { tagHeat, balanceHeat } from '../heat.js';
 import { SITES, STATE_CARBON, DEFAULT_PLACE, PLACES, placeKey, albers, greatCircleKm } from '../model/sites.ts';
-import { preloadCampusCatalog, campusCatalogInstances } from './campus-blender-catalog.js';
-import { preloadAcrossAssets, hasAcrossAssets, acrossAssetInstances, acrossSurfaceGeometry, replaceWindRotor } from './across-blender-assets.js';
+import { preloadAcrossAssets, hasAcrossAssets, acrossAssetInstances, acrossSymbolInstances, acrossSurfaceGeometry, replaceWindRotor } from './across-blender-assets.js';
 import { WIND_R, WIND_SCALE, WIND_HUB, windLayout, windFootprint, solarLayout, solarFootprint, SOLAR, placePlants, plantAvoid, METROS, siteSupply, REMOTE_SCALE, compactFootprint } from './across-plants.js';
 import { compute } from '../model/engine.ts';
 import { campusFootprint, campusBounds, campusHallCells, campusYardItems } from './campus-layout.js';
 import { campusRoadPlan } from './campus-road-plan.js';
-export const preload = () => Promise.all([preloadCampusCatalog(), preloadAcrossAssets()]);
+export const preload = () => preloadAcrossAssets();
 
 const ORIGIN = albers(-92, 37);
 const world = (lon, lat) => { const [x, y] = albers(lon, lat); return [x - ORIGIN[0], -(y - ORIGIN[1])]; };
@@ -102,7 +101,7 @@ function mapTexture(small) {
     for (let lat = 25; lat <= 50; lat += 5) { g.beginPath(); for (let lon = -126; lon <= -65; lon += 1) { const [x, z] = world(lon, lat), px = (x - minX) * sx, pz = (z - minZ) * sz; lon === -126 ? g.moveTo(px, pz) : g.lineTo(px, pz); } g.stroke(); }
   }, { srgb: true });
 }
-function labelSprite(text, color = '#ffe7a3', size = 26) {
+function labelSprite(text, color = '#ffe7a3', size = 30) {
   const c = document.createElement('canvas'), g = c.getContext('2d');
   g.font = '600 44px "IBM Plex Mono", ui-monospace, monospace';
   const w = Math.ceil(g.measureText(text).width) + 36; c.width = w; c.height = 72;
@@ -114,13 +113,17 @@ function labelSprite(text, color = '#ffe7a3', size = 26) {
   // a fixed size on screen: sized in km, labels would fill the view whenever the camera flies in close
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true, sizeAttenuation: false }));
   const k = size / 26 * 0.016;
-  s.scale.set(w / 72 * k, k, 1); s.renderOrder = 10; return s;
+  s.scale.set(w / 72 * k, k, 1); s.renderOrder = 10;
+  // a caption is held at this many CSS pixels tall on every canvas (layoutMapCaptions): sized for the desktop view, it
+  // shrank to 8 px text on a phone (round-3 review); size 30 sets 12 px text
+  s.userData.px = size * 0.68; s.userData.aspect = w / 72;
+  return s;
 }
 // Map captions are annotations: keep their geographic anchors and move only the caption,
 // with a leader whenever screen-space collision avoidance displaces it.
 // `reserved` holds screen boxes already taken by the page's own overlays (numbered pins, title, buttons), in the
 // canvas's CSS pixels, so a caption steps around them instead of printing over them.
-export function layoutMapCaptions(entries, camera, width, height, selected = null, reserved = []) {
+export function layoutMapCaptions(entries, camera, width, height, selected = null, reserved = [], mode = 'power') {
   const occupied = [...reserved];
   camera.updateMatrixWorld();
   for (const entry of [...entries].sort((a, b) =>
@@ -131,14 +134,17 @@ export function layoutMapCaptions(entries, camera, width, height, selected = nul
     sprite.visible = eligible && p.z > -1 && p.z < 1 && Math.abs(p.x) < 1.05 && Math.abs(p.y) < 1.05;
     leader.visible = false;
     if (!sprite.visible) continue;
+    if (sprite.userData.px) { const k = 2 * sprite.userData.px / (camera.projectionMatrix.elements[5] * height); sprite.scale.set(k * sprite.userData.aspect, k, 1); }
     const w = sprite.scale.x * camera.projectionMatrix.elements[0] * width / 2;
     const h = sprite.scale.y * camera.projectionMatrix.elements[5] * height / 2;
     const x = (p.x + 1) * width / 2, y = (1 - p.y) * height / 2;
     let box = null;
     const tries = [];
     // route distances also try sideways and further out: two routes leaving one campus put their midpoints close
+    // and so does the home campus tag, so it steps off the numbered pins clustered round it (round-3 review, phones);
+    // not in the data layer, where a sideways step puts the tag on the glowing route out of the campus (round-5 review)
     const dys = entry.route ? [0, -24, 24, -48, 48, -72, 72, -96, 96, -120, 120, -144, 144] : [0, -24, 24, -48, 48, -72, 72, -96, 96];
-    for (const dx of entry.route ? [0, -0.6, 0.6] : [0]) for (const dy of dys) tries.push([dx * w, dy]);
+    for (const dx of entry.route || (entry.main && mode !== 'data') ? [0, -0.6, 0.6] : [0]) for (const dy of dys) tries.push([dx * w, dy]);
     tries.sort((a, b) => Math.hypot(...a) - Math.hypot(...b));
     // the home campus caption never disappears: if every slot is taken it keeps its anchor slot
     if (entry.main) tries.push([0, 0, true]);
@@ -244,7 +250,7 @@ export function build({ quality, model, state = {} }) {
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0x060a12, 3200, 9200);
   scene.add(sky('#040810', '#0c1526', '#1c2436', 12000));
-  scene.add(new THREE.HemisphereLight(0x6a84b8, 0x0a0d12, 0.85));
+  scene.add(new THREE.HemisphereLight(0x6a84b8, 0x0a0d12, 1.05));
   const key = new THREE.DirectionalLight(0xc9d8ff, 0.45); key.position.set(-800, 1200, 600); scene.add(key);
   scene.add(cityLights(quality));                                      // metro glow: always on, whatever the layer
 
@@ -344,7 +350,7 @@ export function build({ quality, model, state = {} }) {
   others.forEach(p => campus(world(p.site.lon, p.site.lat), false, p.ids.reduce((w, id) => w + SITES[id].scenario.meterMW * 1e6, 0), placeKey(p),
     compute({ ...SITES[p.ids[0]].scenario, site: p.ids[0] })));
   balanceHeat(heatFlows);
-  if (authored) scene.add(campusCatalogInstances('MAP_CAMPUS', campusSymbols));    // anchor-only: where the HV lines land
+  if (authored) scene.add(acrossSymbolInstances('MAP_CAMPUS', campusSymbols));    // anchor-only: where the HV lines land
   {
     // lit materials so the miniature takes the map's light, plus a little emission so it stays readable at night
     const mk = (n, mat, mats, cols) => {
@@ -380,12 +386,13 @@ export function build({ quality, model, state = {} }) {
   caption(hereLab, scene, { main: true, key: 'home' });
   // the other campuses are named by their numbered pins in the power layer; the data layer names them on the map,
   // where they are the far ends of the fiber
-  others.forEach(p => { const [x, z] = world(p.site.lon, p.site.lat), l = labelSprite(p.name, '#e8ecf2', 28); l.position.set(x, 52, z); data.add(l); caption(l, data, { key: placeKey(p), priority: 1 / Math.max(1, greatCircleKm(here, p.site)) }); });
+  others.forEach(p => { const [x, z] = world(p.site.lon, p.site.lat), l = labelSprite(p.name, '#e8ecf2', 30); l.position.set(x, 52, z); data.add(l); caption(l, data, { key: placeKey(p), priority: 1 / Math.max(1, greatCircleKm(here, p.site)) }); });
 
   // ---------- power layer: state carbon labels, plants and the HV backbone near this campus ----------
-  Object.entries(STATE_CARBON).forEach(([id, c]) => {
+  // (not on phones, where they drew at about 6 px: the state colors and the parts list carry the figures there)
+  if (!(quality.mobile && globalThis.matchMedia?.('(max-width: 760px)').matches)) Object.entries(STATE_CARBON).forEach(([id, c]) => {
     const at = CENTROID[id]; if (!at) return;
-    const l = labelSprite(`${c.abbr} ${c.g} g`, carbonColor(c.g), 34); l.position.set(at[0], 30, at[1]); power.add(l);
+    const l = labelSprite(`${c.abbr} ${c.g} g/kWh`, carbonColor(c.g), 34); l.position.set(at[0], 30, at[1]); power.add(l);
     // state figures yield to campus names and pins: they shift a little, or drop out where the map is crowded
     caption(l, power, { key: `carbon-${id}`, priority: 0.1, maxShift: 30 });
   });
@@ -694,7 +701,7 @@ export function build({ quality, model, state = {} }) {
     if (!longest || L > longest.L) longest = { L, mid, B };
   });
   if (authored) {
-    data.add(campusCatalogInstances('MAP_HUT', huts.map(p => mtx(p[0], 0, p[2]))));
+    data.add(acrossSymbolInstances('MAP_HUT', huts.map(p => mtx(p[0], 0, p[2]))));
     data.add(acrossAssetInstances('HUT_SITE', huts.map(p => mtx(p[0], 0, p[2]))));
   } else {
   const hut = new Builder();
@@ -718,7 +725,7 @@ export function build({ quality, model, state = {} }) {
   // gold carries the data layer's color onto the building: the terminal's own crown fixture (MAP_TERMINAL) and
   // the vault the fiber enters by (TERMINAL_TRIM)
   if (authored) data.add(acrossAssetInstances('TERMINAL_TRIM', terminalMatrices));
-  if (authored) data.add(campusCatalogInstances('MAP_TERMINAL', terminalMatrices));
+  if (authored) data.add(acrossSymbolInstances('MAP_TERMINAL', terminalMatrices));
   else {
     const lt = new Builder(); lt.slab(8, 4, 6, MAT.white, 0, 0, 0); lt.slab(8.4, 0.4, 6.4, glowMat('#ffd35c', 0.9), 0, 4, 0);
     data.add(lt.instance(terminalMatrices));
@@ -732,7 +739,7 @@ export function build({ quality, model, state = {} }) {
 
   const viewport = new THREE.Vector2();
   // the page's overlays inside the view: numbered pins (circle and label), the title block, layer switch, buttons, hint
-  const OVERLAYS = '#pins .pin .num, #pins .pin .lbl, #pins .pin-group, #view .hud.tl, #view .hud.tr, #hud-btns .btn, #view .hint';
+  const OVERLAYS = '#pins .pin .num, #pins .pin .lbl, #pins .pin-group, #view .hud.tl, #view .hud.tr, #view .present-launch, #hud-btns .btn, #view .hint';
   const reservedBoxes = canvas => {
     if (typeof document === 'undefined' || !document.querySelectorAll || !canvas?.getBoundingClientRect) return [];
     const c = canvas.getBoundingClientRect(), out = [];
@@ -745,16 +752,30 @@ export function build({ quality, model, state = {} }) {
   };
   scene.onBeforeRender = (renderer, _scene, camera) => {
     renderer.getSize(viewport);
-    layoutMapCaptions(mapCaptions, camera, viewport.x, viewport.y, state.selected, reservedBoxes(renderer.domElement));
+    layoutMapCaptions(mapCaptions, camera, viewport.x, viewport.y, state.selected, reservedBoxes(renderer.domElement), state.mode);
   };
 
   const [hx, hz] = H, h0 = huts[3] || huts[0] || [hx, 3, hz], R0 = near[0] ? world(near[0].p.site.lon, near[0].p.site.lat) : [hx + 300, hz];
   const view = (x, z, d = 200) => ({ pos: [x + d * 0.3, d * 0.9, z + d * 1.1], target: [x, 0, z] });
   const siteSpots = Object.fromEntries(others.map(p => { const [x, z] = world(p.site.lon, p.site.lat); return [placeKey(p), { pos: [x, 12, z], view: view(x - 15, z, 300) }]; }));
+  // The overview frames every numbered campus (round-2 review: Abilene and Hyperion sat off the frame): centred on
+  // their extent, along the same viewing direction, pulled back as far as the widest spread needs (1,250 m of map
+  // across at the authored distance, plus a margin for the title and buttons).
+  const spread = [[hx, hz], ...Object.values(siteSpots).map(v => [v.pos[0], v.pos[2]])];
+  const [x0, x1] = [Math.min(...spread.map(p => p[0])), Math.max(...spread.map(p => p[0]))];
+  const [z0, z1] = [Math.min(...spread.map(p => p[1])), Math.max(...spread.map(p => p[1]))];
+  // +300 on z: room under the spread for the key hint at the foot of the view (round-5 review: Abilene sat behind it at 1280x720)
+  const fitK = Math.max(1, (x1 - x0 + 300) / 1250, (z1 - z0 + 560) / 1000), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2 + 40;
   const built = {
     scene, flows, dataFlows, heatFlows, layers: { power, data }, powerDraw,
-    look: { exposure: 1.0, bloom: 0.85, threshold: 0.92, ao: 0, env: 'night', envIntensity: 0.5 },
-    camera: { pos: [hx - 220, 1380, hz + 1560], target: [hx - 60, 0, hz + 200], near: 1, far: 30000, min: 60, max: 6000 },
+    look: { exposure: 1.45, bloom: 0.85, threshold: 0.92, ao: 0, env: 'night', envIntensity: 0.5 },
+    // `fit` (round-3 review): a tall phone canvas pulls back along the same line until the spread is as wide as on a
+    // desktop canvas (aspect 1.25), so all eleven campuses stay in frame; wider canvases keep the authored distance
+    camera: { pos: [cx - 160 * fitK, 1250 * fitK, cz + 1360 * fitK], target: [cx, 0, cz], near: 1, far: 30000, min: 60, max: Math.max(6000, 4500 * fitK),
+      fit: { aspect: 1.25, fov: 35, minScale: 1 } },
+    // the data layer is about this campus's routes to its two nearest neighbours, so it keeps the closer authored
+    // framing: pulled back to fit all eleven campuses, the routes shrank to a few pixels under the pins
+    cameraByMode: { data: { pos: [hx - 220, 1250, hz + 1560], target: [hx - 60, 0, hz + 200] } },
     hotspots: {
       grid: { pos: [(plants[1][0] + hx) / 2, 12, (plants[1][1] + hz) / 2], view: view((plants[1][0] + hx) / 2, (plants[1][1] + hz) / 2, 700) },
       plants: { pos: [plants[0][0] + 5 * Math.cos(GAS_RY) - 7 * Math.sin(GAS_RY), 24, plants[0][1] - 5 * Math.sin(GAS_RY) - 7 * Math.cos(GAS_RY)], view: view(plants[0][0] + 2, plants[0][1] - 4, 95) },

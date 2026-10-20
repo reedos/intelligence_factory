@@ -32,19 +32,25 @@ def enhance(kind,accel,m,box,cylinder,p3,material):
         for z in [-.26,.26]:box('Pressed side stiffener',(-.338,1.15,z),(.009,1.70,.035),titanium,1,.004)
         for y in [.25,2.05]:
             for z in [-.39,.39]:cylinder('Quarter turn panel fastener',(-.345,y,z),.010,.008,trim,1,'x')
-        box('Upper fascia insert',(0,2.105,.478),(.445,.165,.025),ceramic,1,.012)
-        for y in [2.046,2.164]:box('Fascia chamfer edge',(0,y,.495),(.418,.008,.008),trim,1,.003)
-        for x in [-.185,.185]:box('Recessed fascia latch',(x,2.105,.497),(.026,.080,.008),dark,1,.005)
+        # No upper fascia slab: it covered the snap-in blanking panels and read as a black block over the upper front.
         if accel!='h100':
             layout=LAY['rack']['layout']   # src/scenes/nvl72-layout.js
+            # The free units over the management switches hold only blanking panels, so through the open (+x) side the
+            # top bay read as an empty dark cavity. Close it with the same titanium side panel as the far side, over the
+            # tray depth only: the A/B feed whips behind the trays (z < -0.435, rack.js FEED) stay in view.
+            RK=LAY['rack'];y0=RK['base']+len(layout)*RK['pitch'];y1=2.236
+            box('Top bay side cover reveal',(.315,(y0+y1)/2,.015),(.012,y1-y0,.9),dark,1,.004)
+            box('Top bay titanium side panel',(.324,(y0+y1)/2,.015),(.010,y1-y0-.012,.884),titanium,1,.004)
+            # One bezel finish per tray kind, so the NVL72 front reads as bands from across the room: light power
+            # shelves, satin compute trays, darker NVLink switch trays (and the two management switches).
+            bezel={'ps':material('Power shelf bezel light satin',(.60,.62,.63),.55,.46),
+                   'compute':material('Compute tray bezel satin aluminum',(.44,.49,.54),.6,.42)}
             for i in range(36):
                 if i in [LAY['rack']['switchPulled'],LAY['rack']['pulled']]:continue
                 y=LAY['rack']['base']+i*LAY['rack']['pitch']+LAY['rack']['pitch']/2
-                front_frame('Service tray machined bezel',0,y,.479,.444,.039,.0045,1)
-                # Offset embossed grille over the pre-existing vent half only.
-                if layout[i]=='switch' and accel!='rubin':
-                    box('Service intake cavity',(-.128,y,.480),(.175,.027,.008),dark,1,.003)
-                    for j in range(9):box('Pressed intake louver',(-.20+j*.018,y,.488),(.008,.022,.010),ceramic,1,.002)
+                # NVLink switch trays keep a plain face with their gold pull handles (rack.js serviceFace): no pressed louvers,
+                # so up close they no longer read as the same grille as the compute trays.
+                front_frame('Service tray machined bezel',0,y,.479,.444,.039,.0045,1,bezel.get(layout[i],titanium))
                 for x in [-.24,.24]:
                     front_frame('Captive recessed latch',x,y,.490,.021,.029,.003,1,trim)
         else:

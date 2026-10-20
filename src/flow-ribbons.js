@@ -83,10 +83,11 @@ export function attachFlowRibbons(built, { width = 2.3, glow = 5.5, brightness =
     sceneInverse.copy(built.scene.matrixWorld).invert();
     for (const batch of batches) {
       let any = false;
-      let geometryChanged = false;
+      let geometryChanged = false, phaseChanged = false, alphaChanged = false;
       const starts = batch.geometry.getAttribute('instanceStart'), ends = batch.geometry.getAttribute('instanceEnd');
       for (const entry of batch.entries) {
         const { flow, start, end, period } = entry;
+        const on = visible(flow);
         // Paths are local to their Flow group (e.g. an exploded module board).
         // Only changed transforms rewrite the shared position buffer. Phase uses
         // local arc distance, so uniform scaling preserves the source clock.
@@ -100,16 +101,23 @@ export function attachFlowRibbons(built, { width = 2.3, glow = 5.5, brightness =
           }
           geometryChanged = true;
         }
-        const on = visible(flow), value = on ? Math.min(1, Math.max(0, flow.bright * (flow.base.opacity ?? 1))) : 0;
+        const value = on ? Math.min(1, Math.max(0, flow.bright * (flow.base.opacity ?? 1))) : 0;
         any ||= on;
         // Modulo keeps GPU floats precise on long-running presentation clocks.
         // Accelerated explanatory motion still pauses/slows with the source
         // clock. The moving head flashes locally; there is no global strobe.
+        // A route that is off and already written as off keeps its alpha at zero, so its phase is never seen.
+        if (!on && entry.off) continue;
+        entry.off = !on;
         const p = -((flow.acc * 1.6 / period + flow.phase) % 1);
-        for (let i = start; i < end; i++) { batch.phase.setX(i, p); batch.alpha.setX(i, value); }
+        // every segment of a route shares one phase and one alpha; write them only when they changed
+        if (p !== entry.p) { batch.phase.array.fill(p, start, end); entry.p = p; phaseChanged = true; }
+        if (value !== entry.value) { batch.alpha.array.fill(value, start, end); entry.value = value; alphaChanged = true; }
       }
       if (geometryChanged) { starts.needsUpdate = true; ends.needsUpdate = true; }
-      batch.group.visible = any; batch.phase.needsUpdate = batch.alpha.needsUpdate = true;
+      batch.group.visible = any;
+      if (phaseChanged) batch.phase.needsUpdate = true;
+      if (alphaChanged) batch.alpha.needsUpdate = true;
     }
   };
   const previousUpdate = built.update;

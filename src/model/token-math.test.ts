@@ -28,8 +28,10 @@ describe('token matrix math', () => {
     const h = tokenMath(compute({ meterMW: 100, accel: 'h100', power: 'ac415', cooling: 'air' }) as any);
     expect(h.readS).toBeCloseTo(70e9 / 3.35e12, 12);
     const r = tokenMath(compute({ meterMW: 100, accel: 'rubin', power: 'dc800', cooling: 'warm' }) as any);
-    expect(r.mathPrecision).toBe('FP4');                     // no published FP8 peak: the row says FP4
-    expect(r.balance).toBeCloseTo(35e15 / 19.2e12, 6);
+    expect(r.mathPrecision).toBe('FP8');
+    expect(r.balance).toBeCloseTo(17.5e15 / 19.2e12, 6);
+    const unavailable = { accel: { ...compute({ meterMW: 100, accel: 'rubin', power: 'dc800', cooling: 'warm' }).accel, fp8PF: null } };
+    expect(tokenMathRows(unavailable).at(-1)?.[1]).toContain('FP8 compute peak unavailable');
   });
   it('the rows show those figures, labeled derived, and every chip key finds its row', () => {
     const M = compute({ meterMW: 100, accel: 'gb200', power: 'ac415', cooling: 'warm' }) as any, C = content(M) as any;

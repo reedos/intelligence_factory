@@ -34,7 +34,7 @@ describe('hall cards never put a model count over "here"', () => {
   const fixes = [{}, { accel: 'h100', cooling: 'air' }, { accel: 'gb300', meterMW: 1000 }, { accel: 'rubin', power: 'dc800' }, { meterMW: 40 }] as any[];
   for (const scenario of fixes) it(`${JSON.stringify(scenario)}: the level says what it shows, and each facility count says what it covers`, () => {
     const M = model(scenario), C = content(M), hallScene: any = C.SCENES.find((s: any) => s.id === 'hall');
-    expect(hallScene.intro.startsWith('Shown: a representative hall of 192 racks in six rows')).toBe(true);
+    expect(hallScene.intro).toContain('Shown: a representative hall of 192 racks in six rows');
     for (const parts of [C.PARTS.hall, C.PARTS_HEAT.hall]) for (const p of parts) for (const row of p.specs || []) {
       const [label, value] = row as string[];
       if (/\bhere\b/.test(label) && /^≈?\d/.test(String(value))) throw new Error(`${p.id}: "${label}" quotes ${value} as if it were drawn here`);

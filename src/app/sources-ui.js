@@ -1,14 +1,17 @@
 // Source popovers. A basis chip with data-src names one claim (src/claims.js); its popover says what the label means
 // and what backs that one figure: each source with where in it the figure is, when it was published and when it was
 // checked; or how the model calculates it; or what the model assumes and why.
-import { SOURCES } from '../sources.js';
+// The source list and the claims load on the first chip click, not with the page.
 import { BASIS, CALCS, ASSUMPTIONS } from '../evidence.js';
-import { claimByKey } from '../claims.js';
 import { store } from './store.js';
+let SOURCES, claimByKey, loading;
+const load = () => loading ||= Promise.all([import('../sources.js'), import('../claims.js')])
+  .then(([s, c]) => { SOURCES = s.SOURCES; claimByKey = c.claimByKey; })
+  .catch(e => { loading = null; throw e; });
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const pop = document.createElement('div');
-pop.className = 'src-pop'; pop.id = 'src-pop'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'Sources'); pop.hidden = true;
+pop.className = 'src-pop'; pop.id = 'src-pop'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-labelledby', 'sp-title'); pop.hidden = true;
 document.body.appendChild(pop);
 let opener = null;
 
@@ -23,7 +26,7 @@ const refItem = ([id, at]) => {
 function body(key) {
   const c = claimByKey(store.M, store.C, key);
   const basis = c?.basis && BASIS[c.basis] ? c.basis : 'est', b = BASIS[basis], ev = c?.ev;
-  const head = `<div class="sp-head"><span class="chip ${basis}">${b.short}</span><b>${b.label}</b><button type="button" class="sp-x" aria-label="Close">×</button></div>
+  const head = `<div class="sp-head"><span class="chip ${basis}">${b.short}</span><b id="sp-title">${b.label}</b><button type="button" class="sp-x" aria-label="Close">×</button></div>
     ${c ? `<p class="sp-claim">${esc(c.label)}${c.value ? `: <b>${esc(c.value)}</b>` : ''}</p>` : ''}<p class="sp-mean">${b.meaning}</p>`;
   if (ev) {
     let html = head;
@@ -48,7 +51,8 @@ function place(chip) {
 }
 const more = () => pop.classList.toggle('has-more', pop.scrollHeight - pop.clientHeight - pop.scrollTop > 8);
 pop.addEventListener('scroll', more, { passive: true });
-function open(chip) {
+async function open(chip) {
+  await load();
   pop.innerHTML = body(chip.dataset.src);
   pop.hidden = false;
   place(chip);
@@ -69,7 +73,9 @@ document.addEventListener('click', e => {
   if (chip) { e.preventDefault(); e.stopPropagation(); if (opener === chip) close(); else open(chip); return; }
   if (!pop.contains(e.target)) close();
 }, true);
-document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+// Escape closes only the popover: caught first (window, capture phase) so the stage's Escape does not also drop the
+// selected part and hide the chip that focus returns to
+addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) { e.stopImmediatePropagation(); close(); } }, true);
 // a scroll moves the popover with its chip, whether the reader scrolled or a tour step scrolled the column on its own;
 // it closes only once the chip is off screen or gone
 function follow() {

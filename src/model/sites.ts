@@ -42,6 +42,7 @@ export interface Site {
   carbonG: number; carbonNote: string;
   facts: ([string, string, Basis] | [string, string, Basis, Ev])[];
   unknowns: string[];               // what the preset had to assume
+  realChip?: string;                // the campus's own accelerator, when it is not one this NVIDIA-only model draws
   sources: string[];                // ids in src/sources.js
   status: Status;
 }
@@ -89,7 +90,7 @@ export const SITES: Record<SiteId, Site> = {
   colossus2: {
     id: 'colossus2', name: 'SpaceXAI Colossus 2', owner: 'SpaceXAI (formerly xAI)', place: 'Memphis, TN', lat: 35.02, lon: -90.05, state: '47',
     // meterMW is what the model derives for the first stage below; the fleet, not this figure, sizes the campus
-    scenario: { meterMW: 1460, accel: 'gb300', power: 'ac415', cooling: 'liquid', stage: 0 },
+    scenario: { meterMW: 1380, accel: 'gb300', power: 'ac415', cooling: 'liquid', stage: 0 },
     // SpaceXAI's Mid-South page (checked 09/27/2026): a 3.3 GWh grid-connected battery pack planned, no diesel
     // mentioned, and closed-loop cooling that takes only domestic water
     plant: { backup: 'battery', bessMWh: 3300, closedLoop: true },
@@ -184,7 +185,8 @@ export const SITES: Record<SiteId, Site> = {
   },
   "rainier": {
     id: "rainier", name: "Amazon Project Rainier", owner: "Amazon Web Services (built for Anthropic)", place: "New Carlisle, IN", lat: 41.7, lon: -86.51, state: "18",
-    scenario: { meterMW: 1050, accel: "h100", power: "ac415", cooling: "air" },
+    scenario: { meterMW: 1380, accel: "h100", power: "ac415", cooling: "air" },
+    realChip: "AWS Trainium2 chips in 64-chip UltraServers",
     carbonG: 632, carbonNote: "Indiana, 1,393 lb/MWh (EIA 2024), the highest state rate mapped here; the campus's operating power comes entirely from the grid, with on-site diesel generators kept for backup only.",
     facts: [
       ["IT power operating, ~16 of ~30 buildings live", "≈910 MW", "reported", { refs: [["epoch-dc-new-carlisle", 'directory entry: "CURRENT IT POWER" 910MW']] }],
@@ -193,7 +195,7 @@ export const SITES: Record<SiteId, Site> = {
       ["Grid interconnection", "Indiana Michigan Power (AEP), existing Olive 345 kV station", "reported", { refs: [["measuredai-new-carlisle", 'body text: "the campus already adjoined... the Olive 345 kV station" on "a purpose-built 345 kV transmission delivery scheme"'], ["compute-atlas-rainier", 'facility profile: utility "Indiana Michigan Power (AEP)"']] }],
       ["On-site generation", "none for operating power; diesel gensets for backup only", "reported", { refs: [["measuredai-new-carlisle", 'body text: "All operating power comes from the utility grid... The only on-site generation is a diesel fleet held in reserve for emergency backup"']] }],
     ],
-    unknowns: ["This site's engine models NVIDIA accelerators only; Project Rainier runs AWS's own Trainium2 chips (UltraServers of 64 chips each), which it cannot model, so the closest preset by rack power and cooling is used instead — H100-class, air-cooled, 415 V AC — and its watts-per-chip and per-rack figures are NVIDIA's, not Amazon's real silicon.", "Meter power is estimated from the ≈910 MW IT figure at a PUE near 1.15, the value reported for this chiller-free, air-cooled design.", "The Trainium2-to-Trainium3 mix as later buildings come online is not modeled; all live capacity is treated as one class.", "Building counts vary by source (30 per company figures, up to 32 in Epoch's imagery-based count, ≈18 per Compute Atlas); this page follows Epoch's 16-of-32-live split."],
+    unknowns: ["This site's engine models NVIDIA accelerators only; Project Rainier runs AWS's own Trainium2 chips (UltraServers of 64 chips each), which it cannot model, so the closest preset by rack power and cooling is used instead — H100-class, air-cooled, 415 V AC — and its watts-per-chip and per-rack figures are NVIDIA's, not Amazon's real silicon.", "Meter power is set so the modeled IT load matches Epoch's ≈910 MW. AWS has not published this campus's cooling design or PUE; the H100 preset can only use this model's air design, halls with chillers at a PUE near 1.5, so the meter figure and the chillers drawn are the model's, and a more efficient real design would draw less at the meter for the same IT load.", "The Trainium2-to-Trainium3 mix as later buildings come online is not modeled; all live capacity is treated as one class.", "Building counts vary by source (30 per company figures, up to 32 in Epoch's imagery-based count, ≈18 per Compute Atlas); this page follows Epoch's 16-of-32-live split."],
     sources: ["epoch-dc-new-carlisle", "eia-state-indiana", "measuredai-new-carlisle", "compute-atlas-rainier", "blackridge-rainier"],
     status: { state: "partial", live: "≈910 MW IT", asOf: "09/24/2026", source: "epoch-dc-new-carlisle",
       line: "About 16 of roughly 30 planned buildings are live: near 910 MW of IT power and about a million Trainium2 chips by Epoch AI’s count. The rest are under construction toward about 1.9 GW, due around Q1 2028." },
@@ -203,16 +205,16 @@ export const SITES: Record<SiteId, Site> = {
     scenario: { meterMW: 585, accel: "gb200", power: "ac415", cooling: "liquid" },
     carbonG: 456, carbonNote: "Ohio, 1,005 lb/MWh (EIA 2024). Two off-grid gas plants, Socrates North and South (~400 MW combined), power the campus directly and are not captured by this grid figure.",
     facts: [
-      ["IT power operating, Epoch satellite estimate", "≈496 MW", "reported", { refs: [["epoch-dc-prometheus", 'directory entry: "CURRENT IT POWER" 496MW']] }],
-      ["Compute, satellite estimate", "≈600k H100-eq compute; ≈237k Nvidia B200 chips now, B300 to follow", "reported", { refs: [["epoch-dc-prometheus", 'directory entry: current chip count "237.4k" B200 delivering "600k H100-equivalents," B300 chips projected next']] }],
+      ["IT power operating, Epoch satellite estimate", "≈471 MW", "reported", { refs: [["epoch-dc-prometheus", 'directory entry: "471 MW of IT power," as of 08/31/2026']] }],
+      ["Compute, satellite estimate", "≈536k H100-eq compute; ≈166k Nvidia B300 chips", "reported", { refs: [["epoch-dc-prometheus", 'directory entry: current chips "166k" B300 delivering "536k H100-eq" (08/31/2026)']] }],
       ["Planned, by Q3 2028", "≈1,022 MW IT power, ≈$38.7B total capital", "reported", { refs: [["epoch-dc-prometheus", 'directory entry: "PROJECTED IT POWER" 1,022MW by Q3 2028, with the tracker’s total-capital estimate']] }],
       ["On-site generation", "Socrates North + South gas plants, ≈400 MW, fully off-grid", "reported", { refs: [["mlq-meta-gas-tents", 'body text: "400MW of dedicated, off-grid natural gas generation," split between "the 200MW Socrates South plant" and a "twin 200MW Socrates North facility"']] }],
       ["Construction", "5 tent structures (~125,000 sq ft each) built Apr–Jun 2026, plus traditional colocation buildings", "reported", { refs: [["mlq-meta-gas-tents", 'body text: "Five ~125,000-sq-ft tent structures at its New Albany, Ohio campus between April and June 2026," built in about 3 months versus 18–36 months for traditional halls']] }],
     ],
-    unknowns: ["Meter power is estimated from the ≈496 MW IT figure at a PUE near 1.15–1.2; the tents' own cooling overhead is not disclosed.", "The live split between GB200-class (\"Catalina\") and GB300-class (\"Clemente\") racks is not disclosed; GB200 is modeled as the larger current share, reading Epoch's \"B200 now, B300 next.\"", "Direct liquid cooling for the NVL72 racks is assumed; the tents' actual thermal design is not confirmed publicly.", "The exact address geocode is not published; coordinates are estimated from the 1500 Beech Road, Licking County parcel to about 0.01 degree.", "Sources disagree on tent count (TechCrunch reports six tents completed by 06/04/2026; MLQ.ai reports five built between April and June); this page follows MLQ's five, and drops an earlier, unconfirmed \"12 buildings: 5 halls + 7 tents\" breakdown this pass could not trace to any cited source."],
+    unknowns: ["Meter power is estimated from the ≈471 MW IT figure at a PUE near 1.15–1.2; the tents' own cooling overhead is not disclosed.", "The live split between GB200-class (\"Catalina\") and GB300-class (\"Clemente\") racks is not disclosed; Epoch now counts only B300 chips (166k), so GB300-class racks may fit better; the preset still models GB200, an unchanged modeling choice.", "Direct liquid cooling for the NVL72 racks is assumed; the tents' actual thermal design is not confirmed publicly.", "The exact address geocode is not published; coordinates are estimated from the 1500 Beech Road, Licking County parcel to about 0.01 degree.", "Sources disagree on tent count (TechCrunch reports six tents completed by 06/04/2026; MLQ.ai reports five built between April and June); this page follows MLQ's five, and drops an earlier, unconfirmed \"12 buildings: 5 halls + 7 tents\" breakdown this pass could not trace to any cited source."],
     sources: ["epoch-dc-prometheus", "epoch-satellite-prometheus", "mlq-meta-gas-tents", "measuredai-prometheus-primer", "eia-state-ohio", "techcrunch-meta-tents"],
-    status: { state: "partial", live: "≈496 MW IT", asOf: "09/24/2026", source: "epoch-dc-prometheus",
-      line: "About 496 MW of IT power runs across a patchwork of tents, colocation space, and traditional buildings, roughly half of the ≈1,022 MW Epoch expects by Q3 2028. Two off-grid gas plants, Socrates North and South, feed the campus directly, outside the regional grid." },
+    status: { state: "partial", live: "≈471 MW IT", asOf: "09/24/2026", source: "epoch-dc-prometheus",
+      line: "About 471 MW of IT power runs across a patchwork of tents, colocation space, and traditional buildings, roughly half of the ≈1,022 MW Epoch expects by Q3 2028. Two off-grid gas plants, Socrates North and South, feed the campus directly, outside the regional grid." },
   },
 };
 

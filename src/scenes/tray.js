@@ -1058,7 +1058,9 @@ function buildNVL({ quality, model }) {
   const [g0x, g0z] = gpus[1];
   // GPU close-up: from the front, in the gap between the board and the lifted
   // plates, looking down on the package (dies and HBM), as on H100 and Rubin.
-  const gpuClose = { pos: [gpus[3][0], 0.2, gpus[3][1]], view: componentView([gpus[3][0], 0.07, gpus[3][1]], [0.25, 0.4, 1.3], [0.6, 0.2, 0.6]) };
+  // round-3 review: from the old low angle (0.25, 0.4, 1.3) the next GPU's heatsink fins ran across the top of the frame
+  // and the pale board washed out; a slightly steeper look (still under the lifted cold plates) and less exposure
+  const gpuClose = { pos: [gpus[3][0], 0.2, gpus[3][1]], exposure: 0.7, view: componentView([gpus[3][0], 0.07, gpus[3][1]], [0.25, 0.55, 1.3], [0.6, 0.2, 0.6]) };
   finishCompute(scene, finish);
   scene.userData.gpuPackageDrawn = pkgLog;
   scene.userData.computeGeneration = { id: model.accel.id, gpus: 4, cpus: 2, fans: 6, dpuCount: dpuX.length, nicCount: 4, nic: ultra ? 'ConnectX-8' : 'ConnectX-7', memoryModules: 'soldered LPDDR5X', nicBoards: ultra ? 2 : 4, representative: true };

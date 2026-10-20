@@ -4,10 +4,10 @@ import { compute, DEFAULT_SCENARIO, ACCELERATORS, waterM3h, type Scenario } from
 const run = (s: Partial<Scenario> = {}) => compute({ ...DEFAULT_SCENARIO, ...s });
 
 describe('WUE is measured against IT energy, not meter energy', () => {
-  it('the default 100 MW scenario: 86.3506 MW IT × 0.16 L/kWh × 24 h = 331.6 m³/day, not the 384 a meter-based figure would give', () => {
+  it('the default 100 MW scenario: 87.6035 MW IT × 0.16 L/kWh × 24 h = 336.4 m³/day, not the 384 a meter-based figure would give', () => {
     const m = run();
-    expect(m.IT_MW).toBeCloseTo(86.3506, 3);
-    expect(waterM3h(m) * 24).toBeCloseTo(331.6, 0);
+    expect(m.IT_MW).toBeCloseTo(87.6035, 3);
+    expect(waterM3h(m) * 24).toBeCloseTo(336.4, 0);
     expect(m.meterMW * 24 * m.wue).toBeCloseTo(384, 0);   // the wrong, meter-based number, kept here so the two never drift into agreement by accident
   });
   it('scales with IT power, not meter power, so a fixed meter size with more overhead uses less water here', () => {
@@ -70,10 +70,17 @@ describe('the reference campus stays where the page has described it', () => {
 });
 
 describe('choices move the numbers the right way', () => {
-  it('cooling lands in its published PUE band: air ≈1.5, chilled liquid ≈1.1–1.2, warm water lowest', () => {
-    expect(run({ accel: 'h100', cooling: 'air' }).pue).toBeGreaterThan(1.4);
-    expect(run({ accel: 'h100', cooling: 'air' }).pue).toBeLessThan(1.6);
-    expect(run({ cooling: 'liquid' }).pue).toBeLessThan(1.25);
+  it('cooling lands in its published PUE band: air ≈1.5, chilled liquid 1.10–1.20, warm water 1.05–1.15, on every accelerator and power path', () => {
+    const band = { air: [1.4, 1.6], liquid: [1.10, 1.20], warm: [1.05, 1.15] } as const;
+    for (const a of Object.values(ACCELERATORS)) for (const power of ['ac415', 'dc800'] as const) for (const cooling of a.coolingOptions) {
+      const m = run({ accel: a.id, power, cooling });
+      expect(m.pue, `${a.id} ${power} ${cooling}`).toBeGreaterThanOrEqual(band[cooling][0]);
+      expect(m.pue, `${a.id} ${power} ${cooling}`).toBeLessThanOrEqual(band[cooling][1]);
+    }
+  });
+  it('GB300 stays within NVIDIA’s "up to 142 kW" rack, and Rubin within four 110 kW shelves under N+N', () => {
+    expect(run({ accel: 'gb300', cooling: 'liquid' }).rack.kw).toBeLessThanOrEqual(142);
+    expect(run({ accel: 'rubin', cooling: 'liquid' }).rack.kw).toBeLessThanOrEqual(2 * 110);
   });
   it('cooling: air costs more than chilled liquid, which costs more than warm water', () => {
     const air = run({ accel: 'h100', cooling: 'air' }).pue;
@@ -82,7 +89,7 @@ describe('choices move the numbers the right way', () => {
     expect(liq).toBeGreaterThan(warm);
   });
   it('800 V DC delivers more IT power from the same meter, within NVIDIA’s "up to 5%"', () => {
-    const ac = run({ power: 'ac415' }), dc = run({ power: 'dc800' });
+    const ac = run({ accel: 'rubin', power: 'ac415' }), dc = run({ accel: 'rubin', power: 'dc800' });
     const gain = dc.gpuSiliconMW / ac.gpuSiliconMW - 1;
     expect(gain).toBeGreaterThan(0.01);
     expect(gain).toBeLessThan(0.05);
@@ -91,6 +98,9 @@ describe('choices move the numbers the right way', () => {
     const m = run({ accel: 'h100', power: 'dc800', cooling: 'warm' });
     expect(m.power.id).toBe('ac415');
     expect(m.cooling.id).not.toBe('warm');
+  });
+  it('GB200 and GB300 are 54 V DC racks: 800 V DC starts with the 2027 racks, so the engine falls back', () => {
+    for (const accel of ['gb200', 'gb300'] as const) expect(run({ accel, power: 'dc800' }).power.id).toBe('ac415');
   });
   it('NVL72 racks are liquid-cooled only', () => {
     expect(run({ accel: 'gb200', cooling: 'air' }).cooling.id).not.toBe('air');
@@ -139,7 +149,7 @@ describe('the network solves to a feasible topology at every tier transition', (
   it('reproduces the audit\'s exact GB300-at-27-MW case within its own fabric\'s capacity', () => {
     // The audit's counterexample: two fixed topology passes landed on 10,656 GB200 GPUs (and the GB300-at-27-MW
     // equivalent) past the fabric's own two-tier limit (144²/2 = 10,368 for GB300's 800G/radix-144 fabric).
-    const m = run({ accel: 'gb300', meterMW: 27 });
+    const m = run({ accel: 'gb300', meterMW: 25 });   // the boundary moved from 27 MW when the GB300 rack fell to ≈140 kW (round 5)
     const twoTierMax = m.NET.fabric.radix ** 2 / 2;
     expect(m.fabric.tiers).toBe(3);
     expect(m.gpus).toBeLessThanOrEqual(twoTierMax);
@@ -186,7 +196,7 @@ describe('GPU silicon is a physical sum, not a leftover residual', () => {
     const spareMW = m.ledger.find(r => r.label.startsWith('Unallocated'))!.mw;
     const oldWayGpuSiliconMW = m.gpuSiliconMW + spareMW;   // what the old "meter minus everything else" formula reported
     expect(m.gpuSiliconMW).toBeLessThan(oldWayGpuSiliconMW);
-    expect(spareMW / m.meterMW).toBeLessThan(0.01);   // a rounding sliver, not a meaningful share of the campus
+    expect(spareMW).toBeLessThan((m.rack.kw + m.accel.gpusPerRack * m.fabric.kwPerGpu) / 1000);   // less than one more rack and its network: a rounding sliver
   });
 });
 

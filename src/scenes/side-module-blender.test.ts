@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { ACCELERATORS, compute, DEFAULT_SCENARIO } from '../model/engine';
 import { content } from '../data.js';
 import { switchLabel, nicLabel, moduleTier } from './lid-labels.js';
@@ -85,7 +86,7 @@ beforeAll(async () => {
   vi.stubGlobal('document', canvasDocument());
   const bytes = readFileSync(new URL('../../public/models/osfp-module-runtime.glb', import.meta.url));
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-  asset = await new GLTFLoader().parseAsync(buffer, '');
+  asset = await gltfLoader().parseAsync(buffer, '');
   const root = asset.scene.getObjectByName('IFX_OSFP');
   expect(root, 'GLB has the named runtime root').toBeDefined();
   metadata = JSON.parse(root!.userData.ifx);
@@ -745,7 +746,7 @@ describe('module level follows the scenario', () => {
     result.variant.set('dsp'); expect(result.variant.lid).toBe(switchLabel(accel));
     const captions: string[] = [];
     result.scene.traverse((o: THREE.Object3D) => { if (o.userData.caption) captions.push(o.userData.caption.text); });
-    expect(captions).toContain(`One DSP · ${rate} · 8 TX + 8 RX at ${lane} PAM4 · two ${port} ports`);
+    expect(captions.some(t => /One DSP|footprint/.test(t)), 'one caption line under the model; the rest is in the cards').toBe(false);
     expect(captions.some(t => t.startsWith(`Pluggable module · ${rate}`)), captions.join(' | ')).toBe(true);
     if (id === 'rubin') expect(captions.some(t => /type unpublished/.test(t))).toBe(true);
     // the DSP's printed capacity: the asset's modeled 1.6T text, or the 800G overlay in its place
@@ -911,7 +912,7 @@ describe('module level NIC side', () => {
     result.variant.set('dsp');
     const captions: string[] = [];
     result.scene.traverse((o: THREE.Object3D) => { if (o.userData.caption) captions.push(o.userData.caption.text); });
-    expect(captions).toContain(`One DSP · ${rate} · 4 TX + 4 RX at ${lane} PAM4 · one ${rate} port`);
+    expect(captions.some(t => /One DSP|footprint/.test(t)), 'one caption line under the model; the rest is in the cards').toBe(false);
     expect(captions.some(t => t.startsWith(`${id.toUpperCase()} NIC-side module · ${rate} single-port OSFP, DR4`)), captions.join(' | ')).toBe(true);
     const marks: string[] = [];
     result.scene.traverse((o: THREE.Object3D) => { if (o.visible && o.userData.capacityMarking && /DSP/.test(o.userData.capacityMarking)) marks.push(o.userData.capacityMarking); });
@@ -944,7 +945,7 @@ describe('module level NIC side', () => {
     const sw = content(M) as any, C = content(M, { moduleSide: 'nic' }) as any;
     const scene = C.SCENES.find((s: any) => s.id === 'module'), swScene = sw.SCENES.find((s: any) => s.id === 'module');
     expect(scene.kicker).toBe(`${rate} DR4 · ${id.toUpperCase()} NIC`); expect(swScene.kicker).toMatch(/ · switch$/);
-    expect(scene.title).toBe('Inside the NIC module'); expect(swScene.title).toBe('Inside the switch module');
+    expect(scene.title).toBe('Pluggable optics'); expect(swScene.title).toBe('Pluggable optics');
     expect(scene.dataIntro).toContain(`This tray’s NIC module, ${label}`);
     const spec = (parts: any[], pid: string, l: string | RegExp) => parts.find(p => p.id === pid)?.specs.find((r: any[]) => (l instanceof RegExp ? l.test(r[0]) : r[0] === l));
     expect(spec(C.PARTS_DATA.module, 'fingers', 'Host lanes')[1]).toContain(`4 × ${lane}`);

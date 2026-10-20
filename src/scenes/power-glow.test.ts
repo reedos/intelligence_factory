@@ -2,6 +2,7 @@ import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
 // @ts-expect-error Vitest supplies Node built-ins; app tsconfig intentionally excludes Node types.
 import { readFileSync } from 'node:fs';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { compute, DEFAULT_SCENARIO, type Scenario } from '../model/engine';
 import { content } from '../data.js';
 import { HEAT_SCALE, balanceHeat } from '../heat.js';
@@ -54,7 +55,7 @@ beforeAll(async () => {
     const name = url.split('/').pop()!.split('.glb')[0];
     if (!assets.has(name)) {
       const b = readFileSync(new URL(`../../public/models/${name}.glb`, import.meta.url));
-      assets.set(name, await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), ''));
+      assets.set(name, await gltfLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), ''));
     }
     return assets.get(name);
   });

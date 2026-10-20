@@ -59,7 +59,7 @@ export function story(M) {
   return keyed('story', [
     // 1 · scale across
     { link: at(0, 'home'), k: 'Scale across', title: `${meter}, one grid customer`,
-      text: `This campus draws ${meter} at its meter, about as much as ${n0(homes)} American homes. The grid lost about 5% delivering it. Every number below follows from that one choice and the three others in the scenario bar.`,
+      text: `This campus draws ${meter} at its meter, about as much as ${n0(homes)} American homes. The US grid loses about 5% on average between plant and customer, less at 345 kV. Every number below follows from that one choice and the three others in the scenario bar.`,
       specs: rows(['Meter power', meter, 'assumed', { assume: 'scenario-meter-choice' }], ['American homes, same power', `≈${n0(homes)}`, 'derived', { calc: 'homes-equivalent' }], card('power', 1, 'line', 'US grid losses')) },
     { link: at(0, 'route', 'data'), k: 'Data · scale across', title: 'Even light takes time',
       text: `Campuses hundreds of kilometers apart can train one model together. In glass, light travels at about two thirds of its speed in a vacuum, so crossing 1,000 km still takes ${dci.latency.replace('one way', 'each way')}. That makes synchronizing often expensive, and some methods, such as DiLoCo, synchronize much less often. In this model the long links carry the least traffic per GPU, and the fast ones are further in.`,
@@ -88,7 +88,7 @@ export function story(M) {
         text: `Solid-state transformers turn 34.5 kV AC into 800 V DC in one step, losing ${mw(loss('Solid-state'))}. No UPS, no rack rectifiers: batteries sit right on the DC bus.`,
         specs: rows(card('power', 2, 'sst', 'Efficiency'), card('power', 2, 'sst', 'Loss')) }
       : { link: at(2, 'ups'), sim: 'outage', k: 'Power room', title: 'Clean power, at a price',
-        text: `UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs ${mw(loss('UPS'))}, more than any other step before the rack.`,
+        text: `UPS modules turn AC into DC and back again so the racks never see a flicker. That double conversion costs ${mw(loss('UPS'))}, more than any other power-conversion step before the rack.`,
         specs: rows(card('power', 2, 'ups', 'Efficiency'), card('power', 2, 'ups', 'Loss at')) },
     { link: at(2, 'racks'), k: 'Data hall', title: `${n0(M.racks)} racks${M.halls > 1 ? ` in ${M.halls} halls` : ''}`,   // the campus total: the level draws one representative hall (scenes/hall-slice.js)
       text: `Of the ${mw(M.IT_MW)} of IT load, ${mw(racksMW)} runs ${M.mixed ? `${n0(M.racks)} racks in ${M.halls} halls, ${M.fleet.map(m => `${n0(m.racksShown)} ${m.accel.rackName} racks of about ${Math.round(m.rackKW)} kW`).join(' and ')}` : `${n0(M.racks)} ${nvl ? A.rackName : 'DGX H100'} racks of about ${Math.round(M.rack.kw)} kW each, in ${M.halls} ${M.halls > 1 ? 'halls' : 'hall'}`}: ${n0(M.gpus)} GPUs. The network switches, and the optical modules at both ends of each scale-out link, take ${mw(net)}${spare >= 0.05 ? `, and ${mw(spare)} is spare capacity, short of one more rack` : ''}.`,

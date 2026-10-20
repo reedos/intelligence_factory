@@ -10,8 +10,7 @@
 import { MODULE_VARIANTS, LRO_COLOR, inVariant, lroDieTop, lroIntro, lroPartCopy } from './module-lro.js';
 import { moduleTier } from './lid-labels.js';
 import { tagHeat, balanceHeat, PART_W } from '../heat.js';
-import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, bondWire, label, lidBox, outline, FLOW, COL, note, unitCol, finTex, glowMat, canvasTex } from './side-kit.js';
-import { OSFP_MM } from './osfp-size.js';
+import { THREE, MAT, Builder, flow, setup, materials, die, strand, trace, bondWire, label, lidBox, outline, FLOW, COL, finTex, glowMat, canvasTex } from './side-kit.js';
 
 // A representative shared PIC: eight TX lanes, eight RX lanes; four CW sources feed TX only.
 const EMZ = { w: 640, h: 680, row: i => 26 + i * 40, laserY: k => 46 + k * 80, split: 60, mzIn: 250, mzOut: 440, arm: 7, padX: 232, rxRow: i => 360 + i * 40, pdX: 68, rxPadX: 25 };
@@ -197,8 +196,6 @@ export function build({ quality, state, model }) {
 
   // ======================= what the reader should know at a glance =======================
   label(scene, `Pluggable module · ${tier.published ? `${tier.rate} twin-port OSFP, 2 × DR4` : `${tier.rate} OSFP, type unpublished`}`, [0, -0.35, 2.6], '#e8ecf2', 0.34);
-  label(scene, `${OSFP_MM.len} × ${OSFP_MM.w} mm · layers pulled apart · parts representative`, [0, -0.75, 2.6], note, 0.18);
-  label(scene, `One DSP · ${tier.rate} · 8 TX + 8 RX · two ${tier.port} ports`, [0, -1.05, 2.6], unitCol, 0.18);
   label(scene, 'Electrical · copper traces', [DSPX - 1.2, 1.9, -1.45], COL.elec, 0.14);
   label(scene, 'Bond wires', [(DRVX + PICX0) / 2, 1.9, -1.45], '#e6c46b', 0.14);
   label(scene, 'Light · waveguides on the chip', [PICX, 2.1, -1.45], COL.tx, 0.14);
@@ -224,7 +221,7 @@ export function build({ quality, state, model }) {
   return {
     scene, flows, dataFlows, heatFlows,
     camera: { pos: [1.2, 8.6, 10.5], target: [0, 1.3, 0], near: 0.05, far: 300, min: 1.2, max: 40, portrait: { pos: [0.6, 12.5, 16.5], target: [0, 0.9, 0.4] } },
-    hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: e1.hs.dsp, driver: e1.hs.driver, lasers: e1.hs.lasers },
+    hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: e1.hs.dsp, driver: e1.hs.driver, tia: e1.hs.tia, lasers: e1.hs.lasers },
     dataHotspots: { fingers: hs.fingers, dsp: e1.hs.dsp, driver: e1.hs.driver, lasers: e1.hs.lasers, mzm: e1.hs.mzm, mpo: hs.mpo, pd: e1.hs.pd, tia: e1.hs.tia },
     heatHotspots: { dsp: e1.hs.dsp, shell: hs.shell },
     variant: { get lpo() { return lpo.on; }, setLpo, get kind() { return lpo.kind; }, set: setVariant,

@@ -76,7 +76,7 @@ describe('tours', () => {
   // visit, per layer. The copper cables' door is the NVL72 rack's NVLink spine, so they are expected only there.
   // the CPO level's side trip walks both packages: the stage brings the Broadcom-style one up for its mzm-* parts
   const SIDE_EXPECTED = (nvl: boolean): Record<string, Record<string, string[]>> => ({
-    power: { module: ['fingers', 'dcdc', 'dsp', 'driver', 'lasers'], cpo: ['asic', 'engine', 'els', 'mzm-asic', 'mzm-engine', 'mzm-laser', 'today', 'next'], coherent: ['cdsp', 'itla', 'driver', 'cdm', 'icr', 'tia'], ...(nvl ? { copper: ['dac', 'acc', 'aec'] } : {}) },
+    power: { module: ['fingers', 'dcdc', 'dsp', 'driver', 'tia', 'lasers'], cpo: ['asic', 'engine', 'els', 'mzm-asic', 'mzm-engine', 'mzm-laser', 'today', 'next'], coherent: ['cdsp', 'itla', 'driver', 'cdm', 'icr', 'tia'], ...(nvl ? { copper: ['dac', 'acc', 'aec'] } : {}) },
     data: { module: ['fingers', 'dsp', 'driver', 'lasers', 'mzm', 'mpo', 'pd', 'tia'], cpo: ['asic', 'serdes', 'eic', 'rings', 'pd', 'els', 'fiberout', 'mzm-asic', 'mzm-serdes', 'mzm-eic', 'mzm-mod', 'mzm-pd', 'mzm-laser', 'mzm-fiberout', 'today', 'next'], coherent: ['cdsp', 'driver', 'cdm', 'itla', 'icr', 'tia', 'lc', 'pluggable'], ...(nvl ? { copper: ['dac', 'acc', 'aec'] } : {}) },
     heat: { module: ['dsp', 'shell'], cpo: ['asic', 'coldplate', 'mzm-asic', 'mzm-sink'], coherent: ['cdsp', 'itla', 'driver', 'cdm', 'icr', 'tia'], ...(nvl ? { copper: ['acc', 'aec'] } : {}) },
   });

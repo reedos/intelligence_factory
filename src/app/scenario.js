@@ -48,12 +48,18 @@ function renderControls() {
     $('sc-site').closest('.sc-sites').querySelector('.lab').textContent = picked ? 'Real campus' : 'Start from a real campus';
   }
   renderSiteCard();
-  const note = [];
-  if (!A.dc800) note.push(`${A.short} servers take AC power supplies, so 800 V DC is off.`);
-  if (!A.coolingOptions.includes('air')) note.push(`${A.rackName} racks are liquid-cooled only.`);
-  if (A.coolingOptions.length === 1 && A.coolingOptions[0] === 'air') note.push(`NVIDIA's DGX ${A.short} reference design is air-cooled; some vendors sell liquid-cooled ${A.short} servers, not modeled here.`);
-  if (A.id === 'rubin') note.push('Vera Rubin ships in 2026; its figures are pre-launch estimates.');
-  $('sc-note').textContent = note.join(' ');
+  const n = limits(A);
+  $('sc-note').textContent = [n.power, n.cooling, A.id === 'rubin' && 'Vera Rubin ships in 2026; its figures are pre-launch estimates.'].filter(Boolean).join(' ');
+}
+// why an accelerator turns a power path or cooling off: the note under the controls, and the notice for a link that asked for one
+function limits(A) {
+  return {
+    power: A.dc800 ? '' : A.gpusPerRack === 72
+      ? `${A.short} racks run 54 V DC from AC power shelves; NVIDIA's 800 V DC starts with its 2027 racks, so it is off.`
+      : `${A.short} servers take AC power supplies, so 800 V DC is off.`,
+    cooling: !A.coolingOptions.includes('air') ? `${A.rackName} racks are liquid-cooled only.`
+      : A.coolingOptions.length === 1 ? `NVIDIA's DGX ${A.short} reference design is air-cooled; some vendors sell liquid-cooled ${A.short} servers, not modeled here.` : '',
+  };
 }
 // a real campus sets the four choices to its closest match, moves the map pin and sets the grid carbon
 function pickSite(id) {
@@ -166,6 +172,20 @@ function readUrl() {
   if (SITES[q.get('site')]) { patch.site = q.get('site'); setCarbon(SITES[q.get('site')].carbonG); }
   if (q.has('stage') && SITES[q.get('site')]?.fleet?.[+q.get('stage')]) patch.stage = +q.get('stage');
   if (Object.keys(patch).length) setScenario(patch);
+  // a link that asks for an option the accelerator cannot take falls back (store.js): say so, briefly, once the level
+  // has been announced (#nav-live), so the reader knows why the link's setting changed
+  const A = ACCELERATORS[store.scenario.accel], n = limits(A);
+  const notice = [patch.power && patch.power !== store.scenario.power && n.power, patch.cooling && patch.cooling !== store.scenario.cooling && n.cooling].filter(Boolean).join(' ');
+  const toast = $('toast');
+  if (!notice || !toast) return;
+  const off = on('scene', () => {
+    off();
+    const live = $('nav-live'); if (live) live.textContent = `Link changed: ${notice}`;
+    toast.textContent = `Link changed: ${notice}`; toast.classList.remove('select');
+    toast.setAttribute('aria-hidden', 'true');           // #nav-live reads it; the toast's own status role would repeat it
+    toast.hidden = false;
+    setTimeout(() => { toast.removeAttribute('aria-hidden'); if (toast.textContent.endsWith(notice)) toast.hidden = true; }, 8000);
+  });
 }
 
 on('scenario', () => { renderControls(); renderKpis(); writeUrl(); });

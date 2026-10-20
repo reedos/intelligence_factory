@@ -29,14 +29,13 @@ window.ifx = {
   renderer: stage.getRenderer, renderScale: stage.renderScale, quality: stage.qualityInfo, forceTier: stage.forceTier, setTransitions: stage.setTransitions,
   show: stage.show, THREE, clearance: stage.clearanceStats, setCpoVariant: stage.setCpoVariant, cpoVariant: stage.cpoVariantNow,
 };
-if (new URLSearchParams(location.search).has('module')) import('./app/blender-test.js');
 if (new URLSearchParams(location.search).get('module') !== 'native') import('./app/module-presentation.js');
 if (new URLSearchParams(location.search).get('devicecheck') === '1') import('./app/device-check.js');
 
 // the side pane's two tabs: the parts of the level on screen, and the scenario that sizes everything
 const tabs = [...document.querySelectorAll('[data-pane]')], sc = document.getElementById('pane-scenario');
 function showPane(which) {
-  tabs.forEach(b => b.setAttribute('aria-selected', String(b.dataset.pane === which)));
+  tabs.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pane === which)));
   sc.hidden = which !== 'scenario';
   document.querySelectorAll('.panel-scroll > :not(#pane-scenario):not(.story):not(.pane-note)').forEach(el => el.classList.toggle('pane-off', which === 'scenario'));
   document.querySelector('.panel-scroll').scrollTop = 0;

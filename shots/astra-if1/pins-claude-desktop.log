@@ -1,0 +1,40 @@
+note desktop L1 power (not a failure on desktop): pins intersect: carbon x site-prometheus
+note desktop L1 power sel carbon (not a failure on desktop): pins intersect: carbon x site-prometheus
+done desktop L1 power: 12 states
+done desktop L1 data: 6 states
+done desktop L1 heat: 3 states
+done desktop L2 power: 15 states
+done desktop L2 data: 9 states
+done desktop L2 heat: 5 states
+done desktop L3 power: 14 states
+done desktop L3 data: 14 states
+done desktop L3 heat: 8 states
+note desktop L4 power sel compute (not a failure on desktop): pins intersect: compute x nvswitch
+done desktop L4 power: 8 states
+note desktop L4 data (not a failure on desktop): pins intersect: tp x compute
+note desktop L4 data sel tp (not a failure on desktop): pins intersect: nvswitch x compute
+note desktop L4 data sel spine (not a failure on desktop): pins intersect: uplinks x compute
+note desktop L4 data sel compute (not a failure on desktop): pins intersect: nvswitch x compute
+done desktop L4 data: 8 states
+done desktop L4 heat: 4 states
+note desktop L5 power sel grace (not a failure on desktop): pins intersect: vrm x coldplates
+done desktop L5 power: 11 states
+done desktop L5 data: 7 states
+done desktop L5 heat: 6 states
+done desktop L6 power: 6 states
+done desktop L6 data: 6 states
+done desktop L6 heat: 5 states
+done desktop L7 power: 6 states
+done desktop L7 data: 9 states
+done desktop L7 heat: 3 states
+done desktop L8 power: 6 states
+done desktop L8 data: 10 states
+done desktop L8 heat: 3 states
+done desktop L9 power: 7 states
+done desktop L9 data: 9 states
+done desktop L9 heat: 7 states
+done desktop L10 power: 4 states
+done desktop L10 data: 4 states
+done desktop L10 heat: 3 states
+
+desktop: 218 states (10 levels x 3 layers x overview + each part) checked, 0 failures

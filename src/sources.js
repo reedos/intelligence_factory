@@ -8,7 +8,7 @@ export const SOURCES = {
   'nvidia-dgx-gb300': { title: 'NVIDIA DGX GB300 specifications', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/dgx-gb300/', accessed: '09/29/2026', kind: 'primary', marketing: true },
   'nvidia-vera-rubin-system-blog': { title: 'Inside the NVIDIA Vera Rubin Platform: Six New Chips, One AI Supercomputer', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/?p=111036', published: '01/05/2026', accessed: '09/29/2026', kind: 'primary', marketing: true },
   'nvidia-vera-rubin-pod-blog': { title: 'NVIDIA Vera Rubin POD: Seven Chips, Five Rack-Scale Systems, One AI Supercomputer', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/?p=113993', accessed: '09/29/2026', kind: 'primary', marketing: true },
-  'nvidia-vera-rubin-current-specs': { title: 'Vera Rubin NVL72 specifications, checked 9/29/2026', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/vera-rubin-nvl72/', accessed: '09/29/2026', kind: 'primary', dated: 'Current page lists 3 TB/s GPU NVLink and 19.2 TB/s HBM; older technical blogs and the linked PDF retain higher values.' },
+  'nvidia-vera-rubin-current-specs': { title: 'Vera Rubin NVL72 specifications, checked 10/07/2026', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/vera-rubin-nvl72/', accessed: '10/07/2026', kind: 'primary', dated: 'Checked 10/07/2026: per-GPU dense FP8/FP6 17.5 PFLOPS, dense NVFP4 35 PFLOPS, HBM 19.2 TB/s, NVLink 3 TB/s. Older blogs and PDFs differ.' },
   'nvidia-nvlink-current-specs': { title: 'NVLink generation specifications, checked 9/29/2026', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/nvlink/', accessed: '09/29/2026', kind: 'primary', dated: 'The current sixth-generation table lists 36 links and 3,000 GB/s per GPU, 216 TB/s per NVL72; NVIDIA labels these preliminary.' },
   // grid, campus, transformers, generators
   'eia-td-losses': { title: 'How much electricity is lost in electricity transmission and distribution', publisher: 'U.S. Energy Information Administration', url: 'https://www.eia.gov/tools/faqs/faq.php?id=105&t=5', published: '11/07/2023', dated: "11/07/2023 (page's own \"last updated\")", accessed: '09/27/2026', kind: 'primary' },
@@ -28,12 +28,12 @@ export const SOURCES = {
   'measuredai-new-carlisle': { title: "AWS New Carlisle Data Center Campus: Project Rainier — Where Anthropic Trains Claude", publisher: "Measured AI (Substack)", url: "https://measuredai.substack.com/p/aws-new-carlisle-data-center-campus", published: '06/16/2026', accessed: '09/27/2026', kind: 'secondary' },
   'compute-atlas-rainier': { title: "Amazon Project Rainier — Amazon Web Services data center in New Carlisle, IN", publisher: "Compute Atlas", url: "https://www.compute-atlas.com/facilities/amazon-project-rainier-new-carlisle-in", published: '08/16/2026', dated: "last updated 08/16/2026", accessed: '09/27/2026', kind: 'secondary' },
   'blackridge-rainier': { title: "AWS Project Rainier, Indiana: Latest Updates (2026)", publisher: "BlackRidge Research", url: "https://www.blackridgeresearch.com/project-profiles/aws-project-rainier-new-carlisle-indiana-usa-data-center-supercluster-cost-contractors-timeline-latest-updates", published: '04/15/2026', dated: "updated 04/15/2026", accessed: '09/27/2026', kind: 'secondary' },
-  'epoch-dc-prometheus': { title: "Meta Prometheus", publisher: "Epoch AI", url: "https://epoch.ai/data/ai-data-centers/directory/meta-prometheus", published: '09/24/2026', dated: "updated 09/24/2026", accessed: '09/27/2026', kind: 'secondary' },
+  'epoch-dc-prometheus': { title: "Meta Prometheus", publisher: "Epoch AI", url: "https://epoch.ai/data/ai-data-centers/directory/meta-prometheus", published: '09/24/2026', dated: "updated 10/05/2026", accessed: '10/08/2026', kind: 'secondary' },
   'epoch-satellite-prometheus': { title: "Meta Prometheus — Frontier Data Centers Satellite Explorer", publisher: "Epoch AI", url: "https://epoch.ai/data/data-centers/satellite-explorer/MetaPrometheusNewAlbanyOhio", published: '09/24/2026', dated: "unknown for this specific view; the related directory page (same publisher) is updated 09/24/2026 and mentions imagery \"Latest: Aug. 31, 2026\"", accessed: '09/27/2026', kind: 'secondary' },
   'mlq-meta-gas-tents': { title: "Meta Deploys Tent-Based Data Centers in Ohio and Tennessee, Backed by 400MW of Off-Grid Gas Power", publisher: "MLQ.ai", url: "https://mlq.ai/news/meta-deploys-tent-based-data-centers-in-ohio-and-tennessee-backed-by-400mw-of-off-grid-gas-power/", published: '06/05/2026', accessed: '09/27/2026', kind: 'secondary' },
   'measuredai-prometheus-primer': { title: "Meta's Prometheus and Google's Central Ohio Cluster: An AI Data Center Primer", publisher: "Measured AI (Substack)", url: "https://measuredai.substack.com/p/meta-prometheus-google-ohio", published: '05/20/2026', accessed: '09/27/2026', kind: 'secondary' },
   'techcrunch-meta-tents': { title: "Meta steals a tactic from Tesla and builds data centers in tents", publisher: "TechCrunch", url: "https://techcrunch.com/2026/06/04/meta-steals-a-tactic-from-tesla-and-builds-data-centers-in-tents/", published: '06/04/2026', dated: "06/04/2026 12:33 PM PDT", accessed: '09/27/2026', kind: 'secondary' },
-  'nvidia-sn5000-datasheet': { title: "Spectrum SN5000 Ethernet switch series data sheet", publisher: "NVIDIA", url: "https://nvdam.widen.net/s/mmvbnpk8qk/networking-ethernet-switches-sn5000-datasheet-us", published: '07/2025', dated: "datasheet footer reads \"4072600. JUL25\" / \"© 2025 NVIDIA Corporation\" -> revision dated 07/2025", accessed: '09/27/2026', kind: 'primary' },
+  'nvidia-sn5000-datasheet': { title: "Spectrum SN5000 Ethernet switch series data sheet", publisher: "NVIDIA", url: "https://web.archive.org/web/20260501213126/https://nvdam.widen.net/s/mmvbnpk8qk/networking-ethernet-switches-sn5000-datasheet-us", published: '07/2025', dated: "datasheet footer reads \"4072600. JUL25\" / \"© 2025 NVIDIA Corporation\" -> revision dated 07/2025", accessed: '09/27/2026', kind: 'primary' },
   'nvidia-quantum-x800-switches': { title: "Quantum-X800 XDR InfiniBand switches (Q3400)", publisher: "NVIDIA", url: "https://networking-docs.nvidia.com/xdrswitcheshw/introduction", published: '08/21/2026', dated: "last updated 08/21/2026", accessed: '09/27/2026', kind: 'primary' },
   'nvidia-rubin-platform': { title: "Rubin platform: the chips of the next AI supercomputer", publisher: "NVIDIA", url: "https://nvidianews.nvidia.com/news/rubin-platform-ai-supercomputer", published: '01/05/2026', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'nvidia-dpu-supernic': { title: "BlueField DPUs and ConnectX SuperNICs", publisher: "NVIDIA", url: "https://www.nvidia.com/en-us/networking/products/data-processing-unit/", published: '2026', dated: "unknown; only a generic \"© 2026 NVIDIA Corporation\" copyright, no page-specific date", accessed: '09/27/2026', kind: 'primary', marketing: true },
@@ -80,7 +80,7 @@ export const SOURCES = {
   // cooling and water
   'ashrae-liquid-cooling-classes': { title: "What You Need to Know About ASHRAE's Fifth Edition of Thermal Guidelines", publisher: 'Upsite Technologies', url: 'https://www.upsite.com/blog/what-you-need-to-know-about-ashraes-fifth-edition-of-thermal-guidelines/', published: '05/19/2021', accessed: '09/27/2026', kind: 'secondary', marketing: true },
   'introl-wue': { title: 'Water Usage Efficiency: AI Data Center Cooling Without Crisis', publisher: 'Introl', url: 'https://introl.com/blog/water-usage-efficiency-wue-ai-data-center-cooling-guide-2025', published: '02/12/2026', accessed: '09/27/2026', kind: 'secondary', marketing: true },
-  'nrel-water-electricity': { title: 'A review of operational water consumption and withdrawal factors for electricity generating technologies', publisher: 'NREL', url: 'https://docs.nrel.gov/docs/fy11osti/50900.pdf', published: '03/2011', accessed: '09/27/2026', kind: 'primary' },
+  'nrel-water-electricity': { title: 'A review of operational water consumption and withdrawal factors for electricity generating technologies', publisher: 'NREL', url: 'https://web.archive.org/web/20260510003720/https://docs.nrel.gov/docs/fy11osti/50900.pdf', published: '03/2011', accessed: '09/27/2026', kind: 'primary' },
   'vertiv-coolchip-cdu': { title: 'Vertiv CoolChip CDU', publisher: 'Vertiv', url: 'https://www.vertiv.com/en-us/products-catalog/thermal-management/high-density-solutions/vertiv-coolchip-cdu/', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'motivair-cdu-brochure': { title: 'CDU 2025 product brochure', publisher: 'Motivair (Schneider Electric)', url: 'https://www.motivaircorp.com/uploads/files/brochures/CDU%202025%20Motivair%20by%20SE_Updated_9_26_25.pdf', published: '09/26/2025', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'fortum-finland-heat': { title: 'Fortum has started heat production at two large data centre sites in Finland', publisher: 'Fortum', url: 'https://www.fortum.com/en/media/2026/05/fortum-has-started-heat-production-two-large-data-centre-sites-finland', published: '05/06/2026', accessed: '09/27/2026', kind: 'primary' },
@@ -271,7 +271,7 @@ export const SOURCES = {
   // state a power-efficiency multiplier; the "5x lower power" figure used on the CPO card comes from StorageReview's
   // 08/15/2026 report instead (see storagereview-nvidia-cpo-production).
   // ---- inside the links: copper heads and the coherent pluggable (research/links-internals-sources.md, 09/28/2026) ----
-  'tspa-400g-lane-ofc': { title: 'OFC Preview: The Race to 400G per Lane', publisher: 'TSPA Semiconductor (Substack)', url: 'https://tspasemiconductor.substack.com/p/ofc-preview-the-race-to-400g-per-lane', accessed: '09/28/2026', kind: 'secondary', marketing: false },
+  'optica-ofc2019-200g-sip': { title: 'Up to single lane 200G optical interconnects with silicon photonic modulator', publisher: 'Optica (OFC 2019, Th4A.6)', url: 'https://opg.optica.org/abstract.cfm?uri=ofc-2019-Th4A.6', published: '2019', accessed: '10/09/2026', kind: 'primary' },
   'osfp-msa': { title: 'OSFP Module Specification, rev 5.22 (MSA text checked through the fluxlight.com mirror)', publisher: 'OSFP MSA', url: 'https://www.osfpmsa.org/assets/pdf/OSFP_Module_Specification_Rev5_22.pdf', accessed: '09/28/2026', kind: 'primary', marketing: false },
   'jlt-nano-itla-2023': { title: 'Nano-ITLA research paper, Journal of Lightwave Technology vol. 41, no. 16 (2023)', publisher: 'Optica / IEEE', url: 'https://opg.optica.org/jlt/abstract.cfm?uri=jlt-41-16-5405', published: '2023', accessed: '09/28/2026', kind: 'primary', marketing: false },
   'flexoptix-dac-acc-aec': { title: 'DAC, ACC, or AEC?', publisher: 'Flexoptix', url: 'https://www.flexoptix.net/en/blog/blog/dac-acc-or-aec', accessed: '09/28/2026', kind: 'secondary', marketing: true },
@@ -346,6 +346,15 @@ export const SOURCES = {
   'cummins-nfpa110-ate': { title: "Ask the Experts: NFPA 110 for Emergency Power Systems", publisher: 'Cummins', url: 'https://www.cummins.com/sites/default/files/2021-04/AtE-NFPA110_EXT_3.25.21.pdf', published: '03/25/2021', dated: 'PowerHour webinar dated March 25, 2021; reprints NFPA 110-2016 Table 4.1(b) and section 4.4 with NFPA’s permission', accessed: '09/27/2026', kind: 'primary' },
 
   // content workstream (audit item 18h, 09/27/2026): copper-in-cube vs OCS-between-cubes on the TPU card
+  // other accelerators' fabrics and the ±400 V DC path (review 10/10/2026)
+  'aws-trn2-arch': { title: 'Trainium2 architecture', publisher: 'AWS Neuron documentation', url: 'https://awsdocs-neuron.readthedocs-hosted.com/en/latest/general/arch/neuron-hardware/trn2-arch.html', accessed: '10/11/2026', kind: 'primary' },
+  'ualink-200g-1-0': { title: 'UALink Consortium Releases the Ultra Accelerator Link 200G 1.0 Specification', publisher: 'UALink Consortium, via Business Wire', url: 'https://www.businesswire.com/news/home/20250408050548/en/UALink-Consortium-Releases-the-Ultra-Accelerator-Link-200G-1.0-Specification', published: '04/08/2025', accessed: '10/11/2026', kind: 'primary', marketing: true, unchecked: 'blocked: WebFetch 403 from Business Wire and HPCwire; title, date, 200G lanes and 1,024 accelerators confirmed from search results and trade coverage' },
+  'uec-1-0': { title: 'UEC Launches Specification 1.0, Transforming Ethernet for AI and HPC at Scale', publisher: 'Linux Foundation / Ultra Ethernet Consortium', url: 'https://www.linuxfoundation.org/press/uec-launches-spec-1.0', published: '06/11/2025', accessed: '10/11/2026', kind: 'primary', marketing: true },
+  'google-ocp-emea-400vdc': { title: 'Enabling 1 MW IT racks and liquid cooling at OCP EMEA Summit', publisher: 'Google Cloud', url: 'https://cloud.google.com/blog/topics/systems/enabling-1-mw-it-racks-and-liquid-cooling-at-ocp-emea-summit', published: '04/29/2025', accessed: '10/11/2026', kind: 'primary', marketing: true },
+  'ocp-800vdc-google-microsoft-nvidia': { title: 'Powering the Next Era of AI: How Google, Microsoft and NVIDIA Are Standardizing and Accelerating the Industry Transition to LVDC', publisher: 'Open Compute Project (NVIDIA authors)', url: 'https://www.opencompute.org/news/powering-the-next-era-of-ai-how-google-microsoft-and-nvidia-are-standardizing-and-accelerating-the-industry-transition-to-lvdc/', published: '08/11/2026', accessed: '10/11/2026', kind: 'primary', marketing: true },
+  'google-tpu7x-docs': { title: 'TPU7x (Ironwood)', publisher: 'Google Cloud documentation', url: 'https://docs.cloud.google.com/tpu/docs/tpu7x', accessed: '10/11/2026', kind: 'primary' },
+  'aws-trn2-instances': { title: 'Amazon EC2 Trn2 instances and UltraServers', publisher: 'AWS', url: 'https://aws.amazon.com/ec2/instance-types/trn2/', accessed: '10/11/2026', kind: 'primary', marketing: true },
+  'amd-mi350-rocm-arch': { title: 'AMD Instinct MI350 Series microarchitecture', publisher: 'AMD ROCm documentation', url: 'https://rocm.docs.amd.com/en/develop/reference/gpu-arch/mi350.html', accessed: '10/11/2026', kind: 'primary' },
   'google-ironwood-codesign': { title: 'Inside the Ironwood TPU codesigned AI stack', publisher: 'Google Cloud', url: 'https://cloud.google.com/blog/products/compute/inside-the-ironwood-tpu-codesigned-ai-stack', accessed: '09/27/2026', kind: 'primary', marketing: true },
 
   // ---- traced 09/27/2026: level 1, Scale across, and the real campuses ----
@@ -420,7 +429,6 @@ export const SOURCES = {
   'nvidia-h100-product-page': { title: 'H100 Tensor Core GPU', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/h100/', dated: 'unknown page-specific date; current NVIDIA product page', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'nvidia-grace-cpu-page': { title: 'Grace CPU', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/grace-cpu/', dated: 'unknown page-specific date; current NVIDIA product page', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'nvidia-gb200-nvl72-llm-blog': { title: 'NVIDIA GB200 NVL72 Delivers Trillion-Parameter LLM Training and Real-Time Inference', publisher: 'NVIDIA', url: 'https://developer.nvidia.com/blog/nvidia-gb200-nvl72-delivers-trillion-parameter-llm-training-and-real-time-inference/', published: '2024', accessed: '09/27/2026', kind: 'primary', marketing: true },
-  'semianalysis-gb300-nvl72-specs': { title: 'NVIDIA GB300 NVL72 Specs, Pricing & AI Inference Benchmarks', publisher: 'SemiAnalysis / InferenceX', url: 'https://inferencex.semianalysis.com/chips/gb300-nvl72', accessed: '09/27/2026', kind: 'secondary' },
   'wccftech-gb300-blackwell-ultra': { title: 'NVIDIA Blackwell Ultra "GB300" GPU, The Fastest AI Chip, Detailed', publisher: 'WCCFTech', url: 'https://wccftech.com/nvidia-blackwell-ultra-gb300-gpu-fastest-ai-chip-dual-reticle-gpu-over-20k-cores-288-gb-hbm3e/', published: '2025', accessed: '09/27/2026', kind: 'secondary' },
   'ashrae-thermal-guidelines-refcard': { title: '2021 Equipment Thermal Guidelines for Data Processing Environments, ASHRAE TC 9.9 Reference Card', publisher: 'ASHRAE', url: 'https://www.ashrae.org/file%20library/technical%20resources/bookstore/supplemental%20files/therm-gdlns-5th-r-e-refcard.pdf', published: '2021', dated: '© 2021, 2024 ASHRAE, from the Fifth Edition, Revised and Expanded', accessed: '09/27/2026', kind: 'primary' },
   'navitas-10kw-dcdc-985': { title: 'Navitas Unveils Breakthrough 10 kW DC-DC Platform Delivering 98.5% Efficiency for 800 VDC Next-Gen AI Data Centers', publisher: 'Navitas Semiconductor', url: 'https://navitassemi.com/navitas-unveils-breakthrough-10-kw-dc-dc-platform-delivering-98-5-efficiency-for-800-vdc-next-gen-ai-data-centers/', published: '02/09/2026', dated: 'per corroborating secondary coverage (Semiconductor Today, Yahoo Finance mirror) dated Feb. 9, 2026; WebFetch on the live page returned only its shell today, so this is read through that corroboration, not the page text itself', accessed: '09/27/2026', kind: 'primary', marketing: true },
@@ -434,7 +442,6 @@ export const SOURCES = {
   'liteon-gtc-2026-prnewswire': { title: 'LITEON Showcases Next-Generation 800 VDC and NVIDIA Vera Rubin Platform Solutions at NVIDIA GTC 2026', publisher: 'LITEON, via PR Newswire', url: 'https://www.prnewswire.com/news-releases/liteon-showcases-next-generation-800-vdc-and-nvidia-vera-rubin-platform-solutions-at-nvidia-gtc-2026-302715737.html', published: '03/17/2026', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'nvidia-hopper-architecture-page': { title: 'Hopper Architecture', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/technologies/hopper-architecture/', dated: 'unknown page-specific date; current NVIDIA product page', accessed: '09/27/2026', kind: 'primary', marketing: true },
   'nvidia-blackwell-architecture-page': { title: 'Blackwell Architecture', publisher: 'NVIDIA', url: 'https://www.nvidia.com/en-us/data-center/technologies/blackwell-architecture/', dated: 'unknown page-specific date; current NVIDIA product page', accessed: '09/27/2026', kind: 'primary', marketing: true },
-  'wccftech-nvidia-rubin-gpu-architecture': { title: 'NVIDIA Rubin GPU Architecture, Fully Disclosed', publisher: 'WCCFTech', url: 'https://wccftech.com/nvidia-rubin-gpu-architecture/', published: '2026', accessed: '09/27/2026', kind: 'secondary' },
   'wikipedia-pcie': { title: 'PCI Express', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/PCI_Express', dated: 'live page, PCIe 5.0 link-performance table', accessed: '09/27/2026', kind: 'secondary' },
   // adversarial pass 09/27/2026: 'servethehome-dgx-gb200' does not state the "2 miles" cable-length figure
   // (checked directly, incl. the archived 2024 copy); that figure is The Register's, not ServeTheHome's.
@@ -474,6 +481,11 @@ export const SOURCES = {
   // ---- 09/30/2026, interconnect: inside the DWDM line terminal ----
   'ciena-6500-rls-datasheet': { title: '6500 Reconfigurable Line System data sheet (DS365)', publisher: 'Ciena', url: 'https://telecomcauliffe.com/wp-content/uploads/2023/10/Ciena_6500_Reconfigurable_Line_System_DS.pdf', published: '09/2023', dated: 'DS365 9.2023, copyright 2023 Ciena', via: 'reseller-hosted copy of the Ciena data sheet', accessed: '09/30/2026', kind: 'primary', marketing: true },
   'fs-64ch-cband-mux': { title: '64 Channels DWDM Mux Demux, Super C-band 75GHz', publisher: 'FS.com', url: 'https://www.fs.com/products/166004.html', published: 'undated', dated: 'live product page', accessed: '09/30/2026', kind: 'secondary', marketing: true },
+  // ---- 10/11/2026, round-5 domain fixes: long-haul coherent reach, 800G channel slots, Vera Rubin power shelves ----
+  'juniper-jco800-zr-hp': { title: 'JCO800-QDD-ZR-M-HP optical standards parameters (800G ZR/ZR+ QSFP-DD)', publisher: 'Juniper Networks', url: 'https://www.juniper.net/documentation/ke-apps/hct/optStdParams/stdHtml/JCO800-QDD-ZR-M-HP.html', published: 'undated', dated: 'live Hardware Compatibility Tool page', accessed: '10/11/2026', kind: 'primary', marketing: false },
+  'mapyourtech-psd-parity-zr': { title: 'Power Spectral Density Parity Across 400ZR, 800ZR and 1600ZR', publisher: 'MapYourTech', url: 'https://mapyourtech.com/power-spectral-density-parity-across-400zr-800zr-and-1600zr/', published: '09/16/2026', accessed: '10/11/2026', kind: 'secondary', marketing: false },
+  'cisco-vera-rubin-nvl72-ds': { title: 'Cisco AI Rack for NVIDIA Vera Rubin NVL72 data sheet', publisher: 'Cisco', url: 'https://www.cisco.com/site/us/en/solutions/global-partners/supermicro/nvidia-vera-rubin-nvl72-ds.html', published: '09/15/2026', dated: 'page\'s own "Last Updated: September 15, 2026"', accessed: '10/11/2026', kind: 'primary', marketing: false },
+  'gigabyte-vera-rubin-nvl72': { title: 'GIGABYTE AI DLC Rack, NVIDIA Vera Rubin NVL72', publisher: 'GIGABYTE', url: 'https://www.gigabyte.com/Enterprise/GIGAPOD-Rack-Scale/AI-DLC-Rack_NVIDIA-Vera-Rubin-NVL72', published: 'undated', dated: 'live product page', accessed: '10/11/2026', kind: 'primary', marketing: true, via: 'the page refuses automated fetches; its "4 x 3RU 110 kW power shelves" and "up to 240 kW" rack power were confirmed from search-result text of the rack and pod pages' },
   'wikipedia-roadm': { title: 'Reconfigurable optical add-drop multiplexer', publisher: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Reconfigurable_optical_add-drop_multiplexer', published: 'undated', dated: 'live article', accessed: '09/30/2026', kind: 'secondary' },
 
 };
@@ -526,7 +538,7 @@ export const PART_SOURCES = {
   'power:hall:ups': ['eaton-9395xr-ups'],
   'power:hall:batt': [],
   'power:hall:busway': ['lv-distribution-busway', 'nvidia-800v-hvdc'],
-  'power:hall:racks': ['nvidia-gb200-nvl72', 'hpe-gb200-quickspecs', 'nvidia-dgx-h100'],
+  'power:hall:racks': ['nvidia-gb200-nvl72', 'hpe-gb200-quickspecs', 'nvidia-dgx-h100', 'nvidia-nvl72-reference-arch', 'gigabyte-vera-rubin-nvl72'],
   'power:hall:containment': [],
   'power:hall:inrow': [],
   'power:hall:cdu': ['vertiv-coolchip-cdu', 'motivair-cdu-brochure'],
@@ -535,7 +547,7 @@ export const PART_SOURCES = {
   'power:hall:network': [],
 
   'power:rack:feed': [],
-  'power:rack:shelves': ['navitas-800vdc', 'nvidia-gb200-ocp', 'liteon-gb200-power-system', 'delta-ocp-800vdc', 'liteon-gtc-2026'],
+  'power:rack:shelves': ['navitas-800vdc', 'nvidia-gb200-ocp', 'liteon-gb200-power-system', 'delta-ocp-800vdc', 'liteon-gtc-2026', 'cisco-vera-rubin-nvl72-ds', 'gigabyte-vera-rubin-nvl72'],
   'power:rack:busbar': ['nvidia-gb200-ocp', 'nvidia-800v-hvdc'],
   'power:rack:compute': ['nvidia-gb200-nvl72'],
   'power:rack:nvswitch': ['nvidia-nvl72-reference-arch'],
@@ -570,7 +582,7 @@ export const PART_SOURCES = {
   'power:chip:tokens': ['google-inference-impact', 'samsi-words-to-watts'],
 
   // ---- data ----
-  'data:across:dci': ['ciena-wavelogic6', 'marvell-colorz-800', 'ciena-wavelogic6-nano', 'ciena-6500-rls-datasheet'],
+  'data:across:dci': ['ciena-wavelogic6', 'marvell-colorz-800', 'ciena-wavelogic6-nano', 'ciena-6500-rls-datasheet', 'juniper-jco800-zr-hp', 'mapyourtech-psd-parity-zr'],
   'data:across:ila': [],
   'data:across:route': ['microsoft-hollow-core-fiber', 'coherent-full-cband-pols'],
   'data:across:remote': ['microsoft-ai-wan', 'nvidia-spectrum-xgs', 'deepmind-decoupled-diloco'],
@@ -578,7 +590,7 @@ export const PART_SOURCES = {
 
   'data:campus:fiber': ['zayo-route-diversity'],
   'data:campus:dci': ['ciena-wavelogic6'],
-  'data:campus:lineterm': ['cisco-800g-zr-datasheet', 'ciena-6500-rls-datasheet', 'fs-64ch-cband-mux', 'wikipedia-roadm'],
+  'data:campus:lineterm': ['cisco-800g-zr-datasheet', 'ciena-6500-rls-datasheet', 'fs-64ch-cband-mux', 'wikipedia-roadm', 'juniper-jco800-zr-hp', 'mapyourtech-psd-parity-zr'],
   'data:campus:interhall': ['nvidia-linkx-interconnect', 'nvidia-mms4x50-nm', 'tiafotc-400gbase-fr4', 'ieee-802-3cu-lr4-baseline'],
   'data:campus:ductbank': ['prysmian-flexribbon'],
   'data:campus:hall': [],
@@ -620,12 +632,13 @@ export const PART_SOURCES = {
   'power:module:dcdc': [],
   'power:module:dsp': ['credo-optical-dsp', 'marvell-ara-product-brief', 'nvidia-mms4a00-specs', 'broadcom-sian3-200g-lane-dsp', 'marvell-ara-1-6t-prnewswire', 'semtech-200g-lpo-power-blog', 'credo-lro-dove850-press', 'marvell-ara-1p6t-portfolio'],
   'power:module:driver': ['flexoptix-lpo-intro'],
+  'power:module:tia': ['juniper-1p6t-transceiver', 'flexoptix-lpo-intro'],
   'power:module:lasers': ['nvidia-mms4x00-nm16', 'juniper-1p6t-transceiver'],
   'data:module:fingers': ['osfp-msa', 'juniper-1p6t-transceiver'],
   'data:module:dsp': ['credo-optical-dsp', 'marvell-ara-product-brief', 'nvidia-mms4a00-specs', 'juniper-1p6t-transceiver', 'marvell-ara-1-6t-prnewswire', 'broadcom-sian3-200g-lane-dsp', 'oif-rtlr-press-2025', 'lpo-msa-faqs', 'marvell-ara-1p6t-portfolio'],
   'data:module:driver': ['flexoptix-lpo-intro'],
   'data:module:lasers': [],
-  'data:module:mzm': ['tspa-400g-lane-ofc'],
+  'data:module:mzm': ['optica-ofc2019-200g-sip'],
   'data:module:mpo': ['juniper-1p6t-transceiver', 'nvidia-800g-dr8-datasheet', 'osfp-msa', 'nvidia-mms4a00-datasheet', 'nvidia-mfp7e40-splitter', 'nvidia-mfp7e20-splitter'],
   'data:module:pd': ['juniper-1p6t-transceiver'],
   'data:module:tia': ['juniper-1p6t-transceiver', 'flexoptix-lpo-intro', 'oif-rtlr-press-2025', 'lpo-msa-faqs', 'semtech-lpo-ai-basics-blog'],
@@ -754,7 +767,7 @@ export const LEDGER_SOURCES = [
   ['Solid-state transformers', ['navitas-800vdc', 'nvidia-800v-hvdc']],
   ['800 V DC bus & batteries', ['nvidia-800v-hvdc']],
   ['UPS, double conversion', ['eaton-9395xr-ups']],
-  ['Busway & whips', ['lv-distribution-busway', 'nvidia-800v-hvdc']],
+  ['Busway & whips', ['lv-distribution-busway', 'nvidia-800v-hvdc', 'doe-transformer-standards-2024']],
   ['Cooling:', ['ashrae-liquid-cooling-classes', 'introl-wue']],
   ['Lighting, controls, offices', []],
   ['Scale-out switches', ['nvidia-quantum2-qm9700-specs', 'nvidia-xdr-switch-specs']],
@@ -791,5 +804,5 @@ export const EST_NOTES = {
   'power:chip:balls': 'Core current from GPU power (minus HBM share) ÷ 0.8 V assumed core voltage.',
   'power:tray:vrm': 'Core current from GPU power (minus HBM share) ÷ 0.8 V assumed core voltage.',
   'heat:chip:flux': 'Average flux from GPU power (minus HBM share) ÷ die area; hot spots run well above this average.',
-  'heat:tray:fans': 'Airflow from rack heat, air density and specific heat at a 15 °C rise (Q = ṁ·cp·ΔT).',
+  'heat:tray:fans': 'Airflow from rack heat, air density and specific heat at the model’s 18 °C rise (Q = ṁ·cp·ΔT).',
 };

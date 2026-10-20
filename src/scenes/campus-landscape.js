@@ -61,6 +61,19 @@ export function campusWoodland(scene, matrices, { mobile = false, reduced = fals
   return t => { time.value = reduced ? 0 : t; };
 }
 
+// Distant trees (clusters and the far ring, 600 m to 2 km out): a trunk and one crown, about 480
+// triangles against 3,700 for the near trees, which are mostly branches. No wind and no shadow
+// casting; at that range both are invisible and the ring sits outside most of the sun's shadow map.
+export function campusFarTrees(scene, matrices) {
+  if (!matrices.length) return;
+  const B = new Builder();
+  B.cyl(.3, 5, MAT.trunk, 0, 2.5, 0, 6);
+  B.add(new THREE.SphereGeometry(1, 10, 8), new THREE.MeshStandardMaterial({ color: 0x4a6e56, roughness: .94 }), 0, 7.4, 0, 0, 0, 0, 4.4, 3.4, 4.2);
+  const far = B.instance(matrices, { cast: false });
+  far.name = 'Campus distant woodland';
+  scene.add(far);
+}
+
 // A feathered landscape boundary replaces the hard rectangular green platform.
 // Surface lies below roads and equipment pads; no utility geometry is displaced.
 export function campusMeadow(scene) {

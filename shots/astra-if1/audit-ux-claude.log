@@ -1,0 +1,4 @@
+1440 story images, no overflow, scenario and Present: PASS
+360 story images, no overflow, scenario and Present: PASS
+20-second idle camera loop and keyboard cancellation: PASS
+Idle reset: pointer activity restarted the 20-second timer, orbit began again within 25 s of the move and the camera moved: PASS

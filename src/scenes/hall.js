@@ -582,9 +582,9 @@ export function build({ quality, model }) {
     });
     }
   });
-  // yellow fiber runway over the rows and a trunk to the network spine. A slightly muted safety yellow
-  // (representative) so the moving fiber ribbons, not the tray, stay the brightest thing in the data view.
-  const runwayMat = new THREE.MeshStandardMaterial({ color: 0xc9a431, roughness: 0.5, metalness: 0.05 });
+  // fiber runway over the rows and a trunk to the network spine, in neutral grey (representative; real runways are
+  // often yellow) so every saturated colour on screen is a keyed one and the moving fiber ribbons stay the brightest.
+  const runwayMat = new THREE.MeshStandardMaterial({ color: 0x7d848b, roughness: 0.5, metalness: 0.05 });
   rowZs.forEach(z => { N.box(rowX1 - rowX0, 0.04, 0.3, runwayMat, (rowX0 + rowX1) / 2, 4.3, z); N.box(rowX1 - rowX0, 0.1, 0.02, runwayMat, (rowX0 + rowX1) / 2, 4.35, z - 0.15); N.box(rowX1 - rowX0, 0.1, 0.02, runwayMat, (rowX0 + rowX1) / 2, 4.35, z + 0.15); });
   // rolled lips on the channel walls and a joint splice every 1.8 m, so the runway reads as a formed U-channel
   rowZs.forEach(z => {
@@ -764,6 +764,8 @@ export function build({ quality, model }) {
     wallFans.push({ p: [X1 - 1.76, fy, fz], axis: 'x', r: 0.56 });
   }
   if (fanCells.length) scene.add(hallFinishInstances('FANWALL_CELL', fanCells));
+  // the fan wall's pin sits on the face of its fans, mid-height, not above the wall's top edge
+  const fanSpot = { pos: [X1 - 1.8, 4.2, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } };
   const fans = spinners(wallFans, MAT.darkSteel, { speed: 4 }); if(hasCampusCatalog())campusCatalogRotor(fans.mesh); scene.add(fans.mesh);
   // facility water: insulated headers along the back wall, drops to every CDU
   const hdrY = 6.2;
@@ -1084,7 +1086,7 @@ export function build({ quality, model }) {
   tiles.rotation.x = -Math.PI / 2; tiles.position.set((X0 + X1) / 2, 0.17, 0); scene.add(tiles);
 
   // polished-concrete floor reflection, a hair above the slab, desktop only
-  if (quality.reflections) scene.add(floorMirror(X1 - X0 - 1, Z1 - Z0 - 1, { x: (X0 + X1) / 2, y: 0.155, z: 0, res: 0.85, strength: 0.16, blur: 0.56, tint: '#9aaaba' }));
+  if (quality.reflections) scene.add(floorMirror(X1 - X0 - 1, Z1 - Z0 - 1, { x: (X0 + X1) / 2, y: 0.155, z: 0, res: 0.4, strength: 0.16, blur: 0.56, tint: '#9aaaba' }));
 
   // light fixtures over the aisles: standing figures for scale
   // Standing scale figures use the same muted technician as the walkers (campus WALKER asset), so the
@@ -1185,7 +1187,7 @@ export function build({ quality, model }) {
       containment: { pos: [rowX0 + 2.5, 1.7, -9.7], view: { pos: [rowX0 - 4.4, 2.5, -7.2], target: [rowX0 + 2.5, 1.3, -9.7] } },   // through the pod's end doors, down the contained aisle
       [air ? 'inrow' : 'cdu']: cduSpot,
       fwater: { pos: [4, 6.8, -16.4], view: { pos: [2, 7, -6], target: [4, 5.8, -16.4] } },
-      fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
+      fanwall: fanSpot,
       network: { pos: [rowX0 + 5, 2.7, 10.5], view: { pos: [rowX0 + 5, 5, 18], target: [rowX0 + 5, 1.2, 10.5] } },
     },
     dataFlows, heatFlows, layers: { data: par },
@@ -1196,7 +1198,7 @@ export function build({ quality, model }) {
       // Heat keeps the long one-point view down the contained aisle toward the fan wall, over the end doors, so the
       // hot air is seen running the aisle's length; the power layer's containment view stays head-on to the doors.
       hotaisle: { pos: [rowX0 + 6.2, 1.7, -9.7], view: { pos: [rowX0 - 3, 3.6, -9.45], target: [rowX0 + 11.2, 1.3, -9.7] } },
-      fanwall: { pos: [X1 - 1.2, 6.4, -3], view: { pos: [10, 6, 10], target: [X1 - 1, 3, -3] } },
+      fanwall: fanSpot,
       riser: { pos: [X0 + 2.4, 8.5, -15.6], view: { pos: [X0 + 10, 10, -4], target: [X0 + 2.4, 5, -16.4] } },
       fire: { pos: [asdX, 2.9, asdZ], view: { pos: [-7.5, 2.2, -5.2], target: [-10.8, 3.4, -9] } },   // the detector box and its sampling pipe rising to the ceiling
     },

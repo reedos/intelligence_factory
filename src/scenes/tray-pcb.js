@@ -15,6 +15,7 @@
 import { trayPackage } from './gpu-package.js';
 import * as THREE from 'three';
 import { Clearance, segsOf, pointSeg } from './pcb-check.js';
+import { TEX } from '../app/render-quality.js';
 
 export const PCB_MATERIAL = 'Tray solder mask';
 export const RACK_PCB_MATERIAL = 'Rack tray solder mask';
@@ -528,7 +529,7 @@ function textures(accel, W, lod) {
   const { col, surf } = paintPcb(accel, { W, lod });
   const map = new THREE.CanvasTexture(col), data = new THREE.CanvasTexture(surf);
   map.colorSpace = THREE.SRGBColorSpace;
-  for (const t of [map, data]) { t.anisotropy = 8; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.flipY = false; }
+  for (const t of [map, data]) { t.anisotropy = Math.max(8, TEX.anisotropy); t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.flipY = false; }
   return { map, data };
 }
 export function pcbMaterial(accel, { mobile = false, lod = 'tray' } = {}) {

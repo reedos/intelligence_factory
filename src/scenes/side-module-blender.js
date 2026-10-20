@@ -1,8 +1,8 @@
 // Opt-in Blender geometry behind the existing module scene contract. World unit = 1 cm.
 // The asset is a representative layout, not a recovered production design. Exported
 // routes describe visible conductors; chip-internal paths are omitted; contact breakout uses representative PCB layers.
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { THREE, flow, laneFlow, setup, label, FLOW, COL, note, unitCol } from './side-kit.js';
+import { gltfLoader } from './gltf-loader.js';
+import { THREE, flow, laneFlow, setup, label, FLOW, COL } from './side-kit.js';
 import { applyArtDirection } from './module-art-direction.js';
 import { MODULE_VARIANTS, LRO_COLOR, inVariant, splitByZ, lroDieTop, lroIntro, lroPartCopy, dspMarkingTop } from './module-lro.js';
 import { moduleLabel, moduleTier, moduleName, normSide } from './lid-labels.js';
@@ -11,7 +11,6 @@ import { attachFlowRibbons } from '../flow-ribbons.js';
 import { tagHeat, balanceHeat, heatIntensity, PART_W } from '../heat.js';
 import { hardwareBounds, componentView } from '../app/housing-frame.js';
 import { footprint } from '../power-glow.js';
-import { OSFP_MM } from './osfp-size.js';
 
 let cached, pending;
 const CM = 100;
@@ -30,9 +29,9 @@ const PIN_OFFSET = {
 const key = name => name.replace(/[\s_]+/g, ' ').trim().toLowerCase();
 const cm = point => point.map(value => value * CM);
 
-export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=lanes2`) {
+export function preload(url = `${import.meta.env?.BASE_URL || '/'}models/osfp-module-runtime.glb?v=orig1`) {
   if (cached) return Promise.resolve(cached);
-  if (!pending) pending = new GLTFLoader().loadAsync(url).then(gltf => {
+  if (!pending) pending = gltfLoader().loadAsync(url).then(gltf => {
     cached = gltf;
     return gltf;
   }).catch(error => { pending = undefined; throw error; });
@@ -303,7 +302,26 @@ export function build({ quality, state, model: scenario, side: sideOption }) {
   // Heat mode warms the finned cover itself, brightest over the DSP and toward
   // the fin roots: a qualitative cue, not a temperature map.
   const cover = object('04_COVER'), shellHeat = { value: 0 }, coverBase = { value: 0 }, heatX = { value: dspAnchor[0] };
-  const shellMaterials = new Map();
+  const shellMaterials = new Map(), grain = !quality.mobile;
+  // Round 5 (desktop): brushed-aluminium grain on the shell, in world space (no UVs needed): fine streaks along the
+  // module's length that break up roughness and, faintly, color, faded out before they can alias - like the PCB weave.
+  const brushed = (shader, vertexHook) => {
+    if (!grain) return;
+    if (!shader.vertexShader.includes('vIfxWorld')) shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vIfxWorld;')
+      .replace(vertexHook, `${vertexHook}\nvIfxWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;`);
+    if (!shader.fragmentShader.includes('varying vec3 vIfxWorld')) shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vIfxWorld;');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+float ifxHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float ifxBrush(vec3 w) {
+  vec2 p = vec2(w.x / 1.6, (w.y + w.z) / 0.06);
+  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  float n = mix(mix(ifxHash(i), ifxHash(i + vec2(1.0, 0.0)), f.x), mix(ifxHash(i + vec2(0.0, 1.0)), ifxHash(i + vec2(1.0, 1.0)), f.x), f.y);
+  float fade = 1.0 - smoothstep(0.45, 0.9, fwidth(p.y));
+  return (n - 0.5) * fade;
+}`)
+      .replace('#include <map_fragment>', '#include <map_fragment>\nfloat ifxB = ifxBrush(vIfxWorld);\ndiffuseColor.rgb *= 1.0 + ifxB * 0.05;')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp(roughnessFactor + ifxB * 0.15, 0.05, 1.0);');
+  };
   cover.traverse(node => {
     if (!node.isMesh || !/Satin nickel aluminium/i.test(node.material?.name || '')) return;
     if (!shellMaterials.has(node.material)) {
@@ -320,11 +338,24 @@ export function build({ quality, state, model: scenario, side: sideOption }) {
           float ifxDx = (vIfxWorld.x - ifxHeatX) / 2.6;
           float ifxRise = clamp((vIfxWorld.y - ifxCoverBase) / 0.7, 0.0, 1.0);
           totalEmissiveRadiance *= ifxShellHeat * (0.18 + 0.82 * exp(-ifxDx * ifxDx)) * (1.0 - 0.6 * ifxRise);`);
+        brushed(shader, '#include <project_vertex>');
       };
-      m.customProgramCacheKey = () => 'ifx-module-shell-heat';
+      m.customProgramCacheKey = () => grain ? 'ifx-module-shell-heat-brushed' : 'ifx-module-shell-heat';
       shellMaterials.set(node.material, m);
     }
     node.material = shellMaterials.get(node.material);
+  });
+  // the rest of the shell (the base and its rails) takes the same grain, without the cover's heat cue
+  const covered = new Set(shellMaterials.values()), grained = new Map();
+  if (grain) model.traverse(node => {
+    if (!node.isMesh || covered.has(node.material) || !/Satin nickel aluminium/i.test(node.material?.name || '')) return;
+    if (!grained.has(node.material)) {
+      const m = node.material.clone();
+      m.onBeforeCompile = shader => brushed(shader, '#include <project_vertex>');
+      m.customProgramCacheKey = () => 'ifx-module-shell-brushed';
+      grained.set(node.material, m);
+    }
+    node.material = grained.get(node.material);
   });
   // The driver, TIA and laser sources get their own, dimmer heat glow so every
   // heat arrow starts at a warm source; their silicon is shared with the PIC otherwise.
@@ -367,12 +398,9 @@ export function build({ quality, state, model: scenario, side: sideOption }) {
   // which end of the link the reader is on: the switch cage's module, the tray's NIC cage's, or (H100, Rubin) one module at both
   const headLine = `${side === 'nic' && !tier.same ? `${tier.nicName} NIC-side module` : 'Pluggable module'} · ${moduleName(tier)}`;
   label(scene, tier.same ? `${headLine} · ${side === 'nic' ? `${tier.nicName} NIC end` : 'switch end'}, same module at both ends` : headLine, [0.6, -0.35, 2.6], '#e8ecf2', 0.32);
-  label(scene, `${OSFP_MM.len} × ${OSFP_MM.w} mm footprint · exploded spacing · representative internals`, [0.6, -0.72, 2.95], note, 0.17);
-  label(scene, `One DSP · ${tier.rate} · ${tier.lanes} TX + ${tier.lanes} RX at ${tier.lane} PAM4 · ${tier.ports === 1 ? `one ${tier.port} port` : `two ${tier.port} ports`}`, [0.6, -1.02, 3.25], unitCol, 0.17);
-  // End-to-end TX/RX explanations live in the panel. Placing them at the host
-  // connector would imply that light enters or leaves that electrical interface.
-  const modeNote = label(scene, 'Power and heat arrows are schematic across the exploded assembly.',
-    [0.6, -1.32, 3.55], note, 0.14);
+  // One caption line, as on the CPO and coherent levels: footprint, exploded spacing, representative internals, the
+  // DSP's lanes and the schematic arrows are in the level's intro and part cards. End-to-end TX/RX explanations live
+  // in the panel too: placed at the host connector they would imply that light enters or leaves that interface.
   const diagramLabels = scene.children.filter(o => o.isSprite);
   // The overview frames the captions with the hardware, so the fit keeps them inside the clear view and off the
   // bottom HUD (the drag hint, the scale bar, the legend): see presentation.clearBottomHud and stage.js safeBox.
@@ -411,7 +439,6 @@ export function build({ quality, state, model: scenario, side: sideOption }) {
       f.group.visible = amount === 1 && targetAmount === 1 && state.mode === mode && inVariant(kind, f.route.variant, rxFlow(f));
     }
     for (const sprite of diagramLabels) sprite.visible = amount === 1 && targetAmount === 1 && !state.selected;
-    modeNote.visible = amount === 1 && targetAmount === 1 && state.mode !== 'data' && !state.selected;
     lpoTag.visible = amount === 1 && targetAmount === 1 && lpo;
     lroTag.visible = amount === 1 && targetAmount === 1 && kind === 'lro' && !state.selected;
   }
@@ -484,7 +511,7 @@ export function build({ quality, state, model: scenario, side: sideOption }) {
     housingBounds: hardwareBounds(model).union(captionBounds),
     camera: { pos: quality.mobile ? [1.6, 13.5, 20.5] : [1.6, 12, 17.5], target: [0.5, 2.1, 0], near: 0.05, far: 300, min: 1.2, max: 40,
       portrait: { pos: [4.2, 9.5, 12], target: [0.9, 2.1, 0.2] } },
-    hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers },
+    hotspots: { fingers: hs.fingers, dcdc: hs.dcdc, dsp: hs.dsp, driver: hs.driver, tia: hs.tia, lasers: hs.lasers },
     dataHotspots: { fingers: hs.fingers, dsp: hs.dsp, driver: hs.driver, lasers: hs.lasers, mzm: hs.mzm, mpo: hs.mpo, pd: hs.pd, tia: hs.tia },
     heatHotspots: { dsp: dspHeat, shell: hs.shell },
     variant: {

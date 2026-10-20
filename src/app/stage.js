@@ -10,7 +10,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { HardwareBokehPass } from './hardware-bokeh.js';
-import { DETAIL } from '../kit.js';
+import { DETAIL, setTextureAnisotropy } from '../kit.js';
 import { TIERS, qualityPressure } from './render-quality.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { VOLT, BASIS } from '../data.js';
@@ -35,7 +35,7 @@ import { poseAt, planPath } from './camera-path.js';
 import { occupancyBuilder } from './occupancy.js';
 import { buildTriGrid } from './tri-grid.js';
 import { fitHousing, fitComponent } from './housing-frame.js';
-import { overlapsRect, pinLabelBox, declutterPins } from './pin-layout.js';
+import { overlapsRect, pinLabelBox, declutterPins, keepInside } from './pin-layout.js';
 import { renderIntro } from './intro-hook.js';
 import { createSceneCaptions } from './scene-captions.js';
 
@@ -69,7 +69,7 @@ if (!['native', 'original'].includes(new URLSearchParams(location.search).get('m
   coherentBuilder = links.coherentBuilder; copperBuilder = links.copperBuilder;
 }
 const BUILDERS = [across, campus, hall, rackBuilder, trayBuilder, chipBuilder, moduleBuilder, cpoBuilder, coherentBuilder, copperBuilder];
-export const MAIN_LEVELS = 6, MODULE_LEVEL = 6, CPO_LEVEL = 7;
+const MAIN_LEVELS = 6, MODULE_LEVEL = 6, CPO_LEVEL = 7, HALL_LEVEL = 2;
 export const isSide = i => i >= MAIN_LEVELS;
 // how the reader entered the side levels: the level, the door part and the layer, restored by Back out. A link opened
 // straight into a side level has none, and Back out goes to the level that holds that diagram instead.
@@ -78,7 +78,7 @@ const SIDE_PARENT = { 6: 4, 7: 2, 8: 0, 9: 3 };           // module: the tray (N
 const sideParent = i => (i === 6 ? (store.moduleSide === 'nic' ? 4 : 2) : SIDE_PARENT[i]);
 // where a part's go-button leads: a number, or 'out' for the side level's way back
 const backTarget = () => sideEntered ? sideFrom : sideParent(ui.scene) ?? 4;
-export const drillOf = p => p?.drill === 'out' ? backTarget() : p?.drill;
+const drillOf = p => p?.drill === 'out' ? backTarget() : p?.drill;
 // the pluggable module inside the optics: full DSP, half-retimed (LRO: DSP on transmit only) or no DSP (LPO); a view of
 // the module only, since the fabric this scenario counts still uses DSP modules
 let moduleVariant = 'dsp';
@@ -86,11 +86,6 @@ let moduleVariant = 'dsp';
 // Bailly-class package); kept in the address as ?cpo=mzm so a link opens the same package (scenes/cpo-variants.js)
 let cpoVariant = new URLSearchParams(location.search).get('cpo') === 'mzm' ? 'mzm' : 'ring';
 // tours always narrate the DSP module and the ring engines, so entering one puts both views back
-export function resetVariant() {
-  if (moduleVariant !== 'dsp') { moduleVariant = 'dsp'; applyVariant(); }
-  if (cpoVariant !== 'ring') { cpoVariant = 'ring'; applyCpoVariant(); }
-  if (store.moduleSide !== 'switch') setModuleSide('switch');
-}
 function applyCpoVariant() {
   built[CPO_LEVEL]?.variant?.set?.(cpoVariant);
   try {
@@ -151,20 +146,22 @@ on('module-side', async () => {
 document.querySelectorAll('[data-module-side]').forEach(b => b.addEventListener('click', () => setModuleSide(b.dataset.moduleSide)));
 // whether moving from one level to another goes in: a side level counts as inside whatever it was entered from, and
 // moving between two side levels (a tour crossing from the module to the CPO package) goes across, drawn as in
-export const isInward = (from, to) => isSide(to) ? true : isSide(from) ? false : to > from;
+const isInward = (from, to) => isSide(to) ? true : isSide(from) ? false : to > from;
 
 // per scene defaults: bloom, ambient occlusion radius (world units, 0 = off), exposure. A scene can override any of
 // these, and pick its lighting environment and depth of field, by returning `look` from build():
 //   look: { bloom, threshold, ao, exposure, env: 'room' | 'studio' | 'indoor' | 'sky' | 'night', envIntensity, dof: true }
+// `bloomCap` (stage only) caps whatever bloom the level's own look asks for.
+// `lift` here (stage only) multiplies a level's own lights and environment after its art direction has set them.
 const LOOK = [
   { bloom: 0.8, threshold: 0.95, ao: 0, exposure: 1.0 },
   { bloom: 0.85, threshold: 0.86, ao: 0, exposure: 1.0 },
   { bloom: 0.5, threshold: 1.0, ao: 0.6, exposure: 1.0 },
-  { bloom: 0.55, threshold: 1.0, ao: 0.06, exposure: 1.0 },
+  { bloom: 0.55, threshold: 1.0, ao: 0.06, exposure: 1.0, lift: 1.25 },   // the rack: graphite on black, lit a quarter up
   { bloom: 0.55, threshold: 1.35, ao: 0.12, exposure: 0.95 },
   { bloom: 0.6, threshold: 1.7, ao: 0.15, exposure: 0.95 },
   { bloom: 0.6, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // inside the module
-  { bloom: 0.6, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // the CPO package
+  { bloom: 0.6, threshold: 1.6, ao: 0.12, exposure: 0.95, bloomCap: 0.32 },   // the CPO package: a cap, so the lit switch die stays readable
   { bloom: 0.6, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // the coherent module
   { bloom: 0.5, threshold: 1.6, ao: 0.12, exposure: 0.95 },   // the copper cables
 ];
@@ -207,7 +204,7 @@ function legends(M) {
       nvl ? [['hot', 'Heat into the plates'], ['cool', 'Supply'], ['warm', 'Return'], ['air', 'Fan air']] : [['hot', 'Heat into the sinks'], ['air', 'Air through the server']],
       [['hot', `Heat out of the ${M.accel.dies > 1 ? 'dies' : 'die'}`], ['air', 'Out of HBM']],
       [['hot', 'Heat out of the chips'], ['air', 'Air through the fins']],
-      [['hot', 'Heat into the plate'], ['cool', 'Water through the plate']],
+      cpoVariant === 'mzm' ? [['hot', 'Heat into the sink'], ['air', 'Air through the fins']] : [['hot', 'Heat into the plate'], ['cool', 'Water through the plate']],   // the Mach-Zehnder package is air-cooled
       [['hot', 'Heat out of the chips']],
       [['hot', 'Little heat']],
     ],
@@ -229,29 +226,36 @@ const hotspotsFor = (i, mode = ui.mode) => (built[i] && { power: built[i].hotspo
 // The number on a part's pin: its place among the parts its level draws in that layer. Tours number their steps with
 // it too, so the number beside a step is always the one on the part in the view. (tools/parts.mjs checks every listed
 // part has a pin, so a level not built yet numbers the same as it will once it is.)
-export const pinNumber = (scene, id, mode = ui.mode) => { const k = partsFor(scene, mode).findIndex(p => p.id === id); return k < 0 ? null : k + 1; };
-export const partCount = (scene, mode = ui.mode) => partsFor(scene, mode).length;
 const voltFor = s => ui.mode === 'heat' ? { ...VOLT[s.heatVolt], short: s.heatShort, name: VOLT[s.heatVolt].name } : VOLT[ui.mode === 'data' ? s.dataVolt : s.volt];
 const flowsFor = b => (ui.mode === 'data' ? b.dataFlows : ui.mode === 'heat' ? b.heatFlows : b.flows) || [];
 export const mobile = matchMedia('(max-width: 760px), (pointer: coarse)').matches;
-export const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// reduced motion: camera moves cut, and the flow clock stops, so flows hold as a still frame (they stay drawn). Live,
+// so changing the setting with the page open takes effect at once.
+const reducedQuery = matchMedia('(prefers-reduced-motion: reduce)');
+export let reduced = reducedQuery.matches;
+reducedQuery.addEventListener?.('change', e => { reduced = e.matches; });
 // the 3D view/stage region (nav, viewer and the parts panel, which holds the tour too): single-character
 // shortcuts anywhere on the page only fire while this has focus or the pointer, so they never hijack a key
 // meant for something else on the page - a form, a screen reader command, dictation (WCAG 2.1.4)
 const stageRegion = document.querySelector('.stage');
-export const stageActive = () => !!stageRegion && (stageRegion.contains(document.activeElement) || stageRegion.matches(':hover'));
+const stageActive = () => !!stageRegion && (stageRegion.contains(document.activeElement) || stageRegion.matches(':hover'));
 // what a scene may spend: shadows, the floor mirror (renders the scene twice) and depth of field are desktop only
 const quality = { shadows: !mobile, mobile, reflections: !mobile, dof: !mobile };
+const CLOSE_GLOW = { 5: .3, 7: .3 };   // the power glow's share on close-up levels (getScene)
 const lookOf = i => ({ envIntensity: 0.35, env: 'room', dof: true, ...LOOK[i], ...(built[i]?.look || {}) });
 
 // ---------- renderer ----------
 const view = $('view'), canvas = $('gl');
 let renderer;
-try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' }); }
+// antialias off: every frame draws into the composer's own (multisampled on desktop) target and only full-screen passes
+// reach the canvas, so a multisampled default framebuffer was VRAM and bandwidth for nothing (round 5)
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' }); }
 catch (e) { $('veil').textContent = 'This view needs WebGL, which this browser has turned off.'; throw e; }
 const maxRatio = Math.min(devicePixelRatio, mobile ? 1.5 : 1.75);
 let ratio = maxRatio;
 renderer.setPixelRatio(ratio);
+// canvas textures filter sharply at grazing angles on desktop (the GPU's maximum anisotropy); phones keep 4
+setTextureAnisotropy(mobile ? 4 : renderer.capabilities.getMaxAnisotropy());
 
 // ---------- the quality governor ----------
 // Frame time decides what each level can afford, not a guess about the device. Each tier sheds the next most costly
@@ -303,11 +307,23 @@ function envScene(kind) {
   const s = new THREE.Scene(), box = (w, h, d, color, k, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(k), side: THREE.BackSide })); m.position.set(x, y, z); s.add(m); return m; };
   const panel = (w, h, color, k, x, y, z, rx, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(k), side: THREE.DoubleSide })); m.position.set(x, y, z); m.rotation.set(rx, ry, 0); s.add(m); };
   if (kind === 'studio') {            // a dark stage: a big softbox overhead-front, cool and warm rim strips, a dim floor
-    box(20, 12, 20, '#0b0d11', 1, 0, 3, 0);
+    // the walls darken toward the floor, so glossy silicon and lids pick up a soft reflection gradient at any angle
+    const walls = new THREE.BoxGeometry(20, 12, 20, 1, 6, 1), wc = [], wp = walls.attributes.position, low = new THREE.Color('#0b0d11'), high = new THREE.Color('#1d212a');
+    for (let i = 0; i < wp.count; i++) { const c = low.clone().lerp(high, THREE.MathUtils.clamp((wp.getY(i) + 1) / 7, 0, 1)); wc.push(c.r, c.g, c.b); }
+    walls.setAttribute('color', new THREE.Float32BufferAttribute(wc, 3));
+    const wm = new THREE.Mesh(walls, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })); wm.position.set(0, 3, 0); s.add(wm);
     panel(8, 5, '#ffffff', 4.5, 0, 7, 4, -Math.PI / 2 + 0.5, 0);
     panel(1.2, 7, '#bcd4ff', 3.2, -8, 3, -2, 0, Math.PI / 2);
     panel(1.2, 7, '#ffd9b0', 2.6, 8, 3, -2, 0, -Math.PI / 2);
-    panel(20, 20, '#1a1d22', 1, 0, -2.9, 0, -Math.PI / 2, 0);
+    // round 5: more shapes for metal to reflect - a long overhead strip pair, a large dim front-left softbox and a
+    // back-left softbox - and a floor that brightens toward the horizon, so rough metal no longer averages an empty sky
+    for (const x of [-2.4, 2.4]) panel(0.9, 14, '#f4f7ff', 1.5, x, 8.8, -1, Math.PI / 2, 0);
+    panel(7, 5, '#e6edf8', 1.15, -6.5, 3.2, 7.5, 0, -0.7);
+    panel(6, 6, '#dfe8f6', 1.3, -6.5, 5.4, -9.6, 0, 0);   // back-left: where the tray and package cameras' reflections off flat silicon land
+    const floor = new THREE.PlaneGeometry(20, 20, 1, 8), fc = [], fp = floor.attributes.position, near = new THREE.Color('#1a1d22'), far = new THREE.Color('#30343a');
+    for (let i = 0; i < fp.count; i++) { const r = Math.abs(fp.getY(i)) / 10, c = near.clone().lerp(far, r); fc.push(c.r, c.g, c.b); }
+    floor.setAttribute('color', new THREE.Float32BufferAttribute(fc, 3));
+    const fm = new THREE.Mesh(floor, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide })); fm.position.set(0, -2.9, 0); fm.rotation.x = -Math.PI / 2; s.add(fm);
   } else if (kind === 'indoor') {     // a hall: rows of ceiling panels over grey walls
     box(40, 8, 40, '#3a3e44', 1, 0, 3, 0);
     for (let x = -15; x <= 15; x += 6) for (let z = -15; z <= 15; z += 6) panel(3, 1, '#fff4e6', 6, x, 6.9, z, Math.PI / 2, 0);
@@ -325,6 +341,21 @@ function envScene(kind) {
   return s;
 }
 function envFor(kind) { return envs[kind] ||= pmrem.fromScene(envScene(kind), 0.04).texture; }
+// Levels 3-9 (round 5): a soft studio backdrop in place of flat black, so dark hardware keeps its silhouette - lighter
+// behind the subject, falling to near black at the floor - filtered in linear light and dithered by the finish pass's grain, so it does not band. Levels 0-2 keep theirs.
+let backdropTex = null;
+function backdrop() {
+  if (backdropTex) return backdropTex;
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const g = c.getContext('2d'), lin = g.createLinearGradient(0, 0, 0, 256);
+  lin.addColorStop(0, '#121821'); lin.addColorStop(0.45, '#0d121a'); lin.addColorStop(1, '#05070b');
+  g.fillStyle = lin; g.fillRect(0, 0, 256, 256);
+  const rad = g.createRadialGradient(128, 100, 0, 128, 100, 150);
+  rad.addColorStop(0, 'rgba(34,42,56,0.45)'); rad.addColorStop(1, 'rgba(34,42,56,0)');
+  g.fillStyle = rad; g.fillRect(0, 0, 256, 256);
+  backdropTex = new THREE.CanvasTexture(c); backdropTex.colorSpace = THREE.SRGBColorSpace;
+  return backdropTex;
+}
 
 export const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 1000);
 export const controls = new OrbitControls(camera, canvas);
@@ -345,10 +376,39 @@ function getScene(i) {
     if (b.heatFlows) balanceHeat(b.heatFlows);
     // the power layer's glow on every part that draws power, in the level's own power color (src/power-glow.js)
     attachPowerGlow(b, { color: VOLT[SCENES()[i].volt]?.css, reduced, mode: ui.mode });
+    // close-ups (the package, the CPO switch): the glow round the parts that draw most covered the part being explained
+    // in white (round-2 review), so it is held to a fraction there
+    const glowCut = CLOSE_GLOW[i];
+    if (glowCut && b.powerGlow) {
+      // and halved again (about 0.15) while a part is selected, so the selection does not sit in white fog (round 5)
+      const g = b.powerGlow, boost = g.mesh.material.uniforms.uBoost, setTier = g.setTier.bind(g), update = g.update.bind(g);
+      let base = boost.value;
+      const apply = () => { boost.value = base * glowCut * (ui.selected ? 0.5 : 1); };
+      g.setTier = t => { setTier(t); base = boost.value; apply(); };
+      g.update = (...a) => { apply(); return update(...a); };
+    }
     b.powerGlow?.setTier(tierOf(i));
     built[i] = b;
+    const lift = LOOK[i]?.lift;
+    if (lift) {
+      b.scene.children.forEach(o => { if (o.isLight) o.intensity *= lift; });
+      b.look = { ...b.look, envIntensity: lookOf(i).envIntensity * lift };
+    }
     const L = lookOf(i);
     b.scene.environment = envFor(L.env); b.scene.environmentIntensity = L.envIntensity; b.model = store.M;
+    if (i >= 3 && b.scene.background?.isColor) {
+      b.scene.background = backdrop();
+      b.scene.fog?.color.set(0x11161f);   // the rack's floor fades into the backdrop at the horizon, not to a darker band
+    }
+    // desktop with a discrete GPU (round 5): finer, softer key-light shadows on the close-up levels - 4096 maps, a
+    // wider PCF disk, and on the tray a frustum of ±5 units instead of ±6 (about 0.25 mm per shadow texel, was 0.6)
+    if (i >= 3 && quality.shadows && !integrated) b.scene.traverse(o => {
+      if (!o.isLight || !o.castShadow || !o.shadow) return;
+      if (o.shadow.mapSize.x < 4096) o.shadow.mapSize.set(4096, 4096);
+      o.shadow.radius = 2.5;
+      const cam = o.shadow.camera;
+      if (i === 4 && cam.isOrthographicCamera && cam.right > 5) { cam.left = cam.bottom = -5; cam.right = cam.top = 5; cam.updateProjectionMatrix(); }
+    });
     applyMode(b);
     b._mirrors = []; b.scene.traverse(o => { if (o.isReflector) b._mirrors.push(o); });
     b._mirrors.forEach(m => { m.visible = tierOf(i).mirror; });
@@ -410,7 +470,7 @@ function getComposer(i) {
   // Layer-specific bloom keeps dense heat/signal fields crisp without dimming
   // the same hardware's other layers. Reapply when returning to a cached scene.
   const L = lookOf(i);
-  composers[i].flowBloom.strength = (L.bloomByMode?.[ui.mode] ?? L.bloom) * .7;
+  composers[i].flowBloom.strength = Math.min(L.bloomByMode?.[ui.mode] ?? L.bloom, L.bloomCap ?? Infinity) * .7;
   return composers[i];
 }
 function disposeScene(b) {
@@ -605,7 +665,10 @@ function safeBox() {
   const toY = px => 1 - 2 * (px - vr.top) / vr.height;
   // a level whose overview carries captions under its hardware (the module) also keeps them off the bottom HUD
   const bottom = built[ui.scene]?.presentation?.clearBottomHud ? ['.hud.bl .hint', '.hud.bl .scalebar', '#legend'] : [];
-  for (const sel of ['.hud.tl', '.hud.tr', '#hud-btns', ...bottom]) {        // the clock and the phone buttons sit below the view
+  // on a phone the side levels' variant toggles stack under the title, over the model: keep the overview below them
+  // (round-5 review: the module sat under its toggles with empty view beneath)
+  const toggles = vr.width < 640 ? ['#optics-variant', '#module-side', '#cpo-variant'] : [];
+  for (const sel of ['.hud.tl', '.hud.tr', '.present-launch', '#hud-btns', ...toggles, ...bottom]) {        // the clock and the phone buttons sit below the view
     const el = document.querySelector(sel); if (!el || el.hidden || getComputedStyle(el).display === 'none') continue;
     const r = el.getBoundingClientRect(); if (!r.width) continue;
     if (r.top - vr.top < vr.height / 2) box.y1 = Math.min(box.y1, toY(r.bottom + 14));   // overlay along the top
@@ -692,9 +755,12 @@ export function setCampusFocus(enabled) { campusSoftFocus = !!enabled; emit('cam
 function housingFrame(c) {
   return fitHousing(c, built[ui.scene]?.housingBounds, view.clientWidth, view.clientHeight, safeBox());
 }
+// phones held upright (round-1 review, 10/11/2026): the rack's overview closes in a little, since it sat small in the
+// frame, and the package's pulls back, since it cut pins off at the sides
+const PORTRAIT_PULL = { 3: .9, 5: 1.4 };
 function cameraPreset(c) {
   if (c.detailSize) return frame(built[ui.scene], { pos: c.focus, view: c });
-  return housingFrame(cameraPresetFor(c, view.clientWidth, view.clientHeight));
+  return housingFrame(cameraPresetFor(c, view.clientWidth, view.clientHeight, PORTRAIT_PULL[ui.scene]));
 }
 const overviewCamera = b => ({ ...b.camera, ...(b.cameraByMode?.[ui.mode] || {}) });
 export function setCampusView(name) {
@@ -704,15 +770,6 @@ export function setCampusView(name) {
   const opening = cameraPreset(c);
   flyTo(opening.pos, opening.target, reduced ? 0.01 : 1.8);
   emit('campus-presentation', { view: name });
-}
-export function setInspectionView(name) {
-  const c = built[ui.scene]?.inspection?.views?.[name]; if (!c) return;
-  emit('user-camera'); deselect();
-  built[ui.scene]?.inspection?.setView?.(name);
-  built[ui.scene].inspection.currentView = name;
-  emit('campus-presentation', { view: name });
-  const opening = cameraPreset(c);
-  flyTo(opening.pos, opening.target, reduced ? .01 : 1.5, { detail: !!c.detailSize });
 }
 
 // ---------- camera moves ----------
@@ -724,10 +781,9 @@ export const setCinema = on => { cinema = on; if (!on) drift = null; };
 export const setTourPace = p => { tourPace = p; };
 // level transitions: Full is the whole dive (about 2 s a level), Quick the same moves in about 60% of the time, Instant
 // a straight cut. The reader's choice is remembered; reduced motion always cuts.
-export const TRANSITIONS = { full: 1, quick: 0.6, instant: 0 };
+const TRANSITIONS = { full: 1, quick: 0.6, instant: 0 };
 let transitions = 'quick';
 try { const v = localStorage.getItem('ifx-transitions'); if (Object.hasOwn(TRANSITIONS, v)) transitions = v; } catch { /* stay at Quick */ }
-export const getTransitions = () => transitions;
 export function setTransitions(v) {
   if (!Object.hasOwn(TRANSITIONS, v)) return;
   transitions = v;
@@ -1019,10 +1075,15 @@ export function settle() { drift = null; if (tween) { camera.position.copy(tween
 // Two groups in one bar: the six levels in a line, then the four interconnects (the side levels), each under a small
 // label of its own. Wide screens show all ten as tabs; narrower ones a picker whose menu has the same two sections
 // (Reed, 10/01/2026: the interconnects stay off the 1-6 zoom path, but in plain sight).
-const GROUPS = [['steps-main', 'Levels 1–6', false], ['steps-side', 'Interconnects', true]];
+const GROUPS = [['steps-main', 'Levels 1–6', false], ['steps-side', 'Interconnects · side trips', true]];
 const whereOf = s => (s.side ? 'Interconnects' : `Level ${s.n} of ${MAIN_LEVELS}`);
 const tabName = s => s.tab || s.title;
-const metaOf = (s, v) => `${s.kicker ? `${s.kicker} · ` : ''}${v.short} · ${s.scale}`;
+// a level's subtitle in the tabs and the picker: its size, the same in every layer and short enough for one line (the
+// layer's own word stays on the view's heading); the pluggable module's names the module on show
+// an interconnect tab's subtitle is one short token ("package", not "package, representative"; "800G 2×DR4", not the
+// module's end as well; "DAC·ACC·AEC"), so the four tabs keep one line and nothing is cut off with an ellipsis
+// the module tab gives its rate alone ("800G"): "800G 2×DR4" was cut to "800G 2×D…" at 1280 px (round-5 review)
+const metaOf = s => s.id === 'module' ? s.kicker.split(' ')[0] : s.side ? (s.kicker || s.scale).split(' · ')[0].split(', ')[0].replace(/\s*\/\s*/g, '·') : s.scale;
 const stepsEl = $('steps'), stepBtns = [], stepGroups = [];
 for (const [cls, label, side] of GROUPS) {
   const g = document.createElement('div'), h = document.createElement('span'), row = document.createElement('div');
@@ -1064,7 +1125,7 @@ function renderLevelPick() {
   levelItems.forEach((b, i) => {
     const t = SCENES()[i], v = voltFor(t);
     b.style.setProperty('--c', v.css);
-    b.innerHTML = `<span class="n">${t.side ? '+' : t.n}</span><span class="t">${tabName(t)}</span><span class="meta"><span class="dot"></span><span>${metaOf(t, v)}</span></span>`;
+    b.innerHTML = `<span class="n">${t.side ? '+' : t.n}</span><span class="t">${tabName(t)}</span><span class="meta"><span class="dot"></span><span>${metaOf(t)}</span></span>`;
     if (i === cur) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
   });
 }
@@ -1078,8 +1139,8 @@ function renderSteps() {
     const s = SCENES()[i], v = voltFor(s);
     b.style.setProperty('--c', v.css);
     b.innerHTML = s.side
-      ? `<span class="top"><span class="t">${tabName(s)}</span></span><span class="meta"><span class="dot"></span><span>${s.kicker || s.scale}</span></span>`
-      : `<span class="top"><span class="n">${s.n}</span><span class="t">${s.title}</span></span><span class="meta"><span class="dot"></span><span>${v.short} · ${s.scale}</span></span>`;
+      ? `<span class="top"><span class="t">${tabName(s)}</span></span><span class="meta"><span class="dot"></span><span>${metaOf(s)}</span></span>`
+      : `<span class="top"><span class="n">${s.n}</span><span class="t">${s.title}</span></span><span class="meta"><span class="dot"></span><span>${metaOf(s)}</span></span>`;
     if (i === MODULE_LEVEL) b.dataset.module = '';
     b.setAttribute('aria-label', s.side ?`${tabName(s)}${s.kicker ? `, ${s.kicker}` : ''}, ${v.name}` : `${s.n}. ${s.title}, ${v.name}`);
   });
@@ -1114,6 +1175,9 @@ export function setMode(m) {
     const opening = cameraPreset(overviewCamera(built[ui.scene]));
     flyTo(opening.pos, opening.target, 1.1);
   }
+  // say the layer, not the level again (the reader stayed on this level); a kept part is named after it
+  const parts = ui.scene >= 0 ? partsFor(ui.scene) : [], kept = parts.find(p => p.id === ui.selected);
+  announce(`${{ power: 'Power', data: 'Data', heat: 'Heat' }[m]} layer${kept ? `: part ${parts.indexOf(kept) + 1} of ${parts.length}, ${kept.title}` : ''}`);
   emit('mode', m);
 }
 document.querySelectorAll('[data-mode]').forEach(x => x.addEventListener('click', () => setMode(x.dataset.mode)));
@@ -1124,6 +1188,9 @@ let pins = [];
 let expandedPins = null;          // ids of a pin group the reader opened (small screens)
 const pinGroups = new Map();
 let groupCued = false;   // the first group badge of a visit pulses, once, to say it opens
+// one polite line for screen readers on each move (#nav-live): the level, then the part picked in it
+const placeOf = s => (s.side ? `Interconnects, ${s.title}` : `Level ${s.n}, ${s.title}`);
+const announce = t => { const el = $('nav-live'); if (el && el.textContent !== t) el.textContent = t; };
 function buildPanel(i) {
   const s = SCENES()[i], parts = partsFor(i);
   let intro = built[i]?.variant?.intro?.(ui.mode) || { power: s.intro, data: s.dataIntro, heat: s.heatIntro }[ui.mode];
@@ -1132,6 +1199,7 @@ function buildPanel(i) {
   }
   renderIntro($('intro'), intro);
   $('hud-title').textContent = s.side ? s.title : `${s.n}. ${s.title}`;
+  canvas.setAttribute('aria-label', `3D view of ${placeOf(s)}, ${s.scale}. Its ${parts.length} numbered parts are listed in the Parts pane.`);
   $('optics-variant').hidden = i !== MODULE_LEVEL;
   const sideToggle = $('module-side'); if (sideToggle) sideToggle.hidden = i !== MODULE_LEVEL;
   const cpoToggle = $('cpo-variant'); if (cpoToggle) cpoToggle.hidden = i !== CPO_LEVEL;
@@ -1146,7 +1214,8 @@ function buildPanel(i) {
   $('hud-sub').textContent = `${s.kicker ? `${s.kicker} · ` : ''}${built[i]?.variant?.sub?.(ui.mode) || voltFor(s).name} · ${s.scale}`;
   const list = $('parts'); list.innerHTML = '';
   $('parts-k').textContent = `${{ power: 'Power', data: 'Data', heat: 'Heat' }[ui.mode]} · ${s.side ? 'interconnects' : `level ${s.n}`} · ${parts.length} parts`;
-  const tabN = $('parts-n'); if (tabN) { tabN.textContent = parts.length; tabN.setAttribute('aria-label', `, ${parts.length} parts`); }
+  // the count is drawn for the eye; the tab's own name carries it for a screen reader (aria-label on a bare span is ignored)
+  const tabN = $('parts-n'); if (tabN) { tabN.textContent = parts.length; tabN.setAttribute('aria-hidden', 'true'); tabN.parentElement.setAttribute('aria-label', `Parts, ${parts.length}`); }
   const playThese = $('play-these');
   if (playThese) { playThese.textContent = `▶ Play 1 to ${parts.length}`; playThese.hidden = !parts.length; }
   const overviewRow = document.createElement('li'), overview = document.createElement('button');
@@ -1167,6 +1236,7 @@ function buildPanel(i) {
   pins = parts.filter(p => hs[p.id]).map((p) => {
     const el = document.createElement('button');
     el.type = 'button'; el.className = 'pin'; el.dataset.id = p.id;
+    el.tabIndex = -1;   // out of the tab order: the Parts list holds the same parts, in order, for the keyboard
     el.innerHTML = `<span class="num">${parts.indexOf(p) + 1}</span><span class="lbl">${p.title}</span>`;
     el.setAttribute('aria-label', p.title);
     el.addEventListener('click', () => select(p.id, true));
@@ -1174,10 +1244,14 @@ function buildPanel(i) {
     return { el, id: p.id, pos: V(hs[p.id].pos), mapNamed: !!hs[p.id].mapNamed };
   });
   // Heat motion is drawn on one log rule (src/heat.js): the legend says so, so the compression is not hidden.
-  $('legend').innerHTML = legends(store.M)[ui.mode][i].map(([k, l]) => `<span class="legend-item" style="--c:${VOLT[k].css}"><span class="sw"></span>${l}</span>`).join('')
+  // data-k lets a swatch carry a pattern as well as a hue (styles.css: water dashed, medium and high voltage thicker);
+  // the map's state fills are keyed too, since unexplained color reads as data
+  $('legend').innerHTML = legends(store.M)[ui.mode][i].map(([k, l]) => `<span class="legend-item" data-k="${k}" style="--c:${VOLT[k].css}"><span class="sw"></span>${l}</span>`).join('')
+    + (i === 0 && ui.mode === 'power' ? '<span class="legend-item" data-k="fill"><span class="sw"></span>fill = grid carbon, g/kWh</span>' : '')
     + (ui.mode === 'heat' ? '<span class="legend-note">Heat on a log scale: each step ≈ 10× the power</span>' : '');
   markCurrent(i);
-  $('card').hidden = true; ui.selected = null;
+  $('card').hidden = true; ui.selected = null; setExposure();
+  announce(placeOf(s));
 }
 // bring the selected row and its card into the side pane's view, scrolling the pane alone (never the page): both
 // when they fit, otherwise the card's top
@@ -1214,11 +1288,16 @@ export function select(id, fly) {
   const hs = hotspotsFor(ui.scene)[id];
   controls.minDistance = hs?.view?.close ? Math.min(levelMin, 0.8 * V(viewFor(hs).pos).distanceTo(V(viewFor(hs).target))) : levelMin;
   if (fly) { const h = hs; if (h?.view) { const f = frame(built[ui.scene], h); flyTo(f.pos, f.target, 1.1, { detail: !!h.view.detailSize }); } }
+  setExposure(hs);
   revealInPane([document.querySelector(`#parts button[data-id="${id}"]`)?.closest('li'), $('card')]);
+  announce(`${placeOf(SCENES()[ui.scene])}: part ${parts.indexOf(p) + 1} of ${parts.length}, ${p.title}`);
   emit('select', { scene: ui.scene, mode: ui.mode, id });
 }
-export function deselect() {
-  ui.selected = null; $('card').hidden = true; controls.minDistance = levelMin;
+// a close part view may ask for less exposure than its level (the tray's GPU close-up washed out pale): `exposure` on
+// the hotspot scales the level's own while that part is selected
+function setExposure(h = null) { if (ui.scene >= 0) renderer.toneMappingExposure = lookOf(ui.scene).exposure * (h?.exposure ?? 1); }
+function deselect() {
+  ui.selected = null; $('card').hidden = true; controls.minDistance = levelMin; setExposure();
   pins.forEach(p => p.el.classList.remove('on'));
   document.querySelectorAll('#parts button').forEach(b => b.setAttribute('aria-pressed', String(b.hasAttribute('data-overview'))));
 }
@@ -1229,6 +1308,7 @@ async function selectOverview() {
   await show({ scene: ui.scene, mode: ui.mode, part: null }, { scroll: false });
   if (focusOverview) document.querySelector('#parts button[data-overview]')?.focus({ preventScroll: true });
   revealInPane([$('intro')]);
+  announce(`${placeOf(SCENES()[ui.scene])}: overview`);   // arrow keys reach Overview too: say so, as for a part
 }
 export function setModuleExplode(value, { frame: reframe = true } = {}) {
   const b = built[ui.scene]; if (!b?.presentation) return;
@@ -1252,7 +1332,7 @@ export function cycle(d) {
   if (n === 0) selectOverview();
   else select(parts[n - 1].id, true);
 }
-export const hasPart = (scene, id, mode = ui.mode) => !!(PARTS_BY()[mode][SCENES()[scene].id] || []).find(p => p.id === id);
+const hasPart = (scene, id, mode = ui.mode) => !!(PARTS_BY()[mode][SCENES()[scene].id] || []).find(p => p.id === id);
 
 // ---------- level transitions ----------
 // Going in, the camera dives at the part that holds the next level (the hall on the campus, a rack in the hall, a
@@ -1301,6 +1381,16 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------- scene switching ----------
 let busy = false, queued = null, goingTo = -1, levelMin = 0;
+let idlePreload = 0, loadingAssets = false;
+const priorProgress = THREE.DefaultLoadingManager.onProgress;
+THREE.DefaultLoadingManager.onProgress = (url, loaded, total) => {
+  priorProgress?.(url, loaded, total);
+  if (!loadingAssets) return;
+  let count = veilEl.querySelector('.asset-progress');
+  if (!count) { count = document.createElement('small'); count.className = 'asset-progress'; veilEl.append(count); }
+  count.textContent = `Assets ready: ${loaded} / ${total}`;
+};
+
 export async function go(i, fromId, { force = false, keepCamera = false, fromShow = false, side } = {}) {
   if (!force && !fromShow) showSeq++;                      // the reader moved: drop any jump still waiting for its scene
   if (busy) { queued = [i, fromId, { force, keepCamera, side }]; return; }   // the latest request runs when this switch lands
@@ -1313,6 +1403,7 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
     if (side ?? door) setModuleSide(side ?? door);
   }
   busy = true; goingTo = i;
+  clearTimeout(idlePreload);
   const veil = $('veil');
   const same = i === ui.scene;
   // a door entry records the way back (level, part, layer); any other way in, a share link or a jump, clears it so
@@ -1356,7 +1447,9 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
     let requestedModel;
     do {
       requestedModel = store.M;
-      await assetLoaders.get(i)?.({ model: requestedModel, quality });
+      loadingAssets = true;
+      try { await assetLoaders.get(i)?.({ model: requestedModel, quality }); }
+      finally { loadingAssets = false; veil.querySelector('.asset-progress')?.remove(); }
     } while (requestedModel !== store.M);
   } catch (error) {
     busy = false; goingTo = -1;
@@ -1435,13 +1528,17 @@ export async function go(i, fromId, { force = false, keepCamera = false, fromSho
   } else veil.classList.add('off');
   busy = false;
   emit('scene', i);
+  idlePreload = setTimeout(() => {
+    const connection = navigator.connection;
+    if (busy || ui.scene !== i || document.hidden || connection?.saveData || /(^|-)2g$/.test(connection?.effectiveType || '') || i >= 5) return;
+    assetLoaders.get(i + 1)?.({ model: store.M, quality })?.catch(() => { /* Foreground visits retry and show errors. */ });
+  }, 2500);
   if (queued) { const q = queued; queued = null; go(...q); }
   else if (built[ui.scene]?.model !== store.M) go(ui.scene, null, { force: true, keepCamera: true });   // the scenario changed mid-switch
 }
-export const sceneCount = BUILDERS.length;
 // Back out of a side level to the level, layer and door part the reader came in by; out of a main level to the one
 // above it, at the part whose door leads here
-export async function backOut() {
+async function backOut() {
   if (ui.scene <= 0) return;
   const restoreFocus = document.activeElement === $('back-out');
   if (!isSide(ui.scene)) {
@@ -1527,6 +1624,7 @@ function updateScale() {
 
 // ---------- pins ----------
 const pv = new THREE.Vector3();
+const PIN_R = 12;   // half of .pin .num's 24 px (styles.css): the transform centres the circle on its anchor
 // group badges for piled-up pins on small screens: "2 +4" is pin 2 and four more; a tap fans them all out
 function syncPinGroups(groups, w, h) {
   const live = new Set();
@@ -1534,7 +1632,7 @@ function syncPinGroups(groups, w, h) {
     live.add(g.key);
     let el = pinGroups.get(g.key);
     if (!el || !el.isConnected) {
-      el = document.createElement('button'); el.type = 'button'; el.className = 'pin-group';
+      el = document.createElement('button'); el.type = 'button'; el.className = 'pin-group'; el.tabIndex = -1;   // the Parts list is the keyboard route
       const nums = g.ids.map(id => pins.find(p => p.id === id)?.el.querySelector('.num')?.textContent).filter(Boolean);
       el.innerHTML = `<b>${nums[0]}</b><span>+${nums.length - 1}</span>`;
       el.setAttribute('aria-label', `${nums.length} parts here: ${nums.join(', ')}. Show them`);
@@ -1551,7 +1649,7 @@ view.addEventListener('pointerdown', e => { if (expandedPins && !e.target.closes
 function updatePins() {
   const w = view.clientWidth, h = view.clientHeight, placed = [], shown = [];
   const vr = view.getBoundingClientRect(), reserved = [];
-  for (const el of document.querySelectorAll('#view .hud, #hud-btns, #view .hint')) {
+  for (const el of document.querySelectorAll('#view .hud, #hud-btns, #view .hint, #view .present-launch')) {
     if (el.hidden || getComputedStyle(el).display === 'none' || getComputedStyle(el).visibility === 'hidden') continue;
     const r = el.getBoundingClientRect();
     if (!r.width || !r.height || r.bottom <= vr.top || r.top >= vr.bottom) continue;
@@ -1564,11 +1662,12 @@ function updatePins() {
     pv.copy(p.pos).project(camera);
     return { id: p.id, x: (pv.x + 1) / 2 * w, y: (1 - pv.y) / 2 * h, z: pv.z };
   });
-  // Small screens: pins that pile up are fanned out or gathered into a group badge (declutterPins) instead of
-  // overlapping or being dropped. The selected pin never joins a cluster.
-  const small = w < 640;
+  // Pins that pile up are fanned out (declutterPins) instead of overlapping or being dropped; on small screens a big
+  // pile folds into a group badge. The selected pin never joins a cluster. Wide screens leave the interconnects'
+  // compact pins to their own rule below. A short view (a phone held sideways) counts as small too.
+  const small = w < 640 || h < 300;
   let clutter = null;
-  if (small && !presentation?.hidePins) {
+  if ((small || !compact) && !presentation?.hidePins) {
     const cands = [];
     for (const q of pinPoints) {
       if (q.id === ui.selected || q.z > 1 || q.x < 6 || q.x > w - 6 || q.y < 6 || q.y > h - 6) continue;
@@ -1577,7 +1676,7 @@ function updatePins() {
     }
     cands.sort((a, b) => pins.findIndex(p => p.id === a.id) - pins.findIndex(p => p.id === b.id));
     const selPoint = pinPoints.find(q => q.id === ui.selected && q.z <= 1);
-    clutter = declutterPins(cands, { expanded: expandedPins, fixed: selPoint ? [{ x: selPoint.x, y: selPoint.y }] : [] });
+    clutter = declutterPins(cands, { radius: 40, gap: 14, expanded: expandedPins, fixed: selPoint ? [{ x: selPoint.x, y: selPoint.y }] : [], ...(small ? {} : { collapseAt: Infinity }) });
   }
   syncPinGroups(clutter?.groups || [], w, h);
   for (const p of ordered) {
@@ -1599,7 +1698,8 @@ function updatePins() {
     const off = presentation?.hidePins || overlaps || !!clutter?.hidden.has(p.id) || (markerBlocked && p.id !== ui.selected) || pv.z > 1 || x < 6 || x > w - 6 || y < 6 || y > h - 6;
     p.el.classList.toggle('off', off);
     if (off) continue;
-    p.el.style.transform = `translate(${(x - 11).toFixed(1)}px, ${(y - 11).toFixed(1)}px)`;
+    [x, y] = keepInside(x, y, w, h);
+    p.el.style.transform = `translate(${(x - PIN_R).toFixed(1)}px, ${(y - PIN_R).toFixed(1)}px)`;
     p.el.querySelector('.num').style.visibility = markerBlocked ? 'hidden' : '';
     placed.push([x, y]);
     shown.push({ p, x, y });
@@ -1608,18 +1708,24 @@ function updatePins() {
   // places to try) wherever its box is clear of the title, layer switch and buttons, every pin's circle and the labels
   // already placed; a label with no such place is not drawn, and shows on hover or focus instead (.hide-lbl). The
   // selected pin goes first, then pins in list order.
-  const circles = shown.map(({ x, y }) => ({ left: x - 11, right: x + 11, top: y - 11, bottom: y + 11 }));
-  const taken = [...reserved], namesInChip = chipQuery.matches;
+  const circles = shown.map(({ x, y }) => ({ left: x - PIN_R, right: x + PIN_R, top: y - PIN_R, bottom: y + PIN_R }));
+  // the group badges count as taken too: labels and the side levels' captions keep off them (round-6 review: at 320 px
+  // the module's caption sat over its badge; held sideways, pin labels ran under the badges)
+  const badges = [...pinGroups.values()].map(el => { const r = el.getBoundingClientRect(); return { left: r.left - vr.left, right: r.right - vr.left, top: r.top - vr.top, bottom: r.bottom - vr.top }; });
+  const taken = [...reserved, ...badges], namesInChip = chipQuery.matches;
   for (const { p, x, y } of shown) {
     const lbl = p.el.querySelector('.lbl'), labelWidth = (p.lw ||= lbl.offsetWidth) || 120;
     const sel = p.id === ui.selected;
     // on a phone only the selected pin's name is drawn, in the chip: no label to place; a pin whose name the scene
     // already draws on the map (L1's home campus tag) keeps its number and leaves the name to the map
-    const labelBox = namesInChip || p.mapNamed ? null : pinLabelBox(x, y, labelWidth, w, h, [...taken, ...circles], sel, true);
+    // the hall's thirteen parts crowd a busy scene (round-3 review): there only the selected pin's name is drawn, the
+    // others on hover or focus, and the numbered Parts list beside the view names them all
+    const quiet = ui.scene === HALL_LEVEL && !sel;
+    const labelBox = namesInChip || p.mapNamed || quiet ? null : pinLabelBox(x, y, labelWidth, w, h, [...taken, ...circles], sel, true);
     p.el.classList.remove('flip');
     const hideLabel = !labelBox;
     const left = labelBox?.left ?? x + 18;
-    Object.assign(lbl.style, { position: 'absolute', right: 'auto', left: `${left - x + 11}px`, top: `${(labelBox?.top ?? y - 9) - y + 11}px`, visibility: '' });
+    Object.assign(lbl.style, { position: 'absolute', right: 'auto', left: `${left - x + PIN_R}px`, top: `${(labelBox?.top ?? y - 9) - y + PIN_R}px`, visibility: '' });
     p.el.classList.toggle('hide-lbl', hideLabel);
     if (labelBox) taken.push(labelBox);
   }
@@ -1667,29 +1773,6 @@ timer.connect(document);                                  // no rAF runs while t
 // the frames straight after coming back say nothing about this tier
 document.addEventListener('visibilitychange', () => { if (!document.hidden) hush(1500); });
 let visible = true, t = 0, frameN = 0;
-// ---------- the clock drives the flows: null means steady state ----------
-let levels = null, levelsWere = null;
-export const setLevels = L => { levels = L; };
-const POWERISH = new Set(['lv', 'hvdc', 'dc', 'bus12', 'core']);
-function applyLevels(b) {
-  if (!levels && !levelsWere) return;
-  const L = levels, heat = ui.mode === 'heat';
-  if (!L) {                                               // clock closed: put every flow in every scene back
-    built.forEach(bb => bb && [bb.flows, bb.dataFlows, bb.heatFlows].forEach(list => list?.forEach(f => f.setLevel?.(1, 1))));
-    levelsWere = null; return;
-  }
-  for (const f of flowsFor(b)) {
-    if (!f.setLevel) continue;
-    if (f.role === 'standby') f.setLevel(L.standby > 0 ? 5 : 1, L.standby > 0 ? 2.8 : 1);
-    else if (heat) f.setLevel(f.cls === 'vapor' ? L.vapor : L.cool);
-    else if (f.cls === 'hv') f.setLevel(L.grid);
-    else if (f.cls === 'mv') f.setLevel(L.mv);
-    else if (POWERISH.has(f.cls) && ui.mode === 'power') f.setLevel(Math.max(0.08, L.load));
-    else f.setLevel(1);
-  }
-  levelsWere = L;
-}
-
 const tickers = new Set();
 export const onTick = fn => { tickers.add(fn); return () => tickers.delete(fn); };
 onTick(stepIris);
@@ -1700,10 +1783,9 @@ function loop(ts) {
   const raw = timer.getDelta(), dt = Math.min(raw, 0.05);
   tickers.forEach(fn => fn(dt));
   if (!visible || document.hidden || ui.scene < 0 || !built[ui.scene]) return;
-  t += reduced ? dt * 0.35 : dt;
+  if (!reduced) t += dt;                                  // reduced motion: a still frame
   const b = built[ui.scene];
   const frameStarted = performance.now();
-  applyLevels(b);
   const projection = { position: camera.position,
     worldPerPixelAtUnit: 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.max(1, view.clientHeight) };
   for (const f of flowsFor(b)) f.update(t, projection);

@@ -1,17 +1,17 @@
 // Blender authors every physical mesh. The native scene remains the source of
 // runtime signal paths, hotspots, labels and schematic registration guides.
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { build as buildDiagram } from './side-cpo.js';
 import { engineLayout, CPO_VARIANTS } from './side-geometry.js';
 import { ringEicTex, eicMzmTex, mzmCpoPicTex } from './cpo-variants.js';
-import { THREE, label, note, eicBondTex } from './side-kit.js';
+import { THREE, eicBondTex } from './side-kit.js';
 import { directLink } from './link-art-direction.js';
 import { attachFlowRibbons } from '../flow-ribbons.js';
 
 let source, pending;
 export function preload() {
   if (source) return Promise.resolve(source);
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=26`)
+  return pending ||= gltfLoader().loadAsync(`${import.meta.env.BASE_URL}models/cpo-hardware.glb?v=26`)
     .then(gltf => { source = gltf.scene; return source; })
     .catch(error => { pending = undefined; throw error; });
 }
@@ -60,10 +60,12 @@ function boardFace() {
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(13.6, 13.6);
   return tex;
 }
-// One stripe per fiber across a data ribbon: a rounded coated core, dark seams.
-function ribbonStripes(color) {
+// One stripe per fiber across a data ribbon: a neutral jacket with dark seams, and one accent fiber (cyan transmit,
+// magenta receive) so the two directions stay apart without candy stripes.
+const JACKET = [.55, .58, .62];
+function ribbonStripes(accent) {
   const tex = paintFace(64, 4, (u, v, e, block, x) => {
-    const f = ((x % 8) + .5) / 8;
+    const f = ((x % 8) + .5) / 8, color = x < 8 ? accent : JACKET;
     if (x % 8 === 0) return color.map(c => c * .08);
     const k = .12 + .38 * Math.sqrt(Math.max(0, 1 - (2 * f - 1) ** 2));
     return color.map(c => c * k);
@@ -138,7 +140,7 @@ export function build(args) {
     const lane = node.isMesh && RIBBONS[node.material.name];
     if (lane && !node.material.map) {
       const m = node.material, tex = ribbonStripes(lane);
-      m.map = tex; m.emissiveMap = tex; m.color.set(0xffffff); m.emissive.set(0xffffff); m.emissiveIntensity = .35; m.needsUpdate = true;
+      m.map = tex; m.emissiveMap = tex; m.color.set(0xffffff); m.emissive.set(0xffffff); m.emissiveIntensity = .2; m.needsUpdate = true;
     }
   });
   const built = buildDiagram({ ...args, authoredHardware: true, authoredAsicMaterial: asicMaterial });
@@ -157,12 +159,8 @@ export function build(args) {
   Object.defineProperty(built, 'camera', { configurable: true,
     get: () => ({ ...CPO_CAMERA[built.variant.kind], near: 0.05, far: 500, min: 2, max: 90 }) });
   built.scene.add(asset);
-  // Notes for the inspection layers, one per design where they differ.
-  const tagged = (k, ...a) => { const n = label(built.scene, ...a); n.userData.cpoVariant = k; return n; };
-  const plateNotes = { ring: tagged('ring', 'Heat view: cold plate and coolant pipes in x-ray; mechanics representative', [0, 5.05, 5.2], note, .17),
-    mzm: tagged('mzm', 'Heat view: heat sink in x-ray; shape representative, the reference system is air-cooled', [0, 5.6, 5.2], note, .17) };
-  const slabNotes = { ring: tagged('ring', 'Data / Power: interposer in x-ray to expose buried electrical routes', [0, 2.2, 5.2], note, .17),
-    mzm: tagged('mzm', 'Data / Power: package build-up layers in x-ray to expose buried electrical routes', [0, 2.2, 5.2], note, .17) };
+  // The inspection layers' rendering notes (x-ray slabs, translucent ASIC, cold plate or heat sink) live in the
+  // 'Model boundaries and scale' text (SCOPE below), not as captions in the scene.
   directLink({ built, model: asset, kind: 'cpo', quality: args.quality, state: args.state });
   // Keep machined highlights crisp while the animated signal cores still bloom.
   Object.assign(built.look, { bloom: .54, threshold: 1.7, envIntensity: .7, exposure: 1.0 });
@@ -200,7 +198,6 @@ export function build(args) {
     powerLayers.push({ mesh, material: mesh.material, castShadow: mesh.castShadow,
       opacity: mesh.material.opacity, transparent: mesh.material.transparent, depthWrite: mesh.material.depthWrite });
   }
-  const powerNote = label(built.scene, 'Power: ASIC partially translucent; board and package in x-ray', [0, 2.6, 5.2], note, .17);
   const pipeMaterials = new Map(), pipeMeshes = [];
   plate.traverse(object => {
     if (!object.isMesh) return;
@@ -211,7 +208,6 @@ export function build(args) {
     }
   });
   let showPlate = false, dirty = false;
-  const noteOn = () => !args.state.selected || built.inspection.annotations;
   const syncPlate = () => {
     const kind = built.variant.kind, heat = args.state.mode === 'heat', visible = showPlate || heat;
     const power = args.state.mode === 'power';
@@ -223,14 +219,12 @@ export function build(args) {
       layer.material.depthWrite = power ? false : layer.depthWrite;
       layer.mesh.castShadow = layer.castShadow && !power;
     }
-    powerNote.visible = power && noteOn();
     const electrical = args.state.mode === 'data' || args.state.mode === 'power';
-    for (const [k, slab] of Object.entries(slabs)) {
+    for (const slab of Object.values(slabs)) {
       const m = slab.material;
       if (m.transparent !== electrical) { m.needsUpdate = true; dirty = true; }
       m.transparent = electrical; m.opacity = electrical ? .1 : 1; m.depthWrite = !electrical;
       slab.castShadow = !!args.quality.shadows && !electrical;
-      slabNotes[k].visible = k === kind && electrical && noteOn();
     }
     // The wide package-trace bus reads thin next to the bright green data streams it carries once the build-up
     // layer goes to x-ray above: a small emissive lift keeps the copper legible between the moving pulses without
@@ -252,7 +246,6 @@ export function build(args) {
     for (const [object, on] of [[cooling.ring, visible && kind === 'ring'], [built.coolingHardware, visible && kind === 'ring'], [cooling.mzm, visible && kind === 'mzm']]) {
       dirty ||= object.visible !== on; object.visible = on;
     }
-    for (const [k, n] of Object.entries(plateNotes)) n.visible = k === kind && visible && noteOn();
   };
   Object.defineProperties(built.inspection, {
     covers: { get: () => showPlate || args.state.mode === 'heat' },
@@ -262,7 +255,7 @@ export function build(args) {
   built.inspection.setCovers = value => { showPlate = !!value; syncPlate(); };
   const SCOPE = {
     ring: 'Representative package and mechanics; six groups of three engines, counts NVIDIA’s. Package layers and the cold plate are separated for inspection. Data and Power show the interposer in x-ray to expose buried electrical routes; it is not transparent silicon. Power shows the board and package ceramic in x-ray, with the ASIC partially translucent so its footprint and the schematic supply paths from below remain visible. TX/RX fibers continue outward to front-panel ports outside this diagram; separate lower amber fibers supply laser light. Fiber routing is representative, with surface coupling unfolded for clarity rather than a literal edge-coupled NVIDIA die. Heat view shows the cold plate and coolant pipes in x-ray so their internal flow is visible; the fin channels inside the plate are representative. Power and data marks show direction, not lane counts, speed or watts; heat streams are sized by each part’s assumed watts on the site’s log heat scale (each 10× in power is 5× the motion). Electrical and heat motion across display gaps is schematic. The separate engine detail is enlarged 2.5×: its EIC/PIC faces are bonded in hardware, and its dashed leader identifies the enlarged engine. Each driver block sits over its ring and each TIA over its photodiode; the electronic die’s other blocks are representative.',
-    mzm: 'Representative Mach-Zehnder package, following the approach in Broadcom’s 51.2T Bailly-class CPO as reported: eight radial engine tiles, two per side, counts Broadcom’s. Tile proportions follow Broadcom’s published package images; sizes, the tile floorplan and the fiber routing are representative. Data and Power show the package build-up layers in x-ray to expose buried electrical routes. Power shows the board and package ceramic in x-ray, with the ASIC partially translucent. Each tile’s 16 transmit and 16 receive fibers leave its fiber connector toward front-panel ports outside this diagram; lower amber fibers bring laser light from remote laser modules, whose count and allocation are illustrative. Heat view shows a finned heat sink in x-ray, because the reference system is air-cooled; its shape is representative. The separate tile detail is enlarged 3.5× and draws all 64 lanes each way, as sixteen 400G FR4 groups of four wavelengths (16 × 4 lanes × 100 Gb/s = 6.4 Tb/s): its electronic die covers the electrical end, with each driver cell over its modulator’s electrode segments and each TIA over its photodiode, and the Mach-Zehnder arms run on past it. Drawn arm length is representative; real silicon Mach-Zehnder modulators run millimeters. Moving light is shown on three of the 64 lanes. Power and data marks show direction, not lane counts, speed or watts; heat streams are sized by each part’s assumed watts on the site’s log heat scale.',
+    mzm: 'Representative Mach-Zehnder package, following the approach in Broadcom’s 51.2T Bailly-class CPO as reported: eight radial engine tiles, two per side, counts Broadcom’s. Tile proportions follow Broadcom’s published package images; sizes, the tile floorplan and the fiber routing are representative. Data and Power show the package build-up layers in x-ray to expose buried electrical routes. Power shows the board and package ceramic in x-ray, with the ASIC partially translucent. Each tile’s 16 transmit and 16 receive fibers leave its fiber connector toward front-panel ports outside this diagram; lower amber fibers bring laser light from remote laser modules, whose count and allocation are illustrative. Heat view shows a finned heat sink in x-ray, because the reference system is air-cooled; its shape is representative. The separate tile detail is enlarged 3.5×, with its bonded faces unfolded and its fibers edge-coupled, and draws all 64 lanes each way, as sixteen 400G FR4 groups of four wavelengths (16 × 4 lanes × 100 Gb/s = 6.4 Tb/s): its electronic die covers the electrical end, with each driver cell over its modulator’s electrode segments and each TIA over its photodiode, and the Mach-Zehnder arms run on past it. Drawn arm length is representative; real silicon Mach-Zehnder modulators run millimeters. Moving light is shown on three of the 64 lanes. Power and data marks show direction, not lane counts, speed or watts; heat streams are sized by each part’s assumed watts on the site’s log heat scale.',
   };
   Object.defineProperty(built.inspection, 'scope', { get: () => SCOPE[built.variant.kind], configurable: true });
   const VIEWS = {

@@ -1,3 +1,7 @@
+// Canvas-texture anisotropy (round 5): stage.js raises it to the GPU's maximum on desktop; phones keep 4.
+export const TEX = { anisotropy: 4 };
+export const setTextureAnisotropy = n => { TEX.anisotropy = Math.max(1, n | 0); };
+
 // Keep the engineering paths and hardware intact; shed presentation cost first.
 export const TIERS = [
   { mirror: true, ao: true, dof: true, msaa: 4, liveShadows: true, ratio: Infinity, bloom: true, halo: true, particles: 1 },

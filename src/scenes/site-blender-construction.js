@@ -2,14 +2,14 @@
 // The semantic catalog supplies complete equipment; this library supplies remaining
 // panels, tubes, terrain surfaces and structural members. It does not claim a new
 // equipment redesign merely because a construction primitive is authored in Blender.
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { THREE, Builder as NativeBuilder } from '../kit.js';
 let source,pending;
 const geometries=new Map();
 export function preloadSiteConstruction(){
  if(source)return Promise.resolve(source);
- return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/site-construction.glb?v=4`).then(g=>{
+ return pending ||= gltfLoader().loadAsync(`${import.meta.env.BASE_URL}models/site-construction.glb?v=4`).then(g=>{
   source=g.scene;source.updateMatrixWorld(true);
   source.traverse(o=>{if(!o.isMesh)return;const geo=o.geometry.clone().applyMatrix4(o.matrixWorld);geo.userData.blender={asset:'site-construction',module:o.name};geometries.set(o.name,geo);});
   const faces=['PX','NX','PY','NY','PZ','NZ'].map(n=>{const g=geometries.get(`FACE_${n}`);return g.index?g.toNonIndexed():g.clone();});

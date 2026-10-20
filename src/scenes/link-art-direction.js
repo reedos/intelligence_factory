@@ -59,7 +59,7 @@ export function directLink({ built, model, kind, quality, state }) {
     if (kind === 'cpo') sprite.userData.caption.height *= 1.4;
     finishCaption(sprite);
   });
-  const essential = /representative|Footprint to scale|Size and layout|Detail ·|bonded|x-ray|shields opened|DAC ·|ACC ·|AEC ·|Coherent pluggable|Co-packaged optics ·|Copper cables ·/i;
+  const essential = /representative|Footprint to scale|Size and layout|lifted out|bonded|x-ray|shields opened|DAC ·|ACC ·|AEC ·|Coherent pluggable|Co-packaged optics ·|Copper cables ·/i;
   let annotations = false;
   built.inspection = {
     get annotations() { return annotations; },

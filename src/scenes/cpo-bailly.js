@@ -166,8 +166,7 @@ export function buildBailly({ view, M, B, authoredHardware, Y, viewLabel, FZ, EL
   viewLabel('mzm', 'Size and layout representative · counts are Broadcom’s, 51.2T Bailly', [0, 0.1, FZ], note, 0.2);
   viewLabel('mzm', '8 engines × 6.4 Tb/s = 51.2 Tb/s', [0, -0.3, FZ], unitCol, 0.2);
   viewLabel('mzm', 'Each engine: 16 × 400G FR4 = 64 lanes × 100 Gb/s each way (106.25 Gb/s line rate)', [0, -0.65, FZ], unitCol, 0.17);
-  viewLabel('mzm', `Detail · one engine tile, lifted out and exploded · ${s}×`, [DX, DY - 0.45, DZ + W / 2 + 1.3], '#e8ecf2', 0.15);
-  viewLabel('mzm', 'Functional schematic · bonded faces unfolded · edge-coupled fibers', [DX, DY - 0.45, DZ + W / 2 + 0.9], note, 0.13);
+  viewLabel('mzm', `One engine tile lifted out · ${s}×`, [DX, DY - 0.45, DZ + W / 2 + 1.1], '#e8ecf2', 0.15);
   viewLabel('mzm', 'Electronic chip: drivers over the electrode ends (TX), TIAs (RX)', [DX + 1.6, DY + 2.35, DZ - 1.6], unitCol, 0.15);
   viewLabel('mzm', 'Photonic chip: Mach-Zehnder modulators, wavelength mux/demux, photodiodes', [DX - 0.6, DY + 0.55, DZ + W / 2 + 0.5], unitCol, 0.15);
   viewLabel('mzm', 'TSVs under the electronic chip · representative', [DX - 0.6, DY + 0.25, DZ + W / 2 + 0.5], note, 0.13);

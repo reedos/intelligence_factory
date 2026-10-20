@@ -8,6 +8,7 @@ import { beforeAll, describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { CPO_VARIANTS, CPO_RING, CPO_MZM, CPO_EIC, CPO_DIE, BAILLY, cpoBlocks, cpoVariantLayout, engineLayout, baillyLayout, eicBox, asicTap, baillyAsicTap } from './side-geometry.js';
 
 function canvasDocument() {
@@ -26,7 +27,7 @@ let authored: any, native: any, variants: any, content: any, asset: any, meta: a
 beforeAll(async () => {
   vi.stubGlobal('document', canvasDocument());
   const b = readFileSync(new URL('../../public/models/cpo-hardware.glb', import.meta.url));
-  asset = await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), '');
+  asset = await gltfLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), '');
   asset.scene.traverse((o: THREE.Object3D) => { if (o.userData.ifx) meta = JSON.parse(o.userData.ifx); });
   vi.spyOn(GLTFLoader.prototype, 'loadAsync').mockImplementation(async () => asset);
   authored = await import('./side-cpo-blender.js'); native = await import('./side-cpo.js');

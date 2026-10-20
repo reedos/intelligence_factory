@@ -1,10 +1,11 @@
 // Authored geographic surface and plant symbols. Runtime only places/instances.
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { Builder } from '../kit.js';
+import { palette } from './campus-palette.js';
 let source, pending;
 export function preloadAcrossAssets() {
   if (source) return Promise.resolve();
-  return pending ||= new GLTFLoader().loadAsync(`${import.meta.env.BASE_URL}models/across-infrastructure.glb?v=8`)
+  return pending ||= gltfLoader().loadAsync(`${import.meta.env.BASE_URL}models/across-infrastructure.glb?v=9`)
     .then(g => { source = g.scene; source.updateMatrixWorld(true); })
     .catch(e => { pending = null; throw e; });
 }
@@ -22,6 +23,14 @@ export function acrossAssetBuilder(name) {
 }
 export function acrossAssetInstances(name, matrices) {
   const g = acrossAssetBuilder(name).instance(matrices, { cast: false });
+  g.name = `Blender ${name}`; g.userData.blenderAsset = name;
+  g.traverse(o => { if (o.geometry) o.geometry.userData.authoredIn = 'Blender'; });
+  return g;
+}
+// The campus, amplifier hut and line terminal map symbols (MAP_*): drawn as the campus catalog drew them before
+// they moved into this file, with its finishes folded into palettes and shadows cast.
+export function acrossSymbolInstances(name, matrices) {
+  const g = palette(acrossAssetBuilder(name)).instance(matrices);
   g.name = `Blender ${name}`; g.userData.blenderAsset = name;
   g.traverse(o => { if (o.geometry) o.geometry.userData.authoredIn = 'Blender'; });
   return g;

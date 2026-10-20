@@ -140,3 +140,12 @@ body.page .topbar { background: rgba(3,5,8,.86); border-bottom-color: var(--line
   .mt-layout { grid-template-columns: minmax(0, 1fr); gap: 32px; }
   .mt-toc { position: static; max-height: none; }
 }
+
+/* Phone tap targets: a 24 px floor (WCAG 2.2 AA 2.5.8). Desktop is untouched. */
+@media (max-width: 760px) {
+  .ev-go { display: inline-flex; align-items: center; min-height: 24px; }
+  .ev-pub a, .gl-cites a { display: inline-block; padding-block: 3px; }
+  .ev-src a { display: inline-block; padding-block: 3px; }
+  .ev-n a { min-width: 24px; height: 24px; }
+  .ev-pub li { grid-template-columns: minmax(0, 1fr); gap: 2px; }   /* the title had been squeezed to a sliver beside its citation line */
+}

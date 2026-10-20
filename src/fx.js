@@ -53,13 +53,19 @@ export function blinkers(items, { size = 0.01, k = 3.2 } = {}) {
   items.forEach((it, i) => { m.setMatrixAt(i, new THREE.Matrix4().makeTranslation(...it.p)); m.setColorAt(i, base[i]); });
   m.count = items.length;
   const phase = items.map((_, i) => (i * 0.7548) % 1);
+  // Most frames flip only a few LEDs, so keep each one's last state, rewrite just the ones that flipped, and upload the
+  // color buffer only when something did (every LED starts lit, as set above).
+  const lit = new Uint8Array(items.length).fill(1);
   const update = t => {
-    items.forEach((it, i) => {
-      const rate = it.rate ?? 0.6;
-      const on = rate === 0 || ((t * rate + phase[i]) % 1) < (it.duty ?? 0.7);
+    let changed = false;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i], rate = it.rate ?? 0.6;
+      const on = rate === 0 || ((t * rate + phase[i]) % 1) < (it.duty ?? 0.7) ? 1 : 0;
+      if (on === lit[i]) continue;
+      lit[i] = on; changed = true;
       m.setColorAt(i, on ? base[i] : c.copy(base[i]).multiplyScalar(0.08));
-    });
-    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    }
+    if (changed && m.instanceColor) m.instanceColor.needsUpdate = true;
   };
   return { mesh: m, update };
 }

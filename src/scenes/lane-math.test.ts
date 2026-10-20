@@ -9,7 +9,7 @@ import { beforeAll, describe, it, expect, vi } from 'vitest';
 // @ts-expect-error Vitest supplies Node built-ins; app tsconfig intentionally excludes Node types.
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './gltf-loader.js';
 import { CPO_MZM, BAILLY, cpoBlocks, baillyLayout, baillyFiberRoutes, engineLayout, cpoFiberRoutes } from './side-geometry.js';
 import { moduleTier } from './lid-labels.js';
 import { ACCELERATORS } from '../model/engine';
@@ -28,7 +28,7 @@ function canvasDocument() {
 }
 const glbMeta = async (file: string, root: string | null) => {
   const b = readFileSync(new URL(`../../public/models/${file}`, import.meta.url));
-  const asset = await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), '');
+  const asset = await gltfLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), '');
   let meta: any; asset.scene.traverse((o: THREE.Object3D) => { if (o.userData.ifx && (!root || o.name === root)) meta = JSON.parse(o.userData.ifx); });
   return { asset, meta };
 };

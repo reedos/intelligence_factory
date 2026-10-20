@@ -46,7 +46,7 @@ function renderLedger() {
   $('ledger').innerHTML = rows.join('');
   const size = M.meterMW >= 1000 ? `${+(M.meterMW / 1000).toFixed(2)} GW` : `${Math.round(M.meterMW)} MW`;
   $('ledger-h').textContent = `Where ${size} goes`;
-  $('ledger-lede').textContent = `Start with ${size} at the campus meter. Each row takes off what one stage turns into heat, spends on cooling, hands to silicon other than the GPU, or — for the last row before the silicon — is never drawn at all, spare capacity left when the racks round down to a whole number. The highlighted rows belong to the scale you are looking at. The grid already lost about 5% before the meter.${P && k !== 1 ? ' Pinned values (A) are scaled to this campus size.' : ''}`;
+  $('ledger-lede').textContent = `Start with ${size} at the campus meter. Each row takes off what one stage turns into heat, spends on cooling, hands to silicon other than the GPU, or — for the last row before the silicon — is never drawn at all, spare capacity left when the racks round down to a whole number. The highlighted rows belong to the scale you are looking at. Upstream of the meter the US grid loses about 5% on average (EIA), less for a campus fed at 345 kV.${P && k !== 1 ? ' Pinned values (A) are scaled to this campus size.' : ''}`;
   highlightLedger(store.ui.scene);
 }
 function highlightLedger(i) { document.querySelectorAll('.lg-row').forEach(r => r.classList.toggle('here', r.dataset.scene === String(i) && r.classList.contains('minus'))); }
@@ -131,7 +131,7 @@ function renderLinkText() {
   const M = store.M, A = M.accel, nvl = A.gpusPerRack === 72, F = M.NET.fabric;
   const size = M.meterMW >= 1000 ? `${+(M.meterMW / 1000).toFixed(2)} GW` : `${Math.round(M.meterMW)} MW`;
   const speed = A.nicGbps >= 1000 ? `${A.nicGbps / 1000}T` : `${A.nicGbps}G`;
-  $('links-lede').textContent = `Three networks, three physical media. Copper ties ${nvl ? '72 GPUs into one machine inside a rack' : '8 GPUs into one machine inside each server'}; single-mode fiber and pluggable optics tie ${nvl ? 'racks' : 'servers'} into a campus fabric; coherent optics on leased fiber tie campuses together. Counts are for this ${size} campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials.`;
+  $('links-lede').textContent = `Three networks, three physical media. Copper ties ${nvl ? '72 GPUs into one machine inside a rack' : '8 GPUs into one machine inside each server'}; single-mode fiber and pluggable optics tie ${nvl ? 'racks' : 'servers'} into a campus fabric; coherent optics on long-haul fiber tie campuses together. Counts are for this ${size} campus and one common fabric layout, so treat them as estimates of scale, not a bill of materials.`;
   $('cap-scaleup').innerHTML = `<b style="color:var(--nvl)">Scale-up.</b> ` + (A.id==='rubin'
     ? 'Vera Rubin NVL72 uses nine switch trays with four NVLink 6 chips each: 36 switch chips for a 72-GPU fabric. Lines sample GPU-to-fabric relationships; they do not specify physical ASIC ports or lane wiring.'
     : nvl
@@ -235,7 +235,7 @@ function renderLinks() {
   // 3. Scale across
   {
     const W = 1000, y = 90, d = NET.dci;
-    const stops = [[60, 'Core', 'switches'], [180, 'DCI routers', `${n0(d.modulesPerEnd)} × 800ZR`], [300, 'Mux', `${d.lambdas} λ, C-band`], [390, 'Amp', 'EDFA']];
+    const stops = [[60, 'Core', 'switches'], [180, 'DCI routers', `${n0(d.modulesPerEnd)} × 800G ZR+`], [300, 'Mux', `${d.lambdas} × 150 GHz`], [390, 'Amp', 'EDFA']];
     const far = [[610, 'Amp', ''], [700, 'Mux', ''], [820, 'Routers', ''], [940, 'Remote', 'campus']];
     let out = '';
     const node = ([cx, t, s], hl) => `<rect x="${cx - 42}" y="${y - 20}" width="84" height="40" rx="5" fill="#161d29" stroke="${hl ? C('dci') : '#3a4658'}"/>` + TXT(cx, y - 2, t, { size: 12, w: 700 }) + (s ? TXT(cx, y + 13, s, { size: 10.5, op: 0.7, mono: true }) : '');
@@ -245,7 +245,7 @@ function renderLinks() {
     out += `<line x1="652" y1="${y}" x2="658" y2="${y}" stroke="${C('dci')}" stroke-width="3"/><line x1="742" y1="${y}" x2="778" y2="${y}" stroke="${C('dci')}" stroke-width="2"/><line x1="862" y1="${y}" x2="898" y2="${y}" stroke="${C('eth')}" stroke-width="2"/>`;
     stops.forEach(s => out += node(s, s[1] === 'DCI routers'));
     far.forEach(s => out += node(s, false));
-    out += TXT(500, y - 32, `${d.routeKm.toLocaleString('en-US')} km of fiber · ${d.huts} amplifier huts, one every ≈${d.spanKm} km`, { size: 12, w: 600, fill: C('dci') });
+    out += TXT(500, y - 32, `An illustrative ${d.routeKm.toLocaleString('en-US')} km route · ${d.huts} amplifier huts, one every ≈${d.spanKm} km`, { size: 12, w: 600, fill: C('dci') });
     out += TXT(500, y + 34, `≈${(d.routeKm * 0.0049).toFixed(1)} ms one way`, { size: 11.5, mono: true, op: 0.8 });
     const note = (x0, t, s) => TXT(x0, 170, t, { size: 12, w: 700 }) + TXT(x0, 188, s, { size: 11, op: 0.7, mono: true });
     out += note(180, 'Each wavelength', `${d.gbps}G, coherent`) + note(345, 'Each fiber pair', `${d.lambdas} × ${d.gbps}G = ${(d.lambdas * d.gbps / 1000).toFixed(1)} Tb/s`)
