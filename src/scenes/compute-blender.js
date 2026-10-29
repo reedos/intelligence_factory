@@ -26,7 +26,41 @@ async function load(key) {
 }
 export async function preloadCompute(kind, model) {
   // the rack's pulled tray is the tray level's own hardware: the same file, seated in the rack (build, below)
-  await Promise.all([load(assetKey(kind, model)), kind === 'rack' && load(assetKey('tray', model)), load(kind === 'chip' ? 'compute-solder' : 'compute-rotor')]);
+  await Promise.all([load(assetKey(kind, model)), kind === 'rack' && load(assetKey('tray', model)), kind === 'rack' && loadContact(model),
+    load(kind === 'chip' ? 'compute-solder' : 'compute-rotor')]);
+}
+
+// The rack's soft contact shadow. The studio floor takes no live cast shadow (compute-art-direction.js, round 2: the key
+// light's shadow stretched into a black wedge), which left the cabinet floating. tools/blender/bake-contact-shadow.py bakes
+// the floor's occlusion under the studio's soft overhead lights, with the pulled tray seated, into a 512 px grayscale
+// texture over CONTACT_REGION; it lies on one floor quad that only darkens (black, the texture as alpha), drawn before the
+// floor mirror. The NVL72 cabinets share one cabinet and pulled-tray frame, and so one texture; the H100 rack has its own.
+// A texture that fails to load leaves the floor as it was.
+const CONTACT = { gb200: 'compute-rack-contact-gb200', gb300: 'compute-rack-contact-gb200', rubin: 'compute-rack-contact-gb200', h100: 'compute-rack-contact-h100' };
+const CONTACT_REGION = { x: 0, z: 0, size: 3.6 }, CONTACT_OPACITY = 1;   // CONTACT_REGION: the bake script's REGION
+const contactTextures = new Map();
+function loadContact(model) {
+  const key = CONTACT[model.accel.id];
+  if (!key || typeof Image === 'undefined') return null;   // unit tests: no image decoding
+  if (!contactTextures.has(key)) contactTextures.set(key, new THREE.TextureLoader().loadAsync(`${import.meta.env?.BASE_URL || '/'}models/${key}.png?v=cs1`)
+    .then(texture => { texture.colorSpace = THREE.NoColorSpace; texture.anisotropy = 4; contactTextures.set(key, texture); return texture; })
+    .catch(() => { contactTextures.delete(key); return null; }));
+  return contactTextures.get(key);
+}
+function contactShadow(model) {
+  const loaded = contactTextures.get(CONTACT[model.accel.id]);
+  if (!loaded?.isTexture) return null;
+  const texture = loaded.clone();   // the level's own, as ownedClone gives it every other texture: disposing the level frees only this
+  const { x, z, size } = CONTACT_REGION, geometry = new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2);
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: texture, transparent: true,
+    opacity: CONTACT_OPACITY, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4 }));
+  // a hair above the floor (the mirror is at 1.6 mm, drawn after this at renderOrder 1), with the mirror's polygon offset
+  mesh.position.set(x, 0.001, z); mesh.renderOrder = -1;
+  mesh.name = 'Rack contact shadow (baked)';
+  // a decal flush on the floor: never a solid for framing or flight clearance, never in the depth/normal passes, never picked
+  Object.assign(mesh.userData, { printed: true, runtimeOverlay: true, contactShadow: true });
+  mesh.castShadow = mesh.receiveShadow = false; mesh.raycast = () => {};
+  return mesh;
 }
 
 function ownedClone(source) {
@@ -208,6 +242,8 @@ function build(kind, native, options) {
     applyPcb(seated, accel, { lod: 'rack', named: PCB_MATERIAL });
     seated.scale.setScalar(1); seated.position.set(frame.x, frame.floor, frame.z);
     hardware.add(seated);   // the rack hardware is at scale 1 (metres), the file's own unit
+    const shadow = contactShadow(options.model);
+    if (shadow) built.scene.add(shadow);
   }
   // Package markings and other prints requested by the native builder, on the authored surfaces.
   realizeSpots(hardware, built.scene, built.printSpots);

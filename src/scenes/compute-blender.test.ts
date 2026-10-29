@@ -517,3 +517,45 @@ it('GB200, GB300 and Rubin tray NVLink and C2C routes stay on the boards and cle
   for(const f of nvl)expect(f.path.getPoint(1).z).toBeLessThan(id==='rubin'?-4.22:-4.14);
  }
 },60000);
+describe('baked rack contact shadow',()=>{
+  const read=(path:string)=>readFileSync(new URL(path,import.meta.url));
+  const script=read('../../tools/blender/bake-contact-shadow.py').toString(),runtime=read('./compute-blender.js').toString();
+  function gray(name:string){
+    const png=read(`../../public/models/${name}.png`),data=[];let w=0,h=0,depth=0,type=-1;
+    for(let at=8;at+12<=png.length;){const n=png.readUInt32BE(at),kind=png.toString('ascii',at+4,at+8);
+      if(kind==='IHDR'){w=png.readUInt32BE(at+8);h=png.readUInt32BE(at+12);depth=png[at+16];type=png[at+17];}
+      if(kind==='IDAT')data.push(png.subarray(at+8,at+8+n));at+=n+12;}
+    const joined=new Uint8Array(data.reduce((n:number,b:any)=>n+b.length,0));let k=0;for(const part of data){joined.set(part,k);k+=part.length;}
+    const raw=inflateSync(joined),rows:Uint8Array[]=[];
+    for(let y=0;y<h;y++){   // filter 2 (Up) on every row, as the bake writes
+      expect(raw[y*(w+1)]).toBe(2);const row=raw.slice(y*(w+1)+1,(y+1)*(w+1));
+      if(y)for(let x=0;x<w;x++)row[x]=(row[x]+rows[y-1][x])&255;rows.push(row);
+    }
+    return {w,h,depth,type,at:(x:number,y:number)=>rows[y][x]};
+  }
+  it('lies on the region the bake rendered, for every accelerator',()=>{
+    const region=script.match(/^REGION = \(([^)]*)\)/m)![1].split(',').map(Number);
+    const js=runtime.match(/CONTACT_REGION = \{ x: ([-\d.]+), z: ([-\d.]+), size: ([\d.]+) \}/)!.slice(1).map(Number);
+    expect(js).toEqual(region);
+    for(const id of ids)expect(runtime).toMatch(new RegExp(`${id}: 'compute-rack-contact-(gb200|h100)'`));
+  });
+  it('seats the pulled tray where the rack level pulls it',()=>{
+    const pulled=Object.fromEntries([...script.match(/^PULLED = \{(.*)\}/m)![1].matchAll(/'(\w+)': \(([^)]*)\)/g)].map(m=>[m[1],m[2].split(',').map(Number)]));
+    for(const id of ids){
+      const f=wrappers[0].build(options(id)).scene.userData.pulledTray;
+      expect(pulled[id].map((v:number,i:number)=>v-[f.x,f.floor,f.z][i]).every((d:number)=>Math.abs(d)<1e-6)).toBe(true);
+    }
+  });
+  it('is a soft grayscale shadow that fades to nothing before the quad edge',()=>{
+    for(const name of ['compute-rack-contact-gb200','compute-rack-contact-h100']){
+      const t=gray(name),[,cz,side]=script.match(/^REGION = \(([^)]*)\)/m)![1].split(',').map(Number);
+      expect([t.w,t.h,t.depth,t.type]).toEqual([512,512,8,0]);
+      for(let i=0;i<512;i++)for(const [x,y] of [[i,0],[i,511],[0,i],[511,i]])expect(t.at(x,y)).toBe(0);
+      const px=(x:number,z:number)=>t.at(Math.round((x/side+.5)*511),Math.round(((z-cz)/side+.5)*511));
+      expect(px(0,0)).toBeGreaterThan(220);   // under the cabinet
+      // beside it: darkest at the base, then falling off, never a solid pedestal
+      const side1=px(.36,0),side2=px(.6,0),side3=px(1,0);
+      expect(side1).toBeGreaterThan(side2);expect(side2).toBeGreaterThan(side3);expect(side1).toBeLessThan(200);expect(side3).toBeLessThan(60);
+    }
+  });
+});
